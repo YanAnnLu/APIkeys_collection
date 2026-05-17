@@ -549,7 +549,7 @@ class ApiCollectionUi:
         tools_menu = Menu(menu_bar, tearoff=0)
         tools_menu.add_command(label="Startup environment checks", command=self.show_environment_checks)
         tools_menu.add_command(label="Recent event logs", command=self.show_event_logs)
-        tools_menu.add_command(label="Repair / verify manifests", command=self.verify_download_manifests)
+        tools_menu.add_command(label="Repair / verify manifests", command=self.open_repair_panel)
         tools_menu.add_command(label="Open downloads folder", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
         menu_bar.add_cascade(label="Tools", menu=tools_menu)
 
@@ -597,7 +597,7 @@ class ApiCollectionUi:
         controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
         ttk.Button(controls, text="Refresh", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text="Self-check", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text="Verify files", style="Action.TButton", command=self.verify_download_manifests).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text="Verify files", style="Action.TButton", command=self.open_repair_panel).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text="Add source", style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text="Gemini / AI", style="Action.TButton", command=self.open_google_gemini_settings).pack(side=LEFT, padx=(0, 10))
         more_button = ttk.Menubutton(controls, text="More", style="Action.TButton")
@@ -1896,6 +1896,12 @@ class ApiCollectionUi:
         self.status_var.set(f"已完成 {scope} 自檢，更新 {count} 筆狀態。")
 
     def verify_download_manifests(self) -> None:
+        results, summary = self.sync_manifest_verification()
+        self.status_var.set(f"File health: {summary}")
+        if any(result.needs_repair for result in results):
+            messagebox.showwarning("File verification", f"Repair needed: {summary}")
+
+    def sync_manifest_verification(self) -> tuple[list[object], dict[str, int]]:
         results = scan_download_manifests()
         summary = repair_summary(results)
         conn = self._connect()
@@ -1913,9 +1919,97 @@ class ApiCollectionUi:
                 )
         finally:
             conn.close()
+        return results, summary
+
+    def open_repair_panel(self) -> None:
+        results, summary = self.sync_manifest_verification()
+        dialog = Toplevel(self.root)
+        dialog.title("Repair / verify manifests")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("1080x640")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text="Repair / verify manifests", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=f"Manifest health: ok={summary.get('ok', 0)}, missing={summary.get('missing', 0)}, size={summary.get('size_mismatch', 0)}, checksum={summary.get('checksum_mismatch', 0)}, manifest={summary.get('manifest_error', 0)}",
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+
+        body = ttk.Frame(dialog, style="Panel.TFrame")
+        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        table = ttk.Treeview(
+            body,
+            columns=("status", "provider", "dataset", "version", "message", "payload"),
+            show="headings",
+            height=13,
+        )
+        for name, label, width in [
+            ("status", "Status", 130),
+            ("provider", "Provider", 140),
+            ("dataset", "Dataset", 150),
+            ("version", "Version", 100),
+            ("message", "Message", 260),
+            ("payload", "Payload", 320),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+
+        detail = Text(body, height=8, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        detail.configure(state="disabled")
+        result_by_iid: dict[str, object] = {}
+        for index, result in enumerate(results):
+            iid = str(index)
+            result_by_iid[iid] = result
+            table.insert(
+                "",
+                END,
+                iid=iid,
+                values=(
+                    result.status,
+                    result.provider_id or "-",
+                    result.dataset_uid or result.dataset_id or "-",
+                    result.version or "-",
+                    result.message,
+                    str(result.payload_path) if result.payload_path else "-",
+                ),
+            )
+
+        def show_selected_result(_event: object | None = None) -> None:
+            selection = table.selection()
+            selected = result_by_iid.get(str(selection[0])) if selection else None
+            detail.configure(state="normal")
+            detail.delete("1.0", END)
+            if selected is None:
+                detail.insert(END, "No manifest selected." if results else "No download manifests found.")
+            else:
+                detail.insert(
+                    END,
+                    "\n".join(
+                        [
+                            f"status: {selected.status}",
+                            f"provider_id: {selected.provider_id or '-'}",
+                            f"dataset_uid: {selected.dataset_uid or '-'}",
+                            f"dataset_id: {selected.dataset_id or '-'}",
+                            f"version: {selected.version or '-'}",
+                            f"message: {selected.message}",
+                            f"manifest_path: {selected.manifest_path}",
+                            f"payload_path: {selected.payload_path}",
+                        ]
+                    ),
+                )
+            detail.configure(state="disabled")
+
+        table.bind("<<TreeviewSelect>>", show_selected_result)
+        table.pack(fill=BOTH, expand=True, pady=(0, 10))
+        detail.pack(fill=BOTH, expand=True)
+        show_selected_result()
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text="Refresh", style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Open downloads folder", style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
         self.status_var.set(f"File health: {summary}")
-        if any(result.needs_repair for result in results):
-            messagebox.showwarning("File verification", f"Repair needed: {summary}")
 
     def crawl_selected(self) -> None:
         provider_ids = self.selected_provider_ids()
