@@ -73,6 +73,8 @@ The report includes Git status, current HEAD, catalog counts, manifest health, r
 GitHub Actions runs a lightweight CI matrix on Windows and Ubuntu for pushes and pull requests to `main`. It runs unit
 tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid platform-specific `.pyc` lock issues.
 
+Chinese setup notes for Windows/macOS/Linux live in `docs/SETUP.zh-TW.md`.
+
 If the project is on a synced Windows drive and `.pyc` writes are locked, use:
 
 ```powershell
