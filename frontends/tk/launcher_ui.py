@@ -722,6 +722,7 @@ class ApiCollectionUi:
 
         integrations_menu = Menu(menu_bar, tearoff=0)
         integrations_menu.add_command(label=self.tr("Google / Gemini 與 AI 設定", "Google / Gemini login and AI"), command=self.open_google_gemini_settings)
+        integrations_menu.add_command(label=self.tr("Google QR 登入", "Google QR login"), command=self.open_google_qr_login_dialog)
         integrations_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         integrations_menu.add_command(label=self.tr("資料儲存連線", "Data store connections"), command=self.open_data_store_connection_settings)
         integrations_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
@@ -2264,6 +2265,7 @@ class ApiCollectionUi:
 
         table.bind("<Double-1>", lambda _event: use_selected())
         ttk.Button(actions, text=self.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=use_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("登入選取模型", "Login selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("貼上本次 API key", "Paste session API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
@@ -2527,6 +2529,7 @@ class ApiCollectionUi:
         secondary_actions = ttk.Frame(actions, style="Panel.TFrame")
         secondary_actions.pack(fill=X)
 
+        ttk.Button(primary_actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_profile("gemini_flash", parent=dialog, start_login=True)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("貼上 Gemini API key", "Paste Gemini API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
@@ -2534,6 +2537,90 @@ class ApiCollectionUi:
         ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
         ttk.Button(secondary_actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(secondary_actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+
+    def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:
+        selection = table.selection()
+        if not selection:
+            messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=parent or self.root)
+            return
+        profile_id = str(selection[0])
+        if self.configure_oauth_client_for_profile(profile_id, parent=parent, start_login=False):
+            profile = next((candidate for candidate in core.ai_summary_profiles() if candidate.id == profile_id), None)
+            if profile:
+                values = list(table.item(profile_id, "values"))
+                values[4] = self.ai_profile_login_status(profile)
+                table.item(profile_id, values=values)
+
+    def configure_oauth_client_for_profile(
+        self,
+        profile_id: str = "gemini_flash",
+        parent: Toplevel | None = None,
+        start_login: bool = False,
+    ) -> bool:
+        profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None)
+        if profile is None:
+            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("找不到這個 AI profile。", "This AI profile was not found."), parent=parent or self.root)
+            return False
+        oauth_config = oauth_device_config_from_profile(profile)
+        if oauth_config is None:
+            messagebox.showinfo(
+                self.tr("此 profile 沒有 QR 登入", "No QR login for this profile"),
+                self.tr(f"{profile.label} 目前沒有 OAuth device-code 設定。", f"{profile.label} has no OAuth device-code settings."),
+                parent=parent or self.root,
+            )
+            return False
+        current_client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
+        client_id = simpledialog.askstring(
+            self.tr("設定 QR 登入 Client ID", "Set QR login client ID"),
+            self.tr(
+                "貼上 Google OAuth Client ID。\n它會存到本機 integration local config，不會提交到 Git。\nClient secret 通常可留空；若你的 Google 專案需要 secret，可之後打開本機設定檔補上 client_secret。",
+                "Paste the Google OAuth Client ID.\nIt will be saved to the local integration config and will not be committed to Git.\nClient secret is usually blank; if your Google project requires it, add client_secret in the local config later.",
+            ),
+            parent=parent or self.root,
+            initialvalue=current_client_id,
+        )
+        if not client_id:
+            return False
+        config = core.ensure_local_integration_config()
+        profiles = config.setdefault("ai_summary_profiles", [])
+        target = next((item for item in profiles if str(item.get("id") or "").strip() == profile_id), None)
+        if target is None:
+            messagebox.showerror(
+                self.tr("AI 設定失敗", "AI setup failed"),
+                self.tr(f"本機設定檔中找不到 profile：{profile_id}", f"Profile not found in local config: {profile_id}"),
+                parent=parent or self.root,
+            )
+            return False
+        oauth_device = target.get("oauth_device") if isinstance(target.get("oauth_device"), dict) else {}
+        oauth_device.update(
+            {
+                "enabled": True,
+                "provider": oauth_config.provider,
+                "client_id": client_id.strip(),
+                "client_id_env": oauth_config.client_id_env,
+                "client_secret_env": oauth_config.client_secret_env,
+                "device_code_url": oauth_config.device_code_url,
+                "token_url": oauth_config.token_url,
+                "verification_url": oauth_config.verification_url,
+                "scopes": list(oauth_config.scopes),
+                "token_env": oauth_config.token_env,
+                "token_store": oauth_config.token_store,
+            }
+        )
+        target["oauth_device"] = oauth_device
+        save_integration_config(config)
+        self.status_var.set(self.tr(f"{profile.label} QR 登入已設定 Client ID。", f"{profile.label} QR login client ID saved."))
+        messagebox.showinfo(
+            self.tr("QR 登入已設定", "QR login configured"),
+            self.tr(
+                "已儲存 Client ID。接下來可以開啟 QR 登入畫面。",
+                "Client ID saved. You can now open the QR login screen.",
+            ),
+            parent=parent or self.root,
+        )
+        if start_login:
+            self.open_ai_profile_login_dialog(profile_id, parent=parent)
+        return True
 
     def configure_ai_api_key_session(self, profile_id: str | None = None) -> None:
         profiles = [profile for profile in core.ai_summary_profiles() if profile.kind != "ollama"]
@@ -2697,6 +2784,13 @@ class ApiCollectionUi:
 
         if qr_payload:
             ttk.Button(actions, text=self.tr("開啟裝置頁面", "Open device page"), style="Action.TButton", command=lambda: webbrowser.open(qr_payload)).pack(side=LEFT, padx=(0, 10))
+        if request.status in {"missing_client_id", "missing_client_id_env"}:
+            def configure_and_restart() -> None:
+                if self.configure_oauth_client_for_profile(profile.id, parent=dialog, start_login=False):
+                    close_dialog()
+                    self.open_ai_profile_login_dialog(profile.id, parent=owner)
+
+            ttk.Button(actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("貼上 API key", "Paste API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
         if request.device_code:

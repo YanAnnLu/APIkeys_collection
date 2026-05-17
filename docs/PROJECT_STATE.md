@@ -79,7 +79,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - AI-generated provider descriptions now use explicit AI profile selection under `設定 > AI 輔助模型`; per-profile
   QR/device OAuth login can store local tokens under `state/private/ai_oauth_tokens/`. The Gemini/Google dialog now
   states plainly that the generation path exists but still needs local Ollama, a Gemini API key, or a usable OAuth
-  token before it can call a model.
+  token before it can call a model. Google QR login now has a direct menu entry and UI-based OAuth Client ID setup
+  saved to local integration config, with environment-variable fallback still supported.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 - Maritime jurisdiction overlays should be modeled as GIS polygon layers with legal/administrative attributes

@@ -109,5 +109,6 @@ python3 APIkeys_collection.py --verify-downloads-json
 | `設定 > 介面語言` | 切換繁中/英文。 |
 | `設定 > AI 輔助模型` | 選擇真正要調用的 AI profile；也可登入選取模型或貼本次 API key。 |
 | `整合 > Google / Gemini 與 AI 設定` | Google/Gemini token 狀態與 QR 登入入口；不負責切換模型。 |
+| `整合 > Google QR 登入` | 直接開啟 Gemini/Google QR 登入；若尚未設定 Client ID，會提供 `設定 QR 登入`。 |
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |

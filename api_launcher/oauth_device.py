@@ -20,6 +20,8 @@ class OAuthDeviceConfig:
     profile_id: str
     label: str
     enabled: bool
+    client_id: str
+    client_secret: str
     client_id_env: str
     client_secret_env: str
     device_code_url: str
@@ -35,6 +37,8 @@ class OAuthDeviceLoginRequest:
     provider: str
     profile_id: str
     label: str
+    client_id: str
+    client_secret: str
     client_id_env: str
     client_secret_env: str
     client_id_available: bool
@@ -84,6 +88,8 @@ def oauth_device_config_from_profile(profile: object) -> OAuthDeviceConfig | Non
         profile_id=profile_id,
         label=str(getattr(profile, "label", "") or profile_id or provider).strip(),
         enabled=bool(raw.get("enabled", True)),
+        client_id=str(raw.get("client_id") or "").strip(),
+        client_secret=str(raw.get("client_secret") or "").strip(),
         client_id_env=str(raw.get("client_id_env") or "").strip(),
         client_secret_env=str(raw.get("client_secret_env") or "").strip(),
         device_code_url=str(raw.get("device_code_url") or "").strip(),
@@ -98,13 +104,12 @@ def oauth_device_config_from_profile(profile: object) -> OAuthDeviceConfig | Non
 def build_oauth_device_login_request(config: OAuthDeviceConfig, timeout: float = 15.0) -> OAuthDeviceLoginRequest:
     if not config.enabled:
         return _empty_request(config, "disabled", f"{config.label} QR/device login is disabled.")
-    if not config.client_id_env:
-        return _empty_request(config, "missing_client_id_env", f"{config.label} has no client_id_env configured.")
     if not config.device_code_url or not config.token_url:
         return _empty_request(config, "missing_oauth_endpoint", f"{config.label} has no OAuth device-code/token endpoint configured.")
-    client_id = os.environ.get(config.client_id_env, "").strip()
+    client_id = config.client_id or (os.environ.get(config.client_id_env, "").strip() if config.client_id_env else "")
     if not client_id:
-        return _empty_request(config, "missing_client_id", f"Set {config.client_id_env} to enable {config.label} QR/device login.")
+        target = config.client_id_env or "oauth_device.client_id"
+        return _empty_request(config, "missing_client_id", f"Set {target} to enable {config.label} QR/device login.")
     try:
         data = _post_form(
             config.device_code_url,
@@ -120,6 +125,8 @@ def build_oauth_device_login_request(config: OAuthDeviceConfig, timeout: float =
         provider=config.provider,
         profile_id=config.profile_id,
         label=config.label,
+        client_id=client_id,
+        client_secret=config.client_secret,
         client_id_env=config.client_id_env,
         client_secret_env=config.client_secret_env,
         client_id_available=True,
@@ -139,10 +146,11 @@ def build_oauth_device_login_request(config: OAuthDeviceConfig, timeout: float =
 
 
 def poll_oauth_device_token(login_request: OAuthDeviceLoginRequest, timeout: float = 15.0) -> OAuthDeviceTokenResult:
-    client_id = os.environ.get(login_request.client_id_env, "").strip()
-    client_secret = os.environ.get(login_request.client_secret_env, "").strip() if login_request.client_secret_env else ""
+    client_id = login_request.client_id or (os.environ.get(login_request.client_id_env, "").strip() if login_request.client_id_env else "")
+    client_secret = login_request.client_secret or (os.environ.get(login_request.client_secret_env, "").strip() if login_request.client_secret_env else "")
     if not client_id:
-        return OAuthDeviceTokenResult("missing_client_id", f"Missing client id environment variable: {login_request.client_id_env}")
+        target = login_request.client_id_env or "oauth_device.client_id"
+        return OAuthDeviceTokenResult("missing_client_id", f"Missing client id: {target}")
     if not login_request.device_code:
         return OAuthDeviceTokenResult("missing_device_code", f"Missing {login_request.label} device_code; start QR login again.")
     try:
@@ -281,6 +289,8 @@ def _empty_request(config: OAuthDeviceConfig, status: str, message: str, client_
         provider=config.provider,
         profile_id=config.profile_id,
         label=config.label,
+        client_id=config.client_id,
+        client_secret=config.client_secret,
         client_id_env=config.client_id_env,
         client_secret_env=config.client_secret_env,
         client_id_available=client_id_available,

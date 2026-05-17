@@ -32,6 +32,7 @@ class OAuthDeviceTests(unittest.TestCase):
             oauth_device={
                 "enabled": True,
                 "provider": "test",
+                "client_id": "",
                 "client_id_env": "TEST_AI_CLIENT_ID",
                 "client_secret_env": "TEST_AI_CLIENT_SECRET",
                 "device_code_url": "https://example.test/device/code",
@@ -106,6 +107,39 @@ class OAuthDeviceTests(unittest.TestCase):
         self.assertEqual("test_ai", request.profile_id)
         self.assertEqual("ABCD-EFGH", request.user_code)
         self.assertEqual("client-id", post_form.call_args.args[1]["client_id"])
+
+    def test_device_request_can_use_saved_client_id_without_env(self) -> None:
+        profile = self.profile()
+        oauth_device = dict(profile.oauth_device)
+        oauth_device["client_id"] = "saved-client-id"
+        profile = AiSummaryProfile(
+            id=profile.id,
+            label=profile.label,
+            kind=profile.kind,
+            enabled=profile.enabled,
+            model=profile.model,
+            endpoint=profile.endpoint,
+            api_key_env=profile.api_key_env,
+            oauth_token_env=profile.oauth_token_env,
+            token_store=profile.token_store,
+            oauth_device=oauth_device,
+        )
+        config = oauth_device_config_from_profile(profile)
+        response = {
+            "device_code": "device-code",
+            "user_code": "ABCD-EFGH",
+            "verification_uri": "https://example.test/device",
+            "expires_in": 1800,
+            "interval": 5,
+        }
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "api_launcher.oauth_device._post_form", return_value=response
+        ) as post_form:
+            request = build_oauth_device_login_request(config)
+
+        self.assertEqual("authorization_pending", request.status)
+        self.assertEqual("saved-client-id", request.client_id)
+        self.assertEqual("saved-client-id", post_form.call_args.args[1]["client_id"])
 
     def test_poll_and_save_token_can_activate_profile_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
