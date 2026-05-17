@@ -36,6 +36,7 @@ reference file, templates, and exports.
 - `APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
 - `APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
 - `APIkeys_collection_ui.py`: lightweight Tk download-guide UI. It lets you browse provider/database sources, run metadata checks, and export a download plan.
+- `.codex/skills/apikeys-collection-launcher/`: project-local Codex skill draft for AI-agent handoff and safe development workflows.
 - `launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.
 - `APIkeys_collection_credentials.private.template.json`: local-only credential template for your own accounts/tokens.
 - `.gitignore`: excludes filled private credential files and Python cache files.

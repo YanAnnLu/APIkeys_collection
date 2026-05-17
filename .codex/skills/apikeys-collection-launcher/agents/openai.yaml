@@ -1,0 +1,4 @@
+interface:
+  display_name: "APIkeys Collection Launcher"
+  short_description: "Develop the Steam-like data source launcher safely."
+  default_prompt: "Help continue developing the APIkeys_collection launcher."
