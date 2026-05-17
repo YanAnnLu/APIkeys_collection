@@ -91,6 +91,14 @@ def init_db(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS provider_preferences (
+            provider_id TEXT PRIMARY KEY REFERENCES providers(provider_id) ON DELETE CASCADE,
+            is_starred INTEGER NOT NULL DEFAULT 0,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            notes TEXT,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS datasets (
             dataset_uid TEXT PRIMARY KEY,
             provider_id TEXT NOT NULL REFERENCES providers(provider_id) ON DELETE CASCADE,

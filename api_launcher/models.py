@@ -64,3 +64,4 @@ class ProviderCatalogEntry:
     update_status: str
     last_downloaded_at: str
     dataset_path: str
+    is_starred: bool

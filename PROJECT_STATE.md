@@ -42,10 +42,17 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/models.py`: dataclasses such as `Provider` and `ProviderCatalogEntry`.
 - `api_launcher/registry.py`: provider catalog JSON loading and provider overlays.
 - `api_launcher/db.py`: project paths, SQLite connection, timestamps, and schema setup.
-- `api_launcher/core.py`: current repository, crawl, export, and CLI coordination layer.
+- `api_launcher/repository.py`: provider seeding, provider queries, UI catalog entries, and starred preferences.
+- `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 
-The next refactor should split `api_launcher/core.py` further into repository, crawl, exports, and CLI modules.
+The next refactor should split `api_launcher/core.py` further into crawl, exports, and CLI modules.
+
+## Launcher Features
+
+- Provider rows can be starred in the Tk UI. Starred rows are persisted in SQLite through
+  `provider_preferences` and sort above normal rows.
+- The sidebar includes a starred-only view for important data sources.
 
 ## Cross-Platform Notes
 

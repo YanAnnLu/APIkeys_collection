@@ -19,6 +19,11 @@ reference file, templates, and exports.
 
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
+- `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
+- `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.
+- `api_launcher/models.py`: provider/catalog dataclasses.
+- `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
+- `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
 - `APIkeys_collection_reference.json`: the crawler credential reference file. The first entry is NOAA's `NOAA_NCEI_CDO_TOKEN` reference. Keep real key values out of this file; put real keys in your shell environment or a private `.env`.
 - `APIkeys_collection.sqlite`: local SQLite database for providers, credential placeholders, and crawl metadata.
 - `.env.example`: environment-variable template generated from the database.

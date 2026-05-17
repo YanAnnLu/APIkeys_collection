@@ -38,6 +38,20 @@ COLORS = {
 }
 
 
+TABLE_COLUMNS = (
+    ("star", "★", 56, "center", False),
+    ("install", "選取", 72, "center", False),
+    ("name", "名稱", 320, "w", True),
+    ("category", "類別", 220, "w", True),
+    ("auth", "認證", 200, "w", True),
+    ("status", "狀態", 100, "center", False),
+    ("update", "遠端更新", 110, "center", False),
+    ("local", "本地納管", 110, "center", False),
+    ("scope", "範圍", 120, "w", False),
+    ("action", "操作", 96, "center", False),
+)
+
+
 class ProviderRow:
     def __init__(self, entry: core.ProviderCatalogEntry):
         self.provider_id = entry.provider_id
@@ -59,10 +73,15 @@ class ProviderRow:
         self.update_status = entry.update_status
         self.last_downloaded_at = entry.last_downloaded_at
         self.dataset_path = entry.dataset_path
+        self.is_starred = entry.is_starred
 
     @property
     def category_label(self) -> str:
         return ", ".join(self.categories)
+
+    @property
+    def star_label(self) -> str:
+        return "★" if self.is_starred else "☆"
 
     @property
     def status_label(self) -> str:
@@ -161,6 +180,7 @@ class ApiCollectionUi:
 
         ttk.Label(sidebar, text="API DATA\nCOLLECTION", style="SidebarTitle.TLabel", justify=LEFT).pack(anchor="w", padx=28, pady=(34, 32))
         for label, category in [
+            ("★ 置頂資料源", "starred"),
             ("全部資料源", "all"),
             ("NOAA", "noaa"),
             ("氣象 / 氣候", "weather"),
@@ -194,28 +214,14 @@ class ApiCollectionUi:
 
         table_frame = ttk.Frame(main, style="Panel.TFrame")
         table_frame.pack(fill=BOTH, expand=True, padx=36, pady=(0, 20))
-        columns = ("install", "name", "category", "auth", "status", "update", "local", "scope", "action")
+        columns = tuple(column[0] for column in TABLE_COLUMNS)
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
-        self.tree.heading("install", text="選取")
-        self.tree.heading("name", text="名稱")
-        self.tree.heading("category", text="類別")
-        self.tree.heading("auth", text="認證")
-        self.tree.heading("status", text="狀態")
-        self.tree.heading("update", text="遠端更新")
-        self.tree.heading("local", text="本地納管")
-        self.tree.heading("scope", text="範圍")
-        self.tree.heading("action", text="操作")
-        self.tree.column("install", width=72, anchor="center", stretch=False)
-        self.tree.column("name", width=340, anchor="w")
-        self.tree.column("category", width=230, anchor="w")
-        self.tree.column("auth", width=210, anchor="w")
-        self.tree.column("status", width=110, anchor="center", stretch=False)
-        self.tree.column("update", width=110, anchor="center", stretch=False)
-        self.tree.column("local", width=110, anchor="center", stretch=False)
-        self.tree.column("scope", width=130, anchor="w", stretch=False)
-        self.tree.column("action", width=96, anchor="center", stretch=False)
+        for name, label, width, anchor, stretch in TABLE_COLUMNS:
+            self.tree.heading(name, text=label)
+            self.tree.column(name, width=width, anchor=anchor, stretch=stretch)
         self.tree.tag_configure("has_action", foreground=COLORS["text"])
         self.tree.tag_configure("remote_updated", foreground=COLORS["accent"])
+        self.tree.tag_configure("starred", foreground=COLORS["accent"])
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
@@ -248,11 +254,13 @@ class ApiCollectionUi:
         category = self.category_var.get()
         filtered = []
         for row in self.rows:
+            if category == "starred" and not row.is_starred:
+                continue
             if category == "noaa" and "noaa" not in row.provider_id.lower() and "noaa" not in row.owner.lower():
                 continue
             if category == "requires_key" and not row.key_env_var:
                 continue
-            if category not in ("all", "noaa", "requires_key") and category not in row.categories:
+            if category not in ("all", "starred", "noaa", "requires_key") and category not in row.categories:
                 continue
             haystack = " ".join([row.provider_id, row.name, row.owner, row.category_label, row.auth_type, row.notes]).lower()
             if query and query not in haystack:
@@ -267,6 +275,8 @@ class ApiCollectionUi:
         for row in self.filtered_rows:
             checked = "✓" if self.selected[row.provider_id].get() else ""
             tags = []
+            if row.is_starred:
+                tags.append("starred")
             if row.action_label:
                 tags.append("has_action")
             if row.update_status == "remote_updated":
@@ -276,6 +286,7 @@ class ApiCollectionUi:
                 END,
                 iid=row.provider_id,
                 values=(
+                    row.star_label,
                     checked,
                     row.name,
                     row.category_label,
@@ -299,9 +310,22 @@ class ApiCollectionUi:
         if not item:
             return
         if column == "#1":
+            self.toggle_star(item)
+        elif column == "#2":
             self.toggle_provider(item)
-        elif column == "#9":
+        elif column == f"#{len(TABLE_COLUMNS)}":
             self.run_row_action(item)
+
+    def toggle_star(self, provider_id: str) -> None:
+        conn = self._connect()
+        try:
+            is_starred = core.ApiCatalogRepository(conn).toggle_provider_starred(provider_id)
+        finally:
+            conn.close()
+        row = self.row_by_provider_id(provider_id)
+        label = row.name if row else provider_id
+        self.reload_data()
+        self.status_var.set(f"{'已置頂' if is_starred else '已取消置頂'}：{label}")
 
     def toggle_provider(self, provider_id: str) -> None:
         var = self.selected[provider_id]
