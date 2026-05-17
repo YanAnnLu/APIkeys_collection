@@ -16,7 +16,7 @@ import threading
 import urllib.parse
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, Text, Tk, Toplevel, messagebox, simpledialog
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
 from tkinter import ttk
 
 import APIkeys_collection as core
@@ -452,6 +452,8 @@ class ApiCollectionUi:
         self.resize_after_id: str | None = None
         self.column_width_overrides = self.load_column_width_overrides()
         self.resizing_column_name: str | None = None
+        self.table_resize_cursor = self.supported_cursor(("sb_h_double_arrow", "resizeleft", "resizeright", "fleur"))
+        self.tree_default_cursor = ""
         self.download_policy = core.active_download_policy()
         self.download_queue = NonBlockingDownloadQueue(
             HTTPDownloadAdapter(policy=self.download_policy),
@@ -478,6 +480,21 @@ class ApiCollectionUi:
         if self.ui_language == "en-US" and en_us:
             return en_us
         return zh_tw
+
+    def supported_cursor(self, candidates: tuple[str, ...]) -> str:
+        original = self.root.cget("cursor")
+        for cursor in candidates:
+            try:
+                self.root.configure(cursor=cursor)
+                self.root.configure(cursor=original)
+                return cursor
+            except TclError:
+                continue
+        try:
+            self.root.configure(cursor=original)
+        except TclError:
+            pass
+        return original or "arrow"
 
     def load_column_width_overrides(self) -> dict[str, int]:
         raw_widths = core.load_integration_config().get("ui_table_column_widths")
@@ -764,6 +781,7 @@ class ApiCollectionUi:
         for name, label, _ratio, min_width, _max_width, anchor, stretch in TABLE_COLUMNS:
             self.tree.heading(name, text=label)
             self.tree.column(name, width=min_width, anchor=anchor, stretch=stretch)
+        self.tree_default_cursor = str(self.tree.cget("cursor") or "")
         self.tree.tag_configure("has_action", foreground=COLORS["text"])
         self.tree.tag_configure("remote_updated", foreground=COLORS["accent"])
         self.tree.tag_configure("starred", foreground=COLORS["accent"])
@@ -776,6 +794,8 @@ class ApiCollectionUi:
         self.tree.bind("<ButtonPress-1>", self.on_tree_button_press, add="+")
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
         self.tree.bind("<ButtonRelease-1>", self.on_tree_button_release, add="+")
+        self.tree.bind("<Motion>", self.on_tree_motion, add="+")
+        self.tree.bind("<Leave>", self.on_tree_leave, add="+")
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         self.tree.bind("<Double-1>", self.on_tree_double_click)
         self.tree.bind("<Button-3>", self.on_tree_context_menu)
@@ -1009,12 +1029,15 @@ class ApiCollectionUi:
     def on_tree_button_press(self, event: object) -> None:
         region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
         self.resizing_column_name = self.table_column_name_from_event(event) if region == "separator" else None
+        if self.resizing_column_name:
+            self.set_tree_cursor(self.table_resize_cursor)
 
-    def on_tree_button_release(self, _event: object) -> None:
+    def on_tree_button_release(self, event: object) -> None:
         if not self.resizing_column_name:
             return
         name = self.resizing_column_name
         self.resizing_column_name = None
+        self.on_tree_motion(event)
         self.root.after_idle(lambda column_name=name: self.finish_tree_column_resize(column_name))
 
     def finish_tree_column_resize(self, name: str) -> None:
@@ -1030,6 +1053,26 @@ class ApiCollectionUi:
         self.save_column_width_overrides()
         self.resize_table_columns()
         self.status_var.set(self.tr("已重設表格欄寬。", "Table column widths reset."))
+
+    def on_tree_motion(self, event: object) -> None:
+        if self.resizing_column_name:
+            self.set_tree_cursor(self.table_resize_cursor)
+            return
+        region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
+        cursor = self.table_resize_cursor if region == "separator" else self.tree_default_cursor
+        self.set_tree_cursor(cursor)
+
+    def on_tree_leave(self, _event: object) -> None:
+        if not self.resizing_column_name:
+            self.set_tree_cursor(self.tree_default_cursor)
+
+    def set_tree_cursor(self, cursor: str) -> None:
+        if str(self.tree.cget("cursor") or "") == cursor:
+            return
+        try:
+            self.tree.configure(cursor=cursor)
+        except TclError:
+            self.tree.configure(cursor=self.tree_default_cursor)
 
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
