@@ -34,19 +34,18 @@ Current SQLite counts observed on this machine:
 - `dataset_sync_state`: 0
 - `render_bridge_assets`: 0
 
-## Structural Concern
+## Structural Progress
 
-The main file is too large. It was reduced by moving the provider registry out of Python, but it is still over 1000 lines. The next refactor should split it into modules instead of continuing to grow one script.
-
-Suggested module split:
+The root `APIkeys_collection.py` is now a thin compatibility entry point. The old core has moved into the
+`api_launcher` package, and the first stable modules have been split out:
 
 - `api_launcher/models.py`: dataclasses such as `Provider` and `ProviderCatalogEntry`.
-- `api_launcher/registry.py`: built-in providers and JSON registry loading.
-- `api_launcher/db.py`: SQLite connection and schema migrations.
-- `api_launcher/repository.py`: `ApiCatalogRepository`.
-- `api_launcher/crawl.py`: metadata fetch and crawl status updates.
-- `api_launcher/exports.py`: JSON/CSV/Markdown/template writers.
-- `APIkeys_collection.py`: thin CLI compatibility wrapper.
+- `api_launcher/registry.py`: provider catalog JSON loading and provider overlays.
+- `api_launcher/db.py`: project paths, SQLite connection, timestamps, and schema setup.
+- `api_launcher/core.py`: current repository, crawl, export, and CLI coordination layer.
+- `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
+
+The next refactor should split `api_launcher/core.py` further into repository, crawl, exports, and CLI modules.
 
 ## Cross-Platform Notes
 

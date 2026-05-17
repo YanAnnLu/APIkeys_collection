@@ -17,7 +17,8 @@ All default paths are resolved relative to this folder, not relative to your ter
 You can move the whole `APIkeys_collection/` folder elsewhere and the crawler will still find its database,
 reference file, templates, and exports.
 
-- `APIkeys_collection.py`: the crawler/catalog builder. It reads the provider registry, reads the key reference file, initializes SQLite, generates templates, and optionally fetches small official metadata pages.
+- `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
+- `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `APIkeys_collection_reference.json`: the crawler credential reference file. The first entry is NOAA's `NOAA_NCEI_CDO_TOKEN` reference. Keep real key values out of this file; put real keys in your shell environment or a private `.env`.
 - `APIkeys_collection.sqlite`: local SQLite database for providers, credential placeholders, and crawl metadata.
 - `.env.example`: environment-variable template generated from the database.
