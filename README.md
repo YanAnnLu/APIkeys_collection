@@ -73,6 +73,10 @@ provider catalog -> dataset catalog -> selectable source list -> metadata crawl/
 The current UI lists provider/database sources. Actual dataset-level packs, such as NOAA dataset IDs or NASA CMR collections, should be added through provider-specific adapters in a later stage.
 Rows with detected remote metadata changes show a `Refresh` action at the right edge. In the current version this refreshes metadata only; later downloader/importer stages can reuse the same action for real local data refreshes.
 
+The download plan is the launcher's cart/install queue. Users browse provider rows, add sources to the plan,
+review the plan panel, and export a JSON task list for later dataset adapters. The exported file is intentionally
+machine-readable so future workers can turn planned providers into real downloads, imports, and update checks.
+
 The strict update target is local-vs-remote equivalence: each dataset should eventually have a remote fingerprint
 and a local fingerprint. A row is current only when the local imported data matches the provider's current dataset
 metadata/version/checksum. Provider pages are only a first approximation; precise checks require provider-specific

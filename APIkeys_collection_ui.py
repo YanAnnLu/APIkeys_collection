@@ -40,7 +40,7 @@ COLORS = {
 
 TABLE_COLUMNS = (
     ("star", "★", 0.04, 44, 64, "center", False),
-    ("install", "選取", 0.055, 58, 78, "center", False),
+    ("install", "計畫", 0.055, 58, 78, "center", False),
     ("name", "名稱", 0.24, 180, 420, "w", True),
     ("category", "類別", 0.18, 150, 320, "w", True),
     ("auth", "認證", 0.17, 145, 300, "w", True),
@@ -266,6 +266,8 @@ class ApiCollectionUi:
         self.search_var = StringVar()
         self.category_var = StringVar(value="all")
         self.status_var = StringVar(value="準備就緒")
+        self.plan_name_var = StringVar(value="Untitled download plan")
+        self.plan_count_var = StringVar(value="Download Plan：0 個資料源")
         self.selected: dict[str, BooleanVar] = {}
         self.rows: list[ProviderRow] = []
         self.filtered_rows: list[ProviderRow] = []
@@ -384,6 +386,8 @@ class ApiCollectionUi:
 
         self._build_detail_panel(content)
 
+        self._build_download_plan_panel(main, outer_pad)
+
         bottom = ttk.Frame(main, style="App.TFrame")
         bottom.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
         ttk.Label(bottom, textvariable=self.status_var, style="Muted.TLabel").pack(anchor="w")
@@ -442,6 +446,31 @@ class ApiCollectionUi:
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="編輯描述", style="Action.TButton", command=self.edit_active_provider).pack(fill=X)
+
+    def _build_download_plan_panel(self, parent: ttk.Frame, outer_pad: int) -> None:
+        plan = ttk.Frame(parent, style="Panel.TFrame")
+        plan.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
+
+        header = ttk.Frame(plan, style="Panel.TFrame")
+        header.pack(fill=X, padx=14, pady=(12, 8))
+        ttk.Label(header, textvariable=self.plan_count_var, style="DetailSection.TLabel").pack(side=LEFT)
+        ttk.Entry(header, textvariable=self.plan_name_var, font=("Helvetica", 12), width=34).pack(side=LEFT, padx=(14, 8))
+        ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
+
+        columns = ("name", "auth", "scope", "status")
+        self.cart_tree = ttk.Treeview(plan, columns=columns, show="headings", height=4, selectmode="browse")
+        for name, label, width, anchor in [
+            ("name", "資料源", 280, "w"),
+            ("auth", "認證", 180, "w"),
+            ("scope", "範圍", 130, "w"),
+            ("status", "計畫狀態", 140, "center"),
+        ]:
+            self.cart_tree.heading(name, text=label)
+            self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
+        self.cart_tree.pack(fill=X, padx=14, pady=(0, 12))
+        self.cart_tree.bind("<<TreeviewSelect>>", self.on_cart_select)
 
     def open_detail_drawer(self) -> None:
         if not self.active_provider_id and self.filtered_rows:
@@ -505,11 +534,16 @@ class ApiCollectionUi:
         self.rows = [ProviderRow(entry) for entry in entries]
         for row in self.rows:
             self.selected.setdefault(row.provider_id, BooleanVar(value=False))
+        known_ids = {row.provider_id for row in self.rows}
+        for provider_id in list(self.selected):
+            if provider_id not in known_ids:
+                del self.selected[provider_id]
         self.apply_filter()
         if self.active_provider_id not in {row.provider_id for row in self.rows}:
             self.active_provider_id = self.rows[0].provider_id if self.rows else ""
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.update_download_plan_panel()
         self.status_var.set(f"已載入 {len(self.rows)} 個資料源。")
 
     def apply_filter(self) -> None:
@@ -566,6 +600,7 @@ class ApiCollectionUi:
             self.tree.selection_set(self.active_provider_id)
             self.tree.focus(self.active_provider_id)
         self.resize_table_columns()
+        self.update_download_plan_panel()
         self.status_var.set(f"顯示 {len(self.filtered_rows)} / {len(self.rows)} 個資料源。")
 
     def on_tree_click(self, event: object) -> None:
@@ -613,6 +648,9 @@ class ApiCollectionUi:
         var = self.selected[provider_id]
         var.set(not var.get())
         self.render_table()
+        row = self.row_by_provider_id(provider_id)
+        label = row.name if row else provider_id
+        self.status_var.set(f"{'已加入下載計畫' if var.get() else '已移出下載計畫'}：{label}")
 
     def selected_provider_ids(self) -> list[str]:
         return [provider_id for provider_id, var in self.selected.items() if var.get()]
@@ -620,6 +658,52 @@ class ApiCollectionUi:
     def selected_rows(self) -> list[ProviderRow]:
         selected_ids = set(self.selected_provider_ids())
         return [row for row in self.rows if row.provider_id in selected_ids]
+
+    def update_download_plan_panel(self) -> None:
+        if not hasattr(self, "cart_tree"):
+            return
+        for item in self.cart_tree.get_children():
+            self.cart_tree.delete(item)
+        rows = self.selected_rows()
+        for row in rows:
+            self.cart_tree.insert(
+                "",
+                END,
+                iid=row.provider_id,
+                values=(row.name, row.auth_type, row.geographic_scope, "planned"),
+            )
+        self.plan_count_var.set(f"Download Plan：{len(rows)} 個資料源")
+
+    def on_cart_select(self, _event: object) -> None:
+        selection = self.cart_tree.selection()
+        if not selection:
+            return
+        self.active_provider_id = str(selection[0])
+        if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
+            self.tree.selection_set(self.active_provider_id)
+            self.tree.focus(self.active_provider_id)
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+
+    def remove_selected_from_plan(self) -> None:
+        selection = self.cart_tree.selection()
+        if not selection:
+            messagebox.showinfo("尚未選取", "請先在下載計畫中選取一個資料源。")
+            return
+        provider_id = str(selection[0])
+        self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
+        self.render_table()
+        row = self.row_by_provider_id(provider_id)
+        self.status_var.set(f"已移出下載計畫：{row.name if row else provider_id}")
+
+    def clear_download_plan(self) -> None:
+        if not self.selected_provider_ids():
+            self.status_var.set("下載計畫已經是空的。")
+            return
+        for var in self.selected.values():
+            var.set(False)
+        self.render_table()
+        self.status_var.set("已清空下載計畫。")
 
     def row_by_provider_id(self, provider_id: str) -> ProviderRow | None:
         return next((row for row in self.rows if row.provider_id == provider_id), None)
@@ -841,15 +925,15 @@ class ApiCollectionUi:
         finally:
             conn.close()
         self.reload_data()
-        scope = "選取項目" if provider_ids else "全部資料源"
+        scope = "下載計畫" if provider_ids else "全部資料源"
         self.status_var.set(f"已完成 {scope} 自檢，更新 {count} 筆狀態。")
 
     def crawl_selected(self) -> None:
         provider_ids = self.selected_provider_ids()
         if not provider_ids:
-            messagebox.showinfo("尚未選取", "請先勾選至少一個資料源。")
+            messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
             return
-        self.status_var.set(f"正在爬取 {len(provider_ids)} 個資料源的 metadata...")
+        self.status_var.set(f"正在爬取下載計畫中 {len(provider_ids)} 個資料源的 metadata...")
         self.crawl_provider_ids(provider_ids)
 
     def crawl_provider_ids(self, provider_ids: list[str]) -> None:
@@ -883,13 +967,19 @@ class ApiCollectionUi:
     def export_download_plan(self) -> None:
         rows = self.selected_rows()
         if not rows:
-            messagebox.showinfo("尚未選取", "請先勾選至少一個資料源。")
+            messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
             return
+        plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
         payload = {
             "schema_version": 1,
             "created_at": core.utc_now_iso(),
+            "plan_name": plan_name,
             "role": "download plan only; no bulk data has been downloaded",
             "downstream_renderer": "taichi_global_bathymetry.py",
+            "summary": {
+                "provider_count": len(rows),
+                "status": "planned",
+            },
             "providers": [
                 {
                     "provider_id": row.provider_id,
@@ -902,6 +992,9 @@ class ApiCollectionUi:
                     "api_base_url": row.api_base_url,
                     "signup_url": row.signup_url,
                     "geographic_scope": row.geographic_scope,
+                    "plan_status": "planned",
+                    "priority": "normal",
+                    "target": "local_dataset_or_database",
                     "notes": row.notes,
                 }
                 for row in rows
@@ -909,8 +1002,8 @@ class ApiCollectionUi:
         }
         output_path = SCRIPT_DIR / DOWNLOAD_PLAN_NAME
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        self.status_var.set(f"已匯出下載計畫：{output_path.name}")
-        messagebox.showinfo("匯出完成", f"已建立 {output_path}")
+        self.status_var.set(f"已匯出下載計畫：{plan_name} ({len(rows)} 個資料源)")
+        messagebox.showinfo("匯出完成", f"已建立 {output_path}\n\nPlan: {plan_name}")
 
     def open_selected_docs(self) -> None:
         rows = self.selected_rows()
@@ -918,7 +1011,7 @@ class ApiCollectionUi:
             selection = self.tree.selection()
             rows = [row for row in self.rows if row.provider_id in selection]
         if not rows:
-            messagebox.showinfo("尚未選取", "請先勾選或點選一個資料源。")
+            messagebox.showinfo("尚未選取", "請先加入下載計畫或點選一個資料源。")
             return
         for row in rows[:5]:
             webbrowser.open(row.docs_url or row.signup_url or row.api_base_url)

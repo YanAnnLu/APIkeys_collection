@@ -56,6 +56,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Provider descriptions now open in an on-demand right-side drawer instead of a permanently cramped side panel.
 - The Tk UI now uses ratio-based sizing for the window, sidebar, detail drawer, row height, and table columns so it behaves better across Windows/macOS displays and DPI settings.
 - Users can add new provider/API sources and edit launcher descriptions directly from the UI.
+- The UI now has an explicit Download Plan panel, which acts like a cart/install queue for selected data sources.
+  Exports include a plan name, provider count, planned status, priority, and target fields for future workers.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 
