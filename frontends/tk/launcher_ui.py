@@ -2563,6 +2563,7 @@ class ApiCollectionUi:
         profile_id: str = "gemini_flash",
         parent: Toplevel | None = None,
         start_login: bool = False,
+        continue_to_browser: bool = False,
     ) -> bool:
         profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None)
         if profile is None:
@@ -2577,15 +2578,110 @@ class ApiCollectionUi:
             )
             return False
         current_client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
-        client_id = simpledialog.askstring(
-            self.tr("Google OAuth Client ID", "Google OAuth Client ID"),
+        client_id = self.ask_oauth_client_id_with_guide(profile.label, current_client_id, parent=parent or self.root)
+        if not client_id:
+            return False
+        if not self.save_oauth_client_id_for_profile(profile_id, oauth_config, client_id.strip(), parent=parent or self.root):
+            return False
+        self.status_var.set(self.tr(f"{profile.label} 已儲存 Google OAuth Client ID。", f"{profile.label} Google OAuth Client ID saved."))
+        messagebox.showinfo(
+            self.tr("Google 登入已設定", "Google login configured"),
             self.tr(
-                "這不是 Gmail，也不是 API key。\n這是 Google Cloud Console 裡替「這個桌面程式」建立的 OAuth Client ID。\n設定一次後，launcher 就能打開 Google 登入頁，讓你選帳號或使用 Google 提供的手機確認 / 掃碼登入。\n\nClient ID 會存到本機 integration local config，不會提交到 Git。",
-                "This is not a Gmail address and not an API key.\nIt is the OAuth Client ID created in Google Cloud Console for this desktop app.\nAfter it is saved once, the launcher can open Google's login page so you can choose an account or use Google's phone/QR options.\n\nThe Client ID is saved to local integration config and is not committed to Git.",
+                "已儲存 Client ID。接下來可以開啟 Google 帳號登入。",
+                "Client ID saved. You can now start Google account login.",
             ),
             parent=parent or self.root,
-            initialvalue=current_client_id,
         )
+        if start_login:
+            self.open_ai_profile_login_dialog(profile_id, parent=parent)
+        if continue_to_browser:
+            self.open_ai_profile_browser_login_dialog(profile_id, parent=parent)
+        return True
+
+    def ask_oauth_client_id_with_guide(self, profile_label: str, current_client_id: str = "", parent: Toplevel | Tk | None = None) -> str:
+        owner = parent or self.root
+        dialog = Toplevel(owner)
+        dialog.title(self.tr("Google 登入前置設定", "Google login setup"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("720x520")
+        dialog.transient(owner)
+        dialog.grab_set()
+        result: dict[str, str] = {"client_id": ""}
+
+        ttk.Label(dialog, text=self.tr("Google 登入前置設定", "Google login setup"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "這個畫面不是 Google 登入，也不是要你的 Gmail、密碼或 API key。它是在設定「這個 launcher 以什麼 App 身分向 Google 要授權」。",
+                "This screen is not Google sign-in, and it is not asking for your Gmail, password, or API key. It sets the app identity this launcher uses when asking Google for authorization.",
+            ),
+            style="DetailMuted.TLabel",
+            wraplength=660,
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 12))
+
+        explanation = Text(dialog, height=11, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
+        explanation.pack(fill=X, padx=24, pady=(0, 14))
+        explanation.insert(
+            "1.0",
+            self.tr(
+                "\n".join(
+                    [
+                        f"目前要設定：{profile_label}",
+                        "",
+                        "白話說，Google 登入分兩步：",
+                        "1. App 身分：Google 先確認是哪個 App 要請你授權。這就是 OAuth Client ID。",
+                        "2. 使用者登入：App 身分存在後，launcher 才會打開 Google 網頁，讓你選帳號或使用 Google 提供的手機確認 / 掃碼登入。",
+                        "",
+                        "如果這個 launcher 未來有正式打包版，這個 Client ID 可以內建；現在是開發期，所以要先在你的 Google Cloud Console 建立一次 Desktop app OAuth client。",
+                    ]
+                ),
+                "\n".join(
+                    [
+                        f"Current profile: {profile_label}",
+                        "",
+                        "Plainly, Google login has two steps:",
+                        "1. App identity: Google first checks which app is asking for authorization. This is the OAuth Client ID.",
+                        "2. User sign-in: after the app identity exists, the launcher opens Google's page so you can choose an account or use Google's phone/QR options.",
+                        "",
+                        "A packaged release can ship with its own Client ID. During development, create a Desktop app OAuth client once in your Google Cloud Console.",
+                    ]
+                ),
+            ),
+        )
+        explanation.configure(state="disabled")
+
+        form = ttk.Frame(dialog, style="Panel.TFrame")
+        form.pack(fill=X, padx=24, pady=(0, 14))
+        ttk.Label(form, text=self.tr("OAuth Client ID", "OAuth Client ID"), style="DetailSection.TLabel").pack(anchor="w")
+        client_id_var = StringVar(value=current_client_id)
+        client_entry = ttk.Entry(form, textvariable=client_id_var, font=("Helvetica", 12))
+        client_entry.pack(fill=X, pady=(6, 0))
+        client_entry.focus_set()
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+
+        def save_and_close() -> None:
+            result["client_id"] = client_id_var.get().strip()
+            dialog.destroy()
+
+        def cancel() -> None:
+            result["client_id"] = ""
+            dialog.destroy()
+
+        ttk.Button(
+            actions,
+            text=self.tr("開啟 Google Cloud OAuth 設定頁", "Open Google Cloud OAuth setup"),
+            style="Action.TButton",
+            command=lambda: webbrowser.open("https://console.cloud.google.com/apis/credentials"),
+        ).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("儲存後繼續登入", "Save and continue login"), style="Action.TButton", command=save_and_close).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=cancel).pack(side=RIGHT)
+        dialog.protocol("WM_DELETE_WINDOW", cancel)
+        owner.wait_window(dialog)
+        return result["client_id"]
+
+    def save_oauth_client_id_for_profile(self, profile_id: str, oauth_config: object, client_id: str, parent: Toplevel | Tk | None = None) -> bool:
         if not client_id:
             return False
         config = core.ensure_local_integration_config()
@@ -2617,17 +2713,6 @@ class ApiCollectionUi:
         )
         target["oauth_device"] = oauth_device
         save_integration_config(config)
-        self.status_var.set(self.tr(f"{profile.label} 已儲存 Google OAuth Client ID。", f"{profile.label} Google OAuth Client ID saved."))
-        messagebox.showinfo(
-            self.tr("Google 登入已設定", "Google login configured"),
-            self.tr(
-                "已儲存 Client ID。接下來可以開啟 Google 帳號登入。",
-                "Client ID saved. You can now start Google account login.",
-            ),
-            parent=parent or self.root,
-        )
-        if start_login:
-            self.open_ai_profile_login_dialog(profile_id, parent=parent)
         return True
 
     def configure_ai_api_key_session(self, profile_id: str | None = None) -> None:
