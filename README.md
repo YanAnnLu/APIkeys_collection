@@ -24,6 +24,7 @@ reference file, templates, and exports.
 - `api_launcher/models.py`: provider/catalog dataclasses.
 - `api_launcher/plans.py`: shared Download Plan JSON schema builder.
 - `api_launcher/adapters/`: dataset-adapter interfaces. Adapters discover dataset records without downloading bulk data.
+- `api_launcher/curation.py`: small, testable data-cleaning primitives for normalizing records after API/download ingestion.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
 - `api_launcher/integrations.py`: local integration profiles for database clients and optional AI summaries.
@@ -89,12 +90,19 @@ Local installs use a launcher registry instead of path/name guessing. `provider_
 as files, schemas, tables, or future SQL uninstall commands. This is meant to prevent duplicate installs and avoid
 leaving dead registry entries when a source is unmanaged or removed.
 
+Assets also carry provenance: `asset_role`, `source_format`, `source_uri`, and `schema_fingerprint`. This separates
+official source imports from curated CSV/JSON/manual imports and derived analysis outputs. A user-written table pushed
+back into SQL should be registered as `derived` or `curated`, not compared directly against upstream provider metadata.
+
 SQL uninstall commands are generated only for validated identifiers and stored as registry metadata first. For example,
 a MySQL database asset can store `DROP DATABASE IF EXISTS \`sample_db\`;`, but destructive execution stays disabled
 until a database adapter can verify the target connection and ownership.
 
 Dataset adapters should return `Dataset` records first, then let later downloader/importer workers create local assets.
 This keeps discovery, download, import, and uninstall as separate stages.
+
+Downloaded API data still needs curation. The `curation` layer is where raw records are renamed, type-cast,
+deduplicated, checked for required fields, and eventually normalized for database/import targets.
 
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for

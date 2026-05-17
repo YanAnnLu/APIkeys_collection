@@ -117,10 +117,17 @@ def init_db(conn: sqlite3.Connection) -> None:
             asset_id TEXT PRIMARY KEY,
             install_id TEXT NOT NULL REFERENCES provider_installations(install_id) ON DELETE CASCADE,
             asset_kind TEXT NOT NULL,
+            asset_role TEXT NOT NULL DEFAULT 'source',
+            derived_from_asset_id TEXT,
             engine TEXT,
             asset_name TEXT NOT NULL,
+            source_format TEXT NOT NULL DEFAULT 'unknown',
+            source_uri TEXT,
+            schema_fingerprint TEXT,
             uninstall_command TEXT,
             status TEXT NOT NULL DEFAULT 'managed',
+            last_verified_at TEXT,
+            last_verify_error TEXT,
             notes TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -190,6 +197,13 @@ def init_db(conn: sqlite3.Connection) -> None:
         """
     )
     ensure_column(conn, "crawl_results", "extracted_json", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "last_verified_at", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "last_verify_error", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "asset_role", "TEXT NOT NULL DEFAULT 'source'")
+    ensure_column(conn, "provider_installation_assets", "derived_from_asset_id", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "source_format", "TEXT NOT NULL DEFAULT 'unknown'")
+    ensure_column(conn, "provider_installation_assets", "source_uri", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "schema_fingerprint", "TEXT")
     conn.commit()
 
 

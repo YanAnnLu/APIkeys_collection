@@ -7,8 +7,11 @@ import uuid
 from pathlib import Path
 from typing import Iterable
 
+from api_launcher.asset_roles import normalize_asset_role
+from api_launcher.asset_verifier import AssetRecord, AssetVerifier, RegistryOnlyVerifier
 from api_launcher.db import SCRIPT_DIR, init_db, resolve_project_path, utc_now_iso
 from api_launcher.models import Dataset, Provider, ProviderCatalogEntry
+from api_launcher.provenance import normalize_source_format
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
 from api_launcher.sql_assets import database_uninstall_command
 
@@ -479,7 +482,12 @@ class ApiCatalogRepository:
         install_id: str,
         asset_kind: str,
         asset_name: str,
+        asset_role: str = "source",
+        derived_from_asset_id: str = "",
         engine: str = "",
+        source_format: str = "unknown",
+        source_uri: str = "",
+        schema_fingerprint: str = "",
         uninstall_command: str = "",
         notes: str = "",
     ) -> str:
@@ -491,8 +499,13 @@ class ApiCatalogRepository:
             raise ValueError(f"Unknown install_id: {install_id}")
         now = utc_now_iso()
         asset_kind = asset_kind.strip()
+        asset_role = normalize_asset_role(asset_role)
+        derived_from_asset_id = derived_from_asset_id.strip()
         engine = engine.strip()
         asset_name = asset_name.strip()
+        source_format = normalize_source_format(source_format)
+        source_uri = source_uri.strip()
+        schema_fingerprint = schema_fingerprint.strip()
         if not asset_kind or not asset_name:
             raise ValueError("asset_kind and asset_name are required")
         asset_id = provider_asset_id(install_id, asset_kind, engine, asset_name)
@@ -500,18 +513,156 @@ class ApiCatalogRepository:
             """
             INSERT INTO provider_installation_assets (
                 asset_id, install_id, asset_kind, engine, asset_name,
+                asset_role, derived_from_asset_id,
+                source_format, source_uri, schema_fingerprint,
                 uninstall_command, status, notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'managed', ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'managed', ?, ?, ?)
             ON CONFLICT(install_id, asset_kind, engine, asset_name) DO UPDATE SET
+                asset_role = excluded.asset_role,
+                derived_from_asset_id = excluded.derived_from_asset_id,
+                source_format = excluded.source_format,
+                source_uri = excluded.source_uri,
+                schema_fingerprint = excluded.schema_fingerprint,
                 uninstall_command = excluded.uninstall_command,
                 status = 'managed',
                 notes = excluded.notes,
                 updated_at = excluded.updated_at
             """,
-            (asset_id, install_id, asset_kind, engine, asset_name, uninstall_command, notes, now, now),
+            (
+                asset_id,
+                install_id,
+                asset_kind,
+                engine,
+                asset_name,
+                asset_role,
+                derived_from_asset_id,
+                source_format,
+                source_uri,
+                schema_fingerprint,
+                uninstall_command,
+                notes,
+                now,
+                now,
+            ),
         )
         self.conn.commit()
         return asset_id
+
+    def managed_asset_records(self, provider_id: str | None = None) -> list[AssetRecord]:
+        params: tuple[str, ...] = ()
+        provider_filter = ""
+        if provider_id:
+            provider_filter = "AND pi.provider_id = ?"
+            params = (provider_id,)
+        rows = self.conn.execute(
+            f"""
+            SELECT
+                pia.asset_id,
+                pia.install_id,
+                pi.provider_id,
+                pia.asset_kind,
+                COALESCE(pia.asset_role, 'source') AS asset_role,
+                COALESCE(pia.derived_from_asset_id, '') AS derived_from_asset_id,
+                COALESCE(pia.engine, '') AS engine,
+                pia.asset_name,
+                COALESCE(pia.source_format, 'unknown') AS source_format,
+                COALESCE(pia.source_uri, '') AS source_uri,
+                COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint
+            FROM provider_installation_assets pia
+            JOIN provider_installations pi ON pi.install_id = pia.install_id
+            WHERE pia.status IN ('managed', 'present', 'missing', 'error')
+              AND pi.status IN ('managed', 'missing', 'error')
+              {provider_filter}
+            ORDER BY pi.provider_id, pia.asset_kind, pia.asset_name
+            """,
+            params,
+        ).fetchall()
+        return [
+            AssetRecord(
+                asset_id=row["asset_id"],
+                install_id=row["install_id"],
+                provider_id=row["provider_id"],
+                asset_kind=row["asset_kind"],
+                asset_role=row["asset_role"],
+                derived_from_asset_id=row["derived_from_asset_id"],
+                engine=row["engine"],
+                asset_name=row["asset_name"],
+                source_format=row["source_format"],
+                source_uri=row["source_uri"],
+                schema_fingerprint=row["schema_fingerprint"],
+            )
+            for row in rows
+        ]
+
+    def verify_provider_assets(
+        self,
+        provider_ids: list[str] | None = None,
+        verifier: AssetVerifier | None = None,
+    ) -> dict[str, int]:
+        verifier = verifier or RegistryOnlyVerifier()
+        now = utc_now_iso()
+        summary = {"present": 0, "missing": 0, "error": 0, "checked": 0}
+        provider_filter = set(provider_ids or [])
+        assets = [
+            asset
+            for asset in self.managed_asset_records()
+            if not provider_filter or asset.provider_id in provider_filter
+        ]
+        install_status: dict[str, str] = {}
+        for asset in assets:
+            result = verifier.verify(asset)
+            status = result.status if result.status in {"present", "missing", "error"} else "error"
+            error = result.error if status == "error" else ""
+            self.conn.execute(
+                """
+                UPDATE provider_installation_assets
+                SET status = ?, last_verified_at = ?, last_verify_error = ?, updated_at = ?
+                WHERE asset_id = ?
+                """,
+                (status, now, error, now, asset.asset_id),
+            )
+            summary[status] += 1
+            summary["checked"] += 1
+            previous = install_status.get(asset.install_id)
+            if status == "error" or previous == "error":
+                install_status[asset.install_id] = "error"
+            elif status == "missing" or previous == "missing":
+                install_status[asset.install_id] = "missing"
+            else:
+                install_status[asset.install_id] = "managed"
+        for install_id, status in install_status.items():
+            self.conn.execute(
+                """
+                UPDATE provider_installations
+                SET status = ?, updated_at = ?
+                WHERE install_id = ?
+                """,
+                (status, now, install_id),
+            )
+            provider = self.conn.execute(
+                "SELECT provider_id FROM provider_installations WHERE install_id = ?",
+                (install_id,),
+            ).fetchone()
+            if provider:
+                local_status = {
+                    "managed": "imported",
+                    "missing": "missing",
+                    "error": "error",
+                }[status]
+                self.conn.execute(
+                    """
+                    INSERT INTO provider_download_state (
+                        provider_id, local_status, update_status, updated_at
+                    ) VALUES (?, ?, 'unknown', ?)
+                    ON CONFLICT(provider_id) DO UPDATE SET
+                        local_status = excluded.local_status,
+                        update_status = excluded.update_status,
+                        updated_at = excluded.updated_at
+                    """,
+                    (provider["provider_id"], local_status, now),
+                )
+        self.conn.commit()
+        return summary
 
     def register_provider_database_asset(
         self,
@@ -519,14 +670,24 @@ class ApiCatalogRepository:
         engine: str,
         database_name: str,
         location: str = "",
+        asset_role: str = "source",
+        derived_from_asset_id: str = "",
+        source_format: str = "unknown",
+        source_uri: str = "",
+        schema_fingerprint: str = "",
         notes: str = "",
     ) -> str:
         install_id = self.manage_provider_installation(provider_id, location=location or f"{engine}://{database_name}")
         return self.register_installation_asset(
             install_id,
             asset_kind="database",
+            asset_role=asset_role,
+            derived_from_asset_id=derived_from_asset_id,
             engine=engine,
             asset_name=database_name,
+            source_format=source_format,
+            source_uri=source_uri,
+            schema_fingerprint=schema_fingerprint,
             uninstall_command=database_uninstall_command(engine, database_name),
             notes=notes,
         )
@@ -552,7 +713,7 @@ class ApiCatalogRepository:
             dict(asset)
             for asset in self.conn.execute(
                 """
-                SELECT asset_id, asset_kind, engine, asset_name, uninstall_command
+                SELECT asset_id, asset_kind, asset_role, derived_from_asset_id, engine, asset_name, uninstall_command
                 FROM provider_installation_assets
                 WHERE install_id = ? AND status = 'managed'
                 ORDER BY asset_kind, asset_name

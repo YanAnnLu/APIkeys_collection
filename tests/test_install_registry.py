@@ -5,8 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from api_launcher.asset_verifier import AssetVerificationResult
 from api_launcher.db import connect_db
 from api_launcher.models import Provider
+from api_launcher.provenance import schema_fingerprint
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -109,6 +111,90 @@ class InstallRegistryTests(unittest.TestCase):
                 database_name="sample; DROP DATABASE mysql;",
             )
 
+    def test_verify_assets_marks_missing_database(self) -> None:
+        self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="sample_db",
+        )
+
+        summary = self.repo.verify_provider_assets(verifier=StaticVerifier("missing"))
+
+        self.assertEqual({"present": 0, "missing": 1, "error": 0, "checked": 1}, summary)
+        self.assertEqual("missing", self._latest_installation_status())
+        self.assertEqual("missing", self._local_status())
+
+    def test_verify_assets_marks_present_database(self) -> None:
+        self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="sample_db",
+        )
+
+        summary = self.repo.verify_provider_assets(verifier=StaticVerifier("present"))
+
+        self.assertEqual({"present": 1, "missing": 0, "error": 0, "checked": 1}, summary)
+        self.assertEqual("managed", self._latest_installation_status())
+        self.assertEqual("imported", self._local_status())
+
+    def test_manual_csv_or_json_imports_keep_provenance_and_schema_fingerprint(self) -> None:
+        fingerprint = schema_fingerprint(["station_id", "temperature_c", "observed_at"])
+        asset_id = self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="manual_weather_import",
+            asset_role="curated",
+            source_format="csv",
+            source_uri="K:/imports/weather.csv",
+            schema_fingerprint=fingerprint,
+        )
+        asset = self.repo.managed_asset_records("sample_provider")[0]
+        row = self.conn.execute(
+            """
+            SELECT asset_role, source_format, source_uri, schema_fingerprint
+            FROM provider_installation_assets
+            WHERE asset_id = ?
+            """,
+            (asset_id,),
+        ).fetchone()
+
+        self.assertEqual("curated", row["asset_role"])
+        self.assertEqual("csv", row["source_format"])
+        self.assertEqual("K:/imports/weather.csv", row["source_uri"])
+        self.assertEqual(fingerprint, row["schema_fingerprint"])
+        self.assertEqual("curated", asset.asset_role)
+        self.assertEqual("csv", asset.source_format)
+
+    def test_derived_assets_are_not_confused_with_upstream_source_assets(self) -> None:
+        source_asset_id = self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="noaa_raw",
+            asset_role="source",
+            source_format="api",
+        )
+        derived_asset_id = self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="noaa_model_output",
+            asset_role="derived",
+            derived_from_asset_id=source_asset_id,
+            source_format="manual",
+        )
+
+        rows = self.conn.execute(
+            """
+            SELECT asset_name, asset_role, derived_from_asset_id
+            FROM provider_installation_assets
+            ORDER BY asset_name
+            """
+        ).fetchall()
+
+        by_name = {row["asset_name"]: row for row in rows}
+        self.assertEqual(source_asset_id, by_name["noaa_model_output"]["derived_from_asset_id"])
+        self.assertEqual("derived", by_name["noaa_model_output"]["asset_role"])
+        self.assertNotEqual(source_asset_id, derived_asset_id)
+
     def _count_installations(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM provider_installations").fetchone()[0]
 
@@ -134,6 +220,20 @@ class InstallRegistryTests(unittest.TestCase):
             "SELECT local_status FROM provider_download_state WHERE provider_id = 'sample_provider'",
         ).fetchone()
         return row["local_status"]
+
+    def _latest_installation_status(self) -> str:
+        row = self.conn.execute(
+            "SELECT status FROM provider_installations ORDER BY updated_at DESC LIMIT 1",
+        ).fetchone()
+        return row["status"]
+
+
+class StaticVerifier:
+    def __init__(self, status: str):
+        self.status = status
+
+    def verify(self, asset):
+        return AssetVerificationResult(asset.asset_id, self.status)
 
 
 if __name__ == "__main__":

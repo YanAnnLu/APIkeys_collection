@@ -128,6 +128,7 @@ class ProviderRow:
             "not_imported": "未納管",
             "imported": "已納管",
             "downloaded": "已下載",
+            "missing": "本地遺失",
             "error": "錯誤",
         }
         return labels.get(self.local_status, self.local_status)
@@ -446,6 +447,7 @@ class ApiCollectionUi:
         ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="驗證本地資產", style="Action.TButton", command=self.verify_active_assets).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="標記已納管", style="Action.TButton", command=self.manage_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="解除納管", style="Action.TButton", command=self.unmanage_active_provider).pack(fill=X, pady=(0, 8))
@@ -914,6 +916,24 @@ class ApiCollectionUi:
         row = self.row_by_provider_id(self.active_provider_id)
         self.status_var.set(f"正在檢查 {row.name if row else self.active_provider_id} 的 metadata...")
         self.crawl_provider_ids([self.active_provider_id])
+
+    def verify_active_assets(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
+        conn = self._connect()
+        try:
+            summary = core.ApiCatalogRepository(conn).verify_provider_assets([self.active_provider_id])
+        finally:
+            conn.close()
+        self.reload_data()
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.status_var.set(
+            f"已驗證本地資產：{row.name if row else self.active_provider_id} "
+            f"(present={summary['present']}, missing={summary['missing']}, error={summary['error']})"
+        )
 
     def select_active_provider(self) -> None:
         if not self.active_provider_id:
