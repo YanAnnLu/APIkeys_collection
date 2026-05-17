@@ -28,6 +28,7 @@ from api_launcher.data_store_connections import (
     postgresql_table_exists,
     postgresql_table_names,
     test_data_store_connection,
+    _postgresql_kwargs,
 )
 
 
@@ -77,6 +78,30 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertEqual("sqlite_test", profiles[0].profile_id)
         self.assertEqual("sqlite", profiles[0].engine)
 
+    def test_profiles_load_connection_env_var_map(self) -> None:
+        profiles = data_store_profiles_from_config(
+            {
+                "data_store_connection_profiles": [
+                    {
+                        "id": "analytics_postgres",
+                        "label": "Analytics PostgreSQL",
+                        "store_kind": "relational_sql",
+                        "engine": "postgresql",
+                        "required_env_vars": ["ANALYTICS_PG_HOST", "ANALYTICS_PG_DB"],
+                        "env_var_map": {
+                            "host": "ANALYTICS_PG_HOST",
+                            "database": "ANALYTICS_PG_DB",
+                            "user": "ANALYTICS_PG_USER",
+                            "password": "ANALYTICS_PG_PASSWORD",
+                            "port": "ANALYTICS_PG_PORT",
+                        },
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual("ANALYTICS_PG_DB", profiles[0].env_var_map["database"])
+
     def test_sqlite_connection_test_opens_existing_database_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "sample.sqlite"
@@ -90,6 +115,24 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual("ok", result.status)
         self.assertEqual(1, result.details["table_count"])
+
+    def test_sqlite_connection_test_uses_custom_path_env_var(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "sample.sqlite"
+            with closing(sqlite3.connect(db_path)) as conn:
+                conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
+            profile = DataStoreConnectionProfile(
+                profile_id="sqlite_custom",
+                label="SQLite custom",
+                store_kind="embedded_sql",
+                engine="sqlite",
+                required_env_vars=("CUSTOM_SQLITE_PATH",),
+                env_var_map={"path": "CUSTOM_SQLITE_PATH"},
+            )
+
+            result = test_data_store_connection(profile, {"CUSTOM_SQLITE_PATH": str(db_path)})
+
+        self.assertEqual("ok", result.status)
 
     def test_sqlite_connection_test_does_not_create_missing_database(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -147,6 +190,38 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertIn(result.status, {"dependency_missing", "error", "ok"})
         if result.status == "dependency_missing":
             self.assertIn("psycopg", result.details["driver_options"])
+
+    def test_postgresql_kwargs_uses_custom_env_var_map(self) -> None:
+        profile = DataStoreConnectionProfile(
+            profile_id="analytics_postgres",
+            label="Analytics PostgreSQL",
+            store_kind="relational_sql",
+            engine="postgresql",
+            required_env_vars=("ANALYTICS_PG_HOST", "ANALYTICS_PG_DB", "ANALYTICS_PG_USER", "ANALYTICS_PG_PASSWORD"),
+            optional_env_vars=("ANALYTICS_PG_PORT",),
+            env_var_map={
+                "host": "ANALYTICS_PG_HOST",
+                "database": "ANALYTICS_PG_DB",
+                "user": "ANALYTICS_PG_USER",
+                "password": "ANALYTICS_PG_PASSWORD",
+                "port": "ANALYTICS_PG_PORT",
+            },
+        )
+
+        kwargs = _postgresql_kwargs(
+            profile,
+            {
+                "ANALYTICS_PG_HOST": "localhost",
+                "ANALYTICS_PG_DB": "weather",
+                "ANALYTICS_PG_USER": "demo",
+                "ANALYTICS_PG_PASSWORD": "secret",
+                "ANALYTICS_PG_PORT": "5544",
+            },
+        )
+
+        self.assertEqual("localhost", kwargs["host"])
+        self.assertEqual("weather", kwargs["dbname"])
+        self.assertEqual(5544, kwargs["port"])
 
     def test_unsupported_store_kinds_are_reported(self) -> None:
         profile = DataStoreConnectionProfile(

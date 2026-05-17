@@ -32,9 +32,14 @@ The project is not a secret harvester. Credential files are templates for user-o
   `--manifest-health`, `--show-logs`, and `--handoff-report`.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
   `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
+- Data-store profiles now support an `env_var_map` for connection roles such as host, database, user, password, port,
+  or SQLite path. This lets a custom profile use its own environment variable names without writing secrets into config.
 - Database self-check now verifies managed SQLite database and table assets from the install registry. Whole-database
   assets use read-only schema fingerprints; table assets use `source_uri` as the SQLite path and `asset_name` as the
   table name, preserving missing/error details for repair work.
+- Database/table asset records can now store `data_store_profile_id` and explicit `schema_name`. The self-check verifier
+  uses configured profiles from local integration config, so future UI settings can choose a profile per asset instead
+  of relying only on one hard-coded MySQL/PostgreSQL default.
 - MySQL/PostgreSQL connection probes now have reusable `information_schema` helpers for table counts, table names,
   table existence, column signatures, and schema fingerprints. Database assets with registered fingerprints can request
   deep schema summaries when the optional DB driver and env vars are available.
@@ -52,6 +57,9 @@ The project is not a secret harvester. Credential files are templates for user-o
   QR/device OAuth login can store local tokens under `state/private/ai_oauth_tokens/`.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
+- Maritime jurisdiction overlays should be modeled as GIS polygon layers with legal/administrative attributes
+  (territorial sea, EEZ, disputed zone, high seas). MySQL spatial tables are acceptable for MVP storage and
+  point-in-polygon checks, but PostGIS is the preferred backend for heavier spatial analysis and tiling.
 
 Current SQLite counts observed on this machine:
 
@@ -160,12 +168,13 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Add per-asset SQL profile/schema selection instead of relying only on default MySQL/PostgreSQL env vars.
+1. Expose per-asset SQL profile/schema editing in the UI instead of requiring direct registry/API calls.
 2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
 3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
 6. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
-7. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-8. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-9. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+7. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
+8. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+9. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+10. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.

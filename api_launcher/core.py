@@ -895,7 +895,11 @@ class CatalogLauncherCli:
     def self_check_databases(self) -> None:
         if not (self.args.self_check_databases or self.args.self_check_databases_json):
             return
-        summary = self.repository.verify_provider_assets(self.args.provider or None, verifier=DatabaseAssetVerifier())
+        profiles = data_store_profiles_from_config(load_integration_config())
+        summary = self.repository.verify_provider_assets(
+            self.args.provider or None,
+            verifier=DatabaseAssetVerifier(profiles),
+        )
         if not self.args.self_check_databases_json:
             print(f"[database-self-check] {summary}")
         issues = database_self_check_issues(self.conn, self.args.provider or None)

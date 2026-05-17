@@ -18,6 +18,8 @@ class AssetRecord:
     source_format: str = "unknown"
     source_uri: str = ""
     schema_fingerprint: str = ""
+    data_store_profile_id: str = ""
+    schema_name: str = ""
 
 
 @dataclass(frozen=True)

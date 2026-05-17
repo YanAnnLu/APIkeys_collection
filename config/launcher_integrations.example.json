@@ -75,6 +75,13 @@
       "optional_env_vars": [
         "APIKEYS_MYSQL_PORT"
       ],
+      "env_var_map": {
+        "host": "APIKEYS_MYSQL_HOST",
+        "database": "APIKEYS_MYSQL_DATABASE",
+        "user": "APIKEYS_MYSQL_USER",
+        "password": "APIKEYS_MYSQL_PASSWORD",
+        "port": "APIKEYS_MYSQL_PORT"
+      },
       "notes": "Passwords should come from environment variables or a future credential vault, not Git-tracked config."
     },
     {
@@ -91,6 +98,13 @@
       "optional_env_vars": [
         "APIKEYS_POSTGRES_PORT"
       ],
+      "env_var_map": {
+        "host": "APIKEYS_POSTGRES_HOST",
+        "database": "APIKEYS_POSTGRES_DATABASE",
+        "user": "APIKEYS_POSTGRES_USER",
+        "password": "APIKEYS_POSTGRES_PASSWORD",
+        "port": "APIKEYS_POSTGRES_PORT"
+      },
       "notes": "Reserved for PostgreSQL introspection."
     },
     {
@@ -101,6 +115,9 @@
       "required_env_vars": [
         "APIKEYS_SQLITE_PATH"
       ],
+      "env_var_map": {
+        "path": "APIKEYS_SQLITE_PATH"
+      },
       "notes": "Local file-backed SQLite path for lightweight testing."
     },
     {

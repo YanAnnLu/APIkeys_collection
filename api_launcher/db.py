@@ -122,6 +122,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             source_format TEXT NOT NULL DEFAULT 'unknown',
             source_uri TEXT,
             schema_fingerprint TEXT,
+            data_store_profile_id TEXT,
+            schema_name TEXT,
             uninstall_command TEXT,
             status TEXT NOT NULL DEFAULT 'managed',
             last_verified_at TEXT,
@@ -225,6 +227,8 @@ def init_db(conn: sqlite3.Connection) -> None:
     ensure_column(conn, "provider_installation_assets", "source_format", "TEXT NOT NULL DEFAULT 'unknown'")
     ensure_column(conn, "provider_installation_assets", "source_uri", "TEXT")
     ensure_column(conn, "provider_installation_assets", "schema_fingerprint", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "data_store_profile_id", "TEXT")
+    ensure_column(conn, "provider_installation_assets", "schema_name", "TEXT")
     conn.commit()
 
 

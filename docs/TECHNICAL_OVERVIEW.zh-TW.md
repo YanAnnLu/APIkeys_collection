@@ -235,7 +235,7 @@ py APIkeys_collection.py --show-library-actions gebco --library-local-status man
 
 SQL 不再有獨立的連線 profile 模組；MySQL、PostgreSQL、SQLite 會被視為 data store connection 的一種。這樣可以避免未來同時維護 SQL-only 與 NoSQL/object/vector profile 兩套相似結構。
 
-目前密碼與 token 不會寫進 config；建議放在環境變數或未來的 credential vault。這是為了支援使用者混合使用關聯式與非關聯式資料庫的情況。
+目前密碼與 token 不會寫進 config；建議放在環境變數或未來的 credential vault。Profile 可用 `env_var_map` 說明 host、database、user、password、port、SQLite path 各自要讀哪個環境變數，讓使用者可以為不同資料庫保留不同命名，而不是全部硬塞進同一組 `APIKEYS_MYSQL_*` 或 `APIKEYS_POSTGRES_*`。這是為了支援使用者混合使用關聯式與非關聯式資料庫的情況。
 
 Data store connection testing 已有第一版骨架：
 
@@ -252,7 +252,15 @@ SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不
 python APIkeys_collection.py --self-check-databases
 ```
 
-目前這會用 registry asset verifier 檢查 managed database/table assets。SQLite database asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，計算 database-level table/column schema fingerprint；SQLite table asset 會依 `source_uri` + `asset_name` 檢查單表是否存在，並可用 table-level `schema_fingerprint` 偵測 drift。MySQL/PostgreSQL 會先檢查 env vars 與 optional driver；driver/env vars 可用時，連線 smoke 會透過 `information_schema` 回報 table_count，database/table asset 若有 `schema_fingerprint` 也可做 schema drift detection。跨引擎 table asset 的 database ownership 來自 install record 的 `location`/`install_location`，PostgreSQL 可用 `schema.table` 指定 schema；missing table 會標記為 `missing`。結果會把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status，CLI 也會列出 missing/error 明細。
+目前這會用 registry asset verifier 檢查 managed database/table assets。SQLite database asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，計算 database-level table/column schema fingerprint；SQLite table asset 會依 `source_uri` + `asset_name` 檢查單表是否存在，並可用 table-level `schema_fingerprint` 偵測 drift。MySQL/PostgreSQL 會使用 local integration config 裡的 data-store profiles，先檢查 env vars 與 optional driver；driver/env vars 可用時，連線 smoke 會透過 `information_schema` 回報 table_count，database/table asset 若有 `schema_fingerprint` 也可做 schema drift detection。跨引擎 table asset 的 database ownership 來自 install record 的 `location`/`install_location`；asset 可另外記錄 `data_store_profile_id` 與明確 `schema_name`，PostgreSQL 也仍可用 `schema.table` 指定 schema；missing table 會標記為 `missing`。結果會把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status，CLI 也會列出 missing/error 明細。
+
+## 海域邊界、EEZ 與公海資料
+
+海域法域資料不能被當成單純的經緯度戳。領海、鄰接區、專屬經濟海域（EEZ）、爭議區與公海應該被建模成 GIS polygon 圖層，每個 polygon 帶有 `zone_type`、`sovereign`、`source`、`disputed` 等法律/行政屬性。船舶、測站、海流、污染或漁業資料再用 spatial join / point-in-polygon 判斷落在哪個海域。
+
+MySQL spatial table 可作為 MVP：它能存 `POINT` / `POLYGON` / `MULTIPOLYGON`，並做基本 `ST_Contains` 查詢。但若要做大量全球邊界、重疊爭議區、空間索引、轉投影、tile 切分或 renderer layer 產出，PostgreSQL + PostGIS 會更適合作為正式 GIS 後端。原始資料應保留 GeoPackage、Shapefile 或 GeoJSON，並用 manifest 記錄來源、版本與 checksum。
+
+後續可新增 Marine Regions / VLIZ Maritime Boundaries adapter，把領海、EEZ、爭議區、公海圖層納入 dataset registry，再輸出 Taichi/Unreal 可用的 globe overlay/tile layer。
 
 ## AI 輔助模型與 Google 登入
 

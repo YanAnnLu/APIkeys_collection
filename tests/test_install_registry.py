@@ -158,6 +158,30 @@ class InstallRegistryTests(unittest.TestCase):
         self.assertEqual("mysql://weather", asset.install_location)
         self.assertEqual("https://example.test/source.csv", asset.source_uri)
 
+    def test_table_assets_store_profile_and_schema_selection(self) -> None:
+        asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="postgresql",
+            database_name="weather",
+            table_name="station",
+            data_store_profile_id="analytics_postgres",
+            schema_name="archive",
+        )
+        asset = self.repo.managed_asset_records("sample_provider")[0]
+        row = self.conn.execute(
+            """
+            SELECT data_store_profile_id, schema_name
+            FROM provider_installation_assets
+            WHERE asset_id = ?
+            """,
+            (asset_id,),
+        ).fetchone()
+
+        self.assertEqual("analytics_postgres", row["data_store_profile_id"])
+        self.assertEqual("archive", row["schema_name"])
+        self.assertEqual("analytics_postgres", asset.data_store_profile_id)
+        self.assertEqual("archive", asset.schema_name)
+
     def test_verify_assets_marks_missing_database(self) -> None:
         self.repo.register_provider_database_asset(
             "sample_provider",

@@ -670,6 +670,8 @@ class ApiCatalogRepository:
         source_format: str = "unknown",
         source_uri: str = "",
         schema_fingerprint: str = "",
+        data_store_profile_id: str = "",
+        schema_name: str = "",
         uninstall_command: str = "",
         notes: str = "",
     ) -> str:
@@ -688,6 +690,8 @@ class ApiCatalogRepository:
         source_format = normalize_source_format(source_format)
         source_uri = source_uri.strip()
         schema_fingerprint = schema_fingerprint.strip()
+        data_store_profile_id = data_store_profile_id.strip()
+        schema_name = schema_name.strip()
         if not asset_kind or not asset_name:
             raise ValueError("asset_kind and asset_name are required")
         asset_id = provider_asset_id(install_id, asset_kind, engine, asset_name)
@@ -697,14 +701,17 @@ class ApiCatalogRepository:
                 asset_id, install_id, asset_kind, engine, asset_name,
                 asset_role, derived_from_asset_id,
                 source_format, source_uri, schema_fingerprint,
+                data_store_profile_id, schema_name,
                 uninstall_command, status, notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'managed', ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'managed', ?, ?, ?)
             ON CONFLICT(install_id, asset_kind, engine, asset_name) DO UPDATE SET
                 asset_role = excluded.asset_role,
                 derived_from_asset_id = excluded.derived_from_asset_id,
                 source_format = excluded.source_format,
                 source_uri = excluded.source_uri,
                 schema_fingerprint = excluded.schema_fingerprint,
+                data_store_profile_id = excluded.data_store_profile_id,
+                schema_name = excluded.schema_name,
                 uninstall_command = excluded.uninstall_command,
                 status = 'managed',
                 notes = excluded.notes,
@@ -721,6 +728,8 @@ class ApiCatalogRepository:
                 source_format,
                 source_uri,
                 schema_fingerprint,
+                data_store_profile_id,
+                schema_name,
                 uninstall_command,
                 notes,
                 now,
@@ -750,7 +759,9 @@ class ApiCatalogRepository:
                 pia.asset_name,
                 COALESCE(pia.source_format, 'unknown') AS source_format,
                 COALESCE(pia.source_uri, '') AS source_uri,
-                COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint
+                COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
+                COALESCE(pia.data_store_profile_id, '') AS data_store_profile_id,
+                COALESCE(pia.schema_name, '') AS schema_name
             FROM provider_installation_assets pia
             JOIN provider_installations pi ON pi.install_id = pia.install_id
             WHERE pia.status IN ('managed', 'present', 'missing', 'error')
@@ -774,6 +785,8 @@ class ApiCatalogRepository:
                 source_format=row["source_format"],
                 source_uri=row["source_uri"],
                 schema_fingerprint=row["schema_fingerprint"],
+                data_store_profile_id=row["data_store_profile_id"],
+                schema_name=row["schema_name"],
             )
             for row in rows
         ]
@@ -859,6 +872,8 @@ class ApiCatalogRepository:
         source_format: str = "unknown",
         source_uri: str = "",
         schema_fingerprint: str = "",
+        data_store_profile_id: str = "",
+        schema_name: str = "",
         notes: str = "",
     ) -> str:
         install_id = self.manage_provider_installation(provider_id, location=location or f"{engine}://{database_name}")
@@ -872,6 +887,8 @@ class ApiCatalogRepository:
             source_format=source_format,
             source_uri=source_uri,
             schema_fingerprint=schema_fingerprint,
+            data_store_profile_id=data_store_profile_id,
+            schema_name=schema_name,
             uninstall_command=database_uninstall_command(engine, database_name),
             notes=notes,
         )
@@ -888,6 +905,8 @@ class ApiCatalogRepository:
         source_format: str = "unknown",
         source_uri: str = "",
         schema_fingerprint: str = "",
+        data_store_profile_id: str = "",
+        schema_name: str = "",
         notes: str = "",
     ) -> str:
         normalized_engine = engine.strip().lower()
@@ -903,6 +922,8 @@ class ApiCatalogRepository:
             source_format=source_format,
             source_uri=source_uri,
             schema_fingerprint=schema_fingerprint,
+            data_store_profile_id=data_store_profile_id,
+            schema_name=schema_name,
             uninstall_command="",
             notes=notes,
         )

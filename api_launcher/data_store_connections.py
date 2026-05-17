@@ -8,7 +8,7 @@ import sqlite3
 import urllib.parse
 from collections.abc import Mapping
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -22,6 +22,7 @@ class DataStoreConnectionProfile:
     optional_env_vars: tuple[str, ...] = ()
     status: str = "skeleton"
     notes: str = ""
+    env_var_map: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,13 @@ DEFAULT_DATA_STORE_PROFILES = (
         required_env_vars=("APIKEYS_MYSQL_HOST", "APIKEYS_MYSQL_DATABASE", "APIKEYS_MYSQL_USER", "APIKEYS_MYSQL_PASSWORD"),
         optional_env_vars=("APIKEYS_MYSQL_PORT",),
         notes="Relational SQL profile for MySQL self-check and future install/uninstall adapters.",
+        env_var_map={
+            "host": "APIKEYS_MYSQL_HOST",
+            "database": "APIKEYS_MYSQL_DATABASE",
+            "user": "APIKEYS_MYSQL_USER",
+            "password": "APIKEYS_MYSQL_PASSWORD",
+            "port": "APIKEYS_MYSQL_PORT",
+        },
     ),
     DataStoreConnectionProfile(
         profile_id="postgres_default",
@@ -66,6 +74,13 @@ DEFAULT_DATA_STORE_PROFILES = (
         required_env_vars=("APIKEYS_POSTGRES_HOST", "APIKEYS_POSTGRES_DATABASE", "APIKEYS_POSTGRES_USER", "APIKEYS_POSTGRES_PASSWORD"),
         optional_env_vars=("APIKEYS_POSTGRES_PORT",),
         notes="Reserved for PostgreSQL introspection.",
+        env_var_map={
+            "host": "APIKEYS_POSTGRES_HOST",
+            "database": "APIKEYS_POSTGRES_DATABASE",
+            "user": "APIKEYS_POSTGRES_USER",
+            "password": "APIKEYS_POSTGRES_PASSWORD",
+            "port": "APIKEYS_POSTGRES_PORT",
+        },
     ),
     DataStoreConnectionProfile(
         profile_id="sqlite_local",
@@ -74,6 +89,7 @@ DEFAULT_DATA_STORE_PROFILES = (
         engine="sqlite",
         required_env_vars=("APIKEYS_SQLITE_PATH",),
         notes="Local file-backed SQLite path for lightweight testing.",
+        env_var_map={"path": "APIKEYS_SQLITE_PATH"},
     ),
     DataStoreConnectionProfile(
         profile_id="mongodb_default",
@@ -106,6 +122,16 @@ DEFAULT_DATA_STORE_PROFILES = (
 def data_store_profile_from_mapping(item: Mapping[str, object]) -> DataStoreConnectionProfile:
     required = item.get("required_env_vars") or ()
     optional = item.get("optional_env_vars") or ()
+    raw_env_var_map = item.get("env_var_map") or item.get("connection_env_vars") or {}
+    env_var_map = (
+        {
+            str(key).strip(): str(value).strip()
+            for key, value in raw_env_var_map.items()
+            if str(key).strip() and str(value).strip()
+        }
+        if isinstance(raw_env_var_map, Mapping)
+        else {}
+    )
     return DataStoreConnectionProfile(
         profile_id=str(item.get("profile_id") or item.get("id") or "").strip(),
         label=str(item.get("label") or "").strip(),
@@ -115,6 +141,7 @@ def data_store_profile_from_mapping(item: Mapping[str, object]) -> DataStoreConn
         optional_env_vars=tuple(str(value).strip() for value in optional if str(value).strip()),
         status=str(item.get("status") or "configured").strip(),
         notes=str(item.get("notes") or "").strip(),
+        env_var_map=env_var_map,
     )
 
 
@@ -172,11 +199,16 @@ def test_data_store_connection(
     )
 
 
+def _connection_env_var(profile: DataStoreConnectionProfile, role: str, fallback: str) -> str:
+    return str(profile.env_var_map.get(role) or fallback).strip()
+
+
 def _test_sqlite_connection(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
 ) -> DataStoreConnectionTestResult:
-    path_value = str(env.get("APIKEYS_SQLITE_PATH") or "").strip()
+    path_var = _connection_env_var(profile, "path", "APIKEYS_SQLITE_PATH")
+    path_value = str(env.get(path_var) or "").strip()
     if path_value != ":memory:":
         db_path = Path(path_value).expanduser()
         if not db_path.exists():
@@ -232,13 +264,18 @@ def _test_mysql_connection(
         )
     import mysql.connector  # type: ignore[import-not-found]
 
+    host_var = _connection_env_var(profile, "host", "APIKEYS_MYSQL_HOST")
+    port_var = _connection_env_var(profile, "port", "APIKEYS_MYSQL_PORT")
+    database_var = _connection_env_var(profile, "database", "APIKEYS_MYSQL_DATABASE")
+    user_var = _connection_env_var(profile, "user", "APIKEYS_MYSQL_USER")
+    password_var = _connection_env_var(profile, "password", "APIKEYS_MYSQL_PASSWORD")
     try:
         conn = mysql.connector.connect(
-            host=env["APIKEYS_MYSQL_HOST"],
-            port=int(env.get("APIKEYS_MYSQL_PORT") or 3306),
-            database=env["APIKEYS_MYSQL_DATABASE"],
-            user=env["APIKEYS_MYSQL_USER"],
-            password=env["APIKEYS_MYSQL_PASSWORD"],
+            host=env[host_var],
+            port=int(env.get(port_var) or 3306),
+            database=env[database_var],
+            user=env[user_var],
+            password=env[password_var],
             connection_timeout=5,
         )
         try:
@@ -262,11 +299,11 @@ def _test_mysql_connection(
             engine=profile.engine,
             status="error",
             message=f"MySQL connection failed: {type(exc).__name__}: {exc}",
-            details={"host": env.get("APIKEYS_MYSQL_HOST"), "database": env.get("APIKEYS_MYSQL_DATABASE")},
+            details={"host": env.get(host_var), "database": env.get(database_var)},
         )
 
     details: dict[str, object] = {
-        "host": env.get("APIKEYS_MYSQL_HOST"),
+        "host": env.get(host_var),
         "database": database,
         "table_count": table_count,
     }
@@ -310,13 +347,18 @@ def _test_postgresql_connection(
     )
 
 
-def _postgresql_kwargs(env: Mapping[str, str]) -> dict[str, object]:
+def _postgresql_kwargs(profile: DataStoreConnectionProfile, env: Mapping[str, str]) -> dict[str, object]:
+    host_var = _connection_env_var(profile, "host", "APIKEYS_POSTGRES_HOST")
+    port_var = _connection_env_var(profile, "port", "APIKEYS_POSTGRES_PORT")
+    database_var = _connection_env_var(profile, "database", "APIKEYS_POSTGRES_DATABASE")
+    user_var = _connection_env_var(profile, "user", "APIKEYS_POSTGRES_USER")
+    password_var = _connection_env_var(profile, "password", "APIKEYS_POSTGRES_PASSWORD")
     return {
-        "host": env["APIKEYS_POSTGRES_HOST"],
-        "port": int(env.get("APIKEYS_POSTGRES_PORT") or 5432),
-        "dbname": env["APIKEYS_POSTGRES_DATABASE"],
-        "user": env["APIKEYS_POSTGRES_USER"],
-        "password": env["APIKEYS_POSTGRES_PASSWORD"],
+        "host": env[host_var],
+        "port": int(env.get(port_var) or 5432),
+        "dbname": env[database_var],
+        "user": env[user_var],
+        "password": env[password_var],
         "connect_timeout": 5,
     }
 
@@ -331,7 +373,7 @@ def _test_postgresql_psycopg3(
     import psycopg  # type: ignore[import-not-found]
 
     try:
-        with psycopg.connect(**_postgresql_kwargs(env)) as conn:
+        with psycopg.connect(**_postgresql_kwargs(profile, env)) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT current_database()")
                 database = cursor.fetchone()[0]
@@ -364,7 +406,7 @@ def _test_postgresql_psycopg2(
     import psycopg2  # type: ignore[import-not-found]
 
     try:
-        conn = psycopg2.connect(**_postgresql_kwargs(env))
+        conn = psycopg2.connect(**_postgresql_kwargs(profile, env))
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT current_database()")
@@ -395,12 +437,14 @@ def _postgresql_error(
     env: Mapping[str, str],
     exc: Exception,
 ) -> DataStoreConnectionTestResult:
+    host_var = _connection_env_var(profile, "host", "APIKEYS_POSTGRES_HOST")
+    database_var = _connection_env_var(profile, "database", "APIKEYS_POSTGRES_DATABASE")
     return DataStoreConnectionTestResult(
         profile_id=profile.profile_id,
         engine=profile.engine,
         status="error",
         message=f"PostgreSQL connection failed: {type(exc).__name__}: {exc}",
-        details={"host": env.get("APIKEYS_POSTGRES_HOST"), "database": env.get("APIKEYS_POSTGRES_DATABASE")},
+        details={"host": env.get(host_var), "database": env.get(database_var)},
     )
 
 
@@ -413,8 +457,9 @@ def _postgresql_ok(
     schema_name: str,
     schema_summary_table: str,
 ) -> DataStoreConnectionTestResult:
+    host_var = _connection_env_var(profile, "host", "APIKEYS_POSTGRES_HOST")
     details: dict[str, object] = {
-        "host": env.get("APIKEYS_POSTGRES_HOST"),
+        "host": env.get(host_var),
         "database": database,
         "schema": schema_name,
         "table_count": table_count,

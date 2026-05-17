@@ -5,12 +5,13 @@ import json
 import re
 import sqlite3
 import urllib.parse
+from collections.abc import Sequence
 from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from api_launcher.asset_verifier import AssetRecord, AssetVerificationResult
-from api_launcher.data_store_connections import DataStoreConnectionProfile, test_data_store_connection
+from api_launcher.data_store_connections import DEFAULT_DATA_STORE_PROFILES, DataStoreConnectionProfile, test_data_store_connection
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class DatabaseSelfCheckTarget:
     table_name: str = ""
     database_name: str = ""
     schema_name: str = ""
+    data_store_profile_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -65,6 +67,8 @@ class DatabaseSelfCheckIssue:
     install_location: str = ""
     source_uri: str = ""
     schema_fingerprint: str = ""
+    data_store_profile_id: str = ""
+    schema_name: str = ""
 
     def repair_suggestion(self) -> DatabaseRepairSuggestion:
         return database_repair_suggestion(
@@ -78,6 +82,8 @@ class DatabaseSelfCheckIssue:
             install_location=self.install_location,
             source_uri=self.source_uri,
             schema_fingerprint=self.schema_fingerprint,
+            data_store_profile_id=self.data_store_profile_id,
+            schema_name=self.schema_name,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -93,6 +99,8 @@ class DatabaseSelfCheckIssue:
             "install_location": safe_database_location(self.install_location),
             "source_uri": safe_database_location(self.source_uri),
             "has_schema_fingerprint": bool(self.schema_fingerprint),
+            "data_store_profile_id": self.data_store_profile_id,
+            "schema_name": self.schema_name,
             "repair_suggestion": self.repair_suggestion().as_dict(),
         }
 
@@ -133,6 +141,8 @@ def database_self_check_issues(
             COALESCE(pi.location, '') AS install_location,
             COALESCE(pia.source_uri, '') AS source_uri,
             COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
+            COALESCE(pia.data_store_profile_id, '') AS data_store_profile_id,
+            COALESCE(pia.schema_name, '') AS schema_name,
             COALESCE(pia.last_verify_error, '') AS last_verify_error
         FROM provider_installation_assets pia
         JOIN provider_installations pi ON pi.install_id = pia.install_id
@@ -156,6 +166,8 @@ def database_self_check_issues(
             install_location=row["install_location"] or "",
             source_uri=row["source_uri"] or "",
             schema_fingerprint=row["schema_fingerprint"] or "",
+            data_store_profile_id=row["data_store_profile_id"] or "",
+            schema_name=row["schema_name"] or "",
         )
         for row in rows
     ]
@@ -172,6 +184,8 @@ def database_repair_suggestion(
     install_location: str = "",
     source_uri: str = "",
     schema_fingerprint: str = "",
+    data_store_profile_id: str = "",
+    schema_name: str = "",
 ) -> DatabaseRepairSuggestion:
     normalized_engine = engine.strip().lower()
     normalized_kind = asset_kind.strip().lower()
@@ -188,6 +202,8 @@ def database_repair_suggestion(
         "install_location": safe_database_location(install_location),
         "source_uri": safe_database_location(source_uri),
         "has_schema_fingerprint": bool(schema_fingerprint),
+        "data_store_profile_id": data_store_profile_id,
+        "schema_name": schema_name,
     }
     missing_env_vars = _missing_env_vars(message)
     if missing_env_vars:
@@ -211,6 +227,14 @@ def database_repair_suggestion(
             "fix_data_store_profile_mapping",
             "Fix data-store profile mapping",
             "The active SQL profile points at a different database than the registry asset expects; update the profile/env selection or the asset ownership metadata.",
+            severity="error",
+            details=details,
+        )
+    if "unknown data-store profile" in lowered or "does not match asset engine" in lowered:
+        return DatabaseRepairSuggestion(
+            "fix_data_store_profile_mapping",
+            "Fix data-store profile mapping",
+            "The registry asset points at a missing or incompatible data-store profile; choose a valid profile for this asset before retrying.",
             severity="error",
             details=details,
         )
@@ -298,9 +322,11 @@ def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
             asset_name=asset.asset_name,
             path=asset.source_uri or asset.asset_name,
             table_name=asset.asset_name if asset.asset_kind == "table" else "",
+            data_store_profile_id=asset.data_store_profile_id,
         )
     if asset.asset_kind == "table":
-        schema_name, table_name = split_schema_table_name(asset.asset_name)
+        parsed_schema_name, table_name = split_schema_table_name(asset.asset_name)
+        schema_name = asset.schema_name.strip() or parsed_schema_name
         database_name = sql_database_name_for_asset(asset)
         if engine in {"mysql", "mariadb"} and not database_name:
             database_name = schema_name
@@ -310,8 +336,15 @@ def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
             table_name=table_name,
             database_name=database_name,
             schema_name=schema_name,
+            data_store_profile_id=asset.data_store_profile_id,
         )
-    return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name, database_name=asset.asset_name)
+    return DatabaseSelfCheckTarget(
+        engine=engine,
+        asset_name=asset.asset_name,
+        database_name=asset.asset_name,
+        schema_name=asset.schema_name.strip(),
+        data_store_profile_id=asset.data_store_profile_id,
+    )
 
 
 def _missing_env_vars(message: str) -> tuple[str, ...]:
@@ -326,6 +359,14 @@ def _looks_like_missing_driver(message: str) -> bool:
 
 
 class DatabaseAssetVerifier:
+    def __init__(self, profiles: Sequence[DataStoreConnectionProfile] | None = None):
+        self._profiles: dict[str, DataStoreConnectionProfile] = {
+            self._profile_key(profile.profile_id): profile for profile in DEFAULT_DATA_STORE_PROFILES
+        }
+        for profile in profiles or ():
+            if profile.profile_id.strip():
+                self._profiles[self._profile_key(profile.profile_id)] = profile
+
     def verify(self, asset: AssetRecord) -> AssetVerificationResult:
         if asset.asset_kind not in {"database", "table"}:
             return AssetVerificationResult(asset.asset_id, "error", f"Unsupported asset kind: {asset.asset_kind}")
@@ -338,18 +379,47 @@ class DatabaseAssetVerifier:
             return self._verify_postgresql(asset, target)
         return AssetVerificationResult(asset.asset_id, "error", f"No database self-check adapter for engine: {target.engine or 'unknown'}")
 
+    @staticmethod
+    def _profile_key(profile_id: str) -> str:
+        return profile_id.strip().lower()
+
+    def _profile_for(
+        self,
+        asset: AssetRecord,
+        fallback_profile_id: str,
+        expected_engines: set[str],
+    ) -> tuple[DataStoreConnectionProfile | None, AssetVerificationResult | None]:
+        requested_profile_id = asset.data_store_profile_id.strip() or fallback_profile_id
+        profile = self._profiles.get(self._profile_key(requested_profile_id))
+        if profile is None:
+            return None, AssetVerificationResult(
+                asset.asset_id,
+                "error",
+                f"Unknown data-store profile for asset: {requested_profile_id}.",
+            )
+        profile_engine = profile.engine.strip().lower()
+        if profile_engine not in expected_engines:
+            return None, AssetVerificationResult(
+                asset.asset_id,
+                "error",
+                f"Data-store profile {profile.profile_id} engine {profile.engine or 'unknown'} "
+                f"does not match asset engine {asset.engine or 'unknown'}.",
+            )
+        return profile, None
+
     def _verify_sqlite(self, asset: AssetRecord, target: DatabaseSelfCheckTarget) -> AssetVerificationResult:
         if not target.path:
             return AssetVerificationResult(asset.asset_id, "error", "SQLite asset has no source_uri or path-like asset_name.")
+        profile, error = self._profile_for(asset, "sqlite_local", {"sqlite"})
+        if error is not None:
+            return error
+        assert profile is not None
+        sqlite_path = str(Path(target.path))
+        sqlite_env = {name: sqlite_path for name in profile.required_env_vars}
+        sqlite_env.setdefault("APIKEYS_SQLITE_PATH", sqlite_path)
         result = test_data_store_connection(
-            DataStoreConnectionProfile(
-                profile_id=f"asset_{asset.asset_id}",
-                label=f"SQLite asset {asset.asset_name}",
-                store_kind="embedded_sql",
-                engine="sqlite",
-                required_env_vars=("APIKEYS_SQLITE_PATH",),
-            ),
-            {"APIKEYS_SQLITE_PATH": str(Path(target.path))},
+            profile,
+            sqlite_env,
         )
         if result.status == "ok":
             if asset.asset_kind == "table":
@@ -382,15 +452,12 @@ class DatabaseAssetVerifier:
         return AssetVerificationResult(asset.asset_id, "error", result.message)
 
     def _verify_mysql(self, asset: AssetRecord, target: DatabaseSelfCheckTarget) -> AssetVerificationResult:
+        profile, error = self._profile_for(asset, "mysql_default", {"mysql"})
+        if error is not None:
+            return error
+        assert profile is not None
         result = test_data_store_connection(
-            DataStoreConnectionProfile(
-                profile_id="mysql_default",
-                label="MySQL default",
-                store_kind="relational_sql",
-                engine="mysql",
-                required_env_vars=("APIKEYS_MYSQL_HOST", "APIKEYS_MYSQL_DATABASE", "APIKEYS_MYSQL_USER", "APIKEYS_MYSQL_PASSWORD"),
-                optional_env_vars=("APIKEYS_MYSQL_PORT",),
-            ),
+            profile,
             include_schema_summary=bool(asset.schema_fingerprint or asset.asset_kind == "table"),
             schema_summary_table=target.table_name if asset.asset_kind == "table" else "",
         )
@@ -426,15 +493,12 @@ class DatabaseAssetVerifier:
         return AssetVerificationResult(asset.asset_id, "error", result.message)
 
     def _verify_postgresql(self, asset: AssetRecord, target: DatabaseSelfCheckTarget) -> AssetVerificationResult:
+        profile, error = self._profile_for(asset, "postgres_default", {"postgresql"})
+        if error is not None:
+            return error
+        assert profile is not None
         result = test_data_store_connection(
-            DataStoreConnectionProfile(
-                profile_id="postgres_default",
-                label="PostgreSQL default",
-                store_kind="relational_sql",
-                engine="postgresql",
-                required_env_vars=("APIKEYS_POSTGRES_HOST", "APIKEYS_POSTGRES_DATABASE", "APIKEYS_POSTGRES_USER", "APIKEYS_POSTGRES_PASSWORD"),
-                optional_env_vars=("APIKEYS_POSTGRES_PORT",),
-            ),
+            profile,
             include_schema_summary=bool(asset.schema_fingerprint or asset.asset_kind == "table"),
             schema_summary_table=target.table_name if asset.asset_kind == "table" else "",
             schema_name=target.schema_name or "public",
