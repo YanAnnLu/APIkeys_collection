@@ -228,6 +228,18 @@ py APIkeys_collection.py --show-library-actions gebco --library-local-status man
 
 本機檔案不要提交 Git。使用者可以設定 MySQL Workbench、DBeaver 或其他資料庫工具。UI 中有「資料庫工具設定」視窗可切換預設工具。
 
+## Gemini / Google 登入
+
+目前 AI 摘要支援兩條路：
+
+| 模式 | 狀態 | 說明 |
+| --- | --- | --- |
+| Ollama local model | MVP | 不需要登入，適合離線或不想使用雲端模型的機器。 |
+| Gemini API key | MVP | 使用 `GEMINI_API_KEY` 環境變數與 `gemini_flash` profile。 |
+| Google QR/device login | Skeleton | UI 已有 QR/device login 入口；實際 OAuth device-code exchange、QR 圖片產生、token vault 與 refresh token 管理尚未實作。 |
+
+QR 登入比手動填 API key 更適合一般使用者，但 token 儲存必須謹慎：不可寫進 Git、不可放在一般設定檔、需要本機 private token store 或系統 credential vault。
+
 ## 安裝 registry 與解除安裝
 
 資料下載或手動納管後，launcher 會以 `install_id` 追蹤本機資產。這是為了避免使用者手動刪除、重複匯入、或資料庫漂移時造成誤判。

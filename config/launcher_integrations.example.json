@@ -132,6 +132,13 @@
       "notes": "Optional cloud fallback. Enable only when GEMINI_API_KEY is available."
     }
   ],
+  "google_oauth": {
+    "enabled": false,
+    "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+    "token_store": "state/private/google_oauth_tokens.json",
+    "login_mode": "device_qr",
+    "notes": "Future QR/device login for Gemini and Google services. Token storage must stay local and ignored by Git."
+  },
   "unreal_projects": [
     {
       "id": "local_ue5_bridge",

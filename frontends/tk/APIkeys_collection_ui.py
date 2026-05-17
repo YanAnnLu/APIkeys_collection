@@ -25,6 +25,8 @@ from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
 from api_launcher.repair import repair_summary, scan_download_manifests
 from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
+from api_launcher.library_actions import LibraryContext, build_library_actions
+from api_launcher.google_auth import build_google_device_login_request
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -46,16 +48,13 @@ COLORS = {
 
 
 TABLE_COLUMNS = (
-    ("star", "★", 0.04, 44, 64, "center", False),
-    ("install", "計畫", 0.055, 58, 78, "center", False),
-    ("name", "名稱", 0.24, 180, 420, "w", True),
-    ("category", "類別", 0.18, 150, 320, "w", True),
-    ("auth", "認證", 0.17, 145, 300, "w", True),
-    ("status", "狀態", 0.08, 82, 120, "center", False),
-    ("update", "遠端更新", 0.09, 92, 135, "center", False),
-    ("local", "本地納管", 0.09, 92, 135, "center", False),
-    ("scope", "範圍", 0.09, 95, 160, "w", False),
-    ("action", "操作", 0.075, 82, 120, "center", False),
+    ("star", "*", 0.045, 44, 64, "center", False),
+    ("install", "Plan", 0.06, 58, 82, "center", False),
+    ("name", "Dataset / API Source", 0.32, 220, 520, "w", True),
+    ("category", "Category", 0.22, 150, 360, "w", True),
+    ("local", "Library", 0.11, 95, 150, "center", False),
+    ("download", "Download", 0.13, 110, 180, "center", False),
+    ("action", "Action", 0.09, 82, 140, "center", False),
 )
 
 LAYOUT = {
@@ -430,6 +429,7 @@ class ApiCollectionUi:
         self.filtered_rows: list[ProviderRow] = []
         self.active_provider_id = ""
         self.detail_visible = False
+        self.download_plan_visible = True
         self.resize_after_id: str | None = None
         self.download_policy = core.active_download_policy()
         self.download_queue = NonBlockingDownloadQueue(
@@ -543,21 +543,28 @@ class ApiCollectionUi:
         header = ttk.Frame(main, style="App.TFrame")
         header.pack(fill=X, padx=outer_pad, pady=(outer_pad, max(12, outer_pad // 2)))
         ttk.Label(header, text="Database Sources", style="Header.TLabel").pack(anchor="w")
-        ttk.Label(header, text="選取資料源，建立未來爬蟲與 taichi_global_bathymetry.py 的資料下載計畫。", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
+        ttk.Label(header, text="Steam-like scientific dataset launcher: browse, plan, install, update, and bridge data to Taichi/Unreal/Agent.", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
 
         controls = ttk.Frame(main, style="App.TFrame")
         controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
-        ttk.Button(controls, text="刷新清單", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="自檢狀態", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="驗證檔案", style="Action.TButton", command=self.verify_download_manifests).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="爬取選取 Metadata", style="Action.TButton", command=self.crawl_selected).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="匯出下載計畫", style="Action.TButton", command=self.export_download_plan).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="開啟文件", style="Action.TButton", command=self.open_selected_docs).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="資料庫工具設定", style="Action.TButton", command=self.open_database_settings).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="資料源詳情", style="Action.TButton", command=self.open_detail_drawer).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="新增來源", style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 12))
-        ttk.Button(controls, text="編輯來源", style="Action.TButton", command=self.edit_active_provider).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="Refresh", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text="Self-check", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text="Verify files", style="Action.TButton", command=self.verify_download_manifests).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text="Add source", style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text="Gemini / AI", style="Action.TButton", command=self.open_google_gemini_settings).pack(side=LEFT, padx=(0, 10))
+        more_button = ttk.Menubutton(controls, text="More", style="Action.TButton")
+        more_menu = Menu(more_button, tearoff=0)
+        more_menu.add_command(label="Fetch selected metadata", command=self.crawl_selected)
+        more_menu.add_command(label="Export download plan", command=self.export_download_plan)
+        more_menu.add_command(label="Open official docs", command=self.open_selected_docs)
+        more_menu.add_separator()
+        more_menu.add_command(label="Open database tool", command=self.open_database_tool)
+        more_menu.add_command(label="Database tool settings", command=self.open_database_settings)
+        more_menu.add_separator()
+        more_menu.add_command(label="Dataset details", command=self.open_detail_drawer)
+        more_menu.add_command(label="Edit source", command=self.edit_active_provider)
+        more_button.configure(menu=more_menu)
+        more_button.pack(side=LEFT, padx=(0, 10))
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
@@ -793,7 +800,7 @@ class ApiCollectionUi:
         for item in self.tree.get_children():
             self.tree.delete(item)
         for row in self.filtered_rows:
-            checked = "✓" if self.selected[row.provider_id].get() else ""
+            checked = "?" if self.selected[row.provider_id].get() else ""
             tags = []
             if row.is_starred:
                 tags.append("starred")
@@ -810,11 +817,8 @@ class ApiCollectionUi:
                     checked,
                     row.name,
                     row.category_label,
-                    row.auth_type,
-                    row.status_label,
-                    row.update_label,
                     row.local_label,
-                    row.geographic_scope,
+                    row.download_label,
                     row.action_label,
                 ),
                 tags=tuple(tags),
@@ -857,8 +861,13 @@ class ApiCollectionUi:
         self.active_provider_id = str(item)
         self.tree.selection_set(item)
         self.tree.focus(item)
+        row = self.row_by_provider_id(item)
+        actions = {action.action_id: action for action in self.library_actions_for_row(row)}
         menu = Menu(self.root, tearoff=0)
-        menu.add_command(label="Add latest/default to plan", command=lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        self.add_action_menu_item(menu, actions, "add_to_plan", lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        self.add_action_menu_item(menu, actions, "install", self.manage_active_provider)
+        self.add_action_menu_item(menu, actions, "update", lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        self.add_action_menu_item(menu, actions, "repair", self.verify_active_assets)
         version_options = self.version_options_for_provider(item)
         if version_options:
             version_menu = Menu(menu, tearoff=0)
@@ -867,25 +876,52 @@ class ApiCollectionUi:
                     label=option.menu_label,
                     command=lambda provider_id=item, selected=option: self.add_provider_version_to_plan(provider_id, selected),
                 )
-            menu.add_cascade(label="Add dataset version", menu=version_menu)
-        else:
-            menu.add_command(label="No dataset versions discovered", state="disabled")
+            menu.add_cascade(label="Version / legacy download", menu=version_menu)
         menu.add_separator()
-        menu.add_command(label="Open details", command=self.open_detail_drawer)
+        self.add_action_menu_item(menu, actions, "open_database", self.open_database_tool)
+        self.add_action_menu_item(menu, actions, "render_preview", self.open_detail_drawer)
+        menu.add_command(label="Dataset details", command=self.open_detail_drawer)
+        menu.add_command(label="Gemini / AI description", command=self.generate_active_summary)
         menu.add_command(label="Open official docs", command=self.open_active_docs)
+        menu.add_separator()
+        self.add_action_menu_item(menu, actions, "uninstall", self.uninstall_active_provider)
         menu.tk_popup(getattr(event, "x_root", 0), getattr(event, "y_root", 0))
         menu.grab_release()
+
+    def add_action_menu_item(self, menu: Menu, actions: dict[str, object], action_id: str, command: object) -> None:
+        action = actions.get(action_id)
+        if action is None:
+            return
+        menu.add_command(label=action.label, command=command, state="normal" if action.enabled else "disabled")
+
+    def library_actions_for_row(self, row: ProviderRow | None) -> tuple[object, ...]:
+        if row is None:
+            return ()
+        context = LibraryContext(
+            provider_id=row.provider_id,
+            local_status=row.local_status,
+            remote_status=row.remote_status,
+            update_status=row.update_status,
+            install_id=row.install_id,
+            manifest_health="unknown",
+            has_direct_download=row.download_eligibility.status == "direct_download",
+            has_adapter=row.download_eligibility.status == "adapter_required",
+            has_render_assets=bool(row.install_id),
+        )
+        return build_library_actions(context)
 
     def on_tree_select(self, _event: object) -> None:
         selection = self.tree.selection()
         if not selection:
             return
         self.active_provider_id = str(selection[0])
-        if self.detail_visible:
+        if not self.detail_visible:
+            self.open_detail_drawer()
+        else:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         row = self.row_by_provider_id(self.active_provider_id)
         if row:
-            self.status_var.set(f"已選取資料源：{row.name}")
+            self.status_var.set(f"Selected: {row.name}")
 
     def toggle_star(self, provider_id: str) -> None:
         conn = self._connect()
@@ -1328,6 +1364,81 @@ class ApiCollectionUi:
         profile = core.active_database_client()
         if profile:
             self.status_var.set(f"目前預設資料庫工具：{profile.label}")
+
+    def open_google_gemini_settings(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title("Gemini / Google connection")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("620x420")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        ttk.Label(dialog, text="Gemini / Google connection", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        text = Text(dialog, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
+        text.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        profile = core.active_ai_profile()
+        profile_text = f"Current AI profile: {profile.label} ({profile.kind})" if profile else "No active AI profile."
+        message = "\n".join(
+            [
+                "This panel is the Google/Gemini connection entry point.",
+                "",
+                profile_text,
+                "",
+                "Current safe skeleton supports:",
+                "1. Gemini API key: create a key in Google AI Studio, set GEMINI_API_KEY, and enable the gemini profile in launcher_integrations.local.json.",
+                "2. Google OAuth: a later step should add browser sign-in, callback handling, token vault storage, and refresh-token management.",
+                "",
+                "This UI intentionally does not store Google tokens yet, so credentials do not leak into Git or plain config files.",
+            ]
+        )
+        text.insert("1.0", message)
+        text.configure(state="disabled")
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+        ttk.Button(actions, text="Start QR login", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Open Google AI Studio", style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def open_google_qr_login_dialog(self) -> None:
+        request = build_google_device_login_request()
+        dialog = Toplevel(self.root)
+        dialog.title("Google QR login")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("520x520")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        ttk.Label(dialog, text="Google QR / device login", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        qr_box = Text(dialog, height=10, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Consolas", 11))
+        qr_box.pack(fill=X, padx=24, pady=(0, 14))
+        if request.client_id_available:
+            qr_text = "\n".join(
+                [
+                    "QR placeholder",
+                    "",
+                    f"Open: {request.verification_url}",
+                    f"Code: {request.user_code}",
+                    "",
+                    "Next step: exchange device_code, render a real QR image, and save tokens in a secure token vault.",
+                ]
+            )
+        else:
+            qr_text = "\n".join(
+                [
+                    "QR login is not configured yet.",
+                    "",
+                    request.message,
+                    "",
+                    "After an OAuth client id is configured, this panel will show a scan-ready QR/device-code login.",
+                ]
+            )
+        qr_box.insert("1.0", qr_text)
+        qr_box.configure(state="disabled")
+        ttk.Label(dialog, text=request.message, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+        ttk.Button(actions, text="Open device page", style="Action.TButton", command=lambda: webbrowser.open(request.verification_url)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Open local config", style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def generate_active_summary(self) -> None:
         row = self.row_by_provider_id(self.active_provider_id)
