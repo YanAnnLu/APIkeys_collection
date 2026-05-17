@@ -76,6 +76,7 @@ from api_launcher.integrations import (
     set_active_ai_profile,
     set_active_database_client,
 )
+from api_launcher.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
@@ -563,10 +564,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
     parser.add_argument("--import-verified-csv-manifests", action="store_true", help="import healthy CSV/CSV.GZ manifests from the registry into curated SQLite tables")
-    parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for --import-csv-manifest")
-    parser.add_argument("--import-table", default="", help="target table name for --import-csv-manifest; defaults to dataset/version")
-    parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV; 0 means all rows")
-    parser.add_argument("--import-replace-table", action="store_true", help="drop and recreate the target table before CSV import")
+    parser.add_argument("--import-json-manifest", help="import a verified JSON/JSONL/GeoJSON payload manifest into a curated SQLite table")
+    parser.add_argument("--import-verified-json-manifests", action="store_true", help="import healthy JSON/JSONL/GeoJSON manifests from the registry into curated SQLite tables")
+    parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for manifest imports")
+    parser.add_argument("--import-table", default="", help="target table name for single-manifest import; defaults to dataset/version")
+    parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV/JSON; 0 means all rows")
+    parser.add_argument("--import-replace-table", action="store_true", help="drop and recreate the target table before manifest import")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
@@ -632,6 +635,8 @@ class CatalogLauncherCli:
             self.run_download_plan()
             self.import_csv_manifest()
             self.import_verified_csv_manifests()
+            self.import_json_manifest()
+            self.import_verified_json_manifests()
             self.verify_downloads()
             self.show_manifest_health()
             self.list_manifests()
@@ -681,6 +686,8 @@ class CatalogLauncherCli:
             bool(self.args.run_download_plan),
             bool(self.args.import_csv_manifest),
             self.args.import_verified_csv_manifests,
+            bool(self.args.import_json_manifest),
+            self.args.import_verified_json_manifests,
             self.args.manifest_health,
             self.args.list_manifests,
             self.args.show_logs > 0,
@@ -836,6 +843,49 @@ class CatalogLauncherCli:
             print(f"[csv-import-batch] imported provider={item.provider_id} table={item.table_name} rows={item.rows_imported}")
         for error in result.errors:
             print(f"[csv-import-batch] error {error}")
+
+    def import_json_manifest(self) -> None:
+        if not self.args.import_json_manifest:
+            return
+        result = import_json_manifest_to_sqlite(
+            resolve_project_path(self.args.import_json_manifest),
+            resolve_project_path(self.args.import_sqlite_db),
+            self.repository,
+            table_name=self.args.import_table,
+            replace=self.args.import_replace_table,
+            row_limit=self.args.import_row_limit,
+        )
+        print(
+            "[json-import] "
+            f"provider={result.provider_id} table={result.table_name} rows={result.rows_imported} "
+            f"columns={len(result.columns)} shape={result.source_shape} sqlite={result.sqlite_path} "
+            f"asset={result.table_asset_id}"
+        )
+
+    def import_verified_json_manifests(self) -> None:
+        if not self.args.import_verified_json_manifests:
+            return
+        result = import_verified_json_manifests_to_sqlite(
+            self.repository,
+            resolve_project_path(self.args.import_sqlite_db),
+            provider_ids=self.args.provider or None,
+            replace=self.args.import_replace_table,
+            row_limit=self.args.import_row_limit,
+        )
+        print(
+            "[json-import-batch] "
+            f"checked={result.checked} imported={result.imported} skipped={result.skipped} "
+            f"non_json={result.skipped_non_json} unhealthy={result.skipped_unhealthy} "
+            f"existing={result.skipped_existing} failed={result.failed} sqlite={resolve_project_path(self.args.import_sqlite_db)}"
+        )
+        for item in result.results:
+            print(
+                "[json-import-batch] "
+                f"imported provider={item.provider_id} table={item.table_name} "
+                f"rows={item.rows_imported} shape={item.source_shape}"
+            )
+        for error in result.errors:
+            print(f"[json-import-batch] error {error}")
 
     def show_manifest_health(self) -> None:
         if self.args.manifest_health:

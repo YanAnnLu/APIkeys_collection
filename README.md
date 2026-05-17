@@ -12,8 +12,8 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
 - Exports adapter-discovered dataset-version download plans with direct/review eligibility.
 - Runs direct entries from a download-plan JSON and registers healthy manifest-backed file assets.
-- Imports verified CSV/CSV.GZ manifests into curated SQLite tables and registers table assets.
-- Batch-imports healthy CSV/CSV.GZ manifests from the registry while skipping non-CSV, unhealthy, or already-imported tables.
+- Imports verified CSV/CSV.GZ and JSON/JSONL/GeoJSON manifests into curated SQLite tables and registers table assets.
+- Batch-imports healthy CSV or JSON manifests from the registry while skipping unsupported, unhealthy, or already-imported tables.
 - Does not search for leaked keys or scrape secrets.
 
 ## Current Launcher Features
@@ -146,7 +146,9 @@ datasets, and the same canonical dataset may later have multiple mirrors. Datase
 by dataset names/IDs, versions, scope, and fingerprints, while providers remain provenance/download context.
 
 Downloaded API data still needs curation. The `curation` layer is where raw records are renamed, type-cast,
-deduplicated, checked for required fields, and eventually normalized for database/import targets.
+deduplicated, checked for required fields, and eventually normalized for database/import targets. The current MVP can
+promote verified CSV/CSV.GZ and JSON/JSONL/GeoJSON manifests into curated SQLite tables before richer provider-specific
+validation is implemented.
 
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for

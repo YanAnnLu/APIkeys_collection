@@ -185,6 +185,8 @@ state_file("APIkeys_collection.sqlite")
 
 Direct HTTP(S) 下載完成後會產生 sidecar manifest。健康 manifest 會被寫入 SQLite `dataset_asset_manifests`，並且可登錄成 install registry 裡的 managed `file` asset。這是目前 MVP 閉環的核心：下載檔案不只是落在 `downloads/`，還會有 manifest、checksum、provider/dataset/version/source metadata，以及本機 ownership 記錄。
 
+健康 manifest 也可以進一步匯入 curated SQLite table。CSV/CSV.GZ 走 `--import-csv-manifest`；JSON/JSONL/GeoJSON 走 `--import-json-manifest`。JSON 匯入目前支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列，以及基本 GeoJSON FeatureCollection；所有欄位先以 `TEXT` 存入 SQLite，欄名會正規化成安全 SQL identifier，並記錄 schema fingerprint。這仍是 MVP 級匯入，後續還需要 provider-specific 型別推論、欄位驗證、GIS/time-series 專用 importer。
+
 下載政策可以在 `launcher_integrations.local.json` 覆寫，範例來源在 `config/launcher_integrations.example.json`：
 
 ```json
@@ -364,6 +366,8 @@ UI 也有原生選單列：
 資料下載或手動納管後，launcher 會以 `install_id` 追蹤本機資產。這是為了避免使用者手動刪除、重複匯入、或資料庫漂移時造成誤判。
 
 Install registry 會同時管理不同資產種類，例如 `file`、`database`、`table`。目前 database self-check 只會驗 `database` / `table` asset，不會把已下載檔案誤當成資料庫錯誤。
+
+CSV 與 JSON manifest 匯入 curated SQLite 後，會登錄成 `asset_role=curated` 的 `table` asset，並保存 `source_format` 與 schema fingerprint。白話說，原始下載檔仍是 raw file；匯入 SQLite 後的表格才是給後續查詢、清洗、渲染橋接使用的初步 curated asset。
 
 目前解除安裝仍是安全骨架：會標記 registry 狀態，不會直接執行破壞性 SQL。未來若要刪除 SQL database，必須確認 install_id 與 fingerprint 都符合。
 

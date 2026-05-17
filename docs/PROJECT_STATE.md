@@ -1,6 +1,6 @@
 # APIkeys_collection Project State
 
-Last local review: 2026-05-17
+Last local review: 2026-05-18
 
 ## Product Intent
 
@@ -38,6 +38,11 @@ The project is not a secret harvester. Credential files are templates for user-o
   managed curated table asset.
 - Registry CSV imports can now run in batch through `--import-verified-csv-manifests`; the batch path skips non-CSV,
   unhealthy, and already-imported tables by default so it can be safely re-run during MVP smoke checks.
+- Verified JSON/JSONL/GeoJSON manifests can now be imported into curated SQLite tables through
+  `--import-json-manifest`; object arrays, JSON Lines, wrapped records/items/results/data arrays, and basic GeoJSON
+  FeatureCollections are normalized to safe text columns and registered as managed curated table assets.
+- Registry JSON imports can now run in batch through `--import-verified-json-manifests`; the batch path skips non-JSON,
+  unhealthy, and already-imported tables by default.
 - Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.
