@@ -10,6 +10,7 @@ from typing import Iterable
 from api_launcher.db import SCRIPT_DIR, init_db, resolve_project_path, utc_now_iso
 from api_launcher.models import Provider, ProviderCatalogEntry
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
+from api_launcher.sql_assets import database_uninstall_command
 
 
 PROVIDERS: tuple[Provider, ...] = load_provider_catalog(SCRIPT_DIR / PROVIDER_CATALOG_NAME)
@@ -412,6 +413,24 @@ class ApiCatalogRepository:
         )
         self.conn.commit()
         return asset_id
+
+    def register_provider_database_asset(
+        self,
+        provider_id: str,
+        engine: str,
+        database_name: str,
+        location: str = "",
+        notes: str = "",
+    ) -> str:
+        install_id = self.manage_provider_installation(provider_id, location=location or f"{engine}://{database_name}")
+        return self.register_installation_asset(
+            install_id,
+            asset_kind="database",
+            engine=engine,
+            asset_name=database_name,
+            uninstall_command=database_uninstall_command(engine, database_name),
+            notes=notes,
+        )
 
     def uninstall_provider_installation(self, provider_id: str, execute: bool = False) -> dict[str, object]:
         if execute:

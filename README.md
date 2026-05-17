@@ -87,6 +87,10 @@ Local installs use a launcher registry instead of path/name guessing. `provider_
 as files, schemas, tables, or future SQL uninstall commands. This is meant to prevent duplicate installs and avoid
 leaving dead registry entries when a source is unmanaged or removed.
 
+SQL uninstall commands are generated only for validated identifiers and stored as registry metadata first. For example,
+a MySQL database asset can store `DROP DATABASE IF EXISTS \`sample_db\`;`, but destructive execution stays disabled
+until a database adapter can verify the target connection and ownership.
+
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for
 `taichi_global_bathymetry.py` to load quickly.

@@ -82,6 +82,33 @@ class InstallRegistryTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.repo.uninstall_provider_installation("sample_provider", execute=True)
 
+    def test_database_assets_store_safe_sql_uninstall_command(self) -> None:
+        asset_id = self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="sample_db",
+        )
+        row = self.conn.execute(
+            """
+            SELECT engine, asset_name, uninstall_command
+            FROM provider_installation_assets
+            WHERE asset_id = ?
+            """,
+            (asset_id,),
+        ).fetchone()
+
+        self.assertEqual("mysql", row["engine"])
+        self.assertEqual("sample_db", row["asset_name"])
+        self.assertEqual("DROP DATABASE IF EXISTS `sample_db`;", row["uninstall_command"])
+
+    def test_database_asset_rejects_unsafe_sql_identifier(self) -> None:
+        with self.assertRaises(ValueError):
+            self.repo.register_provider_database_asset(
+                "sample_provider",
+                engine="mysql",
+                database_name="sample; DROP DATABASE mysql;",
+            )
+
     def _count_installations(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM provider_installations").fetchone()[0]
 
