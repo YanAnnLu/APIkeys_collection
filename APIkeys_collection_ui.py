@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from frontends.tk.APIkeys_collection_ui import main
+from frontends.tk.launcher_ui import main
 
 
 if __name__ == "__main__":

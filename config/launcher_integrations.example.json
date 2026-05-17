@@ -59,6 +59,84 @@
       "notes": "Cross-database fallback for MySQL, PostgreSQL, SQLite, and more."
     }
   ],
+  "data_store_connection_profiles": [
+    {
+      "id": "mysql_default",
+      "label": "MySQL default",
+      "store_kind": "relational_sql",
+      "engine": "mysql",
+      "required_env_vars": [
+        "APIKEYS_MYSQL_HOST",
+        "APIKEYS_MYSQL_DATABASE",
+        "APIKEYS_MYSQL_USER",
+        "APIKEYS_MYSQL_PASSWORD"
+      ],
+      "optional_env_vars": [
+        "APIKEYS_MYSQL_PORT"
+      ],
+      "notes": "Passwords should come from environment variables or a future credential vault, not Git-tracked config."
+    },
+    {
+      "id": "postgres_default",
+      "label": "PostgreSQL default",
+      "store_kind": "relational_sql",
+      "engine": "postgresql",
+      "required_env_vars": [
+        "APIKEYS_POSTGRES_HOST",
+        "APIKEYS_POSTGRES_DATABASE",
+        "APIKEYS_POSTGRES_USER",
+        "APIKEYS_POSTGRES_PASSWORD"
+      ],
+      "optional_env_vars": [
+        "APIKEYS_POSTGRES_PORT"
+      ],
+      "notes": "Reserved for PostgreSQL introspection."
+    },
+    {
+      "id": "sqlite_local",
+      "label": "SQLite local",
+      "store_kind": "embedded_sql",
+      "engine": "sqlite",
+      "required_env_vars": [
+        "APIKEYS_SQLITE_PATH"
+      ],
+      "notes": "Local file-backed SQLite path for lightweight testing."
+    },
+    {
+      "id": "mongodb_default",
+      "label": "MongoDB default",
+      "store_kind": "document_nosql",
+      "engine": "mongodb",
+      "required_env_vars": [
+        "APIKEYS_MONGODB_URI"
+      ],
+      "notes": "Reserved for JSON/document collections."
+    },
+    {
+      "id": "s3_compatible_default",
+      "label": "S3-compatible object store",
+      "store_kind": "object_storage",
+      "engine": "s3_compatible",
+      "required_env_vars": [
+        "APIKEYS_S3_ENDPOINT",
+        "APIKEYS_S3_BUCKET",
+        "APIKEYS_S3_ACCESS_KEY",
+        "APIKEYS_S3_SECRET_KEY"
+      ],
+      "notes": "Reserved for data lakes and large raw/curated assets."
+    },
+    {
+      "id": "vector_db_default",
+      "label": "Vector DB default",
+      "store_kind": "vector_database",
+      "engine": "generic_vector_db",
+      "required_env_vars": [
+        "APIKEYS_VECTOR_DB_ENDPOINT",
+        "APIKEYS_VECTOR_DB_API_KEY"
+      ],
+      "notes": "Reserved for semantic search and local LLM workflows."
+    }
+  ],
   "download_tools": [
     {
       "id": "python_internal",

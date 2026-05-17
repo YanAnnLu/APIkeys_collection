@@ -13,7 +13,7 @@ Do not move renderer dependencies into `requirements.txt` unless the Docker laun
 
 - Python 3.13
 - SQLite via `sqlite3`
-- Tkinter for `frontends/tk/APIkeys_collection_ui.py` with root-level `APIkeys_collection_ui.py` kept as a compatibility wrapper.
+- Tkinter for `frontends/tk/launcher_ui.py` with root-level `APIkeys_collection_ui.py` kept as a compatibility wrapper.
 - Standard-library networking via `urllib`
 - Docker Compose for CLI validation and future workers
 
@@ -214,7 +214,7 @@ Core validation:
 
 ```powershell
 py -m unittest discover -s tests
-$env:PYTHONDONTWRITEBYTECODE='1'; py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\APIkeys_collection_ui.py renderers\taichi_global_bathymetry.py api_launcher\core.py api_launcher\db.py api_launcher\models.py api_launcher\repository.py
+$env:PYTHONDONTWRITEBYTECODE='1'; py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py renderers\taichi_global_bathymetry.py api_launcher\core.py api_launcher\db.py api_launcher\models.py api_launcher\repository.py
 docker compose run --rm --build launcher
 ```
 

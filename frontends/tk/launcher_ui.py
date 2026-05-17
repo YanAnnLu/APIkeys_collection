@@ -25,10 +25,11 @@ from api_launcher.event_log import log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
 from api_launcher.repair import repair_summary, scan_download_manifests
-from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
+from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, state_file
 from api_launcher.library_actions import LibraryContext, build_library_actions
 from api_launcher.google_auth import build_google_device_login_request
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, DEFAULT_CAPABILITY_ROUTES
+from api_launcher.data_store_connections import DEFAULT_DATA_STORE_PROFILES
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -448,6 +449,7 @@ class ApiCollectionUi:
 
         self._init_database()
         self._setup_style()
+        self._build_menu_bar()
         self._build_layout()
         self.root.bind("<Configure>", self.on_root_configure)
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
@@ -514,6 +516,49 @@ class ApiCollectionUi:
         style.configure("Treeview", background=COLORS["panel"], fieldbackground=COLORS["panel"], foreground=COLORS["text"], rowheight=rowheight, font=("Helvetica", 12))
         style.configure("Treeview.Heading", background=COLORS["header"], foreground=COLORS["text"], font=("Helvetica", 12, "bold"), padding=(10, 12))
         style.map("Treeview", background=[("selected", COLORS["accent_dark"])])
+
+    def _build_menu_bar(self) -> None:
+        menu_bar = Menu(self.root)
+
+        file_menu = Menu(menu_bar, tearoff=0)
+        file_menu.add_command(label="Refresh library", command=self.reload_data)
+        file_menu.add_command(label="Export download plan", command=self.export_download_plan)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.close_app)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+
+        library_menu = Menu(menu_bar, tearoff=0)
+        library_menu.add_command(label="Add selected to download plan", command=self.select_active_provider)
+        library_menu.add_command(label="Fetch selected metadata", command=self.crawl_selected)
+        library_menu.add_command(label="Verify downloaded files", command=self.verify_download_manifests)
+        library_menu.add_separator()
+        library_menu.add_command(label="Manage active source", command=self.manage_active_provider)
+        library_menu.add_command(label="Unmanage active source", command=self.unmanage_active_provider)
+        library_menu.add_command(label="Uninstall active source", command=self.uninstall_active_provider)
+        menu_bar.add_cascade(label="Library", menu=library_menu)
+
+        integrations_menu = Menu(menu_bar, tearoff=0)
+        integrations_menu.add_command(label="Google / Gemini login and AI", command=self.open_google_gemini_settings)
+        integrations_menu.add_command(label="Database tool settings", command=self.open_database_settings)
+        integrations_menu.add_command(label="Data store connections", command=self.open_data_store_connection_settings)
+        integrations_menu.add_command(label="Open database tool", command=self.open_database_tool)
+        integrations_menu.add_separator()
+        integrations_menu.add_command(label="Open integration config", command=self.open_integration_config_file)
+        menu_bar.add_cascade(label="Integrations", menu=integrations_menu)
+
+        tools_menu = Menu(menu_bar, tearoff=0)
+        tools_menu.add_command(label="Startup environment checks", command=self.show_environment_checks)
+        tools_menu.add_command(label="Repair / verify manifests", command=self.verify_download_manifests)
+        tools_menu.add_command(label="Open downloads folder", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
+        menu_bar.add_cascade(label="Tools", menu=tools_menu)
+
+        help_menu = Menu(menu_bar, tearoff=0)
+        help_menu.add_command(label="Docs index", command=lambda: self.open_doc_file("DOCS_INDEX.zh-TW.md"))
+        help_menu.add_command(label="Product positioning", command=lambda: self.open_doc_file("PRODUCT_POSITIONING.zh-TW.md"))
+        help_menu.add_command(label="Technical overview", command=lambda: self.open_doc_file("TECHNICAL_OVERVIEW.zh-TW.md"))
+        menu_bar.add_cascade(label="Help", menu=help_menu)
+
+        self.root.configure(menu=menu_bar)
 
     def _build_layout(self) -> None:
         sidebar_width = clamp(int(self.root.winfo_width() * LAYOUT["sidebar_ratio"]), LAYOUT["sidebar_min"], LAYOUT["sidebar_max"])
@@ -1366,6 +1411,88 @@ class ApiCollectionUi:
         profile = core.active_database_client()
         if profile:
             self.status_var.set(f"目前預設資料庫工具：{profile.label}")
+
+    def open_integration_config_file(self) -> None:
+        core.ensure_local_integration_config()
+        webbrowser.open(core.local_integrations_path().as_uri())
+        self.status_var.set("Opened local integration config.")
+
+    def open_doc_file(self, name: str) -> None:
+        path = PROJECT_ROOT / "docs" / name
+        if not path.exists():
+            messagebox.showinfo("Document not found", str(path))
+            return
+        webbrowser.open(path.as_uri())
+
+    def open_data_store_connection_settings(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title("Data store connections")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("900x520")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text="Data store connections", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text="The launcher may manage SQL, NoSQL, object storage, vector DBs, and file-backed stores. Secrets stay in environment variables or a future credential vault.",
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        table = ttk.Treeview(
+            dialog,
+            columns=("label", "kind", "engine", "required", "optional", "status"),
+            show="headings",
+            height=10,
+        )
+        for name, label, width in [
+            ("label", "Profile", 160),
+            ("kind", "Store kind", 140),
+            ("engine", "Engine", 120),
+            ("required", "Required env vars", 260),
+            ("optional", "Optional env vars", 180),
+            ("status", "Status", 90),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+        for profile in DEFAULT_DATA_STORE_PROFILES:
+            table.insert(
+                "",
+                END,
+                values=(
+                    profile.label,
+                    profile.store_kind,
+                    profile.engine,
+                    ", ".join(profile.required_env_vars),
+                    ", ".join(profile.optional_env_vars) or "-",
+                    profile.status,
+                ),
+            )
+        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def show_environment_checks(self) -> None:
+        checks = core.run_startup_checks(DB_PATH)
+        dialog = Toplevel(self.root)
+        dialog.title("Startup environment checks")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("760x520")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text="Startup environment checks", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        table = ttk.Treeview(dialog, columns=("name", "status", "detail"), show="headings", height=14)
+        for name, label, width in [
+            ("name", "Check", 190),
+            ("status", "Status", 90),
+            ("detail", "Detail", 460),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+        for check in checks:
+            table.insert("", END, values=(check.name, check.status, check.detail))
+        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def open_google_gemini_settings(self) -> None:
         dialog = Toplevel(self.root)

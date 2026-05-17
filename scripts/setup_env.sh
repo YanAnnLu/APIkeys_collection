@@ -9,7 +9,7 @@ fi
 
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends/tk/APIkeys_collection_ui.py
+.venv/bin/python -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends/tk/launcher_ui.py
 .venv/bin/python APIkeys_collection.py --summary
 
 echo

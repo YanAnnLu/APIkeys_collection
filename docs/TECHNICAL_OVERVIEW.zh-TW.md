@@ -228,6 +228,15 @@ py APIkeys_collection.py --show-library-actions gebco --library-local-status man
 
 本機檔案不要提交 Git。使用者可以設定 MySQL Workbench、DBeaver 或其他資料庫工具。UI 中有「資料庫工具設定」視窗可切換預設工具。
 
+選單列也有 `Integrations > Data store connections`。這和「資料庫工具」不同：
+
+- Database tool settings：設定要開啟 MySQL Workbench、DBeaver 或其他 GUI client。
+- Data store connections：保留 MySQL/PostgreSQL/SQLite、MongoDB、S3-compatible object storage、vector DB 等連線 profile 與環境變數名稱，供未來自檢、登入、測試連線、install/uninstall adapter 使用。
+
+SQL 不再有獨立的連線 profile 模組；MySQL、PostgreSQL、SQLite 會被視為 data store connection 的一種。這樣可以避免未來同時維護 SQL-only 與 NoSQL/object/vector profile 兩套相似結構。
+
+目前密碼與 token 不會寫進 config；建議放在環境變數或未來的 credential vault。這是為了支援使用者混合使用關聯式與非關聯式資料庫的情況。
+
 ## Gemini / Google 登入
 
 目前 AI 摘要支援兩條路：
@@ -265,6 +274,15 @@ py APIkeys_collection.py --init-db --seed --generate-ai-summary gebco --ai-profi
 ```
 
 Tk UI 中可以按 `Gemini / AI`，選 `Use Gemini this session`，貼上 API key 後再在資料集詳情或右鍵選單使用 `Gemini / AI description`。
+
+UI 也有原生選單列：
+
+- `Integrations > Google / Gemini login and AI`
+- `Integrations > Database tool settings`
+- `Tools > Startup environment checks`
+- `Help > Docs index`
+
+這些選單使用 Tk 原生 `Menu`，在 macOS 會進系統選單列；開啟本機文件與設定檔使用 Python `Path.as_uri()` + `webbrowser.open()`，避免寫死 Windows shell 指令。
 
 ## 安裝 registry 與解除安裝
 
