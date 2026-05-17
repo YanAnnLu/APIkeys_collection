@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib import request
 
+from api_launcher.ai_prompts import provider_description_prompt
+
 from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
 from api_launcher.paths import config_file, local_config_file
@@ -326,24 +328,7 @@ def _find_ai_profile(profile_id: str | None) -> AiSummaryProfile:
 
 
 def _provider_summary_prompt(provider: Provider) -> str:
-    return "\n".join(
-        [
-            "請用繁體中文為這個資料庫/API 來源寫一段 launcher 內使用的簡短說明。",
-            "請聚焦：它提供什麼資料、適合什麼研究/工程用途、使用前需要注意什麼認證或限制。",
-            "輸出 3 到 5 句，不要寫行銷文，不要編造不存在的功能。",
-            f"名稱: {provider.name}",
-            f"Owner: {provider.owner}",
-            f"Categories: {', '.join(provider.categories)}",
-            f"Scope: {provider.geographic_scope}",
-            f"Auth: {provider.auth_type}",
-            f"Key env var: {provider.key_env_var or 'none'}",
-            f"Docs URL: {provider.docs_url}",
-            f"API URL: {provider.api_base_url or 'none'}",
-            f"Signup URL: {provider.signup_url or 'none'}",
-            f"Existing notes: {provider.notes or 'none'}",
-        ]
-    )
-
+    return provider_description_prompt(provider)
 
 def _post_json(url: str, payload: dict[str, object], headers: dict[str, str] | None, timeout: float) -> dict[str, object]:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

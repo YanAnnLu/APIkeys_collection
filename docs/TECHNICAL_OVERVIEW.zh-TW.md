@@ -240,6 +240,16 @@ py APIkeys_collection.py --show-library-actions gebco --library-local-status man
 
 QR 登入比手動填 API key 更適合一般使用者，但 token 儲存必須謹慎：不可寫進 Git、不可放在一般設定檔、需要本機 private token store 或系統 credential vault。
 
+Gemini/Ollama 的資料源描述使用 `api_launcher/ai_prompts.py` 中的 prompt contract。現階段的 `dataset_launcher_description_v1` 會要求模型：
+
+- 用繁體中文輸出。
+- 用 3 到 5 個短 bullet points。
+- 說明資料類型、用途、虛擬孿生/大數據可能用法。
+- 說明 API key、帳號或存取限制。
+- 不得捏造 API key、價格、授權或不存在的能力。
+
+這樣 Gemini 會知道 launcher 調用它的目的，是「生成資料庫/資料集描述」，不是聊天或自由發揮。
+
 ## 安裝 registry 與解除安裝
 
 資料下載或手動納管後，launcher 會以 `install_id` 追蹤本機資產。這是為了避免使用者手動刪除、重複匯入、或資料庫漂移時造成誤判。

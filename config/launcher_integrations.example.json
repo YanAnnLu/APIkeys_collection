@@ -139,6 +139,39 @@
     "login_mode": "device_qr",
     "notes": "Future QR/device login for Gemini and Google services. Token storage must stay local and ignored by Git."
   },
+  "account_link_providers": [
+    {
+      "id": "google",
+      "label": "Google",
+      "auth_mode": "oauth_device_qr",
+      "status": "skeleton",
+      "capability_targets": [
+        "gemini_summary",
+        "google_drive_future",
+        "google_cloud_future"
+      ]
+    },
+    {
+      "id": "apple",
+      "label": "Apple",
+      "auth_mode": "sign_in_with_apple",
+      "status": "reserved",
+      "capability_targets": [
+        "identity_only_future"
+      ]
+    },
+    {
+      "id": "microsoft",
+      "label": "Microsoft",
+      "auth_mode": "oauth_device_qr",
+      "status": "reserved",
+      "capability_targets": [
+        "identity_only_future",
+        "azure_openai_future",
+        "onedrive_future"
+      ]
+    }
+  ],
   "unreal_projects": [
     {
       "id": "local_ue5_bridge",

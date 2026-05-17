@@ -27,6 +27,7 @@ from api_launcher.repair import repair_summary, scan_download_manifests
 from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
 from api_launcher.library_actions import LibraryContext, build_library_actions
 from api_launcher.google_auth import build_google_device_login_request
+from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, DEFAULT_CAPABILITY_ROUTES
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -1377,11 +1378,16 @@ class ApiCollectionUi:
         text.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         profile = core.active_ai_profile()
         profile_text = f"Current AI profile: {profile.label} ({profile.kind})" if profile else "No active AI profile."
+        routes_text = "; ".join(
+            f"{route.capability}: {route.preferred_provider} -> {route.target_profile}"
+            for route in DEFAULT_CAPABILITY_ROUTES
+        )
         message = "\n".join(
             [
                 "This panel is the Google/Gemini connection entry point.",
                 "",
                 profile_text,
+                f"Capability routes: {routes_text or 'none'}",
                 "",
                 "Current safe skeleton supports:",
                 "1. Gemini API key: create a key in Google AI Studio, set GEMINI_API_KEY, and enable the gemini profile in launcher_integrations.local.json.",
@@ -1392,6 +1398,22 @@ class ApiCollectionUi:
         )
         text.insert("1.0", message)
         text.configure(state="disabled")
+        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=5)
+        for name, label, width in [
+            ("provider", "Account", 110),
+            ("mode", "Login mode", 140),
+            ("status", "Status", 90),
+            ("targets", "Capability targets", 230),
+        ]:
+            providers.heading(name, text=label)
+            providers.column(name, width=width, anchor="w", stretch=True)
+        for provider in DEFAULT_ACCOUNT_PROVIDERS:
+            providers.insert(
+                "",
+                END,
+                values=(provider.label, provider.auth_mode, provider.status, ", ".join(provider.capability_targets)),
+            )
+        providers.pack(fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
         ttk.Button(actions, text="Start QR login", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
