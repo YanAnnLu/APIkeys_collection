@@ -14,7 +14,7 @@ import sqlite3
 import threading
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, X, Y, BooleanVar, StringVar, Tk, messagebox
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, Text, Tk, messagebox
 from tkinter import ttk
 
 import APIkeys_collection as core
@@ -136,6 +136,7 @@ class ApiCollectionUi:
         self.selected: dict[str, BooleanVar] = {}
         self.rows: list[ProviderRow] = []
         self.filtered_rows: list[ProviderRow] = []
+        self.active_provider_id = ""
 
         self._init_database()
         self._setup_style()
@@ -164,6 +165,10 @@ class ApiCollectionUi:
         style.configure("Panel.TFrame", background=COLORS["panel"])
         style.configure("Header.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Helvetica", 26, "bold"))
         style.configure("Muted.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Helvetica", 12))
+        style.configure("DetailTitle.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 20, "bold"))
+        style.configure("DetailSection.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Helvetica", 11, "bold"))
+        style.configure("DetailText.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 11), wraplength=330)
+        style.configure("DetailMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Helvetica", 10), wraplength=330)
         style.configure("SidebarTitle.TLabel", background=COLORS["sidebar"], foreground=COLORS["accent"], font=("Helvetica", 18, "bold"))
         style.configure("Sidebar.TButton", background=COLORS["sidebar"], foreground=COLORS["text"], anchor="w", padding=(18, 12))
         style.map("Sidebar.TButton", background=[("active", COLORS["header"])])
@@ -212,8 +217,11 @@ class ApiCollectionUi:
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
-        table_frame = ttk.Frame(main, style="Panel.TFrame")
-        table_frame.pack(fill=BOTH, expand=True, padx=36, pady=(0, 20))
+        content = ttk.Frame(main, style="App.TFrame")
+        content.pack(fill=BOTH, expand=True, padx=36, pady=(0, 20))
+
+        table_frame = ttk.Frame(content, style="Panel.TFrame")
+        table_frame.pack(side=LEFT, fill=BOTH, expand=True)
         columns = tuple(column[0] for column in TABLE_COLUMNS)
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
         for name, label, width, anchor, stretch in TABLE_COLUMNS:
@@ -227,11 +235,65 @@ class ApiCollectionUi:
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
-        self.tree.bind("<Double-1>", lambda _event: self.open_selected_docs())
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.tree.bind("<Double-1>", lambda _event: self.open_active_docs())
+
+        self._build_detail_panel(content)
 
         bottom = ttk.Frame(main, style="App.TFrame")
         bottom.pack(fill=X, padx=36, pady=(0, 22))
         ttk.Label(bottom, textvariable=self.status_var, style="Muted.TLabel").pack(anchor="w")
+
+    def _build_detail_panel(self, parent: ttk.Frame) -> None:
+        self.detail = ttk.Frame(parent, style="Panel.TFrame", width=380)
+        self.detail.pack(side=RIGHT, fill=Y, padx=(18, 0))
+        self.detail.pack_propagate(False)
+
+        self.detail_star_var = StringVar(value="☆")
+        self.detail_title_var = StringVar(value="選取一個資料源")
+        self.detail_owner_var = StringVar(value="像 Steam 商店頁一樣查看用途、狀態與官方入口。")
+        self.detail_category_var = StringVar(value="")
+        self.detail_auth_var = StringVar(value="")
+        self.detail_status_var = StringVar(value="")
+        self.detail_scope_var = StringVar(value="")
+        self.detail_urls_var = StringVar(value="")
+
+        hero = ttk.Frame(self.detail, style="Panel.TFrame")
+        hero.pack(fill=X, padx=18, pady=(18, 12))
+        ttk.Button(hero, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
+        ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel").pack(side=LEFT, fill=X, expand=True)
+        ttk.Label(self.detail, textvariable=self.detail_owner_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=18)
+
+        self.preview_box = Text(
+            self.detail,
+            height=7,
+            wrap=WORD,
+            bg=COLORS["bg"],
+            fg=COLORS["muted"],
+            relief="flat",
+            padx=14,
+            pady=12,
+            font=("Helvetica", 11),
+        )
+        self.preview_box.pack(fill=X, padx=18, pady=(18, 14))
+        self.preview_box.insert("1.0", "Preview metadata will appear here after OpenGraph/official-page extraction.")
+        self.preview_box.configure(state="disabled")
+
+        for label, var in [
+            ("TAGS", self.detail_category_var),
+            ("ACCESS", self.detail_auth_var),
+            ("STATUS", self.detail_status_var),
+            ("SCOPE", self.detail_scope_var),
+            ("OFFICIAL LINKS", self.detail_urls_var),
+        ]:
+            ttk.Label(self.detail, text=label, style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(10, 2))
+            ttk.Label(self.detail, textvariable=var, style="DetailText.TLabel").pack(anchor="w", fill=X, padx=18)
+
+        actions = ttk.Frame(self.detail, style="Panel.TFrame")
+        actions.pack(fill=X, padx=18, pady=(18, 0))
+        ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X)
 
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
@@ -247,6 +309,9 @@ class ApiCollectionUi:
         for row in self.rows:
             self.selected.setdefault(row.provider_id, BooleanVar(value=False))
         self.apply_filter()
+        if self.active_provider_id not in {row.provider_id for row in self.rows}:
+            self.active_provider_id = self.rows[0].provider_id if self.rows else ""
+        self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         self.status_var.set(f"已載入 {len(self.rows)} 個資料源。")
 
     def apply_filter(self) -> None:
@@ -299,6 +364,9 @@ class ApiCollectionUi:
                 ),
                 tags=tuple(tags),
             )
+        if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
+            self.tree.selection_set(self.active_provider_id)
+            self.tree.focus(self.active_provider_id)
         self.status_var.set(f"顯示 {len(self.filtered_rows)} / {len(self.rows)} 個資料源。")
 
     def on_tree_click(self, event: object) -> None:
@@ -316,6 +384,13 @@ class ApiCollectionUi:
         elif column == f"#{len(TABLE_COLUMNS)}":
             self.run_row_action(item)
 
+    def on_tree_select(self, _event: object) -> None:
+        selection = self.tree.selection()
+        if not selection:
+            return
+        self.active_provider_id = str(selection[0])
+        self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+
     def toggle_star(self, provider_id: str) -> None:
         conn = self._connect()
         try:
@@ -326,6 +401,10 @@ class ApiCollectionUi:
         label = row.name if row else provider_id
         self.reload_data()
         self.status_var.set(f"{'已置頂' if is_starred else '已取消置頂'}：{label}")
+
+    def toggle_active_star(self) -> None:
+        if self.active_provider_id:
+            self.toggle_star(self.active_provider_id)
 
     def toggle_provider(self, provider_id: str) -> None:
         var = self.selected[provider_id]
@@ -342,6 +421,54 @@ class ApiCollectionUi:
     def row_by_provider_id(self, provider_id: str) -> ProviderRow | None:
         return next((row for row in self.rows if row.provider_id == provider_id), None)
 
+    def update_detail_panel(self, row: ProviderRow | None) -> None:
+        if row is None:
+            self.detail_star_var.set("☆")
+            self.detail_title_var.set("選取一個資料源")
+            self.detail_owner_var.set("像 Steam 商店頁一樣查看用途、狀態與官方入口。")
+            self.detail_category_var.set("")
+            self.detail_auth_var.set("")
+            self.detail_status_var.set("")
+            self.detail_scope_var.set("")
+            self.detail_urls_var.set("")
+            self.set_preview_text("Preview metadata will appear here after OpenGraph/official-page extraction.")
+            return
+
+        self.detail_star_var.set(row.star_label)
+        self.detail_title_var.set(row.name)
+        self.detail_owner_var.set(row.owner)
+        self.detail_category_var.set(row.category_label)
+        access = row.auth_type
+        if row.key_env_var:
+            access = f"{access}\nEnv: {row.key_env_var}"
+        self.detail_auth_var.set(access)
+        self.detail_status_var.set(
+            f"Remote: {row.status_label} / {row.update_label}\nLocal: {row.local_label}"
+        )
+        self.detail_scope_var.set(row.geographic_scope)
+        links = [
+            f"Docs: {row.docs_url}" if row.docs_url else "",
+            f"API: {row.api_base_url}" if row.api_base_url else "",
+            f"Signup: {row.signup_url}" if row.signup_url else "",
+        ]
+        self.detail_urls_var.set("\n".join(link for link in links if link))
+        self.set_preview_text(self.provider_description(row))
+
+    def provider_description(self, row: ProviderRow) -> str:
+        if row.notes:
+            return row.notes
+        category_hint = row.category_label or "data"
+        return (
+            f"{row.name} is an official {category_hint} source from {row.owner}. "
+            "A richer description and visual preview will be populated from official metadata pages."
+        )
+
+    def set_preview_text(self, text: str) -> None:
+        self.preview_box.configure(state="normal")
+        self.preview_box.delete("1.0", END)
+        self.preview_box.insert("1.0", text)
+        self.preview_box.configure(state="disabled")
+
     def run_row_action(self, provider_id: str) -> None:
         row = self.row_by_provider_id(provider_id)
         if row is None or not row.action_label:
@@ -353,6 +480,23 @@ class ApiCollectionUi:
         else:
             self.status_var.set(f"正在檢查 {row.name} 的 metadata...")
         self.crawl_provider_ids([provider_id])
+
+    def check_active_metadata(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
+        self.status_var.set(f"正在檢查 {row.name if row else self.active_provider_id} 的 metadata...")
+        self.crawl_provider_ids([self.active_provider_id])
+
+    def select_active_provider(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        self.selected.setdefault(self.active_provider_id, BooleanVar(value=False)).set(True)
+        self.render_table()
+        row = self.row_by_provider_id(self.active_provider_id)
+        self.status_var.set(f"已加入下載計畫：{row.name if row else self.active_provider_id}")
 
     def self_check_selected(self) -> None:
         provider_ids = self.selected_provider_ids()
@@ -444,6 +588,14 @@ class ApiCollectionUi:
         for row in rows[:5]:
             webbrowser.open(row.docs_url or row.signup_url or row.api_base_url)
         self.status_var.set(f"已開啟 {min(len(rows), 5)} 個官方文件頁。")
+
+    def open_active_docs(self) -> None:
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row is None:
+            self.open_selected_docs()
+            return
+        webbrowser.open(row.docs_url or row.signup_url or row.api_base_url)
+        self.status_var.set(f"已開啟官方文件頁：{row.name}")
 
 
 class contextlib_suppress_tcl_error:
