@@ -39,6 +39,8 @@ The project is not a secret harvester. Credential files are templates for user-o
   deep schema summaries when the optional DB driver and env vars are available.
 - MySQL/PostgreSQL table assets now carry install ownership through `AssetRecord.install_location`; self-check can parse
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
+- Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
+  `--self-check-databases-json` for UI or agent handoff workflows.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 
@@ -146,7 +148,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 1. Add per-asset SQL profile/schema selection instead of relying only on default MySQL/PostgreSQL env vars.
 2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
-3. Expand repair suggestions to database drift, missing tables, adapter-specific datasets, and agent-readable repair summaries.
+3. Connect database repair suggestions to the Tk repair UI, then expand repair suggestions to adapter-specific datasets.
 4. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
 5. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 6. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

@@ -19,7 +19,7 @@
 | 網路中斷 | 下載失敗或檔案不完整 | `.part` 檔與 Range resume | per-provider retry policy 與 manifest 驗證 |
 | 使用者重複點 Start | 同一 provider 重複排 job | `prepare_provider_for_download()` 阻擋活躍 job | 以 dataset version 為 key 支援多版本但避免重複同版本 |
 | 使用者手動刪下載檔 | registry 指向不存在資產 | asset verifier 可標記 missing | UI 一鍵修復或重新下載缺失資產 |
-| 使用者手動刪 SQL database | launcher registry 變成死紀錄 | SQL self-check 已列入 GTD | MySQL/PostgreSQL/SQLite introspection |
+| 使用者手動刪 SQL database/table | launcher registry 變成死紀錄 | SQL self-check 會標記 missing/error，並輸出 `suggestion=...` 或 JSON repair suggestion | 將 database repair suggestions 接到 UI 修復流程 |
 | SQLite 被同步碟鎖住 | 寫入失敗或 permission denied | startup checks 與 error log | 建議本機 state path 或 lock retry |
 | SQLite connection 未明確 close | Windows 刪除 temp SQLite 時 `WinError 32`，CI 只在 windows-latest 失敗 | 2026-05-17 已將短生命週期 `sqlite3.connect()` 改用 `contextlib.closing(...)` | 對 SQLite helper/測試避免裸用 `with sqlite3.connect(...)`，必要時加靜態檢查 |
 | 只看 `git push` 成功 | 手機收到 GitHub Actions failure，誤以為 push 失敗 | macOS 已安裝並登入 `gh`，可查/追 CI | 每次 push 後用 `gh run list` / `gh run watch --exit-status` 確認 Windows/Ubuntu 都綠 |

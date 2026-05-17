@@ -43,7 +43,11 @@ from api_launcher.cli_discovery import (
     discovery_command_active,
 )
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
-from api_launcher.database_self_check import DatabaseAssetVerifier
+from api_launcher.database_self_check import (
+    DatabaseAssetVerifier,
+    DatabaseSelfCheckIssue,
+    database_self_check_agent_payload,
+)
 from api_launcher.dataset_adapters import adapters_for_provider
 from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
 from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
@@ -565,6 +569,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
     parser.add_argument("--test-data-store", action="append", default=[], help="test data-store connection profile id; use 'all' for every configured profile")
     parser.add_argument("--self-check-databases", action="store_true", help="verify managed database assets against configured data-store checks")
+    parser.add_argument("--self-check-databases-json", action="store_true", help="verify managed database assets and emit issues as agent-readable JSON")
     parser.add_argument("--generate-ai-summary", help="generate an AI description for a provider_id")
     parser.add_argument("--ai-profile", help="AI summary profile id, e.g. gemini_flash or local_ollama")
     parser.add_argument("--write-ai-summary", action="store_true", help="save generated AI summary back into provider notes when empty")
@@ -661,6 +666,7 @@ class CatalogLauncherCli:
             self.args.library_actions_json,
             bool(self.args.test_data_store),
             self.args.self_check_databases,
+            self.args.self_check_databases_json,
             bool(self.args.generate_ai_summary),
             bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
@@ -881,10 +887,11 @@ class CatalogLauncherCli:
             )
 
     def self_check_databases(self) -> None:
-        if not self.args.self_check_databases:
+        if not (self.args.self_check_databases or self.args.self_check_databases_json):
             return
         summary = self.repository.verify_provider_assets(self.args.provider or None, verifier=DatabaseAssetVerifier())
-        print(f"[database-self-check] {summary}")
+        if not self.args.self_check_databases_json:
+            print(f"[database-self-check] {summary}")
         provider_filter = ""
         params: tuple[str, ...] = ()
         if self.args.provider:
@@ -896,10 +903,14 @@ class CatalogLauncherCli:
             SELECT
                 pi.provider_id,
                 pia.asset_id,
+                pia.install_id,
                 pia.asset_kind,
                 pia.engine,
                 pia.asset_name,
                 pia.status,
+                COALESCE(pi.location, '') AS install_location,
+                COALESCE(pia.source_uri, '') AS source_uri,
+                COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
                 COALESCE(pia.last_verify_error, '') AS last_verify_error
             FROM provider_installation_assets pia
             JOIN provider_installations pi ON pi.install_id = pia.install_id
@@ -910,11 +921,31 @@ class CatalogLauncherCli:
             """,
             params,
         ).fetchall()
-        for row in rows:
+        issues = [
+            DatabaseSelfCheckIssue(
+                provider_id=row["provider_id"],
+                asset_id=row["asset_id"],
+                install_id=row["install_id"],
+                asset_kind=row["asset_kind"],
+                engine=row["engine"] or "",
+                asset_name=row["asset_name"],
+                status=row["status"],
+                error=row["last_verify_error"] or "",
+                install_location=row["install_location"] or "",
+                source_uri=row["source_uri"] or "",
+                schema_fingerprint=row["schema_fingerprint"] or "",
+            )
+            for row in rows
+        ]
+        if self.args.self_check_databases_json:
+            print(json.dumps(database_self_check_agent_payload(summary, issues), ensure_ascii=False, indent=2))
+            return
+        for issue in issues:
+            suggestion = issue.repair_suggestion()
             print(
                 "[database-self-check] "
-                f"{row['provider_id']} {row['asset_kind']} {row['engine'] or '-'}:{row['asset_name']} "
-                f"status={row['status']} error={row['last_verify_error'] or '-'}"
+                f"{issue.provider_id} {issue.asset_kind} {issue.engine or '-'}:{issue.asset_name} "
+                f"status={issue.status} suggestion={suggestion.action_id} error={issue.error or '-'}"
             )
 
     def generate_ai_summary(self) -> None:

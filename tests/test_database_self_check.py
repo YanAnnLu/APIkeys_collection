@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ from api_launcher.asset_verifier import AssetRecord
 from api_launcher.data_store_connections import DataStoreConnectionTestResult
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
+    database_repair_suggestion,
     database_self_check_target,
     sqlite_schema_summary,
     sqlite_table_schema_summary,
@@ -23,6 +25,52 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 class DatabaseSelfCheckTests(unittest.TestCase):
+    def test_database_repair_suggestion_maps_missing_env(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="database",
+            engine="mysql",
+            asset_name="weather",
+            status="error",
+            error="Missing required environment variables: APIKEYS_MYSQL_HOST, APIKEYS_MYSQL_DATABASE",
+        )
+
+        self.assertEqual("configure_data_store_env", suggestion.action_id)
+        self.assertEqual(("APIKEYS_MYSQL_HOST", "APIKEYS_MYSQL_DATABASE"), suggestion.details["missing_env_vars"])
+
+    def test_database_repair_suggestion_maps_missing_driver_to_project_env(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="database",
+            engine="postgresql",
+            asset_name="weather",
+            status="error",
+            error="Optional Python driver psycopg or psycopg2 is not installed.",
+        )
+
+        self.assertEqual("install_optional_driver_in_project_env", suggestion.action_id)
+        self.assertEqual("project_python_environment", suggestion.details["install_scope"])
+
+    def test_database_repair_suggestion_maps_schema_drift(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="table",
+            engine="sqlite",
+            asset_name="station",
+            status="error",
+            error="SQLite table schema fingerprint drift: expected abc, got def; table=station",
+        )
+
+        self.assertEqual("review_schema_drift", suggestion.action_id)
+
+    def test_database_repair_suggestion_maps_profile_mismatch(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="database",
+            engine="mysql",
+            asset_name="expected_db",
+            status="error",
+            error="MySQL profile connected to other_db, but registry asset expects expected_db.",
+        )
+
+        self.assertEqual("fix_data_store_profile_mapping", suggestion.action_id)
+
     def test_sqlite_asset_uses_source_uri_as_check_target(self) -> None:
         asset = AssetRecord(
             asset_id="asset_1",
@@ -655,7 +703,47 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertIn("'missing': 1", output.getvalue())
         self.assertIn("table sqlite:missing_station", output.getvalue())
+        self.assertIn("suggestion=restore_or_reimport_table", output.getvalue())
         self.assertIn("SQLite table is missing", output.getvalue())
+
+    def test_cli_self_check_databases_json_includes_repair_suggestion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            asset_db = Path(tmpdir) / "asset.sqlite"
+            with closing(sqlite3.connect(asset_db)) as conn:
+                conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="sample_provider",
+                        name="Sample",
+                        owner="Sample",
+                        categories=("test",),
+                        geographic_scope="local",
+                        docs_url="https://example.test",
+                    )
+                )
+                repo.register_provider_table_asset(
+                    "sample_provider",
+                    engine="sqlite",
+                    database_name="asset.sqlite",
+                    table_name="missing_station",
+                    source_uri=str(asset_db),
+                )
+            finally:
+                conn.close()
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(["--db", str(launcher_db), "--self-check-databases-json"])
+
+        self.assertEqual(0, rc)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(1, payload["issue_count"])
+        self.assertEqual("restore_or_reimport_table", payload["issues"][0]["repair_suggestion"]["action_id"])
 
 
 if __name__ == "__main__":

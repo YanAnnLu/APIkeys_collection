@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 import urllib.parse
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from api_launcher.asset_verifier import AssetRecord, AssetVerificationResult
@@ -31,6 +32,212 @@ class DatabaseSchemaSummary:
     schema_fingerprint: str
 
 
+@dataclass(frozen=True)
+class DatabaseRepairSuggestion:
+    action_id: str
+    label: str
+    description: str
+    severity: str = "warning"
+    can_auto_repair: bool = False
+    details: dict[str, object] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "action_id": self.action_id,
+            "label": self.label,
+            "description": self.description,
+            "severity": self.severity,
+            "can_auto_repair": self.can_auto_repair,
+            "details": self.details,
+        }
+
+
+@dataclass(frozen=True)
+class DatabaseSelfCheckIssue:
+    provider_id: str
+    asset_id: str
+    asset_kind: str
+    engine: str
+    asset_name: str
+    status: str
+    error: str
+    install_id: str = ""
+    install_location: str = ""
+    source_uri: str = ""
+    schema_fingerprint: str = ""
+
+    def repair_suggestion(self) -> DatabaseRepairSuggestion:
+        return database_repair_suggestion(
+            asset_kind=self.asset_kind,
+            engine=self.engine,
+            asset_name=self.asset_name,
+            status=self.status,
+            error=self.error,
+            provider_id=self.provider_id,
+            asset_id=self.asset_id,
+            install_location=self.install_location,
+            source_uri=self.source_uri,
+            schema_fingerprint=self.schema_fingerprint,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "provider_id": self.provider_id,
+            "asset_id": self.asset_id,
+            "install_id": self.install_id,
+            "asset_kind": self.asset_kind,
+            "engine": self.engine,
+            "asset_name": self.asset_name,
+            "status": self.status,
+            "error": self.error,
+            "install_location": safe_database_location(self.install_location),
+            "source_uri": safe_database_location(self.source_uri),
+            "has_schema_fingerprint": bool(self.schema_fingerprint),
+            "repair_suggestion": self.repair_suggestion().as_dict(),
+        }
+
+
+def database_self_check_agent_payload(
+    summary: dict[str, int],
+    issues: list[DatabaseSelfCheckIssue],
+) -> dict[str, object]:
+    issue_payloads = [issue.as_dict() for issue in issues]
+    return {
+        "summary": dict(summary),
+        "issue_count": len(issue_payloads),
+        "issues": issue_payloads,
+    }
+
+
+def database_repair_suggestion(
+    asset_kind: str,
+    engine: str,
+    asset_name: str,
+    status: str,
+    error: str,
+    provider_id: str = "",
+    asset_id: str = "",
+    install_location: str = "",
+    source_uri: str = "",
+    schema_fingerprint: str = "",
+) -> DatabaseRepairSuggestion:
+    normalized_engine = engine.strip().lower()
+    normalized_kind = asset_kind.strip().lower()
+    normalized_status = status.strip().lower()
+    message = error.strip()
+    lowered = message.lower()
+    details = {
+        "provider_id": provider_id,
+        "asset_id": asset_id,
+        "asset_kind": normalized_kind,
+        "engine": normalized_engine,
+        "asset_name": asset_name,
+        "status": normalized_status,
+        "install_location": safe_database_location(install_location),
+        "source_uri": safe_database_location(source_uri),
+        "has_schema_fingerprint": bool(schema_fingerprint),
+    }
+    missing_env_vars = _missing_env_vars(message)
+    if missing_env_vars:
+        return DatabaseRepairSuggestion(
+            "configure_data_store_env",
+            "Configure data-store environment",
+            "Set the required data-store environment variables in the local launcher environment, then rerun the database self-check.",
+            severity="error",
+            details={**details, "missing_env_vars": missing_env_vars},
+        )
+    if "optional python driver" in lowered or "dependency_missing" in lowered or _looks_like_missing_driver(lowered):
+        return DatabaseRepairSuggestion(
+            "install_optional_driver_in_project_env",
+            "Install optional SQL driver",
+            "Install the optional database driver in the project Python environment, not the base environment, then rerun the database self-check.",
+            severity="error",
+            details={**details, "install_scope": "project_python_environment"},
+        )
+    if "profile connected to" in lowered and "registry asset expects" in lowered:
+        return DatabaseRepairSuggestion(
+            "fix_data_store_profile_mapping",
+            "Fix data-store profile mapping",
+            "The active SQL profile points at a different database than the registry asset expects; update the profile/env selection or the asset ownership metadata.",
+            severity="error",
+            details=details,
+        )
+    if "schema fingerprint drift" in lowered:
+        return DatabaseRepairSuggestion(
+            "review_schema_drift",
+            "Review schema drift",
+            "Compare the registered schema fingerprint with the live database schema, then either migrate/reimport the asset or intentionally refresh the registry fingerprint.",
+            severity="warning",
+            details=details,
+        )
+    if "table is missing" in lowered or (normalized_kind == "table" and normalized_status == "missing"):
+        return DatabaseRepairSuggestion(
+            "restore_or_reimport_table",
+            "Restore or reimport table",
+            "The managed table is missing; restore it from backup or rerun the provider import path that owns this table.",
+            severity="error",
+            details=details,
+        )
+    if normalized_status == "missing" and normalized_engine == "sqlite":
+        return DatabaseRepairSuggestion(
+            "restore_or_reimport_sqlite_database",
+            "Restore or reimport SQLite database",
+            "The managed SQLite file is missing; restore the file or rerun the provider import that created it.",
+            severity="error",
+            details=details,
+        )
+    if "connection failed" in lowered:
+        return DatabaseRepairSuggestion(
+            "test_data_store_connection",
+            "Test data-store connection",
+            "Run the configured data-store connection test and inspect host, database, credentials, network access, and driver compatibility.",
+            severity="error",
+            details=details,
+        )
+    if "no database self-check adapter" in lowered:
+        return DatabaseRepairSuggestion(
+            "implement_database_self_check_adapter",
+            "Implement self-check adapter",
+            "No verifier exists for this engine yet; add an adapter or mark the asset unmanaged until one exists.",
+            severity="warning",
+            details=details,
+        )
+    if "unsupported asset kind" in lowered:
+        return DatabaseRepairSuggestion(
+            "fix_registry_asset_kind",
+            "Fix registry asset kind",
+            "The registry asset kind is not supported by database self-check; correct the asset metadata before retrying.",
+            severity="error",
+            details=details,
+        )
+    return DatabaseRepairSuggestion(
+        "inspect_database_asset",
+        "Inspect database asset",
+        "No specific automated repair rule matched this failure; inspect the asset record, data-store profile, and latest error before changing registry state.",
+        severity="warning" if normalized_status != "error" else "error",
+        details=details,
+    )
+
+
+def safe_database_location(value: str) -> str:
+    raw = value.strip()
+    if not raw:
+        return ""
+    parsed = urllib.parse.urlparse(raw)
+    if not parsed.scheme or not parsed.netloc:
+        return raw
+    if "@" not in parsed.netloc:
+        return raw
+    host = parsed.hostname or ""
+    try:
+        port_number = parsed.port
+    except ValueError:
+        port_number = None
+    port = f":{port_number}" if port_number else ""
+    redacted_netloc = host + port
+    return urllib.parse.urlunparse((parsed.scheme, redacted_netloc, parsed.path, "", "", ""))
+
+
 def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
     engine = asset.engine.strip().lower()
     if engine == "sqlite":
@@ -53,6 +260,17 @@ def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
             schema_name=schema_name,
         )
     return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name, database_name=asset.asset_name)
+
+
+def _missing_env_vars(message: str) -> tuple[str, ...]:
+    match = re.search(r"Missing required environment variables:\s*(.+)$", message)
+    if not match:
+        return ()
+    return tuple(value.strip() for value in match.group(1).split(",") if value.strip())
+
+
+def _looks_like_missing_driver(message: str) -> bool:
+    return ("driver" in message or "mysql-connector-python" in message or "psycopg" in message) and "not installed" in message
 
 
 class DatabaseAssetVerifier:

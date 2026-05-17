@@ -141,6 +141,11 @@ attempt. The same module now owns reusable MySQL/PostgreSQL `information_schema`
 table existence, column signatures, and optional schema fingerprints. SQL table assets should keep database ownership in
 the install record location; PostgreSQL table assets may use `schema.table` in `asset_name`.
 
+When database self-check finds a missing/error asset, `api_launcher/database_self_check.py` maps the error into a stable
+repair suggestion such as `configure_data_store_env`, `install_optional_driver_in_project_env`,
+`restore_or_reimport_table`, or `review_schema_drift`. Use `--self-check-databases-json` for pure JSON output that UI
+code or a future agent can consume without parsing human text.
+
 Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
 eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and
 tables may be better suited for RAG, SQL agents, feature stores, or domain models than direct language-model training.
