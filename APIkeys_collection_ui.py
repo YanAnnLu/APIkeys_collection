@@ -407,6 +407,7 @@ class ApiCollectionUi:
         self._build_layout()
         self.root.bind("<Configure>", self.on_root_configure)
         self.reload_data()
+        self.run_startup_environment_checks()
 
     def _init_database(self) -> None:
         conn = core.connect_db(DB_PATH)
@@ -420,6 +421,16 @@ class ApiCollectionUi:
 
     def _connect(self) -> sqlite3.Connection:
         return core.connect_db(DB_PATH)
+
+    def run_startup_environment_checks(self) -> None:
+        checks = core.run_startup_checks(DB_PATH)
+        problems = [check for check in checks if check.status in {"warning", "error"}]
+        if problems:
+            summary = ", ".join(f"{check.name}:{check.status}" for check in problems[:4])
+            self.status_var.set(f"Startup environment checks need attention: {summary}")
+            if any(check.status == "error" for check in problems):
+                details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
+                messagebox.showwarning("Startup environment check", details)
 
     def _setup_style(self) -> None:
         style = ttk.Style(self.root)

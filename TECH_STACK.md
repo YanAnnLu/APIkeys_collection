@@ -90,6 +90,26 @@ API, CSV, JSON, manual SQL imports, and derived outputs must carry provenance:
 
 This prevents derived analysis tables from being mistaken for official upstream data.
 
+## Download Engine
+
+Download/import work must stay off the Tk UI thread. The queue skeleton lives in
+`api_launcher/download_jobs.py` and uses a worker pool with progress snapshots,
+pause, resume, cancel, and retry-ready status fields.
+
+Adapters should report progress through `DownloadProgress` and call
+`DownloadJobController.wait_if_paused()` between chunks. Large HTTP adapters
+should prefer ranged requests or chunk manifests so interrupted jobs can resume
+instead of starting over.
+
+## Cross-platform Path and Encoding Rules
+
+- Source files are UTF-8 with LF endings. See `.editorconfig` and `.gitattributes`.
+- Local machine paths belong in ignored `*.local.json` files, not in tracked code.
+- Startup path checks live in `api_launcher/environment.py` and should run before
+  expensive downloader or renderer work.
+- Avoid shell-specific path assumptions; use `pathlib.Path` and `resolve_project_path()`
+  for project-local files.
+
 ## Validation
 
 Core validation:

@@ -22,6 +22,13 @@ def build_download_plan(
             "provider_count": len(provider_list),
             "status": "planned",
         },
+        "download_policy": {
+            "io_model": "nonblocking",
+            "max_parallel_jobs": 3,
+            "supports_pause": True,
+            "supports_resume": True,
+            "supports_retry": True,
+        },
         "providers": [provider_plan_entry(provider) for provider in provider_list],
     }
 

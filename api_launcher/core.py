@@ -43,6 +43,7 @@ from api_launcher.cli_discovery import (
     discovery_command_active,
 )
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
+from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
