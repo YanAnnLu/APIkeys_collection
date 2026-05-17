@@ -70,6 +70,8 @@ py APIkeys_collection.py --handoff-report state\handoff.md --manifest-health --s
 
 The report includes Git status, current HEAD, catalog counts, manifest health, recent structured logs, and suggested resume checks.
 
+For cross-Agent handoff, update and read `docs/AGENT_HANDOFF.zh-TW.md` first. It is the short, fixed handoff card; this file remains the longer Git workflow guide.
+
 GitHub Actions runs a lightweight CI matrix on Windows and Ubuntu for pushes and pull requests to `main`. It runs unit
 tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid platform-specific `.pyc` lock issues.
 

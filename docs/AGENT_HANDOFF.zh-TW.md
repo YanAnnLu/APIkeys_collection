@@ -1,0 +1,105 @@
+# Agent 接力卡
+
+最後更新：2026-05-17
+
+這份文件是跨 Windows、macOS、不同 Agent 接力時的固定入口。每次切換機器或切換 Agent 前，請優先更新這份文件；下一位 Agent 應該先讀這份，再讀 `PROJECT_GTD.md`。
+
+## 接手順序
+
+1. 同步 Git：
+
+   ```bash
+   git pull origin main
+   git status --short --branch
+   ```
+
+2. 讀文件：
+
+   ```text
+   docs/AGENT_HANDOFF.zh-TW.md
+   docs/PROJECT_GTD.md
+   docs/ARCHITECTURE.md
+   docs/TECHNICAL_OVERVIEW.zh-TW.md
+   ```
+
+3. 跑基本驗證：
+
+   ```bash
+   python3 -m unittest discover -s tests
+   python3 -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends/tk/launcher_ui.py api_launcher/core.py
+   python3 APIkeys_collection.py --summary
+   ```
+
+   Windows PowerShell 可改用：
+
+   ```powershell
+   py -m unittest discover -s tests
+   py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py api_launcher\core.py
+   py APIkeys_collection.py --summary
+   ```
+
+4. 如果 Docker 可用，跑 smoke test：
+
+   ```bash
+   docker compose -f docker-compose.yml run --rm --build launcher
+   ```
+
+## 目前專案定位
+
+APIkeys Collection 是一個類 Steam 的科學資料集/資料庫 launcher。它不是單純 API key 管理器，而是要管理：
+
+- 資料源與供應商 discovery seeds
+- 下載計畫，也就是資料集購物車
+- 非阻塞下載、續傳、暫停、重試、polite rate limit
+- 本機資料庫與 data store 連線 profile
+- install registry、版本、更新、解除納管/解除安裝安全流程
+- API/CSV/JSON/manual SQL 匯入與清洗管線
+- Taichi 與 Unreal 虛擬孿生 renderer bridge
+- 未來 agent skill / natural-language database management
+
+## 目前 Git 狀態
+
+| 欄位 | 值 |
+| --- | --- |
+| Branch | `main` |
+| 最新已推送 commit | `0d51022 Consolidate data store connection structure` |
+| 上次驗證 | `117 tests OK`，Docker launcher smoke OK |
+| UI 入口 | `python3 APIkeys_collection_ui.py` 或 `py APIkeys_collection_ui.py` |
+| Tk UI 實作 | `frontends/tk/launcher_ui.py` |
+
+## 最近完成
+
+- Tk UI 實作檔已從 `frontends/tk/APIkeys_collection_ui.py` 改名為 `frontends/tk/launcher_ui.py`。
+- 根目錄 `APIkeys_collection_ui.py` 保留相容入口，不要刪。
+- SQL-only 連線模組已合併進泛用 data store contract。
+- `api_launcher/data_store_connections.py` 現在統一管理 MySQL/PostgreSQL/SQLite、MongoDB、S3-compatible object storage、vector DB。
+- `config/launcher_integrations.example.json` 使用 `data_store_connection_profiles`，不要重新新增 `sql_connection_profiles`。
+
+## 下一步優先事項
+
+1. 把 UI 右鍵選單接到 `api_launcher/library_actions.py` 的共用規則。
+2. 避免在 UI 裡硬編碼 install/update/uninstall/open/render 的判斷。
+3. 讓 CLI、Tk UI、未來 agent skill 共用同一套 Steam-like action availability。
+4. 接著再做 UI log viewer、repair panel、data-store connection testing。
+
+## 開發守則
+
+- 每完成一個功能，要更新 `docs/PROJECT_GTD.md`。
+- 每次跨機器或跨 Agent 接力，要更新這份 `docs/AGENT_HANDOFF.zh-TW.md`。
+- 不要提交 `config/launcher_integrations.local.json`、`state/`、`downloads/`、真實 token、真實 API key。
+- 不要把本機絕對路徑寫死在程式碼；路徑要走 `api_launcher/paths.py` 或 config。
+- 預留端口不是死碼；但如果兩個模組表達同一件事，要優先合併抽象。
+- macOS 要注意 Tk、UTF-8、LF 換行、路徑大小寫與 `python3`/venv。
+
+## 給下一位 Agent 的提示詞
+
+```text
+你正在接手 APIkeys_collection。請先讀 docs/AGENT_HANDOFF.zh-TW.md，再讀 docs/PROJECT_GTD.md。不要依賴上一段聊天紀錄。
+
+先執行 git pull origin main、git status --short --branch、python3 -m unittest discover -s tests。
+
+目前優先任務是把 Tk UI 的右鍵選單 action 接到 api_launcher/library_actions.py 的共用規則，讓 UI、CLI、未來 agent skill 不再各自硬編碼 install/update/uninstall/open/render 行為。
+
+注意：SQL-only connection layer 已被合併到 api_launcher/data_store_connections.py，不要重新建立 sql_connection_profiles 或 sql_connections.py。
+```
+

@@ -8,11 +8,12 @@
 
 | 順序 | 文件 | 角色 |
 | --- | --- | --- |
-| 1 | `PRODUCT_POSITIONING.zh-TW.md` | 先理解產品定位：科學資料集 launcher + 虛擬孿生資料管線。 |
-| 2 | `PROJECT_GTD.md` | 看目前功能進度與下一步。 |
-| 3 | `ARCHITECTURE.md` | 看總 pipeline 與模組邊界。 |
-| 4 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
-| 5 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
+| 1 | `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力的固定入口。 |
+| 2 | `PRODUCT_POSITIONING.zh-TW.md` | 先理解產品定位：科學資料集 launcher + 虛擬孿生資料管線。 |
+| 3 | `PROJECT_GTD.md` | 看目前功能進度與下一步。 |
+| 4 | `ARCHITECTURE.md` | 看總 pipeline 與模組邊界。 |
+| 5 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
+| 6 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
 
 ## 可合併候選
 
@@ -46,6 +47,7 @@ docs/
 整理原則：
 
 - 主文件回答「這是什麼、做到哪、怎麼跑、下一步」。
+- `AGENT_HANDOFF.zh-TW.md` 是唯一的跨 Agent 接力卡，每次換手前都要更新。
 - 附錄回答「某個子系統的細節」。
 - GTD 是唯一進度主索引。
 - 文件不要重複敘述同一段 pipeline；改成互相引用。
