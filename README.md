@@ -205,12 +205,20 @@ python APIkeys_collection.py --write-credentials-template
 python APIkeys_collection_ui.py
 ```
 
+Run tests:
+
+```bash
+python -m unittest discover -s tests
+```
+
 ## Database Tables
 
 - `providers`: provider registry, auth requirements, docs/API URLs.
 - `template_keys`: environment variable placeholders for keys or owned credentials.
 - `crawl_results`: small metadata fetch results, status, title, content hash, excerpt, and regex-extracted metadata hints.
 - `provider_download_state`: download-guide status, including last check time, last download/import status, remote hash, and local dataset path.
+- `provider_installations`: launcher-owned install identities for provider-level managed sources.
+- `provider_installation_assets`: files, database objects, or future SQL uninstall commands owned by an install identity.
 - `datasets`: dataset-level catalog entries under each provider.
 - `dataset_sync_state`: per-dataset local-vs-remote equivalence status, raw path, curated path, and bridge asset pointer.
 - `render_bridge_assets`: renderer-facing assets produced from raw data, intended for `taichi_global_bathymetry.py`.
