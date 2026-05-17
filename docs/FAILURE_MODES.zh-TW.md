@@ -22,6 +22,7 @@
 | 使用者手動刪 SQL database/table | launcher registry 變成死紀錄 | SQL self-check 會標記 missing/error，並輸出 `suggestion=...` 或 JSON repair suggestion | 將 database repair suggestions 接到 UI 修復流程 |
 | SQLite 被同步碟鎖住 | 寫入失敗或 permission denied | startup checks 與 error log | 建議本機 state path 或 lock retry |
 | SQLite connection 未明確 close | Windows 刪除 temp SQLite 時 `WinError 32`，CI 只在 windows-latest 失敗 | 2026-05-17 已將短生命週期 `sqlite3.connect()` 改用 `contextlib.closing(...)` | 對 SQLite helper/測試避免裸用 `with sqlite3.connect(...)`，必要時加靜態檢查 |
+| Windows 絕對路徑在 Mac 啟動 | Tk startup checks 把 `K:\...` 當成 Mac 相對路徑並跳錯誤 | `environment.py` 會辨識 foreign platform path，Mac 上只列 warning 不阻擋 UI | config 支援 per-platform project/content paths，UI path repair wizard |
 | 只看 `git push` 成功 | 手機收到 GitHub Actions failure，誤以為 push 失敗 | macOS 已安裝並登入 `gh`，可查/追 CI | 每次 push 後用 `gh run list` / `gh run watch --exit-status` 確認 Windows/Ubuntu 都綠 |
 | 切換版本到一半 | 新舊資料混合 | staging area、sidecar manifest、atomic promote、transition planner skeleton | SQLite manifest registry + rollback command |
 | 降版本 | 新 schema 不相容舊資料 | transition planner 可辨識 downgrade | rollback policy 與 schema migration |

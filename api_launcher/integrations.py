@@ -13,6 +13,7 @@ from api_launcher.ai_prompts import provider_description_prompt
 from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
 from api_launcher.paths import config_file, local_config_file
+from api_launcher.platform_paths import platform_config_path
 
 
 LOCAL_INTEGRATIONS_NAME = "launcher_integrations.local.json"
@@ -223,16 +224,18 @@ def unreal_project_profiles_from_config(config: dict[str, object]) -> list[Unrea
         if isinstance(editor_command, str):
             editor_command = (editor_command,)
         engine_root_by_platform = item.get("engine_root_by_platform") or {}
-        engine_root = engine_root_by_platform.get(system) or item.get("engine_root") or ""
+        engine_root = engine_root_by_platform.get(system) if isinstance(engine_root_by_platform, dict) else None
+        if engine_root is None:
+            engine_root = platform_config_path(item, "engine_root", system)
         profiles.append(
             UnrealProjectProfile(
                 id=str(item.get("id") or "").strip(),
                 label=str(item.get("label") or "").strip(),
                 enabled=bool(item.get("enabled", True)),
-                engine_root=str(engine_root or "").strip(),
+                engine_root=platform_config_path({"engine_root": engine_root}, "engine_root", system),
                 editor_command=tuple(str(value) for value in editor_command),
-                project_path=str(item.get("project_path") or "").strip(),
-                content_root=str(item.get("content_root") or "").strip(),
+                project_path=platform_config_path(item, "project_path", system),
+                content_root=platform_config_path(item, "content_root", system),
                 bridge_subdir=str(item.get("bridge_subdir") or "APIkeysCollection").strip() or "APIkeysCollection",
                 notes=str(item.get("notes") or "").strip(),
             )

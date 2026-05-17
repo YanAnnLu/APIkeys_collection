@@ -33,6 +33,7 @@ gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
 - Treat `APIkeys_collection.py` as a compatibility wrapper; put new logic in `api_launcher/`.
 - Keep UI JSON formats shared through core modules such as `api_launcher/plans.py`.
 - Keep the default user-facing Tk UI in Traditional Chinese. When adding or touching visible UI text, prefer `ApiCollectionUi.tr("繁中", "English")` so `Settings > Interface language` can keep working.
+- Be careful with cross-platform local paths. Windows paths such as `K:\...` in ignored local config must not become blocking macOS startup errors; choose `*_by_platform` first and ignore/warn on foreign generic paths before `pathlib.Path` resolves them.
 - Reuse `api_launcher.library_actions` for install/update/repair/open/render/uninstall decisions. For agent-readable output, call the CLI instead of rebuilding policy:
 
 ```bash

@@ -218,6 +218,10 @@ and can be overridden in ignored `launcher_integrations.local.json`.
 - Local machine paths belong in ignored `*.local.json` files, not in tracked code.
 - Startup path checks live in `api_launcher/environment.py` and should run before
   expensive downloader or renderer work.
+- Startup checks must not treat another platform's absolute path as a blocking error. For example, `K:\...` in a local
+  config on macOS should be a warning or a per-platform config gap, not a Mac UI launch failure.
+- For Unreal config, prefer `project_path_by_platform` and `content_root_by_platform`; generic Windows paths are ignored
+  on macOS/Linux before `pathlib.Path` tries to resolve them.
 - Avoid shell-specific path assumptions; use `pathlib.Path` and `resolve_project_path()`
   for project-local files.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from api_launcher.integrations import UnrealProjectProfile, unreal_project_profiles_from_config
 from api_launcher.models import RenderBridgeAsset
@@ -26,6 +27,45 @@ class UnrealBridgeTests(unittest.TestCase):
 
         self.assertEqual(1, len(profiles))
         self.assertEqual("ue", profiles[0].id)
+
+    def test_unreal_profile_ignores_windows_project_path_on_macos(self) -> None:
+        with patch("api_launcher.integrations.platform.system", return_value="Darwin"):
+            profiles = unreal_project_profiles_from_config(
+                {
+                    "unreal_projects": [
+                        {
+                            "id": "ue",
+                            "label": "UE",
+                            "enabled": True,
+                            "project_path": r"K:\Twin\Twin.uproject",
+                            "content_root": r"K:\Twin\Content",
+                        }
+                    ]
+                }
+            )
+
+        self.assertEqual("", profiles[0].project_path)
+        self.assertEqual("", profiles[0].content_root)
+
+    def test_unreal_profile_uses_platform_specific_project_path(self) -> None:
+        with patch("api_launcher.integrations.platform.system", return_value="Darwin"):
+            profiles = unreal_project_profiles_from_config(
+                {
+                    "unreal_projects": [
+                        {
+                            "id": "ue",
+                            "label": "UE",
+                            "enabled": True,
+                            "project_path": r"K:\Twin\Twin.uproject",
+                            "project_path_by_platform": {
+                                "Darwin": r"/Users/example/Twin/Twin.uproject",
+                            },
+                        }
+                    ]
+                }
+            )
+
+        self.assertEqual("/Users/example/Twin/Twin.uproject", profiles[0].project_path)
 
     def test_content_root_defaults_next_to_uproject(self) -> None:
         profile = UnrealProjectProfile(

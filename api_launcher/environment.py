@@ -8,6 +8,7 @@ from pathlib import Path
 
 from api_launcher.db import SCRIPT_DIR, resolve_project_path
 from api_launcher.integrations import database_client_profiles, download_tool_profiles, integrations_path, unreal_project_profiles
+from api_launcher.platform_paths import is_foreign_platform_path
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ def check_download_tool_paths() -> list[EnvironmentCheck]:
 
 def check_unreal_project_profiles() -> list[EnvironmentCheck]:
     checks = []
+    system = platform.system()
     for profile in unreal_project_profiles():
         if not profile.enabled:
             continue
@@ -102,9 +104,38 @@ def check_unreal_project_profiles() -> list[EnvironmentCheck]:
             detail = command if exists else f"Unreal editor command not found: {command}"
             checks.append(EnvironmentCheck(f"unreal_editor:{profile.id}", status, detail))
         if profile.project_path:
-            checks.append(check_path(f"unreal_project:{profile.id}", Path(profile.project_path), must_exist=True, must_be_writable=False))
+            checks.append(
+                check_unreal_profile_path(
+                    f"unreal_project:{profile.id}",
+                    profile.project_path,
+                    system,
+                    must_be_writable=False,
+                )
+            )
         else:
             checks.append(EnvironmentCheck(f"unreal_project:{profile.id}", "warning", "No Unreal .uproject configured yet."))
         if profile.content_root:
-            checks.append(check_path(f"unreal_content:{profile.id}", Path(profile.content_root), must_exist=True, must_be_writable=True))
+            checks.append(
+                check_unreal_profile_path(
+                    f"unreal_content:{profile.id}",
+                    profile.content_root,
+                    system,
+                    must_be_writable=True,
+                )
+            )
     return checks
+
+
+def check_unreal_profile_path(
+    name: str,
+    raw_path: str,
+    system: str,
+    must_be_writable: bool,
+) -> EnvironmentCheck:
+    if is_foreign_platform_path(raw_path, system):
+        return EnvironmentCheck(
+            name,
+            "warning",
+            f"Path is for another platform and was skipped on {system}: {raw_path}",
+        )
+    return check_path(name, Path(raw_path), must_exist=True, must_be_writable=must_be_writable)

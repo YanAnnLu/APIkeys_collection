@@ -276,6 +276,16 @@
       },
       "project_path": "",
       "content_root": "",
+      "project_path_by_platform": {
+        "Windows": "",
+        "Darwin": "",
+        "Linux": ""
+      },
+      "content_root_by_platform": {
+        "Windows": "",
+        "Darwin": "",
+        "Linux": ""
+      },
       "bridge_subdir": "APIkeysCollection",
       "notes": "Copy to launcher_integrations.local.json and set project_path/content_root after creating the Unreal project."
     }
