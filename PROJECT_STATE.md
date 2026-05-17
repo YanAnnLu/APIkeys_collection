@@ -44,11 +44,14 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/db.py`: project paths, SQLite connection, timestamps, and schema setup.
 - `api_launcher/repository.py`: provider seeding, provider queries, UI catalog entries, and starred preferences.
 - `api_launcher/plans.py`: shared Download Plan JSON schema builder used by the UI and future workers.
+- `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
 - `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
+- `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
+- `TECH_STACK.md`: dependency boundary notes for launcher core, Docker, and optional renderer stack.
 
 The next refactor should split `api_launcher/core.py` further into crawl, exports, and CLI modules.
 
@@ -69,6 +72,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   database identifier. Execution is still intentionally blocked.
 - Assets now distinguish source, curated, derived, analysis, and cache roles, with source format and schema fingerprint metadata.
   This prevents user-generated analysis tables from being mistaken for upstream official data during self-checks.
+- `taichi_global_bathymetry.py` is treated as a downstream visualization engine. The launcher should produce bridge
+  assets such as GEBCO topography grids and HYG star catalogs, then register them in `render_bridge_assets`.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 

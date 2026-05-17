@@ -47,6 +47,12 @@ from api_launcher.integrations import (
 )
 from api_launcher.models import Dataset, Provider
 from api_launcher.plans import build_download_plan
+from api_launcher.renderer_contracts import (
+    GEBCO_2025_TOPOGRAPHY_CONTRACT,
+    HYG_V38_STAR_CONTRACT,
+    TAICHI_GLOBAL_BATHYMETRY_CONTRACTS,
+    TAICHI_GLOBAL_BATHYMETRY_RENDERER_ID,
+)
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,

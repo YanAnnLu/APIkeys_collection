@@ -9,10 +9,11 @@ description: Use when working on the APIkeys_collection repository, a Steam-like
 
 1. Start by checking `git status --short --branch`; never overwrite user changes.
 2. Read `PROJECT_STATE.md` and `GIT_HANDOFF.md` before architectural changes.
-3. Keep the launcher model clear:
+3. Read `TECH_STACK.md` before changing dependencies, Docker, or renderer code.
+4. Keep the launcher model clear:
    `Provider catalog -> Download Plan cart -> Dataset adapter -> Import/curation -> Install registry -> Local assets`.
-4. Keep destructive operations disabled unless an adapter can prove ownership by `install_id` and asset registry metadata.
-5. Run tests before commit:
+5. Keep destructive operations disabled unless an adapter can prove ownership by `install_id` and asset registry metadata.
+6. Run tests before commit:
 
 ```powershell
 py -m unittest discover -s tests

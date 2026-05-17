@@ -1,0 +1,8 @@
+# Optional dependencies for renderers/taichi_global_bathymetry.py.
+# The launcher and Docker CLI path intentionally do not install these heavy packages.
+taichi
+numpy
+xarray
+matplotlib
+pandas
+tqdm

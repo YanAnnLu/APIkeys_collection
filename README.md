@@ -18,11 +18,13 @@ You can move the whole `APIkeys_collection/` folder elsewhere and the crawler wi
 reference file, templates, and exports.
 
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
+- `TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
 - `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.
 - `api_launcher/models.py`: provider/catalog dataclasses.
 - `api_launcher/plans.py`: shared Download Plan JSON schema builder.
+- `api_launcher/renderer_contracts.py`: shared IDs and bridge-asset contracts for downstream renderers such as `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset-adapter interfaces. Adapters discover dataset records without downloading bulk data.
 - `api_launcher/curation.py`: small, testable data-cleaning primitives for normalizing records after API/download ingestion.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
@@ -36,6 +38,7 @@ reference file, templates, and exports.
 - `APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
 - `APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
 - `APIkeys_collection_ui.py`: lightweight Tk download-guide UI. It lets you browse provider/database sources, run metadata checks, and export a download plan.
+- `renderers/taichi_global_bathymetry.py`: downstream Taichi visualization engine copied into this repo for bridge-asset integration.
 - `.codex/skills/apikeys-collection-launcher/`: project-local Codex skill draft for AI-agent handoff and safe development workflows.
 - `launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.
 - `APIkeys_collection_credentials.private.template.json`: local-only credential template for your own accounts/tokens.
@@ -102,6 +105,10 @@ until a database adapter can verify the target connection and ownership.
 Dataset adapters should return `Dataset` records first, then let later downloader/importer workers create local assets.
 This keeps discovery, download, import, and uninstall as separate stages.
 
+Renderer contracts define stable IDs shared by the launcher and render layer. For `taichi_global_bathymetry.py`, the
+current contracts are GEBCO 2025 topography (`topography_grid`) and HYG v3.8 stars (`star_catalog`), both targeting
+`~/.cache/taichi_earth` bridge assets.
+
 Downloaded API data still needs curation. The `curation` layer is where raw records are renamed, type-cast,
 deduplicated, checked for required fields, and eventually normalized for database/import targets.
 
@@ -141,6 +148,13 @@ macOS/Linux:
 The virtual environment, SQLite database, local secrets, and Python cache files are local machine state and are ignored by git.
 On Windows, the setup script keeps the virtual environment under `%LOCALAPPDATA%\APIkeys_collection\venv-py313`
 so package installs do not fight the synced project folder.
+
+Renderer dependencies are optional and heavier than the launcher dependencies:
+
+```bash
+python -m pip install -r requirements-renderer.txt
+python renderers/taichi_global_bathymetry.py
+```
 
 ## Local Integrations
 

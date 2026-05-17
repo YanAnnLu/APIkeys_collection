@@ -173,6 +173,25 @@
     "notes": "Catalog only; do not bulk download grids unless storage is planned."
   },
   {
+    "provider_id": "hyg_database",
+    "name": "HYG Database",
+    "owner": "Astronexus",
+    "categories": [
+      "astronomy",
+      "stars",
+      "renderer_bridge"
+    ],
+    "geographic_scope": "celestial",
+    "docs_url": "https://github.com/astronexus/HYG-Database",
+    "api_base_url": "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/v3/hyg_v38.csv.gz",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Star catalog used by taichi_global_bathymetry.py as a renderer bridge source."
+  },
+  {
     "provider_id": "geonames",
     "name": "GeoNames Web Services",
     "owner": "GeoNames",

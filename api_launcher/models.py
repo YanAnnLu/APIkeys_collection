@@ -89,3 +89,17 @@ class Dataset:
     remote_etag: str = ""
     remote_hash: str = ""
     metadata: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True)
+class RenderBridgeAsset:
+    asset_id: str
+    dataset_uid: str
+    renderer: str
+    asset_role: str
+    storage_format: str
+    path: str
+    spatial_index_path: str = ""
+    temporal_index_path: str = ""
+    checksum: str = ""
+    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)

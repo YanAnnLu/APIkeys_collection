@@ -10,7 +10,7 @@ from typing import Iterable
 from api_launcher.asset_roles import normalize_asset_role
 from api_launcher.asset_verifier import AssetRecord, AssetVerifier, RegistryOnlyVerifier
 from api_launcher.db import SCRIPT_DIR, init_db, resolve_project_path, utc_now_iso
-from api_launcher.models import Dataset, Provider, ProviderCatalogEntry
+from api_launcher.models import Dataset, Provider, ProviderCatalogEntry, RenderBridgeAsset
 from api_launcher.provenance import normalize_source_format
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
 from api_launcher.sql_assets import database_uninstall_command
@@ -196,6 +196,21 @@ def dataset_from_row(row: sqlite3.Row) -> Dataset:
     )
 
 
+def render_bridge_asset_from_row(row: sqlite3.Row) -> RenderBridgeAsset:
+    return RenderBridgeAsset(
+        asset_id=row["asset_id"],
+        dataset_uid=row["dataset_uid"],
+        renderer=row["renderer"],
+        asset_role=row["asset_role"],
+        storage_format=row["storage_format"],
+        path=row["path"],
+        spatial_index_path=row["spatial_index_path"] or "",
+        temporal_index_path=row["temporal_index_path"] or "",
+        checksum=row["checksum"] or "",
+        metadata=json.loads(row["metadata_json"] or "{}"),
+    )
+
+
 class ApiCatalogRepository:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -288,6 +303,67 @@ class ApiCatalogRepository:
         else:
             rows = self.conn.execute("SELECT * FROM datasets ORDER BY provider_id, title COLLATE NOCASE").fetchall()
         return [dataset_from_row(row) for row in rows]
+
+    def upsert_render_bridge_asset(self, asset: RenderBridgeAsset) -> None:
+        now = utc_now_iso()
+        existing = self.conn.execute(
+            "SELECT created_at FROM render_bridge_assets WHERE asset_id = ?",
+            (asset.asset_id,),
+        ).fetchone()
+        created_at = existing["created_at"] if existing else now
+        self.conn.execute(
+            """
+            INSERT INTO render_bridge_assets (
+                asset_id, dataset_uid, renderer, asset_role, storage_format,
+                path, spatial_index_path, temporal_index_path, checksum,
+                metadata_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(asset_id) DO UPDATE SET
+                dataset_uid = excluded.dataset_uid,
+                renderer = excluded.renderer,
+                asset_role = excluded.asset_role,
+                storage_format = excluded.storage_format,
+                path = excluded.path,
+                spatial_index_path = excluded.spatial_index_path,
+                temporal_index_path = excluded.temporal_index_path,
+                checksum = excluded.checksum,
+                metadata_json = excluded.metadata_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                asset.asset_id,
+                asset.dataset_uid,
+                asset.renderer,
+                asset.asset_role,
+                asset.storage_format,
+                asset.path,
+                asset.spatial_index_path,
+                asset.temporal_index_path,
+                asset.checksum,
+                json.dumps(asset.metadata, ensure_ascii=False, sort_keys=True),
+                created_at,
+                now,
+            ),
+        )
+        self.conn.execute(
+            """
+            UPDATE dataset_sync_state
+            SET bridge_asset_id = ?, curated_path = ?, updated_at = ?
+            WHERE dataset_uid = ?
+            """,
+            (asset.asset_id, asset.path, now, asset.dataset_uid),
+        )
+        self.conn.commit()
+
+    def list_render_bridge_assets(self, renderer: str | None = None) -> list[RenderBridgeAsset]:
+        if renderer:
+            rows = self.conn.execute(
+                "SELECT * FROM render_bridge_assets WHERE renderer = ? ORDER BY asset_role, asset_id",
+                (renderer,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM render_bridge_assets ORDER BY renderer, asset_role, asset_id").fetchall()
+        return [render_bridge_asset_from_row(row) for row in rows]
 
     def seed_key_reference_if_exists(self, path: str | Path) -> int:
         path = resolve_project_path(path)
