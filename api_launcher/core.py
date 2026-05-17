@@ -536,6 +536,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--self-check", action="store_true", help="refresh launcher remote/local status from crawl metadata")
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
+    parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
     parser.add_argument("--export-json", help="write provider catalog JSON")
@@ -568,6 +569,7 @@ class CatalogLauncherCli:
             self.refresh_state()
             self.verify_downloads()
             self.show_manifest_health()
+            self.list_manifests()
             self.show_logs()
             self.write_handoff_report()
             self.export_catalogs()
@@ -601,6 +603,7 @@ class CatalogLauncherCli:
             self.args.self_check,
             self.args.verify_downloads,
             self.args.manifest_health,
+            self.args.list_manifests,
             self.args.show_logs > 0,
             bool(self.args.handoff_report),
             bool(self.args.export_json),
@@ -685,6 +688,22 @@ class CatalogLauncherCli:
             summary = self.repository.dataset_asset_manifest_health_summary()
             total = sum(summary.values())
             print(f"[manifest-health] total={total} {summary}")
+
+    def list_manifests(self) -> None:
+        if self.args.list_manifests:
+            records = self.repository.list_dataset_asset_manifests()
+            if not records:
+                print("[manifests] no registered manifests")
+                return
+            for record in records:
+                print(
+                    "[manifest] "
+                    f"{record.status:18s} "
+                    f"{record.provider_id:24s} "
+                    f"{record.dataset_id or '-':24s} "
+                    f"{record.version or '-':10s} "
+                    f"{record.path}"
+                )
 
     def show_logs(self) -> None:
         if self.args.show_logs > 0:

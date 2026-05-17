@@ -34,7 +34,7 @@
 2. 執行 `py APIkeys_collection.py --show-logs 20` 或直接讀 `state/logs/launcher_events.jsonl` 最近事件。
 3. 若有錯誤，讀 `state/logs/launcher_errors.log`。
 4. 修改前確認 `git status --short --branch`。
-5. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health` 看 SQLite 中的健康統計。
+5. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health --list-manifests` 看 SQLite 中的健康統計與明細。
 6. 修改後跑測試與 Docker。
 
 ## 之後應該實作的恢復機制
