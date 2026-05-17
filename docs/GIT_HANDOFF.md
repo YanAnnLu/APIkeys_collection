@@ -62,6 +62,14 @@ py -m unittest discover -s tests
 py APIkeys_collection.py --summary
 ```
 
+Generate a handoff report for humans or another agent:
+
+```powershell
+py APIkeys_collection.py --handoff-report state\handoff.md --manifest-health --show-logs 10
+```
+
+The report includes Git status, current HEAD, catalog counts, manifest health, recent structured logs, and suggested resume checks.
+
 If the project is on a synced Windows drive and `.pyc` writes are locked, use:
 
 ```powershell

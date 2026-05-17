@@ -49,6 +49,7 @@ from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_pat
 from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
+from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
 from api_launcher.http_downloader import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.integrations import (
     active_ai_profile,
@@ -536,6 +537,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
+    parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
     parser.add_argument("--export-json", help="write provider catalog JSON")
     parser.add_argument("--export-csv", help="write provider catalog CSV")
     parser.add_argument("--export-markdown", help="write provider catalog Markdown")
@@ -567,6 +569,7 @@ class CatalogLauncherCli:
             self.verify_downloads()
             self.show_manifest_health()
             self.show_logs()
+            self.write_handoff_report()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
             discover_source_candidates(self.conn, self.args)
@@ -599,6 +602,7 @@ class CatalogLauncherCli:
             self.args.verify_downloads,
             self.args.manifest_health,
             self.args.show_logs > 0,
+            bool(self.args.handoff_report),
             bool(self.args.export_json),
             bool(self.args.export_csv),
             bool(self.args.export_markdown),
@@ -692,6 +696,14 @@ class CatalogLauncherCli:
                     f"{event.get('component', '')}:{event.get('event', '')} "
                     f"{event.get('message', '')}"
                 )
+
+    def write_handoff_report(self) -> None:
+        if self.args.handoff_report:
+            snapshot = build_handoff_snapshot(self.repository)
+            output_path = resolve_project_path(self.args.handoff_report)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(render_handoff_markdown(snapshot), encoding="utf-8")
+            print(f"[handoff] wrote {output_path}")
 
     def export_catalogs(self) -> None:
         exporters = (
