@@ -46,6 +46,7 @@ from api_launcher.integrations import (
     open_database_client,
 )
 from api_launcher.models import Dataset, Provider
+from api_launcher.plans import build_download_plan
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,

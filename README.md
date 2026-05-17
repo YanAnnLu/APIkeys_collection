@@ -22,6 +22,7 @@ reference file, templates, and exports.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
 - `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.
 - `api_launcher/models.py`: provider/catalog dataclasses.
+- `api_launcher/plans.py`: shared Download Plan JSON schema builder.
 - `api_launcher/adapters/`: dataset-adapter interfaces. Adapters discover dataset records without downloading bulk data.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.

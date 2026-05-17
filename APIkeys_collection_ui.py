@@ -1051,36 +1051,10 @@ class ApiCollectionUi:
             messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
             return
         plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
-        payload = {
-            "schema_version": 1,
-            "created_at": core.utc_now_iso(),
-            "plan_name": plan_name,
-            "role": "download plan only; no bulk data has been downloaded",
-            "downstream_renderer": "taichi_global_bathymetry.py",
-            "summary": {
-                "provider_count": len(rows),
-                "status": "planned",
-            },
-            "providers": [
-                {
-                    "provider_id": row.provider_id,
-                    "name": row.name,
-                    "owner": row.owner,
-                    "categories": row.categories,
-                    "auth_type": row.auth_type,
-                    "key_env_var": row.key_env_var,
-                    "docs_url": row.docs_url,
-                    "api_base_url": row.api_base_url,
-                    "signup_url": row.signup_url,
-                    "geographic_scope": row.geographic_scope,
-                    "plan_status": "planned",
-                    "priority": "normal",
-                    "target": "local_dataset_or_database",
-                    "notes": row.notes,
-                }
-                for row in rows
-            ],
-        }
+        payload = core.build_download_plan(
+            [self.provider_from_row(row) for row in rows],
+            plan_name=plan_name,
+        )
         output_path = SCRIPT_DIR / DOWNLOAD_PLAN_NAME
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         self.status_var.set(f"已匯出下載計畫：{plan_name} ({len(rows)} 個資料源)")

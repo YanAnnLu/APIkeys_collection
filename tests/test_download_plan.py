@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+import unittest
+
+from api_launcher.models import Provider
+from api_launcher.plans import build_download_plan
+
+
+class DownloadPlanTests(unittest.TestCase):
+    def test_build_download_plan_uses_shared_schema(self) -> None:
+        provider = Provider(
+            provider_id="sample_provider",
+            name="Sample Provider",
+            owner="Sample Owner",
+            categories=("test",),
+            geographic_scope="global",
+            docs_url="https://example.test/docs",
+            auth_type="api_key_required",
+            key_env_var="SAMPLE_KEY",
+        )
+
+        plan = build_download_plan([provider], plan_name="Test Plan")
+
+        self.assertEqual(1, plan["schema_version"])
+        self.assertEqual("Test Plan", plan["plan_name"])
+        self.assertEqual({"provider_count": 1, "status": "planned"}, plan["summary"])
+        self.assertEqual("sample_provider", plan["providers"][0]["provider_id"])
+        self.assertEqual("planned", plan["providers"][0]["plan_status"])
+        self.assertEqual("local_dataset_or_database", plan["providers"][0]["target"])
+
+
+if __name__ == "__main__":
+    unittest.main()
