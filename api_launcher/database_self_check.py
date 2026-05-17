@@ -109,6 +109,58 @@ def database_self_check_agent_payload(
     }
 
 
+def database_self_check_issues(
+    conn: sqlite3.Connection,
+    provider_ids: list[str] | tuple[str, ...] | None = None,
+) -> list[DatabaseSelfCheckIssue]:
+    requested = tuple(provider_id.strip() for provider_id in (provider_ids or ()) if provider_id.strip())
+    provider_filter = ""
+    params: tuple[str, ...] = ()
+    if requested:
+        placeholders = ",".join("?" for _ in requested)
+        provider_filter = f"AND pi.provider_id IN ({placeholders})"
+        params = requested
+    rows = conn.execute(
+        f"""
+        SELECT
+            pi.provider_id,
+            pia.asset_id,
+            pia.install_id,
+            pia.asset_kind,
+            pia.engine,
+            pia.asset_name,
+            pia.status,
+            COALESCE(pi.location, '') AS install_location,
+            COALESCE(pia.source_uri, '') AS source_uri,
+            COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
+            COALESCE(pia.last_verify_error, '') AS last_verify_error
+        FROM provider_installation_assets pia
+        JOIN provider_installations pi ON pi.install_id = pia.install_id
+        WHERE pia.asset_kind IN ('database', 'table')
+          AND pia.status IN ('missing', 'error')
+          {provider_filter}
+        ORDER BY pi.provider_id, pia.asset_kind, pia.engine, pia.asset_name
+        """,
+        params,
+    ).fetchall()
+    return [
+        DatabaseSelfCheckIssue(
+            provider_id=row["provider_id"],
+            asset_id=row["asset_id"],
+            install_id=row["install_id"],
+            asset_kind=row["asset_kind"],
+            engine=row["engine"] or "",
+            asset_name=row["asset_name"],
+            status=row["status"],
+            error=row["last_verify_error"] or "",
+            install_location=row["install_location"] or "",
+            source_uri=row["source_uri"] or "",
+            schema_fingerprint=row["schema_fingerprint"] or "",
+        )
+        for row in rows
+    ]
+
+
 def database_repair_suggestion(
     asset_kind: str,
     engine: str,

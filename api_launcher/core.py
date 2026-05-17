@@ -45,8 +45,8 @@ from api_launcher.cli_discovery import (
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
-    DatabaseSelfCheckIssue,
     database_self_check_agent_payload,
+    database_self_check_issues,
 )
 from api_launcher.dataset_adapters import adapters_for_provider
 from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
@@ -892,51 +892,7 @@ class CatalogLauncherCli:
         summary = self.repository.verify_provider_assets(self.args.provider or None, verifier=DatabaseAssetVerifier())
         if not self.args.self_check_databases_json:
             print(f"[database-self-check] {summary}")
-        provider_filter = ""
-        params: tuple[str, ...] = ()
-        if self.args.provider:
-            placeholders = ",".join("?" for _ in self.args.provider)
-            provider_filter = f"AND pi.provider_id IN ({placeholders})"
-            params = tuple(self.args.provider)
-        rows = self.conn.execute(
-            f"""
-            SELECT
-                pi.provider_id,
-                pia.asset_id,
-                pia.install_id,
-                pia.asset_kind,
-                pia.engine,
-                pia.asset_name,
-                pia.status,
-                COALESCE(pi.location, '') AS install_location,
-                COALESCE(pia.source_uri, '') AS source_uri,
-                COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
-                COALESCE(pia.last_verify_error, '') AS last_verify_error
-            FROM provider_installation_assets pia
-            JOIN provider_installations pi ON pi.install_id = pia.install_id
-            WHERE pia.asset_kind IN ('database', 'table')
-              AND pia.status IN ('missing', 'error')
-              {provider_filter}
-            ORDER BY pi.provider_id, pia.asset_kind, pia.engine, pia.asset_name
-            """,
-            params,
-        ).fetchall()
-        issues = [
-            DatabaseSelfCheckIssue(
-                provider_id=row["provider_id"],
-                asset_id=row["asset_id"],
-                install_id=row["install_id"],
-                asset_kind=row["asset_kind"],
-                engine=row["engine"] or "",
-                asset_name=row["asset_name"],
-                status=row["status"],
-                error=row["last_verify_error"] or "",
-                install_location=row["install_location"] or "",
-                source_uri=row["source_uri"] or "",
-                schema_fingerprint=row["schema_fingerprint"] or "",
-            )
-            for row in rows
-        ]
+        issues = database_self_check_issues(self.conn, self.args.provider or None)
         if self.args.self_check_databases_json:
             print(json.dumps(database_self_check_agent_payload(summary, issues), ensure_ascii=False, indent=2))
             return

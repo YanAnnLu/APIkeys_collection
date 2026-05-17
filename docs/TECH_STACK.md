@@ -146,6 +146,11 @@ repair suggestion such as `configure_data_store_env`, `install_optional_driver_i
 `restore_or_reimport_table`, or `review_schema_drift`. Use `--self-check-databases-json` for pure JSON output that UI
 code or a future agent can consume without parsing human text.
 
+Tk UI localization is intentionally lightweight for now. `launcher_integrations.local.json` may contain
+`"ui_language": "zh-TW"` or `"en-US"`; the UI reads it at startup, `Settings > Interface language` can update it, and
+new dialogs use the latest value immediately. The default user-facing path should stay Traditional Chinese, with English
+fallback text added through `ApiCollectionUi.tr(...)` as UI sections are touched.
+
 Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
 eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and
 tables may be better suited for RAG, SQL agents, feature stores, or domain models than direct language-model training.

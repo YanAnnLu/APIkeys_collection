@@ -15,6 +15,7 @@ from api_launcher.data_store_connections import DataStoreConnectionTestResult
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
     database_repair_suggestion,
+    database_self_check_issues,
     database_self_check_target,
     sqlite_schema_summary,
     sqlite_table_schema_summary,
@@ -744,6 +745,43 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(1, payload["issue_count"])
         self.assertEqual("restore_or_reimport_table", payload["issues"][0]["repair_suggestion"]["action_id"])
+
+    def test_database_self_check_issues_reads_registry_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            asset_db = Path(tmpdir) / "asset.sqlite"
+            with closing(sqlite3.connect(asset_db)) as conn:
+                conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="sample_provider",
+                        name="Sample",
+                        owner="Sample",
+                        categories=("test",),
+                        geographic_scope="local",
+                        docs_url="https://example.test",
+                    )
+                )
+                repo.register_provider_table_asset(
+                    "sample_provider",
+                    engine="sqlite",
+                    database_name="asset.sqlite",
+                    table_name="missing_station",
+                    source_uri=str(asset_db),
+                )
+                repo.verify_provider_assets(verifier=DatabaseAssetVerifier())
+
+                issues = database_self_check_issues(conn, ["sample_provider"])
+            finally:
+                conn.close()
+
+        self.assertEqual(1, len(issues))
+        self.assertEqual("sample_provider", issues[0].provider_id)
+        self.assertEqual("restore_or_reimport_table", issues[0].repair_suggestion().action_id)
 
 
 if __name__ == "__main__":

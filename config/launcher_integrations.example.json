@@ -4,6 +4,7 @@
   "active_ai_summary_profile": "local_ollama",
   "active_download_tool": "python_internal",
   "active_unreal_project": "local_ue5_bridge",
+  "ui_language": "zh-TW",
   "download_policy": {
     "max_parallel_jobs": 3,
     "max_parallel_per_host": 1,

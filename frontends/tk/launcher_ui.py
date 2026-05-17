@@ -25,6 +25,8 @@ from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
 from api_launcher.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests
+from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
+from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import build_google_device_login_request
@@ -35,6 +37,11 @@ from api_launcher.data_store_connections import data_store_profiles_from_config,
 SCRIPT_DIR = Path(__file__).resolve().parent
 DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
+DEFAULT_UI_LANGUAGE = "zh-TW"
+UI_LANGUAGES = {
+    "zh-TW": "繁體中文",
+    "en-US": "English",
+}
 
 
 COLORS = {
@@ -52,12 +59,12 @@ COLORS = {
 
 TABLE_COLUMNS = (
     ("star", "*", 0.045, 44, 64, "center", False),
-    ("install", "Plan", 0.06, 58, 82, "center", False),
-    ("name", "Dataset / API Source", 0.32, 220, 520, "w", True),
-    ("category", "Category", 0.22, 150, 360, "w", True),
-    ("local", "Library", 0.11, 95, 150, "center", False),
-    ("download", "Download", 0.13, 110, 180, "center", False),
-    ("action", "Action", 0.09, 82, 140, "center", False),
+    ("install", "計畫", 0.06, 58, 82, "center", False),
+    ("name", "資料集 / API 來源", 0.32, 220, 520, "w", True),
+    ("category", "分類", 0.22, 150, 360, "w", True),
+    ("local", "本地庫", 0.11, 95, 150, "center", False),
+    ("download", "下載", 0.13, 110, 180, "center", False),
+    ("action", "動作", 0.09, 82, 140, "center", False),
 )
 
 LAYOUT = {
@@ -78,6 +85,11 @@ LAYOUT = {
 
 def clamp(value: int, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, value))
+
+
+def configured_ui_language() -> str:
+    value = str(core.load_integration_config().get("ui_language") or DEFAULT_UI_LANGUAGE)
+    return value if value in UI_LANGUAGES else DEFAULT_UI_LANGUAGE
 
 
 class ProviderRow:
@@ -146,11 +158,11 @@ class ProviderRow:
     @property
     def action_label(self) -> str:
         if self.update_status == "remote_updated":
-            return "Refresh"
+            return "更新"
         if self.remote_status == "error":
-            return "Retry"
+            return "重試"
         if self.remote_status == "unchecked":
-            return "Check"
+            return "檢查"
         return ""
 
     @property
@@ -211,16 +223,16 @@ class ProviderEditorDialog:
         frame.pack(fill=BOTH, expand=True, padx=22, pady=22)
 
         fields = [
-            ("Provider ID", "provider_id"),
+            ("資料源 ID", "provider_id"),
             ("名稱", "name"),
-            ("Owner", "owner"),
+            ("擁有者", "owner"),
             ("類別（逗號分隔）", "categories"),
             ("範圍", "geographic_scope"),
-            ("Docs URL", "docs_url"),
+            ("文件 URL", "docs_url"),
             ("API Base URL", "api_base_url"),
-            ("Signup URL", "signup_url"),
-            ("Auth Type", "auth_type"),
-            ("Key Env Var", "key_env_var"),
+            ("註冊 URL", "signup_url"),
+            ("認證類型", "auth_type"),
+            ("API key 環境變數", "key_env_var"),
         ]
         for label, key in fields:
             ttk.Label(frame, text=label, style="DetailSection.TLabel").pack(anchor="w", pady=(8, 2))
@@ -229,7 +241,7 @@ class ProviderEditorDialog:
             if key == "provider_id" and self.row is not None:
                 entry.configure(state="disabled")
 
-        ttk.Label(frame, text="Launcher 描述", style="DetailSection.TLabel").pack(anchor="w", pady=(12, 2))
+        ttk.Label(frame, text="啟動器描述", style="DetailSection.TLabel").pack(anchor="w", pady=(12, 2))
         self.notes_text = Text(
             frame,
             height=7,
@@ -425,8 +437,9 @@ class ApiCollectionUi:
         self.search_var = StringVar()
         self.category_var = StringVar(value="all")
         self.status_var = StringVar(value="準備就緒")
-        self.plan_name_var = StringVar(value="Untitled download plan")
-        self.plan_count_var = StringVar(value="Download Plan：0 個資料源")
+        self.ui_language = configured_ui_language()
+        self.plan_name_var = StringVar(value=self.tr("未命名下載計畫", "Untitled download plan"))
+        self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個資料源", "Download Plan: 0 sources"))
         self.selected: dict[str, BooleanVar] = {}
         self.rows: list[ProviderRow] = []
         self.filtered_rows: list[ProviderRow] = []
@@ -455,6 +468,57 @@ class ApiCollectionUi:
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
         self.reload_data()
         self.run_startup_environment_checks()
+
+    def tr(self, zh_tw: str, en_us: str = "") -> str:
+        if self.ui_language == "en-US" and en_us:
+            return en_us
+        return zh_tw
+
+    def localized_download_repair_label(self, suggestion: object) -> str:
+        if self.ui_language == "en-US":
+            return str(getattr(suggestion, "label", ""))
+        labels = {
+            "none": "不需處理",
+            "inspect_manifest": "檢查 manifest",
+            "inspect": "檢查狀態",
+            "manual_recover": "需要手動修復",
+            "requeue_download": "重新排下載",
+        }
+        return labels.get(str(getattr(suggestion, "action_id", "")), str(getattr(suggestion, "label", "")))
+
+    def localized_database_repair_label(self, suggestion: object) -> str:
+        if self.ui_language == "en-US":
+            return str(getattr(suggestion, "label", ""))
+        labels = {
+            "configure_data_store_env": "設定資料儲存環境變數",
+            "install_optional_driver_in_project_env": "安裝選用 SQL driver",
+            "fix_data_store_profile_mapping": "修正資料儲存 profile",
+            "review_schema_drift": "檢查 schema 變動",
+            "restore_or_reimport_table": "還原或重新匯入資料表",
+            "restore_or_reimport_sqlite_database": "還原或重新匯入 SQLite",
+            "test_data_store_connection": "測試資料儲存連線",
+            "implement_database_self_check_adapter": "新增自檢 adapter",
+            "fix_registry_asset_kind": "修正 registry 資產種類",
+            "inspect_database_asset": "檢查資料庫資產",
+        }
+        return labels.get(str(getattr(suggestion, "action_id", "")), str(getattr(suggestion, "label", "")))
+
+    def localized_database_repair_description(self, suggestion: object) -> str:
+        if self.ui_language == "en-US":
+            return str(getattr(suggestion, "description", ""))
+        descriptions = {
+            "configure_data_store_env": "設定必要的資料庫環境變數，然後重新執行資料庫自檢。",
+            "install_optional_driver_in_project_env": "把選用資料庫 driver 安裝在專案 Python 環境，不要裝到 base。",
+            "fix_data_store_profile_mapping": "目前 SQL profile 指到的資料庫和 registry 期待的資料庫不同；請修正 profile/env 或資產歸屬資料。",
+            "review_schema_drift": "比對 registry 記錄的 schema fingerprint 和實際資料庫結構，再決定要 migrate、重新匯入，或更新 registry fingerprint。",
+            "restore_or_reimport_table": "這個納管資料表不存在；請從備份還原，或重新跑擁有這張表的匯入流程。",
+            "restore_or_reimport_sqlite_database": "這個納管 SQLite 檔案不存在；請還原檔案，或重新跑建立它的匯入流程。",
+            "test_data_store_connection": "先測試資料儲存連線，檢查 host、database、帳密、網路與 driver 相容性。",
+            "implement_database_self_check_adapter": "這個資料庫引擎還沒有自檢 adapter；請新增 adapter，或先把此資產標成非納管。",
+            "fix_registry_asset_kind": "registry 的資產種類不是 database self-check 支援的類型，請先修正資產 metadata。",
+            "inspect_database_asset": "這個錯誤還沒有對應到明確修復規則；請先檢查資產紀錄、資料儲存 profile 與最新錯誤訊息。",
+        }
+        return descriptions.get(str(getattr(suggestion, "action_id", "")), str(getattr(suggestion, "description", "")))
 
     def _init_database(self) -> None:
         conn = core.connect_db(DB_PATH)
@@ -489,10 +553,10 @@ class ApiCollectionUi:
                     context={"name": check.name},
                 )
             summary = ", ".join(f"{check.name}:{check.status}" for check in problems[:4])
-            self.status_var.set(f"Startup environment checks need attention: {summary}")
+            self.status_var.set(self.tr(f"啟動環境檢查需要注意：{summary}", f"Startup environment checks need attention: {summary}"))
             if any(check.status == "error" for check in problems):
                 details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
-                messagebox.showwarning("Startup environment check", details)
+                messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
 
     def _setup_style(self) -> None:
         style = ttk.Style(self.root)
@@ -521,43 +585,47 @@ class ApiCollectionUi:
         menu_bar = Menu(self.root)
 
         file_menu = Menu(menu_bar, tearoff=0)
-        file_menu.add_command(label="Refresh library", command=self.reload_data)
-        file_menu.add_command(label="Export download plan", command=self.export_download_plan)
+        file_menu.add_command(label=self.tr("重新整理資料庫", "Refresh library"), command=self.reload_data)
+        file_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.close_app)
-        menu_bar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label=self.tr("離開", "Exit"), command=self.close_app)
+        menu_bar.add_cascade(label=self.tr("檔案", "File"), menu=file_menu)
 
         library_menu = Menu(menu_bar, tearoff=0)
-        library_menu.add_command(label="Add selected to download plan", command=self.select_active_provider)
-        library_menu.add_command(label="Fetch selected metadata", command=self.crawl_selected)
-        library_menu.add_command(label="Verify downloaded files", command=self.verify_download_manifests)
+        library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
+        library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_separator()
-        library_menu.add_command(label="Manage active source", command=self.manage_active_provider)
-        library_menu.add_command(label="Unmanage active source", command=self.unmanage_active_provider)
-        library_menu.add_command(label="Uninstall active source", command=self.uninstall_active_provider)
-        menu_bar.add_cascade(label="Library", menu=library_menu)
+        library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
+        library_menu.add_command(label=self.tr("解除納管目前資料源", "Unmanage active source"), command=self.unmanage_active_provider)
+        library_menu.add_command(label=self.tr("移除目前本地資料", "Uninstall active source"), command=self.uninstall_active_provider)
+        menu_bar.add_cascade(label=self.tr("資料庫", "Library"), menu=library_menu)
 
         integrations_menu = Menu(menu_bar, tearoff=0)
-        integrations_menu.add_command(label="Google / Gemini login and AI", command=self.open_google_gemini_settings)
-        integrations_menu.add_command(label="Database tool settings", command=self.open_database_settings)
-        integrations_menu.add_command(label="Data store connections", command=self.open_data_store_connection_settings)
-        integrations_menu.add_command(label="Open database tool", command=self.open_database_tool)
+        integrations_menu.add_command(label=self.tr("Google / Gemini 與 AI 設定", "Google / Gemini login and AI"), command=self.open_google_gemini_settings)
+        integrations_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
+        integrations_menu.add_command(label=self.tr("資料儲存連線", "Data store connections"), command=self.open_data_store_connection_settings)
+        integrations_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
         integrations_menu.add_separator()
-        integrations_menu.add_command(label="Open integration config", command=self.open_integration_config_file)
-        menu_bar.add_cascade(label="Integrations", menu=integrations_menu)
+        integrations_menu.add_command(label=self.tr("開啟本機整合設定檔", "Open integration config"), command=self.open_integration_config_file)
+        menu_bar.add_cascade(label=self.tr("整合", "Integrations"), menu=integrations_menu)
 
         tools_menu = Menu(menu_bar, tearoff=0)
-        tools_menu.add_command(label="Startup environment checks", command=self.show_environment_checks)
-        tools_menu.add_command(label="Recent event logs", command=self.show_event_logs)
-        tools_menu.add_command(label="Repair / verify manifests", command=self.open_repair_panel)
-        tools_menu.add_command(label="Open downloads folder", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
-        menu_bar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label=self.tr("啟動環境檢查", "Startup environment checks"), command=self.show_environment_checks)
+        tools_menu.add_command(label=self.tr("最近事件紀錄", "Recent event logs"), command=self.show_event_logs)
+        tools_menu.add_command(label=self.tr("修復 / 驗證資產", "Repair / verify assets"), command=self.open_repair_panel)
+        tools_menu.add_command(label=self.tr("開啟下載資料夾", "Open downloads folder"), command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
+        menu_bar.add_cascade(label=self.tr("工具", "Tools"), menu=tools_menu)
+
+        settings_menu = Menu(menu_bar, tearoff=0)
+        settings_menu.add_command(label=self.tr("介面語言", "Interface language"), command=self.open_ui_language_settings)
+        menu_bar.add_cascade(label=self.tr("設定", "Settings"), menu=settings_menu)
 
         help_menu = Menu(menu_bar, tearoff=0)
-        help_menu.add_command(label="Docs index", command=lambda: self.open_doc_file("DOCS_INDEX.zh-TW.md"))
-        help_menu.add_command(label="Product positioning", command=lambda: self.open_doc_file("PRODUCT_POSITIONING.zh-TW.md"))
-        help_menu.add_command(label="Technical overview", command=lambda: self.open_doc_file("TECHNICAL_OVERVIEW.zh-TW.md"))
-        menu_bar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label=self.tr("文件索引", "Docs index"), command=lambda: self.open_doc_file("DOCS_INDEX.zh-TW.md"))
+        help_menu.add_command(label=self.tr("產品定位", "Product positioning"), command=lambda: self.open_doc_file("PRODUCT_POSITIONING.zh-TW.md"))
+        help_menu.add_command(label=self.tr("技術總覽", "Technical overview"), command=lambda: self.open_doc_file("TECHNICAL_OVERVIEW.zh-TW.md"))
+        menu_bar.add_cascade(label=self.tr("說明", "Help"), menu=help_menu)
 
         self.root.configure(menu=menu_bar)
 
@@ -569,7 +637,7 @@ class ApiCollectionUi:
         sidebar.pack(side=LEFT, fill=Y)
         sidebar.pack_propagate(False)
 
-        ttk.Label(sidebar, text="API DATA\nCOLLECTION", style="SidebarTitle.TLabel", justify=LEFT).pack(anchor="w", padx=28, pady=(34, 32))
+        ttk.Label(sidebar, text=self.tr("科學資料\n收藏庫", "API DATA\nCOLLECTION"), style="SidebarTitle.TLabel", justify=LEFT).pack(anchor="w", padx=28, pady=(34, 32))
         for label, category in [
             ("★ 置頂資料源", "starred"),
             ("全部資料源", "all"),
@@ -590,27 +658,34 @@ class ApiCollectionUi:
 
         header = ttk.Frame(main, style="App.TFrame")
         header.pack(fill=X, padx=outer_pad, pady=(outer_pad, max(12, outer_pad // 2)))
-        ttk.Label(header, text="Database Sources", style="Header.TLabel").pack(anchor="w")
-        ttk.Label(header, text="Steam-like scientific dataset launcher: browse, plan, install, update, and bridge data to Taichi/Unreal/Agent.", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
+        ttk.Label(header, text=self.tr("資料庫來源", "Database Sources"), style="Header.TLabel").pack(anchor="w")
+        ttk.Label(
+            header,
+            text=self.tr(
+                "像 Steam 一樣管理科學資料集：瀏覽、規劃、安裝、更新，並把資料接到 Taichi / Unreal / Agent。",
+                "Steam-like scientific dataset launcher: browse, plan, install, update, and bridge data to Taichi/Unreal/Agent.",
+            ),
+            style="Muted.TLabel",
+        ).pack(anchor="w", pady=(8, 0))
 
         controls = ttk.Frame(main, style="App.TFrame")
         controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
-        ttk.Button(controls, text="Refresh", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text="Self-check", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text="Verify files", style="Action.TButton", command=self.open_repair_panel).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text="Add source", style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text="Gemini / AI", style="Action.TButton", command=self.open_google_gemini_settings).pack(side=LEFT, padx=(0, 10))
-        more_button = ttk.Menubutton(controls, text="More", style="Action.TButton")
+        ttk.Button(controls, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text=self.tr("自檢", "Self-check"), style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text=self.tr("修復 / 驗證", "Repair / verify"), style="Action.TButton", command=self.open_repair_panel).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text=self.tr("新增來源", "Add source"), style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(controls, text=self.tr("Gemini / AI 設定", "Gemini / AI"), style="Action.TButton", command=self.open_google_gemini_settings).pack(side=LEFT, padx=(0, 10))
+        more_button = ttk.Menubutton(controls, text=self.tr("更多", "More"), style="Action.TButton")
         more_menu = Menu(more_button, tearoff=0)
-        more_menu.add_command(label="Fetch selected metadata", command=self.crawl_selected)
-        more_menu.add_command(label="Export download plan", command=self.export_download_plan)
-        more_menu.add_command(label="Open official docs", command=self.open_selected_docs)
+        more_menu.add_command(label=self.tr("抓取選取 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
+        more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
-        more_menu.add_command(label="Open database tool", command=self.open_database_tool)
-        more_menu.add_command(label="Database tool settings", command=self.open_database_settings)
+        more_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
+        more_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         more_menu.add_separator()
-        more_menu.add_command(label="Dataset details", command=self.open_detail_drawer)
-        more_menu.add_command(label="Edit source", command=self.edit_active_provider)
+        more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
+        more_menu.add_command(label=self.tr("編輯資料源", "Edit source"), command=self.edit_active_provider)
         more_button.configure(menu=more_menu)
         more_button.pack(side=LEFT, padx=(0, 10))
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
@@ -680,15 +755,15 @@ class ApiCollectionUi:
             font=("Helvetica", 11),
         )
         self.preview_box.pack(fill=X, padx=18, pady=(18, 14))
-        self.preview_box.insert("1.0", "Preview metadata will appear here after OpenGraph/official-page extraction.")
+        self.preview_box.insert("1.0", self.tr("OpenGraph / 官方頁面 metadata 擷取後，預覽會顯示在這裡。", "Preview metadata will appear here after OpenGraph/official-page extraction."))
         self.preview_box.configure(state="disabled")
 
         for label, var in [
-            ("TAGS", self.detail_category_var),
-            ("ACCESS", self.detail_auth_var),
-            ("STATUS", self.detail_status_var),
-            ("SCOPE", self.detail_scope_var),
-            ("OFFICIAL LINKS", self.detail_urls_var),
+            (self.tr("標籤", "TAGS"), self.detail_category_var),
+            (self.tr("存取方式", "ACCESS"), self.detail_auth_var),
+            (self.tr("狀態", "STATUS"), self.detail_status_var),
+            (self.tr("範圍", "SCOPE"), self.detail_scope_var),
+            (self.tr("官方連結", "OFFICIAL LINKS"), self.detail_urls_var),
         ]:
             ttk.Label(self.detail, text=label, style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(10, 2))
             ttk.Label(self.detail, textvariable=var, style="DetailText.TLabel").pack(anchor="w", fill=X, padx=18)
@@ -715,11 +790,11 @@ class ApiCollectionUi:
         header.pack(fill=X, padx=14, pady=(12, 8))
         ttk.Label(header, textvariable=self.plan_count_var, style="DetailSection.TLabel").pack(side=LEFT)
         ttk.Entry(header, textvariable=self.plan_name_var, font=("Helvetica", 12), width=34).pack(side=LEFT, padx=(14, 8))
-        ttk.Button(header, text="Start", style="Action.TButton", command=self.start_download_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="Pause", style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="Resume", style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="Cancel", style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="Retry", style="Action.TButton", command=self.retry_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("開始", "Start"), style="Action.TButton", command=self.start_download_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("暫停", "Pause"), style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("繼續", "Resume"), style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("取消", "Cancel"), style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("重試", "Retry"), style="Action.TButton", command=self.retry_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
@@ -740,10 +815,10 @@ class ApiCollectionUi:
         job_columns = ("name", "status", "progress", "target")
         self.download_tree = ttk.Treeview(plan, columns=job_columns, show="headings", height=4, selectmode="browse")
         for name, label, width, anchor in [
-            ("name", "Download Job", 260, "w"),
-            ("status", "Status", 120, "center"),
-            ("progress", "Progress", 120, "center"),
-            ("target", "Target", 420, "w"),
+            ("name", self.tr("下載工作", "Download Job"), 260, "w"),
+            ("status", self.tr("狀態", "Status"), 120, "center"),
+            ("progress", self.tr("進度", "Progress"), 120, "center"),
+            ("target", self.tr("目標", "Target"), 420, "w"),
         ]:
             self.download_tree.heading(name, text=label)
             self.download_tree.column(name, width=width, anchor=anchor, stretch=True)
@@ -924,13 +999,13 @@ class ApiCollectionUi:
                     label=option.menu_label,
                     command=lambda provider_id=item, selected=option: self.add_provider_version_to_plan(provider_id, selected),
                 )
-            menu.add_cascade(label="Version / legacy download", menu=version_menu)
+            menu.add_cascade(label=self.tr("版本 / 舊版下載", "Version / legacy download"), menu=version_menu)
         menu.add_separator()
         self.add_action_menu_item(menu, actions, "open_database", self.open_database_tool)
         self.add_action_menu_item(menu, actions, "render_preview", self.open_detail_drawer)
-        menu.add_command(label="Dataset details", command=self.open_detail_drawer)
-        menu.add_command(label="Gemini / AI description", command=self.generate_active_summary)
-        menu.add_command(label="Open official docs", command=self.open_active_docs)
+        menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
+        menu.add_command(label=self.tr("Gemini / AI 說明", "Gemini / AI description"), command=self.generate_active_summary)
+        menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_active_docs)
         menu.add_separator()
         self.add_action_menu_item(menu, actions, "uninstall", self.uninstall_active_provider)
         menu.tk_popup(getattr(event, "x_root", 0), getattr(event, "y_root", 0))
@@ -978,7 +1053,7 @@ class ApiCollectionUi:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         row = self.row_by_provider_id(self.active_provider_id)
         if row:
-            self.status_var.set(f"Selected: {row.name}")
+            self.status_var.set(self.tr(f"已選取：{row.name}", f"Selected: {row.name}"))
 
     def toggle_star(self, provider_id: str) -> None:
         conn = self._connect()
@@ -1025,7 +1100,7 @@ class ApiCollectionUi:
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
         self.active_provider_id = provider_id
         self.render_table()
-        self.status_var.set(f"Added {row.name} {option.menu_label} to download plan")
+        self.status_var.set(self.tr(f"已加入下載計畫：{row.name} {option.menu_label}", f"Added {row.name} {option.menu_label} to download plan"))
 
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
@@ -1065,7 +1140,7 @@ class ApiCollectionUi:
                 iid=row.provider_id,
                 values=(row.name, row.auth_type, row.geographic_scope, version_label),
             )
-        self.plan_count_var.set(f"Download Plan：{len(rows)} 個資料源")
+        self.plan_count_var.set(self.tr(f"下載計畫：{len(rows)} 個資料源", f"Download Plan: {len(rows)} sources"))
 
         self.update_download_jobs_panel()
 
@@ -1088,7 +1163,7 @@ class ApiCollectionUi:
     def start_download_plan(self) -> None:
         rows = self.selected_rows()
         if not rows:
-            messagebox.showinfo("Download plan is empty", "Add at least one source to the download plan first.")
+            messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先加入至少一個資料源。", "Add at least one source to the download plan first."))
             return
         self.start_download_rows(rows)
 
@@ -1121,7 +1196,7 @@ class ApiCollectionUi:
             self.download_status_by_provider[row.provider_id] = ("queued", "0%", str(target_path))
             started += 1
         self.update_download_jobs_panel()
-        self.status_var.set(f"Download jobs started: {started}; skipped: {skipped}")
+        self.status_var.set(self.tr(f"下載工作已開始：{started}；略過：{skipped}", f"Download jobs started: {started}; skipped: {skipped}"))
 
     def prepare_provider_for_download(self, provider_id: str) -> bool:
         job_id = self.download_jobs_by_provider.get(provider_id)
@@ -1152,21 +1227,21 @@ class ApiCollectionUi:
     def pause_active_download(self) -> None:
         job_id = self.active_download_job_id()
         if not job_id:
-            self.status_var.set("No active download job to pause.")
+            self.status_var.set(self.tr("沒有可暫停的下載工作。", "No active download job to pause."))
             return
         self.download_queue.pause(job_id)
 
     def resume_active_download(self) -> None:
         job_id = self.active_download_job_id()
         if not job_id:
-            self.status_var.set("No active download job to resume.")
+            self.status_var.set(self.tr("沒有可繼續的下載工作。", "No active download job to resume."))
             return
         self.download_queue.resume(job_id)
 
     def cancel_active_download(self) -> None:
         job_id = self.active_download_job_id()
         if not job_id:
-            self.status_var.set("No active download job to cancel.")
+            self.status_var.set(self.tr("沒有可取消的下載工作。", "No active download job to cancel."))
             return
         self.download_queue.cancel(job_id)
 
@@ -1174,12 +1249,12 @@ class ApiCollectionUi:
         provider_id = self.active_download_provider_id()
         row = self.row_by_provider_id(provider_id)
         if row is None:
-            self.status_var.set("No active download job to retry.")
+            self.status_var.set(self.tr("沒有可重試的下載工作。", "No active download job to retry."))
             return
         job_id = self.download_jobs_by_provider.get(provider_id)
         progress = self.download_progress_by_provider.get(provider_id)
         if job_id and progress and progress.status not in {JobStatus.FAILED, JobStatus.CANCELLED}:
-            self.status_var.set("Only failed or cancelled jobs can be retried.")
+            self.status_var.set(self.tr("只有失敗或取消的下載工作可以重試。", "Only failed or cancelled jobs can be retried."))
             return
         self.download_jobs_by_provider.pop(provider_id, None)
         if job_id:
@@ -1214,7 +1289,7 @@ class ApiCollectionUi:
                 component="ui.download",
                 context={"provider_id": provider_id, "job_id": progress.job_id, "status": progress.status.value, "target": target},
             )
-            self.status_var.set(f"Download {progress.status.value}: {provider_id} {progress.error}")
+            self.status_var.set(self.tr(f"下載 {progress.status.value}：{provider_id} {progress.error}", f"Download {progress.status.value}: {provider_id} {progress.error}"))
 
     def format_download_percent(self, progress: DownloadProgress) -> str:
         if progress.percent is not None:
@@ -1268,7 +1343,7 @@ class ApiCollectionUi:
         finally:
             conn.close()
         self.reload_data()
-        self.status_var.set(f"Download completed: {row.name if row else provider_id}")
+        self.status_var.set(self.tr(f"下載完成：{row.name if row else provider_id}", f"Download completed: {row.name if row else provider_id}"))
 
     def remove_selected_from_plan(self) -> None:
         selection = self.cart_tree.selection()
@@ -1305,7 +1380,7 @@ class ApiCollectionUi:
             self.detail_status_var.set("")
             self.detail_scope_var.set("")
             self.detail_urls_var.set("")
-            self.set_preview_text("Preview metadata will appear here after OpenGraph/official-page extraction.")
+            self.set_preview_text(self.tr("OpenGraph / 官方頁面 metadata 擷取後，預覽會顯示在這裡。", "Preview metadata will appear here after OpenGraph/official-page extraction."))
             return
 
         self.detail_star_var.set(row.star_label)
@@ -1425,25 +1500,75 @@ class ApiCollectionUi:
     def open_integration_config_file(self) -> None:
         core.ensure_local_integration_config()
         webbrowser.open(core.local_integrations_path().as_uri())
-        self.status_var.set("Opened local integration config.")
+        self.status_var.set(self.tr("已開啟本機整合設定檔。", "Opened local integration config."))
 
     def open_doc_file(self, name: str) -> None:
         path = PROJECT_ROOT / "docs" / name
         if not path.exists():
-            messagebox.showinfo("Document not found", str(path))
+            messagebox.showinfo(self.tr("找不到文件", "Document not found"), str(path))
             return
         webbrowser.open(path.as_uri())
 
+    def open_ui_language_settings(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("介面語言", "Interface language"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("460x220")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=self.tr("介面語言", "Interface language"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "選擇 launcher 顯示語言。新開啟的視窗會立即使用；主畫面完整套用需要重新啟動。",
+                "Choose the launcher display language. New dialogs use it immediately; restart for the whole main window.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        labels_by_code = UI_LANGUAGES
+        codes_by_label = {label: code for code, label in labels_by_code.items()}
+        language_var = StringVar(value=labels_by_code.get(self.ui_language, labels_by_code[DEFAULT_UI_LANGUAGE]))
+        selector = ttk.Combobox(
+            dialog,
+            textvariable=language_var,
+            values=tuple(labels_by_code.values()),
+            state="readonly",
+            font=("Helvetica", 12),
+        )
+        selector.pack(fill=X, padx=24, pady=(0, 18))
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+
+        def save_language() -> None:
+            selected_code = codes_by_label.get(language_var.get(), DEFAULT_UI_LANGUAGE)
+            config = core.ensure_local_integration_config()
+            config["ui_language"] = selected_code
+            save_integration_config(config)
+            self.ui_language = selected_code
+            self._build_menu_bar()
+            self.status_var.set(self.tr("介面語言已更新。主畫面完整套用需要重新啟動。", "Interface language updated. Restart for the full main window."))
+            messagebox.showinfo(
+                self.tr("介面語言", "Interface language"),
+                self.tr("已儲存介面語言設定。新開啟的視窗會先套用，主畫面完整套用請重新啟動。", "Language saved. New dialogs will use it now; restart for the full main window."),
+                parent=dialog,
+            )
+            dialog.destroy()
+
+        ttk.Button(actions, text=self.tr("儲存", "Save"), style="Action.TButton", command=save_language).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
     def open_data_store_connection_settings(self) -> None:
         dialog = Toplevel(self.root)
-        dialog.title("Data store connections")
+        dialog.title(self.tr("資料儲存連線", "Data store connections"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("900x520")
         dialog.transient(self.root)
-        ttk.Label(dialog, text="Data store connections", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("資料儲存連線", "Data store connections"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         ttk.Label(
             dialog,
-            text="The launcher may manage SQL, NoSQL, object storage, vector DBs, and file-backed stores. Secrets stay in environment variables or a future credential vault.",
+            text=self.tr(
+                "Launcher 之後可能管理 SQL、NoSQL、物件儲存、向量資料庫與本機檔案資料庫。密碼請放在環境變數或未來的安全憑證庫，不要寫進 Git 檔案。",
+                "The launcher may manage SQL, NoSQL, object storage, vector DBs, and file-backed stores. Secrets stay in environment variables or a future credential vault.",
+            ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
         table = ttk.Treeview(
@@ -1453,12 +1578,12 @@ class ApiCollectionUi:
             height=10,
         )
         for name, label, width in [
-            ("label", "Profile", 160),
-            ("kind", "Store kind", 140),
-            ("engine", "Engine", 120),
-            ("required", "Required env vars", 260),
-            ("optional", "Optional env vars", 180),
-            ("status", "Status", 90),
+            ("label", self.tr("設定檔", "Profile"), 160),
+            ("kind", self.tr("儲存類型", "Store kind"), 140),
+            ("engine", self.tr("引擎", "Engine"), 120),
+            ("required", self.tr("必要環境變數", "Required env vars"), 260),
+            ("optional", self.tr("選用環境變數", "Optional env vars"), 180),
+            ("status", self.tr("狀態", "Status"), 90),
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
@@ -1485,32 +1610,32 @@ class ApiCollectionUi:
         def test_selected_profile() -> None:
             selection = table.selection()
             if not selection:
-                messagebox.showinfo("Data store connections", "Select a data-store profile first.")
+                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
                 return
             profile_id = str(selection[0])
             profile = profiles_by_id[profile_id]
             result = test_data_store_connection(profile)
             table.set(profile_id, "status", result.status)
-            self.status_var.set(f"Data store test: {profile_id} {result.status}")
-            messagebox.showinfo("Data store connection test", f"{profile.label}\n\n{result.status}: {result.message}")
+            self.status_var.set(self.tr(f"資料儲存測試：{profile_id} {result.status}", f"Data store test: {profile_id} {result.status}"))
+            messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), f"{profile.label}\n\n{result.status}: {result.message}")
 
-        ttk.Button(actions, text="Test selected", style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def show_environment_checks(self) -> None:
         checks = core.run_startup_checks(DB_PATH)
         dialog = Toplevel(self.root)
-        dialog.title("Startup environment checks")
+        dialog.title(self.tr("啟動環境檢查", "Startup environment checks"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("760x520")
         dialog.transient(self.root)
-        ttk.Label(dialog, text="Startup environment checks", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("啟動環境檢查", "Startup environment checks"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         table = ttk.Treeview(dialog, columns=("name", "status", "detail"), show="headings", height=14)
         for name, label, width in [
-            ("name", "Check", 190),
-            ("status", "Status", 90),
-            ("detail", "Detail", 460),
+            ("name", self.tr("檢查項目", "Check"), 190),
+            ("status", self.tr("狀態", "Status"), 90),
+            ("detail", self.tr("細節", "Detail"), 460),
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
@@ -1519,19 +1644,22 @@ class ApiCollectionUi:
         table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def show_event_logs(self) -> None:
         events = latest_events(100)
         dialog = Toplevel(self.root)
-        dialog.title("Recent event logs")
+        dialog.title(self.tr("最近事件紀錄", "Recent event logs"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("980x620")
         dialog.transient(self.root)
-        ttk.Label(dialog, text="Recent event logs", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("最近事件紀錄", "Recent event logs"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         ttk.Label(
             dialog,
-            text="Structured JSONL events used by the launcher and future agents for debugging and handoff.",
+            text=self.tr(
+                "Launcher 和未來 Agent 會用這些 JSONL 結構化事件做除錯與交接。",
+                "Structured JSONL events used by the launcher and future agents for debugging and handoff.",
+            ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
 
@@ -1539,11 +1667,11 @@ class ApiCollectionUi:
         body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         table = ttk.Treeview(body, columns=("time", "level", "component", "event", "message"), show="headings", height=10)
         for name, label, width in [
-            ("time", "Time", 180),
-            ("level", "Level", 80),
-            ("component", "Component", 120),
-            ("event", "Event", 180),
-            ("message", "Message", 360),
+            ("time", self.tr("時間", "Time"), 180),
+            ("level", self.tr("層級", "Level"), 80),
+            ("component", self.tr("元件", "Component"), 120),
+            ("event", self.tr("事件", "Event"), 180),
+            ("message", self.tr("訊息", "Message"), 360),
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
@@ -1573,7 +1701,7 @@ class ApiCollectionUi:
             detail.configure(state="normal")
             detail.delete("1.0", END)
             if selected is None:
-                detail.insert(END, "No event selected." if events else "No structured log events yet.")
+                detail.insert(END, self.tr("尚未選取事件。", "No event selected.") if events else self.tr("目前沒有結構化事件紀錄。", "No structured log events yet."))
             else:
                 detail.insert(END, json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True))
             detail.configure(state="disabled")
@@ -1587,47 +1715,63 @@ class ApiCollectionUi:
         actions.pack(fill=X, padx=24, pady=(0, 18))
         event_path = log_file(EVENT_LOG_NAME)
         if event_path.exists():
-            ttk.Button(actions, text="Open JSONL file", style="Action.TButton", command=lambda: webbrowser.open(event_path.as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+            ttk.Button(actions, text=self.tr("開啟 JSONL 檔案", "Open JSONL file"), style="Action.TButton", command=lambda: webbrowser.open(event_path.as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def open_google_gemini_settings(self) -> None:
         dialog = Toplevel(self.root)
-        dialog.title("Gemini / Google connection")
+        dialog.title(self.tr("Gemini / Google 連線", "Gemini / Google connection"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("620x420")
         dialog.transient(self.root)
         dialog.grab_set()
-        ttk.Label(dialog, text="Gemini / Google connection", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("Gemini / Google 連線", "Gemini / Google connection"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         text = Text(dialog, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
         text.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         profile = core.active_ai_profile()
-        profile_text = f"Current AI profile: {profile.label} ({profile.kind})" if profile else "No active AI profile."
+        profile_text = self.tr(f"目前 AI profile：{profile.label} ({profile.kind})", f"Current AI profile: {profile.label} ({profile.kind})") if profile else self.tr("目前沒有啟用 AI profile。", "No active AI profile.")
         routes_text = "; ".join(
             f"{route.capability}: {route.preferred_provider} -> {route.target_profile}"
             for route in DEFAULT_CAPABILITY_ROUTES
         )
-        message = "\n".join(
-            [
-                "This panel is the Google/Gemini connection entry point.",
-                "",
-                profile_text,
-                f"Capability routes: {routes_text or 'none'}",
-                "",
-                "Current safe skeleton supports:",
-                "1. Gemini API key: create a key in Google AI Studio, set GEMINI_API_KEY, and enable the gemini profile in launcher_integrations.local.json.",
-                "2. Google OAuth: a later step should add browser sign-in, callback handling, token vault storage, and refresh-token management.",
-                "",
-                "This UI intentionally does not store Google tokens yet, so credentials do not leak into Git or plain config files.",
-            ]
+        message = self.tr(
+            "\n".join(
+                [
+                    "這裡是 Google / Gemini 連線入口。",
+                    "",
+                    profile_text,
+                    f"能力路由：{routes_text or '無'}",
+                    "",
+                    "目前安全骨架支援：",
+                    "1. Gemini API key：到 Google AI Studio 建立 key，設定 GEMINI_API_KEY，並啟用 launcher_integrations.local.json 裡的 gemini profile。",
+                    "2. Google OAuth：下一步會加入瀏覽器登入、callback、token vault 與 refresh-token 管理。",
+                    "",
+                    "這個 UI 目前刻意不儲存 Google token，避免憑證流進 Git 或明文設定檔。",
+                ]
+            ),
+            "\n".join(
+                [
+                    "This panel is the Google/Gemini connection entry point.",
+                    "",
+                    profile_text,
+                    f"Capability routes: {routes_text or 'none'}",
+                    "",
+                    "Current safe skeleton supports:",
+                    "1. Gemini API key: create a key in Google AI Studio, set GEMINI_API_KEY, and enable the gemini profile in launcher_integrations.local.json.",
+                    "2. Google OAuth: a later step should add browser sign-in, callback handling, token vault storage, and refresh-token management.",
+                    "",
+                    "This UI intentionally does not store Google tokens yet, so credentials do not leak into Git or plain config files.",
+                ]
+            ),
         )
         text.insert("1.0", message)
         text.configure(state="disabled")
         providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=5)
         for name, label, width in [
-            ("provider", "Account", 110),
-            ("mode", "Login mode", 140),
-            ("status", "Status", 90),
-            ("targets", "Capability targets", 230),
+            ("provider", self.tr("帳號", "Account"), 110),
+            ("mode", self.tr("登入模式", "Login mode"), 140),
+            ("status", self.tr("狀態", "Status"), 90),
+            ("targets", self.tr("能力目標", "Capability targets"), 230),
         ]:
             providers.heading(name, text=label)
             providers.column(name, width=width, anchor="w", stretch=True)
@@ -1640,16 +1784,16 @@ class ApiCollectionUi:
         providers.pack(fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
-        ttk.Button(actions, text="Use Gemini this session", style="Action.TButton", command=self.configure_gemini_session).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Start QR login", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Open Google AI Studio", style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(actions, text=self.tr("本次 session 使用 Gemini", "Use Gemini this session"), style="Action.TButton", command=self.configure_gemini_session).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def configure_gemini_session(self) -> None:
         api_key = simpledialog.askstring(
-            "Gemini API key",
-            "Paste a Gemini API key for this launcher session.\nIt will be stored only in this process environment.",
+            self.tr("Gemini API key", "Gemini API key"),
+            self.tr("貼上本次 launcher session 要使用的 Gemini API key。\n它只會存在目前程式環境，不會寫進 Git 或設定檔。", "Paste a Gemini API key for this launcher session.\nIt will be stored only in this process environment."),
             parent=self.root,
             show="*",
         )
@@ -1659,45 +1803,47 @@ class ApiCollectionUi:
         try:
             profile = core.set_active_ai_profile("gemini_flash")
         except Exception as exc:
-            messagebox.showerror("Gemini setup failed", str(exc))
+            messagebox.showerror(self.tr("Gemini 設定失敗", "Gemini setup failed"), str(exc))
             return
-        self.status_var.set(f"Gemini enabled for this session: {profile.label}")
+        self.status_var.set(self.tr(f"Gemini 已在本次 session 啟用：{profile.label}", f"Gemini enabled for this session: {profile.label}"))
         messagebox.showinfo(
-            "Gemini enabled",
-            "Gemini Flash is now the active AI summary profile for this launcher session.\n"
-            "The API key was not written to Git or the integration config.",
+            self.tr("Gemini 已啟用", "Gemini enabled"),
+            self.tr(
+                "Gemini Flash 現在是本次 launcher session 的 AI 摘要 profile。\nAPI key 沒有寫進 Git 或 integration config。",
+                "Gemini Flash is now the active AI summary profile for this launcher session.\nThe API key was not written to Git or the integration config.",
+            ),
         )
 
     def open_google_qr_login_dialog(self) -> None:
         request = build_google_device_login_request()
         dialog = Toplevel(self.root)
-        dialog.title("Google QR login")
+        dialog.title(self.tr("Google QR 登入", "Google QR login"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("520x520")
         dialog.transient(self.root)
         dialog.grab_set()
-        ttk.Label(dialog, text="Google QR / device login", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("Google QR / 裝置登入", "Google QR / device login"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         qr_box = Text(dialog, height=10, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Consolas", 11))
         qr_box.pack(fill=X, padx=24, pady=(0, 14))
         if request.client_id_available:
             qr_text = "\n".join(
                 [
-                    "QR placeholder",
+                    self.tr("QR 佔位", "QR placeholder"),
                     "",
-                    f"Open: {request.verification_url}",
-                    f"Code: {request.user_code}",
+                    self.tr(f"開啟：{request.verification_url}", f"Open: {request.verification_url}"),
+                    self.tr(f"代碼：{request.user_code}", f"Code: {request.user_code}"),
                     "",
-                    "Next step: exchange device_code, render a real QR image, and save tokens in a secure token vault.",
+                    self.tr("下一步：交換 device_code、顯示真正 QR 圖，並把 token 存到安全 token vault。", "Next step: exchange device_code, render a real QR image, and save tokens in a secure token vault."),
                 ]
             )
         else:
             qr_text = "\n".join(
                 [
-                    "QR login is not configured yet.",
+                    self.tr("QR 登入尚未設定。", "QR login is not configured yet."),
                     "",
                     request.message,
                     "",
-                    "After an OAuth client id is configured, this panel will show a scan-ready QR/device-code login.",
+                    self.tr("設定 OAuth client id 後，這個面板會顯示可掃描的 QR / device-code 登入。", "After an OAuth client id is configured, this panel will show a scan-ready QR/device-code login."),
                 ]
             )
         qr_box.insert("1.0", qr_text)
@@ -1705,9 +1851,9 @@ class ApiCollectionUi:
         ttk.Label(dialog, text=request.message, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
-        ttk.Button(actions, text="Open device page", style="Action.TButton", command=lambda: webbrowser.open(request.verification_url)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Open local config", style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(actions, text=self.tr("開啟裝置頁面", "Open device page"), style="Action.TButton", command=lambda: webbrowser.open(request.verification_url)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def generate_active_summary(self) -> None:
         row = self.row_by_provider_id(self.active_provider_id)
@@ -1808,11 +1954,7 @@ class ApiCollectionUi:
             messagebox.showinfo("尚未選取", "請先選取一個資料源。")
             return
         row = self.row_by_provider_id(self.active_provider_id)
-        conn = self._connect()
-        try:
-            summary = core.ApiCatalogRepository(conn).verify_provider_assets([self.active_provider_id])
-        finally:
-            conn.close()
+        summary, issues = self.sync_database_asset_verification([self.active_provider_id])
         self.reload_data()
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
@@ -1820,6 +1962,17 @@ class ApiCollectionUi:
             f"已驗證本地資產：{row.name if row else self.active_provider_id} "
             f"(present={summary['present']}, missing={summary['missing']}, error={summary['error']})"
         )
+        if issues:
+            suggestion = issues[0].repair_suggestion()
+            messagebox.showwarning(
+                "Database self-check",
+                (
+                    f"找到 {len(issues)} 個資料庫/資料表問題。\n\n"
+                    f"第一個建議：{self.localized_database_repair_label(suggestion)}\n"
+                    f"{self.localized_database_repair_description(suggestion)}\n\n"
+                    "可以到「工具 > 修復 / 驗證資產」查看完整清單。"
+                ),
+            )
 
     def select_active_provider(self) -> None:
         if not self.active_provider_id:
@@ -1914,9 +2067,9 @@ class ApiCollectionUi:
 
     def verify_download_manifests(self) -> None:
         results, summary = self.sync_manifest_verification()
-        self.status_var.set(f"File health: {summary}")
+        self.status_var.set(self.tr(f"檔案健康狀態：{summary}", f"File health: {summary}"))
         if any(result.needs_repair for result in results):
-            messagebox.showwarning("File verification", f"Repair needed: {summary}")
+            messagebox.showwarning(self.tr("檔案驗證", "File verification"), self.tr(f"需要修復：{summary}", f"Repair needed: {summary}"))
 
     def sync_manifest_verification(self) -> tuple[list[object], dict[str, int]]:
         results = scan_download_manifests()
@@ -1938,48 +2091,84 @@ class ApiCollectionUi:
             conn.close()
         return results, summary
 
+    def sync_database_asset_verification(
+        self,
+        provider_ids: list[str] | None = None,
+    ) -> tuple[dict[str, int], list[DatabaseSelfCheckIssue]]:
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            summary = repository.verify_provider_assets(provider_ids, verifier=DatabaseAssetVerifier())
+            issues = database_self_check_issues(conn, provider_ids)
+        finally:
+            conn.close()
+        return summary, issues
+
     def open_repair_panel(self) -> None:
         results, summary = self.sync_manifest_verification()
+        database_summary, database_issues = self.sync_database_asset_verification()
         dialog = Toplevel(self.root)
-        dialog.title("Repair / verify manifests")
+        dialog.title(self.tr("修復 / 驗證資產", "Repair / verify assets"))
         dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("1080x640")
+        dialog.geometry("1160x700")
         dialog.transient(self.root)
-        ttk.Label(dialog, text="Repair / verify manifests", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("修復 / 驗證資產", "Repair / verify assets"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         ttk.Label(
             dialog,
-            text=f"Manifest health: ok={summary.get('ok', 0)}, missing={summary.get('missing', 0)}, size={summary.get('size_mismatch', 0)}, checksum={summary.get('checksum_mismatch', 0)}, manifest={summary.get('manifest_error', 0)}",
+            text=self.tr(
+                (
+                    f"檔案：正常={summary.get('ok', 0)}, 遺失={summary.get('missing', 0)}, "
+                    f"大小錯誤={summary.get('size_mismatch', 0)}, checksum 錯誤={summary.get('checksum_mismatch', 0)}, "
+                    f"manifest 錯誤={summary.get('manifest_error', 0)}  |  "
+                    f"資料庫：正常={database_summary.get('present', 0)}, "
+                    f"遺失={database_summary.get('missing', 0)}, 錯誤={database_summary.get('error', 0)}"
+                ),
+                (
+                    f"Files: ok={summary.get('ok', 0)}, missing={summary.get('missing', 0)}, "
+                    f"size={summary.get('size_mismatch', 0)}, checksum={summary.get('checksum_mismatch', 0)}, "
+                    f"manifest={summary.get('manifest_error', 0)}  |  "
+                    f"Databases: present={database_summary.get('present', 0)}, "
+                    f"missing={database_summary.get('missing', 0)}, error={database_summary.get('error', 0)}"
+                ),
+            ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
 
         body = ttk.Frame(dialog, style="Panel.TFrame")
         body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
-        table = ttk.Treeview(
-            body,
+        notebook = ttk.Notebook(body)
+        notebook.pack(fill=BOTH, expand=True)
+        downloads_tab = ttk.Frame(notebook, style="Panel.TFrame")
+        databases_tab = ttk.Frame(notebook, style="Panel.TFrame")
+        notebook.add(downloads_tab, text=self.tr("下載檔案", "Downloaded files"))
+        notebook.add(databases_tab, text=self.tr("資料庫", "Databases"))
+
+        download_table = ttk.Treeview(
+            downloads_tab,
             columns=("status", "provider", "dataset", "version", "suggestion", "message", "payload"),
             show="headings",
             height=13,
         )
         for name, label, width in [
-            ("status", "Status", 130),
-            ("provider", "Provider", 140),
-            ("dataset", "Dataset", 150),
-            ("version", "Version", 100),
-            ("suggestion", "Suggestion", 170),
-            ("message", "Message", 240),
-            ("payload", "Payload", 300),
+            ("status", self.tr("狀態", "Status"), 130),
+            ("provider", self.tr("資料源", "Provider"), 140),
+            ("dataset", self.tr("資料集", "Dataset"), 150),
+            ("version", self.tr("版本", "Version"), 100),
+            ("suggestion", self.tr("建議", "Suggestion"), 170),
+            ("message", self.tr("訊息", "Message"), 240),
+            ("payload", self.tr("檔案路徑", "Payload"), 300),
         ]:
-            table.heading(name, text=label)
-            table.column(name, width=width, anchor="w", stretch=True)
+            download_table.heading(name, text=label)
+            download_table.column(name, width=width, anchor="w", stretch=True)
 
-        detail = Text(body, height=8, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
-        detail.configure(state="disabled")
-        result_by_iid: dict[str, object] = {}
+        download_detail = Text(downloads_tab, height=8, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        download_detail.configure(state="disabled")
+        download_result_by_iid: dict[str, object] = {}
         for index, result in enumerate(results):
             iid = str(index)
-            result_by_iid[iid] = result
+            download_result_by_iid[iid] = result
             suggestion = repair_suggestion_for_result(result)
-            table.insert(
+            download_table.insert(
                 "",
                 END,
                 iid=iid,
@@ -1988,22 +2177,22 @@ class ApiCollectionUi:
                     result.provider_id or "-",
                     result.dataset_uid or result.dataset_id or "-",
                     result.version or "-",
-                    suggestion.label,
+                    self.localized_download_repair_label(suggestion),
                     result.message,
                     str(result.payload_path) if result.payload_path else "-",
                 ),
             )
 
-        def show_selected_result(_event: object | None = None) -> None:
-            selection = table.selection()
-            selected = result_by_iid.get(str(selection[0])) if selection else None
-            detail.configure(state="normal")
-            detail.delete("1.0", END)
+        def show_selected_download_result(_event: object | None = None) -> None:
+            selection = download_table.selection()
+            selected = download_result_by_iid.get(str(selection[0])) if selection else None
+            download_detail.configure(state="normal")
+            download_detail.delete("1.0", END)
             if selected is None:
-                detail.insert(END, "No manifest selected." if results else "No download manifests found.")
+                download_detail.insert(END, self.tr("尚未選取 manifest。", "No manifest selected.") if results else self.tr("沒有找到下載 manifest。", "No download manifests found."))
             else:
                 suggestion = repair_suggestion_for_result(selected)
-                detail.insert(
+                download_detail.insert(
                     END,
                     "\n".join(
                         [
@@ -2014,7 +2203,7 @@ class ApiCollectionUi:
                             f"version: {selected.version or '-'}",
                             f"source_url: {selected.source_url or '-'}",
                             f"message: {selected.message}",
-                            f"suggestion: {suggestion.label}",
+                            f"suggestion: {self.localized_download_repair_label(suggestion)}",
                             f"suggestion_action: {suggestion.action_id}",
                             f"suggestion_detail: {suggestion.description}",
                             f"manifest_path: {selected.manifest_path}",
@@ -2022,47 +2211,147 @@ class ApiCollectionUi:
                         ]
                     ),
                 )
-            detail.configure(state="disabled")
+            download_detail.configure(state="disabled")
 
-        table.bind("<<TreeviewSelect>>", show_selected_result)
-        table.pack(fill=BOTH, expand=True, pady=(0, 10))
-        detail.pack(fill=BOTH, expand=True)
-        show_selected_result()
+        download_table.bind("<<TreeviewSelect>>", show_selected_download_result)
+        download_table.pack(fill=BOTH, expand=True, pady=(0, 10))
+        download_detail.pack(fill=BOTH, expand=True)
+        show_selected_download_result()
+
+        database_table = ttk.Treeview(
+            databases_tab,
+            columns=("status", "provider", "kind", "engine", "asset", "suggestion", "message"),
+            show="headings",
+            height=13,
+        )
+        for name, label, width in [
+            ("status", self.tr("狀態", "Status"), 110),
+            ("provider", self.tr("資料源", "Provider"), 150),
+            ("kind", self.tr("種類", "Kind"), 90),
+            ("engine", self.tr("引擎", "Engine"), 100),
+            ("asset", self.tr("資產", "Asset"), 190),
+            ("suggestion", self.tr("建議", "Suggestion"), 220),
+            ("message", self.tr("訊息", "Message"), 360),
+        ]:
+            database_table.heading(name, text=label)
+            database_table.column(name, width=width, anchor="w", stretch=True)
+
+        database_detail = Text(databases_tab, height=8, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        database_detail.configure(state="disabled")
+        database_issue_by_iid: dict[str, DatabaseSelfCheckIssue] = {}
+        for index, issue in enumerate(database_issues):
+            iid = str(index)
+            database_issue_by_iid[iid] = issue
+            suggestion = issue.repair_suggestion()
+            database_table.insert(
+                "",
+                END,
+                iid=iid,
+                values=(
+                    issue.status,
+                    issue.provider_id,
+                    issue.asset_kind,
+                    issue.engine or "-",
+                    issue.asset_name,
+                    self.localized_database_repair_label(suggestion),
+                    issue.error or "-",
+                ),
+            )
+
+        def show_selected_database_issue(_event: object | None = None) -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            database_detail.configure(state="normal")
+            database_detail.delete("1.0", END)
+            if selected is None:
+                database_detail.insert(END, self.tr("尚未選取資料庫問題。", "No database issue selected.") if database_issues else self.tr("沒有找到資料庫問題。", "No database issues found."))
+            else:
+                suggestion = selected.repair_suggestion()
+                database_detail.insert(
+                    END,
+                    "\n".join(
+                        [
+                            f"status: {selected.status}",
+                            f"provider_id: {selected.provider_id}",
+                            f"asset_kind: {selected.asset_kind}",
+                            f"engine: {selected.engine or '-'}",
+                            f"asset_name: {selected.asset_name}",
+                            f"asset_id: {selected.asset_id}",
+                            f"install_id: {selected.install_id or '-'}",
+                            f"message: {selected.error or '-'}",
+                            f"suggestion: {self.localized_database_repair_label(suggestion)}",
+                            f"suggestion_action: {suggestion.action_id}",
+                            f"suggestion_detail: {self.localized_database_repair_description(suggestion)}",
+                            f"can_auto_repair: {suggestion.can_auto_repair}",
+                            f"install_location: {suggestion.details.get('install_location') or '-'}",
+                            f"source_uri: {suggestion.details.get('source_uri') or '-'}",
+                        ]
+                    ),
+                )
+            database_detail.configure(state="disabled")
+
+        database_table.bind("<<TreeviewSelect>>", show_selected_database_issue)
+        database_table.pack(fill=BOTH, expand=True, pady=(0, 10))
+        database_detail.pack(fill=BOTH, expand=True)
+        show_selected_database_issue()
 
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
 
         def requeue_selected_result() -> None:
-            selection = table.selection()
-            selected = result_by_iid.get(str(selection[0])) if selection else None
+            selection = download_table.selection()
+            selected = download_result_by_iid.get(str(selection[0])) if selection else None
             if selected is None:
-                messagebox.showinfo("Repair", "Select a manifest row first.")
+                messagebox.showinfo(self.tr("修復", "Repair"), self.tr("請先選取一列 manifest。", "Select a manifest row first."))
                 return
             suggestion = repair_suggestion_for_result(selected)
             if not suggestion.can_requeue:
-                messagebox.showinfo("Repair", suggestion.description)
+                messagebox.showinfo(self.tr("修復", "Repair"), suggestion.description)
                 return
             plan_entry = dict(suggestion.plan_entry)
             provider_id = str(plan_entry.get("provider_id") or "")
             if not self.prepare_provider_for_download(provider_id):
-                self.status_var.set(f"Repair download is already active for {provider_id}.")
+                self.status_var.set(self.tr(f"{provider_id} 的修復下載已經在執行。", f"Repair download is already active for {provider_id}."))
                 return
             try:
                 job = self.download_queue.submit(plan_entry)
             except Exception as exc:
-                messagebox.showerror("Repair", f"Could not requeue repair download: {type(exc).__name__}: {exc}")
+                messagebox.showerror(self.tr("修復", "Repair"), self.tr(f"無法重新排修復下載：{type(exc).__name__}: {exc}", f"Could not requeue repair download: {type(exc).__name__}: {exc}"))
                 return
             self.download_jobs_by_provider[provider_id] = job.job_id
             self.download_providers_by_job[job.job_id] = provider_id
             self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
             self.update_download_jobs_panel()
-            self.status_var.set(f"Repair download queued: {provider_id}")
+            self.status_var.set(self.tr(f"已重新排修復下載：{provider_id}", f"Repair download queued: {provider_id}"))
 
-        ttk.Button(actions, text="Refresh", style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Requeue selected", style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Open downloads folder", style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
-        self.status_var.set(f"File health: {summary}")
+        def show_selected_database_suggestion() -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo(self.tr("資料庫修復", "Database repair"), self.tr("請先選取一列資料庫問題。", "Select a database row first."))
+                return
+            suggestion = selected.repair_suggestion()
+            next_step = self.localized_database_repair_description(suggestion)
+            if suggestion.action_id == "configure_data_store_env":
+                next_step += self.tr("\n\n請開啟「資料儲存連線」查看必要環境變數。", "\n\nOpen Data store connections to inspect the required environment variables.")
+            elif suggestion.action_id == "install_optional_driver_in_project_env":
+                next_step += self.tr("\n\n請把 driver 安裝在專案 Python 環境，不要安裝到 base。", "\n\nInstall the driver in the project Python environment, not the base environment.")
+            elif suggestion.action_id == "review_schema_drift":
+                next_step += self.tr("\n\n這可能是真實資料或 schema 變動；刷新 registry fingerprint 前請先確認。", "\n\nThis can be a real data/schema change; review before refreshing the registered fingerprint.")
+            elif suggestion.action_id.startswith("restore_or_reimport"):
+                next_step += self.tr("\n\n在 adapter 能證明 ownership 之前，這個 UI 不會自動刪除或重建 SQL 物件。", "\n\nThis UI will not delete or recreate SQL objects automatically until an adapter proves ownership.")
+            messagebox.showinfo(
+                self.tr("資料庫修復建議", "Database repair suggestion"),
+                f"{selected.provider_id} / {selected.asset_name}\n\n{self.localized_database_repair_label(suggestion)}\n{next_step}",
+            )
+
+        ttk.Button(actions, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("重新排下載", "Requeue selected download"), style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示資料庫建議", "Show database suggestion"), style="Action.TButton", command=show_selected_database_suggestion).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("資料儲存設定", "Data-store settings"), style="Action.TButton", command=self.open_data_store_connection_settings).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟下載資料夾", "Open downloads folder"), style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        self.status_var.set(self.tr(f"檔案健康狀態：{summary}；資料庫問題={len(database_issues)}", f"File health: {summary}; database issues={len(database_issues)}"))
 
     def crawl_selected(self) -> None:
         provider_ids = self.selected_provider_ids()

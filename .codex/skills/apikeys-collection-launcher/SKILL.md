@@ -32,6 +32,7 @@ gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
 
 - Treat `APIkeys_collection.py` as a compatibility wrapper; put new logic in `api_launcher/`.
 - Keep UI JSON formats shared through core modules such as `api_launcher/plans.py`.
+- Keep the default user-facing Tk UI in Traditional Chinese. When adding or touching visible UI text, prefer `ApiCollectionUi.tr("繁中", "English")` so `Settings > Interface language` can keep working.
 - Reuse `api_launcher.library_actions` for install/update/repair/open/render/uninstall decisions. For agent-readable output, call the CLI instead of rebuilding policy:
 
 ```bash
@@ -56,6 +57,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID` to test one configured data-store profile, or `--test-data-store all` for every profile.
 - Use `python APIkeys_collection.py --self-check-databases` to verify managed database/table assets recorded in the install registry.
 - Use `python APIkeys_collection.py --self-check-databases-json` when another tool or agent needs a pure JSON issue list with stable repair suggestion IDs.
+- Tk `工具 > 修復 / 驗證資產` shows database issues in a dedicated tab using `database_self_check_issues()`; keep it diagnostic until an adapter can prove asset ownership.
 - SQLite checks are read-only and should not create a missing database file.
 - SQLite managed database assets with `schema_fingerprint` are checked for database-level table/column drift and will be marked `error` when the actual fingerprint changes.
 - SQLite managed table assets use `source_uri` as the database path and `asset_name` as the table name; missing tables are marked `missing`, and table-level fingerprint drift is marked `error`.
