@@ -31,7 +31,7 @@
 ## Agent 開發時要看哪裡
 
 1. 先讀 `docs/PROJECT_GTD.md` 確認功能狀態。
-2. 再讀 `state/logs/launcher_events.jsonl` 最近事件。
+2. 執行 `py APIkeys_collection.py --show-logs 20` 或直接讀 `state/logs/launcher_events.jsonl` 最近事件。
 3. 若有錯誤，讀 `state/logs/launcher_errors.log`。
 4. 修改前確認 `git status --short --branch`。
 5. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`。
