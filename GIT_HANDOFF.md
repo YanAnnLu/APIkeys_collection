@@ -40,7 +40,7 @@ Before switching machines:
 
 ```bash
 git status --short
-git add APIkeys_collection.py APIkeys_collection_ui.py README.md PROJECT_STATE.md GIT_HANDOFF.md .gitignore .gitattributes
+git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md PROJECT_STATE.md GIT_HANDOFF.md .gitignore .gitattributes
 git commit -m "Describe the launcher change"
 git status --short
 ```
@@ -50,6 +50,7 @@ After switching machines:
 ```bash
 git status --short --branch
 python3 -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
+python3 -m unittest discover -s tests
 python3 APIkeys_collection.py --summary
 ```
 
@@ -57,7 +58,15 @@ On Windows, replace `python3` with `py`:
 
 ```powershell
 py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
+py -m unittest discover -s tests
 py APIkeys_collection.py --summary
+```
+
+If the project is on a synced Windows drive and `.pyc` writes are locked, use:
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
 ```
 
 ## What To Avoid
