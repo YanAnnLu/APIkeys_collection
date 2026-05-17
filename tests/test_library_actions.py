@@ -7,7 +7,14 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from api_launcher.core import main
-from api_launcher.library_actions import LibraryContext, build_library_actions, enabled_action_ids
+from api_launcher.library_actions import (
+    LibraryContext,
+    build_library_actions,
+    enabled_action_ids,
+    library_action_map,
+    library_action_menu_label,
+    ordered_library_actions,
+)
 
 
 class LibraryActionTests(unittest.TestCase):
@@ -46,6 +53,15 @@ class LibraryActionTests(unittest.TestCase):
         actions = {action.action_id: action for action in build_library_actions(context)}
 
         self.assertEqual("destructive", actions["uninstall"].risk)
+
+    def test_action_helpers_keep_ui_from_rebuilding_policy(self) -> None:
+        context = LibraryContext(provider_id="sample")
+        action_map = library_action_map(context)
+        ordered_ids = tuple(action.action_id for action in ordered_library_actions(context))
+
+        self.assertIn("add_to_plan", action_map)
+        self.assertEqual("add_to_plan", ordered_ids[0])
+        self.assertIn("No direct download", library_action_menu_label(action_map["add_to_plan"]))
 
     def test_cli_prints_library_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

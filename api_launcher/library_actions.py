@@ -33,6 +33,17 @@ class LibraryAction:
     risk: ActionRisk = "safe"
 
 
+DEFAULT_LIBRARY_ACTION_ORDER = (
+    "add_to_plan",
+    "install",
+    "update",
+    "repair",
+    "open_database",
+    "render_preview",
+    "uninstall",
+)
+
+
 def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
     downloadable = context.has_direct_download or context.has_adapter
     installed = context.is_installed
@@ -87,6 +98,27 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             risk="destructive",
         ),
     )
+
+
+def library_action_map(context: LibraryContext) -> dict[str, LibraryAction]:
+    return {action.action_id: action for action in build_library_actions(context)}
+
+
+def ordered_library_actions(
+    context: LibraryContext,
+    action_ids: tuple[str, ...] = DEFAULT_LIBRARY_ACTION_ORDER,
+) -> tuple[LibraryAction, ...]:
+    actions = library_action_map(context)
+    return tuple(actions[action_id] for action_id in action_ids if action_id in actions)
+
+
+def library_action_menu_label(action: LibraryAction, include_disabled_reason: bool = True, max_reason_chars: int = 56) -> str:
+    if action.enabled or not include_disabled_reason or not action.reason:
+        return action.label
+    reason = action.reason
+    if len(reason) > max_reason_chars:
+        reason = f"{reason[: max_reason_chars - 1]}..."
+    return f"{action.label} - {reason}"
 
 
 def enabled_action_ids(context: LibraryContext) -> tuple[str, ...]:

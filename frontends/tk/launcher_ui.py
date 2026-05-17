@@ -21,12 +21,12 @@ from tkinter import ttk
 
 import APIkeys_collection as core
 from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
-from api_launcher.event_log import log_event, log_exception
+from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
 from api_launcher.repair import repair_summary, scan_download_manifests
-from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, state_file
-from api_launcher.library_actions import LibraryContext, build_library_actions
+from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
+from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import build_google_device_login_request
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, DEFAULT_CAPABILITY_ROUTES
 from api_launcher.data_store_connections import DEFAULT_DATA_STORE_PROFILES
@@ -548,6 +548,7 @@ class ApiCollectionUi:
 
         tools_menu = Menu(menu_bar, tearoff=0)
         tools_menu.add_command(label="Startup environment checks", command=self.show_environment_checks)
+        tools_menu.add_command(label="Recent event logs", command=self.show_event_logs)
         tools_menu.add_command(label="Repair / verify manifests", command=self.verify_download_manifests)
         tools_menu.add_command(label="Open downloads folder", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
         menu_bar.add_cascade(label="Tools", menu=tools_menu)
@@ -909,7 +910,7 @@ class ApiCollectionUi:
         self.tree.selection_set(item)
         self.tree.focus(item)
         row = self.row_by_provider_id(item)
-        actions = {action.action_id: action for action in self.library_actions_for_row(row)}
+        actions = self.library_action_map_for_row(row)
         menu = Menu(self.root, tearoff=0)
         self.add_action_menu_item(menu, actions, "add_to_plan", lambda provider_id=item: self.add_provider_to_plan(provider_id))
         self.add_action_menu_item(menu, actions, "install", self.manage_active_provider)
@@ -935,16 +936,20 @@ class ApiCollectionUi:
         menu.tk_popup(getattr(event, "x_root", 0), getattr(event, "y_root", 0))
         menu.grab_release()
 
-    def add_action_menu_item(self, menu: Menu, actions: dict[str, object], action_id: str, command: object) -> None:
+    def add_action_menu_item(self, menu: Menu, actions: dict[str, LibraryAction], action_id: str, command: object) -> None:
         action = actions.get(action_id)
         if action is None:
             return
-        menu.add_command(label=action.label, command=command, state="normal" if action.enabled else "disabled")
+        menu.add_command(
+            label=library_action_menu_label(action),
+            command=command,
+            state="normal" if action.enabled else "disabled",
+        )
 
-    def library_actions_for_row(self, row: ProviderRow | None) -> tuple[object, ...]:
+    def library_context_for_row(self, row: ProviderRow | None) -> LibraryContext | None:
         if row is None:
-            return ()
-        context = LibraryContext(
+            return None
+        return LibraryContext(
             provider_id=row.provider_id,
             local_status=row.local_status,
             remote_status=row.remote_status,
@@ -955,7 +960,12 @@ class ApiCollectionUi:
             has_adapter=row.download_eligibility.status == "adapter_required",
             has_render_assets=bool(row.install_id),
         )
-        return build_library_actions(context)
+
+    def library_action_map_for_row(self, row: ProviderRow | None) -> dict[str, LibraryAction]:
+        context = self.library_context_for_row(row)
+        if context is None:
+            return {}
+        return library_action_map(context)
 
     def on_tree_select(self, _event: object) -> None:
         selection = self.tree.selection()
@@ -1492,6 +1502,75 @@ class ApiCollectionUi:
         table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def show_event_logs(self) -> None:
+        events = latest_events(100)
+        dialog = Toplevel(self.root)
+        dialog.title("Recent event logs")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("980x620")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text="Recent event logs", style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text="Structured JSONL events used by the launcher and future agents for debugging and handoff.",
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+
+        body = ttk.Frame(dialog, style="Panel.TFrame")
+        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        table = ttk.Treeview(body, columns=("time", "level", "component", "event", "message"), show="headings", height=10)
+        for name, label, width in [
+            ("time", "Time", 180),
+            ("level", "Level", 80),
+            ("component", "Component", 120),
+            ("event", "Event", 180),
+            ("message", "Message", 360),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+        detail = Text(body, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        detail.configure(state="disabled")
+
+        event_by_iid: dict[str, dict[str, object]] = {}
+        for index, event in enumerate(events):
+            iid = str(index)
+            event_by_iid[iid] = event
+            table.insert(
+                "",
+                END,
+                iid=iid,
+                values=(
+                    event.get("timestamp", ""),
+                    event.get("level", ""),
+                    event.get("component", ""),
+                    event.get("event", ""),
+                    event.get("message", ""),
+                ),
+            )
+
+        def show_selected_log(_event: object | None = None) -> None:
+            selection = table.selection()
+            selected = event_by_iid.get(str(selection[0])) if selection else None
+            detail.configure(state="normal")
+            detail.delete("1.0", END)
+            if selected is None:
+                detail.insert(END, "No event selected." if events else "No structured log events yet.")
+            else:
+                detail.insert(END, json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True))
+            detail.configure(state="disabled")
+
+        table.bind("<<TreeviewSelect>>", show_selected_log)
+        table.pack(fill=BOTH, expand=True, pady=(0, 10))
+        detail.pack(fill=BOTH, expand=True)
+        show_selected_log()
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        event_path = log_file(EVENT_LOG_NAME)
+        if event_path.exists():
+            ttk.Button(actions, text="Open JSONL file", style="Action.TButton", command=lambda: webbrowser.open(event_path.as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def open_google_gemini_settings(self) -> None:
