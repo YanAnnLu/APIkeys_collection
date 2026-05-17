@@ -20,6 +20,8 @@ Steam-like 的產品形態不應只是一個手動開啟的視窗。中期目標
 
 在更後面的階段，可以新增移動端 companion app。它應該透過安全配對連到常駐桌面端，而不是直接連資料庫。基本模型是：手機端發出「查看狀態、暫停/恢復下載、重試失敗任務、收到修復提醒」這類控制命令；桌面端負責驗證裝置、檢查權限、執行 action、保管 token 與資料。這需要一層 guarded remote-control API，至少包含 QR/device pairing、可撤銷 device token、預設唯讀權限、破壞性操作二次確認，以及 LAN/VPN/tunnel 的安全部署邊界。
 
+再更遠期，常駐桌面端也可以成為 P2P / BitTorrent-like 的資料分發節點。這對大型公開資料集有價值：同一版本的資料若有 manifest、checksum、授權與來源記錄，就可以讓使用者選擇從官方 mirror 和可信 peers 共同下載，或在下載後 opt-in 做種。限制也很明確：不得分享需要個人 API token 的資料、不得分享私有資料、不得分享授權不明或禁止再散布的資料；做種前必須有版本鎖定、checksum 驗證、頻寬限制、停止做種按鈕與事件日誌。
+
 ## 主要流程
 
 這份專案要同時保留兩件事：
@@ -175,6 +177,7 @@ state_file("APIkeys_collection.sqlite")
 | 外部工具 profile | `api_launcher/transfer_tools.py` | 建立 aria2c/curl 等外部工具命令，但不用 shell 字串拼接。 |
 | 可下載性判斷 | `api_launcher/download_eligibility.py` | 判斷資料源是 Direct、Adapter、Docs 或 Unavailable。 |
 | 禮貌下載政策 | `api_launcher/download_policy.py` | 控制每 host 延遲、重試退避、429/503 冷卻、User-Agent。 |
+| 未來 P2P 分發 | 尚未實作 | 遠期可選能力；只能用於授權允許再散布的 public dataset，並且必須依 manifest/checksum 驗證。 |
 
 目前 UI 只會直接下載 Direct 類型資料源。API endpoint 或 docs page 會被標為需要 adapter，避免把文件頁誤當資料集下載。
 

@@ -20,6 +20,8 @@ APIkeys Collection 正在從 API key/source 管理器，演進成「科學資料
 
 更長期可以包裝成移動端 companion app，但它的角色應該是「遙控器」而不是「資料搬運中心」。手機端可透過 QR/device pairing 連到常駐桌面端或受信任的本機服務，查看下載/匯入/修復狀態、接收通知、暫停或恢復任務、要求桌面端開啟資料庫或 renderer。原始資料、資料庫連線、API token、AI token 與重型運算仍留在桌面端/服務端，避免把敏感資料暴露到手機或公網。
 
+另一個遠期形態是 P2P / BitTorrent-like 資料分發節點。這個方向已有前例，例如 Academic Torrents 類型的學術資料分發服務；本專案的差異在於它會先做資料治理：確認授權、版本、manifest、checksum 與來源，再決定是否允許下載後做種或從 peers 加速下載。這必須是使用者 opt-in，且只適用於授權清楚的 public dataset；需要個人 token、API 條款禁止轉載、私有資料或來源不明的資料，都不能被這個程式自動分享出去。
+
 ## 與一般競品的差異
 
 | 類型 | 常見能力 | 本專案差異 |
@@ -36,7 +38,8 @@ APIkeys Collection 正在從 API key/source 管理器，演進成「科學資料
 2. 資料集要有穩定 ID、版本、manifest、checksum、來源、授權與 install_id。
 3. 下載器必須非阻塞、可續傳、可暫停、可恢復，並尊重來源站限制。
 4. 前端可以是 Tk、Taichi、Unreal、agent 或其他工具，但都應讀同一套資料契約。
-5. 物理/渲染細節先以 contract 銜接，交給專門模組或 agent 深化。
+5. 任何再散布或 P2P 分享都必須先通過授權、來源、版本與 checksum 檢查。
+6. 物理/渲染細節先以 contract 銜接，交給專門模組或 agent 深化。
 
 ## MVP 邊界
 

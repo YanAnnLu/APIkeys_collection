@@ -37,6 +37,7 @@ flowchart TD
         Eligibility[Direct / adapter / docs eligibility]
         Queue[Nonblocking job queue]
         Transfer[HTTP adapter / aria2c / curl]
+        P2P[Future P2P dataset distribution]
         Staging[Staging area with resume]
         Manifests[Sidecar manifests and checksums]
         Imports[CSV / JSON / SQL / API import adapters]
@@ -82,7 +83,9 @@ flowchart TD
 
     Eligibility --> Queue
     Queue --> Transfer
+    Queue --> P2P
     Transfer --> Staging
+    P2P --> Staging
     Staging --> Manifests
     Imports --> Manifests
     Manifests --> Raw
@@ -124,6 +127,11 @@ datasets, data-store credentials, provider/API tokens, AI tokens, and heavy impo
 desktop/service side. Any remote API should start read-only by default and require QR/device pairing, revocable device
 tokens, scoped permissions, and explicit confirmation for destructive actions.
 
+P2P distribution boundary: a future BitTorrent-like node can only participate for public datasets that are explicitly
+redistributable. The launcher must verify license/redistribution metadata, dataset version, source identity, manifest
+checksums, and user opt-in before seeding. Token-protected APIs, private datasets, terms-restricted downloads, and
+unknown-origin files must stay outside the P2P path.
+
 ## Runtime Layers
 
 | Layer | Files | Role |
@@ -137,6 +145,7 @@ tokens, scoped permissions, and explicit confirmation for destructive actions.
 | Planning | `api_launcher/plans.py` | Builds download-plan JSON and declares nonblocking download policy. |
 | Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
 | Downloading | `api_launcher/download_jobs.py`, `api_launcher/http_downloader.py`, `api_launcher/transfer_tools.py` | Nonblocking job queue, resumable HTTP adapter, optional external transfer tools. |
+| Future P2P distribution | Not implemented yet | Optional BitTorrent-like dataset sharing for redistributable public data only, guarded by license, version, checksum, and opt-in policy. |
 | Integration settings | `api_launcher/integrations.py`, `api_launcher/data_store_connections.py`, `config/launcher_integrations.example.json` | Database clients, data-store connection profiles, AI summary profiles, download tool profiles. |
 | Environment checks | `api_launcher/environment.py`, `.editorconfig`, `.gitattributes` | Startup path/tool/encoding checks and cross-platform file rules. |
 | Install and uninstall safety | `api_launcher/asset_verifier.py`, `api_launcher/sql_assets.py`, `api_launcher/provenance.py`, `api_launcher/asset_roles.py` | Install IDs, asset verification, provenance, safe uninstall metadata. |
