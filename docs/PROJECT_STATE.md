@@ -24,6 +24,10 @@ The project is not a secret harvester. Credential files are templates for user-o
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
+- HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
+  verified later instead of being treated as anonymous blobs.
+- CLI handoff and observability commands now exist: `--verify-downloads`, `--manifest-health`, `--show-logs`, and
+  `--handoff-report`.
 
 Current SQLite counts observed on this machine:
 
@@ -31,9 +35,10 @@ Current SQLite counts observed on this machine:
 - `template_keys`: 18
 - `provider_download_state`: 25
 - `crawl_results`: 4
-- `datasets`: 0
-- `dataset_sync_state`: 0
-- `render_bridge_assets`: 0
+- `datasets`: depends on adapter discovery; HYG and GEBCO can be inserted by `--discover-datasets`
+- `dataset_sync_state`: follows `datasets`
+- `render_bridge_assets`: populated when renderer bridge assets are registered
+- `dataset_asset_manifests`: populated by completed downloads or `--verify-downloads`
 
 ## Structural Progress
 
@@ -50,6 +55,8 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
 - `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
 - `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
+- `api_launcher/manifests.py`, `staging.py`, and `repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
+- `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
@@ -88,6 +95,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   Dedupe should prefer canonical dataset identity over provider names.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
+- The UI includes a file verification action that scans download manifests and syncs file health into SQLite.
+- GitHub Actions CI runs tests and a CLI smoke check on Windows and Ubuntu.
 
 ## Cross-Platform Notes
 
@@ -109,5 +118,6 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 3. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
 4. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 5. Allow one download plan to include multiple versions of the same dataset/provider without overwriting the provider row.
-6. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-7. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
+6. Add a UI repair panel backed by `dataset_asset_manifests`.
+7. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+8. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
