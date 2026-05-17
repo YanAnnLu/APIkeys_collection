@@ -7,6 +7,7 @@ import os
 import sqlite3
 import urllib.parse
 from collections.abc import Mapping
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -194,7 +195,7 @@ def _test_sqlite_connection(
         connect_target = ":memory:"
 
     try:
-        with sqlite3.connect(connect_target, **connect_kwargs) as conn:
+        with closing(sqlite3.connect(connect_target, **connect_kwargs)) as conn:
             table_count = conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'").fetchone()[0]
             user_version = conn.execute("PRAGMA user_version").fetchone()[0]
     except sqlite3.Error as exc:

@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 import unittest
 import io
-from contextlib import redirect_stdout
+from contextlib import closing, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,7 +74,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_asset_verifier_marks_existing_database_present(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             asset = AssetRecord(
                 asset_id="asset_1",
@@ -93,7 +93,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_schema_summary_fingerprints_table_columns(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
 
             summary = sqlite_schema_summary(db_path)
@@ -105,7 +105,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_table_schema_summary_fingerprints_one_table(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
                 conn.execute("CREATE TABLE observation (id INTEGER PRIMARY KEY, station_id INTEGER, value REAL)")
 
@@ -118,10 +118,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_asset_verifier_detects_schema_fingerprint_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY, name TEXT)")
             expected = sqlite_schema_summary(db_path).schema_fingerprint
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("ALTER TABLE station ADD COLUMN elevation REAL")
             asset = AssetRecord(
                 asset_id="asset_1",
@@ -159,7 +159,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_asset_verifier_marks_existing_table_present(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
             asset = AssetRecord(
                 asset_id="asset_1",
@@ -178,7 +178,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_asset_verifier_marks_missing_table_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
             asset = AssetRecord(
                 asset_id="asset_1",
@@ -198,10 +198,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
     def test_sqlite_asset_verifier_detects_table_schema_fingerprint_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY, name TEXT)")
             expected = sqlite_table_schema_summary(db_path, "station").schema_fingerprint
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("ALTER TABLE station ADD COLUMN elevation REAL")
             asset = AssetRecord(
                 asset_id="asset_1",
@@ -364,7 +364,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             conn = connect_db(launcher_db)
             try:
@@ -404,10 +404,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             expected = sqlite_schema_summary(asset_db).schema_fingerprint
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("ALTER TABLE sample ADD COLUMN value TEXT")
             conn = connect_db(launcher_db)
             try:
@@ -451,7 +451,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
             conn = connect_db(launcher_db)
             try:
@@ -496,10 +496,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
             expected = sqlite_table_schema_summary(asset_db, "station").schema_fingerprint
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("ALTER TABLE station ADD COLUMN value TEXT")
             conn = connect_db(launcher_db)
             try:
@@ -544,7 +544,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             conn = connect_db(launcher_db)
             try:
@@ -581,10 +581,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             expected = sqlite_schema_summary(asset_db).schema_fingerprint
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("ALTER TABLE sample ADD COLUMN value TEXT")
             conn = connect_db(launcher_db)
             try:
@@ -622,7 +622,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
             asset_db = Path(tmpdir) / "asset.sqlite"
-            with sqlite3.connect(asset_db) as conn:
+            with closing(sqlite3.connect(asset_db)) as conn:
                 conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
             conn = connect_db(launcher_db)
             try:

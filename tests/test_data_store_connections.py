@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 import unittest
 import io
-from contextlib import redirect_stdout
+from contextlib import closing, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -80,7 +80,7 @@ class DataStoreConnectionTests(unittest.TestCase):
     def test_sqlite_connection_test_opens_existing_database_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "sample.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             profile = data_store_profile("sqlite_local")
             self.assertIsNotNone(profile)
@@ -276,7 +276,7 @@ class DataStoreConnectionTests(unittest.TestCase):
     def test_cli_can_run_sqlite_connection_test(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "sample.sqlite"
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
             output = io.StringIO()
 

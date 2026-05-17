@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import urllib.parse
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -231,7 +232,7 @@ def sql_database_name_for_asset(asset: AssetRecord) -> str:
 def sqlite_schema_summary(path: str | Path) -> DatabaseSchemaSummary:
     db_path = Path(path).expanduser()
     uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as conn:
+    with closing(sqlite3.connect(uri, uri=True)) as conn:
         rows = conn.execute(
             """
             SELECT name
@@ -259,7 +260,7 @@ def sqlite_table_schema_summary(path: str | Path, table: str) -> DatabaseSchemaS
     db_path = Path(path).expanduser()
     uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
     table_name = table.strip()
-    with sqlite3.connect(uri, uri=True) as conn:
+    with closing(sqlite3.connect(uri, uri=True)) as conn:
         if not _sqlite_table_exists(conn, table_name):
             raise ValueError(f"SQLite table is missing: {table_name}")
         column_signatures = _sqlite_column_signatures(conn, table_name)
@@ -276,7 +277,7 @@ def sqlite_table_schema_summary(path: str | Path, table: str) -> DatabaseSchemaS
 def sqlite_table_exists(path: str | Path, table: str) -> bool:
     db_path = Path(path).expanduser()
     uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as conn:
+    with closing(sqlite3.connect(uri, uri=True)) as conn:
         return _sqlite_table_exists(conn, table.strip())
 
 
