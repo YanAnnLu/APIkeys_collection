@@ -56,7 +56,10 @@ Suggested module split:
 - SQLite state on synced drives can conflict. Prefer treating `*.sqlite` as rebuildable state or copy it locally before heavy writes.
 - Git for Windows was installed on 2026-05-17 and the repo was initialized on `main`.
 - GitHub CLI was installed on 2026-05-17, but it is not authenticated yet. Run `gh auth login`.
-- Docker configuration files exist for CLI/dev-worker checks, but Docker Desktop is not installed on this Windows machine yet.
+- Docker Desktop 4.73.0 is installed and verified on this Windows machine.
+- WSL is installed for Docker Desktop; the `docker-desktop` WSL distro runs as WSL2.
+- Docker Compose is verified with `docker compose run --rm --build launcher`.
+- The compose file does not bind-mount the RaiDrive project folder because that path did not appear inside the Linux container. Runtime SQLite state lives in the named Docker volume.
 
 ## Next Build Target
 

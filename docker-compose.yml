@@ -4,11 +4,10 @@ services:
     image: apikeys-collection:dev
     working_dir: /app
     volumes:
-      - .:/app
       - apikeys_collection_state:/state
     environment:
       APIKEYS_COLLECTION_STATE_DIR: /state
-    command: python APIkeys_collection.py --summary
+    command: python APIkeys_collection.py --db /state/APIkeys_collection.sqlite --init-db --seed --seed-key-reference --summary
 
 volumes:
   apikeys_collection_state:

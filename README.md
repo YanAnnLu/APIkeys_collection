@@ -121,6 +121,10 @@ The Docker setup is for CLI checks and future downloader workers. The Tk UI shou
 docker compose run --rm launcher
 ```
 
+On Windows/RaiDrive, the compose file intentionally does not bind-mount the project folder into `/app`.
+The code is copied into the image at build time, while runtime SQLite state lives in the Docker volume
+`apikeys_collection_state`.
+
 The default action initializes the DB, seeds built-in providers, writes templates, and prints a summary.
 
 To refresh the NOAA key reference and regenerate templates:
