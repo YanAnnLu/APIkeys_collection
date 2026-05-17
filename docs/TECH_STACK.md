@@ -138,6 +138,16 @@ normalized into safe SQL identifiers, the CSV schema fingerprint is recorded, an
 registered as a managed `curated` table asset. Use `--import-replace-table` only when you intentionally want to drop
 and recreate the target table.
 
+To import every healthy CSV/CSV.GZ manifest already registered in SQLite:
+
+```powershell
+py APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state\curated_imports.sqlite
+```
+
+The batch importer skips non-CSV manifests, non-healthy manifests, and existing tables by default. Add `--provider ID`
+to scope the batch import to one or more providers, or `--import-replace-table` when you intentionally want to recreate
+matching curated tables.
+
 Dataset transitions should avoid brute-force delete-and-redownload when possible. The generic planner in
 `api_launcher/dataset_updates.py` decides whether to install new data, skip an already-current version, upgrade,
 downgrade, move to an intermediate newer/older version, compare before updating, or keep an older compatibility version

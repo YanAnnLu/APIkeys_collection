@@ -36,6 +36,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Verified CSV/CSV.GZ manifests can now be imported into curated SQLite tables through `--import-csv-manifest`; columns
   are normalized as safe SQL identifiers, table schema fingerprints are recorded, and the result is registered as a
   managed curated table asset.
+- Registry CSV imports can now run in batch through `--import-verified-csv-manifests`; the batch path skips non-CSV,
+  unhealthy, and already-imported tables by default so it can be safely re-run during MVP smoke checks.
 - Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.

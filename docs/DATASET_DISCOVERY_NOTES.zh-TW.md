@@ -87,6 +87,14 @@ python3 APIkeys_collection.py --init-db --seed --import-csv-manifest downloads/s
 
 目前這是 MVP 級匯入：所有欄位先以 `TEXT` 存放，欄位名稱會轉成安全 SQL identifier，table 會帶 schema fingerprint 登錄回 install registry。要覆蓋既有 table 時必須明確加 `--import-replace-table`。
 
+若 registry 裡已經有多個健康 CSV/CSV.GZ manifest，可批次匯入：
+
+```bash
+python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite
+```
+
+批次匯入預設會跳過非 CSV、不健康 manifest，以及已存在的 table；可搭配 `--provider ID` 限定資料商。
+
 ## 版本轉換與增量更新
 
 版本切換不一定永遠是「更新到最新版」。使用者可能從很早期資料移到中間版本，也可能為了重現研究而降版本。

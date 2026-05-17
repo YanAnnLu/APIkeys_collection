@@ -8,7 +8,7 @@ from contextlib import closing, redirect_stdout
 from pathlib import Path
 
 from api_launcher.core import main
-from api_launcher.csv_importer import import_csv_manifest_to_sqlite
+from api_launcher.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
@@ -80,6 +80,71 @@ class CsvImporterTests(unittest.TestCase):
         self.assertEqual([("Sirius", "-1.46")], rows)
         self.assertIn("[csv-import] provider=hyg_database table=stars_curated rows=1 columns=2", stdout.getvalue())
 
+    def test_batch_imports_only_healthy_csv_registry_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            csv_manifest, bin_manifest, missing_manifest = sample_manifest_set(Path(tmpdir))
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset_asset_manifest(read_manifest_for_test(csv_manifest), csv_manifest, status="ok")
+                repo.upsert_dataset_asset_manifest(read_manifest_for_test(bin_manifest), bin_manifest, status="ok")
+                repo.upsert_dataset_asset_manifest(read_manifest_for_test(missing_manifest), missing_manifest, status="missing")
+
+                result = import_verified_csv_manifests_to_sqlite(repo, curated_db)
+                second = import_verified_csv_manifests_to_sqlite(repo, curated_db)
+            finally:
+                conn.close()
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name, mag FROM "hyg_sample_1_0"').fetchall()
+
+        self.assertEqual([("Sirius", "-1.46")], rows)
+        self.assertEqual(3, result.checked)
+        self.assertEqual(1, result.imported)
+        self.assertEqual(1, result.skipped_non_csv)
+        self.assertEqual(1, result.skipped_unhealthy)
+        self.assertEqual(0, result.skipped_existing)
+        self.assertEqual(0, result.failed)
+        self.assertEqual(0, second.imported)
+        self.assertEqual(1, second.skipped_existing)
+
+    def test_cli_batch_imports_registry_csv_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            csv_manifest, _bin_manifest, _missing_manifest = sample_manifest_set(Path(tmpdir))
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset_asset_manifest(read_manifest_for_test(csv_manifest), csv_manifest, status="ok")
+            finally:
+                conn.close()
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(launcher_db),
+                        "--import-verified-csv-manifests",
+                        "--import-sqlite-db",
+                        str(curated_db),
+                    ]
+                )
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name, mag FROM "hyg_sample_1_0"').fetchall()
+
+        self.assertEqual(0, rc)
+        self.assertEqual([("Sirius", "-1.46")], rows)
+        self.assertIn("[csv-import-batch] checked=1 imported=1 skipped=0", stdout.getvalue())
+
 
 def csv_plan_entry() -> dict[str, object]:
     return {
@@ -92,6 +157,27 @@ def csv_plan_entry() -> dict[str, object]:
             "download_url": "https://example.test/stars.csv",
         },
     }
+
+
+def sample_manifest_set(root: Path) -> tuple[Path, Path, Path]:
+    csv_path = root / "stars.csv"
+    csv_path.write_text("name,mag\nSirius,-1.46\n", encoding="utf-8")
+    csv_manifest = write_manifest(build_asset_manifest(csv_path, csv_plan_entry()), csv_path.with_suffix(".csv.manifest.json"))
+
+    bin_path = root / "sample.bin"
+    bin_path.write_bytes(b"binary")
+    bin_manifest = write_manifest(build_asset_manifest(bin_path, csv_plan_entry()), bin_path.with_suffix(".bin.manifest.json"))
+
+    missing_path = root / "missing.csv"
+    missing_path.write_text("name,mag\nVega,0.03\n", encoding="utf-8")
+    missing_manifest = write_manifest(build_asset_manifest(missing_path, csv_plan_entry()), missing_path.with_suffix(".csv.manifest.json"))
+    return csv_manifest, bin_manifest, missing_manifest
+
+
+def read_manifest_for_test(path: Path):
+    from api_launcher.manifests import read_manifest
+
+    return read_manifest(path)
 
 
 if __name__ == "__main__":

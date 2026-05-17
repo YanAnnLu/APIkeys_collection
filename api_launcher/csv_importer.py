@@ -40,6 +40,35 @@ class CsvImportResult:
         }
 
 
+@dataclass(frozen=True)
+class CsvBatchImportResult:
+    checked: int
+    imported: int
+    skipped_non_csv: int
+    skipped_unhealthy: int
+    skipped_existing: int
+    failed: int
+    results: tuple[CsvImportResult, ...] = ()
+    errors: tuple[str, ...] = ()
+
+    @property
+    def skipped(self) -> int:
+        return self.skipped_non_csv + self.skipped_unhealthy + self.skipped_existing
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "checked": self.checked,
+            "imported": self.imported,
+            "skipped": self.skipped,
+            "skipped_non_csv": self.skipped_non_csv,
+            "skipped_unhealthy": self.skipped_unhealthy,
+            "skipped_existing": self.skipped_existing,
+            "failed": self.failed,
+            "results": [result.to_dict() for result in self.results],
+            "errors": list(self.errors),
+        }
+
+
 def import_csv_manifest_to_sqlite(
     manifest_path: str | Path,
     sqlite_path: str | Path,
@@ -106,6 +135,69 @@ def import_csv_manifest_to_sqlite(
     )
 
 
+def import_verified_csv_manifests_to_sqlite(
+    repository: ApiCatalogRepository,
+    sqlite_path: str | Path,
+    provider_ids: Iterable[str] | None = None,
+    replace: bool = False,
+    row_limit: int = 0,
+    skip_existing: bool = True,
+) -> CsvBatchImportResult:
+    records = []
+    provider_list = tuple(provider_id for provider_id in (provider_ids or ()) if provider_id)
+    if provider_list:
+        for provider_id in provider_list:
+            records.extend(repository.list_dataset_asset_manifests(provider_id))
+    else:
+        records = repository.list_dataset_asset_manifests()
+
+    target_db = Path(sqlite_path)
+    results: list[CsvImportResult] = []
+    errors: list[str] = []
+    skipped_non_csv = 0
+    skipped_unhealthy = 0
+    skipped_existing = 0
+    failed = 0
+
+    for record in records:
+        if record.status != "ok":
+            skipped_unhealthy += 1
+            continue
+        payload_path = Path(record.path)
+        if not is_csv_payload(payload_path):
+            skipped_non_csv += 1
+            continue
+        try:
+            manifest = read_manifest(record.manifest_path)
+            table_name = table_name_for_manifest(manifest)
+            if skip_existing and not replace and table_exists(target_db, table_name):
+                skipped_existing += 1
+                continue
+            result = import_csv_manifest_to_sqlite(
+                record.manifest_path,
+                target_db,
+                repository,
+                replace=replace,
+                row_limit=row_limit,
+            )
+        except Exception as exc:
+            failed += 1
+            errors.append(f"{record.provider_id}:{record.dataset_id}:{record.version}: {type(exc).__name__}: {exc}")
+            continue
+        results.append(result)
+
+    return CsvBatchImportResult(
+        checked=len(records),
+        imported=len(results),
+        skipped_non_csv=skipped_non_csv,
+        skipped_unhealthy=skipped_unhealthy,
+        skipped_existing=skipped_existing,
+        failed=failed,
+        results=tuple(results),
+        errors=tuple(errors),
+    )
+
+
 def import_rows_to_sqlite(
     sqlite_path: Path,
     table_name: str,
@@ -131,6 +223,18 @@ def import_rows_to_sqlite(
             count += 1
         conn.commit()
         return count
+
+
+def table_exists(sqlite_path: str | Path, table_name: str) -> bool:
+    path = Path(sqlite_path)
+    if not path.exists():
+        return False
+    with closing(sqlite3.connect(path)) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (validate_sql_identifier(table_name),),
+        ).fetchone()
+    return row is not None
 
 
 def normalized_row_values(row: list[str], width: int) -> tuple[str, ...]:
