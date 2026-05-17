@@ -262,6 +262,22 @@ MySQL spatial table 可作為 MVP：它能存 `POINT` / `POLYGON` / `MULTIPOLYGO
 
 後續可新增 Marine Regions / VLIZ Maritime Boundaries adapter，把領海、EEZ、爭議區、公海圖層納入 dataset registry，再輸出 Taichi/Unreal 可用的 globe overlay/tile layer。
 
+## 金融與即時時間序列資料
+
+金融市場資料不應被視為一般靜態版本檔案。股票、外匯、加密貨幣、期貨報價可能每秒甚至每筆成交都更新，同一個 `version` 標籤下仍會持續新增資料，也可能有延遲到達、回補或歷史 K 線修正。
+
+因此這類 adapter 應走 time-series ingest contract，而不是「同版本就跳過」。目前 `api_launcher/dataset_updates.py` 已可區分：
+
+| 模式 | 說明 |
+| --- | --- |
+| `static_versioned` | GEBCO、海域邊界、星表等快照資料；同版本可依 manifest 跳過。 |
+| `incremental_append` | 批次增量資料；用 cursor/checkpoint 記錄已處理範圍。 |
+| `append_only_timeseries` | 依時間窗追加，例如每日/每分鐘 K 線。 |
+| `revisable_timeseries` | 資料商可能修正歷史資料；需保留 `revision`。 |
+| `realtime_stream` | 即時報價/tick/成交資料；即使版本相同也要維持 ingest。 |
+
+金融資料至少應保留 `event_time`（市場發生時間）、`received_at`（本機收到時間）、`ingest_run_id`（匯入批次）。若資料商有回補或修正，還要保留 `revision` 或 `source_sequence`，避免覆蓋掉「當時我們看到的資料」。MySQL spatial/relational table 可作 MVP；大量 tick 或長期回測應優先考慮 PostgreSQL + TimescaleDB、ClickHouse、Parquet/DuckDB，Redis/Kafka 只適合作熱資料串流或中繼，不應作唯一長期存檔。
+
 ## AI 輔助模型與 Google 登入
 
 目前 AI 摘要支援兩條路：

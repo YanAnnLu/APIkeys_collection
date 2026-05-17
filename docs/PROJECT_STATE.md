@@ -28,6 +28,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
   verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
+- Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
+  time-series data. Same-version financial/live sources can produce `append_incremental` or
+  `maintain_realtime_stream` decisions instead of being skipped.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--verify-downloads-json`,
   `--manifest-health`, `--show-logs`, and `--handoff-report`.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
@@ -60,6 +63,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Maritime jurisdiction overlays should be modeled as GIS polygon layers with legal/administrative attributes
   (territorial sea, EEZ, disputed zone, high seas). MySQL spatial tables are acceptable for MVP storage and
   point-in-polygon checks, but PostGIS is the preferred backend for heavier spatial analysis and tiling.
+- Financial market data should be modeled as time-series ingest, not static file versions. Store `event_time`,
+  `received_at`, and `ingest_run_id`; keep revisions/backfills explicit; use MySQL only for MVP-scale storage and
+  prefer TimescaleDB/ClickHouse/Parquet-DuckDB style backends for larger tick or intraday history.
 
 Current SQLite counts observed on this machine:
 
@@ -172,9 +178,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
 3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
-5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-6. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
-7. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
-8. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-9. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-10. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
+6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
+7. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
+8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
+9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+11. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
