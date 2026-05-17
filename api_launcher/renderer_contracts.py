@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from api_launcher.adapters import dataset_uid
+from api_launcher.adapters.base import dataset_uid
 from api_launcher.models import Dataset, RenderBridgeAsset
 
 

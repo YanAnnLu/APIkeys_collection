@@ -28,6 +28,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
 - `api_launcher/dataset_adapters.py`：集中註冊 provider-specific dataset adapter。
+- `api_launcher/adapters/gebco.py`：把 GEBCO 對應成 GEBCO 2025 全球高程網格 dataset。
 - `api_launcher/adapters/hyg.py`：第一個具體 adapter，會把 HYG Database 對應成 HYG v3.8 星表 dataset。
 - `api_launcher/renderer_contracts.py`：保存渲染器共用 dataset ID，避免 launcher 與 `taichi_global_bathymetry.py` 各自硬編碼名稱。
 
@@ -35,7 +36,23 @@ HYG adapter 測試指令：
 
 ```powershell
 py APIkeys_collection.py --init-db --seed --discover-datasets --provider hyg_database --db state\hyg_adapter_smoke.sqlite --summary
+py APIkeys_collection.py --init-db --seed --discover-datasets --provider gebco --db state\gebco_adapter_smoke.sqlite --summary
 ```
+
+注意：GEBCO 官方目前已釋出 2026 grid，但 `taichi_global_bathymetry.py` 的 bridge contract 仍固定在 GEBCO 2025。現階段先用 GEBCO 2025 作為穩定橋接版本，避免快取檔名與渲染器資料格式突然變動。後續應該獨立做一次 GEBCO 2026 migration 測試。
+
+## 版本新鮮度
+
+Seed 只能代表「官方入口」或「可探索來源」，不能保證它指向的是最新版資料。Dataset adapter 也可能為了 schema、快取檔名、渲染器相容性而刻意固定舊版。
+
+因此後續 dataset metadata 應該包含：
+
+- `version_status`
+- `latest_known_version`
+- `latest_known_release_date`
+- `freshness_review_required`
+
+例如 GEBCO 2025 對目前渲染器是 compatibility-pinned；它不是最新版宣稱，而是為了保持 `taichi_global_bathymetry.py` 目前的快取與資料格式穩定。
 
 ## AI / LLM metadata
 

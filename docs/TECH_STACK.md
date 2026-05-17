@@ -78,6 +78,7 @@ Dataset-specific discovery is separate from source-site discovery:
 
 - `api_launcher/adapters/base.py`: adapter protocol and stable dataset UID helper.
 - `api_launcher/dataset_adapters.py`: registry for provider-specific dataset adapters.
+- `api_launcher/adapters/gebco.py`: maps GEBCO to the GEBCO 2025 elevation grid through the renderer contract ID.
 - `api_launcher/adapters/hyg.py`: first concrete adapter; maps HYG Database to the HYG v3.8 star catalog dataset using
   the renderer contract ID.
 
@@ -85,7 +86,16 @@ Run the HYG dataset adapter smoke path with:
 
 ```powershell
 py APIkeys_collection.py --init-db --seed --discover-datasets --provider hyg_database --db state\hyg_adapter_smoke.sqlite --summary
+py APIkeys_collection.py --init-db --seed --discover-datasets --provider gebco --db state\gebco_adapter_smoke.sqlite --summary
 ```
+
+GEBCO's public site now advertises the 2026 grid, while the renderer contract is still pinned to GEBCO 2025. Treat
+the 2025 adapter as the compatibility bridge for the current renderer cache names until the renderer migration is tested.
+
+Seeds and adapters must not be treated as proof of freshness. A seed may point to an official entry page whose newest
+dataset changes over time, while an adapter may intentionally pin an older version for renderer or schema compatibility.
+Dataset metadata should therefore carry version status fields such as `version_status`, `latest_known_version`,
+`latest_known_release_date`, and `freshness_review_required`.
 
 ## Data Pipeline
 
