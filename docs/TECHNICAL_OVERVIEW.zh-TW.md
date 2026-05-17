@@ -250,6 +250,22 @@ Gemini/Ollama 的資料源描述使用 `api_launcher/ai_prompts.py` 中的 promp
 
 這樣 Gemini 會知道 launcher 調用它的目的，是「生成資料庫/資料集描述」，不是聊天或自由發揮。
 
+PowerShell 測試 Gemini 描述生成：
+
+```powershell
+$env:GEMINI_API_KEY = "貼上你的 Gemini API key"
+py APIkeys_collection.py --init-db --seed --generate-ai-summary gebco --ai-profile gemini_flash
+```
+
+如果要把生成內容寫回 provider notes：
+
+```powershell
+$env:GEMINI_API_KEY = "貼上你的 Gemini API key"
+py APIkeys_collection.py --init-db --seed --generate-ai-summary gebco --ai-profile gemini_flash --write-ai-summary
+```
+
+Tk UI 中可以按 `Gemini / AI`，選 `Use Gemini this session`，貼上 API key 後再在資料集詳情或右鍵選單使用 `Gemini / AI description`。
+
 ## 安裝 registry 與解除安裝
 
 資料下載或手動納管後，launcher 會以 `install_id` 追蹤本機資產。這是為了避免使用者手動刪除、重複匯入、或資料庫漂移時造成誤判。

@@ -273,7 +273,35 @@ def download_policy_from_config(config: dict[str, object]) -> PoliteDownloadPoli
 
 
 def ai_summary_profiles() -> list[AiSummaryProfile]:
+    return ai_summary_profiles_from_config(load_integration_config())
+
+
+def active_ai_profile() -> AiSummaryProfile | None:
     config = load_integration_config()
+    active_id = str(config.get("active_ai_summary_profile") or "").strip()
+    profiles = ai_summary_profiles()
+    if active_id:
+        for profile in profiles:
+            if profile.id == active_id and profile.enabled:
+                return profile
+    return next((profile for profile in profiles if profile.enabled), None)
+
+
+def set_active_ai_profile(profile_id: str) -> AiSummaryProfile:
+    config = ensure_local_integration_config()
+    profiles = ai_summary_profiles_from_config(config)
+    profile = next((item for item in profiles if item.id == profile_id), None)
+    if profile is None:
+        raise RuntimeError(f"Unknown AI summary profile: {profile_id}")
+    for item in config.get("ai_summary_profiles", []):
+        if str(item.get("id") or "").strip() == profile_id:
+            item["enabled"] = True
+    config["active_ai_summary_profile"] = profile_id
+    save_integration_config(config)
+    return next(item for item in ai_summary_profiles_from_config(config) if item.id == profile_id)
+
+
+def ai_summary_profiles_from_config(config: dict[str, object]) -> list[AiSummaryProfile]:
     profiles = []
     for item in config.get("ai_summary_profiles", []):
         profiles.append(
@@ -295,17 +323,6 @@ def ai_summary_profiles() -> list[AiSummaryProfile]:
     ]
 
 
-def active_ai_profile() -> AiSummaryProfile | None:
-    config = load_integration_config()
-    active_id = str(config.get("active_ai_summary_profile") or "").strip()
-    profiles = ai_summary_profiles()
-    if active_id:
-        for profile in profiles:
-            if profile.id == active_id and profile.enabled:
-                return profile
-    return next((profile for profile in profiles if profile.enabled), None)
-
-
 def generate_provider_summary(provider: Provider, profile_id: str | None = None, timeout: float = 30.0) -> str:
     profile = _find_ai_profile(profile_id)
     prompt = _provider_summary_prompt(provider)
@@ -319,7 +336,7 @@ def generate_provider_summary(provider: Provider, profile_id: str | None = None,
 def _find_ai_profile(profile_id: str | None) -> AiSummaryProfile:
     profiles = ai_summary_profiles()
     if profile_id:
-        profile = next((item for item in profiles if item.id == profile_id and item.enabled), None)
+        profile = next((item for item in profiles if item.id == profile_id), None)
     else:
         profile = active_ai_profile()
     if profile is None:

@@ -10,12 +10,13 @@ future crawler stages. It does not download bulk datasets.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 import urllib.parse
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, Text, Tk, Toplevel, messagebox
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, Text, Tk, Toplevel, messagebox, simpledialog
 from tkinter import ttk
 
 import APIkeys_collection as core
@@ -1416,10 +1417,33 @@ class ApiCollectionUi:
         providers.pack(fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
+        ttk.Button(actions, text="Use Gemini this session", style="Action.TButton", command=self.configure_gemini_session).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Start QR login", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Open Google AI Studio", style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def configure_gemini_session(self) -> None:
+        api_key = simpledialog.askstring(
+            "Gemini API key",
+            "Paste a Gemini API key for this launcher session.\nIt will be stored only in this process environment.",
+            parent=self.root,
+            show="*",
+        )
+        if not api_key:
+            return
+        os.environ["GEMINI_API_KEY"] = api_key.strip()
+        try:
+            profile = core.set_active_ai_profile("gemini_flash")
+        except Exception as exc:
+            messagebox.showerror("Gemini setup failed", str(exc))
+            return
+        self.status_var.set(f"Gemini enabled for this session: {profile.label}")
+        messagebox.showinfo(
+            "Gemini enabled",
+            "Gemini Flash is now the active AI summary profile for this launcher session.\n"
+            "The API key was not written to Git or the integration config.",
+        )
 
     def open_google_qr_login_dialog(self) -> None:
         request = build_google_device_login_request()

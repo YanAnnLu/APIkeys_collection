@@ -64,6 +64,7 @@ from api_launcher.integrations import (
     generate_provider_summary,
     local_integrations_path,
     open_database_client,
+    set_active_ai_profile,
     set_active_database_client,
 )
 from api_launcher.library_actions import LibraryContext, build_library_actions
@@ -558,6 +559,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-direct-download", action="store_true", help="mark context as having a direct download")
     parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
+    parser.add_argument("--generate-ai-summary", help="generate an AI description for a provider_id")
+    parser.add_argument("--ai-profile", help="AI summary profile id, e.g. gemini_flash or local_ollama")
+    parser.add_argument("--write-ai-summary", action="store_true", help="save generated AI summary back into provider notes when empty")
+    parser.add_argument("--ai-timeout", type=float, default=30.0, help="AI summary request timeout seconds")
     parser.add_argument("--write-tile-manifest", help="write a global tile manifest skeleton JSON")
     parser.add_argument("--tile-dataset-uid", default="gebco:2025", help="dataset uid for --write-tile-manifest")
     parser.add_argument("--tile-version", default="2025", help="dataset version for --write-tile-manifest")
@@ -604,6 +609,7 @@ class CatalogLauncherCli:
             self.list_render_effects()
             self.list_simulation_contracts()
             self.show_library_actions()
+            self.generate_ai_summary()
             self.write_tile_manifest()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
@@ -644,6 +650,7 @@ class CatalogLauncherCli:
             self.args.list_render_effects,
             self.args.list_simulation_contracts,
             bool(self.args.show_library_actions),
+            bool(self.args.generate_ai_summary),
             bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
             bool(self.args.export_csv),
@@ -835,6 +842,38 @@ class CatalogLauncherCli:
                 "[library-action] "
                 f"{action.action_id} {status} risk={action.risk} label={action.label} reason={action.reason}"
             )
+
+    def generate_ai_summary(self) -> None:
+        if not self.args.generate_ai_summary:
+            return
+        providers = self.repository.load_providers([self.args.generate_ai_summary])
+        if not providers:
+            raise RuntimeError(f"Unknown provider_id: {self.args.generate_ai_summary}")
+        provider = providers[0]
+        summary = generate_provider_summary(provider, profile_id=self.args.ai_profile, timeout=self.args.ai_timeout)
+        print(f"[ai-summary] provider={provider.provider_id} profile={self.args.ai_profile or 'active'}")
+        print(summary)
+        if self.args.write_ai_summary and not provider.notes:
+            self.repository.upsert_provider(
+                Provider(
+                    provider_id=provider.provider_id,
+                    name=provider.name,
+                    owner=provider.owner,
+                    categories=provider.categories,
+                    geographic_scope=provider.geographic_scope,
+                    docs_url=provider.docs_url,
+                    api_base_url=provider.api_base_url,
+                    signup_url=provider.signup_url,
+                    auth_type=provider.auth_type,
+                    key_env_var=provider.key_env_var,
+                    secret_env_vars=provider.secret_env_vars,
+                    license_url=provider.license_url,
+                    terms_url=provider.terms_url,
+                    notes=summary,
+                    crawl_urls=provider.crawl_urls,
+                )
+            )
+            print("[ai-summary] saved to provider notes")
 
     def write_tile_manifest(self) -> None:
         if not self.args.write_tile_manifest:
