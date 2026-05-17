@@ -51,6 +51,19 @@ class DownloadToolProfile:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class UnrealProjectProfile:
+    id: str
+    label: str
+    enabled: bool
+    engine_root: str
+    editor_command: tuple[str, ...]
+    project_path: str = ""
+    content_root: str = ""
+    bridge_subdir: str = "APIkeysCollection"
+    notes: str = ""
+
+
 def integrations_path() -> Path:
     local_path = local_integrations_path()
     if local_path.exists():
@@ -193,6 +206,47 @@ def active_download_tool() -> DownloadToolProfile | None:
 
 def active_download_policy() -> PoliteDownloadPolicy:
     return download_policy_from_config(load_integration_config())
+
+
+def unreal_project_profiles() -> list[UnrealProjectProfile]:
+    return unreal_project_profiles_from_config(load_integration_config())
+
+
+def unreal_project_profiles_from_config(config: dict[str, object]) -> list[UnrealProjectProfile]:
+    system = platform.system()
+    profiles = []
+    for item in config.get("unreal_projects", []):
+        editor_by_platform = item.get("editor_command_by_platform") or {}
+        editor_command = editor_by_platform.get(system) or item.get("editor_command") or ()
+        if isinstance(editor_command, str):
+            editor_command = (editor_command,)
+        engine_root_by_platform = item.get("engine_root_by_platform") or {}
+        engine_root = engine_root_by_platform.get(system) or item.get("engine_root") or ""
+        profiles.append(
+            UnrealProjectProfile(
+                id=str(item.get("id") or "").strip(),
+                label=str(item.get("label") or "").strip(),
+                enabled=bool(item.get("enabled", True)),
+                engine_root=str(engine_root or "").strip(),
+                editor_command=tuple(str(value) for value in editor_command),
+                project_path=str(item.get("project_path") or "").strip(),
+                content_root=str(item.get("content_root") or "").strip(),
+                bridge_subdir=str(item.get("bridge_subdir") or "APIkeysCollection").strip() or "APIkeysCollection",
+                notes=str(item.get("notes") or "").strip(),
+            )
+        )
+    return [profile for profile in profiles if profile.id and profile.label]
+
+
+def active_unreal_project() -> UnrealProjectProfile | None:
+    config = load_integration_config()
+    active_id = str(config.get("active_unreal_project") or "").strip()
+    profiles = unreal_project_profiles()
+    if active_id:
+        for profile in profiles:
+            if profile.id == active_id and profile.enabled:
+                return profile
+    return next((profile for profile in profiles if profile.enabled), None)
 
 
 def download_policy_from_config(config: dict[str, object]) -> PoliteDownloadPolicy:

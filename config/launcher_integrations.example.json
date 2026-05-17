@@ -3,6 +3,7 @@
   "active_database_client": "mysql_workbench",
   "active_ai_summary_profile": "local_ollama",
   "active_download_tool": "python_internal",
+  "active_unreal_project": "local_ue5_bridge",
   "download_policy": {
     "max_parallel_jobs": 3,
     "max_parallel_per_host": 1,
@@ -129,6 +130,35 @@
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
       "api_key_env": "GEMINI_API_KEY",
       "notes": "Optional cloud fallback. Enable only when GEMINI_API_KEY is available."
+    }
+  ],
+  "unreal_projects": [
+    {
+      "id": "local_ue5_bridge",
+      "label": "Local Unreal Engine 5 Bridge",
+      "enabled": true,
+      "engine_root_by_platform": {
+        "Windows": "C:\\Program Files\\Epic Games\\UE_5.7",
+        "Darwin": "/Users/Shared/Epic Games/UE_5.7",
+        "Linux": ""
+      },
+      "editor_command_by_platform": {
+        "Windows": [
+          "C:\\Program Files\\Epic Games\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe"
+        ],
+        "Darwin": [
+          "open",
+          "-a",
+          "UnrealEditor"
+        ],
+        "Linux": [
+          "UnrealEditor"
+        ]
+      },
+      "project_path": "",
+      "content_root": "",
+      "bridge_subdir": "APIkeysCollection",
+      "notes": "Copy to launcher_integrations.local.json and set project_path/content_root after creating the Unreal project."
     }
   ]
 }

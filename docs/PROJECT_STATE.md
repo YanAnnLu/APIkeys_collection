@@ -28,6 +28,8 @@ The project is not a secret harvester. Credential files are templates for user-o
   verified later instead of being treated as anonymous blobs.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--manifest-health`, `--show-logs`, and
   `--handoff-report`.
+- Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
+  and the launcher has an Unreal bridge profile/check/plan skeleton.
 
 Current SQLite counts observed on this machine:
 
@@ -57,6 +59,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
 - `api_launcher/manifests.py`, `staging.py`, and `repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
 - `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
+- `api_launcher/unreal_bridge.py`: maps registered renderer bridge assets to future Unreal Content targets.
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
@@ -97,6 +100,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 - The UI includes a file verification action that scans download manifests and syncs file health into SQLite.
 - GitHub Actions CI runs tests and a CLI smoke check on Windows and Ubuntu.
+- Unreal bridge planning is documented in `docs/UNREAL_BRIDGE.zh-TW.md`; no real `.uproject` has been configured yet.
 
 ## Cross-Platform Notes
 
@@ -119,5 +123,6 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 4. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 5. Allow one download plan to include multiple versions of the same dataset/provider without overwriting the provider row.
 6. Add a UI repair panel backed by `dataset_asset_manifests`.
-7. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-8. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
+7. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+8. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+9. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.

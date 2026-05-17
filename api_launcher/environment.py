@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.db import SCRIPT_DIR, resolve_project_path
-from api_launcher.integrations import database_client_profiles, download_tool_profiles, integrations_path
+from api_launcher.integrations import database_client_profiles, download_tool_profiles, integrations_path, unreal_project_profiles
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,7 @@ def run_startup_checks(db_path: str | Path = "APIkeys_collection.sqlite") -> lis
     ]
     checks.extend(check_database_client_paths())
     checks.extend(check_download_tool_paths())
+    checks.extend(check_unreal_project_profiles())
     return checks
 
 
@@ -83,4 +84,27 @@ def check_download_tool_paths() -> list[EnvironmentCheck]:
         status = "ok" if exists else "warning"
         detail = command if exists else f"Command not found on this machine: {command}"
         checks.append(EnvironmentCheck(f"download_tool:{profile.id}", status, detail))
+    return checks
+
+
+def check_unreal_project_profiles() -> list[EnvironmentCheck]:
+    checks = []
+    for profile in unreal_project_profiles():
+        if not profile.enabled:
+            continue
+        if profile.engine_root:
+            checks.append(check_path(f"unreal_engine:{profile.id}", Path(profile.engine_root), must_exist=True, must_be_writable=False))
+        if profile.editor_command:
+            command = profile.editor_command[0]
+            path = Path(command)
+            exists = path.exists() if path.is_absolute() else shutil.which(command) is not None
+            status = "ok" if exists else "warning"
+            detail = command if exists else f"Unreal editor command not found: {command}"
+            checks.append(EnvironmentCheck(f"unreal_editor:{profile.id}", status, detail))
+        if profile.project_path:
+            checks.append(check_path(f"unreal_project:{profile.id}", Path(profile.project_path), must_exist=True, must_be_writable=False))
+        else:
+            checks.append(EnvironmentCheck(f"unreal_project:{profile.id}", "warning", "No Unreal .uproject configured yet."))
+        if profile.content_root:
+            checks.append(check_path(f"unreal_content:{profile.id}", Path(profile.content_root), must_exist=True, must_be_writable=True))
     return checks

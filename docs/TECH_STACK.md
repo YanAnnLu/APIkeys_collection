@@ -219,3 +219,20 @@ docker compose run --rm --build launcher
 ```
 
 Renderer runtime validation is separate because it needs GPU/windowing support and optional heavy packages.
+
+## Unreal Bridge
+
+Unreal Engine is treated as the future interactive frontend for the virtual twin. The launcher should prepare and
+verify data before Unreal imports or reads it.
+
+- `config/launcher_integrations.example.json`: `unreal_projects` profile with engine/editor/project/content paths.
+- `api_launcher/environment.py`: Unreal engine/editor/project/content checks.
+- `api_launcher/unreal_bridge.py`: maps `render_bridge_assets` to Unreal `Content/APIkeysCollection` targets and
+  `/Game/APIkeysCollection/...` mount paths.
+- `docs/UNREAL_BRIDGE.zh-TW.md`: Chinese design notes for the frontend bridge.
+
+Current bridge command:
+
+```powershell
+py APIkeys_collection.py --unreal-bridge-plan
+```
