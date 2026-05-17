@@ -84,10 +84,10 @@ config/launcher_integrations.local.json
 
 ## AI 輔助模型
 
-AI 相關設定在：
+AI 相關設定集中在：
 
 ```text
-設定 > AI 輔助模型
+整合 > AI 輔助模型選擇
 ```
 
 這裡最重要的是「選擇」。你可以登入多個 AI 服務，也可以在 profile 裡保存 token，但真正生成描述時，只會調用這裡勾選的 profile。
@@ -95,42 +95,52 @@ AI 相關設定在：
 目前支援的方向：
 
 - `Local Ollama`：本機模型，不需要雲端登入。
-- `Gemini Flash`：主路線是 Google 帳號瀏覽器登入；`GEMINI_API_KEY` 只作為備用入口。
+- `Gemini Flash`：現階段 MVP 主路線是 `GEMINI_API_KEY`。貼一次後會保存到本機 `state/private`，下次啟動自動載入。Google 帳號瀏覽器登入保留為未來正式 OAuth 入口。
 - `OpenAI-compatible`：使用 chat-completions JSON 格式，可指向 OpenAI 或相容服務。
 
-## AI 登入與 token
+## AI 描述生成與 key
 
-在 `設定 > AI 輔助模型` 選取某個 profile 後，可以按 `用帳號登入選取模型`。
+在 `整合 > AI 輔助模型選擇` 選取某個 profile 後，可以按 `保存 API key`。
 
-如果要使用 Google/Gemini 帳號登入，最短路徑是：
+如果要用 Gemini 產生資料源描述，現階段最短路徑是：
 
 ```text
-整合 > Google 帳號登入（瀏覽器）
+整合 > AI / Gemini 串接中心 > 保存 Gemini API key 並啟用
 ```
 
-第一次使用時仍需要 Google OAuth Client ID。它不是 Gmail，也不是 API key，而是 Google Cloud Console 裡替這個桌面程式建立的 app 身分。若尚未設定，launcher 會先開 `Google 登入前置設定` 說明頁，而不是直接跳出像密碼框的輸入視窗。設定後 launcher 會打開系統瀏覽器，由 Google 頁面處理選帳號、密碼、手機確認或掃 QR。Client ID 會寫進本機 `config/launcher_integrations.local.json`，不會提交到 Git。
+這個 key 會寫入：
 
-Google OAuth Client ID 通常長得像 `xxxxx.apps.googleusercontent.com`。如果使用者誤貼 Gmail、專案 ID、API key 或其他欄位，launcher 會拒絕保存，避免之後每次登入都重複撞到 Google 的 `invalid_client` 錯誤頁。
+```text
+state/private/ai_api_keys.private.json
+```
 
-登入成功後，token 會存在：
+這個資料夾被 `.gitignore` 排除，不會提交到 GitHub。程式啟動時會自動讀取已保存的 key，使用者不需要每次重貼。
+
+Google 帳號登入與 QR / 裝置碼登入不是取消，而是中期再做：等 MVP 閉環完成、專案有官方 OAuth App 或後端授權 broker 後，再當成正式入口。一般網路服務能讓使用者直接選 Google 帳號，是因為服務方已經替使用者處理好 OAuth App；使用者不應被要求貼 OAuth Client ID。若目前開發版沒有官方 OAuth App，launcher 只會說明尚未開通，不再把使用者導到 Client ID 輸入框。
+
+OAuth 登入成功後，token 會存在：
 
 ```text
 state/private/ai_oauth_tokens/
 ```
 
-這個資料夾被 `.gitignore` 排除，不會提交到 GitHub。
-
-`整合 > 進階：Google QR / 裝置碼登入` 保留給 device-code 情境：例如沒有鍵盤的裝置、或需要在另一台裝置輸入代碼。它不是一般 Google 網頁服務的快速登入。如果某個 AI 服務沒有官方 OAuth / device-code 端點，launcher 不會假裝可以掃 QR。
+`整合 > Google OAuth（中期 / 開發者） > Google QR / 裝置碼（中期正式入口）` 保留給 device-code 情境：例如沒有鍵盤的裝置、或需要在另一台裝置輸入代碼。它不是一般 Google 網頁服務的快速登入。如果某個 AI 服務沒有官方 OAuth / device-code 端點，launcher 不會假裝可以掃 QR。
 
 ## Google / Gemini 入口
 
-`整合 > Google / Gemini 與 AI 設定` 是 Google/Gemini 的快速入口。它只負責登入與 token 狀態，不會自動幫你切換目前使用的 AI 模型。這個面板的主按鈕是 `用 Google 帳號登入`；`進階 QR / 裝置碼` 與 `貼上本次 API key（備用）` 只是其他入口。
+`整合 > AI / Gemini 串接中心` 是 Google/Gemini 的快速入口。現階段主按鈕是 `保存 Gemini API key 並啟用`，用途是先讓 AI 描述生成能跑。`中期：Google 帳號登入` 與 `中期：QR / 裝置碼` 是稍後要做的正式 OAuth 方向，不會在 MVP 階段要求一般使用者手動貼 OAuth Client ID。
 
 要切換模型，仍然回到：
 
 ```text
-設定 > AI 輔助模型
+整合 > AI 輔助模型選擇
 ```
+
+## 登入 / 串接入口整理
+
+帳號、API key、OAuth、資料庫工具與資料儲存連線都集中在上方選單列的 `整合`。右側資料源抽屜只保留跟目前資料源直接相關的動作，例如開啟文件、AI 產生說明、檢查 metadata、加入下載計畫與納管操作。
+
+Tk UI 目前仍可用來完成 MVP 閉環，但它在彈窗比例、複雜設定頁與桌面常駐能力上已接近上限。中期路線已記錄為 PySide6 / Qt：等後端 MVP 穩定後，再把 UI 遷移成 Qt 的主視窗、設定中心、splitter/dock、系統匣 / macOS menu bar shell。現在不展開重寫，先把功能閉環做完。
 
 ## 開發者 CLI
 

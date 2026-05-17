@@ -223,7 +223,10 @@ URLs, normalized to small PNG files, and cached under ignored `state/favicons/`.
 
 AI summary profiles can carry either API-key env vars or an `oauth_device` block. OAuth/device-code tokens are saved
 under ignored `state/private/ai_oauth_tokens/` and activated into the profile's configured token env var at startup.
-The selected model remains `active_ai_summary_profile`; logging into a service must not silently change that selection.
+Gemini API keys can also be saved under ignored `state/private/ai_api_keys.private.json` and loaded at startup for the
+current MVP. The selected model remains `active_ai_summary_profile`; logging into a service must not silently change that
+selection. Google account sign-in is still a mid-term product goal, not abandoned, but it should wait until the MVP
+backend loop is closed and the project can provide an official OAuth app or broker.
 
 Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
 eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and

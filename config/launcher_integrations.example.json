@@ -321,7 +321,7 @@
         "token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
         "token_store": "state/private/ai_oauth_tokens/gemini_flash.json"
       },
-      "notes": "Optional cloud profile. Main UX uses Google browser OAuth with GOOGLE_OAUTH_CLIENT_ID; API key auth with GEMINI_API_KEY remains a fallback."
+      "notes": "Current MVP cloud profile. API key auth with GEMINI_API_KEY is the usable path and can be saved under state/private. Google browser OAuth is reserved until the project ships an official OAuth app."
     },
     {
       "id": "openai_compatible",

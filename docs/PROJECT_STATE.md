@@ -76,11 +76,11 @@ The project is not a secret harvester. Credential files are templates for user-o
   executing destructive SQL. UI language is configurable through `ui_language` in local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
   `state/favicons/`.
-- AI-generated provider descriptions now use explicit AI profile selection under `設定 > AI 輔助模型`; per-profile
-  OAuth login can store local tokens under `state/private/ai_oauth_tokens/`. The Gemini/Google dialog now makes
-  Google browser account login the main route, using authorization-code + PKCE + loopback callback so the user
-  chooses an account in Google's page. QR/device-code remains an advanced fallback. OAuth Client ID setup is saved
-  to local integration config, with environment-variable fallback still supported.
+- AI-generated provider descriptions now use explicit AI profile selection under `整合 > AI 輔助模型選擇`. For the
+  current MVP loop, Gemini API keys can be saved under ignored `state/private/ai_api_keys.private.json` and loaded at
+  startup. Google browser account login and QR/device-code are still desired mid-term product goals, but they should wait
+  until the backend MVP loop is closed and the project can provide an official OAuth app or broker; normal users should
+  not be asked to paste OAuth Client IDs.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 - Maritime jurisdiction overlays should be modeled as GIS polygon layers with legal/administrative attributes
@@ -223,3 +223,5 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
 11. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+12. After the backend MVP loop is closed, revisit Google account login as a mid-term goal with an official OAuth app or
+    backend broker, then migrate the desktop UI toward PySide6/Qt rather than expanding Tk indefinitely.

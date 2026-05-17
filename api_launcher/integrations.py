@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib import request
 
 from api_launcher.ai_prompts import provider_description_prompt
+from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys
 
 from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
@@ -404,6 +405,7 @@ def ai_summary_profiles_from_config(config: dict[str, object]) -> list[AiSummary
 
 def generate_provider_summary(provider: Provider, profile_id: str | None = None, timeout: float = 30.0) -> str:
     profile = _find_ai_profile(profile_id)
+    load_saved_ai_api_keys([profile])
     prompt = _provider_summary_prompt(provider)
     if profile.kind == "ollama":
         return _generate_with_ollama(profile, prompt, timeout)
@@ -454,12 +456,13 @@ def _generate_with_ollama(profile: AiSummaryProfile, prompt: str, timeout: float
 
 
 def _generate_with_gemini(profile: AiSummaryProfile, prompt: str, timeout: float) -> str:
-    api_key = os.environ.get(profile.api_key_env or "GEMINI_API_KEY", "").strip()
+    api_key_env = default_api_key_env(profile) or "GEMINI_API_KEY"
+    api_key = os.environ.get(api_key_env, "").strip()
     oauth_env = oauth_token_env_for_profile(profile, "GOOGLE_OAUTH_ACCESS_TOKEN")
     oauth_token = os.environ.get(oauth_env, "").strip()
     if not api_key and not oauth_token:
         raise RuntimeError(
-            f"Missing API key environment variable: {profile.api_key_env or 'GEMINI_API_KEY'} "
+            f"Missing API key environment variable: {api_key_env} "
             f"or {oauth_env}."
         )
     endpoint = profile.endpoint.format(model=profile.model)
@@ -482,11 +485,12 @@ def _generate_with_gemini(profile: AiSummaryProfile, prompt: str, timeout: float
 
 
 def _generate_with_openai_compatible(profile: AiSummaryProfile, prompt: str, timeout: float) -> str:
-    api_key = os.environ.get(profile.api_key_env or "OPENAI_API_KEY", "").strip()
+    api_key_env = default_api_key_env(profile) or "OPENAI_API_KEY"
+    api_key = os.environ.get(api_key_env, "").strip()
     oauth_env = oauth_token_env_for_profile(profile, "")
     oauth_token = os.environ.get(oauth_env, "").strip() if oauth_env else ""
     if not api_key and not oauth_token:
-        raise RuntimeError(f"Missing API key environment variable: {profile.api_key_env or 'OPENAI_API_KEY'}")
+        raise RuntimeError(f"Missing API key environment variable: {api_key_env}")
     data = _post_json(
         profile.endpoint,
         {

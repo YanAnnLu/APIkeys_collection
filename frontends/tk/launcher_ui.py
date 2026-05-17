@@ -39,6 +39,7 @@ from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_fi
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import activate_saved_google_oauth_token, google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
+from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 
@@ -676,6 +677,7 @@ class ApiCollectionUi:
                 messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
 
     def activate_saved_google_login(self) -> None:
+        loaded_api_keys = load_saved_ai_api_keys(core.ai_summary_profiles())
         loaded_profiles = []
         for profile in core.ai_summary_profiles():
             oauth_config = oauth_device_config_from_profile(profile)
@@ -685,7 +687,9 @@ class ApiCollectionUi:
             if status == "ready":
                 loaded_profiles.append(profile.label)
         status, _message = activate_saved_google_oauth_token()
-        if loaded_profiles:
+        if loaded_api_keys:
+            self.status_var.set(self.tr(f"已載入本機 AI API key：{', '.join(loaded_api_keys[:3])}", f"Loaded local AI API keys: {', '.join(loaded_api_keys[:3])}"))
+        elif loaded_profiles:
             self.status_var.set(self.tr(f"已載入 AI 登入 token：{', '.join(loaded_profiles[:3])}", f"Loaded AI login tokens: {', '.join(loaded_profiles[:3])}"))
         elif status == "ready":
             self.status_var.set(self.tr("已載入已儲存的 Google 登入 token。", "Loaded saved Google login token."))
@@ -736,11 +740,17 @@ class ApiCollectionUi:
         menu_bar.add_cascade(label=self.tr("資料庫", "Library"), menu=library_menu)
 
         integrations_menu = Menu(menu_bar, tearoff=0)
-        integrations_menu.add_command(label=self.tr("Google / Gemini 與 AI 設定", "Google / Gemini login and AI"), command=self.open_google_gemini_settings)
-        integrations_menu.add_command(label=self.tr("Google 帳號登入（瀏覽器）", "Google account login (browser)"), command=self.open_google_browser_login_dialog)
-        integrations_menu.add_command(label=self.tr("進階：Google QR / 裝置碼登入", "Advanced: Google QR / device-code login"), command=self.open_google_qr_login_dialog)
-        integrations_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
+        integrations_menu.add_command(label=self.tr("AI / Gemini 串接中心", "AI / Gemini integration hub"), command=self.open_google_gemini_settings)
+        integrations_menu.add_command(label=self.tr("保存 Gemini API key", "Save Gemini API key"), command=lambda: self.configure_ai_api_key_session("gemini_flash"))
+        integrations_menu.add_command(label=self.tr("AI 輔助模型選擇", "AI assistant model selection"), command=self.open_ai_model_settings)
+        google_oauth_menu = Menu(integrations_menu, tearoff=0)
+        google_oauth_menu.add_command(label=self.tr("Google 帳號登入（中期正式入口）", "Google account sign-in (mid-term official entry)"), command=self.open_google_browser_login_dialog)
+        google_oauth_menu.add_command(label=self.tr("Google QR / 裝置碼（中期正式入口）", "Google QR / device code (mid-term official entry)"), command=self.open_google_qr_login_dialog)
+        google_oauth_menu.add_command(label=self.tr("開發者 OAuth 設定", "Developer OAuth setup"), command=self.open_google_oauth_developer_setup)
+        integrations_menu.add_cascade(label=self.tr("Google OAuth（中期 / 開發者）", "Google OAuth (mid-term / developer)"), menu=google_oauth_menu)
+        integrations_menu.add_separator()
         integrations_menu.add_command(label=self.tr("資料儲存連線", "Data store connections"), command=self.open_data_store_connection_settings)
+        integrations_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         integrations_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
         integrations_menu.add_separator()
         integrations_menu.add_command(label=self.tr("顯示本機整合設定檔", "Reveal integration config"), command=self.open_integration_config_file)
@@ -758,7 +768,6 @@ class ApiCollectionUi:
 
         settings_menu = Menu(menu_bar, tearoff=0)
         settings_menu.add_command(label=self.tr("介面語言", "Interface language"), command=self.open_ui_language_settings)
-        settings_menu.add_command(label=self.tr("AI 輔助模型", "AI assistant model"), command=self.open_ai_model_settings)
         menu_bar.add_cascade(label=self.tr("設定", "Settings"), menu=settings_menu)
 
         help_menu = Menu(menu_bar, tearoff=0)
@@ -819,15 +828,11 @@ class ApiCollectionUi:
         ttk.Button(controls, text=self.tr("自檢", "Self-check"), style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text=self.tr("修復 / 驗證", "Repair / verify"), style="Action.TButton", command=self.open_repair_panel).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text=self.tr("新增來源", "Add source"), style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(controls, text=self.tr("Gemini / AI 設定", "Gemini / AI"), style="Action.TButton", command=self.open_google_gemini_settings).pack(side=LEFT, padx=(0, 10))
         more_button = ttk.Menubutton(controls, text=self.tr("更多", "More"), style="Action.TButton")
         more_menu = Menu(more_button, tearoff=0)
         more_menu.add_command(label=self.tr("抓取選取 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
-        more_menu.add_separator()
-        more_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
-        more_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
         more_menu.add_command(label=self.tr("重設表格欄寬", "Reset table columns"), command=self.reset_table_column_widths)
@@ -963,9 +968,6 @@ class ApiCollectionUi:
         actions.pack(fill=X, padx=18, pady=(18, 18))
         ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="Google 帳號登入", style="Action.TButton", command=self.open_google_browser_login_dialog).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="資料庫工具設定", style="Action.TButton", command=self.open_database_settings).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="驗證本地資產", style="Action.TButton", command=self.verify_active_assets).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
@@ -2281,23 +2283,44 @@ class ApiCollectionUi:
 
         table.bind("<Double-1>", lambda _event: use_selected())
         ttk.Button(actions, text=self.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=use_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("設定 OAuth Client ID", "Set OAuth Client ID"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("用帳號登入選取模型", "Sign in selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("貼上本次 API key", "Paste session API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開發者 OAuth 設定", "Developer OAuth setup"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("未來：帳號登入", "Future: account sign-in"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("保存 API key", "Save API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
+    def api_key_env_for_profile(self, profile: core.AiSummaryProfile) -> str:
+        return default_api_key_env(profile)
+
+    def profile_has_cloud_credential(self, profile: core.AiSummaryProfile) -> bool:
+        load_saved_ai_api_keys([profile])
+        api_key_env = self.api_key_env_for_profile(profile)
+        if api_key_env and os.environ.get(api_key_env, "").strip():
+            return True
+        oauth_config = oauth_device_config_from_profile(profile)
+        if oauth_config is None:
+            return False
+        status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
+        return status == "ready"
+
     def ai_profile_login_status(self, profile: core.AiSummaryProfile) -> str:
+        if profile.kind == "ollama":
+            return self.tr("本機服務", "Local service")
+        api_key_env = self.api_key_env_for_profile(profile)
+        if api_key_env and os.environ.get(api_key_env, "").strip():
+            return self.tr(f"API key 已載入：{api_key_env}", f"API key ready: {api_key_env}")
+        saved_status, _saved_message = saved_ai_api_key_status(profile)
+        if saved_status == "stored":
+            return self.tr(f"API key 已保存：{api_key_env}", f"API key saved: {api_key_env}")
         oauth_config = oauth_device_config_from_profile(profile)
         if oauth_config is not None:
             if not oauth_config.enabled:
                 return self.tr("OAuth 已停用", "OAuth disabled")
-            if not oauth_config.authorization_url and (not oauth_config.device_code_url or not oauth_config.token_url):
-                return self.tr("OAuth 待設定", "OAuth setup needed")
             status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
-            return self.tr(f"OAuth {status}", f"OAuth {status}")
-        if profile.api_key_env:
-            return self.tr(f"API key：{profile.api_key_env}", f"API key: {profile.api_key_env}")
+            if status == "ready":
+                return self.tr(f"OAuth 已登入：{status}", f"OAuth signed in: {status}")
+        if api_key_env:
+            return self.tr(f"需要 API key：{api_key_env}", f"Needs API key: {api_key_env}")
         return self.tr("不需登入", "No login")
 
     def open_data_store_connection_settings(self) -> None:
@@ -2480,8 +2503,8 @@ class ApiCollectionUi:
             token_status, token_message = google_oauth_token_status()
         token_text = self.tr(f"Gemini / Google token：{token_status} - {token_message}", f"Gemini / Google token: {token_status} - {token_message}")
         readiness_text = self.tr(
-            "目前狀態：AI 生成管線已存在。Google 登入主路線會開啟系統瀏覽器，讓你選帳號或使用 Google 頁面提供的手機確認 / 掃碼登入。",
-            "Current status: AI generation exists. The main Google login path opens the system browser so you can choose an account or use the phone/QR options shown by Google.",
+            "目前狀態：AI 生成管線已存在；Google 帳號登入需要專案端先配置官方 OAuth App，才會像一般網站一樣開瀏覽器選帳號或掃碼。",
+            "Current status: AI generation exists; Google account login needs the project to provide an official OAuth app before it can open a normal browser account chooser or QR flow.",
         )
         ttk.Label(dialog, text=readiness_text, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 10))
         text = Text(dialog, height=12, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
@@ -2490,35 +2513,37 @@ class ApiCollectionUi:
             "\n".join(
                 [
                     "這裡是 Google / Gemini 連線入口。",
-                    "白話說：它不是展示用空殼，但也還不是一鍵登入完成版。",
-                    "它只負責登入、token 與 Google 相關設定；真正要調用哪個 AI，請到「設定 > AI 輔助模型」選。",
+                    "白話說：它不是展示用空殼，但 Google 帳號登入還需要專案端把官方 OAuth App 配好。",
+                    "一般網站能直接讓你選 Google 帳號，是因為網站已經替使用者處理好 OAuth App 身分；使用者不該被要求貼 Client ID。",
+                    "這裡只負責登入、token 與 Google 相關設定；真正要調用哪個 AI，請到「整合 > AI 輔助模型選擇」選。",
                     "",
                     profile_text,
                     token_text,
                     "",
                     "目前支援：",
-                    "1. Google 帳號瀏覽器登入：打開 Google 授權頁，完成後 token 存在本機 private state。",
-                    "2. Google QR/device-code：給無鍵盤或跨裝置情境使用，屬於進階備用入口。",
-                    "3. Session API key：只作為雲端 AI profile 的備用入口，不是主要建議路線。",
+                    "1. Google 帳號瀏覽器登入：專案 OAuth App 配好後，才會打開 Google 授權頁並把 token 存在本機 private state。",
+                    "2. Google QR/device-code：同樣需要官方 OAuth App 與 device-code 端點，不能在缺設定時硬造。",
+                    "3. Gemini API key：作為目前 MVP 主路線，保存到本機 private state，下次啟動自動載入。",
                     "",
-                    "第一次使用仍需 OAuth Client ID，因為 Google 必須知道是哪個桌面程式在要求授權。token 不會寫進 Git；登入成功也不會自動切換 AI 模型。",
+                    "目前開發版不會要求一般使用者貼 OAuth Client ID；那是專案/開發者要負責配置的事情。",
                 ]
             ),
             "\n".join(
                 [
                     "This panel is the Google/Gemini connection entry point.",
-                    "Plainly: it is not a fake shell, but it is not a finished one-click login flow either.",
-                    "It handles login, tokens, and Google-related setup only. Choose the model under Settings > AI assistant model.",
+                    "Plainly: it is not a fake shell, but Google account login still needs the project to provide an official OAuth app.",
+                    "Normal web services can let you choose a Google account because the service already owns the OAuth app identity; users should not be asked to paste a Client ID.",
+                    "It handles login, tokens, and Google-related setup only. Choose the model under Integrations > AI assistant model selection.",
                     "",
                     profile_text,
                     token_text,
                     "",
                     "Currently supported:",
-                    "1. Google browser account login: opens Google's authorization page and stores the token under local private state.",
-                    "2. Google QR/device-code: an advanced fallback for limited-input or cross-device situations.",
-                    "3. Session API key: a fallback entry for cloud AI profiles, not the main suggested path.",
+                    "1. Google browser account login: after the project OAuth app is configured, opens Google's authorization page and stores the token under local private state.",
+                    "2. Google QR/device-code: also needs an official OAuth app and device-code endpoint; it cannot be invented when setup is missing.",
+                    "3. Gemini API key: the current MVP path, saved under local private state and loaded automatically next launch.",
                     "",
-                    "First-time use still needs an OAuth Client ID because Google needs to identify the desktop app requesting access. Tokens are not committed to Git; login does not switch the active AI model.",
+                    "This development build will not ask normal users to paste an OAuth Client ID; that is a project/developer responsibility.",
                 ]
             ),
         )
@@ -2547,13 +2572,13 @@ class ApiCollectionUi:
         secondary_actions = ttk.Frame(actions, style="Panel.TFrame")
         secondary_actions.pack(fill=X)
 
-        ttk.Button(primary_actions, text=self.tr("用 Google 帳號登入", "Sign in with Google"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("進階 QR / 裝置碼", "Advanced QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("保存 Gemini API key 並啟用", "Save Gemini API key and enable"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("產生目前資料源描述", "Generate selected source description"), style="Action.TButton", command=self.generate_active_summary).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
-        ttk.Button(secondary_actions, text=self.tr("貼上本次 API key（備用）", "Paste session API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(secondary_actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(secondary_actions, text=self.tr("中期：Google 帳號登入", "Mid-term: Google account login"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(secondary_actions, text=self.tr("中期：QR / 裝置碼", "Mid-term: QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(secondary_actions, text=self.tr("開發期備用：Google AI Studio", "Development fallback: Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(secondary_actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
 
     def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:
@@ -2612,19 +2637,19 @@ class ApiCollectionUi:
     def ask_oauth_client_id_with_guide(self, profile_label: str, current_client_id: str = "", provider: str = "", parent: Toplevel | Tk | None = None) -> str:
         owner = parent or self.root
         dialog = Toplevel(owner)
-        dialog.title(self.tr("Google 登入前置設定", "Google login setup"))
+        dialog.title(self.tr("開發者 Google OAuth 設定", "Developer Google OAuth setup"))
         dialog.configure(bg=COLORS["panel"])
         dialog.geometry("720x520")
         dialog.transient(owner)
         dialog.grab_set()
         result: dict[str, str] = {"client_id": ""}
 
-        ttk.Label(dialog, text=self.tr("Google 登入前置設定", "Google login setup"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(dialog, text=self.tr("開發者 Google OAuth 設定", "Developer Google OAuth setup"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
         ttk.Label(
             dialog,
             text=self.tr(
-                "這個畫面不是 Google 登入，也不是要你的 Gmail、密碼或 API key。它是在設定「這個 launcher 以什麼 App 身分向 Google 要授權」。",
-                "This screen is not Google sign-in, and it is not asking for your Gmail, password, or API key. It sets the app identity this launcher uses when asking Google for authorization.",
+                "這是開發者設定，不是一般使用者登入。它不是要你的 Gmail、密碼或 API key；它是在設定「這個 launcher 以什麼 App 身分向 Google 要授權」。",
+                "This is developer setup, not normal user sign-in. It is not asking for your Gmail, password, or API key; it sets the app identity this launcher uses when asking Google for authorization.",
             ),
             style="DetailMuted.TLabel",
             wraplength=660,
@@ -2640,10 +2665,10 @@ class ApiCollectionUi:
                         f"目前要設定：{profile_label}",
                         "",
                         "白話說，Google 登入分兩步：",
-                        "1. App 身分：Google 先確認是哪個 App 要請你授權。這就是 OAuth Client ID。",
+                        "1. App 身分：Google 先確認是哪個 App 要請你授權。這就是 OAuth Client ID，應由專案端準備好。",
                         "2. 使用者登入：App 身分存在後，launcher 才會打開 Google 網頁，讓你選帳號或使用 Google 提供的手機確認 / 掃碼登入。",
                         "",
-                        "如果這個 launcher 未來有正式打包版，這個 Client ID 可以內建；現在是開發期，所以要先在你的 Google Cloud Console 建立一次 Desktop app OAuth client。",
+                        "一般使用者不應該被要求貼這個值；這個入口只保留給正在替專案配置 OAuth 的開發者。",
                     ]
                 ),
                 "\n".join(
@@ -2651,10 +2676,10 @@ class ApiCollectionUi:
                         f"Current profile: {profile_label}",
                         "",
                         "Plainly, Google login has two steps:",
-                        "1. App identity: Google first checks which app is asking for authorization. This is the OAuth Client ID.",
+                        "1. App identity: Google first checks which app is asking for authorization. This is the OAuth Client ID, and the project should provide it.",
                         "2. User sign-in: after the app identity exists, the launcher opens Google's page so you can choose an account or use Google's phone/QR options.",
                         "",
-                        "A packaged release can ship with its own Client ID. During development, create a Desktop app OAuth client once in your Google Cloud Console.",
+                        "Normal users should not be asked to paste this value; this entry point is only for developers configuring OAuth for the project.",
                     ]
                 ),
             ),
@@ -2678,8 +2703,8 @@ class ApiCollectionUi:
                 messagebox.showwarning(
                     self.tr("OAuth Client ID 格式不正確", "Invalid OAuth Client ID format"),
                     self.tr(
-                        "這個值不會被保存，因為它不像 Google OAuth Client ID。\n\n請貼 Google Cloud Console 裡 Desktop app 的 Client ID，格式通常是：\nxxxxx.apps.googleusercontent.com",
-                        "This value will not be saved because it does not look like a Google OAuth Client ID.\n\nPaste the Desktop app Client ID from Google Cloud Console. It usually looks like:\nxxxxx.apps.googleusercontent.com",
+                        "這個值不會被保存，因為它不像 Google OAuth Client ID。\n\n如果你不是正在替專案配置 OAuth，請直接取消；一般使用者不需要處理這串值。\n\n合法格式通常是：\nxxxxx.apps.googleusercontent.com",
+                        "This value will not be saved because it does not look like a Google OAuth Client ID.\n\nIf you are not configuring OAuth for the project, cancel this dialog; normal users do not need to handle this value.\n\nA valid value usually looks like:\nxxxxx.apps.googleusercontent.com",
                     ),
                     parent=dialog,
                 )
@@ -2747,38 +2772,48 @@ class ApiCollectionUi:
         save_integration_config(config)
         return True
 
-    def configure_ai_api_key_session(self, profile_id: str | None = None) -> None:
+    def configure_ai_api_key_session(self, profile_id: str | None = None, parent: Toplevel | Tk | None = None) -> bool:
         profiles = [profile for profile in core.ai_summary_profiles() if profile.kind != "ollama"]
         if not profiles:
-            messagebox.showinfo(self.tr("沒有雲端 AI profile", "No cloud AI profile"), self.tr("目前沒有需要 API key 的 AI profile。", "There is no AI profile that needs an API key."))
-            return
+            messagebox.showinfo(self.tr("沒有雲端 AI profile", "No cloud AI profile"), self.tr("目前沒有需要 API key 的 AI profile。", "There is no AI profile that needs an API key."), parent=parent or self.root)
+            return False
         active = core.active_ai_profile()
         requested = next((profile for profile in profiles if profile.id == profile_id), None) if profile_id else None
         selected = requested or (active if active and active.kind != "ollama" else profiles[0])
-        env_name = selected.api_key_env or ("GEMINI_API_KEY" if selected.kind == "gemini" else "OPENAI_API_KEY")
+        env_name = self.api_key_env_for_profile(selected)
         api_key = simpledialog.askstring(
             self.tr(f"{selected.label} API key", f"{selected.label} API key"),
-            self.tr(f"貼上本次 launcher session 要使用的 API key。\n會寫入環境變數 {env_name}，只存在目前程式，不會寫進 Git 或設定檔。", f"Paste an API key for this launcher session.\nIt will be placed in {env_name} only for this process."),
-            parent=self.root,
+            self.tr(
+                f"貼上本次 launcher session 要使用的 API key。\n會寫入環境變數 {env_name}，只存在目前程式，不會寫進 Git 或設定檔。\n\n現階段這是 Gemini 描述生成的 MVP 路線，不需要 Google 帳號登入。",
+                f"Paste an API key for this launcher session.\nIt will be placed in {env_name} only for this process and will not be written to Git or config.\n\nFor now this is the MVP path for Gemini description generation; Google account sign-in is not required.",
+            ),
+            parent=parent or self.root,
             show="*",
         )
         if not api_key:
-            return
+            return False
         os.environ[env_name] = api_key.strip()
+        try:
+            key_path = save_ai_api_key(selected, api_key.strip())
+        except Exception as exc:
+            messagebox.showerror(self.tr("AI key 保存失敗", "AI key save failed"), str(exc), parent=parent or self.root)
+            return False
         try:
             profile = core.set_active_ai_profile(selected.id)
         except Exception as exc:
-            messagebox.showerror(self.tr("AI 設定失敗", "AI setup failed"), str(exc))
-            return
+            messagebox.showerror(self.tr("AI 設定失敗", "AI setup failed"), str(exc), parent=parent or self.root)
+            return False
         self.selected_ai_profile_id = profile.id
         self.status_var.set(self.tr(f"AI 已在本次 session 啟用：{profile.label}", f"AI enabled for this session: {profile.label}"))
         messagebox.showinfo(
             self.tr("AI 已啟用", "AI enabled"),
             self.tr(
-                f"{profile.label} 現在是本次 launcher session 的 AI 摘要 profile。\nAPI key 沒有寫進 Git 或 integration config。",
-                f"{profile.label} is now the active AI summary profile for this launcher session.\nThe API key was not written to Git or the integration config.",
+                f"{profile.label} 現在是 AI 摘要 profile。\nAPI key 已保存到本機 private state：{key_path}\n這個位置不會提交到 Git。",
+                f"{profile.label} is now the active AI summary profile.\nThe API key was saved to local private state: {key_path}\nThis location is not committed to Git.",
             ),
+            parent=parent or self.root,
         )
+        return True
 
     def render_qr_photo(self, payload: str, size: int = 220) -> object | None:
         try:
@@ -2799,10 +2834,102 @@ class ApiCollectionUi:
     def open_google_browser_login_dialog(self) -> None:
         self.open_ai_profile_browser_login_dialog("gemini_flash")
 
+    def open_google_oauth_developer_setup(self) -> None:
+        self.configure_oauth_client_for_profile("gemini_flash", parent=self.root, start_login=False)
+
+    def oauth_config_client_id(self, oauth_config: object | None) -> str:
+        if oauth_config is None:
+            return ""
+        client_id = str(getattr(oauth_config, "client_id", "") or "").strip()
+        if client_id:
+            return client_id
+        client_id_env = str(getattr(oauth_config, "client_id_env", "") or "").strip()
+        return os.environ.get(client_id_env, "").strip() if client_id_env else ""
+
+    def show_google_oauth_not_ready_dialog(
+        self,
+        profile: core.AiSummaryProfile,
+        parent: Toplevel | None = None,
+        reason: str = "missing",
+    ) -> None:
+        owner = parent or self.root
+        dialog = Toplevel(owner)
+        dialog.title(self.tr("Google 登入尚未開通", "Google login is not ready"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("760x520")
+        dialog.transient(owner)
+        dialog.grab_set()
+        ttk.Label(dialog, text=self.tr("Google 登入尚未開通", "Google login is not ready"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+
+        lead = self.tr(
+            "這不是你的帳號問題，也不是你少貼了什麼。",
+            "This is not an account problem, and you are not missing a value you were supposed to paste.",
+        )
+        ttk.Label(dialog, text=lead, style="DetailMuted.TLabel", wraplength=700).pack(anchor="w", fill=X, padx=24, pady=(0, 12))
+
+        detail = Text(dialog, height=13, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
+        detail.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        reason_text = (
+            self.tr(
+                "目前偵測到一個不像 Google OAuth Client ID 的值，所以 launcher 沒有把它送去 Google，避免重複出現 invalid_client。",
+                "The launcher found a value that does not look like a Google OAuth Client ID, so it was not sent to Google again. This avoids repeated invalid_client errors.",
+            )
+            if reason == "invalid"
+            else self.tr(
+                "目前這個開發版沒有可用的專案官方 OAuth App 身分，所以還不能啟動 Google 帳號登入。",
+                "This development build does not currently have a usable project-owned OAuth app identity, so Google account login cannot start yet.",
+            )
+        )
+        detail.insert(
+            "1.0",
+            self.tr(
+                "\n".join(
+                    [
+                        reason_text,
+                        "",
+                        "一般網路服務能讓你直接選 Google 帳號，是因為服務方已經先向 Google 註冊好 OAuth App；使用者通常看不到也不需要管理 Client ID。",
+                        "這個專案也應該走同一條路：由專案端提供官方 OAuth 設定，或在未來透過後端代理完成登入。",
+                        "",
+                        "QR / 裝置碼登入也不是憑空產生的入口；它同樣需要官方 OAuth App 與 device-code 端點。",
+                        "",
+                        "目前你仍然可以在開發期用 Gemini API key 測試 AI 描述生成管線。這只是暫時讓功能能跑，不是把 API key 當成最終產品登入方案。",
+                        "",
+                        f"目前 profile：{profile.label}",
+                    ]
+                ),
+                "\n".join(
+                    [
+                        reason_text,
+                        "",
+                        "Normal web services can let you choose a Google account because the service has already registered an OAuth app with Google; users usually never see or manage a Client ID.",
+                        "This project should follow the same product shape: the project provides official OAuth settings, or a future backend broker completes sign-in.",
+                        "",
+                        "QR/device-code login is not an entry point that can be invented locally; it also needs an official OAuth app and device-code endpoint.",
+                        "",
+                        "For now, you can still use a Gemini API key during development to test AI description generation. That is a temporary runnable path, not the final product sign-in design.",
+                        "",
+                        f"Current profile: {profile.label}",
+                    ]
+                ),
+            ),
+        )
+        detail.configure(state="disabled")
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+
+        def open_developer_setup() -> None:
+            self.configure_oauth_client_for_profile(profile.id, parent=dialog, start_login=False)
+
+        ttk.Button(actions, text=self.tr("保存 Gemini API key", "Save Gemini API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開發者：設定 OAuth", "Developer: configure OAuth"), style="Action.TButton", command=open_developer_setup).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
     def open_ai_profile_browser_login_dialog(self, profile_id: str | None = None, parent: Toplevel | None = None) -> None:
         profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None) if profile_id else core.active_ai_profile()
         if profile is None:
-            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「設定 > AI 輔助模型」選擇一個 AI profile。", "Choose an AI profile under Settings > AI assistant model first."), parent=parent or self.root)
+            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「整合 > AI 輔助模型選擇」選擇一個 AI profile。", "Choose an AI profile under Integrations > AI assistant model selection first."), parent=parent or self.root)
             return
         oauth_config = oauth_device_config_from_profile(profile)
         if oauth_config is None or not oauth_config.authorization_url or not oauth_config.token_url:
@@ -2816,33 +2943,12 @@ class ApiCollectionUi:
             )
             self.open_ai_profile_login_dialog(profile.id, parent=parent)
             return
-        client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
+        client_id = self.oauth_config_client_id(oauth_config)
         if not client_id:
-            if not self.configure_oauth_client_for_profile(profile.id, parent=parent, start_login=False):
-                return
-            profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), None)
-            oauth_config = oauth_device_config_from_profile(profile) if profile else None
-            client_id = ""
-            if oauth_config is not None:
-                client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
-            if oauth_config is None or not client_id:
-                messagebox.showerror(
-                    self.tr("Google 登入設定失敗", "Google login setup failed"),
-                    self.tr("尚未取得 OAuth Client ID，無法開啟 Google 帳號登入。", "No OAuth Client ID is available, so Google account login cannot start."),
-                    parent=parent or self.root,
-                )
-                return
+            self.show_google_oauth_not_ready_dialog(profile, parent=parent, reason="missing")
+            return
         if oauth_config.provider == "google" and not looks_like_google_oauth_client_id(client_id):
-            messagebox.showwarning(
-                self.tr("OAuth Client ID 格式不正確", "Invalid OAuth Client ID format"),
-                self.tr(
-                    "目前儲存的 Client ID 看起來不像 Google OAuth Client ID。\n\n它應該類似：xxxxx.apps.googleusercontent.com\n\n我不會再把這個值送去 Google，避免反覆出現 invalid_client。",
-                    "The saved Client ID does not look like a Google OAuth Client ID.\n\nIt should look like: xxxxx.apps.googleusercontent.com\n\nThe launcher will not send this value to Google, to avoid repeated invalid_client errors.",
-                ),
-                parent=parent or self.root,
-            )
-            if self.configure_oauth_client_for_profile(profile.id, parent=parent, start_login=False):
-                self.open_ai_profile_browser_login_dialog(profile.id, parent=parent)
+            self.show_google_oauth_not_ready_dialog(profile, parent=parent, reason="invalid")
             return
 
         owner = parent or self.root
@@ -2871,7 +2977,7 @@ class ApiCollectionUi:
                     [
                         "白話說，這個流程分兩層：",
                         "1. Google 帳號登入：由 Google 網頁處理選帳號、密碼、手機確認或 QR。",
-                        "2. App 授權：Google 需要知道是哪個程式要代表你呼叫 API，所以第一次要先有 OAuth Client ID。",
+                        "2. App 授權：Google 需要知道是哪個程式要代表你呼叫 API；這個 App 身分應由專案端事先配置好。",
                         "",
                         "登入成功後，access token 會存在 state/private，不會提交到 Git。下次開啟 launcher 會優先嘗試讀取已保存 token。",
                     ]
@@ -2880,7 +2986,7 @@ class ApiCollectionUi:
                     [
                         "Plainly, this flow has two layers:",
                         "1. Google account login: Google's web page handles account choice, password, phone confirmation, or QR.",
-                        "2. App authorization: Google must know which app is requesting API access, so first-time setup needs an OAuth Client ID.",
+                        "2. App authorization: Google must know which app is requesting API access; this app identity should be configured by the project first.",
                         "",
                         "After success, the access token is stored under state/private and is not committed to Git. The launcher will prefer saved tokens next time.",
                     ]
@@ -3041,7 +3147,7 @@ class ApiCollectionUi:
     def open_ai_profile_login_dialog(self, profile_id: str | None = None, parent: Toplevel | None = None) -> None:
         profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None) if profile_id else core.active_ai_profile()
         if profile is None:
-            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「設定 > AI 輔助模型」選擇一個 AI profile。", "Choose an AI profile under Settings > AI assistant model first."), parent=parent or self.root)
+            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「整合 > AI 輔助模型選擇」選擇一個 AI profile。", "Choose an AI profile under Integrations > AI assistant model selection first."), parent=parent or self.root)
             return
         oauth_config = oauth_device_config_from_profile(profile)
         if oauth_config is None:
@@ -3091,8 +3197,8 @@ class ApiCollectionUi:
                     self.tr("QR/OAuth 登入尚未設定。", "QR/OAuth login is not configured yet."),
                     "",
                     self.tr(
-                        "如果你想要一般 Google 服務那種選帳號或手機掃碼登入，請用「Google 帳號登入（瀏覽器）」。這個頁面是進階 device-code 流程，適合無鍵盤或跨裝置情境。",
-                        "If you want the normal Google account chooser or phone/QR login, use Google account login (browser). This page is the advanced device-code flow for limited-input or cross-device situations.",
+                        "一般 Google 服務那種選帳號或手機掃碼登入會放在中期 Google OAuth 入口；這個頁面是進階 device-code 流程，適合無鍵盤或跨裝置情境。",
+                        "The normal Google account chooser or phone/QR login belongs in the mid-term Google OAuth entry; this page is the advanced device-code flow for limited-input or cross-device situations.",
                     ),
                     "",
                     request.message,
@@ -3161,9 +3267,9 @@ class ApiCollectionUi:
                     close_dialog()
                     self.open_ai_profile_login_dialog(profile.id, parent=owner)
 
-            ttk.Button(actions, text=self.tr("進階：設定 OAuth Client ID", "Advanced: set OAuth Client ID"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
+            ttk.Button(actions, text=self.tr("開發者：設定 OAuth", "Developer: configure OAuth"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("用瀏覽器登入", "Browser login"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("貼上 API key（備用）", "Paste API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("保存 API key", "Save API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         if request.device_code:
             ttk.Button(actions, text=self.tr("重新檢查登入", "Check login"), style="Action.TButton", command=poll_once).pack(side=LEFT, padx=(0, 10))
@@ -3179,7 +3285,7 @@ class ApiCollectionUi:
             messagebox.showinfo(
                 "尚未設定 AI 摘要",
                 (
-                    "請在「設定 > AI 輔助模型」選擇要使用的模型。"
+                    "請在「整合 > AI 輔助模型選擇」選擇要使用的模型。"
                     "預設建議可先用本機 Ollama，免登入也不需要雲端 API key。"
                 ),
             )
@@ -3190,6 +3296,11 @@ class ApiCollectionUi:
             except Exception as exc:
                 messagebox.showerror("AI 摘要設定失敗", str(exc))
                 return
+        if profile.kind != "ollama" and not self.profile_has_cloud_credential(profile):
+            if not self.configure_ai_api_key_session(profile.id, parent=self.root):
+                self.status_var.set("AI 摘要尚未啟動：需要 API key 或已保存的登入 token。")
+                return
+            profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), profile)
         self.selected_ai_profile_id = profile.id
         self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
         thread = threading.Thread(target=self._summary_worker, args=(row.provider_id, profile.id), daemon=True)

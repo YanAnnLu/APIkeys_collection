@@ -108,9 +108,10 @@ python3 APIkeys_collection.py --verify-downloads-json
 | 入口 | 用途 |
 | --- | --- |
 | `設定 > 介面語言` | 切換繁中/英文。 |
-| `設定 > AI 輔助模型` | 選擇真正要調用的 AI profile；也可用帳號登入選取模型或貼本次 API key。 |
-| `整合 > Google / Gemini 與 AI 設定` | Google/Gemini token 狀態與登入入口；不負責切換模型。 |
-| `整合 > Google 帳號登入（瀏覽器）` | 打開系統瀏覽器進入 Google 授權頁，讓使用者選帳號或使用 Google 頁面提供的手機確認 / 掃碼登入。 |
-| `整合 > 進階：Google QR / 裝置碼登入` | 開啟 Gemini/Google device-code 登入；適合無鍵盤或跨裝置情境。 |
+| `整合 > AI / Gemini 串接中心` | Gemini 描述生成入口；現階段主路線是保存 Gemini API key 到本機 private state。 |
+| `整合 > 保存 Gemini API key` | 直接保存 Gemini API key 並啟用 `gemini_flash` profile；下次啟動自動載入。 |
+| `整合 > AI 輔助模型選擇` | 選擇真正要調用的 AI profile。 |
+| `整合 > Google OAuth（中期 / 開發者）` | 保留中期正式 Google 帳號登入、QR/device-code，以及開發者 OAuth 設定；一般使用者不需要貼 OAuth Client ID。 |
+| `整合 > 資料儲存連線` | 檢查 MySQL/PostgreSQL/SQLite/NoSQL/object store 等連線設定，不保存密碼。 |
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |
