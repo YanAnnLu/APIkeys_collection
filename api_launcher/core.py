@@ -48,8 +48,11 @@ from api_launcher.integrations import (
     active_database_client,
     ai_summary_profiles,
     database_client_profiles,
+    ensure_local_integration_config,
     generate_provider_summary,
+    local_integrations_path,
     open_database_client,
+    set_active_database_client,
 )
 from api_launcher.models import Dataset, Provider
 from api_launcher.plans import build_download_plan

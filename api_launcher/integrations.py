@@ -39,9 +39,17 @@ class AiSummaryProfile:
 
 
 def integrations_path() -> Path:
-    local_path = SCRIPT_DIR / LOCAL_INTEGRATIONS_NAME
+    local_path = local_integrations_path()
     if local_path.exists():
         return local_path
+    return example_integrations_path()
+
+
+def local_integrations_path() -> Path:
+    return SCRIPT_DIR / LOCAL_INTEGRATIONS_NAME
+
+
+def example_integrations_path() -> Path:
     return SCRIPT_DIR / EXAMPLE_INTEGRATIONS_NAME
 
 
@@ -52,8 +60,39 @@ def load_integration_config() -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def database_client_profiles() -> list[DatabaseClientProfile]:
+def ensure_local_integration_config() -> dict[str, object]:
+    local_path = local_integrations_path()
+    if local_path.exists():
+        return json.loads(local_path.read_text(encoding="utf-8"))
     config = load_integration_config()
+    save_integration_config(config)
+    return config
+
+
+def save_integration_config(config: dict[str, object]) -> Path:
+    path = local_integrations_path()
+    path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def set_active_database_client(profile_id: str) -> DatabaseClientProfile:
+    config = ensure_local_integration_config()
+    profiles = database_client_profiles_from_config(config)
+    if not any(profile.id == profile_id for profile in profiles):
+        raise RuntimeError(f"Unknown database client profile: {profile_id}")
+    config["active_database_client"] = profile_id
+    save_integration_config(config)
+    profile = next((item for item in database_client_profiles() if item.id == profile_id), None)
+    if profile is None:
+        raise RuntimeError(f"Database client profile is not available on this platform: {profile_id}")
+    return profile
+
+
+def database_client_profiles() -> list[DatabaseClientProfile]:
+    return database_client_profiles_from_config(load_integration_config())
+
+
+def database_client_profiles_from_config(config: dict[str, object]) -> list[DatabaseClientProfile]:
     system = platform.system()
     profiles = []
     for item in config.get("database_clients", []):
