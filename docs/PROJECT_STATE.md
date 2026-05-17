@@ -19,12 +19,16 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 35 providers.
 - `APIkeys_collection_ui.py` is now a compatibility wrapper for the Tk launcher implementation in
   `frontends/tk/launcher_ui.py`.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
+- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 10 metadata-only
+  sources, and `api_launcher/dataset_discovery.py` can parse NOAA/NCEI search, ERDDAP `allDatasets`, HTML file
+  indexes, NASA CMR collections, STAC collections, GBIF dataset search, and CKAN `package_search` into reviewable
+  dataset candidates without bulk downloads.
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
   verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
@@ -73,7 +77,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
   `state/favicons/`.
 - AI-generated provider descriptions now use explicit AI profile selection under `設定 > AI 輔助模型`; per-profile
-  QR/device OAuth login can store local tokens under `state/private/ai_oauth_tokens/`.
+  QR/device OAuth login can store local tokens under `state/private/ai_oauth_tokens/`. The Gemini/Google dialog now
+  states plainly that the generation path exists but still needs local Ollama, a Gemini API key, or a usable OAuth
+  token before it can call a model.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 - Maritime jurisdiction overlays should be modeled as GIS polygon layers with legal/administrative attributes
@@ -100,11 +106,11 @@ The project is not a secret harvester. Credential files are templates for user-o
 
 Current SQLite counts observed on this machine:
 
-- `providers`: 25
-- `template_keys`: 18
-- `provider_download_state`: 25
+- `providers`: 35 after current built-in seed
+- `template_keys`: 21 after current built-in seed
+- `provider_download_state`: follows `providers`
 - `crawl_results`: 4
-- `datasets`: depends on adapter discovery; HYG and GEBCO can be inserted by `--discover-datasets`
+- `datasets`: depends on adapter/crawler discovery; HYG and GEBCO can be inserted by `--discover-datasets`, and crawler candidates can be inserted by `--discover-dataset-candidates --upsert-dataset-candidates`
 - `dataset_sync_state`: follows `datasets`
 - `render_bridge_assets`: populated when renderer bridge assets are registered
 - `dataset_asset_manifests`: populated by completed downloads or `--verify-downloads`

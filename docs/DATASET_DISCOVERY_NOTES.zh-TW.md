@@ -22,7 +22,7 @@ provider / source platform
 
 ## Discovery seeds
 
-內建 provider/source discovery seeds 已從 8 個擴充到 33 個。範圍包含：
+內建 provider/source discovery seeds 已從 8 個擴充到 43 個。範圍包含：
 
 - 氣候與天氣
 - 海洋與水文
@@ -31,6 +31,10 @@ provider / source platform
 - 統計與經濟
 - 研究 metadata
 - 台灣區域開放資料
+- Data.gov / CKAN 類開放資料目錄
+- STAC 類地球觀測目錄
+- Smithsonian / Wikidata / Dataverse 類文化資產與研究資料目錄
+- Marine Regions / VLIZ 類海域法域 GIS 來源
 - Google Earth Engine
 - NOAA AIS / MarineCadastre
 - NOAA GOES-R cloud/moisture imagery
@@ -41,11 +45,17 @@ provider / source platform
 
 `catalog/dataset_discovery_sources.json` 是下一層：它不是新增供應商，而是描述「去哪個供應商的哪個目錄找資料集」。
 
-目前支援的通用 crawler 類型：
+目前 `catalog/dataset_discovery_sources.json` 內建 10 個可爬資料目錄。支援的通用 crawler 類型：
 
 - `ncei_search`：查 NOAA/NCEI Common Access Search Service，適合從關鍵字找到 NOAA 資料集候選。
 - `erddap_all_datasets`：讀 ERDDAP `allDatasets` JSON table，適合從 ERDDAP 站點列出可用 dataset。
 - `html_file_index`：讀簡單 HTML 檔案索引，用 regex 找出版本/檔案 shard，例如 MarineCadastre AIS daily CSV.ZST。
+- `cmr_collections`：查 NASA Earthdata CMR collection search，適合從 NASA/Earthdata 目錄找到可再審核的衛星、海洋、氣候資料集。
+- `stac_collections`：讀 STAC `/collections`，適合 Microsoft Planetary Computer、Earth Search 這類雲端地球觀測 catalog。
+- `gbif_dataset_search`：查 GBIF registry dataset search，適合先發現生物多樣性資料集與 record count，再決定是否進入 GBIF download workflow。
+- `ckan_package_search`：讀 CKAN `package_search`，適合 Data.gov 這類政府開放資料目錄；resource URL 可能是檔案、API、入口頁或外部系統，必須 review。
+
+這些 crawler 的共通目標是「先產生候選 metadata」。例如 STAC 只先列 collection，不直接抓每一張影像；CMR 只先列 collection，不直接全量抓 granules；CKAN 只先保留 resource 摘要，不把未知 URL 直接交給 downloader。
 
 AIS 與衛星雲圖請當作 crawler 的代表測試案例，不要當成特例硬寫：
 
@@ -65,7 +75,7 @@ python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --d
 Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
-- `api_launcher/dataset_discovery.py`：負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index 抓取可審核的 dataset candidate。
+- `api_launcher/dataset_discovery.py`：負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index、NASA CMR、STAC、GBIF、CKAN 抓取可審核的 dataset candidate。
 - `api_launcher/dataset_adapters.py`：集中註冊 provider-specific dataset adapter。
 - `api_launcher/adapters/gebco.py`：把 GEBCO 對應成 GEBCO 2025 全球高程網格 dataset。
 - `api_launcher/adapters/hyg.py`：第一個具體 adapter，會把 HYG Database 對應成 HYG v3.8 星表 dataset。

@@ -396,6 +396,126 @@
       "api_base_url": "https://data.gov.tw/",
       "signup_url": "",
       "expected_auth_type": "mixed"
+    },
+    {
+      "provider_id": "data_gov",
+      "name": "Data.gov CKAN Catalog",
+      "owner": "U.S. General Services Administration / Data.gov",
+      "categories": ["open_data", "government", "ckan", "metadata"],
+      "geographic_scope": "us",
+      "homepage_url": "https://data.gov/",
+      "docs_url": "https://open.gsa.gov/api/datadotgov/",
+      "api_base_url": "https://api.gsa.gov/technology/datagov/v3/",
+      "signup_url": "https://api.data.gov/signup/",
+      "expected_auth_type": "api_key_optional_or_demo_key_for_metadata"
+    },
+    {
+      "provider_id": "noaa_pmel_erddap",
+      "name": "NOAA PMEL ERDDAP",
+      "owner": "NOAA Pacific Marine Environmental Laboratory",
+      "categories": ["noaa", "pmel", "erddap", "ocean"],
+      "geographic_scope": "global/ocean",
+      "homepage_url": "https://data.pmel.noaa.gov/pmel/erddap/index.html",
+      "docs_url": "https://data.pmel.noaa.gov/pmel/erddap/rest.html",
+      "api_base_url": "https://data.pmel.noaa.gov/pmel/erddap/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "ioos_erddap",
+      "name": "U.S. IOOS ERDDAP",
+      "owner": "U.S. Integrated Ocean Observing System",
+      "categories": ["ioos", "erddap", "ocean", "coastal"],
+      "geographic_scope": "us/coastal",
+      "homepage_url": "https://erddap.ioos.us/erddap/index.html",
+      "docs_url": "https://erddap.ioos.us/erddap/rest.html",
+      "api_base_url": "https://erddap.ioos.us/erddap/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "earth_search_stac",
+      "name": "Element 84 Earth Search STAC",
+      "owner": "Element 84 / AWS Open Data ecosystem",
+      "categories": ["stac", "satellite", "earth_observation", "aws_open_data"],
+      "geographic_scope": "global",
+      "homepage_url": "https://earth-search.aws.element84.com/v1",
+      "docs_url": "https://earth-search.aws.element84.com/v1",
+      "api_base_url": "https://earth-search.aws.element84.com/v1/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_metadata"
+    },
+    {
+      "provider_id": "marine_regions",
+      "name": "Marine Regions / Maritime Boundaries",
+      "owner": "Flanders Marine Institute (VLIZ)",
+      "categories": ["marine_boundaries", "eez", "gis", "law_of_the_sea"],
+      "geographic_scope": "global/ocean",
+      "homepage_url": "https://www.marineregions.org/",
+      "docs_url": "https://www.marineregions.org/downloads.php",
+      "api_base_url": "https://www.marineregions.org/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_download_pages"
+    },
+    {
+      "provider_id": "usgs_water_services",
+      "name": "USGS Water Services",
+      "owner": "U.S. Geological Survey",
+      "categories": ["water", "hydrology", "stations", "timeseries"],
+      "geographic_scope": "us",
+      "homepage_url": "https://waterservices.usgs.gov/",
+      "docs_url": "https://waterservices.usgs.gov/rest/",
+      "api_base_url": "https://waterservices.usgs.gov/nwis/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "noaa_ndbc",
+      "name": "NOAA National Data Buoy Center",
+      "owner": "NOAA National Weather Service",
+      "categories": ["buoy", "marine_weather", "timeseries", "ocean"],
+      "geographic_scope": "global/ocean",
+      "homepage_url": "https://www.ndbc.noaa.gov/",
+      "docs_url": "https://www.ndbc.noaa.gov/data/",
+      "api_base_url": "https://www.ndbc.noaa.gov/data/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "wikidata_sparql",
+      "name": "Wikidata Query Service",
+      "owner": "Wikimedia Foundation",
+      "categories": ["knowledge_graph", "cultural_heritage", "linked_data", "sparql"],
+      "geographic_scope": "global",
+      "homepage_url": "https://query.wikidata.org/",
+      "docs_url": "https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/Wikidata_Query_Help",
+      "api_base_url": "https://query.wikidata.org/sparql",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_queries"
+    },
+    {
+      "provider_id": "smithsonian_open_access",
+      "name": "Smithsonian Open Access API",
+      "owner": "Smithsonian Institution",
+      "categories": ["museum", "cultural_heritage", "images", "metadata"],
+      "geographic_scope": "global/us",
+      "homepage_url": "https://www.si.edu/openaccess",
+      "docs_url": "https://edan.si.edu/openaccess/apidocs/",
+      "api_base_url": "https://api.si.edu/openaccess/api/v1.0/",
+      "signup_url": "https://api.data.gov/signup/",
+      "expected_auth_type": "api_key_required"
+    },
+    {
+      "provider_id": "harvard_dataverse",
+      "name": "Harvard Dataverse API",
+      "owner": "Harvard Dataverse",
+      "categories": ["research_data", "metadata", "repository", "doi"],
+      "geographic_scope": "global",
+      "homepage_url": "https://dataverse.harvard.edu/",
+      "docs_url": "https://guides.dataverse.org/en/latest/api/",
+      "api_base_url": "https://dataverse.harvard.edu/api/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_metadata"
     }
   ]
 }

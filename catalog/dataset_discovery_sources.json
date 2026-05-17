@@ -67,6 +67,175 @@
       "geographic_scope": "us/offshore",
       "max_results": 5,
       "notes": "Representative group dataset. This source is intentionally config-driven: the crawler finds file shards from the index instead of a Python adapter hardcoding one AIS URL."
+    },
+    {
+      "source_id": "nasa_earthdata_cmr_collections",
+      "provider_id": "nasa_earthdata",
+      "name": "NASA Earthdata CMR collection search",
+      "source_type": "cmr_collections",
+      "endpoint_url": "https://cmr.earthdata.nasa.gov/search/collections.json",
+      "docs_url": "https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html",
+      "search_terms": [
+        "sea surface temperature",
+        "precipitation",
+        "GOES",
+        "MODIS",
+        "VIIRS",
+        "cloud"
+      ],
+      "categories": [
+        "nasa",
+        "earth_observation",
+        "satellite",
+        "metadata"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "NASA CMR is a collection catalog. Candidates should be reviewed before turning collection concept IDs into bounded granule searches or Earthdata downloads."
+    },
+    {
+      "source_id": "microsoft_planetary_computer_stac_collections",
+      "provider_id": "microsoft_planetary_computer",
+      "name": "Microsoft Planetary Computer STAC collections",
+      "source_type": "stac_collections",
+      "endpoint_url": "https://planetarycomputer.microsoft.com/api/stac/v1/collections",
+      "docs_url": "https://learn.microsoft.com/en-us/rest/api/planetarycomputer/",
+      "search_terms": [
+        "sentinel",
+        "landsat",
+        "modis",
+        "elevation",
+        "land cover",
+        "cloud"
+      ],
+      "categories": [
+        "stac",
+        "satellite",
+        "earth_observation",
+        "cloud_optimized_geospatial"
+      ],
+      "geographic_scope": "global",
+      "max_results": 10,
+      "notes": "STAC collection crawler. It lists collections only; actual item/asset download must later be bounded by time, bbox, asset role, and license review."
+    },
+    {
+      "source_id": "earth_search_stac_collections",
+      "provider_id": "earth_search_stac",
+      "name": "Element 84 Earth Search STAC collections",
+      "source_type": "stac_collections",
+      "endpoint_url": "https://earth-search.aws.element84.com/v1/collections",
+      "docs_url": "https://earth-search.aws.element84.com/v1",
+      "search_terms": [
+        "sentinel",
+        "landsat",
+        "cloud",
+        "surface reflectance"
+      ],
+      "categories": [
+        "stac",
+        "satellite",
+        "earth_observation",
+        "aws_open_data"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "Public STAC catalog for common Earth-observation assets. Treat discovered collections as metadata until a bounded STAC item search and asset selector are implemented."
+    },
+    {
+      "source_id": "gbif_dataset_search",
+      "provider_id": "gbif",
+      "name": "GBIF Registry dataset search",
+      "source_type": "gbif_dataset_search",
+      "endpoint_url": "https://api.gbif.org/v1/dataset/search",
+      "docs_url": "https://techdocs.gbif.org/en/openapi/",
+      "search_terms": [
+        "occurrence",
+        "species",
+        "marine",
+        "museum",
+        "citizen science"
+      ],
+      "categories": [
+        "biodiversity",
+        "species",
+        "occurrence",
+        "ecology"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "GBIF registry search discovers datasets and record counts. Bulk occurrence downloads need user credentials, citation tracking, and predicate review."
+    },
+    {
+      "source_id": "data_gov_package_search",
+      "provider_id": "data_gov",
+      "name": "Data.gov CKAN package search",
+      "source_type": "ckan_package_search",
+      "endpoint_url": "https://api.gsa.gov/technology/datagov/v3/action/package_search?api_key=DEMO_KEY",
+      "docs_url": "https://open.gsa.gov/api/datadotgov/",
+      "search_terms": [
+        "ocean",
+        "climate",
+        "satellite",
+        "transportation",
+        "historic buildings"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "ckan",
+        "metadata"
+      ],
+      "geographic_scope": "us",
+      "max_results": 8,
+      "notes": "Data.gov is metadata-first CKAN. Resource URLs must be reviewed because they can point to landing pages, APIs, direct files, or external systems."
+    },
+    {
+      "source_id": "noaa_pmel_erddap_all_datasets",
+      "provider_id": "noaa_pmel_erddap",
+      "name": "NOAA PMEL ERDDAP allDatasets",
+      "source_type": "erddap_all_datasets",
+      "endpoint_url": "https://data.pmel.noaa.gov/pmel/erddap/tabledap/allDatasets.json?datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl",
+      "docs_url": "https://data.pmel.noaa.gov/pmel/erddap/rest.html",
+      "search_terms": [
+        "saildrone",
+        "drifter",
+        "argo",
+        "temperature",
+        "ocean"
+      ],
+      "categories": [
+        "noaa",
+        "pmel",
+        "erddap",
+        "ocean"
+      ],
+      "geographic_scope": "global/ocean",
+      "max_results": 10,
+      "notes": "NOAA PMEL ERDDAP exposes many ocean-observation datasets through one consistent allDatasets table."
+    },
+    {
+      "source_id": "ioos_erddap_all_datasets",
+      "provider_id": "ioos_erddap",
+      "name": "U.S. IOOS ERDDAP allDatasets",
+      "source_type": "erddap_all_datasets",
+      "endpoint_url": "https://erddap.ioos.us/erddap/tabledap/allDatasets.json?datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl",
+      "docs_url": "https://erddap.ioos.us/erddap/rest.html",
+      "search_terms": [
+        "water level",
+        "buoy",
+        "currents",
+        "temperature",
+        "wave"
+      ],
+      "categories": [
+        "ioos",
+        "erddap",
+        "ocean",
+        "coastal"
+      ],
+      "geographic_scope": "us/coastal",
+      "max_results": 10,
+      "notes": "IOOS ERDDAP is another generic ERDDAP catalog. It is useful for testing that ERDDAP support is source-driven, not tied only to NOAA CoastWatch."
     }
   ]
 }

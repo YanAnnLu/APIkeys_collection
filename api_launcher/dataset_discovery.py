@@ -127,15 +127,51 @@ def discover_dataset_candidates_for_source(
     if source.source_type == "html_file_index":
         text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
         return html_file_index_candidates_from_text(source, text, final_url, limit)
+    if source.source_type == "cmr_collections":
+        candidates = []
+        for term in search_terms or ("",):
+            url = cmr_collections_url(source.endpoint_url, term, limit)
+            payload = fetch_json(url, timeout=timeout)
+            candidates.extend(cmr_candidates_from_payload(source, payload, url, limit))
+        return candidates
+    if source.source_type == "stac_collections":
+        payload = fetch_json(source.endpoint_url, timeout=timeout)
+        return stac_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+    if source.source_type == "gbif_dataset_search":
+        candidates = []
+        for term in search_terms or ("",):
+            url = search_endpoint_url(source.endpoint_url, {"q": term, "limit": str(max(1, limit))})
+            payload = fetch_json(url, timeout=timeout)
+            candidates.extend(gbif_candidates_from_payload(source, payload, url, limit))
+        return candidates
+    if source.source_type == "ckan_package_search":
+        candidates = []
+        for term in search_terms or ("",):
+            url = search_endpoint_url(source.endpoint_url, {"q": term, "rows": str(max(1, limit))})
+            payload = fetch_json(url, timeout=timeout)
+            candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
+        return candidates
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
 
 
 def ncei_search_url(endpoint_url: str, search_term: str, limit: int) -> str:
-    params = {"limit": str(max(1, limit)), "available": "true"}
-    if search_term:
-        params["text"] = search_term
+    return search_endpoint_url(
+        endpoint_url,
+        {"limit": str(max(1, limit)), "available": "true", "text": search_term},
+    )
+
+
+def cmr_collections_url(endpoint_url: str, search_term: str, limit: int) -> str:
+    return search_endpoint_url(
+        endpoint_url,
+        {"page_size": str(max(1, limit)), "downloadable": "true", "keyword": search_term},
+    )
+
+
+def search_endpoint_url(endpoint_url: str, params: dict[str, str]) -> str:
+    clean_params = {key: value for key, value in params.items() if value}
     separator = "&" if urllib.parse.urlparse(endpoint_url).query else "?"
-    return endpoint_url + separator + urllib.parse.urlencode(params)
+    return endpoint_url + separator + urllib.parse.urlencode(clean_params)
 
 
 def ncei_candidates_from_payload(
@@ -273,6 +309,318 @@ def erddap_candidates_from_payload(
         )
         if len(candidates) >= limit:
             break
+    return candidates
+
+
+def cmr_candidates_from_payload(
+    source: DatasetDiscoverySource,
+    payload: dict[str, Any],
+    source_url: str,
+    limit: int,
+) -> list[DatasetCandidate]:
+    feed = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
+    entries = feed.get("entry", [])
+    if not isinstance(entries, list):
+        return []
+    candidates: list[DatasetCandidate] = []
+    for item in entries[:limit]:
+        if not isinstance(item, dict):
+            continue
+        concept_id = str(item.get("id") or "").strip()
+        short_name = str(item.get("short_name") or item.get("entry_id") or concept_id or "dataset").strip()
+        version = str(item.get("version_id") or "").strip()
+        dataset_id = safe_dataset_id("-".join(part for part in (short_name, version) if part))
+        title = str(item.get("title") or item.get("dataset_id") or short_name)
+        summary = str(item.get("summary") or "")
+        searchable = " ".join(
+            (
+                title,
+                summary,
+                short_name,
+                str(item.get("data_center") or ""),
+                platform_names(item.get("platforms")),
+                " ".join(source.categories),
+            )
+        )
+        data_family = infer_data_family(searchable)
+        links = item.get("links") if isinstance(item.get("links"), list) else []
+        landing_url = first_cmr_link_url(links, ("metadata", "browse", "documentation")) or source.docs_url or source_url
+        api_url = (
+            "https://cmr.earthdata.nasa.gov/search/granules.json?"
+            + urllib.parse.urlencode({"collection_concept_id": concept_id})
+            if concept_id
+            else source_url
+        )
+        dataset = Dataset(
+            dataset_uid=dataset_uid(source.provider_id, dataset_id),
+            provider_id=source.provider_id,
+            dataset_id=dataset_id,
+            title=title,
+            categories=merge_categories(source.categories, tuple(filter(None, (str(item.get("data_center") or ""),)))),
+            data_type=data_family,
+            native_format="cmr_collection",
+            geographic_scope=source.geographic_scope,
+            temporal_coverage=temporal_coverage(item.get("time_start"), item.get("time_end")),
+            landing_url=landing_url,
+            api_url=api_url,
+            version=version or "discovered",
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": source.source_id,
+                "discovery_source_type": source.source_type,
+                "source_url": source_url,
+                "provider_backed": True,
+                "data_family": data_family,
+                "storage_hint": storage_hint_for_family(data_family),
+                "sql_role": sql_role_for_family(data_family),
+                "analysis_hint": analysis_hint_for_family(data_family),
+                "viewer_hint": viewer_hint_for_family(data_family),
+                "cmr_concept_id": concept_id,
+                "short_name": short_name,
+                "data_center": item.get("data_center") or "",
+                "cloud_hosted": bool(item.get("cloud_hosted")),
+                "online_access_flag": bool(item.get("online_access_flag")),
+                "links": links[:12],
+                "notes": source.notes,
+            },
+        )
+        candidates.append(
+            DatasetCandidate(
+                dataset=dataset,
+                source_id=source.source_id,
+                source_type=source.source_type,
+                source_url=source_url,
+                confidence=0.85,
+                evidence=("NASA CMR collection search result", f"short_name: {short_name}"),
+            )
+        )
+    return candidates
+
+
+def stac_candidates_from_payload(
+    source: DatasetDiscoverySource,
+    payload: dict[str, Any],
+    source_url: str,
+    limit: int,
+    search_terms: tuple[str, ...],
+) -> list[DatasetCandidate]:
+    collections = payload.get("collections", [])
+    if not isinstance(collections, list):
+        return []
+    candidates: list[DatasetCandidate] = []
+    for item in collections:
+        if not isinstance(item, dict):
+            continue
+        keywords = tuple(str(value) for value in item.get("keywords") or [] if value)
+        providers = item.get("providers") if isinstance(item.get("providers"), list) else []
+        asset_map = item.get("assets") or item.get("item_assets") or {}
+        if not isinstance(asset_map, dict):
+            asset_map = {}
+        searchable = " ".join(
+            (
+                str(item.get("id") or ""),
+                str(item.get("title") or ""),
+                str(item.get("description") or ""),
+                " ".join(keywords),
+                " ".join(provider.get("name", "") for provider in providers if isinstance(provider, dict)),
+            )
+        )
+        if search_terms and not matches_any_term(searchable, search_terms):
+            continue
+        dataset_id = safe_dataset_id(str(item.get("id") or "dataset"))
+        title = str(item.get("title") or dataset_id)
+        data_family = infer_data_family(searchable)
+        links = item.get("links") if isinstance(item.get("links"), list) else []
+        landing_url = first_stac_link_url(links, ("self", "root", "parent")) or source.docs_url or source_url
+        api_url = first_stac_link_url(links, ("items", "self")) or source_url
+        temporal = stac_temporal_coverage(item.get("extent"))
+        categories = merge_categories(source.categories, keywords[:6])
+        dataset = Dataset(
+            dataset_uid=dataset_uid(source.provider_id, dataset_id),
+            provider_id=source.provider_id,
+            dataset_id=dataset_id,
+            title=title,
+            categories=categories or ("stac",),
+            data_type=data_family,
+            native_format="stac_collection",
+            geographic_scope=source.geographic_scope,
+            temporal_coverage=temporal,
+            landing_url=landing_url,
+            api_url=api_url,
+            license_url=str(item.get("license") or ""),
+            version=str(item.get("version") or item.get("stac_version") or "discovered"),
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": source.source_id,
+                "discovery_source_type": source.source_type,
+                "source_url": source_url,
+                "provider_backed": True,
+                "data_family": data_family,
+                "storage_hint": storage_hint_for_family(data_family),
+                "sql_role": sql_role_for_family(data_family),
+                "analysis_hint": analysis_hint_for_family(data_family),
+                "viewer_hint": viewer_hint_for_family(data_family),
+                "stac_id": item.get("id") or "",
+                "stac_version": item.get("stac_version") or "",
+                "keywords": keywords,
+                "providers": providers,
+                "asset_keys": sorted(asset_map.keys())[:24],
+                "extent": item.get("extent") or {},
+                "links": links[:12],
+                "notes": source.notes,
+            },
+        )
+        candidates.append(
+            DatasetCandidate(
+                dataset=dataset,
+                source_id=source.source_id,
+                source_type=source.source_type,
+                source_url=source_url,
+                confidence=0.87,
+                evidence=("STAC collection", f"collection: {dataset_id}"),
+            )
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def gbif_candidates_from_payload(
+    source: DatasetDiscoverySource,
+    payload: dict[str, Any],
+    source_url: str,
+    limit: int,
+) -> list[DatasetCandidate]:
+    results = payload.get("results", [])
+    if not isinstance(results, list):
+        return []
+    candidates: list[DatasetCandidate] = []
+    for item in results[:limit]:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("key") or "").strip()
+        dataset_id = safe_dataset_id(key or item.get("doi") or item.get("title") or "dataset")
+        title = str(item.get("title") or dataset_id)
+        description = str(item.get("description") or "")
+        keywords = tuple(str(value) for value in item.get("keywords") or [] if value)
+        searchable = " ".join((title, description, str(item.get("type") or ""), " ".join(keywords), " ".join(source.categories)))
+        data_family = infer_data_family(searchable)
+        landing_url = f"https://www.gbif.org/dataset/{key}" if key else source.docs_url or source_url
+        api_url = f"https://api.gbif.org/v1/dataset/{key}" if key else source_url
+        dataset = Dataset(
+            dataset_uid=dataset_uid(source.provider_id, dataset_id),
+            provider_id=source.provider_id,
+            dataset_id=dataset_id,
+            title=title,
+            categories=merge_categories(source.categories, keywords[:6], (str(item.get("type") or ""),)),
+            data_type=data_family,
+            native_format="gbif_dataset",
+            geographic_scope=source.geographic_scope,
+            landing_url=landing_url,
+            api_url=api_url,
+            license_url=str(item.get("license") or ""),
+            version="discovered",
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": source.source_id,
+                "discovery_source_type": source.source_type,
+                "source_url": source_url,
+                "provider_backed": True,
+                "data_family": data_family,
+                "storage_hint": storage_hint_for_family(data_family),
+                "sql_role": sql_role_for_family(data_family),
+                "analysis_hint": analysis_hint_for_family(data_family),
+                "viewer_hint": viewer_hint_for_family(data_family),
+                "gbif_key": key,
+                "dataset_type": item.get("type") or "",
+                "record_count": item.get("recordCount") or 0,
+                "publishing_organization": item.get("publishingOrganizationTitle") or "",
+                "hosting_organization": item.get("hostingOrganizationTitle") or "",
+                "notes": source.notes,
+            },
+        )
+        candidates.append(
+            DatasetCandidate(
+                dataset=dataset,
+                source_id=source.source_id,
+                source_type=source.source_type,
+                source_url=source_url,
+                confidence=0.84,
+                evidence=("GBIF dataset search result", f"key: {key or 'unknown'}"),
+            )
+        )
+    return candidates
+
+
+def ckan_candidates_from_payload(
+    source: DatasetDiscoverySource,
+    payload: dict[str, Any],
+    source_url: str,
+    limit: int,
+) -> list[DatasetCandidate]:
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    results = result.get("results", [])
+    if not isinstance(results, list):
+        return []
+    candidates: list[DatasetCandidate] = []
+    for item in results[:limit]:
+        if not isinstance(item, dict):
+            continue
+        dataset_id = safe_dataset_id(str(item.get("name") or item.get("id") or item.get("title") or "dataset"))
+        title = str(item.get("title") or dataset_id)
+        description = str(item.get("notes") or item.get("description") or "")
+        tags = tuple(
+            str(tag.get("display_name") or tag.get("name") or "")
+            for tag in item.get("tags", [])
+            if isinstance(tag, dict) and (tag.get("display_name") or tag.get("name"))
+        )
+        resources = item.get("resources") if isinstance(item.get("resources"), list) else []
+        formats = tuple(str(resource.get("format") or "").strip() for resource in resources if isinstance(resource, dict) and resource.get("format"))
+        searchable = " ".join((title, description, " ".join(tags), " ".join(formats), " ".join(source.categories)))
+        data_family = infer_data_family(searchable)
+        resource_url = first_resource_url(resources)
+        dataset = Dataset(
+            dataset_uid=dataset_uid(source.provider_id, dataset_id),
+            provider_id=source.provider_id,
+            dataset_id=dataset_id,
+            title=title,
+            categories=merge_categories(source.categories, tags[:8], formats[:4]),
+            data_type=data_family,
+            native_format=choose_native_format(formats),
+            geographic_scope=source.geographic_scope,
+            landing_url=str(item.get("url") or source.docs_url or source_url),
+            api_url=resource_url or source_url,
+            license_url=str(item.get("license_url") or ""),
+            version=str(item.get("metadata_modified") or item.get("revision_timestamp") or "discovered"),
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": source.source_id,
+                "discovery_source_type": source.source_type,
+                "source_url": source_url,
+                "provider_backed": True,
+                "data_family": data_family,
+                "storage_hint": storage_hint_for_family(data_family),
+                "sql_role": sql_role_for_family(data_family),
+                "analysis_hint": analysis_hint_for_family(data_family),
+                "viewer_hint": viewer_hint_for_family(data_family),
+                "ckan_id": item.get("id") or "",
+                "organization": item.get("organization") or {},
+                "license_title": item.get("license_title") or "",
+                "resource_count": len(resources),
+                "resources": resource_summaries(resources),
+                "notes": source.notes,
+            },
+        )
+        candidates.append(
+            DatasetCandidate(
+                dataset=dataset,
+                source_id=source.source_id,
+                source_type=source.source_type,
+                source_url=source_url,
+                confidence=0.8,
+                evidence=("CKAN package_search result", f"resources: {len(resources)}"),
+            )
+        )
     return candidates
 
 
@@ -435,8 +783,23 @@ def first_link_url(links: object, groups: tuple[str, ...]) -> str:
 
 
 def choose_native_format(formats: tuple[str, ...]) -> str:
-    preferred = ("csv", "json", "netcdf", "grib", "shapefile", "geojson", "native")
-    lowered = {value.lower(): value.lower() for value in formats}
+    preferred = (
+        "parquet",
+        "geoparquet",
+        "zarr",
+        "netcdf",
+        "hdf5",
+        "geotiff",
+        "tiff",
+        "grib",
+        "geojson",
+        "shapefile",
+        "csv",
+        "json",
+        "api",
+        "native",
+    )
+    lowered = {safe_dataset_id(value).replace("-", "_"): value.lower() for value in formats}
     for value in preferred:
         if value in lowered:
             return lowered[value]
@@ -453,6 +816,8 @@ def temporal_coverage(start: object, end: object) -> str:
 
 def infer_data_family(text: str) -> str:
     lowered = text.lower()
+    if any(value in lowered for value in ("gbif", "biodiversity", "species occurrence", "occurrence", "taxon")):
+        return "biodiversity_occurrence"
     if any(value in lowered for value in ("ais", "vessel", "trajectory", "ship")):
         return "spatiotemporal_trajectory"
     if any(value in lowered for value in ("cloud", "imagery", "satellite", "raster", "abi", "goes")):
@@ -468,6 +833,7 @@ def infer_data_family(text: str) -> str:
 
 def storage_hint_for_family(data_family: str) -> str:
     hints = {
+        "biodiversity_occurrence": "duckdb_postgis_or_partitioned_occurrence_files",
         "spatiotemporal_trajectory": "filesystem_or_object_storage_then_partitioned_columnar_store",
         "raster_or_grid": "netcdf_zarr_cog_or_object_storage",
         "grid_or_array": "netcdf_zarr_hdf5_or_object_storage",
@@ -485,6 +851,7 @@ def sql_role_for_family(data_family: str) -> str:
 
 def analysis_hint_for_family(data_family: str) -> str:
     hints = {
+        "biodiversity_occurrence": "duckdb_postgis_geopandas_or_gbif_tools",
         "spatiotemporal_trajectory": "duckdb_geopandas_postgis_dask_spark",
         "raster_or_grid": "xarray_rioxarray_dask_or_gdal",
         "grid_or_array": "xarray_dask_or_netcdf_tools",
@@ -496,6 +863,7 @@ def analysis_hint_for_family(data_family: str) -> str:
 
 def viewer_hint_for_family(data_family: str) -> str:
     hints = {
+        "biodiversity_occurrence": "map_points_heatmap_or_species_filter",
         "spatiotemporal_trajectory": "map_trajectory_heatmap_or_timeline",
         "raster_or_grid": "globe_texture_or_time_animation",
         "grid_or_array": "map_layer_or_timeseries_preview",
@@ -503,3 +871,73 @@ def viewer_hint_for_family(data_family: str) -> str:
         "timeseries": "tradingview_like_chart",
     }
     return hints.get(data_family, "table_or_document_preview")
+
+
+def matches_any_term(text: str, search_terms: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(term.lower() in lowered for term in search_terms)
+
+
+def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:
+    for rel in rels:
+        for link in links:
+            if isinstance(link, dict) and str(link.get("rel") or "").lower() == rel and link.get("href"):
+                return str(link["href"])
+    return ""
+
+
+def first_cmr_link_url(links: list[object], hints: tuple[str, ...]) -> str:
+    for link in links:
+        if not isinstance(link, dict) or not link.get("href"):
+            continue
+        searchable = " ".join(str(link.get(key) or "") for key in ("rel", "title", "type")).lower()
+        if any(hint in searchable for hint in hints):
+            return str(link["href"])
+    for link in links:
+        if isinstance(link, dict) and str(link.get("href") or "").startswith("http"):
+            return str(link["href"])
+    return ""
+
+
+def platform_names(platforms: object) -> str:
+    if not isinstance(platforms, list):
+        return ""
+    names = []
+    for platform in platforms:
+        if isinstance(platform, dict):
+            names.append(str(platform.get("short_name") or platform.get("long_name") or ""))
+    return " ".join(name for name in names if name)
+
+
+def stac_temporal_coverage(extent: object) -> str:
+    if not isinstance(extent, dict):
+        return ""
+    temporal = extent.get("temporal") if isinstance(extent.get("temporal"), dict) else {}
+    intervals = temporal.get("interval") if isinstance(temporal.get("interval"), list) else []
+    if not intervals or not isinstance(intervals[0], list):
+        return ""
+    start = str(intervals[0][0] or "") if len(intervals[0]) > 0 else ""
+    end = str(intervals[0][1] or "") if len(intervals[0]) > 1 else ""
+    return temporal_coverage(start, end)
+
+
+def first_resource_url(resources: list[object]) -> str:
+    for resource in resources:
+        if isinstance(resource, dict) and resource.get("url"):
+            return str(resource["url"])
+    return ""
+
+
+def resource_summaries(resources: list[object]) -> list[dict[str, object]]:
+    summaries = []
+    for resource in resources[:12]:
+        if not isinstance(resource, dict):
+            continue
+        summaries.append(
+            {
+                "name": resource.get("name") or resource.get("id") or "",
+                "format": resource.get("format") or "",
+                "url": resource.get("url") or "",
+            }
+        )
+    return summaries

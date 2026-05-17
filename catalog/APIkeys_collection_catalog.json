@@ -542,6 +542,126 @@
     "notes": ""
   },
   {
+    "provider_id": "data_gov",
+    "name": "Data.gov CKAN Catalog",
+    "owner": "U.S. General Services Administration / Data.gov",
+    "categories": [
+      "open_data",
+      "government",
+      "ckan",
+      "metadata"
+    ],
+    "geographic_scope": "us",
+    "docs_url": "https://open.gsa.gov/api/datadotgov/",
+    "api_base_url": "https://api.gsa.gov/technology/datagov/v3/",
+    "signup_url": "https://api.data.gov/signup/",
+    "auth_type": "api_key_optional_or_demo_key_for_metadata",
+    "key_env_var": "DATA_GOV_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Metadata catalog powered by CKAN. Resource URLs require review before download because they may be files, APIs, landing pages, or third-party systems."
+  },
+  {
+    "provider_id": "earth_search_stac",
+    "name": "Element 84 Earth Search STAC",
+    "owner": "Element 84 / AWS Open Data ecosystem",
+    "categories": [
+      "stac",
+      "satellite",
+      "earth_observation",
+      "aws_open_data"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://earth-search.aws.element84.com/v1",
+    "api_base_url": "https://earth-search.aws.element84.com/v1/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Public STAC catalog. Treat collections as metadata until a bounded item search and asset selector are implemented."
+  },
+  {
+    "provider_id": "gbif",
+    "name": "GBIF API",
+    "owner": "Global Biodiversity Information Facility",
+    "categories": [
+      "biodiversity",
+      "species",
+      "occurrence",
+      "ecology"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://techdocs.gbif.org/en/openapi/",
+    "api_base_url": "https://api.gbif.org/v1/",
+    "signup_url": "https://www.gbif.org/user/profile",
+    "auth_type": "no_key_for_public_metadata_account_for_downloads",
+    "key_env_var": "GBIF_USERNAME",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Public metadata and registry search are open; bulk occurrence downloads require account/citation-aware workflow."
+  },
+  {
+    "provider_id": "ioos_erddap",
+    "name": "U.S. IOOS ERDDAP",
+    "owner": "U.S. Integrated Ocean Observing System",
+    "categories": [
+      "ioos",
+      "erddap",
+      "ocean",
+      "coastal"
+    ],
+    "geographic_scope": "us/coastal",
+    "docs_url": "https://erddap.ioos.us/erddap/rest.html",
+    "api_base_url": "https://erddap.ioos.us/erddap/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Generic ERDDAP source for coastal and ocean observations."
+  },
+  {
+    "provider_id": "microsoft_planetary_computer",
+    "name": "Microsoft Planetary Computer STAC API",
+    "owner": "Microsoft",
+    "categories": [
+      "stac",
+      "satellite",
+      "earth_observation",
+      "cloud_optimized_geospatial"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://learn.microsoft.com/en-us/rest/api/planetarycomputer/",
+    "api_base_url": "https://planetarycomputer.microsoft.com/api/stac/v1/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "STAC catalog for cloud-hosted geospatial datasets. Item/asset download should be bounded by bbox, time, asset role, and license."
+  },
+  {
+    "provider_id": "noaa_pmel_erddap",
+    "name": "NOAA PMEL ERDDAP",
+    "owner": "NOAA Pacific Marine Environmental Laboratory",
+    "categories": [
+      "noaa",
+      "pmel",
+      "erddap",
+      "ocean"
+    ],
+    "geographic_scope": "global/ocean",
+    "docs_url": "https://data.pmel.noaa.gov/pmel/erddap/rest.html",
+    "api_base_url": "https://data.pmel.noaa.gov/pmel/erddap/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "NOAA PMEL ERDDAP publishes many ocean-observation datasets through a machine-readable allDatasets table."
+  },
+  {
     "provider_id": "world_bank_indicators",
     "name": "World Bank Indicators API",
     "owner": "World Bank",

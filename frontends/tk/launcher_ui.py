@@ -2448,12 +2448,10 @@ class ApiCollectionUi:
         dialog = Toplevel(self.root)
         dialog.title(self.tr("Gemini / Google 連線", "Gemini / Google connection"))
         dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("760x500")
+        dialog.geometry("840x560")
         dialog.transient(self.root)
         dialog.grab_set()
         ttk.Label(dialog, text=self.tr("Gemini / Google 連線", "Gemini / Google connection"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        text = Text(dialog, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
-        text.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         profile = core.active_ai_profile()
         profile_text = self.tr(f"目前 AI profile：{profile.label} ({profile.kind})", f"Current AI profile: {profile.label} ({profile.kind})") if profile else self.tr("目前沒有啟用 AI profile。", "No active AI profile.")
         gemini_profile = next((item for item in core.ai_summary_profiles() if item.id == "gemini_flash"), None)
@@ -2463,10 +2461,18 @@ class ApiCollectionUi:
         else:
             token_status, token_message = google_oauth_token_status()
         token_text = self.tr(f"Gemini / Google token：{token_status} - {token_message}", f"Gemini / Google token: {token_status} - {token_message}")
+        readiness_text = self.tr(
+            "目前狀態：AI 生成管線已存在，但要先有 local Ollama、Gemini API key，或可用的 OAuth token 才會真的呼叫模型。",
+            "Current status: AI generation exists, but it needs local Ollama, a Gemini API key, or a usable OAuth token before it can call a model.",
+        )
+        ttk.Label(dialog, text=readiness_text, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 10))
+        text = Text(dialog, height=12, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
+        text.pack(fill=X, expand=False, padx=24, pady=(0, 14))
         message = self.tr(
             "\n".join(
                 [
                     "這裡是 Google / Gemini 連線入口。",
+                    "白話說：它不是展示用空殼，但也還不是一鍵登入完成版。",
                     "它只負責登入、token 與 Google 相關設定；真正要調用哪個 AI，請到「設定 > AI 輔助模型」選。",
                     "",
                     profile_text,
@@ -2482,6 +2488,7 @@ class ApiCollectionUi:
             "\n".join(
                 [
                     "This panel is the Google/Gemini connection entry point.",
+                    "Plainly: it is not a fake shell, but it is not a finished one-click login flow either.",
                     "It handles login, tokens, and Google-related setup only. Choose the model under Settings > AI assistant model.",
                     "",
                     profile_text,
@@ -2497,7 +2504,7 @@ class ApiCollectionUi:
         )
         text.insert("1.0", message)
         text.configure(state="disabled")
-        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=4)
+        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=3)
         for name, label, width in [
             ("provider", self.tr("帳號", "Account"), 110),
             ("mode", self.tr("登入模式", "Login mode"), 140),
@@ -2515,12 +2522,18 @@ class ApiCollectionUi:
         providers.pack(fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
+        primary_actions = ttk.Frame(actions, style="Panel.TFrame")
+        primary_actions.pack(fill=X, pady=(0, 8))
+        secondary_actions = ttk.Frame(actions, style="Panel.TFrame")
+        secondary_actions.pack(fill=X)
 
-        ttk.Button(actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(primary_actions, text=self.tr("貼上 Gemini API key", "Paste Gemini API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("產生目前資料源描述", "Generate selected source description"), style="Action.TButton", command=self.generate_active_summary).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(secondary_actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(secondary_actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
 
     def configure_ai_api_key_session(self, profile_id: str | None = None) -> None:
         profiles = [profile for profile in core.ai_summary_profiles() if profile.kind != "ollama"]
