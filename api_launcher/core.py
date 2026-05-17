@@ -66,6 +66,7 @@ from api_launcher.integrations import (
     open_database_client,
     set_active_database_client,
 )
+from api_launcher.library_actions import LibraryContext, build_library_actions
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
 from api_launcher.paths import catalog_file
@@ -548,6 +549,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--show-render-profile", action="append", default=[], help="print inferred renderer profile for a frontend, e.g. taichi or unreal")
     parser.add_argument("--list-render-effects", action="store_true", help="print data-driven render effect layer contracts")
     parser.add_argument("--list-simulation-contracts", action="store_true", help="print simulation bridge input/backend contracts")
+    parser.add_argument("--show-library-actions", help="print Steam-like library actions for a provider/context")
+    parser.add_argument("--library-local-status", default="not_imported", help="local status for --show-library-actions")
+    parser.add_argument("--library-remote-status", default="unchecked", help="remote status for --show-library-actions")
+    parser.add_argument("--library-update-status", default="unknown", help="update status for --show-library-actions")
+    parser.add_argument("--library-install-id", default="", help="install_id for --show-library-actions")
+    parser.add_argument("--library-manifest-health", default="unknown", help="manifest health for --show-library-actions")
+    parser.add_argument("--library-direct-download", action="store_true", help="mark context as having a direct download")
+    parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
+    parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
     parser.add_argument("--write-tile-manifest", help="write a global tile manifest skeleton JSON")
     parser.add_argument("--tile-dataset-uid", default="gebco:2025", help="dataset uid for --write-tile-manifest")
     parser.add_argument("--tile-version", default="2025", help="dataset version for --write-tile-manifest")
@@ -593,6 +603,7 @@ class CatalogLauncherCli:
             self.show_render_profiles()
             self.list_render_effects()
             self.list_simulation_contracts()
+            self.show_library_actions()
             self.write_tile_manifest()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
@@ -632,6 +643,7 @@ class CatalogLauncherCli:
             bool(self.args.show_render_profile),
             self.args.list_render_effects,
             self.args.list_simulation_contracts,
+            bool(self.args.show_library_actions),
             bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
             bool(self.args.export_csv),
@@ -801,6 +813,27 @@ class CatalogLauncherCli:
                 "[simulation-backend] "
                 f"{backend.backend_id} domain={backend.domain} status={backend.implementation_status} "
                 f"maturity={backend.maturity} inputs={inputs} outputs={outputs}"
+            )
+
+    def show_library_actions(self) -> None:
+        if not self.args.show_library_actions:
+            return
+        context = LibraryContext(
+            provider_id=self.args.show_library_actions,
+            local_status=self.args.library_local_status,
+            remote_status=self.args.library_remote_status,
+            update_status=self.args.library_update_status,
+            install_id=self.args.library_install_id,
+            manifest_health=self.args.library_manifest_health,
+            has_direct_download=self.args.library_direct_download,
+            has_adapter=self.args.library_adapter,
+            has_render_assets=self.args.library_render_assets,
+        )
+        for action in build_library_actions(context):
+            status = "enabled" if action.enabled else "disabled"
+            print(
+                "[library-action] "
+                f"{action.action_id} {status} risk={action.risk} label={action.label} reason={action.reason}"
             )
 
     def write_tile_manifest(self) -> None:

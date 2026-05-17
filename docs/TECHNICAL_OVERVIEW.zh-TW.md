@@ -188,6 +188,28 @@ state_file("APIkeys_collection.sqlite")
 
 如果來源站有限制，請優先降低 `max_parallel_jobs`，提高 `min_delay_per_host_seconds`，而不是硬開多執行緒。
 
+## Steam-like library actions
+
+目前新增 `api_launcher/library_actions.py` 作為 UI/agent 共用的動作判斷骨架。它會根據 local status、update status、manifest health、install_id、是否可下載、是否有 renderer asset，判斷以下動作是否可用：
+
+| Action | 用途 |
+| --- | --- |
+| `add_to_plan` | 加入下載計畫。 |
+| `install` | 下載/匯入並納管。 |
+| `update` | 有新版或 stale 狀態時更新。 |
+| `repair` | manifest 顯示缺檔、checksum 錯誤或 size 錯誤時修復。 |
+| `open_database` | 透過設定的資料庫工具開啟。 |
+| `render_preview` | 有 renderer bridge asset 時交給 Taichi/Unreal 預覽。 |
+| `uninstall` | 解除納管或未來 guarded destructive uninstall。 |
+
+這層先不直接綁死 Tk UI，避免 UI 越來越複雜。之後右鍵選單、agent skill、Unreal frontend 都可以共用同一套 action rules。
+
+可用 CLI 模擬目前某個資料源可做的動作：
+
+```powershell
+py APIkeys_collection.py --show-library-actions gebco --library-local-status managed --library-install-id inst_demo --library-render-assets
+```
+
 ## 可下載性狀態
 
 | 狀態 | 意義 |

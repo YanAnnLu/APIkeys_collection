@@ -125,6 +125,7 @@ only when that improves the user experience or performance.
 | Catalog model | `api_launcher/models.py`, `api_launcher/registry.py`, catalog JSON/CSV/MD files | Provider and dataset definitions. |
 | Discovery | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `catalog/provider_discovery_seeds.json` | Polite metadata/source discovery without collecting secrets. |
 | Planning | `api_launcher/plans.py` | Builds download-plan JSON and declares nonblocking download policy. |
+| Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
 | Downloading | `api_launcher/download_jobs.py`, `api_launcher/http_downloader.py`, `api_launcher/transfer_tools.py` | Nonblocking job queue, resumable HTTP adapter, optional external transfer tools. |
 | Integration settings | `api_launcher/integrations.py`, `config/launcher_integrations.example.json` | Database clients, AI summary profiles, download tool profiles. |
 | Environment checks | `api_launcher/environment.py`, `.editorconfig`, `.gitattributes` | Startup path/tool/encoding checks and cross-platform file rules. |
