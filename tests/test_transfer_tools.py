@@ -5,7 +5,7 @@ from pathlib import Path
 
 import json
 
-from api_launcher.integrations import DownloadToolProfile, download_tool_profiles_from_config, example_integrations_path
+from api_launcher.integrations import DownloadToolProfile, download_policy_from_config, download_tool_profiles_from_config, example_integrations_path
 from api_launcher.transfer_tools import build_external_transfer_command, transfer_url_from_plan_entry
 
 
@@ -17,6 +17,13 @@ class TransferToolTests(unittest.TestCase):
         self.assertIn("aria2c", profiles)
         self.assertIn("curl", profiles)
         self.assertTrue(profiles["python_internal"].supports_resume)
+
+    def test_example_config_includes_polite_download_policy(self) -> None:
+        config = json.loads(example_integrations_path().read_text(encoding="utf-8"))
+        policy = download_policy_from_config(config)
+        self.assertEqual(3, policy.max_parallel_jobs)
+        self.assertEqual(1, policy.max_parallel_per_host)
+        self.assertIn(429, policy.cooldown_status_codes)
 
     def test_build_aria2c_command_uses_resume_and_split_flags(self) -> None:
         profile = DownloadToolProfile(

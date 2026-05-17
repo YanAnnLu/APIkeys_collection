@@ -74,6 +74,24 @@ state_file("APIkeys_collection.sqlite")
 
 大量下載時必須注意來源站的限制。預設下載器會限制同一 host 的請求節奏，遇到 429 或 503 會冷卻後重試。未來 provider-specific adapter 應該讀取官方 rate limit，並且讓使用者能在 UI 中調整並行數與延遲。
 
+下載政策可以在 `launcher_integrations.local.json` 覆寫，範例來源在 `config/launcher_integrations.example.json`：
+
+```json
+{
+  "download_policy": {
+    "max_parallel_jobs": 3,
+    "max_parallel_per_host": 1,
+    "min_delay_per_host_seconds": 1.0,
+    "max_retries": 5,
+    "retry_base_delay_seconds": 2.0,
+    "retry_max_delay_seconds": 120.0,
+    "cooldown_status_codes": [429, 503]
+  }
+}
+```
+
+如果來源站有限制，請優先降低 `max_parallel_jobs`，提高 `min_delay_per_host_seconds`，而不是硬開多執行緒。
+
 ## 可下載性狀態
 
 | 狀態 | 意義 |

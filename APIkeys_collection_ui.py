@@ -428,7 +428,11 @@ class ApiCollectionUi:
         self.active_provider_id = ""
         self.detail_visible = False
         self.resize_after_id: str | None = None
-        self.download_queue = NonBlockingDownloadQueue(HTTPDownloadAdapter(), max_workers=3)
+        self.download_policy = core.active_download_policy()
+        self.download_queue = NonBlockingDownloadQueue(
+            HTTPDownloadAdapter(policy=self.download_policy),
+            max_workers=self.download_policy.max_parallel_jobs,
+        )
         self.download_queue.add_callback(self.on_download_progress_threadsafe)
         self.download_jobs_by_provider: dict[str, str] = {}
         self.download_providers_by_job: dict[str, str] = {}
@@ -645,6 +649,7 @@ class ApiCollectionUi:
         ttk.Button(header, text="Pause", style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="Resume", style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="Cancel", style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="Retry", style="Action.TButton", command=self.retry_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
@@ -922,10 +927,13 @@ class ApiCollectionUi:
         if not rows:
             messagebox.showinfo("Download plan is empty", "Add at least one source to the download plan first.")
             return
+        self.start_download_rows(rows)
+
+    def start_download_rows(self, rows: list[ProviderRow]) -> None:
         started = 0
         skipped = 0
         for row in rows:
-            if row.provider_id in self.download_jobs_by_provider:
+            if not self.prepare_provider_for_download(row.provider_id):
                 continue
             eligibility = row.download_eligibility
             url = eligibility.direct_url
@@ -944,6 +952,17 @@ class ApiCollectionUi:
             started += 1
         self.update_download_jobs_panel()
         self.status_var.set(f"Download jobs started: {started}; skipped: {skipped}")
+
+    def prepare_provider_for_download(self, provider_id: str) -> bool:
+        job_id = self.download_jobs_by_provider.get(provider_id)
+        if not job_id:
+            return True
+        progress = self.download_progress_by_provider.get(provider_id)
+        if progress and progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
+            self.download_jobs_by_provider.pop(provider_id, None)
+            self.download_providers_by_job.pop(job_id, None)
+            return True
+        return False
 
     def download_url_for_row(self, row: ProviderRow) -> str:
         return row.download_eligibility.direct_url
@@ -980,6 +999,27 @@ class ApiCollectionUi:
             self.status_var.set("No active download job to cancel.")
             return
         self.download_queue.cancel(job_id)
+
+    def retry_active_download(self) -> None:
+        provider_id = self.active_download_provider_id()
+        row = self.row_by_provider_id(provider_id)
+        if row is None:
+            self.status_var.set("No active download job to retry.")
+            return
+        job_id = self.download_jobs_by_provider.get(provider_id)
+        progress = self.download_progress_by_provider.get(provider_id)
+        if job_id and progress and progress.status not in {JobStatus.FAILED, JobStatus.CANCELLED}:
+            self.status_var.set("Only failed or cancelled jobs can be retried.")
+            return
+        self.download_jobs_by_provider.pop(provider_id, None)
+        if job_id:
+            self.download_providers_by_job.pop(job_id, None)
+        self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
+        self.start_download_rows([row])
+
+    def active_download_provider_id(self) -> str:
+        selection = self.download_tree.selection()
+        return str(selection[0]) if selection else self.active_provider_id
 
     def on_download_progress_threadsafe(self, progress: DownloadProgress) -> None:
         self.root.after(0, lambda update=progress: self.on_download_progress(update))

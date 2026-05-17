@@ -3,6 +3,19 @@
   "active_database_client": "mysql_workbench",
   "active_ai_summary_profile": "local_ollama",
   "active_download_tool": "python_internal",
+  "download_policy": {
+    "max_parallel_jobs": 3,
+    "max_parallel_per_host": 1,
+    "min_delay_per_host_seconds": 1.0,
+    "max_retries": 5,
+    "retry_base_delay_seconds": 2.0,
+    "retry_max_delay_seconds": 120.0,
+    "cooldown_status_codes": [
+      429,
+      503
+    ],
+    "user_agent": "APIkeys_collection/0.3 (+polite-downloader; contact: local-user)"
+  },
   "database_clients": [
     {
       "id": "mysql_workbench",

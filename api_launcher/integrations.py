@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib import request
 
+from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
 from api_launcher.paths import config_file, local_config_file
 
@@ -188,6 +189,31 @@ def active_download_tool() -> DownloadToolProfile | None:
             if profile.id == active_id and profile.enabled:
                 return profile
     return next((profile for profile in profiles if profile.enabled), None)
+
+
+def active_download_policy() -> PoliteDownloadPolicy:
+    return download_policy_from_config(load_integration_config())
+
+
+def download_policy_from_config(config: dict[str, object]) -> PoliteDownloadPolicy:
+    policy = config.get("download_policy") or {}
+    if not isinstance(policy, dict):
+        policy = {}
+    cooldown_codes = policy.get("cooldown_status_codes", (429, 503))
+    if isinstance(cooldown_codes, list):
+        cooldown_codes = tuple(int(value) for value in cooldown_codes)
+    elif not isinstance(cooldown_codes, tuple):
+        cooldown_codes = (429, 503)
+    return PoliteDownloadPolicy(
+        max_parallel_jobs=max(1, int(policy.get("max_parallel_jobs", 3))),
+        max_parallel_per_host=max(1, int(policy.get("max_parallel_per_host", 1))),
+        min_delay_per_host_seconds=max(0.0, float(policy.get("min_delay_per_host_seconds", 1.0))),
+        max_retries=max(1, int(policy.get("max_retries", 5))),
+        retry_base_delay_seconds=max(0.0, float(policy.get("retry_base_delay_seconds", 2.0))),
+        retry_max_delay_seconds=max(0.0, float(policy.get("retry_max_delay_seconds", 120.0))),
+        cooldown_status_codes=tuple(cooldown_codes),
+        user_agent=str(policy.get("user_agent") or PoliteDownloadPolicy().user_agent),
+    )
 
 
 def ai_summary_profiles() -> list[AiSummaryProfile]:

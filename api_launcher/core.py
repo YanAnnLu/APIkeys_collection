@@ -49,10 +49,12 @@ from api_launcher.http_downloader import HTTPDownloadAdapter, download_target_fr
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
+    active_download_policy,
     active_download_tool,
     ai_summary_profiles,
     database_client_profiles,
     download_tool_profiles,
+    download_policy_from_config,
     ensure_local_integration_config,
     generate_provider_summary,
     local_integrations_path,

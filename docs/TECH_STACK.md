@@ -129,6 +129,8 @@ Polite download behavior lives in `api_launcher/download_policy.py`. Adapters
 should respect per-host pacing, bounded retries, `Retry-After`, and cooldowns for
 rate-limit responses such as HTTP 429 and temporary overload responses such as
 HTTP 503. Do not increase concurrency globally without checking provider terms.
+The default policy is configured in `config/launcher_integrations.example.json`
+and can be overridden in ignored `launcher_integrations.local.json`.
 
 ## Cross-platform Path and Encoding Rules
 
