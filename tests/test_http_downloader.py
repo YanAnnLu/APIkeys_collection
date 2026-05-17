@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from api_launcher.download_jobs import NonBlockingDownloadQueue
+from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.http_downloader import HTTPDownloadAdapter, build_download_request, download_target_from_plan_entry
 
 
@@ -68,7 +69,7 @@ class HTTPDownloadAdapterTests(unittest.TestCase):
     def test_adapter_downloads_direct_url_with_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, HTTPServerFixture() as url:
             output = Path(temp_dir) / "sample.bin"
-            adapter = HTTPDownloadAdapter(chunk_size=97)
+            adapter = HTTPDownloadAdapter(chunk_size=97, policy=PoliteDownloadPolicy(min_delay_per_host_seconds=0))
             queue = NonBlockingDownloadQueue(adapter, max_workers=1)
             try:
                 job = queue.submit({"provider_id": "sample_provider", "download_url": url, "target_path": str(output)})
@@ -87,7 +88,7 @@ class HTTPDownloadAdapterTests(unittest.TestCase):
             part = output.with_suffix(output.suffix + ".part")
             part.write_bytes(TEST_BYTES[:100])
 
-            adapter = HTTPDownloadAdapter(chunk_size=101)
+            adapter = HTTPDownloadAdapter(chunk_size=101, policy=PoliteDownloadPolicy(min_delay_per_host_seconds=0))
             queue = NonBlockingDownloadQueue(adapter, max_workers=1)
             try:
                 job = queue.submit({"provider_id": "sample_provider", "download_url": url, "target_path": str(output)})

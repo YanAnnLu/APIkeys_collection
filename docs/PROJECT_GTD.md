@@ -11,8 +11,8 @@ Last updated: 2026-05-17
 | Provider catalog | MVP | Built-in provider list, manual add/edit, categories, metadata fields, source discovery seeds, duplicate-aware provider model. | Improve provider-source separation so one dataset can have multiple resource sites. |
 | Provider/source discovery | MVP | Discovery seed config and CLI collect candidate metadata from source sites without scraping secrets. | Add UI search/import flow for discovered provider candidates. |
 | Steam-like UI | In progress | Responsive Tk UI, category sidebar, source table, right detail drawer, star/pin, double-click to add to plan, basic download job controls. | Add right-click context menu, simplify toolbar, and expose environment checks. |
-| Download plan/cart | MVP | Download Plan panel, add/remove/clear/export plan JSON, double-click source row to add, plan schema declares nonblocking download policy, Start/Pause/Resume/Cancel controls exist. | Improve direct-download eligibility and show clearer adapter requirements per source. |
-| Download engine | MVP | Nonblocking worker queue, progress snapshots, pause/resume/cancel, tests, pluggable transfer tools, HTTP(S) adapter with `.part` resume, UI job table, completion registry update. | Add provider-specific adapters and richer retry/restart behavior. |
+| Download plan/cart | MVP | Download Plan panel, add/remove/clear/export plan JSON, double-click source row to add, plan schema declares nonblocking download policy, Start/Pause/Resume/Cancel controls exist, source rows show Direct/Adapter/Docs eligibility. | Add provider-specific adapters for non-direct sources. |
+| Download engine | MVP | Nonblocking worker queue, progress snapshots, pause/resume/cancel, tests, pluggable transfer tools, HTTP(S) adapter with `.part` resume, polite per-host pacing, 429/503 cooldown, UI job table, completion registry update. | Add provider-specific adapters and expose rate-limit settings in UI. |
 | External transfer tools | MVP | `python_internal`, `aria2c`, and `curl` profiles exist; commands are built as cross-platform argument lists. | Add runtime selection UI and optional `aria2c` install guidance. |
 | Database client interface | MVP | Local integration config, active database client selection, UI settings dialog, open/test configured client. | Add custom profile creation/editing directly in UI instead of editing JSON. |
 | SQL/database self-check | Planned | Requirement defined: detect manually deleted, pre-existing, imported, or drifted databases. | Build MySQL/PostgreSQL/SQLite introspection layer. |
@@ -25,7 +25,7 @@ Last updated: 2026-05-17
 | Taichi renderer health | Planned | Renderer copied into project but not refactored or performance-tested in this cycle. | Add smoke tests/config checks without forcing heavy renderer dependencies into launcher. |
 | Cross-platform setup | MVP | Git/GitHub, Docker, PowerShell/bash runners, example/local config split, UTF-8/LF rules, startup environment checks. | Add CI workflow and macOS/Windows setup notes. |
 | Agent skill packaging | Skeleton | Local `.codex/skills/apikeys-collection-launcher` draft exists. | Turn launcher operations into a documented agent skill interface. |
-| Documentation | In progress | `docs/ARCHITECTURE.md`, `docs/TECH_STACK.md`, renderer notes, GTD tracker, handoff docs exist. | Update README sections as features move from skeleton to MVP. |
+| Documentation | In progress | `docs/ARCHITECTURE.md`, `docs/TECH_STACK.md`, `docs/TECHNICAL_OVERVIEW.zh-TW.md`, renderer notes, GTD tracker, handoff docs exist. | Keep Chinese and English docs aligned as features move from skeleton to MVP. |
 
 ## Status Legend
 

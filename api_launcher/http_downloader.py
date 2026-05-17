@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -9,12 +11,12 @@ from typing import Iterable
 
 from api_launcher.db import resolve_project_path
 from api_launcher.download_jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
+from api_launcher.download_policy import HostThrottle, PoliteDownloadPolicy
 from api_launcher.transfer_tools import transfer_url_from_plan_entry
 
 
 DEFAULT_DOWNLOAD_DIR = "downloads"
 DEFAULT_CHUNK_SIZE = 1024 * 256
-USER_AGENT = "APIkeys_collection/0.3 (+nonblocking-downloader)"
 
 
 @dataclass(frozen=True)
@@ -25,18 +27,48 @@ class DownloadTarget:
 
 
 class HTTPDownloadAdapter:
-    def __init__(self, chunk_size: int = DEFAULT_CHUNK_SIZE, timeout: float = 30.0):
+    def __init__(self, chunk_size: int = DEFAULT_CHUNK_SIZE, timeout: float = 30.0, policy: PoliteDownloadPolicy | None = None):
         if chunk_size < 1:
             raise ValueError("chunk_size must be at least 1.")
         self.chunk_size = chunk_size
         self.timeout = timeout
+        self.policy = policy or PoliteDownloadPolicy()
+        self.throttle = HostThrottle(self.policy)
 
     def run(self, job: DownloadJob, controller: DownloadJobController) -> Iterable[DownloadProgress]:
         target = download_target_from_plan_entry(job.plan_entry)
         target.output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        existing_bytes = target.part_path.stat().st_size if target.part_path.exists() else 0
-        request = build_download_request(target.url, resume_from=existing_bytes)
+        for attempt in range(1, self.policy.max_retries + 1):
+            controller.wait_if_paused()
+            existing_bytes = target.part_path.stat().st_size if target.part_path.exists() else 0
+            request = build_download_request(target.url, resume_from=existing_bytes, user_agent=self.policy.user_agent)
+            self.throttle.wait_for_url(target.url)
+            try:
+                yield from self._download_once(job, controller, target, request, existing_bytes)
+                return
+            except urllib.error.HTTPError as exc:
+                if attempt >= self.policy.max_retries or exc.code not in self.policy.cooldown_status_codes:
+                    raise
+                delay = self.policy.retry_delay(attempt, exc.headers.get("Retry-After") if exc.headers else None)
+                yield DownloadProgress(
+                    job_id=job.job_id,
+                    provider_id=job.provider_id,
+                    status=JobStatus.RUNNING,
+                    bytes_done=existing_bytes,
+                    bytes_total=None,
+                    message=f"HTTP {exc.code}; cooling down for {delay:.1f}s",
+                )
+                time.sleep(delay)
+
+    def _download_once(
+        self,
+        job: DownloadJob,
+        controller: DownloadJobController,
+        target: DownloadTarget,
+        request: urllib.request.Request,
+        existing_bytes: int,
+    ) -> Iterable[DownloadProgress]:
 
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             status_code = int(getattr(response, "status", 200))
@@ -85,8 +117,8 @@ class HTTPDownloadAdapter:
         )
 
 
-def build_download_request(url: str, resume_from: int = 0) -> urllib.request.Request:
-    headers = {"User-Agent": USER_AGENT}
+def build_download_request(url: str, resume_from: int = 0, user_agent: str | None = None) -> urllib.request.Request:
+    headers = {"User-Agent": user_agent or PoliteDownloadPolicy().user_agent}
     if resume_from > 0:
         headers["Range"] = f"bytes={resume_from}-"
     return urllib.request.Request(url, headers=headers)

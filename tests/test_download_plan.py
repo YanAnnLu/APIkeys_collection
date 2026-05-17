@@ -30,6 +30,7 @@ class DownloadPlanTests(unittest.TestCase):
         self.assertEqual("sample_provider", plan["providers"][0]["provider_id"])
         self.assertEqual("planned", plan["providers"][0]["plan_status"])
         self.assertEqual("local_dataset_or_database", plan["providers"][0]["target"])
+        self.assertEqual("metadata_only", plan["providers"][0]["download_eligibility"]["status"])
 
 
 if __name__ == "__main__":

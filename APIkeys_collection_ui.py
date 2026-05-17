@@ -99,6 +99,7 @@ class ProviderRow:
         self.install_id = entry.install_id
         self.install_fingerprint = entry.install_fingerprint
         self.is_starred = entry.is_starred
+        self.download_eligibility = core.assess_provider_download(self.as_provider())
 
     @property
     def category_label(self) -> str:
@@ -146,6 +147,28 @@ class ProviderRow:
         if self.remote_status == "unchecked":
             return "Check"
         return ""
+
+    @property
+    def download_label(self) -> str:
+        label = self.download_eligibility.label
+        if self.download_eligibility.requires_api_key:
+            return f"{label}+Key"
+        return label
+
+    def as_provider(self) -> core.Provider:
+        return core.Provider(
+            provider_id=self.provider_id,
+            name=self.name,
+            owner=self.owner,
+            categories=self.categories,
+            geographic_scope=self.geographic_scope,
+            docs_url=self.docs_url,
+            api_base_url=self.api_base_url,
+            signup_url=self.signup_url,
+            auth_type=self.auth_type,
+            key_env_var=self.key_env_var,
+            notes=self.notes,
+        )
 
 
 class ProviderEditorDialog:
@@ -872,7 +895,7 @@ class ApiCollectionUi:
                 "",
                 END,
                 iid=row.provider_id,
-                values=(row.name, row.auth_type, row.geographic_scope, "planned"),
+                values=(row.name, row.auth_type, row.geographic_scope, row.download_label),
             )
         self.plan_count_var.set(f"Download Plan：{len(rows)} 個資料源")
 
@@ -904,10 +927,11 @@ class ApiCollectionUi:
         for row in rows:
             if row.provider_id in self.download_jobs_by_provider:
                 continue
-            url = self.download_url_for_row(row)
-            if not url:
+            eligibility = row.download_eligibility
+            url = eligibility.direct_url
+            if eligibility.status != "direct_download" or not url:
                 skipped += 1
-                self.download_status_by_provider[row.provider_id] = ("skipped", "0%", "No direct API/download URL")
+                self.download_status_by_provider[row.provider_id] = ("skipped", "0%", eligibility.reason)
                 continue
             target_path = self.download_target_for_row(row, url)
             plan_entry = core.provider_plan_entry(self.provider_from_row(row))
@@ -922,7 +946,7 @@ class ApiCollectionUi:
         self.status_var.set(f"Download jobs started: {started}; skipped: {skipped}")
 
     def download_url_for_row(self, row: ProviderRow) -> str:
-        return row.api_base_url.strip()
+        return row.download_eligibility.direct_url
 
     def download_target_for_row(self, row: ProviderRow, url: str) -> Path:
         parsed = urllib.parse.urlparse(url)
@@ -1073,7 +1097,8 @@ class ApiCollectionUi:
         self.detail_status_var.set(
             f"Remote: {row.status_label} / {row.update_label}\n"
             f"Local: {row.local_label}\n"
-            f"Install ID: {row.install_id or 'not managed'}"
+            f"Install ID: {row.install_id or 'not managed'}\n"
+            f"Download: {row.download_eligibility.label} - {row.download_eligibility.reason}"
         )
         self.detail_scope_var.set(row.geographic_scope)
         links = [

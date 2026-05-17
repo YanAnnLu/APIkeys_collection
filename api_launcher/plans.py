@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from api_launcher.db import utc_now_iso
+from api_launcher.download_eligibility import assess_provider_download
 from api_launcher.models import Provider
 
 
@@ -34,6 +35,7 @@ def build_download_plan(
 
 
 def provider_plan_entry(provider: Provider) -> dict[str, object]:
+    eligibility = assess_provider_download(provider)
     return {
         "provider_id": provider.provider_id,
         "name": provider.name,
@@ -48,5 +50,6 @@ def provider_plan_entry(provider: Provider) -> dict[str, object]:
         "plan_status": "planned",
         "priority": "normal",
         "target": "local_dataset_or_database",
+        "download_eligibility": eligibility.to_dict(),
         "notes": provider.notes,
     }

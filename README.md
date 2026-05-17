@@ -20,6 +20,7 @@ reference file, templates, and exports.
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
+- `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
 - `docs/PROJECT_GTD.md`: current product status and next steps.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.

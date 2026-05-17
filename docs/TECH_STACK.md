@@ -125,6 +125,11 @@ nonblocking queue, display job progress, and pause/resume/cancel selected jobs.
 The UI intentionally starts only rows with an API/download URL; provider-specific
 adapters should later decide how catalog pages become real dataset files.
 
+Polite download behavior lives in `api_launcher/download_policy.py`. Adapters
+should respect per-host pacing, bounded retries, `Retry-After`, and cooldowns for
+rate-limit responses such as HTTP 429 and temporary overload responses such as
+HTTP 503. Do not increase concurrency globally without checking provider terms.
+
 ## Cross-platform Path and Encoding Rules
 
 - Source files are UTF-8 with LF endings. See `.editorconfig` and `.gitattributes`.
