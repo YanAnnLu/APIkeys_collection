@@ -12,11 +12,15 @@
 | FRED API (`fred`) | economics, finance, macro | api_key_required | [docs](https://fred.stlouisfed.org/docs/api/fred/) | [signup](https://fred.stlouisfed.org/docs/api/api_key.html) |
 | GEBCO (`gebco`) | bathymetry, ocean, terrain | no_key_for_download_pages | [docs](https://www.gebco.net/data_and_products/gridded_bathymetry_data/) |  |
 | GeoNames Web Services (`geonames`) | geocoding, geography, places | username_required | [docs](https://www.geonames.org/export/ws-overview.html) | [signup](https://www.geonames.org/login) |
+| Google Earth Engine Data Catalog (`google_earth_engine`) | earth_observation, satellite, geospatial, cloud_compute | google_cloud_project_oauth_required | [docs](https://developers.google.com/earth-engine/datasets/catalog/) | [signup](https://code.earthengine.google.com/register) |
+| HYG Database (`hyg_database`) | astronomy, stars, renderer_bridge | no_key_for_public_data | [docs](https://codeberg.org/astronexus/hyg) |  |
 | IMF Data API (`imf_data`) | economics, finance, macro | no_key_or_mixed | [docs](https://data.imf.org/en/Resource-Pages/IMF-API) |  |
 | NASA Earthdata (`nasa_earthdata`) | satellite, earth_observation, climate, ocean | account_token_or_login | [docs](https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api) | [signup](https://urs.earthdata.nasa.gov/) |
 | NASA Open APIs (`nasa_open_apis`) | space, satellite, astronomy, earth_observation | api_key_required | [docs](https://api.nasa.gov/) | [signup](https://api.nasa.gov/) |
 | Natural Earth (`natural_earth`) | gis, basemap, vector | no_key | [docs](https://www.naturalearthdata.com/downloads/) |  |
+| NOAA CoastWatch ERDDAP (`noaa_coastwatch_erddap`) | ocean, satellite, erddap, environment | no_key_for_public_data | [docs](https://coastwatch.pfeg.noaa.gov/erddap/rest.html) |  |
 | NOAA CO-OPS Tides and Currents (`noaa_coops`) | ocean, tides, water_level, currents | no_key | [docs](https://api.tidesandcurrents.noaa.gov/api/prod/) |  |
+| NOAA MarineCadastre AIS Vessel Traffic (`noaa_marinecadastre_ais`) | ais, maritime, vessel_traffic, gis, timeseries | no_key_for_public_data | [docs](https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html) |  |
 | NOAA NCEI Access Data Service (`noaa_ncei_access_data`) | weather, climate, ocean, archive | no_key | [docs](https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation) |  |
 | NOAA NCEI Climate Data Online (`noaa_ncei_cdo`) | weather, climate, stations | api_token_required | [docs](https://www.ncei.noaa.gov/cdo-web/webservices/v2) | [signup](https://www.ncei.noaa.gov/cdo-web/token) |
 | OECD Data API (`oecd_sdmx`) | economics, statistics, development | no_key | [docs](https://data-explorer.oecd.org/) |  |

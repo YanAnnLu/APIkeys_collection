@@ -211,7 +211,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-7. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
+7. Expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, ERDDAP, MarineCadastre AIS, GOES-R/cloud imagery, and Earth Engine candidates before writing provider-specific adapters.
 8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
 9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

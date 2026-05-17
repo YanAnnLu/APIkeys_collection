@@ -42,6 +42,11 @@ from api_launcher.cli_discovery import (
     discover_source_candidates,
     discovery_command_active,
 )
+from api_launcher.cli_dataset_discovery import (
+    add_dataset_discovery_args,
+    dataset_discovery_command_active,
+    discover_dataset_candidates_cli,
+)
 from api_launcher.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_self_check import (
@@ -390,7 +395,7 @@ def export_csv(conn: sqlite3.Connection, path: Path) -> None:
         "notes",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             copy = dict(row)
@@ -612,6 +617,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--write-credentials-template", action="store_true", help="write a private credentials template")
     parser.add_argument("--discover-datasets", action="store_true", help="placeholder for future provider-specific dataset adapters")
     add_discovery_args(parser)
+    add_dataset_discovery_args(parser)
     parser.add_argument("--summary", action="store_true", help="print database summary")
     return parser.parse_args(argv)
 
@@ -654,6 +660,7 @@ class CatalogLauncherCli:
             self.export_catalogs()
             add_local_discovery_seed(self.args)
             discover_source_candidates(self.conn, self.args)
+            discover_dataset_candidates_cli(self.conn, self.args)
             self.write_samples()
             self.handle_dataset_discovery()
             self.export_dataset_plan()
@@ -712,6 +719,7 @@ class CatalogLauncherCli:
             self.args.write_credentials_template,
             self.args.discover_datasets,
             discovery_command_active(self.args),
+            dataset_discovery_command_active(self.args),
             self.args.summary,
         )
         if any(command_flags):

@@ -183,6 +183,7 @@ def extension_for_native_format(native_format: str) -> str:
     known = {
         "csv": ".csv",
         "csv.gz": ".csv.gz",
+        "csv.zst": ".csv.zst",
         "geojson": ".geojson",
         "json": ".json",
         "netcdf": ".nc",
@@ -190,6 +191,7 @@ def extension_for_native_format(native_format: str) -> str:
         "sqlite3": ".sqlite",
         "parquet": ".parquet",
         "zarr": ".zarr",
+        "zst": ".zst",
     }
     if normalized in known:
         return known[normalized]

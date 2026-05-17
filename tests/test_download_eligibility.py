@@ -59,6 +59,7 @@ class DownloadEligibilityTests(unittest.TestCase):
 
     def test_direct_download_suffix_detection(self) -> None:
         self.assertTrue(looks_like_direct_download("https://example.test/archive.tar.gz"))
+        self.assertTrue(looks_like_direct_download("https://example.test/ais-2025-01-01.csv.zst"))
         self.assertTrue(looks_like_direct_download("https://example.test/data.geojson"))
         self.assertFalse(looks_like_direct_download("https://example.test/api/datasets"))
 

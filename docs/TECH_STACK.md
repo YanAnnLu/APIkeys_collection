@@ -70,15 +70,32 @@ The renderer may read the contract constants, but the launcher should register b
 Provider/source discovery currently uses only the Python standard library:
 
 - `catalog/provider_discovery_seeds.json`: built-in official source-site seeds.
+- `catalog/dataset_discovery_sources.json`: configurable dataset-catalog crawlers for provider-backed sources.
 - `provider_discovery_seeds.local.json`: ignored local seeds for regional platforms and user projects.
 - `api_launcher/discovery.py`: polite metadata crawler for docs/API/signup/auth hints.
+- `api_launcher/dataset_discovery.py`: metadata-only dataset candidate discovery from searchable APIs, ERDDAP JSON tables, and HTML file indexes.
 
 Discovery searches metadata and documentation only. It must not collect real API keys, tokens, passwords, cookies, or
 other secret values.
 
 The built-in seed list is intentionally broad but shallow. It is a discovery starting point, not a hard-coded final
-catalog. As of 2026-05-17 it contains 30 official source-site seeds across weather, climate, ocean, biodiversity,
-geospatial, statistics, research metadata, and Taiwan regional open data.
+catalog. As of 2026-05-18 it contains 33 official source-site seeds across weather, climate, ocean, biodiversity,
+geospatial, statistics, research metadata, Taiwan regional open data, Google Earth Engine, NOAA AIS, and GOES-R cloud imagery.
+
+Dataset discovery is the next layer below provider discovery. The CLI can write reviewable dataset candidates without
+bulk downloading:
+
+```bash
+python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates \
+  --dataset-discovery-source marinecadastre_ais_daily_index_2025 \
+  --dataset-discovery-limit 2 \
+  --write-dataset-candidates dataset_candidates.smoke.json \
+  --upsert-dataset-candidates
+```
+
+AIS and satellite cloud imagery should be treated as representative crawler targets. Avoid turning each one into a
+hardcoded Python adapter until the crawler has produced a candidate and the remaining work is provider-specific query,
+auth, transform, or import logic.
 
 Dataset-specific discovery is separate from source-site discovery:
 

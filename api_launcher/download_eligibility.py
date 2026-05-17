@@ -29,6 +29,7 @@ DIRECT_DOWNLOAD_EXTENSIONS = {
     ".txt",
     ".xz",
     ".zip",
+    ".zst",
 }
 
 

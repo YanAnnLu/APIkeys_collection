@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "noaa_ncei_dataset_search",
+      "provider_id": "noaa_ncei_access_data",
+      "name": "NOAA NCEI Common Access Search Service",
+      "source_type": "ncei_search",
+      "endpoint_url": "https://www.ncei.noaa.gov/access/services/search/v1/datasets",
+      "docs_url": "https://www.ncei.noaa.gov/support/access-search-service-api-user-documentation",
+      "search_terms": [
+        "automatic identification system",
+        "cloud moisture imagery",
+        "sea surface temperature"
+      ],
+      "categories": [
+        "noaa",
+        "catalog",
+        "metadata"
+      ],
+      "geographic_scope": "global/us",
+      "max_results": 5,
+      "notes": "Official NOAA/NCEI dataset-search API. Use this to discover reviewable datasets before writing provider-specific adapters."
+    },
+    {
+      "source_id": "noaa_coastwatch_erddap_all_datasets",
+      "provider_id": "noaa_coastwatch_erddap",
+      "name": "NOAA CoastWatch ERDDAP allDatasets",
+      "source_type": "erddap_all_datasets",
+      "endpoint_url": "https://coastwatch.pfeg.noaa.gov/erddap/tabledap/allDatasets.json?datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl",
+      "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/rest.html",
+      "search_terms": [
+        "sea surface temperature",
+        "cloud",
+        "wind",
+        "chlorophyll"
+      ],
+      "categories": [
+        "noaa",
+        "erddap",
+        "ocean",
+        "satellite"
+      ],
+      "geographic_scope": "global/ocean",
+      "max_results": 10,
+      "notes": "ERDDAP publishes a machine-readable allDatasets table. Dataset candidates should be reviewed and turned into bounded griddap/tabledap requests before bulk download."
+    },
+    {
+      "source_id": "marinecadastre_ais_daily_index_2025",
+      "provider_id": "noaa_marinecadastre_ais",
+      "name": "NOAA MarineCadastre AIS daily CSV.ZST index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2025/index.html",
+      "docs_url": "https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html",
+      "dataset_id": "marinecadastre_ais_daily_shards",
+      "dataset_title": "NOAA MarineCadastre AIS daily vessel-traffic shards",
+      "data_type": "spatiotemporal_trajectory",
+      "native_format": "csv.zst",
+      "file_url_regex": "ais-(?P<version>\\d{4}-\\d{2}-\\d{2})\\.csv\\.zst$",
+      "categories": [
+        "ais",
+        "maritime",
+        "vessel_traffic",
+        "gis",
+        "timeseries"
+      ],
+      "geographic_scope": "us/offshore",
+      "max_results": 5,
+      "notes": "Representative group dataset. This source is intentionally config-driven: the crawler finds file shards from the index instead of a Python adapter hardcoding one AIS URL."
+    }
+  ]
+}

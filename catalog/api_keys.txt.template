@@ -50,6 +50,12 @@ GEONAMES_USERNAME = your_geonames_username
   docs: https://www.geonames.org/export/ws-overview.html
   signup: https://www.geonames.org/login
 
+GOOGLE_EARTH_ENGINE_TOKEN = your_google_earth_engine_token
+  provider: Google Earth Engine Data Catalog (google_earth_engine)
+  auth: google_cloud_project_oauth_required
+  docs: https://developers.google.com/earth-engine/datasets/catalog/
+  signup: https://code.earthengine.google.com/register
+
 NASA_API_KEY = your_nasa_api_key
   provider: NASA Open APIs (nasa_open_apis)
   auth: api_key_required
@@ -117,6 +123,8 @@ gebco | no_key_for_download_pages | https://www.gebco.net/data_and_products/grid
 imf_data | no_key_or_mixed | https://data.imf.org/en/Resource-Pages/IMF-API
 natural_earth | no_key | https://www.naturalearthdata.com/downloads/
 noaa_coops | no_key | https://api.tidesandcurrents.noaa.gov/api/prod/
+noaa_coastwatch_erddap | no_key_for_public_data | https://coastwatch.pfeg.noaa.gov/erddap/rest.html
+noaa_marinecadastre_ais | no_key_for_public_data | https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html
 noaa_ncei_access_data | no_key | https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation
 oecd_sdmx | no_key | https://data-explorer.oecd.org/
 open_meteo | no_key_for_public_tier | https://open-meteo.com/en/docs

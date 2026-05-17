@@ -211,6 +211,26 @@
     "notes": ""
   },
   {
+    "provider_id": "google_earth_engine",
+    "name": "Google Earth Engine Data Catalog",
+    "owner": "Google",
+    "categories": [
+      "earth_observation",
+      "satellite",
+      "geospatial",
+      "cloud_compute"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://developers.google.com/earth-engine/datasets/catalog/",
+    "api_base_url": "https://earthengine.googleapis.com/",
+    "signup_url": "https://code.earthengine.google.com/register",
+    "auth_type": "google_cloud_project_oauth_required",
+    "key_env_var": "GOOGLE_EARTH_ENGINE_TOKEN",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Cloud geospatial analysis platform and public Earth science data catalog. Treat as a platform connector; future adapter needs Google OAuth, project registration, quota handling, and export-to-file workflow."
+  },
+  {
     "provider_id": "imf_data",
     "name": "IMF Data API",
     "owner": "International Monetary Fund",
@@ -287,6 +307,47 @@
     "license_url": "",
     "terms_url": "",
     "notes": ""
+  },
+  {
+    "provider_id": "noaa_coastwatch_erddap",
+    "name": "NOAA CoastWatch ERDDAP",
+    "owner": "NOAA CoastWatch / NOAA NMFS SWFSC Environmental Research Division",
+    "categories": [
+      "ocean",
+      "satellite",
+      "erddap",
+      "environment"
+    ],
+    "geographic_scope": "global/us",
+    "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/rest.html",
+    "api_base_url": "https://coastwatch.pfeg.noaa.gov/erddap/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Official ERDDAP endpoint; adapter should generate bounded griddap/tabledap requests instead of bulk satellite-grid downloads."
+  },
+  {
+    "provider_id": "noaa_marinecadastre_ais",
+    "name": "NOAA MarineCadastre AIS Vessel Traffic",
+    "owner": "BOEM / NOAA Office for Coastal Management / U.S. Coast Guard",
+    "categories": [
+      "ais",
+      "maritime",
+      "vessel_traffic",
+      "gis",
+      "timeseries"
+    ],
+    "geographic_scope": "us/offshore",
+    "docs_url": "https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html",
+    "api_base_url": "https://noaaocm.blob.core.windows.net/ais/csv2/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Representative group dataset for AIS vessel movement. Raw daily CSV.ZST shards are large and should be treated as spatiotemporal trajectory data, not ordinary small SQLite tables."
   },
   {
     "provider_id": "noaa_coops",

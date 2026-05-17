@@ -14,7 +14,8 @@
 | 半結構化文件/API | JSON API、metadata records、巢狀文件 | JSONL、document DB、物件儲存 | provider、endpoint、schema fingerprint、更新批次 | API adapter、document query |
 | 時間序列/金融資料 | K 線、tick、IoT、氣象站、成交量 | TimescaleDB、ClickHouse、Parquet/DuckDB、object storage | symbol、時間窗、ingest run、revision、retention | TradingView-like chart、回測、指標計算 |
 | GIS/空間資料 | 領海、EEZ、公海、行政邊界、道路 | GeoPackage、Shapefile、GeoJSON、PostGIS | 圖層 catalog、版本、來源、授權、空間索引 metadata | PostGIS、QGIS、Cesium、Unreal globe layer |
-| 網格/陣列/遙測資料 | NetCDF 氣候格點、海溫、衛星 raster | NetCDF、Zarr、HDF5、COG、object storage | dataset ID、維度、時間範圍、tile/index manifest | xarray、Dask、Taichi/Unreal tile renderer |
+| AIS/軌跡資料 | 船舶 AIS、飛航 ADS-B、移動裝置軌跡 | CSV/Parquet、object storage、PostGIS/TimescaleDB/ClickHouse | vessel/entity ID、event time、軌跡 shard、空間索引、清洗規則 | 地圖軌跡、熱區、時間軸、航線分析 |
+| 網格/陣列/遙測資料 | NetCDF 氣候格點、海溫、衛星 raster、衛星雲圖 | NetCDF、Zarr、HDF5、COG、object storage | dataset ID、維度、時間範圍、tile/index manifest | xarray、Dask、Taichi/Unreal tile renderer、地球雲層動畫 |
 | 大型科學事件資料 | 粒子對撞機 event、探測器讀數、天文巡天 | ROOT、HDF5、Parquet、FITS、object storage | run ID、檔案索引、校準版本、provenance | ROOT/uproot、Spark/Dask、ClickHouse |
 | 文化資產/多媒體/3D | 歷史建築、文物照片、影片、3D 掃描 | 圖片/影片檔、GLTF/GLB、OBJ、USD、IFC、LAS/LAZ | 資產目錄、地點、年代、授權、LOD、依賴檔 | Three.js、Cesium、Unreal、Blender |
 | 文字/文件/RAG | 論文、法規、報告、網頁、OCR | PDF/HTML/TXT/Markdown、object storage | 文件 metadata、授權、切片索引、來源鏈 | 全文搜尋、向量 DB、RAG |
@@ -33,6 +34,11 @@
 4. 等資料真的被下載並驗證後，再決定是否產出 curated table、tile manifest、chart query window、renderer asset 或 RAG index。
 
 白話說：先把「這是什麼資料、來自哪裡、下載了沒有、能不能驗證、該用什麼工具看」管理好，再談大型資料庫與高級渲染。
+
+## 代表挑戰資料
+
+- AIS 船舶資料：它看起來是 CSV 表格，但本質上是「時間 + 空間 + 船舶 ID」的軌跡資料。SQL 可以先管 metadata 與小樣本；大量資料應考慮日期 partition、PostGIS、TimescaleDB、ClickHouse、Parquet/DuckDB 或 Hadoop/Spark。
+- 衛星雲圖：它不是文字或一般表格，而是 raster/grid/time animation。MVP 先記錄來源、時間、波段、projection、檔案 shard 與 manifest；渲染目標可以是地球貼圖、雲層透明疊加、時間滑桿動畫，後續才接 Taichi/Unreal/Cesium。
 
 ## 給未來 adapter 的欄位建議
 

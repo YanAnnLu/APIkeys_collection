@@ -74,6 +74,18 @@
       "expected_auth_type": "no_key_for_public_data"
     },
     {
+      "provider_id": "google_earth_engine",
+      "name": "Google Earth Engine Data Catalog",
+      "owner": "Google",
+      "categories": ["earth_observation", "satellite", "geospatial", "cloud_compute"],
+      "geographic_scope": "global",
+      "homepage_url": "https://earthengine.google.com/",
+      "docs_url": "https://developers.google.com/earth-engine/datasets/catalog/",
+      "api_base_url": "https://earthengine.googleapis.com/",
+      "signup_url": "https://code.earthengine.google.com/register",
+      "expected_auth_type": "google_cloud_project_oauth_required"
+    },
+    {
       "provider_id": "opentopography",
       "name": "OpenTopography API",
       "owner": "OpenTopography",
@@ -322,6 +334,30 @@
       "homepage_url": "https://coastwatch.pfeg.noaa.gov/erddap/index.html",
       "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/rest.html",
       "api_base_url": "https://coastwatch.pfeg.noaa.gov/erddap/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "noaa_marinecadastre_ais",
+      "name": "NOAA MarineCadastre AIS Vessel Traffic",
+      "owner": "BOEM / NOAA Office for Coastal Management / U.S. Coast Guard",
+      "categories": ["ais", "maritime", "vessel_traffic", "gis", "timeseries"],
+      "geographic_scope": "us/offshore",
+      "homepage_url": "https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html",
+      "docs_url": "https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html",
+      "api_base_url": "https://noaaocm.blob.core.windows.net/ais/csv2/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "noaa_goes_r_cloud_moisture",
+      "name": "NOAA GOES-R Cloud and Moisture Imagery",
+      "owner": "NOAA / NASA GOES-R Series Program",
+      "categories": ["satellite", "cloud_imagery", "weather", "raster", "renderer_challenge"],
+      "geographic_scope": "americas/ocean",
+      "homepage_url": "https://goes-r.noaa.gov/products/baseline-cloud-moisture-imagery.html",
+      "docs_url": "https://goes-r.noaa.gov/products/baseline-cloud-moisture-imagery.html",
+      "api_base_url": "https://www.ncei.noaa.gov/products/satellite/goes-r-series",
       "signup_url": "",
       "expected_auth_type": "no_key_for_public_data"
     },

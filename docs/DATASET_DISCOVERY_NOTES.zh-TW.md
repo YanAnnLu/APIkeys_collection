@@ -1,6 +1,6 @@
 # Dataset Discovery 補充說明
 
-更新日期：2026-05-17
+更新日期：2026-05-18
 
 ## 定位
 
@@ -8,9 +8,21 @@
 
 供應商或資源站點比較像 Steam 上的發行商或資源站，資料集才是實際要下載、安裝、清洗、接到 SQL 或渲染器的內容。
 
+因此不要把每一個資料集都寫成一段 Python 硬編碼。比較健康的模型是：
+
+```text
+provider / source platform
+-> searchable catalog / index / API / HTML listing
+-> dataset candidates
+-> reviewed dataset versions / file shards / query templates
+-> download plan / import plan / renderer bridge
+```
+
+白話說：Alpha Vantage、NOAA、Google Earth Engine、MarineCadastre、ERDDAP 這些首先是供應商或資料平台；背後可能有很多資料集。第 1 階段應該優先把「發現資料集」的 crawler 做好，再挑代表資料集進入下載閉環。
+
 ## Discovery seeds
 
-內建 discovery seeds 已從 8 個擴充到 30 個。範圍包含：
+內建 provider/source discovery seeds 已從 8 個擴充到 33 個。範圍包含：
 
 - 氣候與天氣
 - 海洋與水文
@@ -19,20 +31,47 @@
 - 統計與經濟
 - 研究 metadata
 - 台灣區域開放資料
+- Google Earth Engine
+- NOAA AIS / MarineCadastre
+- NOAA GOES-R cloud/moisture imagery
 
 這些 seed 只是搜尋與匯入候選來源的起點，不是最終 catalog。未來使用者可以透過 local seed 檔或 UI 手動新增區域平台、研究機構、政府資料站或團隊內部資料站。
+
+## Dataset discovery sources
+
+`catalog/dataset_discovery_sources.json` 是下一層：它不是新增供應商，而是描述「去哪個供應商的哪個目錄找資料集」。
+
+目前支援的通用 crawler 類型：
+
+- `ncei_search`：查 NOAA/NCEI Common Access Search Service，適合從關鍵字找到 NOAA 資料集候選。
+- `erddap_all_datasets`：讀 ERDDAP `allDatasets` JSON table，適合從 ERDDAP 站點列出可用 dataset。
+- `html_file_index`：讀簡單 HTML 檔案索引，用 regex 找出版本/檔案 shard，例如 MarineCadastre AIS daily CSV.ZST。
+
+AIS 與衛星雲圖請當作 crawler 的代表測試案例，不要當成特例硬寫：
+
+- AIS：應從 MarineCadastre/NOAA index 發現 daily shards，metadata 標成 `spatiotemporal_trajectory`。
+- 衛星雲圖：應從 NOAA/NCEI/GOES-R 或 Earth Engine 類 catalog 發現，metadata 標成 `raster_or_grid`，後續才進入 renderer/tile/time-animation 設計。
+
+CLI smoke：
+
+```bash
+python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --dataset-discovery-source marinecadastre_ais_daily_index_2025 --dataset-discovery-limit 2 --write-dataset-candidates dataset_candidates.smoke.json --upsert-dataset-candidates --summary
+```
+
+這只會產生候選 metadata，不會下載 AIS 大檔。
 
 ## Dataset adapters
 
 Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
+- `api_launcher/dataset_discovery.py`：負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index 抓取可審核的 dataset candidate。
 - `api_launcher/dataset_adapters.py`：集中註冊 provider-specific dataset adapter。
 - `api_launcher/adapters/gebco.py`：把 GEBCO 對應成 GEBCO 2025 全球高程網格 dataset。
 - `api_launcher/adapters/hyg.py`：第一個具體 adapter，會把 HYG Database 對應成 HYG v3.8 星表 dataset。
 - `api_launcher/renderer_contracts.py`：保存渲染器共用 dataset ID，避免 launcher 與 `taichi_global_bathymetry.py` 各自硬編碼名稱。
 
-HYG adapter 測試指令：
+Adapter 仍然重要，但它應該處理「crawler 找到候選後，如何產生安全的 bounded query、驗證、匯入、轉換」，不是拿來取代 catalog crawler。HYG/GEBCO adapter 測試指令：
 
 ```powershell
 py APIkeys_collection.py --init-db --seed --discover-datasets --provider hyg_database --db state\hyg_adapter_smoke.sqlite --summary
