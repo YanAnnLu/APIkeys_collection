@@ -24,12 +24,12 @@ from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingD
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
-from api_launcher.repair import repair_summary, scan_download_manifests
+from api_launcher.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import build_google_device_login_request
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, DEFAULT_CAPABILITY_ROUTES
-from api_launcher.data_store_connections import DEFAULT_DATA_STORE_PROFILES
+from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -1462,10 +1462,13 @@ class ApiCollectionUi:
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
-        for profile in DEFAULT_DATA_STORE_PROFILES:
+        profiles = data_store_profiles_from_config(core.load_integration_config())
+        profiles_by_id = {profile.profile_id: profile for profile in profiles}
+        for profile in profiles:
             table.insert(
                 "",
                 END,
+                iid=profile.profile_id,
                 values=(
                     profile.label,
                     profile.store_kind,
@@ -1478,6 +1481,20 @@ class ApiCollectionUi:
         table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
+
+        def test_selected_profile() -> None:
+            selection = table.selection()
+            if not selection:
+                messagebox.showinfo("Data store connections", "Select a data-store profile first.")
+                return
+            profile_id = str(selection[0])
+            profile = profiles_by_id[profile_id]
+            result = test_data_store_connection(profile)
+            table.set(profile_id, "status", result.status)
+            self.status_var.set(f"Data store test: {profile_id} {result.status}")
+            messagebox.showinfo("Data store connection test", f"{profile.label}\n\n{result.status}: {result.message}")
+
+        ttk.Button(actions, text="Test selected", style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Open local integration config", style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
@@ -1939,7 +1956,7 @@ class ApiCollectionUi:
         body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         table = ttk.Treeview(
             body,
-            columns=("status", "provider", "dataset", "version", "message", "payload"),
+            columns=("status", "provider", "dataset", "version", "suggestion", "message", "payload"),
             show="headings",
             height=13,
         )
@@ -1948,8 +1965,9 @@ class ApiCollectionUi:
             ("provider", "Provider", 140),
             ("dataset", "Dataset", 150),
             ("version", "Version", 100),
-            ("message", "Message", 260),
-            ("payload", "Payload", 320),
+            ("suggestion", "Suggestion", 170),
+            ("message", "Message", 240),
+            ("payload", "Payload", 300),
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
@@ -1960,6 +1978,7 @@ class ApiCollectionUi:
         for index, result in enumerate(results):
             iid = str(index)
             result_by_iid[iid] = result
+            suggestion = repair_suggestion_for_result(result)
             table.insert(
                 "",
                 END,
@@ -1969,6 +1988,7 @@ class ApiCollectionUi:
                     result.provider_id or "-",
                     result.dataset_uid or result.dataset_id or "-",
                     result.version or "-",
+                    suggestion.label,
                     result.message,
                     str(result.payload_path) if result.payload_path else "-",
                 ),
@@ -1982,6 +2002,7 @@ class ApiCollectionUi:
             if selected is None:
                 detail.insert(END, "No manifest selected." if results else "No download manifests found.")
             else:
+                suggestion = repair_suggestion_for_result(selected)
                 detail.insert(
                     END,
                     "\n".join(
@@ -1991,7 +2012,11 @@ class ApiCollectionUi:
                             f"dataset_uid: {selected.dataset_uid or '-'}",
                             f"dataset_id: {selected.dataset_id or '-'}",
                             f"version: {selected.version or '-'}",
+                            f"source_url: {selected.source_url or '-'}",
                             f"message: {selected.message}",
+                            f"suggestion: {suggestion.label}",
+                            f"suggestion_action: {suggestion.action_id}",
+                            f"suggestion_detail: {suggestion.description}",
                             f"manifest_path: {selected.manifest_path}",
                             f"payload_path: {selected.payload_path}",
                         ]
@@ -2006,7 +2031,35 @@ class ApiCollectionUi:
 
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
+
+        def requeue_selected_result() -> None:
+            selection = table.selection()
+            selected = result_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo("Repair", "Select a manifest row first.")
+                return
+            suggestion = repair_suggestion_for_result(selected)
+            if not suggestion.can_requeue:
+                messagebox.showinfo("Repair", suggestion.description)
+                return
+            plan_entry = dict(suggestion.plan_entry)
+            provider_id = str(plan_entry.get("provider_id") or "")
+            if not self.prepare_provider_for_download(provider_id):
+                self.status_var.set(f"Repair download is already active for {provider_id}.")
+                return
+            try:
+                job = self.download_queue.submit(plan_entry)
+            except Exception as exc:
+                messagebox.showerror("Repair", f"Could not requeue repair download: {type(exc).__name__}: {exc}")
+                return
+            self.download_jobs_by_provider[provider_id] = job.job_id
+            self.download_providers_by_job[job.job_id] = provider_id
+            self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
+            self.update_download_jobs_panel()
+            self.status_var.set(f"Repair download queued: {provider_id}")
+
         ttk.Button(actions, text="Refresh", style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text="Requeue selected", style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Open downloads folder", style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text="Close", style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
         self.status_var.set(f"File health: {summary}")

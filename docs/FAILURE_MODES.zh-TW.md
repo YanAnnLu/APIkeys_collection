@@ -27,6 +27,7 @@
 | API rate limit | 429/503 或封鎖 | polite policy/cooldown | provider-specific quota profile |
 | 使用者改本機路徑 | 找不到工具或資料 | path resolver + startup checks | UI path repair wizard |
 | 文字編碼問題 | 中文或 metadata 亂碼 | UTF-8/LF 規則 | 自動檢查 doc/config encoding |
+| Agent 誤覆未提交檔案 | 上一位 Agent 或使用者成果遺失 | 2026-05-17 已恢復到 Git 快照；殘留 bytecode 曾另存到 `state/recovery/` | 接力前強制備份/patch 未提交 diff；遇到非預期大檔先詢問，不直接 restore/delete |
 
 ## Agent 開發時要看哪裡
 
@@ -34,8 +35,9 @@
 2. 執行 `py APIkeys_collection.py --show-logs 20` 或直接讀 `state/logs/launcher_events.jsonl` 最近事件。
 3. 若有錯誤，讀 `state/logs/launcher_errors.log`。
 4. 修改前確認 `git status --short --branch`。
-5. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health --list-manifests` 看 SQLite 中的健康統計與明細。
-6. 修改後跑測試與 Docker。
+5. 若有未提交 diff，先用 `git diff > state/recovery/<timestamp>.patch` 或複製檔案到 ignored recovery 位置；不要把「看起來不符合文件」當成可丟棄內容。
+6. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health --list-manifests` 看 SQLite 中的健康統計與明細。
+7. 修改後跑測試與 Docker。
 
 ## 之後應該實作的恢復機制
 

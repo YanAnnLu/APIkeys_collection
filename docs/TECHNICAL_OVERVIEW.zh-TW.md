@@ -237,6 +237,23 @@ SQL 不再有獨立的連線 profile 模組；MySQL、PostgreSQL、SQLite 會被
 
 目前密碼與 token 不會寫進 config；建議放在環境變數或未來的 credential vault。這是為了支援使用者混合使用關聯式與非關聯式資料庫的情況。
 
+Data store connection testing 已有第一版骨架：
+
+```bash
+python APIkeys_collection.py --test-data-store sqlite_local
+python APIkeys_collection.py --test-data-store all
+```
+
+SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不會為了測試而建立缺失的資料庫檔。MySQL/PostgreSQL 會先檢查必要環境變數與 optional Python driver；未安裝 driver 時只回報 `dependency_missing`，不會嘗試連線或要求把套件裝進 base/system 環境。
+
+如果資料庫資產已經被 install registry 納管，可以跑：
+
+```bash
+python APIkeys_collection.py --self-check-databases
+```
+
+目前這會用 registry asset verifier 檢查 managed database assets。SQLite asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，並把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status。MySQL/PostgreSQL 仍需要對應 env vars 與 optional driver，下一步才會擴充到 table/schema fingerprint 與 drift summary。
+
 ## Gemini / Google 登入
 
 目前 AI 摘要支援兩條路：

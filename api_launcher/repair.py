@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import urllib.parse
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from api_launcher.manifests import AssetManifest, read_manifest, sha256_file
@@ -16,11 +17,21 @@ class ManifestVerification:
     dataset_uid: str = ""
     dataset_id: str = ""
     version: str = ""
+    source_url: str = ""
     message: str = ""
 
     @property
     def needs_repair(self) -> bool:
         return self.status in {"missing", "size_mismatch", "checksum_mismatch", "manifest_error"}
+
+
+@dataclass(frozen=True)
+class RepairSuggestion:
+    action_id: str
+    label: str
+    description: str
+    can_requeue: bool = False
+    plan_entry: dict[str, object] = field(default_factory=dict)
 
 
 def verify_manifest_file(path: str | Path) -> ManifestVerification:
@@ -60,6 +71,65 @@ def repair_summary(results: list[ManifestVerification]) -> dict[str, int]:
     return summary
 
 
+def repair_suggestion_for_result(result: ManifestVerification) -> RepairSuggestion:
+    if result.status == "ok":
+        return RepairSuggestion("none", "No action needed", "Payload matches its sidecar manifest.")
+    if result.status == "manifest_error":
+        return RepairSuggestion(
+            "inspect_manifest",
+            "Inspect manifest",
+            "The manifest could not be parsed, so the launcher cannot safely infer a source URL or target path.",
+        )
+    if not result.needs_repair:
+        return RepairSuggestion("inspect", "Inspect status", "No automatic repair rule is available for this status.")
+    if not result.source_url:
+        return RepairSuggestion(
+            "manual_recover",
+            "Manual recovery needed",
+            "The manifest does not record a source URL, so the launcher cannot safely requeue this download.",
+        )
+    if not _is_requeue_source_url(result.source_url):
+        return RepairSuggestion(
+            "manual_recover",
+            "Manual recovery needed",
+            f"The recorded source URL is not an HTTP(S) download URL: {result.source_url}",
+        )
+    if not result.provider_id:
+        return RepairSuggestion(
+            "manual_recover",
+            "Manual recovery needed",
+            "The manifest does not record a provider_id, so the download queue cannot safely own the job.",
+        )
+
+    plan_entry: dict[str, object] = {
+        "provider_id": result.provider_id,
+        "dataset_uid": result.dataset_uid,
+        "dataset_id": result.dataset_id,
+        "version": result.version,
+        "download_url": result.source_url,
+        "target_path": str(result.payload_path),
+        "use_staging": True,
+        "repair_status": result.status,
+        "repair_manifest_path": str(result.manifest_path),
+    }
+    if result.dataset_uid or result.dataset_id or result.version:
+        plan_entry["dataset_version"] = {
+            "dataset_uid": result.dataset_uid,
+            "dataset_id": result.dataset_id,
+            "version": result.version,
+            "download_url": result.source_url,
+            "metadata": {"repair_status": result.status},
+        }
+
+    return RepairSuggestion(
+        "requeue_download",
+        "Requeue download",
+        "Safely re-download through staging, then atomically promote the payload after the transfer completes.",
+        can_requeue=True,
+        plan_entry=plan_entry,
+    )
+
+
 def _result(
     manifest: AssetManifest,
     manifest_path: Path,
@@ -75,5 +145,11 @@ def _result(
         dataset_uid=manifest.dataset_uid,
         dataset_id=manifest.dataset_id,
         version=manifest.version,
+        source_url=manifest.source_url,
         message=message,
     )
+
+
+def _is_requeue_source_url(url: str) -> bool:
+    parsed = urllib.parse.urlparse(url)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)

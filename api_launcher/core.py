@@ -42,6 +42,8 @@ from api_launcher.cli_discovery import (
     discover_source_candidates,
     discovery_command_active,
 )
+from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
+from api_launcher.database_self_check import DatabaseAssetVerifier
 from api_launcher.dataset_adapters import adapters_for_provider
 from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
 from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
@@ -62,12 +64,13 @@ from api_launcher.integrations import (
     download_policy_from_config,
     ensure_local_integration_config,
     generate_provider_summary,
+    load_integration_config,
     local_integrations_path,
     open_database_client,
     set_active_ai_profile,
     set_active_database_client,
 )
-from api_launcher.library_actions import LibraryContext, build_library_actions
+from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
 from api_launcher.paths import catalog_file
@@ -551,6 +554,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-render-effects", action="store_true", help="print data-driven render effect layer contracts")
     parser.add_argument("--list-simulation-contracts", action="store_true", help="print simulation bridge input/backend contracts")
     parser.add_argument("--show-library-actions", help="print Steam-like library actions for a provider/context")
+    parser.add_argument("--library-actions-json", action="store_true", help="emit --show-library-actions as agent-readable JSON")
     parser.add_argument("--library-local-status", default="not_imported", help="local status for --show-library-actions")
     parser.add_argument("--library-remote-status", default="unchecked", help="remote status for --show-library-actions")
     parser.add_argument("--library-update-status", default="unknown", help="update status for --show-library-actions")
@@ -559,6 +563,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-direct-download", action="store_true", help="mark context as having a direct download")
     parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
+    parser.add_argument("--test-data-store", action="append", default=[], help="test data-store connection profile id; use 'all' for every configured profile")
+    parser.add_argument("--self-check-databases", action="store_true", help="verify managed database assets against configured data-store checks")
     parser.add_argument("--generate-ai-summary", help="generate an AI description for a provider_id")
     parser.add_argument("--ai-profile", help="AI summary profile id, e.g. gemini_flash or local_ollama")
     parser.add_argument("--write-ai-summary", action="store_true", help="save generated AI summary back into provider notes when empty")
@@ -609,6 +615,8 @@ class CatalogLauncherCli:
             self.list_render_effects()
             self.list_simulation_contracts()
             self.show_library_actions()
+            self.test_data_store_connections()
+            self.self_check_databases()
             self.generate_ai_summary()
             self.write_tile_manifest()
             self.export_catalogs()
@@ -650,6 +658,9 @@ class CatalogLauncherCli:
             self.args.list_render_effects,
             self.args.list_simulation_contracts,
             bool(self.args.show_library_actions),
+            self.args.library_actions_json,
+            bool(self.args.test_data_store),
+            self.args.self_check_databases,
             bool(self.args.generate_ai_summary),
             bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
@@ -823,6 +834,8 @@ class CatalogLauncherCli:
             )
 
     def show_library_actions(self) -> None:
+        if self.args.library_actions_json and not self.args.show_library_actions:
+            raise RuntimeError("--library-actions-json requires --show-library-actions PROVIDER_ID")
         if not self.args.show_library_actions:
             return
         context = LibraryContext(
@@ -836,12 +849,42 @@ class CatalogLauncherCli:
             has_adapter=self.args.library_adapter,
             has_render_assets=self.args.library_render_assets,
         )
+        if self.args.library_actions_json:
+            print(json.dumps(library_action_agent_payload(context), ensure_ascii=False, indent=2))
+            return
         for action in build_library_actions(context):
             status = "enabled" if action.enabled else "disabled"
             print(
                 "[library-action] "
                 f"{action.action_id} {status} risk={action.risk} label={action.label} reason={action.reason}"
             )
+
+    def test_data_store_connections(self) -> None:
+        if not self.args.test_data_store:
+            return
+        profiles = data_store_profiles_from_config(load_integration_config())
+        requested = {value.strip() for value in self.args.test_data_store if value.strip()}
+        if "all" in {value.lower() for value in requested}:
+            selected = profiles
+        else:
+            selected = tuple(profile for profile in profiles if profile.profile_id in requested)
+            missing = sorted(requested - {profile.profile_id for profile in selected})
+            if missing:
+                raise RuntimeError(f"Unknown data-store connection profile(s): {', '.join(missing)}")
+        for profile in selected:
+            result = test_data_store_connection(profile)
+            details = json.dumps(result.details, ensure_ascii=False, sort_keys=True)
+            print(
+                "[data-store] "
+                f"{result.profile_id} status={result.status} engine={result.engine} "
+                f"message={result.message} details={details}"
+            )
+
+    def self_check_databases(self) -> None:
+        if not self.args.self_check_databases:
+            return
+        summary = self.repository.verify_provider_assets(self.args.provider or None, verifier=DatabaseAssetVerifier())
+        print(f"[database-self-check] {summary}")
 
     def generate_ai_summary(self) -> None:
         if not self.args.generate_ai_summary:

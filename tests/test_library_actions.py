@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 import io
+import json
 import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -11,6 +12,7 @@ from api_launcher.library_actions import (
     LibraryContext,
     build_library_actions,
     enabled_action_ids,
+    library_action_agent_payload,
     library_action_map,
     library_action_menu_label,
     ordered_library_actions,
@@ -63,6 +65,16 @@ class LibraryActionTests(unittest.TestCase):
         self.assertEqual("add_to_plan", ordered_ids[0])
         self.assertIn("No direct download", library_action_menu_label(action_map["add_to_plan"]))
 
+    def test_agent_payload_reuses_shared_policy(self) -> None:
+        context = LibraryContext(provider_id="sample", local_status="managed", install_id="inst_123")
+
+        payload = library_action_agent_payload(context)
+
+        self.assertEqual("sample", payload["provider_id"])
+        self.assertIn("open_database", payload["enabled_action_ids"])
+        uninstall = next(action for action in payload["actions"] if action["action_id"] == "uninstall")
+        self.assertEqual("destructive", uninstall["risk"])
+
     def test_cli_prints_library_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output = io.StringIO()
@@ -86,6 +98,30 @@ class LibraryActionTests(unittest.TestCase):
         self.assertIn("[library-action] open_database enabled", text)
         self.assertIn("[library-action] render_preview enabled", text)
         self.assertIn("risk=destructive", text)
+
+    def test_cli_prints_library_actions_json_for_agent_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmp) / "test.sqlite"),
+                        "--show-library-actions",
+                        "sample",
+                        "--library-local-status",
+                        "managed",
+                        "--library-install-id",
+                        "inst_123",
+                        "--library-actions-json",
+                    ]
+                )
+
+        self.assertEqual(0, rc)
+        payload = json.loads(output.getvalue())
+        self.assertEqual("sample", payload["provider_id"])
+        self.assertIn("open_database", payload["enabled_action_ids"])
+        self.assertEqual("managed", payload["context"]["local_status"])
 
 
 if __name__ == "__main__":

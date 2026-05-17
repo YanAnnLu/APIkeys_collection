@@ -15,6 +15,8 @@ def validate_sql_identifier(name: str) -> str:
 
 def database_uninstall_command(engine: str, database_name: str) -> str:
     engine = engine.strip().lower()
+    if engine == "sqlite":
+        return ""
     database_name = validate_sql_identifier(database_name)
     if engine in {"mysql", "mariadb"}:
         return f"DROP DATABASE IF EXISTS `{database_name}`;"

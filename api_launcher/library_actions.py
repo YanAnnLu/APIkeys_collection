@@ -123,3 +123,13 @@ def library_action_menu_label(action: LibraryAction, include_disabled_reason: bo
 
 def enabled_action_ids(context: LibraryContext) -> tuple[str, ...]:
     return tuple(action.action_id for action in build_library_actions(context) if action.enabled)
+
+
+def library_action_agent_payload(context: LibraryContext) -> dict[str, object]:
+    actions = build_library_actions(context)
+    return {
+        "provider_id": context.provider_id,
+        "context": dataclasses.asdict(context),
+        "enabled_action_ids": [action.action_id for action in actions if action.enabled],
+        "actions": [dataclasses.asdict(action) for action in actions],
+    }

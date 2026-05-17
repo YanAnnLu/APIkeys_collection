@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from api_launcher.manifests import build_asset_manifest, write_manifest
-from api_launcher.repair import repair_summary, scan_download_manifests, verify_manifest_file
+from api_launcher.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
 
 
 class RepairTests(unittest.TestCase):
@@ -34,6 +34,35 @@ class RepairTests(unittest.TestCase):
 
         self.assertEqual("missing", result.status)
         self.assertTrue(result.needs_repair)
+
+    def test_missing_payload_with_source_url_can_be_requeued(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            manifest_path = write_manifest(
+                build_asset_manifest(payload, {"provider_id": "sample", "download_url": "https://example.test/sample.bin"}),
+                payload.with_suffix(".bin.manifest.json"),
+            )
+            payload.unlink()
+
+            suggestion = repair_suggestion_for_result(verify_manifest_file(manifest_path))
+
+        self.assertEqual("requeue_download", suggestion.action_id)
+        self.assertTrue(suggestion.can_requeue)
+        self.assertEqual("sample", suggestion.plan_entry["provider_id"])
+        self.assertEqual("https://example.test/sample.bin", suggestion.plan_entry["download_url"])
+
+    def test_missing_source_url_requires_manual_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            manifest_path = write_manifest(build_asset_manifest(payload, {"provider_id": "sample"}), payload.with_suffix(".bin.manifest.json"))
+            payload.unlink()
+
+            suggestion = repair_suggestion_for_result(verify_manifest_file(manifest_path))
+
+        self.assertEqual("manual_recover", suggestion.action_id)
+        self.assertFalse(suggestion.can_requeue)
 
     def test_scan_download_manifests_summarizes_results(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
