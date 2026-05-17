@@ -24,6 +24,8 @@ python -m pip install -r requirements-dev.txt
 ```
 
 The current launcher runtime intentionally uses only the Python standard library.
+On the current macOS Codex handoff machine, use Conda env `metal_trade_312` for validation and any optional package
+installs. Do not install into base/system Python unless the user explicitly approves.
 
 ## Renderer Stack
 
@@ -126,6 +128,12 @@ API, CSV, JSON, manual SQL imports, and derived outputs must carry provenance:
 - `schema_fingerprint`
 
 This prevents derived analysis tables from being mistaken for official upstream data.
+
+Database assets are checked through `api_launcher/database_self_check.py`. SQLite database assets use read-only
+database-level schema fingerprints; SQLite table assets use `source_uri` as the database path and `asset_name` as the
+table name for existence and table-level fingerprint checks. MySQL/PostgreSQL checks should continue through
+`api_launcher/data_store_connections.py` so missing env vars and optional drivers are reported before any connection
+attempt.
 
 Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
 eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and

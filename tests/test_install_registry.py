@@ -111,6 +111,39 @@ class InstallRegistryTests(unittest.TestCase):
                 database_name="sample; DROP DATABASE mysql;",
             )
 
+    def test_table_assets_share_database_install_but_keep_table_identity(self) -> None:
+        db_path = str(Path(self.tmpdir.name) / "asset.sqlite")
+
+        first_asset = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="sqlite",
+            database_name="asset.sqlite",
+            table_name="station",
+            source_uri=db_path,
+        )
+        second_asset = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="sqlite",
+            database_name="asset.sqlite",
+            table_name="observation",
+            source_uri=db_path,
+        )
+        rows = self.conn.execute(
+            """
+            SELECT install_id, asset_kind, asset_name, source_uri, uninstall_command
+            FROM provider_installation_assets
+            ORDER BY asset_name
+            """
+        ).fetchall()
+
+        self.assertNotEqual(first_asset, second_asset)
+        self.assertEqual(2, len(rows))
+        self.assertEqual(1, self._count_installations())
+        self.assertEqual({"observation", "station"}, {row["asset_name"] for row in rows})
+        self.assertEqual({"table"}, {row["asset_kind"] for row in rows})
+        self.assertEqual({db_path}, {row["source_uri"] for row in rows})
+        self.assertEqual({""}, {row["uninstall_command"] for row in rows})
+
     def test_verify_assets_marks_missing_database(self) -> None:
         self.repo.register_provider_database_asset(
             "sample_provider",

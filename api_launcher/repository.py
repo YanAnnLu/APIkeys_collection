@@ -794,7 +794,7 @@ class ApiCatalogRepository:
         for asset in assets:
             result = verifier.verify(asset)
             status = result.status if result.status in {"present", "missing", "error"} else "error"
-            error = result.error if status == "error" else ""
+            error = result.error if status != "present" else ""
             self.conn.execute(
                 """
                 UPDATE provider_installation_assets
@@ -871,6 +871,36 @@ class ApiCatalogRepository:
             source_uri=source_uri,
             schema_fingerprint=schema_fingerprint,
             uninstall_command=database_uninstall_command(engine, database_name),
+            notes=notes,
+        )
+
+    def register_provider_table_asset(
+        self,
+        provider_id: str,
+        engine: str,
+        database_name: str,
+        table_name: str,
+        location: str = "",
+        asset_role: str = "source",
+        derived_from_asset_id: str = "",
+        source_format: str = "unknown",
+        source_uri: str = "",
+        schema_fingerprint: str = "",
+        notes: str = "",
+    ) -> str:
+        install_location = location or source_uri or f"{engine}://{database_name}"
+        install_id = self.manage_provider_installation(provider_id, location=install_location)
+        return self.register_installation_asset(
+            install_id,
+            asset_kind="table",
+            asset_role=asset_role,
+            derived_from_asset_id=derived_from_asset_id,
+            engine=engine,
+            asset_name=table_name,
+            source_format=source_format,
+            source_uri=source_uri,
+            schema_fingerprint=schema_fingerprint,
+            uninstall_command="",
             notes=notes,
         )
 

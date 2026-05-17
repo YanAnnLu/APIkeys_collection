@@ -896,23 +896,24 @@ class CatalogLauncherCli:
             SELECT
                 pi.provider_id,
                 pia.asset_id,
+                pia.asset_kind,
                 pia.engine,
                 pia.asset_name,
                 pia.status,
                 COALESCE(pia.last_verify_error, '') AS last_verify_error
             FROM provider_installation_assets pia
             JOIN provider_installations pi ON pi.install_id = pia.install_id
-            WHERE pia.asset_kind = 'database'
+            WHERE pia.asset_kind IN ('database', 'table')
               AND pia.status IN ('missing', 'error')
               {provider_filter}
-            ORDER BY pi.provider_id, pia.engine, pia.asset_name
+            ORDER BY pi.provider_id, pia.asset_kind, pia.engine, pia.asset_name
             """,
             params,
         ).fetchall()
         for row in rows:
             print(
                 "[database-self-check] "
-                f"{row['provider_id']} {row['engine'] or '-'}:{row['asset_name']} "
+                f"{row['provider_id']} {row['asset_kind']} {row['engine'] or '-'}:{row['asset_name']} "
                 f"status={row['status']} error={row['last_verify_error'] or '-'}"
             )
 

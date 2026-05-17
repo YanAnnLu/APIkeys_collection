@@ -16,6 +16,7 @@ class DatabaseSelfCheckTarget:
     engine: str
     asset_name: str
     path: str = ""
+    table_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -30,17 +31,28 @@ class DatabaseSchemaSummary:
 def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
     engine = asset.engine.strip().lower()
     if engine == "sqlite":
-        return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name, path=asset.source_uri or asset.asset_name)
+        return DatabaseSelfCheckTarget(
+            engine=engine,
+            asset_name=asset.asset_name,
+            path=asset.source_uri or asset.asset_name,
+            table_name=asset.asset_name if asset.asset_kind == "table" else "",
+        )
     return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name)
 
 
 class DatabaseAssetVerifier:
     def verify(self, asset: AssetRecord) -> AssetVerificationResult:
-        if asset.asset_kind != "database":
+        if asset.asset_kind not in {"database", "table"}:
             return AssetVerificationResult(asset.asset_id, "error", f"Unsupported asset kind: {asset.asset_kind}")
         target = database_self_check_target(asset)
         if target.engine == "sqlite":
             return self._verify_sqlite(asset, target)
+        if asset.asset_kind == "table":
+            return AssetVerificationResult(
+                asset.asset_id,
+                "error",
+                f"Table self-check is not implemented for {target.engine or 'unknown'} assets yet.",
+            )
         if target.engine in {"mysql", "mariadb"}:
             return self._verify_mysql(asset, target)
         if target.engine in {"postgres", "postgresql"}:
@@ -61,6 +73,20 @@ class DatabaseAssetVerifier:
             {"APIKEYS_SQLITE_PATH": str(Path(target.path))},
         )
         if result.status == "ok":
+            if asset.asset_kind == "table":
+                if not sqlite_table_exists(target.path, target.table_name):
+                    return AssetVerificationResult(asset.asset_id, "missing", f"SQLite table is missing: {target.table_name}")
+                if asset.schema_fingerprint:
+                    summary = sqlite_table_schema_summary(target.path, target.table_name)
+                    if summary.schema_fingerprint != asset.schema_fingerprint:
+                        return AssetVerificationResult(
+                            asset.asset_id,
+                            "error",
+                            "SQLite table schema fingerprint drift: "
+                            f"expected {asset.schema_fingerprint}, got {summary.schema_fingerprint}; "
+                            f"table={target.table_name}",
+                        )
+                return AssetVerificationResult(asset.asset_id, "present")
             if asset.schema_fingerprint:
                 summary = sqlite_schema_summary(target.path)
                 if summary.schema_fingerprint != asset.schema_fingerprint:
@@ -137,21 +163,7 @@ def sqlite_schema_summary(path: str | Path) -> DatabaseSchemaSummary:
         tables = tuple(str(row[0]) for row in rows)
         column_signatures: list[str] = []
         for table in tables:
-            columns = conn.execute(f"PRAGMA table_info({quote_sqlite_identifier(table)})").fetchall()
-            for cid, name, column_type, notnull, default_value, pk in columns:
-                column_signatures.append(
-                    "|".join(
-                        [
-                            table,
-                            str(cid),
-                            str(name).strip().lower(),
-                            str(column_type or "").strip().upper(),
-                            str(int(bool(notnull))),
-                            str(int(pk or 0)),
-                            "default" if default_value is not None else "",
-                        ]
-                    )
-                )
+            column_signatures.extend(_sqlite_column_signatures(conn, table))
     payload = json.dumps(column_signatures, ensure_ascii=True, separators=(",", ":"))
     return DatabaseSchemaSummary(
         engine="sqlite",
@@ -162,5 +174,62 @@ def sqlite_schema_summary(path: str | Path) -> DatabaseSchemaSummary:
     )
 
 
+def sqlite_table_schema_summary(path: str | Path, table: str) -> DatabaseSchemaSummary:
+    db_path = Path(path).expanduser()
+    uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
+    table_name = table.strip()
+    with sqlite3.connect(uri, uri=True) as conn:
+        if not _sqlite_table_exists(conn, table_name):
+            raise ValueError(f"SQLite table is missing: {table_name}")
+        column_signatures = _sqlite_column_signatures(conn, table_name)
+    payload = json.dumps(column_signatures, ensure_ascii=True, separators=(",", ":"))
+    return DatabaseSchemaSummary(
+        engine="sqlite",
+        table_count=1,
+        tables=(table_name,),
+        column_signatures=tuple(column_signatures),
+        schema_fingerprint=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+    )
+
+
+def sqlite_table_exists(path: str | Path, table: str) -> bool:
+    db_path = Path(path).expanduser()
+    uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
+    with sqlite3.connect(uri, uri=True) as conn:
+        return _sqlite_table_exists(conn, table.strip())
+
+
 def quote_sqlite_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
+
+
+def _sqlite_table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+        LIMIT 1
+        """,
+        (table,),
+    ).fetchone()
+    return row is not None
+
+
+def _sqlite_column_signatures(conn: sqlite3.Connection, table: str) -> list[str]:
+    columns = conn.execute(f"PRAGMA table_info({quote_sqlite_identifier(table)})").fetchall()
+    return [
+        "|".join(
+            [
+                table,
+                str(cid),
+                str(name).strip().lower(),
+                str(column_type or "").strip().upper(),
+                str(int(bool(notnull))),
+                str(int(pk or 0)),
+                "default" if default_value is not None else "",
+            ]
+        )
+        for cid, name, column_type, notnull, default_value, pk in columns
+    ]

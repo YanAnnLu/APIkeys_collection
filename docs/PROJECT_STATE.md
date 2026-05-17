@@ -29,6 +29,11 @@ The project is not a secret harvester. Credential files are templates for user-o
   verified later instead of being treated as anonymous blobs.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--manifest-health`, `--show-logs`, and
   `--handoff-report`.
+- Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
+  `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
+- Database self-check now verifies managed SQLite database and table assets from the install registry. Whole-database
+  assets use read-only schema fingerprints; table assets use `source_uri` as the SQLite path and `asset_name` as the
+  table name, preserving missing/error details for repair work.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 
@@ -59,6 +64,8 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
 - `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
 - `api_launcher/manifests.py`, `staging.py`, and `repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
+- `api_launcher/data_store_connections.py` and `database_self_check.py`: configured data-store probes plus registry-backed
+  database/table asset self-checks.
 - `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
 - `api_launcher/unreal_bridge.py`: maps registered renderer bridge assets to future Unreal Content targets.
 - `scripts/export_unreal_preview.py`: creates lightweight Unreal preview assets from Taichi cache data and records
@@ -111,13 +118,16 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 - The UI includes a file verification action that scans download manifests and syncs file health into SQLite.
+- The install registry can register whole-database assets and individual table assets, then verify managed SQLite
+  assets with `--self-check-databases`.
 - GitHub Actions CI runs tests and a CLI smoke check on Windows and Ubuntu.
 - Unreal bridge planning is documented in `docs/UNREAL_BRIDGE.zh-TW.md`; no real `.uproject` has been configured yet.
 
 ## Cross-Platform Notes
 
 - Windows on this machine uses `py`, not `python`.
-- macOS should normally use `python3`.
+- macOS handoff in the current Codex environment uses Conda env `metal_trade_312`; do not install packages into base/system
+  Python without asking first.
 - Keep project files UTF-8 with LF line endings.
 - SQLite state on synced drives can conflict. Prefer treating `*.sqlite` as rebuildable state or copy it locally before heavy writes.
 - Git for Windows was installed on 2026-05-17 and the repo was initialized on `main`.
@@ -129,12 +139,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Refactor the single large core file into a small package.
-2. Keep the UI import path stable by re-exporting the public API from `APIkeys_collection.py`.
-3. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
-4. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-5. Allow one download plan to include multiple versions of the same dataset/provider without overwriting the provider row.
-6. Add a UI repair panel backed by `dataset_asset_manifests`.
-7. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-8. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-9. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
+1. Add MySQL/PostgreSQL schema/table introspection to the existing data-store self-check path.
+2. Build richer ownership mapping between DB/table assets and install records across engines.
+3. Expand repair suggestions to adapter-specific datasets and agent-readable repair summaries.
+4. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
+5. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+6. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+7. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.

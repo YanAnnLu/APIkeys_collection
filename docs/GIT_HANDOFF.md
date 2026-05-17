@@ -42,12 +42,14 @@ Before switching machines:
 git status --short
 git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md docs catalog config scripts .gitignore .gitattributes
 git commit -m "Describe the launcher change"
+git push origin main
 git status --short
 ```
 
 After switching machines:
 
 ```bash
+git pull origin main
 git status --short --branch
 python3 -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
 python3 -m unittest discover -s tests
@@ -57,9 +59,16 @@ python3 APIkeys_collection.py --summary
 On Windows, replace `python3` with `py`:
 
 ```powershell
+git pull origin main
 py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
 py -m unittest discover -s tests
 py APIkeys_collection.py --summary
+```
+
+On the current macOS Codex handoff environment, prefer the project env rather than base Python:
+
+```bash
+conda run -n metal_trade_312 python -m unittest discover -s tests
 ```
 
 Generate a handoff report for humans or another agent:
