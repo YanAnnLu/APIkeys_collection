@@ -53,6 +53,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Provider rows can be starred in the Tk UI. Starred rows are persisted in SQLite through
   `provider_preferences` and sort above normal rows.
 - The sidebar includes a starred-only view for important data sources.
+- Provider descriptions now open in an on-demand right-side drawer instead of a permanently cramped side panel.
 
 ## Cross-Platform Notes
 

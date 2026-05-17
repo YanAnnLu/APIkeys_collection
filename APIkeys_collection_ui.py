@@ -137,6 +137,7 @@ class ApiCollectionUi:
         self.rows: list[ProviderRow] = []
         self.filtered_rows: list[ProviderRow] = []
         self.active_provider_id = ""
+        self.detail_visible = False
 
         self._init_database()
         self._setup_style()
@@ -165,10 +166,10 @@ class ApiCollectionUi:
         style.configure("Panel.TFrame", background=COLORS["panel"])
         style.configure("Header.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Helvetica", 26, "bold"))
         style.configure("Muted.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Helvetica", 12))
-        style.configure("DetailTitle.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 20, "bold"))
+        style.configure("DetailTitle.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 24, "bold"))
         style.configure("DetailSection.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Helvetica", 11, "bold"))
-        style.configure("DetailText.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 11), wraplength=330)
-        style.configure("DetailMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Helvetica", 10), wraplength=330)
+        style.configure("DetailText.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Helvetica", 12), wraplength=540)
+        style.configure("DetailMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Helvetica", 11), wraplength=540)
         style.configure("SidebarTitle.TLabel", background=COLORS["sidebar"], foreground=COLORS["accent"], font=("Helvetica", 18, "bold"))
         style.configure("Sidebar.TButton", background=COLORS["sidebar"], foreground=COLORS["text"], anchor="w", padding=(18, 12))
         style.map("Sidebar.TButton", background=[("active", COLORS["header"])])
@@ -214,6 +215,7 @@ class ApiCollectionUi:
         ttk.Button(controls, text="爬取選取 Metadata", style="Action.TButton", command=self.crawl_selected).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="匯出下載計畫", style="Action.TButton", command=self.export_download_plan).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="開啟文件", style="Action.TButton", command=self.open_selected_docs).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="資料源詳情", style="Action.TButton", command=self.open_detail_drawer).pack(side=LEFT, padx=(0, 12))
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
@@ -236,7 +238,7 @@ class ApiCollectionUi:
         scrollbar.pack(side=RIGHT, fill=Y)
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
-        self.tree.bind("<Double-1>", lambda _event: self.open_active_docs())
+        self.tree.bind("<Double-1>", lambda _event: self.open_detail_drawer())
 
         self._build_detail_panel(content)
 
@@ -245,8 +247,8 @@ class ApiCollectionUi:
         ttk.Label(bottom, textvariable=self.status_var, style="Muted.TLabel").pack(anchor="w")
 
     def _build_detail_panel(self, parent: ttk.Frame) -> None:
-        self.detail = ttk.Frame(parent, style="Panel.TFrame", width=380)
-        self.detail.pack(side=RIGHT, fill=Y, padx=(18, 0))
+        self.detail_parent = parent
+        self.detail = ttk.Frame(parent, style="Panel.TFrame", width=600)
         self.detail.pack_propagate(False)
 
         self.detail_star_var = StringVar(value="☆")
@@ -262,6 +264,7 @@ class ApiCollectionUi:
         hero.pack(fill=X, padx=18, pady=(18, 12))
         ttk.Button(hero, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
         ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel").pack(side=LEFT, fill=X, expand=True)
+        ttk.Button(hero, text="×", width=3, command=self.close_detail_drawer).pack(side=RIGHT)
         ttk.Label(self.detail, textvariable=self.detail_owner_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=18)
 
         self.preview_box = Text(
@@ -295,6 +298,19 @@ class ApiCollectionUi:
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X)
 
+    def open_detail_drawer(self) -> None:
+        if not self.active_provider_id and self.filtered_rows:
+            self.active_provider_id = self.filtered_rows[0].provider_id
+        self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        if not self.detail_visible:
+            self.detail.pack(side=RIGHT, fill=Y, padx=(18, 0))
+            self.detail_visible = True
+
+    def close_detail_drawer(self) -> None:
+        if self.detail_visible:
+            self.detail.pack_forget()
+            self.detail_visible = False
+
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
         self.apply_filter()
@@ -311,7 +327,8 @@ class ApiCollectionUi:
         self.apply_filter()
         if self.active_provider_id not in {row.provider_id for row in self.rows}:
             self.active_provider_id = self.rows[0].provider_id if self.rows else ""
-        self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         self.status_var.set(f"已載入 {len(self.rows)} 個資料源。")
 
     def apply_filter(self) -> None:
@@ -389,7 +406,11 @@ class ApiCollectionUi:
         if not selection:
             return
         self.active_provider_id = str(selection[0])
-        self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row:
+            self.status_var.set(f"已選取資料源：{row.name}")
 
     def toggle_star(self, provider_id: str) -> None:
         conn = self._connect()
