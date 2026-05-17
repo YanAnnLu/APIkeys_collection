@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import sqlite3
@@ -19,6 +20,7 @@ from api_launcher.sql_assets import database_uninstall_command
 
 
 PROVIDERS: tuple[Provider, ...] = load_provider_catalog(catalog_file(PROVIDER_CATALOG_NAME))
+DATASET_CANDIDATE_STATUSES = {"needs_review", "approved", "planned", "rejected"}
 
 
 def seed_providers(conn: sqlite3.Connection, providers: Iterable[Provider]) -> None:
@@ -330,6 +332,50 @@ class ApiCatalogRepository:
         else:
             rows = self.conn.execute("SELECT * FROM datasets ORDER BY provider_id, title COLLATE NOCASE").fetchall()
         return [dataset_from_row(row) for row in rows]
+
+    def list_dataset_candidates(self, status: str | None = "needs_review", provider_id: str | None = None) -> list[Dataset]:
+        requested_status = (status or "all").strip().lower()
+        if requested_status != "all" and requested_status not in DATASET_CANDIDATE_STATUSES:
+            raise ValueError(f"Unknown dataset candidate status: {status}")
+        candidates = []
+        for dataset in self.list_datasets(provider_id):
+            candidate_status = str(dataset.metadata.get("candidate_status") or "").strip().lower()
+            if not candidate_status:
+                continue
+            if requested_status != "all" and candidate_status != requested_status:
+                continue
+            candidates.append(dataset)
+        return candidates
+
+    def mark_dataset_candidate_status(
+        self,
+        dataset_uid: str,
+        status: str,
+        reviewed_by: str = "launcher",
+        note: str = "",
+    ) -> Dataset:
+        normalized_status = status.strip().lower()
+        if normalized_status not in DATASET_CANDIDATE_STATUSES:
+            raise ValueError(f"Unknown dataset candidate status: {status}")
+        row = self.conn.execute(
+            "SELECT * FROM datasets WHERE dataset_uid = ?",
+            (dataset_uid,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"Unknown dataset_uid: {dataset_uid}")
+        dataset = dataset_from_row(row)
+        metadata = dict(dataset.metadata)
+        metadata["candidate_status"] = normalized_status
+        metadata["candidate_reviewed_at"] = utc_now_iso()
+        reviewed_by = reviewed_by.strip()
+        if reviewed_by:
+            metadata["candidate_reviewed_by"] = reviewed_by
+        note = note.strip()
+        if note:
+            metadata["candidate_review_note"] = note
+        updated = dataclasses.replace(dataset, metadata=metadata)
+        self.upsert_dataset(updated)
+        return updated
 
     def upsert_render_bridge_asset(self, asset: RenderBridgeAsset) -> None:
         now = utc_now_iso()

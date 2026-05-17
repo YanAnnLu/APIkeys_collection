@@ -72,6 +72,21 @@ flowchart TD
 Hadoop is the future distributed storage/compute layer. Kubernetes is the future runtime orchestration layer. The
 launcher should not own either cluster; it should prepare contracts, submit or describe jobs, and read back status.
 
+### Library / Install / Workspace Model
+
+Steam-like data management should keep three ideas separate:
+
+| Layer | Steam analogy | Data launcher meaning |
+| --- | --- | --- |
+| Library / entitlement | Games owned by an account | Provider/dataset/version rights, subscriptions, favorites, or approved library entries that can sync across machines. |
+| Local install | Games installed on this computer | Raw files, SQLite tables, database assets, manifests, checksums, and health state for this machine. |
+| Workspace / save | Saves, settings, mods | User annotations, patch overlays, analysis notes, query history, download plans, and preferences. |
+
+Source datasets should be treated as read-only game binaries where possible. User edits should live in workspace overlays
+or patch assets, while curated tables, tile caches, and renderer outputs remain derived assets that can be rebuilt from
+source payloads plus recipes. MVP work should continue to focus on local install and curated import loops, but the schema
+should avoid confusing "owned/approved in library" with "currently installed on this machine."
+
 ```mermaid
 flowchart TD
     subgraph UI[Steam-like Launcher UI]
@@ -186,6 +201,13 @@ flowchart TD
 Important boundary: Unreal is a rendering/UI consumer, not the data owner. Raw data, versions, checksums, cleaning logs,
 and install identity remain in the launcher registry. Unreal may import, cache, stream, or bake frontend-specific assets
 only when that improves the user experience or performance.
+
+Renderer bridge boundary: renderer bridge assets are managed data assets, not invisible glue. Tile manifests, caches,
+meshes, texture atlases, chart indexes, and material presets can have source dataset versions, checksums, compatibility
+targets, rebuild recipes, and health status. Treat this bridge like a data-side equivalent of a graphics compatibility/API
+layer: it connects stable datasets to rendering frontends, while graphics APIs such as DX12, OpenGL, Metal, and Vulkan
+connect those frontends to hardware. MVP work keeps this as a contract/skeleton; later install registry records should
+track renderer bridge/cache assets explicitly.
 
 Remote-control boundary: a future mobile app should control the resident desktop/service layer, not become a second data
 owner. The mobile side may inspect queue/library/repair status, receive notifications, and request safe actions. Raw

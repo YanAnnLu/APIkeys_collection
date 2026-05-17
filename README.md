@@ -1,9 +1,10 @@
 # APIkeys_collection
 
-`APIkeys_collection.py` builds a local, extensible launcher for public scientific data-provider metadata.
+`APIkeys_collection.py` builds a local, extensible Steam-like launcher for public scientific data-provider metadata.
 
-It is designed as a local catalog, download guide, update checker, and bridge planner for
-scientific/geospatial/financial data sources. It is crawler/downloader preparation, not secret harvesting:
+It is designed as a data-engineering platform that makes the annoying parts of scientific data work more like Steam:
+discover sources, review datasets, choose versions, download, verify manifests, import into local stores, repair broken
+assets, and bridge data to renderers or analysis frontends. It is crawler/downloader preparation, not secret harvesting:
 
 - Catalogs official docs, API base URLs, sign-up pages, auth type, and categories.
 - Creates a local SQLite database: `APIkeys_collection.sqlite`.
@@ -11,6 +12,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Optionally fetches small metadata pages from whitelisted official URLs.
 - Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
 - Exports adapter-discovered dataset-version download plans with direct/review eligibility.
+- Lists and reviews crawler-discovered dataset candidates before promoting them into local plans.
 - Runs direct entries from a download-plan JSON and registers healthy manifest-backed file assets.
 - Imports verified CSV/CSV.GZ and JSON/JSONL/GeoJSON manifests into curated SQLite tables and registers table assets.
 - Batch-imports healthy CSV or JSON manifests from the registry while skipping unsupported, unhealthy, or already-imported tables.

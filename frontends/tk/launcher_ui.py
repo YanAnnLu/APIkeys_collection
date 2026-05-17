@@ -732,6 +732,7 @@ class ApiCollectionUi:
         library_menu = Menu(menu_bar, tearoff=0)
         library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_separator()
         library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
@@ -2389,6 +2390,228 @@ class ApiCollectionUi:
         ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def open_dataset_candidate_review_panel(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("資料集候選審核", "Dataset candidate review"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("1180x720")
+        dialog.transient(self.root)
+
+        frame = ttk.Frame(dialog, style="App.TFrame", padding=24)
+        frame.pack(fill=BOTH, expand=True)
+        ttk.Label(frame, text=self.tr("資料集候選審核", "Dataset candidate review"), style="DetailTitle.TLabel").pack(anchor="w")
+        ttk.Label(
+            frame,
+            text=self.tr(
+                "Crawler 找到的是候選 metadata；審核只會改 launcher registry 狀態，不會下載或改動資料本體。",
+                "Crawler results are metadata candidates; review changes launcher registry state only, without downloading or editing source data.",
+            ),
+            style="Muted.TLabel",
+        ).pack(anchor="w", pady=(8, 16))
+
+        status_filter_var = StringVar(value="needs_review")
+        summary_var = StringVar(value="")
+        candidates_by_uid: dict[str, core.Dataset] = {}
+
+        controls = ttk.Frame(frame, style="App.TFrame")
+        controls.pack(fill=X, pady=(0, 12))
+        ttk.Label(controls, text=self.tr("狀態", "Status"), style="DetailSection.TLabel").pack(side=LEFT, padx=(0, 8))
+        status_box = ttk.Combobox(
+            controls,
+            textvariable=status_filter_var,
+            values=("needs_review", "approved", "planned", "rejected", "all"),
+            state="readonly",
+            width=18,
+        )
+        status_box.pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text=self.tr("重新載入", "Reload"), style="Action.TButton", command=lambda: load_candidates()).pack(side=LEFT)
+        ttk.Label(controls, textvariable=summary_var, style="Muted.TLabel").pack(side=LEFT, padx=(16, 0))
+
+        body = ttk.Frame(frame, style="App.TFrame")
+        body.pack(fill=BOTH, expand=True)
+        table_wrap = ttk.Frame(body, style="Panel.TFrame")
+        table_wrap.pack(side=LEFT, fill=BOTH, expand=True)
+        columns = ("status", "provider", "title", "family", "format", "confidence")
+        candidate_tree = ttk.Treeview(table_wrap, columns=columns, show="headings", selectmode="browse")
+        for name, label, width, anchor in [
+            ("status", self.tr("審核狀態", "Status"), 120, "center"),
+            ("provider", self.tr("提供商", "Provider"), 190, "w"),
+            ("title", self.tr("資料集", "Dataset"), 360, "w"),
+            ("family", self.tr("資料類型", "Data family"), 170, "w"),
+            ("format", self.tr("格式", "Format"), 100, "center"),
+            ("confidence", self.tr("信心", "Confidence"), 80, "center"),
+        ]:
+            candidate_tree.heading(name, text=label)
+            candidate_tree.column(name, width=width, anchor=anchor, stretch=True)
+        candidate_scroll = ttk.Scrollbar(table_wrap, orient="vertical", command=candidate_tree.yview)
+        candidate_tree.configure(yscrollcommand=candidate_scroll.set)
+        candidate_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        candidate_scroll.pack(side=RIGHT, fill=Y)
+
+        detail_wrap = ttk.Frame(body, style="Panel.TFrame", width=420)
+        detail_wrap.pack(side=RIGHT, fill=Y, padx=(16, 0))
+        detail_wrap.pack_propagate(False)
+        ttk.Label(detail_wrap, text=self.tr("候選細節", "Candidate details"), style="DetailSection.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
+        detail_box = Text(
+            detail_wrap,
+            height=22,
+            wrap=WORD,
+            bg=COLORS["bg"],
+            fg=COLORS["text"],
+            relief="flat",
+            padx=14,
+            pady=12,
+            font=("Helvetica", 11),
+        )
+        detail_box.pack(fill=BOTH, expand=True, padx=16, pady=(0, 12))
+
+        actions = ttk.Frame(detail_wrap, style="Panel.TFrame")
+        actions.pack(fill=X, padx=16, pady=(0, 16))
+        ttk.Button(actions, text=self.tr("開啟來源", "Open source"), style="Action.TButton", command=lambda: open_selected_source()).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text=self.tr("標記可用", "Approve"), style="Action.TButton", command=lambda: mark_selected("approved")).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text=self.tr("加入下載計畫", "Add to plan"), style="Action.TButton", command=lambda: add_selected_to_plan()).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text=self.tr("拒絕候選", "Reject"), style="Action.TButton", command=lambda: mark_selected("rejected")).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(fill=X)
+
+        def selected_candidate() -> core.Dataset | None:
+            selection = candidate_tree.selection()
+            if not selection:
+                return None
+            return candidates_by_uid.get(str(selection[0]))
+
+        def render_candidate_detail(dataset: core.Dataset | None) -> None:
+            detail_box.configure(state="normal")
+            detail_box.delete("1.0", END)
+            if dataset is None:
+                detail_box.insert("1.0", self.tr("請先選取一個候選資料集。", "Select a dataset candidate first."))
+                detail_box.configure(state="disabled")
+                return
+            metadata = dataset.metadata
+            evidence = metadata.get("evidence")
+            evidence_text = json.dumps(evidence, ensure_ascii=False, indent=2) if evidence else "-"
+            details = [
+                f"{self.tr('標題', 'Title')}: {dataset.title}",
+                f"{self.tr('提供商', 'Provider')}: {dataset.provider_id}",
+                f"{self.tr('資料集 ID', 'Dataset ID')}: {dataset.dataset_id}",
+                f"{self.tr('審核狀態', 'Review status')}: {metadata.get('candidate_status', '-')}",
+                f"{self.tr('資料類型', 'Data family')}: {metadata.get('data_family', dataset.data_type or '-')}",
+                f"{self.tr('建議儲存', 'Storage hint')}: {metadata.get('storage_hint', '-')}",
+                f"{self.tr('分析提示', 'Analysis hint')}: {metadata.get('analysis_hint', '-')}",
+                f"{self.tr('檢視提示', 'Viewer hint')}: {metadata.get('viewer_hint', '-')}",
+                f"{self.tr('格式', 'Format')}: {dataset.native_format or '-'}",
+                f"{self.tr('範圍', 'Scope')}: {dataset.geographic_scope or '-'}",
+                f"{self.tr('來源', 'Source')}: {metadata.get('source_url') or dataset.landing_url or dataset.api_url or '-'}",
+                "",
+                self.tr("證據 / crawler 摘要:", "Evidence / crawler summary:"),
+                evidence_text,
+            ]
+            detail_box.insert("1.0", "\n".join(details))
+            detail_box.configure(state="disabled")
+
+        def load_candidates() -> None:
+            conn = self._connect()
+            try:
+                candidates = core.ApiCatalogRepository(conn).list_dataset_candidates(status_filter_var.get())
+            except Exception as exc:
+                messagebox.showerror(self.tr("無法讀取候選", "Could not load candidates"), str(exc), parent=dialog)
+                return
+            finally:
+                conn.close()
+            candidates_by_uid.clear()
+            for item in candidate_tree.get_children():
+                candidate_tree.delete(item)
+            for dataset in candidates:
+                metadata = dataset.metadata
+                candidates_by_uid[dataset.dataset_uid] = dataset
+                candidate_tree.insert(
+                    "",
+                    END,
+                    iid=dataset.dataset_uid,
+                    values=(
+                        metadata.get("candidate_status", ""),
+                        dataset.provider_id,
+                        dataset.title,
+                        metadata.get("data_family", dataset.data_type),
+                        dataset.native_format,
+                        str(metadata.get("confidence", "")),
+                    ),
+                )
+            summary_var.set(self.tr(f"共 {len(candidates)} 個候選", f"{len(candidates)} candidates"))
+            first = candidate_tree.get_children()
+            if first:
+                candidate_tree.selection_set(first[0])
+                candidate_tree.focus(first[0])
+                render_candidate_detail(candidates_by_uid.get(str(first[0])))
+            else:
+                render_candidate_detail(None)
+
+        def mark_selected(status: str) -> None:
+            dataset = selected_candidate()
+            if dataset is None:
+                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個候選資料集。", "Select a dataset candidate first."), parent=dialog)
+                return
+            conn = self._connect()
+            try:
+                core.ApiCatalogRepository(conn).mark_dataset_candidate_status(
+                    dataset.dataset_uid,
+                    status,
+                    reviewed_by="tk-ui",
+                )
+            finally:
+                conn.close()
+            self.status_var.set(self.tr(f"已更新候選狀態：{dataset.title} -> {status}", f"Candidate updated: {dataset.title} -> {status}"))
+            load_candidates()
+
+        def add_selected_to_plan() -> None:
+            dataset = selected_candidate()
+            if dataset is None:
+                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個候選資料集。", "Select a dataset candidate first."), parent=dialog)
+                return
+            row = self.row_by_provider_id(dataset.provider_id)
+            if row is None:
+                messagebox.showerror(
+                    self.tr("缺少提供商", "Missing provider"),
+                    self.tr("這個候選資料集的提供商不在目前 catalog 裡，請先同步或新增提供商。", "This candidate's provider is not in the current catalog. Sync or add the provider first."),
+                    parent=dialog,
+                )
+                return
+            options = core.version_options_for_dataset(dataset)
+            if not options:
+                messagebox.showinfo(self.tr("沒有版本", "No version"), self.tr("這個候選資料集還沒有可加入計畫的版本資訊。", "This candidate does not expose a plannable version yet."), parent=dialog)
+                return
+            self.selected.setdefault(dataset.provider_id, BooleanVar(value=False)).set(True)
+            self.plan_version_by_provider[dataset.provider_id] = options[0]
+            self.active_provider_id = dataset.provider_id
+            conn = self._connect()
+            try:
+                core.ApiCatalogRepository(conn).mark_dataset_candidate_status(
+                    dataset.dataset_uid,
+                    "planned",
+                    reviewed_by="tk-ui",
+                    note="Added to current UI download plan.",
+                )
+            finally:
+                conn.close()
+            self.render_table()
+            self.update_download_plan_panel()
+            self.status_var.set(self.tr(f"已加入下載計畫：{dataset.title}", f"Added to download plan: {dataset.title}"))
+            load_candidates()
+
+        def open_selected_source() -> None:
+            dataset = selected_candidate()
+            if dataset is None:
+                return
+            metadata = dataset.metadata
+            url = str(metadata.get("source_url") or dataset.landing_url or dataset.api_url or "").strip()
+            if not url:
+                messagebox.showinfo(self.tr("沒有來源連結", "No source URL"), self.tr("這個候選資料集沒有可開啟的來源連結。", "This candidate does not have an openable source URL."), parent=dialog)
+                return
+            webbrowser.open(url)
+
+        status_box.bind("<<ComboboxSelected>>", lambda _event: load_candidates())
+        candidate_tree.bind("<<TreeviewSelect>>", lambda _event: render_candidate_detail(selected_candidate()))
+        load_candidates()
 
     def show_environment_checks(self) -> None:
         checks = core.run_startup_checks(DB_PATH)

@@ -4,13 +4,17 @@
 
 ## 一句話
 
-APIkeys Collection 正在從 API key/source 管理器，演進成「科學資料集安裝器 + 虛擬孿生資料管線」。
+APIkeys Collection 正在從 API key/source 管理器，演進成「資料工程版 Steam」：把原本需要到處找來源、查依賴、比版本、下載、匯入、驗證、修復與橋接的工作，集中成一個懶人化但可追蹤的平台。
 
 ## 新定位
 
 它不是單純的 API key 收藏器，也不是單純的下載器。更準確的定位是：
 
 > 一個類 Steam 的科學資料集 launcher，負責 discovery、下載、安裝、版本、更新、解除安裝、資料清洗、SQL/檔案/API 納管，並把資料轉接給 Taichi、Unreal 或未來 agent 使用。
+
+Steam 最強的概念不是商店頁本身，而是把「找遊戲、裝依賴、更新 runtime、同步存檔、確認本機是否安裝、修復壞掉檔案」這些麻煩事平台化。APIkeys Collection 面對的是資料工程：資料散在 NOAA、ERDDAP、STAC、CKAN、API、CSV、資料庫、物件儲存與研究站台之間；使用者不應每次都從搜尋引擎、文件、壓縮檔、SQL 匯入與路徑設定重新開始。
+
+因此產品核心是：讓資料源像 Steam library 裡的遊戲一樣可搜尋、可收藏、可審核、可安裝、可驗證、可更新、可修復；同時把原始資料、本機安裝、個人工作區與渲染/分析橋接分清楚。
 
 ## 產品形態補充
 
@@ -29,6 +33,7 @@ APIkeys Collection 正在從 API key/source 管理器，演進成「科學資料
 | API client / key manager | 管理 endpoint、token、請求範例 | 本專案不只管理 API，也管理資料集安裝狀態、版本、manifest、下載與清洗。 |
 | Open data portal | 提供資料搜尋與下載連結 | 本專案是本機 launcher，可把多來源資料納管到同一 workflow。 |
 | ETL / data pipeline 工具 | 抽取、轉換、載入資料 | 本專案增加 Steam-like library、安裝/解除安裝、renderer bridge、前端消費契約。 |
+| Hadoop / Spark / data lake | 大型儲存、批次運算、Hive/Metastore、partition | 本專案不取代 Hadoop，而是把 HDFS path、Spark job、輸出 manifest、批次狀態包成 launcher 可管理流程。 |
 | GIS/visualization tool | 地圖或資料視覺化 | 本專案把視覺化視為前端消費者，資料主權保留在 launcher/registry。 |
 | Unreal/Taichi renderer project | 專注畫面與互動 | 本專案負責渲染前的資料治理、tile manifest、版本與串流接口。 |
 
@@ -40,6 +45,8 @@ APIkeys Collection 正在從 API key/source 管理器，演進成「科學資料
 4. 前端可以是 Tk、Taichi、Unreal、agent 或其他工具，但都應讀同一套資料契約。
 5. 任何再散布或 P2P 分享都必須先通過授權、來源、版本與 checksum 檢查。
 6. 物理/渲染細節先以 contract 銜接，交給專門模組或 agent 深化。
+7. Library / entitlement、local install、workspace/save 要分層；本機沒有資料不等於使用者沒有擁有或沒有個人工作成果。
+8. Renderer bridge 本身也是可管理資產；tile/cache/mesh/chart index 應能被版本化、驗證、重建與清理。
 
 ## MVP 邊界
 
