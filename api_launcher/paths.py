@@ -10,6 +10,7 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 STATE_DIR = PROJECT_ROOT / "state"
 DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
+LOGS_DIR = STATE_DIR / "logs"
 
 
 def project_path(path: str | Path) -> Path:
@@ -46,3 +47,7 @@ def state_file(name: str) -> Path:
     if legacy.exists():
         return legacy
     return STATE_DIR / name
+
+
+def log_file(name: str) -> Path:
+    return LOGS_DIR / name

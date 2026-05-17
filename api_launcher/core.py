@@ -48,6 +48,7 @@ from api_launcher.dataset_versions import DatasetVersionOption, version_options_
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
+from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.integrations import (
     active_ai_profile,
@@ -565,6 +566,14 @@ class CatalogLauncherCli:
             self.handle_dataset_discovery()
             self.show_summary()
             return 0
+        except Exception as exc:
+            log_exception(
+                "cli_failed",
+                exc,
+                component="cli",
+                context={"db_path": str(self.db_path), "args": vars(self.args)},
+            )
+            raise
         finally:
             self.conn.close()
 

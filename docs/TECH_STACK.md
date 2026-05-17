@@ -182,6 +182,17 @@ and can be overridden in ignored `launcher_integrations.local.json`.
 - Avoid shell-specific path assumptions; use `pathlib.Path` and `resolve_project_path()`
   for project-local files.
 
+## Logs and Recovery
+
+Runtime logs live under ignored `state/logs/`:
+
+- `launcher_events.jsonl`: structured JSONL records for humans and agents.
+- `launcher_errors.log`: compact text summary with tracebacks for warnings/errors.
+
+Use `api_launcher/event_log.py` instead of ad hoc `print()` or silent exception swallowing when an error affects user
+state, downloads, adapters, database tools, AI summaries, or startup environment checks. Failure scenarios and recovery
+rules are tracked in `docs/FAILURE_MODES.zh-TW.md`.
+
 ## Validation
 
 Core validation:

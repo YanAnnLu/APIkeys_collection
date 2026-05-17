@@ -20,6 +20,7 @@ from tkinter import ttk
 
 import APIkeys_collection as core
 from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
+from api_launcher.event_log import log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
 
@@ -473,6 +474,14 @@ class ApiCollectionUi:
         checks = core.run_startup_checks(DB_PATH)
         problems = [check for check in checks if check.status in {"warning", "error"}]
         if problems:
+            for check in problems:
+                log_event(
+                    "startup_check_problem",
+                    check.detail,
+                    level=check.status,
+                    component="ui.startup",
+                    context={"name": check.name},
+                )
             summary = ", ".join(f"{check.name}:{check.status}" for check in problems[:4])
             self.status_var.set(f"Startup environment checks need attention: {summary}")
             if any(check.status == "error" for check in problems):
@@ -1102,6 +1111,13 @@ class ApiCollectionUi:
         if progress.status == JobStatus.COMPLETED:
             self.register_completed_download(provider_id, target)
         elif progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
+            log_event(
+                "download_job_problem",
+                progress.error or progress.message,
+                level="error" if progress.status == JobStatus.FAILED else "warning",
+                component="ui.download",
+                context={"provider_id": provider_id, "job_id": progress.job_id, "status": progress.status.value, "target": target},
+            )
             self.status_var.set(f"Download {progress.status.value}: {provider_id} {progress.error}")
 
     def format_download_percent(self, progress: DownloadProgress) -> str:
@@ -1282,6 +1298,12 @@ class ApiCollectionUi:
         try:
             profile = core.open_database_client()
         except Exception as exc:
+            log_exception(
+                "open_database_tool_failed",
+                exc,
+                component="ui.database",
+                context={"active_provider_id": self.active_provider_id},
+            )
             messagebox.showerror(
                 "無法開啟資料庫工具",
                 (
@@ -1354,6 +1376,12 @@ class ApiCollectionUi:
                 conn.close()
         except Exception as exc:
             error = str(exc)
+            log_exception(
+                "ai_summary_failed",
+                exc,
+                component="ui.ai_summary",
+                context={"provider_id": provider_id},
+            )
             self.root.after(0, lambda: messagebox.showerror("AI 摘要失敗", error))
             self.root.after(0, lambda: self.status_var.set(f"AI 摘要失敗：{error}"))
             return
@@ -1528,6 +1556,12 @@ class ApiCollectionUi:
             finally:
                 conn.close()
         except Exception as exc:
+            log_exception(
+                "metadata_crawl_failed",
+                exc,
+                component="ui.crawl",
+                context={"provider_ids": provider_ids},
+            )
             self.root.after(0, lambda: messagebox.showerror("爬取失敗", str(exc)))
             self.root.after(0, lambda: self.status_var.set(f"爬取失敗：{exc}"))
             return
