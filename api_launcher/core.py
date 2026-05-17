@@ -42,6 +42,7 @@ from api_launcher.cli_discovery import (
     discover_source_candidates,
     discovery_command_active,
 )
+from api_launcher.csv_importer import import_csv_manifest_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
@@ -560,6 +561,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
+    parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
+    parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for --import-csv-manifest")
+    parser.add_argument("--import-table", default="", help="target table name for --import-csv-manifest; defaults to dataset/version")
+    parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV; 0 means all rows")
+    parser.add_argument("--import-replace-table", action="store_true", help="drop and recreate the target table before CSV import")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
@@ -623,6 +629,7 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.run_download_plan()
+            self.import_csv_manifest()
             self.verify_downloads()
             self.show_manifest_health()
             self.list_manifests()
@@ -670,6 +677,7 @@ class CatalogLauncherCli:
             self.args.verify_downloads,
             self.args.verify_downloads_json,
             bool(self.args.run_download_plan),
+            bool(self.args.import_csv_manifest),
             self.args.manifest_health,
             self.args.list_manifests,
             self.args.show_logs > 0,
@@ -787,6 +795,23 @@ class CatalogLauncherCli:
         )
         for error in result.errors:
             print(f"[download-plan] error {error}")
+
+    def import_csv_manifest(self) -> None:
+        if not self.args.import_csv_manifest:
+            return
+        result = import_csv_manifest_to_sqlite(
+            resolve_project_path(self.args.import_csv_manifest),
+            resolve_project_path(self.args.import_sqlite_db),
+            self.repository,
+            table_name=self.args.import_table,
+            replace=self.args.import_replace_table,
+            row_limit=self.args.import_row_limit,
+        )
+        print(
+            "[csv-import] "
+            f"provider={result.provider_id} table={result.table_name} rows={result.rows_imported} "
+            f"columns={len(result.columns)} sqlite={result.sqlite_path} asset={result.table_asset_id}"
+        )
 
     def show_manifest_health(self) -> None:
         if self.args.manifest_health:

@@ -127,6 +127,17 @@ py APIkeys_collection.py --init-db --seed --run-download-plan state\hyg_dataset_
 Completed downloads are verified through their sidecar manifest and registered as managed filesystem `file` assets.
 Use `--download-plan-limit N` for smoke tests or when you want to run only the first few direct entries.
 
+Verified CSV or CSV.GZ payloads can now be imported into a curated SQLite table:
+
+```powershell
+py APIkeys_collection.py --init-db --seed --import-csv-manifest downloads\sample.csv.manifest.json --import-sqlite-db state\curated_imports.sqlite --import-table sample_curated
+```
+
+This is intentionally conservative for the backend MVP: every imported column is stored as `TEXT`, column names are
+normalized into safe SQL identifiers, the CSV schema fingerprint is recorded, and the resulting SQLite table is
+registered as a managed `curated` table asset. Use `--import-replace-table` only when you intentionally want to drop
+and recreate the target table.
+
 Dataset transitions should avoid brute-force delete-and-redownload when possible. The generic planner in
 `api_launcher/dataset_updates.py` decides whether to install new data, skip an already-current version, upgrade,
 downgrade, move to an intermediate newer/older version, compare before updating, or keep an older compatibility version

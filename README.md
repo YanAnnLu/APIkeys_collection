@@ -12,6 +12,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
 - Exports adapter-discovered dataset-version download plans with direct/review eligibility.
 - Runs direct entries from a download-plan JSON and registers healthy manifest-backed file assets.
+- Imports verified CSV/CSV.GZ manifests into curated SQLite tables and registers table assets.
 - Does not search for leaked keys or scrape secrets.
 
 ## Current Launcher Features

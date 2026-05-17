@@ -33,6 +33,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Adapter-discovered dataset plans can now be safely executed from CLI with `--run-download-plan`; only direct entries
   are submitted, `adapter_required` entries are skipped, and completed payloads are manifest-verified before registry
   asset ownership is updated.
+- Verified CSV/CSV.GZ manifests can now be imported into curated SQLite tables through `--import-csv-manifest`; columns
+  are normalized as safe SQL identifiers, table schema fingerprints are recorded, and the result is registered as a
+  managed curated table asset.
 - Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.
