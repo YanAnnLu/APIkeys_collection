@@ -454,6 +454,30 @@ class ApiCatalogRepository:
         self.conn.commit()
         return manifest_id
 
+    def register_downloaded_manifest_asset(
+        self,
+        manifest: AssetManifest,
+        manifest_path: str | Path,
+        notes: str = "Downloaded source asset registered from manifest.",
+    ) -> str:
+        payload_path = Path(manifest.path)
+        install_id = self.manage_provider_installation(
+            manifest.provider_id,
+            location=manifest.path,
+            notes="Downloaded dataset payload verified by sidecar manifest.",
+        )
+        return self.register_installation_asset(
+            install_id,
+            asset_kind="file",
+            asset_role="source",
+            engine="filesystem",
+            asset_name=payload_path.name or manifest.dataset_id or manifest.provider_id,
+            source_format=source_format_from_path(payload_path),
+            source_uri=manifest.source_url,
+            schema_fingerprint=manifest.schema_fingerprint,
+            notes=f"{notes} manifest={manifest_path}",
+        )
+
     def list_dataset_asset_manifests(self, provider_id: str | None = None) -> list[DatasetAssetManifestRecord]:
         if provider_id:
             rows = self.conn.execute(
@@ -795,15 +819,18 @@ class ApiCatalogRepository:
         self,
         provider_ids: list[str] | None = None,
         verifier: AssetVerifier | None = None,
+        asset_kinds: list[str] | tuple[str, ...] | set[str] | None = None,
     ) -> dict[str, int]:
         verifier = verifier or RegistryOnlyVerifier()
         now = utc_now_iso()
         summary = {"present": 0, "missing": 0, "error": 0, "checked": 0}
         provider_filter = set(provider_ids or [])
+        asset_kind_filter = {kind.strip().lower() for kind in (asset_kinds or ()) if kind.strip()}
         assets = [
             asset
             for asset in self.managed_asset_records()
             if not provider_filter or asset.provider_id in provider_filter
+            if not asset_kind_filter or asset.asset_kind.strip().lower() in asset_kind_filter
         ]
         install_status: dict[str, str] = {}
         for asset in assets:
@@ -1098,3 +1125,14 @@ def provider_asset_id(install_id: str, asset_kind: str, engine: str, asset_name:
         ]
     )
     return "asset_" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
+
+
+def source_format_from_path(path: str | Path) -> str:
+    suffix = Path(path).suffix.lower().lstrip(".")
+    if suffix in {"csv"}:
+        return "csv"
+    if suffix in {"json", "geojson"}:
+        return "json"
+    if suffix in {"sqlite", "sqlite3", "db"}:
+        return "sqlite"
+    return "unknown"

@@ -38,6 +38,37 @@ class ManifestRegistryTests(unittest.TestCase):
         self.assertEqual("ok", records[0].status)
         self.assertEqual("2025", records[0].version)
 
+    def test_ok_manifest_can_register_downloaded_file_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            payload = Path(tmpdir) / "sample.csv"
+            payload.write_text("x,y\n1,2\n", encoding="utf-8")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                manifest = build_asset_manifest(
+                    payload,
+                    {
+                        "provider_id": "gebco",
+                        "download_url": "https://example.test/sample.csv",
+                        "dataset_version": {"dataset_uid": "gebco:sample", "dataset_id": "sample", "version": "2025"},
+                    },
+                )
+                manifest_path = write_manifest(manifest, payload.with_suffix(".csv.manifest.json"))
+                repo.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
+
+                asset_id = repo.register_downloaded_manifest_asset(manifest, manifest_path)
+                asset = repo.managed_asset_records("gebco")[0]
+            finally:
+                conn.close()
+
+        self.assertTrue(asset_id.startswith("asset_"))
+        self.assertEqual("file", asset.asset_kind)
+        self.assertEqual("filesystem", asset.engine)
+        self.assertEqual("csv", asset.source_format)
+        self.assertEqual("https://example.test/sample.csv", asset.source_uri)
+
     def test_manifest_health_summary_counts_statuses(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             conn = connect_db(Path(tmpdir) / "test.sqlite")

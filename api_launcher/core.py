@@ -744,6 +744,8 @@ class CatalogLauncherCli:
                     status=result.status,
                     verify_error=result.message if result.needs_repair else "",
                 )
+                if result.status == "ok":
+                    self.repository.register_downloaded_manifest_asset(manifest, result.manifest_path)
             if self.args.verify_downloads_json:
                 print(json.dumps(download_repair_agent_payload(results), ensure_ascii=False, indent=2))
                 return
@@ -899,6 +901,7 @@ class CatalogLauncherCli:
         summary = self.repository.verify_provider_assets(
             self.args.provider or None,
             verifier=DatabaseAssetVerifier(profiles),
+            asset_kinds=("database", "table"),
         )
         if not self.args.self_check_databases_json:
             print(f"[database-self-check] {summary}")

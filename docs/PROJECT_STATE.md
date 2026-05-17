@@ -28,6 +28,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
   verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
+- Healthy download manifests can now be promoted into the install registry as managed filesystem `file` assets. This
+  closes the first MVP loop from direct download to manifest verification to local asset ownership.
 - Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.
@@ -39,7 +41,8 @@ The project is not a secret harvester. Credential files are templates for user-o
   or SQLite path. This lets a custom profile use its own environment variable names without writing secrets into config.
 - Database self-check now verifies managed SQLite database and table assets from the install registry. Whole-database
   assets use read-only schema fingerprints; table assets use `source_uri` as the SQLite path and `asset_name` as the
-  table name, preserving missing/error details for repair work.
+  table name, preserving missing/error details for repair work. The database verifier is scoped to database/table assets
+  so downloaded file assets are not marked as database failures.
 - Database/table asset records can now store `data_store_profile_id` and explicit `schema_name`. The self-check verifier
   uses configured profiles from local integration config, so future UI settings can choose a profile per asset instead
   of relying only on one hard-coded MySQL/PostgreSQL default.

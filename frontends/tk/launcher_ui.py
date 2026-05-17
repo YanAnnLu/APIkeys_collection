@@ -1845,24 +1845,27 @@ class ApiCollectionUi:
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
-            install_id = repository.manage_provider_installation(
-                provider_id,
-                location=target,
-                notes="Downloaded by APIkeys_collection HTTP downloader.",
-            )
             if target:
                 manifest_path = Path(target).with_suffix(Path(target).suffix + ".manifest.json")
-                repository.register_installation_asset(
-                    install_id,
-                    asset_kind="file",
-                    asset_name=Path(target).name,
-                    asset_role="source",
-                    source_format="unknown",
-                    source_uri=str(plan_entry.get("download_url") or (self.download_url_for_row(row) if row else "")),
-                    notes="Downloaded source asset.",
-                )
                 if manifest_path.exists():
-                    repository.upsert_dataset_asset_manifest(read_manifest(manifest_path), manifest_path, status="ok")
+                    manifest = read_manifest(manifest_path)
+                    repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
+                    repository.register_downloaded_manifest_asset(manifest, manifest_path)
+                else:
+                    install_id = repository.manage_provider_installation(
+                        provider_id,
+                        location=target,
+                        notes="Downloaded by APIkeys_collection HTTP downloader.",
+                    )
+                    repository.register_installation_asset(
+                        install_id,
+                        asset_kind="file",
+                        asset_name=Path(target).name,
+                        asset_role="source",
+                        source_format="unknown",
+                        source_uri=str(plan_entry.get("download_url") or (self.download_url_for_row(row) if row else "")),
+                        notes="Downloaded source asset.",
+                    )
         finally:
             conn.close()
         self.reload_data()
@@ -2938,7 +2941,11 @@ class ApiCollectionUi:
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
-            summary = repository.verify_provider_assets(provider_ids, verifier=DatabaseAssetVerifier())
+            summary = repository.verify_provider_assets(
+                provider_ids,
+                verifier=DatabaseAssetVerifier(),
+                asset_kinds=("database", "table"),
+            )
             issues = database_self_check_issues(conn, provider_ids)
         finally:
             conn.close()

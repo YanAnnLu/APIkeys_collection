@@ -208,6 +208,28 @@ class InstallRegistryTests(unittest.TestCase):
         self.assertEqual("managed", self._latest_installation_status())
         self.assertEqual("imported", self._local_status())
 
+    def test_verify_assets_can_filter_database_kinds(self) -> None:
+        install_id = self.repo.manage_provider_installation("sample_provider", location="downloads/sample.csv")
+        file_asset_id = self.repo.register_installation_asset(
+            install_id,
+            asset_kind="file",
+            engine="filesystem",
+            asset_name="sample.csv",
+        )
+        self.repo.register_provider_database_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="sample_db",
+        )
+
+        summary = self.repo.verify_provider_assets(
+            verifier=StaticVerifier("missing"),
+            asset_kinds=("database", "table"),
+        )
+
+        self.assertEqual({"present": 0, "missing": 1, "error": 0, "checked": 1}, summary)
+        self.assertEqual("managed", self._asset_status(file_asset_id))
+
     def test_manual_csv_or_json_imports_keep_provenance_and_schema_fingerprint(self) -> None:
         fingerprint = schema_fingerprint(["station_id", "temperature_c", "observed_at"])
         asset_id = self.repo.register_provider_database_asset(
