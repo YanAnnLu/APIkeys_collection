@@ -208,15 +208,61 @@
       "model": "gemini-2.0-flash",
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
       "api_key_env": "GEMINI_API_KEY",
-      "notes": "Optional cloud fallback. Enable only when GEMINI_API_KEY is available."
+      "oauth_token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
+      "token_store": "state/private/ai_oauth_tokens/gemini_flash.json",
+      "oauth_device": {
+        "enabled": true,
+        "provider": "google",
+        "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+        "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+        "device_code_url": "https://oauth2.googleapis.com/device/code",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "verification_url": "https://www.google.com/device",
+        "scopes": [
+          "https://www.googleapis.com/auth/cloud-platform",
+          "https://www.googleapis.com/auth/generative-language.retriever"
+        ],
+        "token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
+        "token_store": "state/private/ai_oauth_tokens/gemini_flash.json"
+      },
+      "notes": "Optional cloud fallback. Enable API key auth with GEMINI_API_KEY, or set oauth_device.enabled=true plus GOOGLE_OAUTH_CLIENT_ID for QR/device login."
+    },
+    {
+      "id": "openai_compatible",
+      "label": "OpenAI-compatible",
+      "kind": "openai_compatible",
+      "enabled": false,
+      "model": "gpt-4.1-mini",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "api_key_env": "OPENAI_API_KEY",
+      "oauth_token_env": "AI_OAUTH_ACCESS_TOKEN_OPENAI_COMPATIBLE",
+      "token_store": "state/private/ai_oauth_tokens/openai_compatible.json",
+      "oauth_device": {
+        "enabled": true,
+        "provider": "openai_compatible",
+        "client_id_env": "OPENAI_COMPATIBLE_OAUTH_CLIENT_ID",
+        "client_secret_env": "OPENAI_COMPATIBLE_OAUTH_CLIENT_SECRET",
+        "device_code_url": "",
+        "token_url": "",
+        "verification_url": "",
+        "scopes": [],
+        "token_env": "AI_OAUTH_ACCESS_TOKEN_OPENAI_COMPATIBLE",
+        "token_store": "state/private/ai_oauth_tokens/openai_compatible.json"
+      },
+      "notes": "Optional OpenAI-compatible chat completions profile. Use OPENAI_API_KEY, or fill oauth_device endpoints for a compatible provider that supports OAuth device-code QR login."
     }
   ],
   "google_oauth": {
     "enabled": false,
     "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+    "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+    "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/generative-language.retriever"
+    ],
     "token_store": "state/private/google_oauth_tokens.json",
     "login_mode": "device_qr",
-    "notes": "Future QR/device login for Gemini and Google services. Token storage must stay local and ignored by Git."
+    "notes": "QR/device login for Gemini and Google services. Token storage must stay local and ignored by Git. If Google rejects these scopes for device login, use the Gemini API key profile or a desktop OAuth flow."
   },
   "account_link_providers": [
     {

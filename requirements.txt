@@ -1,2 +1,2 @@
 # Runtime dependencies for APIkeys_collection.
-# The current launcher uses only the Python standard library.
+qrcode[pil]>=7.4

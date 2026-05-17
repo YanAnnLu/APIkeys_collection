@@ -11,15 +11,18 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sqlite3
+import subprocess
 import threading
 import urllib.parse
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Canvas, Menu, PhotoImage, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
 from tkinter import ttk
 
 import APIkeys_collection as core
+from api_launcher.favicons import download_favicon_png, favicon_cache_path, favicon_url_for_page, provider_home_url
 from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
@@ -29,8 +32,9 @@ from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelf
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
-from api_launcher.google_auth import build_google_device_login_request
-from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, DEFAULT_CAPABILITY_ROUTES
+from api_launcher.google_auth import activate_saved_google_oauth_token, google_oauth_token_status
+from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, oauth_device_config_from_profile, oauth_token_status, poll_oauth_device_token, save_oauth_device_token
+from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 
 
@@ -83,6 +87,8 @@ LAYOUT = {
     "detail_gap": 18,
     "table_min_with_detail": 620,
     "column_manual_max": 920,
+    "detail_animation_steps": 9,
+    "detail_animation_delay_ms": 12,
 }
 
 
@@ -437,12 +443,17 @@ class ApiCollectionUi:
         self.root.minsize(min_w, min_h)
         self.root.configure(bg=COLORS["bg"])
 
-        self.search_var = StringVar()
-        self.category_var = StringVar(value="all")
-        self.status_var = StringVar(value="準備就緒")
         self.ui_language = configured_ui_language()
+        self.search_var = StringVar()
+        self.search_placeholder_text = self.tr("搜尋資料源、分類、API 或關鍵字", "Search sources, categories, APIs, or keywords")
+        self.search_placeholder_active = False
+        self.category_var = StringVar(value="all")
+        self.sidebar_mode_var = StringVar(value="category")
+        self.status_var = StringVar(value="準備就緒")
         self.plan_name_var = StringVar(value=self.tr("未命名下載計畫", "Untitled download plan"))
         self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個資料源", "Download Plan: 0 sources"))
+        active_ai = core.active_ai_profile()
+        self.selected_ai_profile_id = active_ai.id if active_ai else ""
         self.selected: dict[str, BooleanVar] = {}
         self.rows: list[ProviderRow] = []
         self.filtered_rows: list[ProviderRow] = []
@@ -450,10 +461,16 @@ class ApiCollectionUi:
         self.detail_visible = False
         self.download_plan_visible = True
         self.resize_after_id: str | None = None
+        self.detail_animation_after_id: str | None = None
+        self.detail_animating_close = False
+        self.detail_current_width = 0
         self.column_width_overrides = self.load_column_width_overrides()
         self.resizing_column_name: str | None = None
         self.table_resize_cursor = self.supported_cursor(("sb_h_double_arrow", "resizeleft", "resizeright", "fleur"))
         self.tree_default_cursor = ""
+        self.default_provider_icon: PhotoImage | None = None
+        self.provider_icon_images: dict[str, PhotoImage] = {}
+        self.provider_icon_loading: set[str] = set()
         self.download_policy = core.active_download_policy()
         self.download_queue = NonBlockingDownloadQueue(
             HTTPDownloadAdapter(policy=self.download_policy),
@@ -475,6 +492,7 @@ class ApiCollectionUi:
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
         self.reload_data()
         self.run_startup_environment_checks()
+        self.activate_saved_google_login()
 
     def tr(self, zh_tw: str, en_us: str = "") -> str:
         if self.ui_language == "en-US" and en_us:
@@ -613,6 +631,10 @@ class ApiCollectionUi:
         return core.connect_db(DB_PATH)
 
     def close_app(self) -> None:
+        self.cancel_detail_animation()
+        if self.resize_after_id:
+            self.root.after_cancel(self.resize_after_id)
+            self.resize_after_id = None
         for job_id in list(self.download_providers_by_job):
             with contextlib_suppress_tcl_error():
                 self.download_queue.cancel(job_id)
@@ -637,6 +659,21 @@ class ApiCollectionUi:
                 details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
                 messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
 
+    def activate_saved_google_login(self) -> None:
+        loaded_profiles = []
+        for profile in core.ai_summary_profiles():
+            oauth_config = oauth_device_config_from_profile(profile)
+            if oauth_config is None:
+                continue
+            status, _message = activate_saved_oauth_token(oauth_config.token_store, oauth_config.token_env, label=profile.label)
+            if status == "ready":
+                loaded_profiles.append(profile.label)
+        status, _message = activate_saved_google_oauth_token()
+        if loaded_profiles:
+            self.status_var.set(self.tr(f"已載入 AI 登入 token：{', '.join(loaded_profiles[:3])}", f"Loaded AI login tokens: {', '.join(loaded_profiles[:3])}"))
+        elif status == "ready":
+            self.status_var.set(self.tr("已載入已儲存的 Google 登入 token。", "Loaded saved Google login token."))
+
     def _setup_style(self) -> None:
         style = ttk.Style(self.root)
         with contextlib_suppress_tcl_error():
@@ -655,6 +692,8 @@ class ApiCollectionUi:
         style.map("Sidebar.TButton", background=[("active", COLORS["header"])])
         style.configure("Action.TButton", background=COLORS["header"], foreground=COLORS["text"], padding=(16, 10), font=("Helvetica", 12, "bold"))
         style.map("Action.TButton", background=[("active", COLORS["accent_dark"])])
+        style.configure("Search.TEntry", foreground=COLORS["text"], fieldbackground="#f7f7f7", font=("Helvetica", 14))
+        style.configure("SearchPlaceholder.TEntry", foreground="#6f7b8c", fieldbackground="#f7f7f7", font=("Helvetica", 14))
         rowheight = clamp(int(self.root.winfo_height() * LAYOUT["rowheight_ratio"]), 42, 62)
         style.configure("Treeview", background=COLORS["panel"], fieldbackground=COLORS["panel"], foreground=COLORS["text"], rowheight=rowheight, font=("Helvetica", 12))
         style.configure("Treeview.Heading", background=COLORS["header"], foreground=COLORS["text"], font=("Helvetica", 12, "bold"), padding=(10, 12))
@@ -693,11 +732,15 @@ class ApiCollectionUi:
         tools_menu.add_command(label=self.tr("啟動環境檢查", "Startup environment checks"), command=self.show_environment_checks)
         tools_menu.add_command(label=self.tr("最近事件紀錄", "Recent event logs"), command=self.show_event_logs)
         tools_menu.add_command(label=self.tr("修復 / 驗證資產", "Repair / verify assets"), command=self.open_repair_panel)
+        tools_menu.add_separator()
+        tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
+        tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開啟下載資料夾", "Open downloads folder"), command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
         menu_bar.add_cascade(label=self.tr("工具", "Tools"), menu=tools_menu)
 
         settings_menu = Menu(menu_bar, tearoff=0)
         settings_menu.add_command(label=self.tr("介面語言", "Interface language"), command=self.open_ui_language_settings)
+        settings_menu.add_command(label=self.tr("AI 輔助模型", "AI assistant model"), command=self.open_ai_model_settings)
         menu_bar.add_cascade(label=self.tr("設定", "Settings"), menu=settings_menu)
 
         help_menu = Menu(menu_bar, tearoff=0)
@@ -717,20 +760,25 @@ class ApiCollectionUi:
         sidebar.pack_propagate(False)
 
         ttk.Label(sidebar, text=self.tr("科學資料\n收藏庫", "API DATA\nCOLLECTION"), style="SidebarTitle.TLabel", justify=LEFT).pack(anchor="w", padx=28, pady=(34, 32))
-        for label, category in [
-            ("★ 置頂資料源", "starred"),
-            ("全部資料源", "all"),
-            ("NOAA", "noaa"),
-            ("氣象 / 氣候", "weather"),
-            ("海洋", "ocean"),
-            ("衛星 / 遙測", "satellite"),
-            ("地形 / 地理", "geospatial"),
-            ("地震", "earthquake"),
-            ("金融", "finance"),
-            ("航運 / 航空", "aviation"),
-            ("需要 API Key", "requires_key"),
-        ]:
-            ttk.Button(sidebar, text=label, style="Sidebar.TButton", command=lambda c=category: self.set_category(c)).pack(fill=X, padx=18, pady=3)
+        mode_switch = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        mode_switch.pack(fill=X, padx=18, pady=(0, 12))
+        ttk.Radiobutton(
+            mode_switch,
+            text=self.tr("依類型", "By type"),
+            variable=self.sidebar_mode_var,
+            value="category",
+            command=self.refresh_sidebar_filters,
+        ).pack(side=LEFT)
+        ttk.Radiobutton(
+            mode_switch,
+            text=self.tr("依提供商", "By provider"),
+            variable=self.sidebar_mode_var,
+            value="provider",
+            command=self.refresh_sidebar_filters,
+        ).pack(side=LEFT, padx=(10, 0))
+        self.sidebar_filter_frame = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        self.sidebar_filter_frame.pack(fill=BOTH, expand=True)
+        self.refresh_sidebar_filters()
 
         main = ttk.Frame(self.root, style="App.TFrame")
         main.pack(side=RIGHT, fill=BOTH, expand=True)
@@ -768,8 +816,12 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("編輯資料源", "Edit source"), command=self.edit_active_provider)
         more_button.configure(menu=more_menu)
         more_button.pack(side=LEFT, padx=(0, 10))
-        ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
+        self.search_entry = ttk.Entry(controls, textvariable=self.search_var, style="Search.TEntry")
+        self.search_entry.pack(side=RIGHT, fill=X, expand=True)
+        self.search_entry.bind("<FocusIn>", self.on_search_focus_in)
+        self.search_entry.bind("<FocusOut>", self.on_search_focus_out)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
+        self.set_search_placeholder()
 
         self.content_frame = ttk.Frame(main, style="App.TFrame")
         self.content_frame.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
@@ -814,6 +866,17 @@ class ApiCollectionUi:
         self.detail = ttk.Frame(parent, style="Panel.TFrame", width=self.detail_width())
         self.detail.pack_propagate(False)
         self.detail_wrap_labels: list[ttk.Label] = []
+        self.detail_canvas = Canvas(self.detail, bg=COLORS["panel"], highlightthickness=0, borderwidth=0)
+        self.detail_scrollbar = ttk.Scrollbar(self.detail, orient="vertical", command=self.detail_canvas.yview)
+        self.detail_canvas.configure(yscrollcommand=self.detail_scrollbar.set)
+        self.detail_scrollbar.pack(side=RIGHT, fill=Y)
+        self.detail_canvas.pack(side=LEFT, fill=BOTH, expand=True)
+        self.detail_body = ttk.Frame(self.detail_canvas, style="Panel.TFrame")
+        self.detail_canvas_window = self.detail_canvas.create_window((0, 0), window=self.detail_body, anchor="nw")
+        self.detail_body.bind("<Configure>", self.update_detail_scrollregion)
+        self.detail_canvas.bind("<Configure>", self.on_detail_canvas_configure)
+        self.detail_canvas.bind("<MouseWheel>", self.on_detail_mousewheel)
+        self.detail_body.bind("<MouseWheel>", self.on_detail_mousewheel)
 
         self.detail_star_var = StringVar(value="☆")
         self.detail_title_var = StringVar(value="選取一個資料源")
@@ -823,20 +886,21 @@ class ApiCollectionUi:
         self.detail_status_var = StringVar(value="")
         self.detail_scope_var = StringVar(value="")
         self.detail_urls_var = StringVar(value="")
+        self.ai_summary_placeholder = self.tr("按「AI 產生說明」後，目前選取的 AI profile 產生的描述會顯示在這裡。", "Descriptions generated by the selected AI profile will appear here after you click AI description.")
 
-        hero = ttk.Frame(self.detail, style="Panel.TFrame")
+        hero = ttk.Frame(self.detail_body, style="Panel.TFrame")
         hero.pack(fill=X, padx=18, pady=(18, 12))
         ttk.Button(hero, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
         title_label = ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel", wraplength=self.detail_content_wraplength())
         title_label.pack(side=LEFT, fill=X, expand=True)
         self.detail_wrap_labels.append(title_label)
         ttk.Button(hero, text="×", width=3, command=self.close_detail_drawer).pack(side=RIGHT)
-        owner_label = ttk.Label(self.detail, textvariable=self.detail_owner_var, style="DetailMuted.TLabel", wraplength=self.detail_content_wraplength())
+        owner_label = ttk.Label(self.detail_body, textvariable=self.detail_owner_var, style="DetailMuted.TLabel", wraplength=self.detail_content_wraplength())
         owner_label.pack(anchor="w", fill=X, padx=18)
         self.detail_wrap_labels.append(owner_label)
 
         self.preview_box = Text(
-            self.detail,
+            self.detail_body,
             height=7,
             wrap=WORD,
             bg=COLORS["bg"],
@@ -850,6 +914,21 @@ class ApiCollectionUi:
         self.preview_box.insert("1.0", self.tr("OpenGraph / 官方頁面 metadata 擷取後，預覽會顯示在這裡。", "Preview metadata will appear here after OpenGraph/official-page extraction."))
         self.preview_box.configure(state="disabled")
 
+        ttk.Label(self.detail_body, text=self.tr("AI 生成描述", "AI generated description"), style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(4, 2))
+        self.ai_summary_box = Text(
+            self.detail_body,
+            height=7,
+            wrap=WORD,
+            bg=COLORS["bg"],
+            fg=COLORS["muted"],
+            relief="flat",
+            padx=14,
+            pady=12,
+            font=("Helvetica", 11),
+        )
+        self.ai_summary_box.pack(fill=X, padx=18, pady=(0, 14))
+        self.set_ai_summary_text(self.ai_summary_placeholder)
+
         for label, var in [
             (self.tr("標籤", "TAGS"), self.detail_category_var),
             (self.tr("存取方式", "ACCESS"), self.detail_auth_var),
@@ -857,15 +936,16 @@ class ApiCollectionUi:
             (self.tr("範圍", "SCOPE"), self.detail_scope_var),
             (self.tr("官方連結", "OFFICIAL LINKS"), self.detail_urls_var),
         ]:
-            ttk.Label(self.detail, text=label, style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(10, 2))
-            value_label = ttk.Label(self.detail, textvariable=var, style="DetailText.TLabel", wraplength=self.detail_content_wraplength())
+            ttk.Label(self.detail_body, text=label, style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(10, 2))
+            value_label = ttk.Label(self.detail_body, textvariable=var, style="DetailText.TLabel", wraplength=self.detail_content_wraplength())
             value_label.pack(anchor="w", fill=X, padx=18)
             self.detail_wrap_labels.append(value_label)
 
-        actions = ttk.Frame(self.detail, style="Panel.TFrame")
-        actions.pack(fill=X, padx=18, pady=(18, 0))
+        actions = ttk.Frame(self.detail_body, style="Panel.TFrame")
+        actions.pack(fill=X, padx=18, pady=(18, 18))
         ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="Google QR 登入", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="資料庫工具設定", style="Action.TButton", command=self.open_database_settings).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
@@ -875,6 +955,133 @@ class ApiCollectionUi:
         ttk.Button(actions, text="解除納管", style="Action.TButton", command=self.unmanage_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="移除本地資料", style="Action.TButton", command=self.uninstall_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="編輯描述", style="Action.TButton", command=self.edit_active_provider).pack(fill=X)
+
+    def category_sidebar_items(self) -> list[tuple[str, str, str]]:
+        return [
+            ("★ 置頂資料源", "starred", ""),
+            ("全部資料源", "all", ""),
+            ("NOAA", "noaa", ""),
+            ("氣象 / 氣候", "weather", ""),
+            ("海洋", "ocean", ""),
+            ("衛星 / 遙測", "satellite", ""),
+            ("地形 / 地理", "geospatial", ""),
+            ("地震", "earthquake", ""),
+            ("金融", "finance", ""),
+            ("航運 / 航空", "aviation", ""),
+            ("需要 API Key", "requires_key", ""),
+        ]
+
+    def provider_sidebar_items(self) -> list[tuple[str, str, str]]:
+        owners: dict[str, int] = {}
+        for row in self.rows:
+            owner = row.owner.strip() or self.tr("未知提供商", "Unknown provider")
+            owners[owner] = owners.get(owner, 0) + 1
+        items = [(self.tr("全部提供商", "All providers"), "all", "")]
+        for owner, count in sorted(owners.items(), key=lambda item: (-item[1], item[0].lower()))[:16]:
+            items.append((f"{owner} ({count})", f"provider:{owner}", owner))
+        return items
+
+    def refresh_sidebar_filters(self) -> None:
+        if not hasattr(self, "sidebar_filter_frame"):
+            return
+        for child in self.sidebar_filter_frame.winfo_children():
+            child.destroy()
+        items = self.provider_sidebar_items() if self.sidebar_mode_var.get() == "provider" else self.category_sidebar_items()
+        for label, category, owner in items:
+            image = self.provider_icon_for_owner(owner) if owner else ""
+            button_options = {
+                "text": label,
+                "style": "Sidebar.TButton",
+                "command": lambda c=category: self.set_category(c),
+            }
+            if image:
+                button_options["image"] = image
+                button_options["compound"] = LEFT
+            button = ttk.Button(self.sidebar_filter_frame, **button_options)
+            button.pack(fill=X, padx=18, pady=3)
+
+    def provider_icon_for_owner(self, owner: str) -> PhotoImage | str:
+        if not owner:
+            return ""
+        if owner in self.provider_icon_images:
+            return self.provider_icon_images[owner]
+        cached = self.cached_provider_icon(owner)
+        if cached is not None:
+            self.provider_icon_images[owner] = cached
+            return cached
+        self.fetch_provider_icon_async(owner)
+        return self.default_provider_icon_image()
+
+    def default_provider_icon_image(self) -> PhotoImage:
+        if self.default_provider_icon is None:
+            image = PhotoImage(width=16, height=16)
+            image.put(COLORS["header"], to=(0, 0, 16, 16))
+            image.put(COLORS["accent"], to=(3, 3, 13, 13))
+            image.put(COLORS["text"], to=(7, 4, 9, 12))
+            self.default_provider_icon = image
+        return self.default_provider_icon
+
+    def cached_provider_icon(self, owner: str) -> PhotoImage | None:
+        favicon_url = self.favicon_url_for_owner(owner)
+        if not favicon_url:
+            return None
+        path = favicon_cache_path(favicon_url)
+        if not path.exists():
+            return None
+        try:
+            return PhotoImage(file=str(path))
+        except TclError:
+            return None
+
+    def favicon_url_for_owner(self, owner: str) -> str:
+        for row in self.rows:
+            if (row.owner.strip() or self.tr("未知提供商", "Unknown provider")) != owner:
+                continue
+            home = provider_home_url(row.docs_url, row.signup_url, row.api_base_url)
+            if home:
+                return favicon_url_for_page(home)
+        return ""
+
+    def fetch_provider_icon_async(self, owner: str) -> None:
+        if owner in self.provider_icon_loading:
+            return
+        favicon_url = self.favicon_url_for_owner(owner)
+        if not favicon_url:
+            return
+        self.provider_icon_loading.add(owner)
+
+        def worker() -> None:
+            try:
+                path = download_favicon_png(favicon_url, favicon_cache_path(favicon_url))
+            except Exception as exc:
+                log_event(
+                    "provider_favicon_fetch_failed",
+                    str(exc),
+                    level="warning",
+                    component="ui.sidebar",
+                    context={"owner": owner, "favicon_url": favicon_url},
+                )
+                self.after_on_root(lambda: self.provider_icon_loading.discard(owner))
+                return
+
+            def apply_icon() -> None:
+                self.provider_icon_loading.discard(owner)
+                try:
+                    self.provider_icon_images[owner] = PhotoImage(file=str(path))
+                except TclError:
+                    return
+                if self.sidebar_mode_var.get() == "provider":
+                    self.refresh_sidebar_filters()
+
+            self.after_on_root(apply_icon)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def after_on_root(self, callback: object) -> None:
+        try:
+            self.root.after(0, callback)
+        except (RuntimeError, TclError):
+            return
 
     def _build_download_plan_panel(self, parent: ttk.Frame, outer_pad: int) -> None:
         plan = ttk.Frame(parent, style="Panel.TFrame")
@@ -923,17 +1130,17 @@ class ApiCollectionUi:
         if not self.active_provider_id and self.filtered_rows:
             self.active_provider_id = self.filtered_rows[0].provider_id
         self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
-        if not self.detail_visible:
+        if not self.detail_visible or self.detail_animating_close:
             self.detail_visible = True
-            self.pack_content_area()
+            self.detail_animating_close = False
+            self.animate_detail_drawer(opening=True)
         else:
             self.apply_detail_layout()
         self.root.after_idle(self.resize_table_columns)
 
     def close_detail_drawer(self) -> None:
         if self.detail_visible:
-            self.detail_visible = False
-            self.pack_content_area()
+            self.animate_detail_drawer(opening=False)
             self.root.after_idle(self.resize_table_columns)
 
     def scaled_pad(self) -> int:
@@ -965,20 +1172,100 @@ class ApiCollectionUi:
         wraplength = self.detail_content_wraplength()
         for label in getattr(self, "detail_wrap_labels", []):
             label.configure(wraplength=wraplength)
+        if hasattr(self, "detail_canvas"):
+            canvas_width = max(self.detail_current_width - 18, 260)
+            self.detail_canvas.itemconfigure(self.detail_canvas_window, width=canvas_width)
+
+    def update_detail_scrollregion(self, _event: object | None = None) -> None:
+        self.detail_canvas.configure(scrollregion=self.detail_canvas.bbox("all"))
+
+    def on_detail_canvas_configure(self, event: object) -> None:
+        width = max(getattr(event, "width", self.detail_width()) - 2, 260)
+        self.detail_canvas.itemconfigure(self.detail_canvas_window, width=width)
+        self.update_detail_scrollregion()
+
+    def on_detail_mousewheel(self, event: object) -> str:
+        delta = getattr(event, "delta", 0)
+        if delta:
+            self.detail_canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+        return "break"
 
     def apply_detail_layout(self) -> None:
         if not self.detail_visible:
             return
-        self.detail.configure(width=self.detail_width())
+        if not self.detail_animation_after_id:
+            self.detail_current_width = self.detail_width()
+            self.detail.configure(width=self.detail_current_width)
         self.apply_detail_wraplength()
 
-    def pack_content_area(self) -> None:
+    def pack_content_area(self, detail_width: int | None = None) -> None:
         self.table_frame.pack_forget()
         self.detail.pack_forget()
         if self.detail_visible:
-            self.apply_detail_layout()
+            if detail_width is None:
+                self.apply_detail_layout()
+            else:
+                self.detail_current_width = max(detail_width, 1)
+                self.detail.configure(width=self.detail_current_width)
+                self.apply_detail_wraplength()
             self.detail.pack(side=RIGHT, fill=Y, padx=(LAYOUT["detail_gap"], 0))
         self.table_frame.pack(side=LEFT, fill=BOTH, expand=True)
+
+    def cancel_detail_animation(self) -> None:
+        if self.detail_animation_after_id:
+            with contextlib_suppress_tcl_error():
+                self.root.after_cancel(self.detail_animation_after_id)
+            self.detail_animation_after_id = None
+
+    def current_detail_width(self) -> int:
+        if self.detail.winfo_ismapped():
+            width = self.detail.winfo_width()
+            if width > 1:
+                return width
+        if self.detail_current_width > 1:
+            return self.detail_current_width
+        return self.detail_width()
+
+    def animate_detail_drawer(self, opening: bool) -> None:
+        self.cancel_detail_animation()
+        target_width = self.detail_width()
+        start_width = self.current_detail_width() if self.detail.winfo_ismapped() else 1
+        if opening:
+            self.detail_visible = True
+            self.detail_animating_close = False
+            start_width = min(start_width, target_width)
+            self.pack_content_area(detail_width=start_width)
+        else:
+            self.detail_animating_close = True
+            start_width = max(start_width, 1)
+            target_width = 1
+        self.run_detail_animation(start_width, target_width, opening=opening, step=0)
+
+    def run_detail_animation(self, start_width: int, target_width: int, opening: bool, step: int) -> None:
+        steps = max(int(LAYOUT["detail_animation_steps"]), 1)
+        progress = min(step / steps, 1.0)
+        eased = 1 - ((1 - progress) ** 3)
+        width = max(1, int(start_width + ((target_width - start_width) * eased)))
+        self.detail_current_width = width
+        self.detail.configure(width=width)
+        self.apply_detail_wraplength()
+        self.resize_table_columns()
+        if step < steps:
+            self.detail_animation_after_id = self.root.after(
+                int(LAYOUT["detail_animation_delay_ms"]),
+                lambda: self.run_detail_animation(start_width, target_width, opening=opening, step=step + 1),
+            )
+            return
+        self.detail_animation_after_id = None
+        if opening:
+            self.detail_current_width = self.detail_width()
+            self.apply_detail_layout()
+        else:
+            self.detail_visible = False
+            self.detail_animating_close = False
+            self.detail_current_width = 0
+            self.pack_content_area()
+        self.root.after_idle(self.resize_table_columns)
 
     def on_root_configure(self, event: object) -> None:
         if getattr(event, "widget", None) is not self.root:
@@ -1074,6 +1361,29 @@ class ApiCollectionUi:
         except TclError:
             self.tree.configure(cursor=self.tree_default_cursor)
 
+    def set_search_placeholder(self) -> None:
+        if self.search_var.get():
+            return
+        self.search_placeholder_active = True
+        self.search_var.set(self.search_placeholder_text)
+        self.search_entry.configure(style="SearchPlaceholder.TEntry")
+
+    def on_search_focus_in(self, _event: object) -> None:
+        if self.search_placeholder_active:
+            self.search_placeholder_active = False
+            self.search_var.set("")
+            self.search_entry.configure(style="Search.TEntry")
+
+    def on_search_focus_out(self, _event: object) -> None:
+        if not self.search_var.get().strip():
+            self.set_search_placeholder()
+
+    def ai_profile_labels(self) -> dict[str, str]:
+        return {
+            f"{profile.label} ({profile.kind} / {profile.model})": profile.id
+            for profile in core.ai_summary_profiles()
+        }
+
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
         self.apply_filter()
@@ -1094,13 +1404,16 @@ class ApiCollectionUi:
         self.apply_filter()
         if self.active_provider_id not in {row.provider_id for row in self.rows}:
             self.active_provider_id = self.rows[0].provider_id if self.rows else ""
+        self.refresh_sidebar_filters()
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         self.update_download_plan_panel()
         self.status_var.set(f"已載入 {len(self.rows)} 個資料源。")
 
     def apply_filter(self) -> None:
-        query = self.search_var.get().strip().lower()
+        if not hasattr(self, "tree"):
+            return
+        query = "" if self.search_placeholder_active else self.search_var.get().strip().lower()
         category = self.category_var.get()
         filtered = []
         for row in self.rows:
@@ -1110,7 +1423,10 @@ class ApiCollectionUi:
                 continue
             if category == "requires_key" and not row.key_env_var:
                 continue
-            if category not in ("all", "starred", "noaa", "requires_key") and category not in row.categories:
+            if category.startswith("provider:"):
+                if row.owner != category.removeprefix("provider:"):
+                    continue
+            elif category not in ("all", "starred", "noaa", "requires_key") and category not in row.categories:
                 continue
             haystack = " ".join([row.provider_id, row.name, row.owner, row.category_label, row.auth_type, row.notes]).lower()
             if query and query not in haystack:
@@ -1581,6 +1897,7 @@ class ApiCollectionUi:
             self.detail_scope_var.set("")
             self.detail_urls_var.set("")
             self.set_preview_text(self.tr("OpenGraph / 官方頁面 metadata 擷取後，預覽會顯示在這裡。", "Preview metadata will appear here after OpenGraph/official-page extraction."))
+            self.set_ai_summary_text(self.ai_summary_placeholder)
             return
 
         self.detail_star_var.set(row.star_label)
@@ -1607,6 +1924,7 @@ class ApiCollectionUi:
         ]
         self.detail_urls_var.set("\n".join(link for link in links if link))
         self.set_preview_text(self.provider_description(row))
+        self.set_ai_summary_text(row.notes or self.tr("尚未產生 AI 描述。", "No AI description generated yet."))
 
     def provider_description(self, row: ProviderRow) -> str:
         if row.notes:
@@ -1627,6 +1945,12 @@ class ApiCollectionUi:
         self.preview_box.delete("1.0", END)
         self.preview_box.insert("1.0", text)
         self.preview_box.configure(state="disabled")
+
+    def set_ai_summary_text(self, text: str) -> None:
+        self.ai_summary_box.configure(state="normal")
+        self.ai_summary_box.delete("1.0", END)
+        self.ai_summary_box.insert("1.0", text)
+        self.ai_summary_box.configure(state="disabled")
 
     def add_provider(self) -> None:
         dialog = ProviderEditorDialog(self.root)
@@ -1716,6 +2040,87 @@ class ApiCollectionUi:
             return
         webbrowser.open(path.as_uri())
 
+    def open_developer_cli(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("開發者 CLI", "Developer CLI"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("860x560")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=self.tr("開發者 CLI", "Developer CLI"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                f"工作目錄：{PROJECT_ROOT}\n輸入單次命令後按執行，輸出會顯示在下方。",
+                f"Working directory: {PROJECT_ROOT}\nEnter a one-shot command and run it; output appears below.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 12))
+        command_var = StringVar(value="python APIkeys_collection.py --help")
+        command_entry = ttk.Entry(dialog, textvariable=command_var, style="Search.TEntry")
+        command_entry.pack(fill=X, padx=24, pady=(0, 12))
+        output = Text(dialog, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=14, pady=12, font=("Consolas", 11))
+        output.pack(fill=BOTH, expand=True, padx=24, pady=(0, 12))
+        output.insert("1.0", self.tr("尚未執行命令。", "No command has been run yet."))
+        output.configure(state="disabled")
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+
+        def append_output(text: str) -> None:
+            output.configure(state="normal")
+            output.insert(END, text)
+            output.see(END)
+            output.configure(state="disabled")
+
+        def set_output(text: str) -> None:
+            output.configure(state="normal")
+            output.delete("1.0", END)
+            output.insert("1.0", text)
+            output.configure(state="disabled")
+
+        def run_command() -> None:
+            command = command_var.get().strip()
+            if not command:
+                return
+            try:
+                args = shlex.split(command)
+            except ValueError as exc:
+                set_output(self.tr(f"命令解析失敗：{exc}", f"Command parse failed: {exc}"))
+                return
+            set_output(f"$ {command}\n\n")
+            self.status_var.set(self.tr(f"正在執行 CLI：{command}", f"Running CLI: {command}"))
+
+            def worker() -> None:
+                try:
+                    completed = subprocess.run(
+                        args,
+                        cwd=PROJECT_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=300,
+                        check=False,
+                    )
+                    text = ""
+                    if completed.stdout:
+                        text += completed.stdout
+                    if completed.stderr:
+                        text += ("\n[stderr]\n" if text else "[stderr]\n") + completed.stderr
+                    text += f"\n[exit code] {completed.returncode}\n"
+                    self.root.after(0, lambda: append_output(text))
+                    self.root.after(0, lambda: self.status_var.set(self.tr(f"CLI 執行完成：exit {completed.returncode}", f"CLI finished: exit {completed.returncode}")))
+                except Exception as exc:
+                    error = str(exc)
+                    self.root.after(0, lambda: append_output(f"\n[error] {error}\n"))
+                    self.root.after(0, lambda: self.status_var.set(self.tr(f"CLI 執行失敗：{error}", f"CLI failed: {error}")))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        command_entry.bind("<Return>", lambda _event: run_command())
+        ttk.Button(actions, text=self.tr("執行", "Run"), style="Action.TButton", command=run_command).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("清空", "Clear"), style="Action.TButton", command=lambda: set_output("")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        command_entry.focus_set()
+
     def open_ui_language_settings(self) -> None:
         dialog = Toplevel(self.root)
         dialog.title(self.tr("介面語言", "Interface language"))
@@ -1762,6 +2167,110 @@ class ApiCollectionUi:
 
         ttk.Button(actions, text=self.tr("儲存", "Save"), style="Action.TButton", command=save_language).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def open_ai_model_settings(self) -> None:
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("AI 輔助模型", "AI assistant model"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("760x460")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=self.tr("AI 輔助模型", "AI assistant model"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "選擇產生資料源描述時要調用的 AI profile。登入或 API key 可以先存在各 profile 裡，但真正使用哪個模型由這裡決定。",
+                "Choose which AI profile should be used for dataset descriptions. Login/API keys can be stored per profile, but this setting decides which one is called.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        table = ttk.Treeview(dialog, columns=("use", "label", "kind", "model", "login", "status", "notes"), show="headings", height=9, selectmode="browse")
+        for name, label, width in [
+            ("use", self.tr("使用", "Use"), 58),
+            ("label", self.tr("AI profile", "AI profile"), 150),
+            ("kind", self.tr("服務", "Service"), 110),
+            ("model", self.tr("模型", "Model"), 150),
+            ("login", self.tr("登入", "Login"), 150),
+            ("status", self.tr("狀態", "Status"), 80),
+            ("notes", self.tr("備註", "Notes"), 220),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+        active = core.active_ai_profile()
+        for profile in core.ai_summary_profiles():
+            table.insert(
+                "",
+                END,
+                iid=profile.id,
+                values=(
+                    "✓" if active and active.id == profile.id else "",
+                    profile.label,
+                    profile.kind,
+                    profile.model,
+                    self.ai_profile_login_status(profile),
+                    self.tr("啟用", "Enabled") if profile.enabled else self.tr("停用", "Disabled"),
+                    profile.notes,
+                ),
+            )
+        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        if active:
+            table.selection_set(active.id)
+            table.focus(active.id)
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+
+        def use_selected() -> None:
+            selection = table.selection()
+            if not selection:
+                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=dialog)
+                return
+            try:
+                selected = core.set_active_ai_profile(str(selection[0]))
+            except Exception as exc:
+                messagebox.showerror(self.tr("AI 模型設定失敗", "AI model setup failed"), str(exc), parent=dialog)
+                return
+            self.selected_ai_profile_id = selected.id
+            for item in table.get_children():
+                values = list(table.item(item, "values"))
+                values[0] = "✓" if item == selected.id else ""
+                table.item(item, values=values)
+            self.status_var.set(self.tr(f"AI 輔助模型已設定：{selected.label}", f"AI assistant model set: {selected.label}"))
+
+        def login_selected() -> None:
+            selection = table.selection()
+            if not selection:
+                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=dialog)
+                return
+            self.open_ai_profile_login_dialog(str(selection[0]), parent=dialog)
+
+        def paste_key_for_selected() -> None:
+            selection = table.selection()
+            self.configure_ai_api_key_session(str(selection[0]) if selection else None)
+            for item in table.get_children():
+                profile = next((candidate for candidate in core.ai_summary_profiles() if candidate.id == item), None)
+                if profile:
+                    values = list(table.item(item, "values"))
+                    values[4] = self.ai_profile_login_status(profile)
+                    table.item(item, values=values)
+
+        table.bind("<Double-1>", lambda _event: use_selected())
+        ttk.Button(actions, text=self.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=use_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("登入選取模型", "Login selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("貼上本次 API key", "Paste session API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def ai_profile_login_status(self, profile: core.AiSummaryProfile) -> str:
+        oauth_config = oauth_device_config_from_profile(profile)
+        if oauth_config is not None:
+            if not oauth_config.enabled:
+                return self.tr("QR 已停用", "QR disabled")
+            if not oauth_config.device_code_url or not oauth_config.token_url:
+                return self.tr("QR 待設定", "QR setup needed")
+            status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
+            return self.tr(f"QR {status}", f"QR {status}")
+        if profile.api_key_env:
+            return self.tr(f"API key：{profile.api_key_env}", f"API key: {profile.api_key_env}")
+        return self.tr("不需登入", "No login")
 
     def open_data_store_connection_settings(self) -> None:
         dialog = Toplevel(self.root)
@@ -1929,7 +2438,7 @@ class ApiCollectionUi:
         dialog = Toplevel(self.root)
         dialog.title(self.tr("Gemini / Google 連線", "Gemini / Google connection"))
         dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("620x420")
+        dialog.geometry("760x500")
         dialog.transient(self.root)
         dialog.grab_set()
         ttk.Label(dialog, text=self.tr("Gemini / Google 連線", "Gemini / Google connection"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
@@ -1937,43 +2446,48 @@ class ApiCollectionUi:
         text.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         profile = core.active_ai_profile()
         profile_text = self.tr(f"目前 AI profile：{profile.label} ({profile.kind})", f"Current AI profile: {profile.label} ({profile.kind})") if profile else self.tr("目前沒有啟用 AI profile。", "No active AI profile.")
-        routes_text = "; ".join(
-            f"{route.capability}: {route.preferred_provider} -> {route.target_profile}"
-            for route in DEFAULT_CAPABILITY_ROUTES
-        )
+        gemini_profile = next((item for item in core.ai_summary_profiles() if item.id == "gemini_flash"), None)
+        gemini_oauth = oauth_device_config_from_profile(gemini_profile) if gemini_profile else None
+        if gemini_oauth:
+            token_status, token_message = oauth_token_status(gemini_oauth.token_store, label=gemini_profile.label)
+        else:
+            token_status, token_message = google_oauth_token_status()
+        token_text = self.tr(f"Gemini / Google token：{token_status} - {token_message}", f"Gemini / Google token: {token_status} - {token_message}")
         message = self.tr(
             "\n".join(
                 [
                     "這裡是 Google / Gemini 連線入口。",
+                    "它只負責登入、token 與 Google 相關設定；真正要調用哪個 AI，請到「設定 > AI 輔助模型」選。",
                     "",
                     profile_text,
-                    f"能力路由：{routes_text or '無'}",
+                    token_text,
                     "",
-                    "目前安全骨架支援：",
-                    "1. Gemini API key：到 Google AI Studio 建立 key，設定 GEMINI_API_KEY，並啟用 launcher_integrations.local.json 裡的 gemini profile。",
-                    "2. Google OAuth：下一步會加入瀏覽器登入、callback、token vault 與 refresh-token 管理。",
+                    "目前支援：",
+                    "1. Google QR/device login：設定 GOOGLE_OAUTH_CLIENT_ID 後，可掃 QR 登入並把 token 儲存在 state/private。",
+                    "2. Gemini API key：到 Google AI Studio 建立 key，再到 AI 輔助模型設定貼上本次 session key。",
                     "",
-                    "這個 UI 目前刻意不儲存 Google token，避免憑證流進 Git 或明文設定檔。",
+                    "token 不會寫進 Git；若過期，重新掃 QR 即可。QR 登入成功也不會自動切換 AI 模型。",
                 ]
             ),
             "\n".join(
                 [
                     "This panel is the Google/Gemini connection entry point.",
+                    "It handles login, tokens, and Google-related setup only. Choose the model under Settings > AI assistant model.",
                     "",
                     profile_text,
-                    f"Capability routes: {routes_text or 'none'}",
+                    token_text,
                     "",
-                    "Current safe skeleton supports:",
-                    "1. Gemini API key: create a key in Google AI Studio, set GEMINI_API_KEY, and enable the gemini profile in launcher_integrations.local.json.",
-                    "2. Google OAuth: a later step should add browser sign-in, callback handling, token vault storage, and refresh-token management.",
+                    "Currently supported:",
+                    "1. Google QR/device login: set GOOGLE_OAUTH_CLIENT_ID, scan the QR code, and store the token under state/private.",
+                    "2. Gemini API key: create a key in Google AI Studio, then paste a session key under AI assistant model settings.",
                     "",
-                    "This UI intentionally does not store Google tokens yet, so credentials do not leak into Git or plain config files.",
+                    "Tokens are not committed to Git; scan QR again if the saved token expires. QR login does not switch the active AI model.",
                 ]
             ),
         )
         text.insert("1.0", message)
         text.configure(state="disabled")
-        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=5)
+        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=4)
         for name, label, width in [
             ("provider", self.tr("帳號", "Account"), 110),
             ("mode", self.tr("登入模式", "Login mode"), 140),
@@ -1991,97 +2505,208 @@ class ApiCollectionUi:
         providers.pack(fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
-        ttk.Button(actions, text=self.tr("本次 session 使用 Gemini", "Use Gemini this session"), style="Action.TButton", command=self.configure_gemini_session).pack(side=LEFT, padx=(0, 10))
+
         ttk.Button(actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=self.open_google_qr_login_dialog).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
-    def configure_gemini_session(self) -> None:
+    def configure_ai_api_key_session(self, profile_id: str | None = None) -> None:
+        profiles = [profile for profile in core.ai_summary_profiles() if profile.kind != "ollama"]
+        if not profiles:
+            messagebox.showinfo(self.tr("沒有雲端 AI profile", "No cloud AI profile"), self.tr("目前沒有需要 API key 的 AI profile。", "There is no AI profile that needs an API key."))
+            return
+        active = core.active_ai_profile()
+        requested = next((profile for profile in profiles if profile.id == profile_id), None) if profile_id else None
+        selected = requested or (active if active and active.kind != "ollama" else profiles[0])
+        env_name = selected.api_key_env or ("GEMINI_API_KEY" if selected.kind == "gemini" else "OPENAI_API_KEY")
         api_key = simpledialog.askstring(
-            self.tr("Gemini API key", "Gemini API key"),
-            self.tr("貼上本次 launcher session 要使用的 Gemini API key。\n它只會存在目前程式環境，不會寫進 Git 或設定檔。", "Paste a Gemini API key for this launcher session.\nIt will be stored only in this process environment."),
+            self.tr(f"{selected.label} API key", f"{selected.label} API key"),
+            self.tr(f"貼上本次 launcher session 要使用的 API key。\n會寫入環境變數 {env_name}，只存在目前程式，不會寫進 Git 或設定檔。", f"Paste an API key for this launcher session.\nIt will be placed in {env_name} only for this process."),
             parent=self.root,
             show="*",
         )
         if not api_key:
             return
-        os.environ["GEMINI_API_KEY"] = api_key.strip()
+        os.environ[env_name] = api_key.strip()
         try:
-            profile = core.set_active_ai_profile("gemini_flash")
+            profile = core.set_active_ai_profile(selected.id)
         except Exception as exc:
-            messagebox.showerror(self.tr("Gemini 設定失敗", "Gemini setup failed"), str(exc))
+            messagebox.showerror(self.tr("AI 設定失敗", "AI setup failed"), str(exc))
             return
-        self.status_var.set(self.tr(f"Gemini 已在本次 session 啟用：{profile.label}", f"Gemini enabled for this session: {profile.label}"))
+        self.selected_ai_profile_id = profile.id
+        self.status_var.set(self.tr(f"AI 已在本次 session 啟用：{profile.label}", f"AI enabled for this session: {profile.label}"))
         messagebox.showinfo(
-            self.tr("Gemini 已啟用", "Gemini enabled"),
+            self.tr("AI 已啟用", "AI enabled"),
             self.tr(
-                "Gemini Flash 現在是本次 launcher session 的 AI 摘要 profile。\nAPI key 沒有寫進 Git 或 integration config。",
-                "Gemini Flash is now the active AI summary profile for this launcher session.\nThe API key was not written to Git or the integration config.",
+                f"{profile.label} 現在是本次 launcher session 的 AI 摘要 profile。\nAPI key 沒有寫進 Git 或 integration config。",
+                f"{profile.label} is now the active AI summary profile for this launcher session.\nThe API key was not written to Git or the integration config.",
             ),
         )
 
+    def render_qr_photo(self, payload: str, size: int = 220) -> object | None:
+        try:
+            import qrcode
+            from PIL import ImageTk
+        except Exception:
+            return None
+        qr = qrcode.QRCode(border=2, box_size=8)
+        qr.add_data(payload)
+        qr.make(fit=True)
+        image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+        image = image.resize((size, size))
+        return ImageTk.PhotoImage(image)
+
     def open_google_qr_login_dialog(self) -> None:
-        request = build_google_device_login_request()
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("Google QR 登入", "Google QR login"))
+        self.open_ai_profile_login_dialog("gemini_flash")
+
+    def open_ai_profile_login_dialog(self, profile_id: str | None = None, parent: Toplevel | None = None) -> None:
+        profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None) if profile_id else core.active_ai_profile()
+        if profile is None:
+            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「設定 > AI 輔助模型」選擇一個 AI profile。", "Choose an AI profile under Settings > AI assistant model first."), parent=parent or self.root)
+            return
+        oauth_config = oauth_device_config_from_profile(profile)
+        if oauth_config is None:
+            messagebox.showinfo(
+                self.tr("此 profile 沒有 QR 登入", "No QR login for this profile"),
+                self.tr(
+                    f"{profile.label} 目前沒有 oauth_device 設定。可以先貼上 API key，或在本機整合設定檔替這個 profile 加上 OAuth device-code 端點。",
+                    f"{profile.label} has no oauth_device settings. Paste an API key for now, or add OAuth device-code endpoints for this profile in the local integration config.",
+                ),
+                parent=parent or self.root,
+            )
+            return
+        request = build_oauth_device_login_request(oauth_config)
+        owner = parent or self.root
+        dialog = Toplevel(owner)
+        dialog.title(self.tr(f"{profile.label} QR 登入", f"{profile.label} QR login"))
         dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("520x520")
-        dialog.transient(self.root)
+        dialog.geometry("620x680")
+        dialog.transient(owner)
         dialog.grab_set()
-        ttk.Label(dialog, text=self.tr("Google QR / 裝置登入", "Google QR / device login"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        qr_box = Text(dialog, height=10, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Consolas", 11))
-        qr_box.pack(fill=X, padx=24, pady=(0, 14))
-        if request.client_id_available:
-            qr_text = "\n".join(
+        ttk.Label(dialog, text=self.tr(f"{profile.label} QR / 裝置登入", f"{profile.label} QR / device login"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        status_var = StringVar(value=request.message)
+        qr_frame = ttk.Frame(dialog, style="Panel.TFrame")
+        qr_frame.pack(fill=X, padx=24, pady=(0, 14))
+        qr_payload = request.verification_url_complete or request.verification_url
+        qr_photo = self.render_qr_photo(qr_payload) if request.device_code else None
+        if qr_photo is not None:
+            qr_label = ttk.Label(qr_frame, image=qr_photo, style="DetailText.TLabel")
+            qr_label.image = qr_photo
+            qr_label.pack(anchor="center", pady=(8, 12))
+        fallback = Text(dialog, height=8, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Consolas", 11))
+        fallback.pack(fill=X, padx=24, pady=(0, 14))
+        if request.device_code:
+            fallback_text = "\n".join(
                 [
-                    self.tr("QR 佔位", "QR placeholder"),
+                    self.tr("掃描 QR 或開啟裝置頁面後，輸入下列代碼完成登入。", "Scan the QR code or open the device page, then enter this code to finish login."),
                     "",
-                    self.tr(f"開啟：{request.verification_url}", f"Open: {request.verification_url}"),
+                    self.tr(f"頁面：{request.verification_url}", f"Page: {request.verification_url}"),
                     self.tr(f"代碼：{request.user_code}", f"Code: {request.user_code}"),
-                    "",
-                    self.tr("下一步：交換 device_code、顯示真正 QR 圖，並把 token 存到安全 token vault。", "Next step: exchange device_code, render a real QR image, and save tokens in a secure token vault."),
+                    self.tr(f"有效時間：{request.expires_in} 秒", f"Expires in: {request.expires_in} seconds"),
                 ]
             )
         else:
-            qr_text = "\n".join(
+            fallback_text = "\n".join(
                 [
                     self.tr("QR 登入尚未設定。", "QR login is not configured yet."),
                     "",
                     request.message,
                     "",
-                    self.tr("設定 OAuth client id 後，這個面板會顯示可掃描的 QR / device-code 登入。", "After an OAuth client id is configured, this panel will show a scan-ready QR/device-code login."),
+                    self.tr("設定 OAuth device-code 端點與 client id 後，這個面板會顯示可掃描的 QR / device-code 登入。", "After OAuth device-code endpoints and a client id are configured, this panel will show a scan-ready QR/device-code login."),
                 ]
             )
-        qr_box.insert("1.0", qr_text)
-        qr_box.configure(state="disabled")
-        ttk.Label(dialog, text=request.message, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        fallback.insert("1.0", fallback_text)
+        fallback.configure(state="disabled")
+        ttk.Label(dialog, textvariable=status_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 20))
-        ttk.Button(actions, text=self.tr("開啟裝置頁面", "Open device page"), style="Action.TButton", command=lambda: webbrowser.open(request.verification_url)).pack(side=LEFT, padx=(0, 10))
+        poll_after_id: dict[str, str | None] = {"value": None}
+        poll_interval_ms: dict[str, int] = {"value": max(request.interval, 1) * 1000}
+
+        def cancel_polling() -> None:
+            if poll_after_id["value"]:
+                dialog.after_cancel(poll_after_id["value"])
+                poll_after_id["value"] = None
+
+        def close_dialog() -> None:
+            cancel_polling()
+            dialog.destroy()
+
+        def schedule_poll(delay_ms: int | None = None) -> None:
+            if not dialog.winfo_exists() or not request.device_code:
+                return
+            poll_after_id["value"] = dialog.after(delay_ms or poll_interval_ms["value"], poll_once)
+
+        def poll_once() -> None:
+            cancel_polling()
+            status_var.set(self.tr("正在等待 AI 服務授權完成...", "Waiting for AI service authorization..."))
+
+            def worker() -> None:
+                result = poll_oauth_device_token(request)
+
+                def handle() -> None:
+                    if not dialog.winfo_exists():
+                        return
+                    if result.status == "success":
+                        path = save_oauth_device_token(result, request)
+                        activate_saved_oauth_token(request.token_store, request.token_env, label=profile.label)
+                        status_var.set(self.tr(f"登入成功，token 已儲存：{path}", f"Login succeeded; token saved: {path}"))
+                        self.status_var.set(self.tr(f"{profile.label} 登入完成；下次會優先使用已儲存 token。", f"{profile.label} login completed; saved token will be reused next time."))
+                        return
+                    if result.status in {"authorization_pending", "slow_down"}:
+                        if result.slow_down:
+                            poll_interval_ms["value"] += 5000
+                        status_var.set(self.tr("尚未完成授權，請在手機或瀏覽器完成登入。", "Authorization is still pending; finish login on your phone or browser."))
+                        schedule_poll()
+                        return
+                    status_var.set(result.message)
+                    self.status_var.set(self.tr(f"{profile.label} 登入未完成：{result.status}", f"{profile.label} login not completed: {result.status}"))
+
+                self.root.after(0, handle)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        if request.device_code:
+            schedule_poll(500)
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
+
+        if qr_payload:
+            ttk.Button(actions, text=self.tr("開啟裝置頁面", "Open device page"), style="Action.TButton", command=lambda: webbrowser.open(qr_payload)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("貼上 API key", "Paste API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        if request.device_code:
+            ttk.Button(actions, text=self.tr("重新檢查登入", "Check login"), style="Action.TButton", command=poll_once).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=close_dialog).pack(side=RIGHT)
 
     def generate_active_summary(self) -> None:
         row = self.row_by_provider_id(self.active_provider_id)
         if row is None:
             messagebox.showinfo("尚未選取", "請先選取一個資料源。")
             return
-        profile = core.active_ai_profile()
+        profile = next((item for item in core.ai_summary_profiles() if item.id == self.selected_ai_profile_id), None)
         if profile is None:
             messagebox.showinfo(
                 "尚未設定 AI 摘要",
                 (
-                    "請在 launcher_integrations.local.json 啟用一個 ai_summary_profiles。"
-                    "預設建議使用本機 Ollama，免登入也不需要雲端 API key。"
+                    "請在「設定 > AI 輔助模型」選擇要使用的模型。"
+                    "預設建議可先用本機 Ollama，免登入也不需要雲端 API key。"
                 ),
             )
             return
+        if not profile.enabled:
+            try:
+                profile = core.set_active_ai_profile(profile.id)
+            except Exception as exc:
+                messagebox.showerror("AI 摘要設定失敗", str(exc))
+                return
+        self.selected_ai_profile_id = profile.id
         self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
-        thread = threading.Thread(target=self._summary_worker, args=(row.provider_id,), daemon=True)
+        thread = threading.Thread(target=self._summary_worker, args=(row.provider_id, profile.id), daemon=True)
         thread.start()
 
-    def _summary_worker(self, provider_id: str) -> None:
+    def _summary_worker(self, provider_id: str, profile_id: str) -> None:
         saved_summary = False
         try:
             conn = self._connect()
@@ -2091,7 +2716,7 @@ class ApiCollectionUi:
                 if not providers:
                     raise RuntimeError(f"Unknown provider_id: {provider_id}")
                 provider = providers[0]
-                summary = core.generate_provider_summary(provider)
+                summary = core.generate_provider_summary(provider, profile_id=profile_id)
                 if not provider.notes:
                     provider = core.Provider(
                         provider_id=provider.provider_id,
@@ -2119,7 +2744,7 @@ class ApiCollectionUi:
                 "ai_summary_failed",
                 exc,
                 component="ui.ai_summary",
-                context={"provider_id": provider_id},
+                context={"provider_id": provider_id, "profile_id": profile_id},
             )
             self.root.after(0, lambda: messagebox.showerror("AI 摘要失敗", error))
             self.root.after(0, lambda: self.status_var.set(f"AI 摘要失敗：{error}"))
@@ -2129,9 +2754,10 @@ class ApiCollectionUi:
             if saved_summary:
                 self.reload_data()
                 row = self.row_by_provider_id(provider_id)
+                self.set_ai_summary_text(summary)
                 self.status_var.set(f"AI 說明已寫入：{row.name if row else provider_id}")
             else:
-                self.set_preview_text(summary)
+                self.set_ai_summary_text(summary)
                 self.status_var.set("AI 摘要已產生；既有描述未被覆蓋。")
 
         self.root.after(0, update_ui)

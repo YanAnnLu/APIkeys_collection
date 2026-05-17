@@ -254,19 +254,22 @@ python APIkeys_collection.py --self-check-databases
 
 目前這會用 registry asset verifier 檢查 managed database/table assets。SQLite database asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，計算 database-level table/column schema fingerprint；SQLite table asset 會依 `source_uri` + `asset_name` 檢查單表是否存在，並可用 table-level `schema_fingerprint` 偵測 drift。MySQL/PostgreSQL 會先檢查 env vars 與 optional driver；driver/env vars 可用時，連線 smoke 會透過 `information_schema` 回報 table_count，database/table asset 若有 `schema_fingerprint` 也可做 schema drift detection。跨引擎 table asset 的 database ownership 來自 install record 的 `location`/`install_location`，PostgreSQL 可用 `schema.table` 指定 schema；missing table 會標記為 `missing`。結果會把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status，CLI 也會列出 missing/error 明細。
 
-## Gemini / Google 登入
+## AI 輔助模型與 Google 登入
 
 目前 AI 摘要支援兩條路：
 
 | 模式 | 狀態 | 說明 |
 | --- | --- | --- |
 | Ollama local model | MVP | 不需要登入，適合離線或不想使用雲端模型的機器。 |
-| Gemini API key | MVP | 使用 `GEMINI_API_KEY` 環境變數與 `gemini_flash` profile。 |
-| Google QR/device login | Skeleton | UI 已有 QR/device login 入口；實際 OAuth device-code exchange、QR 圖片產生、token vault 與 refresh token 管理尚未實作。 |
+| Gemini API key / OAuth | MVP | 使用 `GEMINI_API_KEY` 或 Google OAuth access token 與 `gemini_flash` profile。 |
+| OpenAI-compatible | Skeleton | `openai_compatible` profile 使用 chat-completions JSON 形狀，可指向 OpenAI 或相容 endpoint；可用 API key，也可在 profile 裡補 OAuth device-code 端點後使用 QR token。 |
+| Generic QR/device login | MVP | 每個 AI profile 可配置 `oauth_device`，UI 會顯示 QR/device code、輪詢 token，並儲存到 `state/private/ai_oauth_tokens/{profile_id}.json`。 |
 
-QR 登入比手動填 API key 更適合一般使用者，但 token 儲存必須謹慎：不可寫進 Git、不可放在一般設定檔、需要本機 private token store 或系統 credential vault。
+QR 登入比手動填 API key 更適合一般使用者，但 token 儲存必須謹慎：不可寫進 Git、不可放在一般設定檔、需要本機 private token store 或系統 credential vault。目前架構是「profile 裡放登入規格，token 放 `state/private`」；若某個 AI 服務沒有 OAuth device-code 端點，就先走 API key，不能硬造不存在的 QR flow。
 
-Gemini/Ollama 的資料源描述使用 `api_launcher/ai_prompts.py` 中的 prompt contract。現階段的 `dataset_launcher_description_v1` 會要求模型：
+AI profile 的選擇是全域設定：Tk UI 使用 `設定 > AI 輔助模型` 明確勾選要調用哪個 profile。登入或 API key 可以先存在各 profile/session 裡，但「產生描述」時只使用目前選取的 profile。
+
+Gemini/Ollama/OpenAI-compatible 的資料源描述共用 `api_launcher/ai_prompts.py` 中的 prompt contract。現階段的 `dataset_launcher_description_v1` 會要求模型：
 
 - 用繁體中文輸出。
 - 用 3 到 5 個短 bullet points。
@@ -274,7 +277,7 @@ Gemini/Ollama 的資料源描述使用 `api_launcher/ai_prompts.py` 中的 promp
 - 說明 API key、帳號或存取限制。
 - 不得捏造 API key、價格、授權或不存在的能力。
 
-這樣 Gemini 會知道 launcher 調用它的目的，是「生成資料庫/資料集描述」，不是聊天或自由發揮。
+這樣 AI 服務會知道 launcher 調用它的目的，是「生成資料庫/資料集描述」，不是聊天或自由發揮。
 
 PowerShell 測試 Gemini 描述生成：
 
@@ -290,13 +293,15 @@ $env:GEMINI_API_KEY = "貼上你的 Gemini API key"
 py APIkeys_collection.py --init-db --seed --generate-ai-summary gebco --ai-profile gemini_flash --write-ai-summary
 ```
 
-Tk UI 中可以按 `Gemini / AI`，選 `Use Gemini this session`，貼上 API key 後再在資料集詳情或右鍵選單使用 `Gemini / AI description`。
+Tk UI 中可以到 `設定 > AI 輔助模型` 選擇要用的 profile；雲端 profile 可在同一頁用「登入選取模型」開 QR/device 登入，或用 session API key 入口貼 key。Google/Gemini 專用入口仍保留，但它只負責登入/token，不會自動切換目前使用的 AI profile。
 
 UI 也有原生選單列：
 
 - `Integrations > Google / Gemini login and AI`
 - `Integrations > Database tool settings`
 - `Tools > Startup environment checks`
+- `Tools > Developer CLI`
+- `Settings > AI assistant model`
 - `Help > Docs index`
 
 這些選單使用 Tk 原生 `Menu`，在 macOS 會進系統選單列；開啟本機文件與設定檔使用 Python `Path.as_uri()` + `webbrowser.open()`，避免寫死 Windows shell 指令。

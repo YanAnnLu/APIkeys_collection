@@ -4,7 +4,7 @@ import json
 import os
 import platform
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib import request
 
@@ -12,6 +12,7 @@ from api_launcher.ai_prompts import provider_description_prompt
 
 from api_launcher.download_policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
+from api_launcher.oauth_device import oauth_device_config_from_profile
 from api_launcher.paths import config_file, local_config_file
 from api_launcher.platform_paths import platform_config_path
 
@@ -39,6 +40,9 @@ class AiSummaryProfile:
     model: str
     endpoint: str
     api_key_env: str = ""
+    oauth_token_env: str = ""
+    token_store: str = ""
+    oauth_device: dict[str, object] = field(default_factory=dict)
     notes: str = ""
 
 
@@ -307,6 +311,7 @@ def set_active_ai_profile(profile_id: str) -> AiSummaryProfile:
 def ai_summary_profiles_from_config(config: dict[str, object]) -> list[AiSummaryProfile]:
     profiles = []
     for item in config.get("ai_summary_profiles", []):
+        oauth_device = item.get("oauth_device") if isinstance(item.get("oauth_device"), dict) else {}
         profiles.append(
             AiSummaryProfile(
                 id=str(item.get("id") or "").strip(),
@@ -316,6 +321,9 @@ def ai_summary_profiles_from_config(config: dict[str, object]) -> list[AiSummary
                 model=str(item.get("model") or "").strip(),
                 endpoint=str(item.get("endpoint") or "").strip(),
                 api_key_env=str(item.get("api_key_env") or "").strip(),
+                oauth_token_env=str(item.get("oauth_token_env") or oauth_device.get("token_env") or "").strip(),
+                token_store=str(item.get("token_store") or oauth_device.get("token_store") or "").strip(),
+                oauth_device=dict(oauth_device),
                 notes=str(item.get("notes") or "").strip(),
             )
         )
@@ -333,6 +341,8 @@ def generate_provider_summary(provider: Provider, profile_id: str | None = None,
         return _generate_with_ollama(profile, prompt, timeout)
     if profile.kind == "gemini":
         return _generate_with_gemini(profile, prompt, timeout)
+    if profile.kind in {"openai", "openai_compatible"}:
+        return _generate_with_openai_compatible(profile, prompt, timeout)
     raise RuntimeError(f"Unsupported AI summary profile kind: {profile.kind}")
 
 
@@ -377,13 +387,22 @@ def _generate_with_ollama(profile: AiSummaryProfile, prompt: str, timeout: float
 
 def _generate_with_gemini(profile: AiSummaryProfile, prompt: str, timeout: float) -> str:
     api_key = os.environ.get(profile.api_key_env or "GEMINI_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError(f"Missing API key environment variable: {profile.api_key_env or 'GEMINI_API_KEY'}")
+    oauth_env = oauth_token_env_for_profile(profile, "GOOGLE_OAUTH_ACCESS_TOKEN")
+    oauth_token = os.environ.get(oauth_env, "").strip()
+    if not api_key and not oauth_token:
+        raise RuntimeError(
+            f"Missing API key environment variable: {profile.api_key_env or 'GEMINI_API_KEY'} "
+            f"or {oauth_env}."
+        )
     endpoint = profile.endpoint.format(model=profile.model)
+    headers = {"x-goog-api-key": api_key} if api_key else {"Authorization": f"Bearer {oauth_token}"}
+    quota_project = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip() or os.environ.get("GOOGLE_CLOUD_QUOTA_PROJECT", "").strip()
+    if oauth_token and quota_project:
+        headers["x-goog-user-project"] = quota_project
     data = _post_json(
         endpoint,
         {"contents": [{"parts": [{"text": prompt}]}]},
-        headers={"x-goog-api-key": api_key},
+        headers=headers,
         timeout=timeout,
     )
     candidates = data.get("candidates") or []
@@ -392,3 +411,36 @@ def _generate_with_gemini(profile: AiSummaryProfile, prompt: str, timeout: float
     if not text:
         raise RuntimeError("Gemini returned an empty summary.")
     return text
+
+
+def _generate_with_openai_compatible(profile: AiSummaryProfile, prompt: str, timeout: float) -> str:
+    api_key = os.environ.get(profile.api_key_env or "OPENAI_API_KEY", "").strip()
+    oauth_env = oauth_token_env_for_profile(profile, "")
+    oauth_token = os.environ.get(oauth_env, "").strip() if oauth_env else ""
+    if not api_key and not oauth_token:
+        raise RuntimeError(f"Missing API key environment variable: {profile.api_key_env or 'OPENAI_API_KEY'}")
+    data = _post_json(
+        profile.endpoint,
+        {
+            "model": profile.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        headers={"Authorization": f"Bearer {api_key or oauth_token}"},
+        timeout=timeout,
+    )
+    choices = data.get("choices") or []
+    message = (choices[0] or {}).get("message") if choices else {}
+    text = str((message or {}).get("content") or "").strip()
+    if not text:
+        raise RuntimeError("OpenAI-compatible provider returned an empty summary.")
+    return text
+
+
+def oauth_token_env_for_profile(profile: AiSummaryProfile, fallback: str = "") -> str:
+    if profile.oauth_token_env:
+        return profile.oauth_token_env
+    oauth_config = oauth_device_config_from_profile(profile)
+    if oauth_config is not None:
+        return oauth_config.token_env
+    return fallback
