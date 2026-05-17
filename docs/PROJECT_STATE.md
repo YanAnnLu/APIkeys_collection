@@ -43,6 +43,10 @@ The project is not a secret harvester. Credential files are templates for user-o
   `--self-check-databases-json` for UI or agent handoff workflows.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese without
   executing destructive SQL. UI language is configurable through `ui_language` in local integration config.
+- Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
+  `state/favicons/`.
+- AI-generated provider descriptions now use explicit AI profile selection under `設定 > AI 輔助模型`; per-profile
+  QR/device OAuth login can store local tokens under `state/private/ai_oauth_tokens/`.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 
@@ -91,6 +95,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
 - `docs/RENDER_FRONTENDS.zh-TW.md`: Chinese note that separates Taichi reference rendering from the final Unreal
   virtual twin frontend and records the future camera-driven tile streaming direction.
+- `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and day-to-day operation guide.
 - `docs/TECH_STACK.md`: dependency boundary notes for launcher core, Docker, and optional renderer stack.
 
 The next refactor should split `api_launcher/core.py` further into crawl, exports, and CLI modules.
@@ -102,6 +107,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - The sidebar includes a starred-only view for important data sources.
 - Provider descriptions now open in an on-demand right-side drawer instead of a permanently cramped side panel.
 - The Tk UI now uses ratio-based sizing for the window, sidebar, detail drawer, row height, and table columns so it behaves better across Windows/macOS displays and DPI settings.
+- The right detail drawer is scrollable, opens/closes with a subtle width animation, and has a dedicated AI-generated description textbox.
+- Main table columns can be resized manually and remembered in ignored local config.
+- Search has placeholder text so the top entry field is less mysterious.
 - Users can add new provider/API sources and edit launcher descriptions directly from the UI.
 - The UI now has an explicit Download Plan panel, which acts like a cart/install queue for selected data sources.
   Exports include a plan name, provider count, planned status, priority, and target fields for future workers.
@@ -125,7 +133,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Product metaphor: providers are like publishers/source stations, while datasets/databases are the library items.
   Dedupe should prefer canonical dataset identity over provider names.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
-- AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
+- AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini and OpenAI-compatible profiles can use API keys or configured QR/device OAuth login.
+- The UI includes `工具 > 開發者 CLI` for one-shot commands rooted at the project folder.
 - The UI includes a file verification action that scans download manifests and syncs file health into SQLite.
 - The install registry can register whole-database assets and individual table assets, then verify managed SQLite
   assets with `--self-check-databases`.

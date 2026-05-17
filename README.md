@@ -1,15 +1,28 @@
 # APIkeys_collection
 
-`APIkeys_collection.py` builds a local, extensible catalog of public data-provider API metadata.
+`APIkeys_collection.py` builds a local, extensible launcher for public scientific data-provider metadata.
 
 It is designed as a local catalog, download guide, update checker, and bridge planner for
-scientific/geospatial/financial data sources. It is crawler preparation, not secret harvesting:
+scientific/geospatial/financial data sources. It is crawler/downloader preparation, not secret harvesting:
 
 - Catalogs official docs, API base URLs, sign-up pages, auth type, and categories.
 - Creates a local SQLite database: `APIkeys_collection.sqlite`.
 - Generates `.env.example` and `api_keys.txt.template`.
 - Optionally fetches small metadata pages from whitelisted official URLs.
-- Does not search for leaked keys, scrape secrets, or download bulk datasets.
+- Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
+- Does not search for leaked keys or scrape secrets.
+
+## Current Launcher Features
+
+- Tk desktop UI in Traditional Chinese by default, with a language setting under `設定 > 介面語言`.
+- Steam-like source browsing with category/provider sidebar modes; provider mode can show cached website favicons.
+- Search box, star/pin rows, right detail drawer, generated-description textbox, and a download-plan panel.
+- Manual table-column resizing like a spreadsheet; widths are remembered in local config.
+- `設定 > AI 輔助模型` lets the user choose which AI profile is actually used.
+- AI summaries support local Ollama, Gemini, and OpenAI-compatible chat-completions profiles.
+- AI profiles can use API keys or QR/device-code OAuth when the provider exposes such an endpoint; tokens stay under `state/private/`.
+- `工具 > 開發者 CLI` opens a small command panel rooted at this project folder.
+- Startup checks catch common cross-platform path mistakes, including Windows-style paths on macOS.
 
 ## Folder Layout
 
@@ -21,6 +34,7 @@ reference file, templates, and exports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
+- `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and daily-use guide.
 - `docs/DOCS_INDEX.zh-TW.md`: suggested reading order and next-stage documentation cleanup plan.
 - `docs/PRODUCT_POSITIONING.zh-TW.md`: Chinese product positioning note for the evolved Steam-like dataset launcher and virtual twin data pipeline.
 - `docs/PROJECT_GTD.md`: current product status and next steps.
@@ -132,6 +146,15 @@ GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be co
 
 ## Quick Start
 
+If you are on the current macOS handoff machine, prefer the existing Conda environment and do not install packages into `base`:
+
+```bash
+cd "/Users/yen-an/Library/CloudStorage/CloudMounter-Google#1/APIkeys_collection"
+conda run -n metal_trade_312 python APIkeys_collection_ui.py
+```
+
+Generic CLI smoke:
+
 ```bash
 python APIkeys_collection.py
 ```
@@ -162,6 +185,12 @@ macOS/Linux:
 The virtual environment, SQLite database, local secrets, and Python cache files are local machine state and are ignored by git.
 On Windows, the setup script keeps the virtual environment under `%LOCALAPPDATA%\APIkeys_collection\venv-py313`
 so package installs do not fight the synced project folder.
+On the current macOS handoff machine, use `metal_trade_312` for installs/tests instead of `base`:
+
+```bash
+conda run -n metal_trade_312 python -m pip install -r requirements-dev.txt
+conda run -n metal_trade_312 python -m unittest discover -s tests
+```
 
 Renderer dependencies are optional and heavier than the launcher dependencies:
 
@@ -178,11 +207,13 @@ The launcher can open your local database client without hard-coding one user's 
 Copy-Item config\launcher_integrations.example.json launcher_integrations.local.json
 ```
 
-`launcher_integrations.local.json` is ignored by git. Use it to choose MySQL Workbench, DBeaver, or another local database client. The same file also controls optional AI summaries.
+`launcher_integrations.local.json` is ignored by git. Use it to choose MySQL Workbench, DBeaver, or another local database client. The same file also controls optional AI summaries, UI language, table column widths, and OAuth/device-login profile settings.
 
 For no-login summaries, the default profile expects a local Ollama server at `http://localhost:11434/api/generate`. Install Ollama, pull a small model such as `gemma3:1b`, and keep `active_ai_summary_profile` set to `local_ollama`.
 
-Gemini is available as an optional cloud profile. Enable it only if you want that path and have `GEMINI_API_KEY` set in your environment.
+Gemini is available as an optional cloud profile. It can use `GEMINI_API_KEY`, or QR/device login when `GOOGLE_OAUTH_CLIENT_ID` is configured. Other OpenAI-compatible providers can be configured through `ai_summary_profiles`; if a provider supports OAuth device-code login, add its endpoints under that profile's `oauth_device`.
+
+Important: logging in to an AI service is separate from choosing the model. The model used for generated descriptions is selected in the UI under `設定 > AI 輔助模型`.
 
 Git identity helper:
 

@@ -12,8 +12,9 @@
 | 2 | `PRODUCT_POSITIONING.zh-TW.md` | 先理解產品定位：科學資料集 launcher + 虛擬孿生資料管線。 |
 | 3 | `PROJECT_GTD.md` | 看目前功能進度與下一步。 |
 | 4 | `ARCHITECTURE.md` | 看總 pipeline 與模組邊界。 |
-| 5 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
-| 6 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
+| 5 | `USER_GUIDE.zh-TW.md` | 初學者/使用者操作指南：UI、AI 登入、提供商圖示、常用操作。 |
+| 6 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
+| 7 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
 
 ## 可合併候選
 
@@ -33,6 +34,7 @@
 ```text
 docs/
   PRODUCT_POSITIONING.zh-TW.md
+  USER_GUIDE.zh-TW.md
   PROJECT_GTD.md
   ARCHITECTURE.md
   TECHNICAL_OVERVIEW.zh-TW.md
