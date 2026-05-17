@@ -43,6 +43,8 @@ from api_launcher.cli_discovery import (
     discovery_command_active,
 )
 from api_launcher.dataset_adapters import adapters_for_provider
+from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
+from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.environment import EnvironmentCheck, run_startup_checks

@@ -54,6 +54,31 @@ Seed 只能代表「官方入口」或「可探索來源」，不能保證它指
 
 例如 GEBCO 2025 對目前渲染器是 compatibility-pinned；它不是最新版宣稱，而是為了保持 `taichi_global_bathymetry.py` 目前的快取與資料格式穩定。
 
+這套版本機制不是地圖資料專用。任何資料集都可能有舊版、最新版、穩定版、相容版或已棄用版本。Adapter 應該透過 `metadata.available_versions` 提供版本候選，UI 再透過通用的 `api_launcher/dataset_versions.py` 動態產生右鍵選單。
+
+右鍵選單的設計目標：
+
+- 預設新增 latest/default 版本。
+- 可以手動選擇舊版或相容版。
+- 下載計畫需要記錄使用者選擇的 dataset version。
+- 未來同一資料集應可在同一計畫中同時排入多個版本，用於比較、重現研究或 migration 測試。
+
+## 版本轉換與增量更新
+
+版本切換不一定永遠是「更新到最新版」。使用者可能從很早期資料移到中間版本，也可能為了重現研究而降版本。
+
+因此版本規劃要支援：
+
+- install：本機沒有資料，第一次安裝。
+- same：本機版本與目標版本相同，應可跳過。
+- upgrade：往下一個新版。
+- partial_forward：從舊版跳到較新的中間版本或更後版本。
+- downgrade：往上一個舊版。
+- partial_backward：從新版跳回更早的舊版。
+- side-by-side：舊版與新版同時保留，避免破壞渲染器相容性或研究重現性。
+
+實際更新時不應暴力刪除舊資料再重抓全包。比較理想的流程是先比對 manifest、checksum、schema fingerprint、資料列主鍵或 tile key，再只下載與合併變動部分。若 provider 不支援增量更新，才退回全量下載或並存安裝。
+
 ## AI / LLM metadata
 
 未來本地 LLM 或 agent 可以利用這個 launcher 管理資料庫，但不是所有下載資料都適合直接拿去訓練語言模型。

@@ -82,6 +82,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Dataset adapter discovery is now separate from source-site discovery. `api_launcher/dataset_adapters.py` owns the
   adapter registry, and the HYG/GEBCO adapters use shared renderer contract IDs for the HYG v3.8 star catalog and
   GEBCO 2025 global elevation grid.
+- Dataset version selection is now generic. Adapters can expose `metadata.available_versions`, and the UI builds a
+  right-click version menu through `api_launcher/dataset_versions.py` instead of hard-coding GEBCO-specific choices.
 - Product metaphor: providers are like publishers/source stations, while datasets/databases are the library items.
   Dedupe should prefer canonical dataset identity over provider names.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
@@ -106,5 +108,6 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 2. Keep the UI import path stable by re-exporting the public API from `APIkeys_collection.py`.
 3. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
 4. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-5. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-6. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
+5. Allow one download plan to include multiple versions of the same dataset/provider without overwriting the provider row.
+6. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+7. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.

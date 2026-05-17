@@ -15,7 +15,7 @@ import threading
 import urllib.parse
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, Text, Tk, Toplevel, messagebox
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Menu, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
 
 import APIkeys_collection as core
@@ -438,6 +438,7 @@ class ApiCollectionUi:
         self.download_providers_by_job: dict[str, str] = {}
         self.download_progress_by_provider: dict[str, DownloadProgress] = {}
         self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
+        self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.registered_completed_downloads: set[str] = set()
 
         self._init_database()
@@ -568,6 +569,8 @@ class ApiCollectionUi:
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         self.tree.bind("<Double-1>", self.on_tree_double_click)
+        self.tree.bind("<Button-3>", self.on_tree_context_menu)
+        self.tree.bind("<Control-Button-1>", self.on_tree_context_menu)
 
         self._build_detail_panel(content)
 
@@ -835,6 +838,32 @@ class ApiCollectionUi:
             return
         self.add_provider_to_plan(item)
 
+    def on_tree_context_menu(self, event: object) -> None:
+        item = self.tree.identify_row(getattr(event, "y", 0))
+        if not item:
+            return
+        self.active_provider_id = str(item)
+        self.tree.selection_set(item)
+        self.tree.focus(item)
+        menu = Menu(self.root, tearoff=0)
+        menu.add_command(label="Add latest/default to plan", command=lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        version_options = self.version_options_for_provider(item)
+        if version_options:
+            version_menu = Menu(menu, tearoff=0)
+            for option in version_options:
+                version_menu.add_command(
+                    label=option.menu_label,
+                    command=lambda provider_id=item, selected=option: self.add_provider_version_to_plan(provider_id, selected),
+                )
+            menu.add_cascade(label="Add dataset version", menu=version_menu)
+        else:
+            menu.add_command(label="No dataset versions discovered", state="disabled")
+        menu.add_separator()
+        menu.add_command(label="Open details", command=self.open_detail_drawer)
+        menu.add_command(label="Open official docs", command=self.open_active_docs)
+        menu.tk_popup(getattr(event, "x_root", 0), getattr(event, "y_root", 0))
+        menu.grab_release()
+
     def on_tree_select(self, _event: object) -> None:
         selection = self.tree.selection()
         if not selection:
@@ -873,6 +902,7 @@ class ApiCollectionUi:
         row = self.row_by_provider_id(provider_id)
         if row is None:
             return
+        self.plan_version_by_provider.pop(provider_id, None)
         var = self.selected.setdefault(provider_id, BooleanVar(value=False))
         already_selected = var.get()
         var.set(True)
@@ -881,6 +911,32 @@ class ApiCollectionUi:
         self.status_var.set(
             f"{'已在下載計畫中' if already_selected else '已加入下載計畫'}：{row.name}"
         )
+
+    def add_provider_version_to_plan(self, provider_id: str, option: core.DatasetVersionOption) -> None:
+        row = self.row_by_provider_id(provider_id)
+        if row is None:
+            return
+        self.plan_version_by_provider[provider_id] = option
+        self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
+        self.active_provider_id = provider_id
+        self.render_table()
+        self.status_var.set(f"Added {row.name} {option.menu_label} to download plan")
+
+    def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            datasets = repository.list_datasets(provider_id)
+            if not datasets:
+                providers = repository.load_providers([provider_id])
+                for provider in providers:
+                    for adapter in core.adapters_for_provider(provider):
+                        for dataset in adapter.discover(provider):
+                            repository.upsert_dataset(dataset)
+                datasets = repository.list_datasets(provider_id)
+            return core.version_options_for_datasets(datasets)
+        finally:
+            conn.close()
 
     def selected_provider_ids(self) -> list[str]:
         return [provider_id for provider_id, var in self.selected.items() if var.get()]
@@ -896,11 +952,13 @@ class ApiCollectionUi:
             self.cart_tree.delete(item)
         rows = self.selected_rows()
         for row in rows:
+            version = self.plan_version_by_provider.get(row.provider_id)
+            version_label = version.menu_label if version else row.download_label
             self.cart_tree.insert(
                 "",
                 END,
                 iid=row.provider_id,
-                values=(row.name, row.auth_type, row.geographic_scope, row.download_label),
+                values=(row.name, row.auth_type, row.geographic_scope, version_label),
             )
         self.plan_count_var.set(f"Download Plan：{len(rows)} 個資料源")
 
@@ -938,11 +996,18 @@ class ApiCollectionUi:
             eligibility = row.download_eligibility
             url = eligibility.direct_url
             if eligibility.status != "direct_download" or not url:
-                skipped += 1
-                self.download_status_by_provider[row.provider_id] = ("skipped", "0%", eligibility.reason)
-                continue
+                version = self.plan_version_by_provider.get(row.provider_id)
+                if version and version.download_url:
+                    url = version.download_url
+                else:
+                    skipped += 1
+                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", eligibility.reason)
+                    continue
             target_path = self.download_target_for_row(row, url)
             plan_entry = core.provider_plan_entry(self.provider_from_row(row))
+            version = self.plan_version_by_provider.get(row.provider_id)
+            if version:
+                plan_entry["dataset_version"] = version.to_plan_metadata()
             plan_entry["download_url"] = url
             plan_entry["target_path"] = str(target_path)
             job = self.download_queue.submit(plan_entry)
@@ -1097,6 +1162,7 @@ class ApiCollectionUi:
             return
         provider_id = str(selection[0])
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
+        self.plan_version_by_provider.pop(provider_id, None)
         self.render_table()
         row = self.row_by_provider_id(provider_id)
         self.status_var.set(f"已移出下載計畫：{row.name if row else provider_id}")
@@ -1107,6 +1173,7 @@ class ApiCollectionUi:
             return
         for var in self.selected.values():
             var.set(False)
+        self.plan_version_by_provider.clear()
         self.render_table()
         self.status_var.set("已清空下載計畫。")
 
@@ -1477,6 +1544,13 @@ class ApiCollectionUi:
             [self.provider_from_row(row) for row in rows],
             plan_name=plan_name,
         )
+        for entry in payload["providers"]:
+            if not isinstance(entry, dict):
+                continue
+            option = self.plan_version_by_provider.get(str(entry.get("provider_id") or ""))
+            if option:
+                entry["dataset_version"] = option.to_plan_metadata()
+                entry["download_url"] = option.download_url
         output_path = state_file(DOWNLOAD_PLAN_NAME)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

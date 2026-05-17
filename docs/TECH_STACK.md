@@ -97,6 +97,16 @@ dataset changes over time, while an adapter may intentionally pin an older versi
 Dataset metadata should therefore carry version status fields such as `version_status`, `latest_known_version`,
 `latest_known_release_date`, and `freshness_review_required`.
 
+Version selection is generic, not GEBCO-specific. Adapters may expose `metadata.available_versions`; the shared
+`api_launcher/dataset_versions.py` layer converts any dataset into sorted version options for CLI/UI use. The Tk UI
+uses that shared function to build the right-click dataset-version menu dynamically.
+
+Dataset transitions should avoid brute-force delete-and-redownload when possible. The generic planner in
+`api_launcher/dataset_updates.py` decides whether to install new data, skip an already-current version, upgrade,
+downgrade, move to an intermediate newer/older version, compare before updating, or keep an older compatibility version
+side by side. Provider adapters should add manifests, checksums, schema fingerprints, and dedupe keys so future update
+workers can download only changed files/rows/tiles when the upstream source supports it.
+
 ## Data Pipeline
 
 ```text

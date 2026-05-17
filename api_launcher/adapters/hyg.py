@@ -35,6 +35,21 @@ class HYGStarCatalogAdapter(DatasetAdapter):
                     "download_url": HYG_V38_URL,
                     "mirrors": (HYG_GITHUB_ARCHIVE_HOME, HYG_CODEBERG_HOME),
                     "adapter": "HYGStarCatalogAdapter",
+                    "version_status": "pinned_current_adapter",
+                    "update_strategy": "compare_then_replace_or_keep_legacy",
+                    "dedupe_keys": ("dataset_id", "version", "source_url", "checksum"),
+                    "incremental_update_supported": False,
+                    "available_versions": [
+                        {
+                            "label": "HYG v3.8",
+                            "version": "3.8",
+                            "version_status": "pinned_current_adapter",
+                            "download_url": HYG_V38_URL,
+                            "landing_url": HYG_CODEBERG_HOME,
+                            "update_strategy": "compare_then_replace_or_keep_legacy",
+                            "notes": "Current launcher adapter target; GitHub archive still hosts the raw CSV.GZ.",
+                        }
+                    ],
                     "notes": "GitHub repository is archived; Codeberg is listed upstream as the future home. The v3.8 raw CSV.GZ URL remains available through the GitHub archive.",
                 },
             )

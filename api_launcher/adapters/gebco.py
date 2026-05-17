@@ -52,6 +52,29 @@ class GEBCOTopographyAdapter(DatasetAdapter):
                     "latest_known_version": "2026",
                     "latest_known_release_date": "2026-04-23",
                     "freshness_review_required": True,
+                    "update_strategy": "compare_then_replace_or_keep_legacy",
+                    "dedupe_keys": ("dataset_id", "version", "source_url", "checksum"),
+                    "incremental_update_supported": False,
+                    "available_versions": [
+                        {
+                            "label": "GEBCO 2025 - renderer compatibility",
+                            "version": "2025",
+                            "version_status": "compatibility_pinned",
+                            "download_url": GEBCO_2025_OPENDAP_URL,
+                            "landing_url": GEBCO_2025_GRID_HOME,
+                            "update_strategy": "keep_legacy_for_renderer_compatibility",
+                            "notes": "Use this version for the current taichi_global_bathymetry cache contract.",
+                        },
+                        {
+                            "label": "GEBCO 2026 - latest known",
+                            "version": "2026",
+                            "version_status": "latest_known",
+                            "download_url": "https://download.gebco.net/downloads",
+                            "landing_url": GEBCO_CURRENT_GRID_HOME,
+                            "update_strategy": "compare_then_replace_or_keep_legacy",
+                            "notes": "Latest known GEBCO grid; renderer migration and direct-download manifest still need review.",
+                        },
+                    ],
                     "notes": (
                         "Renderer bridge is currently pinned to GEBCO 2025 for cache compatibility. "
                         "GEBCO 2026 exists and should be evaluated before migrating cache IDs. "
