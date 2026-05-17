@@ -77,9 +77,12 @@ LAYOUT = {
     "sidebar_max": 320,
     "outer_pad_ratio": 0.018,
     "rowheight_ratio": 0.052,
-    "detail_ratio": 0.34,
-    "detail_min": 420,
-    "detail_max": 680,
+    "detail_ratio": 0.28,
+    "detail_min": 360,
+    "detail_max": 560,
+    "detail_gap": 18,
+    "table_min_with_detail": 620,
+    "column_manual_max": 920,
 }
 
 
@@ -447,6 +450,8 @@ class ApiCollectionUi:
         self.detail_visible = False
         self.download_plan_visible = True
         self.resize_after_id: str | None = None
+        self.column_width_overrides = self.load_column_width_overrides()
+        self.resizing_column_name: str | None = None
         self.download_policy = core.active_download_policy()
         self.download_queue = NonBlockingDownloadQueue(
             HTTPDownloadAdapter(policy=self.download_policy),
@@ -473,6 +478,63 @@ class ApiCollectionUi:
         if self.ui_language == "en-US" and en_us:
             return en_us
         return zh_tw
+
+    def load_column_width_overrides(self) -> dict[str, int]:
+        raw_widths = core.load_integration_config().get("ui_table_column_widths")
+        if not isinstance(raw_widths, dict):
+            return {}
+        widths: dict[str, int] = {}
+        valid_names = {column[0] for column in TABLE_COLUMNS}
+        for name, value in raw_widths.items():
+            if name not in valid_names:
+                continue
+            try:
+                widths[str(name)] = self.normalized_column_width(str(name), int(value))
+            except (TypeError, ValueError):
+                continue
+        return widths
+
+    def save_column_width_overrides(self) -> None:
+        config = core.ensure_local_integration_config()
+        if self.column_width_overrides:
+            config["ui_table_column_widths"] = dict(sorted(self.column_width_overrides.items()))
+        else:
+            config.pop("ui_table_column_widths", None)
+        save_integration_config(config)
+
+    def normalized_column_width(self, name: str, width: int) -> int:
+        spec = next((column for column in TABLE_COLUMNS if column[0] == name), None)
+        if spec is None:
+            return width
+        _name, _label, _ratio, min_width, max_width, _anchor, _stretch = spec
+        manual_max = max(max_width, LAYOUT["column_manual_max"])
+        return clamp(width, min_width, manual_max)
+
+    def localized_download_label(self, eligibility: object) -> str:
+        label = str(getattr(eligibility, "label", ""))
+        if self.ui_language != "en-US":
+            labels = {
+                "direct_download": "直接下載",
+                "adapter_required": "需要轉接器",
+                "metadata_only": "僅文件",
+                "unavailable": "不可用",
+            }
+            label = labels.get(str(getattr(eligibility, "status", "")), label)
+        if bool(getattr(eligibility, "requires_api_key", False)):
+            return f"{label}+Key" if self.ui_language == "en-US" else f"{label}+金鑰"
+        return label
+
+    def localized_download_reason(self, eligibility: object) -> str:
+        reason = str(getattr(eligibility, "reason", ""))
+        if self.ui_language == "en-US":
+            return reason
+        reasons = {
+            "direct_download": "這個 API 或下載網址看起來可以直接取得檔案。",
+            "adapter_required": "這個來源提供 API，需要資料轉接器把資料整理成本機檔案。",
+            "metadata_only": "目前只有文件或註冊頁，還沒有直接資料下載網址。",
+            "unavailable": "尚未設定可用的文件、API 或下載網址。",
+        }
+        return reasons.get(str(getattr(eligibility, "status", "")), reason)
 
     def localized_download_repair_label(self, suggestion: object) -> str:
         if self.ui_language == "en-US":
@@ -685,36 +747,41 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
+        more_menu.add_command(label=self.tr("重設表格欄寬", "Reset table columns"), command=self.reset_table_column_widths)
         more_menu.add_command(label=self.tr("編輯資料源", "Edit source"), command=self.edit_active_provider)
         more_button.configure(menu=more_menu)
         more_button.pack(side=LEFT, padx=(0, 10))
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
-        content = ttk.Frame(main, style="App.TFrame")
-        content.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
+        self.content_frame = ttk.Frame(main, style="App.TFrame")
+        self.content_frame.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
 
-        table_frame = ttk.Frame(content, style="Panel.TFrame")
-        table_frame.pack(side=LEFT, fill=BOTH, expand=True)
+        self.table_frame = ttk.Frame(self.content_frame, style="Panel.TFrame")
+        self.table_frame.pack(side=LEFT, fill=BOTH, expand=True)
         columns = tuple(column[0] for column in TABLE_COLUMNS)
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
+        self.tree = ttk.Treeview(self.table_frame, columns=columns, show="headings", selectmode="extended")
         for name, label, _ratio, min_width, _max_width, anchor, stretch in TABLE_COLUMNS:
             self.tree.heading(name, text=label)
             self.tree.column(name, width=min_width, anchor=anchor, stretch=stretch)
         self.tree.tag_configure("has_action", foreground=COLORS["text"])
         self.tree.tag_configure("remote_updated", foreground=COLORS["accent"])
         self.tree.tag_configure("starred", foreground=COLORS["accent"])
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar = ttk.Scrollbar(self.table_frame, orient="vertical", command=self.tree.yview)
+        x_scrollbar = ttk.Scrollbar(self.table_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=scrollbar.set, xscrollcommand=x_scrollbar.set)
+        x_scrollbar.pack(side="bottom", fill=X)
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
+        self.tree.bind("<ButtonPress-1>", self.on_tree_button_press, add="+")
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
+        self.tree.bind("<ButtonRelease-1>", self.on_tree_button_release, add="+")
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         self.tree.bind("<Double-1>", self.on_tree_double_click)
         self.tree.bind("<Button-3>", self.on_tree_context_menu)
         self.tree.bind("<Control-Button-1>", self.on_tree_context_menu)
 
-        self._build_detail_panel(content)
+        self._build_detail_panel(self.content_frame)
 
         self._build_download_plan_panel(main, outer_pad)
 
@@ -726,6 +793,7 @@ class ApiCollectionUi:
         self.detail_parent = parent
         self.detail = ttk.Frame(parent, style="Panel.TFrame", width=self.detail_width())
         self.detail.pack_propagate(False)
+        self.detail_wrap_labels: list[ttk.Label] = []
 
         self.detail_star_var = StringVar(value="☆")
         self.detail_title_var = StringVar(value="選取一個資料源")
@@ -739,9 +807,13 @@ class ApiCollectionUi:
         hero = ttk.Frame(self.detail, style="Panel.TFrame")
         hero.pack(fill=X, padx=18, pady=(18, 12))
         ttk.Button(hero, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
-        ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel").pack(side=LEFT, fill=X, expand=True)
+        title_label = ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel", wraplength=self.detail_content_wraplength())
+        title_label.pack(side=LEFT, fill=X, expand=True)
+        self.detail_wrap_labels.append(title_label)
         ttk.Button(hero, text="×", width=3, command=self.close_detail_drawer).pack(side=RIGHT)
-        ttk.Label(self.detail, textvariable=self.detail_owner_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=18)
+        owner_label = ttk.Label(self.detail, textvariable=self.detail_owner_var, style="DetailMuted.TLabel", wraplength=self.detail_content_wraplength())
+        owner_label.pack(anchor="w", fill=X, padx=18)
+        self.detail_wrap_labels.append(owner_label)
 
         self.preview_box = Text(
             self.detail,
@@ -766,7 +838,9 @@ class ApiCollectionUi:
             (self.tr("官方連結", "OFFICIAL LINKS"), self.detail_urls_var),
         ]:
             ttk.Label(self.detail, text=label, style="DetailSection.TLabel").pack(anchor="w", padx=18, pady=(10, 2))
-            ttk.Label(self.detail, textvariable=var, style="DetailText.TLabel").pack(anchor="w", fill=X, padx=18)
+            value_label = ttk.Label(self.detail, textvariable=var, style="DetailText.TLabel", wraplength=self.detail_content_wraplength())
+            value_label.pack(anchor="w", fill=X, padx=18)
+            self.detail_wrap_labels.append(value_label)
 
         actions = ttk.Frame(self.detail, style="Panel.TFrame")
         actions.pack(fill=X, padx=18, pady=(18, 0))
@@ -829,25 +903,62 @@ class ApiCollectionUi:
         if not self.active_provider_id and self.filtered_rows:
             self.active_provider_id = self.filtered_rows[0].provider_id
         self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
-        self.detail.configure(width=self.detail_width())
         if not self.detail_visible:
-            self.detail.pack(side=RIGHT, fill=Y, padx=(18, 0))
             self.detail_visible = True
+            self.pack_content_area()
+        else:
+            self.apply_detail_layout()
+        self.root.after_idle(self.resize_table_columns)
 
     def close_detail_drawer(self) -> None:
         if self.detail_visible:
-            self.detail.pack_forget()
             self.detail_visible = False
+            self.pack_content_area()
+            self.root.after_idle(self.resize_table_columns)
 
     def scaled_pad(self) -> int:
         return clamp(int(self.root.winfo_width() * LAYOUT["outer_pad_ratio"]), 18, 40)
 
     def detail_width(self) -> int:
-        return clamp(
-            int(self.root.winfo_width() * LAYOUT["detail_ratio"]),
-            LAYOUT["detail_min"],
-            LAYOUT["detail_max"],
-        )
+        container_width = self.content_width()
+        gap = LAYOUT["detail_gap"]
+        table_min = LAYOUT["table_min_with_detail"]
+        if container_width <= table_min + gap:
+            return clamp(container_width // 2, 280, LAYOUT["detail_min"])
+        max_width = max(280, min(LAYOUT["detail_max"], container_width - table_min - gap))
+        min_width = min(LAYOUT["detail_min"], max_width)
+        return clamp(int(container_width * LAYOUT["detail_ratio"]), min_width, max_width)
+
+    def content_width(self) -> int:
+        container_width = 0
+        if hasattr(self, "content_frame"):
+            container_width = self.content_frame.winfo_width()
+        if container_width <= 1:
+            sidebar_width = clamp(int(self.root.winfo_width() * LAYOUT["sidebar_ratio"]), LAYOUT["sidebar_min"], LAYOUT["sidebar_max"])
+            container_width = max(self.root.winfo_width() - sidebar_width - (2 * self.scaled_pad()), 1)
+        return max(container_width, 1)
+
+    def detail_content_wraplength(self) -> int:
+        return max(self.detail_width() - 64, 260)
+
+    def apply_detail_wraplength(self) -> None:
+        wraplength = self.detail_content_wraplength()
+        for label in getattr(self, "detail_wrap_labels", []):
+            label.configure(wraplength=wraplength)
+
+    def apply_detail_layout(self) -> None:
+        if not self.detail_visible:
+            return
+        self.detail.configure(width=self.detail_width())
+        self.apply_detail_wraplength()
+
+    def pack_content_area(self) -> None:
+        self.table_frame.pack_forget()
+        self.detail.pack_forget()
+        if self.detail_visible:
+            self.apply_detail_layout()
+            self.detail.pack(side=RIGHT, fill=Y, padx=(LAYOUT["detail_gap"], 0))
+        self.table_frame.pack(side=LEFT, fill=BOTH, expand=True)
 
     def on_root_configure(self, event: object) -> None:
         if getattr(event, "widget", None) is not self.root:
@@ -862,17 +973,63 @@ class ApiCollectionUi:
         height = max(self.root.winfo_height(), 1)
         rowheight = clamp(int(height * LAYOUT["rowheight_ratio"]), 42, 62)
         ttk.Style(self.root).configure("Treeview", rowheight=rowheight)
-        if self.detail_visible:
-            self.detail.configure(width=self.detail_width())
+        self.apply_detail_layout()
         self.resize_table_columns()
 
     def resize_table_columns(self) -> None:
         table_width = max(self.tree.winfo_width(), 1)
         reserved = 24
-        available = max(table_width - reserved, 1)
+        manual_widths = {
+            name: self.normalized_column_width(name, width)
+            for name, width in self.column_width_overrides.items()
+        }
+        manual_total = sum(manual_widths.values())
+        auto_columns = [column for column in TABLE_COLUMNS if column[0] not in manual_widths]
+        available = max(table_width - reserved - manual_total, 1)
+        ratio_base = 1.0 if not manual_widths else max(sum(column[2] for column in auto_columns), 0.01)
         for name, _label, ratio, min_width, max_width, _anchor, _stretch in TABLE_COLUMNS:
-            width = clamp(int(available * ratio), min_width, max_width)
+            if name in manual_widths:
+                width = manual_widths[name]
+            else:
+                width = clamp(int(available * (ratio / ratio_base)), min_width, max_width)
             self.tree.column(name, width=width)
+
+    def table_column_name_from_event(self, event: object) -> str:
+        column_id = self.tree.identify_column(getattr(event, "x", 0))
+        if not column_id.startswith("#"):
+            return ""
+        try:
+            index = int(column_id[1:]) - 1
+        except ValueError:
+            return ""
+        if index < 0 or index >= len(TABLE_COLUMNS):
+            return ""
+        return TABLE_COLUMNS[index][0]
+
+    def on_tree_button_press(self, event: object) -> None:
+        region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
+        self.resizing_column_name = self.table_column_name_from_event(event) if region == "separator" else None
+
+    def on_tree_button_release(self, _event: object) -> None:
+        if not self.resizing_column_name:
+            return
+        name = self.resizing_column_name
+        self.resizing_column_name = None
+        self.root.after_idle(lambda column_name=name: self.finish_tree_column_resize(column_name))
+
+    def finish_tree_column_resize(self, name: str) -> None:
+        width = self.normalized_column_width(name, int(self.tree.column(name, "width")))
+        self.column_width_overrides[name] = width
+        self.save_column_width_overrides()
+        self.resize_table_columns()
+        label = next((column[1] for column in TABLE_COLUMNS if column[0] == name), name)
+        self.status_var.set(self.tr(f"已調整欄寬：{label}", f"Column width updated: {label}"))
+
+    def reset_table_column_widths(self) -> None:
+        self.column_width_overrides.clear()
+        self.save_column_width_overrides()
+        self.resize_table_columns()
+        self.status_var.set(self.tr("已重設表格欄寬。", "Table column widths reset."))
 
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
@@ -941,7 +1098,7 @@ class ApiCollectionUi:
                     row.name,
                     row.category_label,
                     row.local_label,
-                    row.download_label,
+                    self.localized_download_label(row.download_eligibility),
                     row.action_label,
                 ),
                 tags=tuple(tags),
@@ -1133,7 +1290,7 @@ class ApiCollectionUi:
         rows = self.selected_rows()
         for row in rows:
             version = self.plan_version_by_provider.get(row.provider_id)
-            version_label = version.menu_label if version else row.download_label
+            version_label = version.menu_label if version else self.localized_download_label(row.download_eligibility)
             self.cart_tree.insert(
                 "",
                 END,
@@ -1389,19 +1546,21 @@ class ApiCollectionUi:
         self.detail_category_var.set(row.category_label)
         access = row.auth_type
         if row.key_env_var:
-            access = f"{access}\nEnv: {row.key_env_var}"
+            access = f"{access}\n{self.tr('環境變數', 'Env')}: {row.key_env_var}"
         self.detail_auth_var.set(access)
         self.detail_status_var.set(
-            f"Remote: {row.status_label} / {row.update_label}\n"
-            f"Local: {row.local_label}\n"
-            f"Install ID: {row.install_id or 'not managed'}\n"
-            f"Download: {row.download_eligibility.label} - {row.download_eligibility.reason}"
+            f"{self.tr('遠端', 'Remote')}: {row.status_label} / {row.update_label}\n"
+            f"{self.tr('本地', 'Local')}: {row.local_label}\n"
+            f"{self.tr('安裝 ID', 'Install ID')}: {row.install_id or self.tr('未納管', 'not managed')}\n"
+            f"{self.tr('下載', 'Download')}: "
+            f"{self.localized_download_label(row.download_eligibility)} - "
+            f"{self.localized_download_reason(row.download_eligibility)}"
         )
         self.detail_scope_var.set(row.geographic_scope)
         links = [
-            f"Docs: {row.docs_url}" if row.docs_url else "",
+            f"{self.tr('文件', 'Docs')}: {row.docs_url}" if row.docs_url else "",
             f"API: {row.api_base_url}" if row.api_base_url else "",
-            f"Signup: {row.signup_url}" if row.signup_url else "",
+            f"{self.tr('註冊', 'Signup')}: {row.signup_url}" if row.signup_url else "",
         ]
         self.detail_urls_var.set("\n".join(link for link in links if link))
         self.set_preview_text(self.provider_description(row))
@@ -1410,6 +1569,11 @@ class ApiCollectionUi:
         if row.notes:
             return row.notes
         category_hint = row.category_label or "data"
+        if self.ui_language != "en-US":
+            return (
+                f"{row.name} 是由 {row.owner} 提供的官方 {category_hint} 資料來源。"
+                "之後擷取官方 metadata 後，這裡會顯示更完整的描述與預覽。"
+            )
         return (
             f"{row.name} is an official {category_hint} source from {row.owner}. "
             "A richer description and visual preview will be populated from official metadata pages."
