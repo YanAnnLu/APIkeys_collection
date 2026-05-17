@@ -1,6 +1,6 @@
 # APIkeys Collection Architecture
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 APIkeys Collection is a Steam-like launcher for data sources and local databases.
 It catalogs providers, builds download plans, downloads/imports datasets, tracks
@@ -64,6 +64,7 @@ flowchart TD
         Taichi[Taichi reference renderer]
         Unreal[Unreal Engine UI / rendering / lighting / baking]
         Agents[Future agent skill / natural language control]
+        Mobile[Future mobile companion / remote control]
     end
 
     Browse --> Providers
@@ -108,18 +109,27 @@ flowchart TD
     Install --> Agents
     Agents --> Cart
     Agents --> SQL
+    Mobile --> Actions
+    Mobile --> Cart
+    Mobile --> Repair
 ```
 
 Important boundary: Unreal is a rendering/UI consumer, not the data owner. Raw data, versions, checksums, cleaning logs,
 and install identity remain in the launcher registry. Unreal may import, cache, stream, or bake frontend-specific assets
 only when that improves the user experience or performance.
 
+Remote-control boundary: a future mobile app should control the resident desktop/service layer, not become a second data
+owner. The mobile side may inspect queue/library/repair status, receive notifications, and request safe actions. Raw
+datasets, data-store credentials, provider/API tokens, AI tokens, and heavy imports/render preparation should stay on the
+desktop/service side. Any remote API should start read-only by default and require QR/device pairing, revocable device
+tokens, scoped permissions, and explicit confirmation for destructive actions.
+
 ## Runtime Layers
 
 | Layer | Files | Role |
 | --- | --- | --- |
 | Entry points | `APIkeys_collection.py`, `APIkeys_collection_ui.py` | Thin compatibility entry points. |
-| Frontends | `frontends/tk/launcher_ui.py`, `renderers/`, future Unreal project/tooling | UI and renderer-facing code separated from the backend package. |
+| Frontends | `frontends/tk/launcher_ui.py`, `renderers/`, future Unreal project/tooling, future mobile companion | UI, renderer-facing code, and remote-control clients separated from the backend package. |
 | Core orchestration | `api_launcher/core.py` | CLI commands and shared exports used by the UI. |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py` | SQLite schema, catalog state, crawl results, install registry, local asset state. |
 | Catalog model | `api_launcher/models.py`, `api_launcher/registry.py`, catalog JSON/CSV/MD files | Provider and dataset definitions. |

@@ -18,6 +18,8 @@ Steam-like 的產品形態不應只是一個手動開啟的視窗。中期目標
 
 技術上，這代表要把「背景工作者」和「視窗 UI」分清楚。下載、匯入、修復掃描、更新提醒應該能透過共用 backend service/worker 和 CLI action 執行；Tk 視窗、未來系統匣 shell、macOS menu bar shell 都只是操作同一套能力的不同入口。這不是後端 MVP 的第一優先，但現在文件先記錄，避免後續把架構寫成一次性腳本。
 
+在更後面的階段，可以新增移動端 companion app。它應該透過安全配對連到常駐桌面端，而不是直接連資料庫。基本模型是：手機端發出「查看狀態、暫停/恢復下載、重試失敗任務、收到修復提醒」這類控制命令；桌面端負責驗證裝置、檢查權限、執行 action、保管 token 與資料。這需要一層 guarded remote-control API，至少包含 QR/device pairing、可撤銷 device token、預設唯讀權限、破壞性操作二次確認，以及 LAN/VPN/tunnel 的安全部署邊界。
+
 ## 主要流程
 
 這份專案要同時保留兩件事：
