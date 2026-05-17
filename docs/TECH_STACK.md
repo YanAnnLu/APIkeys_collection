@@ -134,7 +134,8 @@ database-level schema fingerprints; SQLite table assets use `source_uri` as the 
 table name for existence and table-level fingerprint checks. MySQL/PostgreSQL checks should continue through
 `api_launcher/data_store_connections.py` so missing env vars and optional drivers are reported before any connection
 attempt. The same module now owns reusable MySQL/PostgreSQL `information_schema` helpers for table counts, table names,
-table existence, column signatures, and optional schema fingerprints.
+table existence, column signatures, and optional schema fingerprints. SQL table assets should keep database ownership in
+the install record location; PostgreSQL table assets may use `schema.table` in `asset_name`.
 
 Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
 eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and

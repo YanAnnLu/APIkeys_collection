@@ -12,6 +12,7 @@ class AssetRecord:
     asset_kind: str
     engine: str
     asset_name: str
+    install_location: str = ""
     asset_role: str = "source"
     derived_from_asset_id: str = ""
     source_format: str = "unknown"

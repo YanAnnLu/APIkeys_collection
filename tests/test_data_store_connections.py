@@ -17,11 +17,13 @@ from api_launcher.data_store_connections import (
     data_store_profiles_by_kind,
     mysql_column_signatures,
     mysql_schema_summary_from_cursor,
+    mysql_table_schema_summary_from_cursor,
     mysql_table_count,
     mysql_table_exists,
     mysql_table_names,
     postgresql_column_signatures,
     postgresql_schema_summary_from_cursor,
+    postgresql_table_schema_summary_from_cursor,
     postgresql_table_count,
     postgresql_table_exists,
     postgresql_table_names,
@@ -204,6 +206,15 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertEqual(1, summary.table_count)
         self.assertEqual(64, len(summary.schema_fingerprint))
 
+    def test_mysql_table_schema_summary_reports_missing_table(self) -> None:
+        cursor = FakeCursor(fetchone_rows=[None])
+
+        summary = mysql_table_schema_summary_from_cursor(cursor, "weather", "missing_station")
+
+        self.assertEqual(0, summary.table_count)
+        self.assertEqual((), summary.tables)
+        self.assertEqual(64, len(summary.schema_fingerprint))
+
     def test_postgresql_information_schema_helpers_build_table_and_column_signatures(self) -> None:
         cursor = FakeCursor(
             fetchone_rows=[(1,), None],
@@ -247,6 +258,19 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertEqual("weather", summary.database)
         self.assertEqual("public", summary.schema)
         self.assertEqual(("station",), summary.tables)
+        self.assertEqual(64, len(summary.schema_fingerprint))
+
+    def test_postgresql_table_schema_summary_fingerprints_one_table(self) -> None:
+        cursor = FakeCursor(
+            fetchone_rows=[(1,)],
+            fetchall_rows=[[(1, "id", "integer", "NO", None, 1)]],
+        )
+
+        summary = postgresql_table_schema_summary_from_cursor(cursor, "weather", "station", schema="public")
+
+        self.assertEqual(1, summary.table_count)
+        self.assertEqual(("station",), summary.tables)
+        self.assertEqual(1, len(summary.column_signatures))
         self.assertEqual(64, len(summary.schema_fingerprint))
 
     def test_cli_can_run_sqlite_connection_test(self) -> None:

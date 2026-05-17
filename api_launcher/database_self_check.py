@@ -17,6 +17,8 @@ class DatabaseSelfCheckTarget:
     asset_name: str
     path: str = ""
     table_name: str = ""
+    database_name: str = ""
+    schema_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -37,7 +39,19 @@ def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
             path=asset.source_uri or asset.asset_name,
             table_name=asset.asset_name if asset.asset_kind == "table" else "",
         )
-    return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name)
+    if asset.asset_kind == "table":
+        schema_name, table_name = split_schema_table_name(asset.asset_name)
+        database_name = sql_database_name_for_asset(asset)
+        if engine in {"mysql", "mariadb"} and not database_name:
+            database_name = schema_name
+        return DatabaseSelfCheckTarget(
+            engine=engine,
+            asset_name=asset.asset_name,
+            table_name=table_name,
+            database_name=database_name,
+            schema_name=schema_name,
+        )
+    return DatabaseSelfCheckTarget(engine=engine, asset_name=asset.asset_name, database_name=asset.asset_name)
 
 
 class DatabaseAssetVerifier:
@@ -47,12 +61,6 @@ class DatabaseAssetVerifier:
         target = database_self_check_target(asset)
         if target.engine == "sqlite":
             return self._verify_sqlite(asset, target)
-        if asset.asset_kind == "table":
-            return AssetVerificationResult(
-                asset.asset_id,
-                "error",
-                f"Table self-check is not implemented for {target.engine or 'unknown'} assets yet.",
-            )
         if target.engine in {"mysql", "mariadb"}:
             return self._verify_mysql(asset, target)
         if target.engine in {"postgres", "postgresql"}:
@@ -112,16 +120,21 @@ class DatabaseAssetVerifier:
                 required_env_vars=("APIKEYS_MYSQL_HOST", "APIKEYS_MYSQL_DATABASE", "APIKEYS_MYSQL_USER", "APIKEYS_MYSQL_PASSWORD"),
                 optional_env_vars=("APIKEYS_MYSQL_PORT",),
             ),
-            include_schema_summary=bool(asset.schema_fingerprint),
+            include_schema_summary=bool(asset.schema_fingerprint or asset.asset_kind == "table"),
+            schema_summary_table=target.table_name if asset.asset_kind == "table" else "",
         )
         if result.status == "ok":
             connected_database = str(result.details.get("database") or "")
-            if connected_database and connected_database != target.asset_name:
+            expected_database = target.database_name if asset.asset_kind == "table" else target.asset_name
+            if connected_database and expected_database and connected_database != expected_database:
                 return AssetVerificationResult(
                     asset.asset_id,
                     "error",
-                    f"MySQL profile connected to {connected_database}, but registry asset expects {target.asset_name}.",
+                    f"MySQL profile connected to {connected_database}, but registry asset expects {expected_database}.",
                 )
+            if asset.asset_kind == "table":
+                if result.details.get("table_exists") is False:
+                    return AssetVerificationResult(asset.asset_id, "missing", f"MySQL table is missing: {target.table_name}")
             if asset.schema_fingerprint:
                 actual = str(result.details.get("schema_fingerprint") or "")
                 if not actual:
@@ -151,16 +164,23 @@ class DatabaseAssetVerifier:
                 required_env_vars=("APIKEYS_POSTGRES_HOST", "APIKEYS_POSTGRES_DATABASE", "APIKEYS_POSTGRES_USER", "APIKEYS_POSTGRES_PASSWORD"),
                 optional_env_vars=("APIKEYS_POSTGRES_PORT",),
             ),
-            include_schema_summary=bool(asset.schema_fingerprint),
+            include_schema_summary=bool(asset.schema_fingerprint or asset.asset_kind == "table"),
+            schema_summary_table=target.table_name if asset.asset_kind == "table" else "",
+            schema_name=target.schema_name or "public",
         )
         if result.status == "ok":
             connected_database = str(result.details.get("database") or "")
-            if connected_database and connected_database != target.asset_name:
+            expected_database = target.database_name if asset.asset_kind == "table" else target.asset_name
+            if connected_database and expected_database and connected_database != expected_database:
                 return AssetVerificationResult(
                     asset.asset_id,
                     "error",
-                    f"PostgreSQL profile connected to {connected_database}, but registry asset expects {target.asset_name}.",
+                    f"PostgreSQL profile connected to {connected_database}, but registry asset expects {expected_database}.",
                 )
+            if asset.asset_kind == "table":
+                if result.details.get("table_exists") is False:
+                    table_label = f"{target.schema_name}.{target.table_name}" if target.schema_name else target.table_name
+                    return AssetVerificationResult(asset.asset_id, "missing", f"PostgreSQL table is missing: {table_label}")
             if asset.schema_fingerprint:
                 actual = str(result.details.get("schema_fingerprint") or "")
                 if not actual:
@@ -179,6 +199,33 @@ class DatabaseAssetVerifier:
                     )
             return AssetVerificationResult(asset.asset_id, "present")
         return AssetVerificationResult(asset.asset_id, "error", result.message)
+
+
+def split_schema_table_name(value: str) -> tuple[str, str]:
+    raw = value.strip()
+    if "." not in raw:
+        return "", raw
+    schema_name, table_name = raw.split(".", 1)
+    if not schema_name.strip() or not table_name.strip():
+        return "", raw
+    return schema_name.strip(), table_name.strip()
+
+
+def sql_database_name_for_asset(asset: AssetRecord) -> str:
+    for raw in (asset.install_location, asset.source_uri):
+        value = raw.strip()
+        if not value:
+            continue
+        parsed = urllib.parse.urlparse(value)
+        if parsed.scheme:
+            path = parsed.path.strip("/")
+            if path:
+                return urllib.parse.unquote(path.rsplit("/", 1)[-1])
+            if parsed.netloc and "@" not in parsed.netloc and ":" not in parsed.netloc:
+                return urllib.parse.unquote(parsed.netloc)
+            continue
+        return value
+    return ""
 
 
 def sqlite_schema_summary(path: str | Path) -> DatabaseSchemaSummary:

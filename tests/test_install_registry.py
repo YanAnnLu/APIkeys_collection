@@ -144,6 +144,20 @@ class InstallRegistryTests(unittest.TestCase):
         self.assertEqual({db_path}, {row["source_uri"] for row in rows})
         self.assertEqual({""}, {row["uninstall_command"] for row in rows})
 
+    def test_sql_table_asset_uses_database_location_not_source_uri_as_install_owner(self) -> None:
+        self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="mysql",
+            database_name="weather",
+            table_name="station",
+            source_uri="https://example.test/source.csv",
+        )
+
+        asset = self.repo.managed_asset_records("sample_provider")[0]
+
+        self.assertEqual("mysql://weather", asset.install_location)
+        self.assertEqual("https://example.test/source.csv", asset.source_uri)
+
     def test_verify_assets_marks_missing_database(self) -> None:
         self.repo.register_provider_database_asset(
             "sample_provider",
@@ -197,6 +211,7 @@ class InstallRegistryTests(unittest.TestCase):
         self.assertEqual(fingerprint, row["schema_fingerprint"])
         self.assertEqual("curated", asset.asset_role)
         self.assertEqual("csv", asset.source_format)
+        self.assertEqual("mysql://manual_weather_import", asset.install_location)
 
     def test_derived_assets_are_not_confused_with_upstream_source_assets(self) -> None:
         source_asset_id = self.repo.register_provider_database_asset(

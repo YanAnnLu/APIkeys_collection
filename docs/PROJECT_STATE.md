@@ -37,6 +37,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - MySQL/PostgreSQL connection probes now have reusable `information_schema` helpers for table counts, table names,
   table existence, column signatures, and schema fingerprints. Database assets with registered fingerprints can request
   deep schema summaries when the optional DB driver and env vars are available.
+- MySQL/PostgreSQL table assets now carry install ownership through `AssetRecord.install_location`; self-check can parse
+  the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 
@@ -142,9 +144,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Build richer ownership mapping between DB/table assets and install records across MySQL/PostgreSQL.
-2. Add MySQL/PostgreSQL table asset existence checks using the new `information_schema` helpers.
-3. Expand repair suggestions to adapter-specific datasets and agent-readable repair summaries.
+1. Add per-asset SQL profile/schema selection instead of relying only on default MySQL/PostgreSQL env vars.
+2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
+3. Expand repair suggestions to database drift, missing tables, adapter-specific datasets, and agent-readable repair summaries.
 4. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
 5. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 6. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

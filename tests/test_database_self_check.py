@@ -54,6 +54,23 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual("/tmp/sample.sqlite", target.path)
         self.assertEqual("station", target.table_name)
 
+    def test_sql_table_asset_uses_install_location_as_database_owner(self) -> None:
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="table",
+            engine="postgresql",
+            asset_name="public.station",
+            install_location="postgresql://localhost/weather",
+        )
+
+        target = database_self_check_target(asset)
+
+        self.assertEqual("weather", target.database_name)
+        self.assertEqual("public", target.schema_name)
+        self.assertEqual("station", target.table_name)
+
     def test_sqlite_asset_verifier_marks_existing_database_present(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "asset.sqlite"
@@ -202,25 +219,10 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual("error", result.status)
         self.assertIn("table schema fingerprint drift", result.error)
 
-    def test_non_sqlite_table_assets_report_unimplemented_table_check(self) -> None:
-        asset = AssetRecord(
-            asset_id="asset_1",
-            install_id="inst_1",
-            provider_id="sample",
-            asset_kind="table",
-            engine="postgresql",
-            asset_name="station",
-        )
-
-        result = DatabaseAssetVerifier().verify(asset)
-
-        self.assertEqual("error", result.status)
-        self.assertIn("Table self-check is not implemented", result.error)
-
     def test_mysql_database_asset_compares_schema_fingerprint_when_available(self) -> None:
         calls: list[bool] = []
 
-        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False):
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False, **kwargs):
             calls.append(include_schema_summary)
             return DataStoreConnectionTestResult(
                 profile_id=profile.profile_id,
@@ -246,8 +248,64 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual("present", result.status)
         self.assertEqual([True], calls)
 
+    def test_mysql_table_asset_marks_existing_table_present(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False, **kwargs):
+            calls.append({"include_schema_summary": include_schema_summary, **kwargs})
+            return DataStoreConnectionTestResult(
+                profile_id=profile.profile_id,
+                engine=profile.engine,
+                status="ok",
+                message="ok",
+                details={"database": "weather", "table": "station", "table_exists": True, "table_count": 1},
+            )
+
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="table",
+            engine="mysql",
+            asset_name="station",
+            install_location="mysql://weather",
+        )
+
+        with patch("api_launcher.database_self_check.test_data_store_connection", fake_test_data_store_connection):
+            result = DatabaseAssetVerifier().verify(asset)
+
+        self.assertEqual("present", result.status)
+        self.assertEqual("station", calls[0]["schema_summary_table"])
+        self.assertTrue(calls[0]["include_schema_summary"])
+
+    def test_mysql_table_asset_marks_missing_table_missing(self) -> None:
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False, **kwargs):
+            return DataStoreConnectionTestResult(
+                profile_id=profile.profile_id,
+                engine=profile.engine,
+                status="ok",
+                message="ok",
+                details={"database": "weather", "table": "station", "table_exists": False, "table_count": 0},
+            )
+
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="table",
+            engine="mysql",
+            asset_name="station",
+            install_location="mysql://weather",
+        )
+
+        with patch("api_launcher.database_self_check.test_data_store_connection", fake_test_data_store_connection):
+            result = DatabaseAssetVerifier().verify(asset)
+
+        self.assertEqual("missing", result.status)
+        self.assertIn("MySQL table is missing", result.error)
+
     def test_postgresql_database_asset_detects_schema_fingerprint_drift(self) -> None:
-        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False):
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False, **kwargs):
             return DataStoreConnectionTestResult(
                 profile_id=profile.profile_id,
                 engine=profile.engine,
@@ -271,6 +329,36 @@ class DatabaseSelfCheckTests(unittest.TestCase):
 
         self.assertEqual("error", result.status)
         self.assertIn("PostgreSQL schema fingerprint drift", result.error)
+
+    def test_postgresql_table_asset_uses_schema_name_for_table_probe(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False, **kwargs):
+            calls.append({"include_schema_summary": include_schema_summary, **kwargs})
+            return DataStoreConnectionTestResult(
+                profile_id=profile.profile_id,
+                engine=profile.engine,
+                status="ok",
+                message="ok",
+                details={"database": "weather", "schema": "archive", "table": "station", "table_exists": True, "table_count": 1},
+            )
+
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="table",
+            engine="postgresql",
+            asset_name="archive.station",
+            install_location="postgresql://localhost/weather",
+        )
+
+        with patch("api_launcher.database_self_check.test_data_store_connection", fake_test_data_store_connection):
+            result = DatabaseAssetVerifier().verify(asset)
+
+        self.assertEqual("present", result.status)
+        self.assertEqual("archive", calls[0]["schema_name"])
+        self.assertEqual("station", calls[0]["schema_summary_table"])
 
     def test_repository_self_check_updates_sqlite_database_asset_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

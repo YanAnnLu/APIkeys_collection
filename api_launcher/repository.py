@@ -741,6 +741,7 @@ class ApiCatalogRepository:
             SELECT
                 pia.asset_id,
                 pia.install_id,
+                COALESCE(pi.location, '') AS install_location,
                 pi.provider_id,
                 pia.asset_kind,
                 COALESCE(pia.asset_role, 'source') AS asset_role,
@@ -763,6 +764,7 @@ class ApiCatalogRepository:
             AssetRecord(
                 asset_id=row["asset_id"],
                 install_id=row["install_id"],
+                install_location=row["install_location"],
                 provider_id=row["provider_id"],
                 asset_kind=row["asset_kind"],
                 asset_role=row["asset_role"],
@@ -888,7 +890,8 @@ class ApiCatalogRepository:
         schema_fingerprint: str = "",
         notes: str = "",
     ) -> str:
-        install_location = location or source_uri or f"{engine}://{database_name}"
+        normalized_engine = engine.strip().lower()
+        install_location = location or (source_uri if normalized_engine == "sqlite" else f"{engine}://{database_name}")
         install_id = self.manage_provider_installation(provider_id, location=install_location)
         return self.register_installation_asset(
             install_id,
