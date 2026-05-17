@@ -114,6 +114,12 @@ profiles in `launcher_integrations.example.json`:
 Avoid raw shell scripts as the core contract. Keep arguments as lists so Windows,
 macOS, and Linux do not diverge on quoting and escaping.
 
+The first working downloader is `api_launcher/http_downloader.py`. It supports
+direct HTTP(S) URLs, chunk progress, `.part` files, HTTP Range resume, and atomic
+rename into the final target path. Dataset-specific API adapters should either
+produce direct URLs for this adapter or implement the same `DownloadAdapter`
+protocol.
+
 ## Cross-platform Path and Encoding Rules
 
 - Source files are UTF-8 with LF endings. See `.editorconfig` and `.gitattributes`.
