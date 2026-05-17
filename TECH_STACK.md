@@ -59,6 +59,17 @@ The launcher owns these bridge contracts in `api_launcher/renderer_contracts.py`
 The renderer may read the contract constants, but the launcher should register bridge assets in SQLite through
 `render_bridge_assets`.
 
+## Discovery Stack
+
+Provider/source discovery currently uses only the Python standard library:
+
+- `provider_discovery_seeds.json`: built-in official source-site seeds.
+- `provider_discovery_seeds.local.json`: ignored local seeds for regional platforms and user projects.
+- `api_launcher/discovery.py`: polite metadata crawler for docs/API/signup/auth hints.
+
+Discovery searches metadata and documentation only. It must not collect real API keys, tokens, passwords, cookies, or
+other secret values.
+
 ## Data Pipeline
 
 ```text

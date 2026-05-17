@@ -117,3 +117,8 @@ TAICHI_GLOBAL_BATHYMETRY_CONTRACTS = (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
     HYG_V38_STAR_CONTRACT,
 )
+
+
+def canonical_dataset_key(name: str, version: str = "", scope: str = "") -> str:
+    parts = [name.strip().lower(), version.strip().lower(), scope.strip().lower()]
+    return "::".join(part for part in parts if part)

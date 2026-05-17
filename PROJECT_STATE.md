@@ -48,6 +48,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
 - `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
+- `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
@@ -74,6 +75,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   This prevents user-generated analysis tables from being mistaken for upstream official data during self-checks.
 - `taichi_global_bathymetry.py` is treated as a downstream visualization engine. The launcher should produce bridge
   assets such as GEBCO topography grids and HYG star catalogs, then register them in `render_bridge_assets`.
+- Provider discovery now distinguishes source sites from canonical datasets. Built-in and local seeds produce reviewable
+  candidates with dedupe keys; no API secret values are collected.
+- Product metaphor: providers are like publishers/source stations, while datasets/databases are the library items.
+  Dedupe should prefer canonical dataset identity over provider names.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 

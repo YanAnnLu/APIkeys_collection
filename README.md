@@ -109,6 +109,14 @@ Renderer contracts define stable IDs shared by the launcher and render layer. Fo
 current contracts are GEBCO 2025 topography (`topography_grid`) and HYG v3.8 stars (`star_catalog`), both targeting
 `~/.cache/taichi_earth` bridge assets.
 
+Provider discovery is seed-driven. `provider_discovery_seeds.json` contains built-in official source sites, while
+`provider_discovery_seeds.local.json` is ignored by git and can hold user-added regional or project-specific source
+sites. Discovery outputs reviewable candidates only; it never collects API secret values.
+
+Think of providers as publishers or source stations, not the canonical database identity. A provider may expose many
+datasets, and the same canonical dataset may later have multiple mirrors. Dataset identity and dedupe should be handled
+by dataset names/IDs, versions, scope, and fingerprints, while providers remain provenance/download context.
+
 Downloaded API data still needs curation. The `curation` layer is where raw records are renamed, type-cast,
 deduplicated, checked for required fields, and eventually normalized for database/import targets.
 

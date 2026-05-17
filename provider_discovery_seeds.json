@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    {
+      "provider_id": "gbif",
+      "name": "GBIF API",
+      "owner": "Global Biodiversity Information Facility",
+      "categories": ["biodiversity", "species", "ecology"],
+      "geographic_scope": "global",
+      "homepage_url": "https://www.gbif.org/developer/summary",
+      "docs_url": "https://techdocs.gbif.org/en/openapi/",
+      "api_base_url": "https://api.gbif.org/v1/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "eurostat",
+      "name": "Eurostat API",
+      "owner": "European Commission Eurostat",
+      "categories": ["statistics", "economics", "europe"],
+      "geographic_scope": "europe",
+      "homepage_url": "https://ec.europa.eu/eurostat/web/main/data/database",
+      "docs_url": "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-introduction",
+      "api_base_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "us_census",
+      "name": "US Census Data API",
+      "owner": "U.S. Census Bureau",
+      "categories": ["demographics", "statistics", "population"],
+      "geographic_scope": "us",
+      "homepage_url": "https://www.census.gov/data/developers.html",
+      "docs_url": "https://www.census.gov/data/developers/guidance/api-user-guide.html",
+      "api_base_url": "https://api.census.gov/data/",
+      "signup_url": "https://api.census.gov/data/key_signup.html",
+      "expected_auth_type": "api_key_optional_or_required_for_limits"
+    },
+    {
+      "provider_id": "epa_aqs",
+      "name": "EPA AQS Data API",
+      "owner": "U.S. Environmental Protection Agency",
+      "categories": ["air_quality", "environment", "monitoring"],
+      "geographic_scope": "us",
+      "homepage_url": "https://www.epa.gov/aqs",
+      "docs_url": "https://aqs.epa.gov/aqsweb/documents/ramltohtml.html",
+      "api_base_url": "https://aqs.epa.gov/api/",
+      "signup_url": "https://aqs.epa.gov/aqsweb/documents/data_api.html",
+      "expected_auth_type": "account_or_email_required"
+    },
+    {
+      "provider_id": "overture_maps",
+      "name": "Overture Maps",
+      "owner": "Overture Maps Foundation",
+      "categories": ["maps", "places", "transportation", "buildings"],
+      "geographic_scope": "global",
+      "homepage_url": "https://overturemaps.org/",
+      "docs_url": "https://docs.overturemaps.org/getting-data/",
+      "api_base_url": "s3://overturemaps-us-west-2/",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "microsoft_planetary_computer",
+      "name": "Microsoft Planetary Computer STAC API",
+      "owner": "Microsoft",
+      "categories": ["stac", "satellite", "earth_observation", "climate"],
+      "geographic_scope": "global",
+      "homepage_url": "https://planetarycomputer.microsoft.com/",
+      "docs_url": "https://learn.microsoft.com/en-us/rest/api/planetarycomputer/",
+      "api_base_url": "https://planetarycomputer.microsoft.com/api/stac/v1",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    },
+    {
+      "provider_id": "opentopography",
+      "name": "OpenTopography API",
+      "owner": "OpenTopography",
+      "categories": ["topography", "elevation", "terrain", "lidar"],
+      "geographic_scope": "global/us",
+      "homepage_url": "https://opentopography.org/",
+      "docs_url": "https://portal.opentopography.org/apidocs/",
+      "api_base_url": "https://portal.opentopography.org/API/",
+      "signup_url": "https://portal.opentopography.org/myopentopo",
+      "expected_auth_type": "api_key_required"
+    },
+    {
+      "provider_id": "osm_overpass",
+      "name": "OpenStreetMap Overpass API",
+      "owner": "OpenStreetMap community",
+      "categories": ["osm", "maps", "transportation", "poi"],
+      "geographic_scope": "global",
+      "homepage_url": "https://wiki.openstreetmap.org/wiki/Overpass_API",
+      "docs_url": "https://wiki.openstreetmap.org/wiki/Overpass_API",
+      "api_base_url": "https://overpass-api.de/api/interpreter",
+      "signup_url": "",
+      "expected_auth_type": "no_key_for_public_data"
+    }
+  ]
+}

@@ -3,6 +3,8 @@ APIkeys_collection_credentials.private.json
 *.private.json
 *.secret.json
 launcher_integrations.local.json
+provider_discovery_seeds.local.json
+provider_candidates.discovered.json
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
