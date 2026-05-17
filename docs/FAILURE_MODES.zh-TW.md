@@ -21,7 +21,7 @@
 | 使用者手動刪下載檔 | registry 指向不存在資產 | asset verifier 可標記 missing | UI 一鍵修復或重新下載缺失資產 |
 | 使用者手動刪 SQL database | launcher registry 變成死紀錄 | SQL self-check 已列入 GTD | MySQL/PostgreSQL/SQLite introspection |
 | SQLite 被同步碟鎖住 | 寫入失敗或 permission denied | startup checks 與 error log | 建議本機 state path 或 lock retry |
-| 切換版本到一半 | 新舊資料混合 | transition planner skeleton | staging area + atomic promote |
+| 切換版本到一半 | 新舊資料混合 | staging area、sidecar manifest、atomic promote、transition planner skeleton | SQLite manifest registry + rollback command |
 | 降版本 | 新 schema 不相容舊資料 | transition planner 可辨識 downgrade | rollback policy 與 schema migration |
 | provider 改 URL | seed/adapter 指到舊入口 | freshness/version metadata | scheduled metadata check |
 | API rate limit | 429/503 或封鎖 | polite policy/cooldown | provider-specific quota profile |
@@ -34,12 +34,13 @@
 2. 再讀 `state/logs/launcher_events.jsonl` 最近事件。
 3. 若有錯誤，讀 `state/logs/launcher_errors.log`。
 4. 修改前確認 `git status --short --branch`。
-5. 修改後跑測試與 Docker。
+5. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`。
+6. 修改後跑測試與 Docker。
 
 ## 之後應該實作的恢復機制
 
-- download staging directory：先下載到 staging，驗證後再 promote。
-- manifest table：記錄每個版本的檔案、checksum、大小、schema fingerprint。
+- download staging directory：先下載到 staging，驗證後再 promote。HTTP downloader 已有 skeleton。
+- manifest table：記錄每個版本的檔案、checksum、大小、schema fingerprint。目前已寫 sidecar JSON manifest，尚未入 SQLite。
 - repair command：掃描 missing/stale/broken asset 並提出修復計畫。
 - transaction-like update：更新版本失敗時保留舊版可用狀態。
 - UI undo/confirm：刪除、解除納管、降版本、覆蓋資料庫都要二次確認。

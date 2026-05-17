@@ -74,6 +74,7 @@ from api_launcher.renderer_contracts import (
     TAICHI_GLOBAL_BATHYMETRY_CONTRACTS,
     TAICHI_GLOBAL_BATHYMETRY_RENDERER_ID,
 )
+from api_launcher.repair import repair_summary, scan_download_manifests
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,
@@ -531,6 +532,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-providers", action="store_true", help="print provider ids and exit")
     parser.add_argument("--list-categories", action="store_true", help="print provider categories and exit")
     parser.add_argument("--self-check", action="store_true", help="refresh launcher remote/local status from crawl metadata")
+    parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
     parser.add_argument("--export-json", help="write provider catalog JSON")
     parser.add_argument("--export-csv", help="write provider catalog CSV")
     parser.add_argument("--export-markdown", help="write provider catalog Markdown")
@@ -559,6 +561,7 @@ class CatalogLauncherCli:
             self.write_templates()
             self.crawl_sources()
             self.refresh_state()
+            self.verify_downloads()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
             discover_source_candidates(self.conn, self.args)
@@ -588,6 +591,7 @@ class CatalogLauncherCli:
             self.args.list_providers,
             self.args.list_categories,
             self.args.self_check,
+            self.args.verify_downloads,
             bool(self.args.export_json),
             bool(self.args.export_csv),
             bool(self.args.export_markdown),
@@ -645,6 +649,15 @@ class CatalogLauncherCli:
         if self.args.self_check:
             count = self.repository.refresh_provider_download_state(self.args.provider or None)
             print(f"[self-check] refreshed {count} provider states")
+
+    def verify_downloads(self) -> None:
+        if self.args.verify_downloads:
+            results = scan_download_manifests()
+            summary = repair_summary(results)
+            print(f"[verify-downloads] checked {len(results)} manifests: {summary}")
+            for result in results:
+                if result.needs_repair:
+                    print(f"[verify-downloads] {result.status}: {result.payload_path} ({result.message})")
 
     def export_catalogs(self) -> None:
         exporters = (

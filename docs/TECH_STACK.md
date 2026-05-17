@@ -156,10 +156,21 @@ Avoid raw shell scripts as the core contract. Keep arguments as lists so Windows
 macOS, and Linux do not diverge on quoting and escaping.
 
 The first working downloader is `api_launcher/http_downloader.py`. It supports
-direct HTTP(S) URLs, chunk progress, `.part` files, HTTP Range resume, and atomic
-rename into the final target path. Dataset-specific API adapters should either
+direct HTTP(S) URLs, chunk progress, `.part` files, HTTP Range resume, staging,
+sidecar manifests, and atomic promote into the final target path. Dataset-specific API adapters should either
 produce direct URLs for this adapter or implement the same `DownloadAdapter`
 protocol.
+
+Staging and manifests live in:
+
+- `api_launcher/staging.py`: stable staging paths, legacy `.part` migration, atomic promote.
+- `api_launcher/manifests.py`: JSON manifest creation with size, SHA-256, source URL, dataset UID, dataset ID, and version.
+- `state/staging/`: ignored runtime staging area.
+
+The staging directory is chosen to stay on the same filesystem as the final target whenever the target is outside the
+project tree, because Windows cannot atomically replace across drives. The sidecar manifest next to a downloaded file is
+the first repair/update primitive. Future update workers should compare these manifests against remote manifests before
+downloading full replacements.
 
 `APIkeys_collection_ui.py` can now submit download-plan rows into the
 nonblocking queue, display job progress, and pause/resume/cancel selected jobs.

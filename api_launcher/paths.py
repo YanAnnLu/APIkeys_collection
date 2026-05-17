@@ -11,6 +11,7 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 STATE_DIR = PROJECT_ROOT / "state"
 DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 LOGS_DIR = STATE_DIR / "logs"
+STAGING_DIR = STATE_DIR / "staging"
 
 
 def project_path(path: str | Path) -> Path:

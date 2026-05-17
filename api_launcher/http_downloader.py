@@ -12,6 +12,7 @@ from typing import Iterable
 from api_launcher.db import resolve_project_path
 from api_launcher.download_jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
 from api_launcher.download_policy import HostThrottle, PoliteDownloadPolicy
+from api_launcher.staging import StagingPaths, promote_staged_payload, staging_paths_for_plan_entry
 from api_launcher.transfer_tools import transfer_url_from_plan_entry
 
 
@@ -24,6 +25,7 @@ class DownloadTarget:
     url: str
     output_path: Path
     part_path: Path
+    staging_paths: StagingPaths | None = None
 
 
 class HTTPDownloadAdapter:
@@ -38,6 +40,8 @@ class HTTPDownloadAdapter:
     def run(self, job: DownloadJob, controller: DownloadJobController) -> Iterable[DownloadProgress]:
         target = download_target_from_plan_entry(job.plan_entry)
         target.output_path.parent.mkdir(parents=True, exist_ok=True)
+        target.part_path.parent.mkdir(parents=True, exist_ok=True)
+        migrate_legacy_part_file(target)
 
         for attempt in range(1, self.policy.max_retries + 1):
             controller.wait_if_paused()
@@ -106,7 +110,11 @@ class HTTPDownloadAdapter:
                         message="Downloading",
                     )
 
-        os.replace(target.part_path, target.output_path)
+        if target.staging_paths:
+            os.replace(target.part_path, target.staging_paths.payload_path)
+            promote_staged_payload(target.staging_paths, job.plan_entry)
+        else:
+            os.replace(target.part_path, target.output_path)
         yield DownloadProgress(
             job_id=job.job_id,
             provider_id=job.provider_id,
@@ -146,7 +154,20 @@ def download_target_from_plan_entry(plan_entry: dict[str, object]) -> DownloadTa
         or default_download_path(plan_entry, url)
     )
     output_path = resolve_project_path(str(output_value))
+    use_staging = bool(plan_entry.get("use_staging", True))
+    if use_staging:
+        staging_paths = staging_paths_for_plan_entry(plan_entry, output_path)
+        return DownloadTarget(url=url, output_path=output_path, part_path=staging_paths.part_path, staging_paths=staging_paths)
     return DownloadTarget(url=url, output_path=output_path, part_path=output_path.with_suffix(output_path.suffix + ".part"))
+
+
+def migrate_legacy_part_file(target: DownloadTarget) -> None:
+    if not target.staging_paths:
+        return
+    legacy_part = target.output_path.with_suffix(target.output_path.suffix + ".part")
+    if legacy_part.exists() and not target.part_path.exists():
+        target.part_path.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(legacy_part, target.part_path)
 
 
 def default_download_path(plan_entry: dict[str, object], url: str) -> Path:

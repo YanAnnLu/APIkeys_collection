@@ -79,6 +79,7 @@ class HTTPDownloadAdapterTests(unittest.TestCase):
                 queue.shutdown()
 
             self.assertEqual(TEST_BYTES, output.read_bytes())
+            self.assertTrue(output.with_suffix(output.suffix + ".manifest.json").exists())
             self.assertEqual(len(TEST_BYTES), final.bytes_done)
             self.assertEqual(100.0, final.percent)
 
@@ -98,6 +99,19 @@ class HTTPDownloadAdapterTests(unittest.TestCase):
 
             self.assertEqual(TEST_BYTES, output.read_bytes())
             self.assertIn("bytes=100-", RangeHandler.ranges)
+
+    def test_adapter_can_opt_out_of_staging_for_legacy_paths(self) -> None:
+        target = download_target_from_plan_entry(
+            {
+                "provider_id": "sample_provider",
+                "download_url": "https://example.test/path/data.nc",
+                "target_path": "downloads/sample_provider/data.nc",
+                "use_staging": False,
+            }
+        )
+
+        self.assertTrue(str(target.part_path).endswith(str(Path("downloads") / "sample_provider" / "data.nc.part")))
+        self.assertIsNone(target.staging_paths)
 
 
 if __name__ == "__main__":
