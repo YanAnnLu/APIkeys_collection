@@ -60,8 +60,9 @@ with closing(sqlite3.connect(path)) as conn:
 
 ## 之後應該實作的恢復機制
 
-- download staging directory：先下載到 staging，驗證後再 promote。HTTP downloader 已有 skeleton。
-- manifest table：記錄每個版本的檔案、checksum、大小、schema fingerprint。目前已寫 sidecar JSON manifest，尚未入 SQLite。
+- download staging directory：先下載到 staging，驗證後再 promote。HTTP downloader 已可寫 sidecar manifest，並用 `.part` 續傳。
+- manifest table：記錄每個版本的檔案、checksum、大小、schema fingerprint。sidecar JSON manifest 已會同步進 SQLite `dataset_asset_manifests`。
+- exact target reuse：若同一目標檔案與 sidecar manifest 已驗證正常，且 provider/dataset/version/source/path 都符合目前下載請求，HTTP adapter 會略過重新下載。
 - repair command：掃描 missing/stale/broken asset 並提出修復計畫。
 - transaction-like update：更新版本失敗時保留舊版可用狀態。
 - UI undo/confirm：刪除、解除納管、降版本、覆蓋資料庫都要二次確認。

@@ -12,6 +12,8 @@ from typing import Iterable
 from api_launcher.db import resolve_project_path
 from api_launcher.download_jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
 from api_launcher.download_policy import HostThrottle, PoliteDownloadPolicy
+from api_launcher.manifests import manifest_matches_plan_entry, read_manifest
+from api_launcher.repair import verify_manifest_file
 from api_launcher.staging import StagingPaths, promote_staged_payload, staging_paths_for_plan_entry
 from api_launcher.transfer_tools import transfer_url_from_plan_entry
 
@@ -39,6 +41,18 @@ class HTTPDownloadAdapter:
 
     def run(self, job: DownloadJob, controller: DownloadJobController) -> Iterable[DownloadProgress]:
         target = download_target_from_plan_entry(job.plan_entry)
+        reused = reusable_completed_download(target, job.plan_entry)
+        if reused:
+            size_bytes = target.output_path.stat().st_size
+            yield DownloadProgress(
+                job_id=job.job_id,
+                provider_id=job.provider_id,
+                status=JobStatus.COMPLETED,
+                bytes_done=size_bytes,
+                bytes_total=size_bytes,
+                message=f"Reused verified download at {target.output_path}",
+            )
+            return
         target.output_path.parent.mkdir(parents=True, exist_ok=True)
         target.part_path.parent.mkdir(parents=True, exist_ok=True)
         migrate_legacy_part_file(target)
@@ -159,6 +173,25 @@ def download_target_from_plan_entry(plan_entry: dict[str, object]) -> DownloadTa
         staging_paths = staging_paths_for_plan_entry(plan_entry, output_path)
         return DownloadTarget(url=url, output_path=output_path, part_path=staging_paths.part_path, staging_paths=staging_paths)
     return DownloadTarget(url=url, output_path=output_path, part_path=output_path.with_suffix(output_path.suffix + ".part"))
+
+
+def reusable_completed_download(target: DownloadTarget, plan_entry: dict[str, object]) -> bool:
+    manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
+    if not target.output_path.exists() or not manifest_path.exists():
+        return False
+    verification = verify_manifest_file(manifest_path)
+    if verification.status != "ok":
+        return False
+    try:
+        manifest = read_manifest(manifest_path)
+    except Exception:
+        return False
+    return manifest_matches_plan_entry(
+        manifest,
+        plan_entry,
+        source_url=target.url,
+        target_path=target.output_path,
+    )
 
 
 def migrate_legacy_part_file(target: DownloadTarget) -> None:

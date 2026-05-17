@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,53 @@ def build_asset_manifest(path: str | Path, plan_entry: dict[str, object]) -> Ass
         schema_fingerprint=str(plan_entry.get("schema_fingerprint") or ""),
         metadata=dict(metadata),
     )
+
+
+def manifest_expectations_from_plan(plan_entry: dict[str, object], source_url: str = "") -> dict[str, str]:
+    dataset_version = plan_entry.get("dataset_version")
+    version_data = dataset_version if isinstance(dataset_version, dict) else {}
+    return {
+        "provider_id": str(plan_entry.get("provider_id") or ""),
+        "dataset_uid": str(version_data.get("dataset_uid") or plan_entry.get("dataset_uid") or ""),
+        "dataset_id": str(version_data.get("dataset_id") or plan_entry.get("dataset_id") or ""),
+        "version": str(version_data.get("version") or plan_entry.get("version") or ""),
+        "source_url": str(
+            source_url
+            or version_data.get("download_url")
+            or plan_entry.get("download_url")
+            or plan_entry.get("api_base_url")
+            or ""
+        ),
+    }
+
+
+def manifest_matches_plan_entry(
+    manifest: AssetManifest,
+    plan_entry: dict[str, object],
+    source_url: str = "",
+    target_path: str | Path | None = None,
+) -> bool:
+    expected = manifest_expectations_from_plan(plan_entry, source_url=source_url)
+    for field_name in ("provider_id", "dataset_uid", "dataset_id", "version", "source_url"):
+        value = expected[field_name].strip()
+        if value and getattr(manifest, field_name) != value:
+            return False
+    if target_path is not None and not same_manifest_path(manifest.path, target_path):
+        return False
+    return True
+
+
+def same_manifest_path(left: str | Path, right: str | Path) -> bool:
+    return _path_key(left) == _path_key(right)
+
+
+def _path_key(path: str | Path) -> str:
+    value = Path(path).expanduser()
+    try:
+        value = value.resolve(strict=False)
+    except OSError:
+        value = value.absolute()
+    return os.path.normcase(str(value))
 
 
 def write_manifest(manifest: AssetManifest, path: str | Path) -> Path:

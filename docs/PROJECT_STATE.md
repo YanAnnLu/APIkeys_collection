@@ -26,7 +26,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
-  verified later instead of being treated as anonymous blobs.
+  verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
+  and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--manifest-health`, `--show-logs`, and
   `--handoff-report`.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
@@ -160,7 +161,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 1. Add per-asset SQL profile/schema selection instead of relying only on default MySQL/PostgreSQL env vars.
 2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
 3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand repair suggestions to adapter-specific datasets.
-4. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
-5. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-6. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-7. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
+5. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
+6. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+7. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+8. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.

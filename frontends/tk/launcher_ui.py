@@ -481,6 +481,7 @@ class ApiCollectionUi:
         self.download_providers_by_job: dict[str, str] = {}
         self.download_progress_by_provider: dict[str, DownloadProgress] = {}
         self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
+        self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.registered_completed_downloads: set[str] = set()
 
@@ -1709,6 +1710,7 @@ class ApiCollectionUi:
             job = self.download_queue.submit(plan_entry)
             self.download_jobs_by_provider[row.provider_id] = job.job_id
             self.download_providers_by_job[job.job_id] = row.provider_id
+            self.download_plan_entries_by_provider[row.provider_id] = dict(plan_entry)
             self.download_status_by_provider[row.provider_id] = ("queued", "0%", str(target_path))
             started += 1
         self.update_download_jobs_panel()
@@ -1719,9 +1721,11 @@ class ApiCollectionUi:
         if not job_id:
             return True
         progress = self.download_progress_by_provider.get(provider_id)
-        if progress and progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
+        if progress and progress.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
             self.download_jobs_by_provider.pop(provider_id, None)
             self.download_providers_by_job.pop(job_id, None)
+            self.download_plan_entries_by_provider.pop(provider_id, None)
+            self.registered_completed_downloads.discard(provider_id)
             return True
         return False
 
@@ -1775,6 +1779,8 @@ class ApiCollectionUi:
         self.download_jobs_by_provider.pop(provider_id, None)
         if job_id:
             self.download_providers_by_job.pop(job_id, None)
+        self.download_plan_entries_by_provider.pop(provider_id, None)
+        self.registered_completed_downloads.discard(provider_id)
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
         self.start_download_rows([row])
 
@@ -1835,6 +1841,7 @@ class ApiCollectionUi:
             return
         self.registered_completed_downloads.add(provider_id)
         row = self.row_by_provider_id(provider_id)
+        plan_entry = self.download_plan_entries_by_provider.get(provider_id, {})
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -1851,7 +1858,7 @@ class ApiCollectionUi:
                     asset_name=Path(target).name,
                     asset_role="source",
                     source_format="unknown",
-                    source_uri=self.download_url_for_row(row) if row else "",
+                    source_uri=str(plan_entry.get("download_url") or (self.download_url_for_row(row) if row else "")),
                     notes="Downloaded source asset.",
                 )
                 if manifest_path.exists():
@@ -3153,6 +3160,7 @@ class ApiCollectionUi:
                 return
             self.download_jobs_by_provider[provider_id] = job.job_id
             self.download_providers_by_job[job.job_id] = provider_id
+            self.download_plan_entries_by_provider[provider_id] = dict(plan_entry)
             self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
             self.update_download_jobs_panel()
             self.status_var.set(self.tr(f"已重新排修復下載：{provider_id}", f"Repair download queued: {provider_id}"))
