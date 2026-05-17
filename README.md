@@ -11,6 +11,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Optionally fetches small metadata pages from whitelisted official URLs.
 - Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
 - Exports adapter-discovered dataset-version download plans with direct/review eligibility.
+- Runs direct entries from a download-plan JSON and registers healthy manifest-backed file assets.
 - Does not search for leaked keys or scrape secrets.
 
 ## Current Launcher Features

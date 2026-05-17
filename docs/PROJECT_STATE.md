@@ -30,6 +30,9 @@ The project is not a secret harvester. Credential files are templates for user-o
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
 - Healthy download manifests can now be promoted into the install registry as managed filesystem `file` assets. This
   closes the first MVP loop from direct download to manifest verification to local asset ownership.
+- Adapter-discovered dataset plans can now be safely executed from CLI with `--run-download-plan`; only direct entries
+  are submitted, `adapter_required` entries are skipped, and completed payloads are manifest-verified before registry
+  asset ownership is updated.
 - Dataset update planning now separates static versioned datasets from append-only, revisable, and realtime
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.

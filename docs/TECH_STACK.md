@@ -117,6 +117,16 @@ Direct file URLs get `download_url`, `target_path`, `dataset_version`, and `use_
 landing pages, API selectors, or download portals are deliberately marked `adapter_required` with an
 `adapter_review_url`, so the downloader does not accidentally save an HTML page as if it were a dataset.
 
+The direct entries in a plan can then be executed by the CLI:
+
+```powershell
+py APIkeys_collection.py --init-db --seed --run-download-plan state\hyg_dataset_plan.json --verify-downloads --manifest-health
+```
+
+`--run-download-plan` only submits entries that have a direct `download_url` and are not marked `adapter_required`.
+Completed downloads are verified through their sidecar manifest and registered as managed filesystem `file` assets.
+Use `--download-plan-limit N` for smoke tests or when you want to run only the first few direct entries.
+
 Dataset transitions should avoid brute-force delete-and-redownload when possible. The generic planner in
 `api_launcher/dataset_updates.py` decides whether to install new data, skip an already-current version, upgrade,
 downgrade, move to an intermediate newer/older version, compare before updating, or keep an older compatibility version

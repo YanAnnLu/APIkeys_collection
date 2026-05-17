@@ -53,6 +53,7 @@ from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
 from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
+from api_launcher.download_plan_runner import load_download_plan_file, run_download_plan_payload
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
@@ -556,6 +557,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
     parser.add_argument("--verify-downloads-json", action="store_true", help="verify downloaded payloads and emit agent-readable JSON")
     parser.add_argument("--downloads-root", default="downloads", help="directory containing download sidecar manifests")
+    parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
+    parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
+    parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
@@ -618,6 +622,7 @@ class CatalogLauncherCli:
             self.write_templates()
             self.crawl_sources()
             self.refresh_state()
+            self.run_download_plan()
             self.verify_downloads()
             self.show_manifest_health()
             self.list_manifests()
@@ -664,6 +669,7 @@ class CatalogLauncherCli:
             self.args.self_check,
             self.args.verify_downloads,
             self.args.verify_downloads_json,
+            bool(self.args.run_download_plan),
             self.args.manifest_health,
             self.args.list_manifests,
             self.args.show_logs > 0,
@@ -761,6 +767,26 @@ class CatalogLauncherCli:
             for result in results:
                 if result.needs_repair:
                     print(f"[verify-downloads] {result.status}: {result.payload_path} ({result.message})")
+
+    def run_download_plan(self) -> None:
+        if not self.args.run_download_plan:
+            return
+        payload = load_download_plan_file(resolve_project_path(self.args.run_download_plan))
+        result = run_download_plan_payload(
+            payload,
+            self.repository,
+            policy=active_download_policy(),
+            timeout=self.args.download_timeout,
+            limit=self.args.download_plan_limit,
+        )
+        print(
+            "[download-plan] "
+            f"entries={result.entry_count} submitted={result.submitted} "
+            f"completed={result.completed} failed={result.failed} "
+            f"skipped={result.skipped} registered_assets={result.registered_assets}"
+        )
+        for error in result.errors:
+            print(f"[download-plan] error {error}")
 
     def show_manifest_health(self) -> None:
         if self.args.manifest_health:
