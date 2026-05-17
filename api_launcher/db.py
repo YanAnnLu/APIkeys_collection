@@ -99,6 +99,34 @@ def init_db(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS provider_installations (
+            install_id TEXT PRIMARY KEY,
+            provider_id TEXT NOT NULL REFERENCES providers(provider_id) ON DELETE CASCADE,
+            source_kind TEXT NOT NULL DEFAULT 'provider',
+            install_scope TEXT NOT NULL DEFAULT 'provider',
+            install_fingerprint TEXT NOT NULL,
+            location TEXT,
+            status TEXT NOT NULL DEFAULT 'managed',
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(provider_id, install_fingerprint)
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_installation_assets (
+            asset_id TEXT PRIMARY KEY,
+            install_id TEXT NOT NULL REFERENCES provider_installations(install_id) ON DELETE CASCADE,
+            asset_kind TEXT NOT NULL,
+            engine TEXT,
+            asset_name TEXT NOT NULL,
+            uninstall_command TEXT,
+            status TEXT NOT NULL DEFAULT 'managed',
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(install_id, asset_kind, engine, asset_name)
+        );
+
         CREATE TABLE IF NOT EXISTS datasets (
             dataset_uid TEXT PRIMARY KEY,
             provider_id TEXT NOT NULL REFERENCES providers(provider_id) ON DELETE CASCADE,
@@ -155,6 +183,10 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_providers_owner ON providers(owner);
         CREATE INDEX IF NOT EXISTS idx_crawl_provider ON crawl_results(provider_id);
         CREATE INDEX IF NOT EXISTS idx_datasets_provider ON datasets(provider_id);
+        CREATE INDEX IF NOT EXISTS idx_provider_installations_provider ON provider_installations(provider_id);
+        CREATE INDEX IF NOT EXISTS idx_provider_installations_status ON provider_installations(status);
+        CREATE INDEX IF NOT EXISTS idx_provider_installation_assets_install ON provider_installation_assets(install_id);
+        CREATE INDEX IF NOT EXISTS idx_provider_installation_assets_status ON provider_installation_assets(status);
         """
     )
     ensure_column(conn, "crawl_results", "extracted_json", "TEXT")

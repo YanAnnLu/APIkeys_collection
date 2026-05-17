@@ -64,4 +64,6 @@ class ProviderCatalogEntry:
     update_status: str
     last_downloaded_at: str
     dataset_path: str
+    install_id: str
+    install_fingerprint: str
     is_starred: bool

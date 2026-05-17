@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import Iterable
 
@@ -234,11 +236,23 @@ class ApiCatalogRepository:
                 COALESCE(pds.update_status, 'unknown') AS update_status,
                 COALESCE(pds.last_downloaded_at, '') AS last_downloaded_at,
                 COALESCE(pds.dataset_path, '') AS dataset_path,
+                COALESCE(pi.install_id, '') AS install_id,
+                COALESCE(pi.install_fingerprint, '') AS install_fingerprint,
                 COALESCE(pp.is_starred, 0) AS is_starred,
                 COALESCE(pp.display_order, 0) AS display_order
             FROM providers p
             LEFT JOIN provider_download_state pds ON pds.provider_id = p.provider_id
             LEFT JOIN provider_preferences pp ON pp.provider_id = p.provider_id
+            LEFT JOIN provider_installations pi
+                ON pi.install_id = (
+                    SELECT install_id
+                    FROM provider_installations
+                    WHERE provider_id = p.provider_id
+                    ORDER BY
+                        CASE status WHEN 'managed' THEN 0 WHEN 'unmanaged' THEN 1 ELSE 2 END,
+                        updated_at DESC
+                    LIMIT 1
+                )
             LEFT JOIN crawl_results cr
                 ON cr.id = (
                     SELECT id
@@ -273,6 +287,8 @@ class ApiCatalogRepository:
             update_status=row["update_status"],
             last_downloaded_at=row["last_downloaded_at"],
             dataset_path=row["dataset_path"],
+            install_id=row["install_id"],
+            install_fingerprint=row["install_fingerprint"],
             is_starred=bool(row["is_starred"]),
         )
 
@@ -299,6 +315,202 @@ class ApiCatalogRepository:
         next_value = not bool(current["is_starred"]) if current else True
         self.set_provider_starred(provider_id, next_value)
         return next_value
+
+    def manage_provider_installation(
+        self,
+        provider_id: str,
+        location: str = "",
+        local_fingerprint: str = "",
+        notes: str = "",
+    ) -> str:
+        provider = self.conn.execute("SELECT provider_id FROM providers WHERE provider_id = ?", (provider_id,)).fetchone()
+        if provider is None:
+            raise ValueError(f"Unknown provider_id: {provider_id}")
+        now = utc_now_iso()
+        location = location.strip()
+        install_fingerprint = local_fingerprint.strip() or provider_install_fingerprint(provider_id, location)
+        existing = self.conn.execute(
+            """
+            SELECT install_id
+            FROM provider_installations
+            WHERE provider_id = ? AND install_fingerprint = ?
+            """,
+            (provider_id, install_fingerprint),
+        ).fetchone()
+        install_id = existing["install_id"] if existing else f"inst_{uuid.uuid4().hex}"
+        if existing:
+            self.conn.execute(
+                """
+                UPDATE provider_installations
+                SET location = ?, status = 'managed', notes = ?, updated_at = ?
+                WHERE install_id = ?
+                """,
+                (location, notes, now, install_id),
+            )
+        else:
+            self.conn.execute(
+                """
+                INSERT INTO provider_installations (
+                    install_id, provider_id, source_kind, install_scope,
+                    install_fingerprint, location, status, notes, created_at, updated_at
+                ) VALUES (?, ?, 'provider', 'provider', ?, ?, 'managed', ?, ?, ?)
+                """,
+                (install_id, provider_id, install_fingerprint, location, notes, now, now),
+            )
+        self.conn.execute(
+            """
+            INSERT INTO provider_download_state (
+                provider_id, last_downloaded_at, local_status, update_status, dataset_path, updated_at
+            ) VALUES (?, ?, 'imported', 'current', ?, ?)
+            ON CONFLICT(provider_id) DO UPDATE SET
+                last_downloaded_at = excluded.last_downloaded_at,
+                local_status = excluded.local_status,
+                update_status = excluded.update_status,
+                dataset_path = excluded.dataset_path,
+                updated_at = excluded.updated_at
+            """,
+            (provider_id, now, location, now),
+        )
+        self.conn.commit()
+        return install_id
+
+    def register_installation_asset(
+        self,
+        install_id: str,
+        asset_kind: str,
+        asset_name: str,
+        engine: str = "",
+        uninstall_command: str = "",
+        notes: str = "",
+    ) -> str:
+        installation = self.conn.execute(
+            "SELECT install_id FROM provider_installations WHERE install_id = ?",
+            (install_id,),
+        ).fetchone()
+        if installation is None:
+            raise ValueError(f"Unknown install_id: {install_id}")
+        now = utc_now_iso()
+        asset_kind = asset_kind.strip()
+        engine = engine.strip()
+        asset_name = asset_name.strip()
+        if not asset_kind or not asset_name:
+            raise ValueError("asset_kind and asset_name are required")
+        asset_id = provider_asset_id(install_id, asset_kind, engine, asset_name)
+        self.conn.execute(
+            """
+            INSERT INTO provider_installation_assets (
+                asset_id, install_id, asset_kind, engine, asset_name,
+                uninstall_command, status, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'managed', ?, ?, ?)
+            ON CONFLICT(install_id, asset_kind, engine, asset_name) DO UPDATE SET
+                uninstall_command = excluded.uninstall_command,
+                status = 'managed',
+                notes = excluded.notes,
+                updated_at = excluded.updated_at
+            """,
+            (asset_id, install_id, asset_kind, engine, asset_name, uninstall_command, notes, now, now),
+        )
+        self.conn.commit()
+        return asset_id
+
+    def uninstall_provider_installation(self, provider_id: str, execute: bool = False) -> dict[str, object]:
+        if execute:
+            raise RuntimeError("Destructive uninstall execution is not implemented until database adapters are available.")
+        now = utc_now_iso()
+        row = self.conn.execute(
+            """
+            SELECT install_id
+            FROM provider_installations
+            WHERE provider_id = ? AND status = 'managed'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (provider_id,),
+        ).fetchone()
+        if row is None:
+            return {"install_id": None, "assets": [], "executed": False}
+        install_id = row["install_id"]
+        assets = [
+            dict(asset)
+            for asset in self.conn.execute(
+                """
+                SELECT asset_id, asset_kind, engine, asset_name, uninstall_command
+                FROM provider_installation_assets
+                WHERE install_id = ? AND status = 'managed'
+                ORDER BY asset_kind, asset_name
+                """,
+                (install_id,),
+            ).fetchall()
+        ]
+        self.conn.execute(
+            """
+            UPDATE provider_installation_assets
+            SET status = 'removed', updated_at = ?
+            WHERE install_id = ? AND status = 'managed'
+            """,
+            (now, install_id),
+        )
+        self.conn.execute(
+            """
+            UPDATE provider_installations
+            SET status = 'removed', updated_at = ?
+            WHERE install_id = ?
+            """,
+            (now, install_id),
+        )
+        self.conn.execute(
+            """
+            INSERT INTO provider_download_state (
+                provider_id, local_status, update_status, dataset_path, updated_at
+            ) VALUES (?, 'not_imported', 'unknown', '', ?)
+            ON CONFLICT(provider_id) DO UPDATE SET
+                local_status = excluded.local_status,
+                update_status = excluded.update_status,
+                dataset_path = excluded.dataset_path,
+                updated_at = excluded.updated_at
+            """,
+            (provider_id, now),
+        )
+        self.conn.commit()
+        return {"install_id": install_id, "assets": assets, "executed": False}
+
+    def unmanage_provider_installation(self, provider_id: str) -> str | None:
+        now = utc_now_iso()
+        row = self.conn.execute(
+            """
+            SELECT install_id
+            FROM provider_installations
+            WHERE provider_id = ? AND status = 'managed'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (provider_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        install_id = row["install_id"]
+        self.conn.execute(
+            """
+            UPDATE provider_installations
+            SET status = 'unmanaged', updated_at = ?
+            WHERE install_id = ?
+            """,
+            (now, install_id),
+        )
+        self.conn.execute(
+            """
+            INSERT INTO provider_download_state (
+                provider_id, local_status, update_status, updated_at
+            ) VALUES (?, 'not_imported', 'unknown', ?)
+            ON CONFLICT(provider_id) DO UPDATE SET
+                local_status = excluded.local_status,
+                update_status = excluded.update_status,
+                updated_at = excluded.updated_at
+            """,
+            (provider_id, now),
+        )
+        self.conn.commit()
+        return install_id
 
     def refresh_provider_download_state(self, provider_ids: list[str] | None = None) -> int:
         providers = load_providers(self.conn, provider_ids)
@@ -354,3 +566,20 @@ class ApiCatalogRepository:
             changed += 1
         self.conn.commit()
         return changed
+
+
+def provider_install_fingerprint(provider_id: str, location: str = "") -> str:
+    normalized = f"{provider_id.strip().lower()}|{location.strip().replace('\\', '/').lower()}"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def provider_asset_id(install_id: str, asset_kind: str, engine: str, asset_name: str) -> str:
+    normalized = "|".join(
+        [
+            install_id.strip().lower(),
+            asset_kind.strip().lower(),
+            engine.strip().lower(),
+            asset_name.strip().lower(),
+        ]
+    )
+    return "asset_" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]

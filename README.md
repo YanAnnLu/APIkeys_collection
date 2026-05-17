@@ -82,6 +82,11 @@ and a local fingerprint. A row is current only when the local imported data matc
 metadata/version/checksum. Provider pages are only a first approximation; precise checks require provider-specific
 dataset adapters.
 
+Local installs use a launcher registry instead of path/name guessing. `provider_installations` stores the stable
+`install_id` and fingerprint for a managed source, while `provider_installation_assets` records owned assets such
+as files, schemas, tables, or future SQL uninstall commands. This is meant to prevent duplicate installs and avoid
+leaving dead registry entries when a source is unmanaged or removed.
+
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for
 `taichi_global_bathymetry.py` to load quickly.

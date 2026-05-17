@@ -92,6 +92,8 @@ class ProviderRow:
         self.update_status = entry.update_status
         self.last_downloaded_at = entry.last_downloaded_at
         self.dataset_path = entry.dataset_path
+        self.install_id = entry.install_id
+        self.install_fingerprint = entry.install_fingerprint
         self.is_starred = entry.is_starred
 
     @property
@@ -445,6 +447,9 @@ class ApiCollectionUi:
         ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="標記已納管", style="Action.TButton", command=self.manage_active_provider).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="解除納管", style="Action.TButton", command=self.unmanage_active_provider).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="移除本地資料", style="Action.TButton", command=self.uninstall_active_provider).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="編輯描述", style="Action.TButton", command=self.edit_active_provider).pack(fill=X)
 
     def _build_download_plan_panel(self, parent: ttk.Frame, outer_pad: int) -> None:
@@ -730,7 +735,9 @@ class ApiCollectionUi:
             access = f"{access}\nEnv: {row.key_env_var}"
         self.detail_auth_var.set(access)
         self.detail_status_var.set(
-            f"Remote: {row.status_label} / {row.update_label}\nLocal: {row.local_label}"
+            f"Remote: {row.status_label} / {row.update_label}\n"
+            f"Local: {row.local_label}\n"
+            f"Install ID: {row.install_id or 'not managed'}"
         )
         self.detail_scope_var.set(row.geographic_scope)
         links = [
@@ -916,6 +923,80 @@ class ApiCollectionUi:
         self.render_table()
         row = self.row_by_provider_id(self.active_provider_id)
         self.status_var.set(f"已加入下載計畫：{row.name if row else self.active_provider_id}")
+
+    def manage_active_provider(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
+        conn = self._connect()
+        try:
+            install_id = core.ApiCatalogRepository(conn).manage_provider_installation(
+                self.active_provider_id,
+                location=row.dataset_path if row else "",
+                notes="Manually marked as managed from launcher UI.",
+            )
+        finally:
+            conn.close()
+        self.reload_data()
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.status_var.set(f"已納管：{row.name if row else self.active_provider_id} ({install_id})")
+
+    def unmanage_active_provider(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row is None or not row.install_id:
+            messagebox.showinfo("尚未納管", "這個資料源目前沒有 launcher install_id。")
+            return
+        if not messagebox.askyesno(
+            "解除納管",
+            (
+                f"要解除納管 {row.name} 嗎？\n\n"
+                "這只會移除 launcher 的追蹤狀態，不會刪除你的本地檔案、資料表或資料庫。"
+            ),
+        ):
+            return
+        conn = self._connect()
+        try:
+            install_id = core.ApiCatalogRepository(conn).unmanage_provider_installation(self.active_provider_id)
+        finally:
+            conn.close()
+        self.reload_data()
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.status_var.set(f"已解除納管：{row.name} ({install_id})")
+
+    def uninstall_active_provider(self) -> None:
+        if not self.active_provider_id:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row is None or not row.install_id:
+            messagebox.showinfo("尚未納管", "這個資料源目前沒有 launcher install_id。")
+            return
+        if not messagebox.askyesno(
+            "移除本地資料",
+            (
+                f"要移除 {row.name} 的本地納管狀態嗎？\n\n"
+                "目前版本只會把 launcher registry 中的安裝資產標記為 removed，"
+                "不會執行 DROP DATABASE 或刪除檔案。等資料庫 adapter 完成後，"
+                "這裡才會只針對已登記的 install_id 安全執行卸載命令。"
+            ),
+        ):
+            return
+        conn = self._connect()
+        try:
+            result = core.ApiCatalogRepository(conn).uninstall_provider_installation(self.active_provider_id)
+        finally:
+            conn.close()
+        self.reload_data()
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        asset_count = len(result.get("assets") or [])
+        self.status_var.set(f"已標記移除：{row.name} ({asset_count} 個登記資產)")
 
     def self_check_selected(self) -> None:
         provider_ids = self.selected_provider_ids()

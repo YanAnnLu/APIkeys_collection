@@ -58,6 +58,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Users can add new provider/API sources and edit launcher descriptions directly from the UI.
 - The UI now has an explicit Download Plan panel, which acts like a cart/install queue for selected data sources.
   Exports include a plan name, provider count, planned status, priority, and target fields for future workers.
+- Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
+  Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
+  UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
 - AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 
