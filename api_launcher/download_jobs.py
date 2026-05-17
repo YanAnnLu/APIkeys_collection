@@ -157,8 +157,8 @@ class NonBlockingDownloadQueue:
     def wait(self, job_id: str, timeout: float | None = None) -> None:
         self.futures[job_id].result(timeout=timeout)
 
-    def shutdown(self) -> None:
-        self.executor.shutdown(wait=True, cancel_futures=False)
+    def shutdown(self, wait: bool = True, cancel_futures: bool = False) -> None:
+        self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def _controller(self, job_id: str) -> DownloadJobController:
         with self.lock:

@@ -12,13 +12,16 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import urllib.parse
 import webbrowser
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
 
 import APIkeys_collection as core
-from api_launcher.paths import catalog_file, state_file
+from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
+from api_launcher.http_downloader import HTTPDownloadAdapter
+from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -402,11 +405,19 @@ class ApiCollectionUi:
         self.active_provider_id = ""
         self.detail_visible = False
         self.resize_after_id: str | None = None
+        self.download_queue = NonBlockingDownloadQueue(HTTPDownloadAdapter(), max_workers=3)
+        self.download_queue.add_callback(self.on_download_progress_threadsafe)
+        self.download_jobs_by_provider: dict[str, str] = {}
+        self.download_providers_by_job: dict[str, str] = {}
+        self.download_progress_by_provider: dict[str, DownloadProgress] = {}
+        self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
+        self.registered_completed_downloads: set[str] = set()
 
         self._init_database()
         self._setup_style()
         self._build_layout()
         self.root.bind("<Configure>", self.on_root_configure)
+        self.root.protocol("WM_DELETE_WINDOW", self.close_app)
         self.reload_data()
         self.run_startup_environment_checks()
 
@@ -422,6 +433,13 @@ class ApiCollectionUi:
 
     def _connect(self) -> sqlite3.Connection:
         return core.connect_db(DB_PATH)
+
+    def close_app(self) -> None:
+        for job_id in list(self.download_providers_by_job):
+            with contextlib_suppress_tcl_error():
+                self.download_queue.cancel(job_id)
+        self.download_queue.shutdown(wait=False, cancel_futures=True)
+        self.root.destroy()
 
     def run_startup_environment_checks(self) -> None:
         checks = core.run_startup_checks(DB_PATH)
@@ -600,6 +618,10 @@ class ApiCollectionUi:
         header.pack(fill=X, padx=14, pady=(12, 8))
         ttk.Label(header, textvariable=self.plan_count_var, style="DetailSection.TLabel").pack(side=LEFT)
         ttk.Entry(header, textvariable=self.plan_name_var, font=("Helvetica", 12), width=34).pack(side=LEFT, padx=(14, 8))
+        ttk.Button(header, text="Start", style="Action.TButton", command=self.start_download_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="Pause", style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="Resume", style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text="Cancel", style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
@@ -616,6 +638,19 @@ class ApiCollectionUi:
             self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
         self.cart_tree.pack(fill=X, padx=14, pady=(0, 12))
         self.cart_tree.bind("<<TreeviewSelect>>", self.on_cart_select)
+
+        job_columns = ("name", "status", "progress", "target")
+        self.download_tree = ttk.Treeview(plan, columns=job_columns, show="headings", height=4, selectmode="browse")
+        for name, label, width, anchor in [
+            ("name", "Download Job", 260, "w"),
+            ("status", "Status", 120, "center"),
+            ("progress", "Progress", 120, "center"),
+            ("target", "Target", 420, "w"),
+        ]:
+            self.download_tree.heading(name, text=label)
+            self.download_tree.column(name, width=width, anchor=anchor, stretch=True)
+        self.download_tree.pack(fill=X, padx=14, pady=(0, 12))
+        self.download_tree.bind("<<TreeviewSelect>>", self.on_download_select)
 
     def open_detail_drawer(self) -> None:
         if not self.active_provider_id and self.filtered_rows:
@@ -841,6 +876,8 @@ class ApiCollectionUi:
             )
         self.plan_count_var.set(f"Download Plan：{len(rows)} 個資料源")
 
+        self.update_download_jobs_panel()
+
     def on_cart_select(self, _event: object) -> None:
         selection = self.cart_tree.selection()
         if not selection:
@@ -851,6 +888,143 @@ class ApiCollectionUi:
             self.tree.focus(self.active_provider_id)
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+
+    def on_download_select(self, _event: object) -> None:
+        selection = self.download_tree.selection()
+        if selection:
+            self.active_provider_id = str(selection[0])
+
+    def start_download_plan(self) -> None:
+        rows = self.selected_rows()
+        if not rows:
+            messagebox.showinfo("Download plan is empty", "Add at least one source to the download plan first.")
+            return
+        started = 0
+        skipped = 0
+        for row in rows:
+            if row.provider_id in self.download_jobs_by_provider:
+                continue
+            url = self.download_url_for_row(row)
+            if not url:
+                skipped += 1
+                self.download_status_by_provider[row.provider_id] = ("skipped", "0%", "No direct API/download URL")
+                continue
+            target_path = self.download_target_for_row(row, url)
+            plan_entry = core.provider_plan_entry(self.provider_from_row(row))
+            plan_entry["download_url"] = url
+            plan_entry["target_path"] = str(target_path)
+            job = self.download_queue.submit(plan_entry)
+            self.download_jobs_by_provider[row.provider_id] = job.job_id
+            self.download_providers_by_job[job.job_id] = row.provider_id
+            self.download_status_by_provider[row.provider_id] = ("queued", "0%", str(target_path))
+            started += 1
+        self.update_download_jobs_panel()
+        self.status_var.set(f"Download jobs started: {started}; skipped: {skipped}")
+
+    def download_url_for_row(self, row: ProviderRow) -> str:
+        return row.api_base_url.strip()
+
+    def download_target_for_row(self, row: ProviderRow, url: str) -> Path:
+        parsed = urllib.parse.urlparse(url)
+        filename = Path(urllib.parse.unquote(parsed.path)).name
+        if not filename or "." not in filename:
+            filename = f"{row.provider_id}.download"
+        return DOWNLOADS_DIR / row.provider_id / filename
+
+    def active_download_job_id(self) -> str | None:
+        selection = self.download_tree.selection()
+        provider_id = str(selection[0]) if selection else self.active_provider_id
+        return self.download_jobs_by_provider.get(provider_id)
+
+    def pause_active_download(self) -> None:
+        job_id = self.active_download_job_id()
+        if not job_id:
+            self.status_var.set("No active download job to pause.")
+            return
+        self.download_queue.pause(job_id)
+
+    def resume_active_download(self) -> None:
+        job_id = self.active_download_job_id()
+        if not job_id:
+            self.status_var.set("No active download job to resume.")
+            return
+        self.download_queue.resume(job_id)
+
+    def cancel_active_download(self) -> None:
+        job_id = self.active_download_job_id()
+        if not job_id:
+            self.status_var.set("No active download job to cancel.")
+            return
+        self.download_queue.cancel(job_id)
+
+    def on_download_progress_threadsafe(self, progress: DownloadProgress) -> None:
+        self.root.after(0, lambda update=progress: self.on_download_progress(update))
+
+    def on_download_progress(self, progress: DownloadProgress) -> None:
+        provider_id = self.download_providers_by_job.get(progress.job_id, progress.provider_id)
+        self.download_progress_by_provider[provider_id] = progress
+        target = self.download_status_by_provider.get(provider_id, ("", "", ""))[2]
+        self.download_status_by_provider[provider_id] = (
+            progress.status.value,
+            self.format_download_percent(progress),
+            target or progress.message,
+        )
+        self.update_download_jobs_panel()
+        if progress.status == JobStatus.COMPLETED:
+            self.register_completed_download(provider_id, target)
+        elif progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
+            self.status_var.set(f"Download {progress.status.value}: {provider_id} {progress.error}")
+
+    def format_download_percent(self, progress: DownloadProgress) -> str:
+        if progress.percent is not None:
+            return f"{progress.percent:.1f}%"
+        if progress.bytes_done:
+            return f"{progress.bytes_done} bytes"
+        return "0%"
+
+    def update_download_jobs_panel(self) -> None:
+        if not hasattr(self, "download_tree"):
+            return
+        for item in self.download_tree.get_children():
+            self.download_tree.delete(item)
+        provider_ids = list(dict.fromkeys([*self.selected_provider_ids(), *self.download_status_by_provider.keys()]))
+        for provider_id in provider_ids:
+            row = self.row_by_provider_id(provider_id)
+            status, progress, target = self.download_status_by_provider.get(provider_id, ("planned", "0%", ""))
+            self.download_tree.insert(
+                "",
+                END,
+                iid=provider_id,
+                values=(row.name if row else provider_id, status, progress, target),
+            )
+
+    def register_completed_download(self, provider_id: str, target: str) -> None:
+        if provider_id in self.registered_completed_downloads:
+            return
+        self.registered_completed_downloads.add(provider_id)
+        row = self.row_by_provider_id(provider_id)
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            install_id = repository.manage_provider_installation(
+                provider_id,
+                location=target,
+                notes="Downloaded by APIkeys_collection HTTP downloader.",
+            )
+            if target:
+                repository.register_installation_asset(
+                    install_id,
+                    asset_kind="file",
+                    asset_name=Path(target).name,
+                    asset_role="source",
+                    source_format="unknown",
+                    source_uri=self.download_url_for_row(row) if row else "",
+                    notes="Downloaded source asset.",
+                )
+        finally:
+            conn.close()
+        self.reload_data()
+        self.status_var.set(f"Download completed: {row.name if row else provider_id}")
 
     def remove_selected_from_plan(self) -> None:
         selection = self.cart_tree.selection()

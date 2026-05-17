@@ -120,6 +120,11 @@ rename into the final target path. Dataset-specific API adapters should either
 produce direct URLs for this adapter or implement the same `DownloadAdapter`
 protocol.
 
+`APIkeys_collection_ui.py` can now submit download-plan rows into the
+nonblocking queue, display job progress, and pause/resume/cancel selected jobs.
+The UI intentionally starts only rows with an API/download URL; provider-specific
+adapters should later decide how catalog pages become real dataset files.
+
 ## Cross-platform Path and Encoding Rules
 
 - Source files are UTF-8 with LF endings. See `.editorconfig` and `.gitattributes`.
