@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from api_launcher.db import connect_db
+from api_launcher.manifests import build_asset_manifest, write_manifest
+from api_launcher.repository import ApiCatalogRepository
+
+
+class ManifestRegistryTests(unittest.TestCase):
+    def test_manifest_can_be_registered_in_sqlite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                manifest = build_asset_manifest(
+                    payload,
+                    {
+                        "provider_id": "gebco",
+                        "download_url": "https://example.test/sample.bin",
+                        "dataset_version": {"dataset_uid": "gebco:sample", "dataset_id": "sample", "version": "2025"},
+                    },
+                )
+
+                manifest_id = repo.upsert_dataset_asset_manifest(manifest, payload.with_suffix(".manifest.json"), status="ok")
+                records = repo.list_dataset_asset_manifests("gebco")
+            finally:
+                conn.close()
+
+        self.assertTrue(manifest_id.startswith("manifest_"))
+        self.assertEqual(1, len(records))
+        self.assertEqual("ok", records[0].status)
+        self.assertEqual("2025", records[0].version)
+
+    def test_manifest_health_summary_counts_statuses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                manifest = build_asset_manifest(payload, {"provider_id": "gebco"})
+                repo.upsert_dataset_asset_manifest(manifest, payload.with_suffix(".manifest.json"), status="missing")
+
+                summary = repo.dataset_asset_manifest_health_summary()
+            finally:
+                conn.close()
+
+        self.assertEqual(1, summary["missing"])
+
+
+if __name__ == "__main__":
+    unittest.main()

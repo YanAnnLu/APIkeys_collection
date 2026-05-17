@@ -10,7 +10,8 @@ from typing import Iterable
 from api_launcher.asset_roles import normalize_asset_role
 from api_launcher.asset_verifier import AssetRecord, AssetVerifier, RegistryOnlyVerifier
 from api_launcher.db import init_db, resolve_project_path, utc_now_iso
-from api_launcher.models import Dataset, Provider, ProviderCatalogEntry, RenderBridgeAsset
+from api_launcher.manifests import AssetManifest
+from api_launcher.models import Dataset, DatasetAssetManifestRecord, Provider, ProviderCatalogEntry, RenderBridgeAsset
 from api_launcher.paths import catalog_file
 from api_launcher.provenance import normalize_source_format
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
@@ -212,6 +213,31 @@ def render_bridge_asset_from_row(row: sqlite3.Row) -> RenderBridgeAsset:
     )
 
 
+def dataset_asset_manifest_from_row(row: sqlite3.Row) -> DatasetAssetManifestRecord:
+    return DatasetAssetManifestRecord(
+        manifest_id=row["manifest_id"],
+        provider_id=row["provider_id"],
+        dataset_uid=row["dataset_uid"] or "",
+        dataset_id=row["dataset_id"] or "",
+        version=row["version"] or "",
+        path=row["path"],
+        manifest_path=row["manifest_path"],
+        source_url=row["source_url"] or "",
+        size_bytes=int(row["size_bytes"] or 0),
+        sha256=row["sha256"],
+        schema_fingerprint=row["schema_fingerprint"] or "",
+        status=row["status"] or "unknown",
+        last_verified_at=row["last_verified_at"] or "",
+        last_verify_error=row["last_verify_error"] or "",
+        metadata=json.loads(row["metadata_json"] or "{}"),
+    )
+
+
+def dataset_manifest_id(provider_id: str, dataset_uid: str, dataset_id: str, version: str, path: str) -> str:
+    value = "::".join([provider_id, dataset_uid, dataset_id, version, path])
+    return "manifest_" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+
+
 class ApiCatalogRepository:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -365,6 +391,85 @@ class ApiCatalogRepository:
         else:
             rows = self.conn.execute("SELECT * FROM render_bridge_assets ORDER BY renderer, asset_role, asset_id").fetchall()
         return [render_bridge_asset_from_row(row) for row in rows]
+
+    def upsert_dataset_asset_manifest(
+        self,
+        manifest: AssetManifest,
+        manifest_path: str | Path,
+        status: str = "unknown",
+        verify_error: str = "",
+    ) -> str:
+        now = utc_now_iso()
+        manifest_id = dataset_manifest_id(manifest.provider_id, manifest.dataset_uid, manifest.dataset_id, manifest.version, manifest.path)
+        existing = self.conn.execute(
+            "SELECT created_at FROM dataset_asset_manifests WHERE manifest_id = ?",
+            (manifest_id,),
+        ).fetchone()
+        created_at = existing["created_at"] if existing else now
+        self.conn.execute(
+            """
+            INSERT INTO dataset_asset_manifests (
+                manifest_id, provider_id, dataset_uid, dataset_id, version,
+                path, manifest_path, source_url, size_bytes, sha256,
+                schema_fingerprint, status, last_verified_at, last_verify_error,
+                metadata_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(manifest_id) DO UPDATE SET
+                provider_id = excluded.provider_id,
+                dataset_uid = excluded.dataset_uid,
+                dataset_id = excluded.dataset_id,
+                version = excluded.version,
+                path = excluded.path,
+                manifest_path = excluded.manifest_path,
+                source_url = excluded.source_url,
+                size_bytes = excluded.size_bytes,
+                sha256 = excluded.sha256,
+                schema_fingerprint = excluded.schema_fingerprint,
+                status = excluded.status,
+                last_verified_at = excluded.last_verified_at,
+                last_verify_error = excluded.last_verify_error,
+                metadata_json = excluded.metadata_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                manifest_id,
+                manifest.provider_id,
+                manifest.dataset_uid,
+                manifest.dataset_id,
+                manifest.version,
+                manifest.path,
+                str(manifest_path),
+                manifest.source_url,
+                manifest.size_bytes,
+                manifest.sha256,
+                manifest.schema_fingerprint,
+                status,
+                now if status != "unknown" else "",
+                verify_error,
+                json.dumps(manifest.metadata, ensure_ascii=False, sort_keys=True),
+                created_at,
+                now,
+            ),
+        )
+        self.conn.commit()
+        return manifest_id
+
+    def list_dataset_asset_manifests(self, provider_id: str | None = None) -> list[DatasetAssetManifestRecord]:
+        if provider_id:
+            rows = self.conn.execute(
+                "SELECT * FROM dataset_asset_manifests WHERE provider_id = ? ORDER BY updated_at DESC",
+                (provider_id,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM dataset_asset_manifests ORDER BY updated_at DESC").fetchall()
+        return [dataset_asset_manifest_from_row(row) for row in rows]
+
+    def dataset_asset_manifest_health_summary(self) -> dict[str, int]:
+        summary = {"ok": 0, "missing": 0, "size_mismatch": 0, "checksum_mismatch": 0, "manifest_error": 0, "unknown": 0}
+        rows = self.conn.execute("SELECT status, COUNT(*) AS n FROM dataset_asset_manifests GROUP BY status").fetchall()
+        for row in rows:
+            summary[row["status"] or "unknown"] = int(row["n"])
+        return summary
 
     def seed_key_reference_if_exists(self, path: str | Path) -> int:
         path = resolve_project_path(path)

@@ -184,6 +184,27 @@ def init_db(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS dataset_asset_manifests (
+            manifest_id TEXT PRIMARY KEY,
+            provider_id TEXT NOT NULL REFERENCES providers(provider_id) ON DELETE CASCADE,
+            dataset_uid TEXT,
+            dataset_id TEXT,
+            version TEXT,
+            path TEXT NOT NULL,
+            manifest_path TEXT NOT NULL,
+            source_url TEXT,
+            size_bytes INTEGER NOT NULL DEFAULT 0,
+            sha256 TEXT NOT NULL,
+            schema_fingerprint TEXT,
+            status TEXT NOT NULL DEFAULT 'unknown',
+            last_verified_at TEXT,
+            last_verify_error TEXT,
+            metadata_json TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(path)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_providers_auth_type ON providers(auth_type);
         CREATE INDEX IF NOT EXISTS idx_providers_owner ON providers(owner);
         CREATE INDEX IF NOT EXISTS idx_crawl_provider ON crawl_results(provider_id);
@@ -192,6 +213,8 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_provider_installations_status ON provider_installations(status);
         CREATE INDEX IF NOT EXISTS idx_provider_installation_assets_install ON provider_installation_assets(install_id);
         CREATE INDEX IF NOT EXISTS idx_provider_installation_assets_status ON provider_installation_assets(status);
+        CREATE INDEX IF NOT EXISTS idx_dataset_asset_manifests_provider ON dataset_asset_manifests(provider_id);
+        CREATE INDEX IF NOT EXISTS idx_dataset_asset_manifests_status ON dataset_asset_manifests(status);
         """
     )
     ensure_column(conn, "crawl_results", "extracted_json", "TEXT")

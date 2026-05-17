@@ -172,6 +172,10 @@ project tree, because Windows cannot atomically replace across drives. The sidec
 the first repair/update primitive. Future update workers should compare these manifests against remote manifests before
 downloading full replacements.
 
+Sidecar manifests are also registered in SQLite table `dataset_asset_manifests`. CLI `--verify-downloads` scans the
+manifest files, verifies payload presence/size/SHA-256, and syncs the health status back into SQLite for future UI and
+agent repair workflows.
+
 `APIkeys_collection_ui.py` can now submit download-plan rows into the
 nonblocking queue, display job progress, and pause/resume/cancel selected jobs.
 The UI intentionally starts only rows with an API/download URL; provider-specific

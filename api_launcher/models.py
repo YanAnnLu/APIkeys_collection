@@ -103,3 +103,22 @@ class RenderBridgeAsset:
     temporal_index_path: str = ""
     checksum: str = ""
     metadata: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True)
+class DatasetAssetManifestRecord:
+    manifest_id: str
+    provider_id: str
+    dataset_uid: str
+    dataset_id: str
+    version: str
+    path: str
+    manifest_path: str
+    source_url: str
+    size_bytes: int
+    sha256: str
+    schema_fingerprint: str = ""
+    status: str = "unknown"
+    last_verified_at: str = ""
+    last_verify_error: str = ""
+    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)

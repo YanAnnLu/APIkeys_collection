@@ -22,6 +22,7 @@ import APIkeys_collection as core
 from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 from api_launcher.event_log import log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
+from api_launcher.manifests import read_manifest
 from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
 
 
@@ -1157,6 +1158,7 @@ class ApiCollectionUi:
                 notes="Downloaded by APIkeys_collection HTTP downloader.",
             )
             if target:
+                manifest_path = Path(target).with_suffix(Path(target).suffix + ".manifest.json")
                 repository.register_installation_asset(
                     install_id,
                     asset_kind="file",
@@ -1166,6 +1168,8 @@ class ApiCollectionUi:
                     source_uri=self.download_url_for_row(row) if row else "",
                     notes="Downloaded source asset.",
                 )
+                if manifest_path.exists():
+                    repository.upsert_dataset_asset_manifest(read_manifest(manifest_path), manifest_path, status="ok")
         finally:
             conn.close()
         self.reload_data()

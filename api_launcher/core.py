@@ -65,6 +65,7 @@ from api_launcher.integrations import (
     open_database_client,
     set_active_database_client,
 )
+from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
 from api_launcher.paths import catalog_file
 from api_launcher.plans import build_download_plan
@@ -533,6 +534,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-categories", action="store_true", help="print provider categories and exit")
     parser.add_argument("--self-check", action="store_true", help="refresh launcher remote/local status from crawl metadata")
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
+    parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--export-json", help="write provider catalog JSON")
     parser.add_argument("--export-csv", help="write provider catalog CSV")
@@ -563,6 +565,7 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.verify_downloads()
+            self.show_manifest_health()
             self.show_logs()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
@@ -594,6 +597,7 @@ class CatalogLauncherCli:
             self.args.list_categories,
             self.args.self_check,
             self.args.verify_downloads,
+            self.args.manifest_health,
             self.args.show_logs > 0,
             bool(self.args.export_json),
             bool(self.args.export_csv),
@@ -657,10 +661,26 @@ class CatalogLauncherCli:
         if self.args.verify_downloads:
             results = scan_download_manifests()
             summary = repair_summary(results)
+            for result in results:
+                if result.status == "manifest_error":
+                    continue
+                manifest = read_manifest(result.manifest_path)
+                self.repository.upsert_dataset_asset_manifest(
+                    manifest,
+                    result.manifest_path,
+                    status=result.status,
+                    verify_error=result.message if result.needs_repair else "",
+                )
             print(f"[verify-downloads] checked {len(results)} manifests: {summary}")
             for result in results:
                 if result.needs_repair:
                     print(f"[verify-downloads] {result.status}: {result.payload_path} ({result.message})")
+
+    def show_manifest_health(self) -> None:
+        if self.args.manifest_health:
+            summary = self.repository.dataset_asset_manifest_health_summary()
+            total = sum(summary.values())
+            print(f"[manifest-health] total={total} {summary}")
 
     def show_logs(self) -> None:
         if self.args.show_logs > 0:
