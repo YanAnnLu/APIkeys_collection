@@ -55,6 +55,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - The sidebar includes a starred-only view for important data sources.
 - Provider descriptions now open in an on-demand right-side drawer instead of a permanently cramped side panel.
 - The Tk UI now uses ratio-based sizing for the window, sidebar, detail drawer, row height, and table columns so it behaves better across Windows/macOS displays and DPI settings.
+- Users can add new provider/API sources and edit launcher descriptions directly from the UI.
+- Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
+- AI-generated provider descriptions are profile-driven too. The default example uses local Ollama for no-login summaries, while Gemini remains an optional API-key profile.
 
 ## Cross-Platform Notes
 
@@ -63,7 +66,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Keep project files UTF-8 with LF line endings.
 - SQLite state on synced drives can conflict. Prefer treating `*.sqlite` as rebuildable state or copy it locally before heavy writes.
 - Git for Windows was installed on 2026-05-17 and the repo was initialized on `main`.
-- GitHub CLI was installed on 2026-05-17, but it is not authenticated yet. Run `gh auth login`.
+- GitHub CLI was installed and authenticated as `YanAnnLu` on 2026-05-17.
 - Docker Desktop 4.73.0 is installed and verified on this Windows machine.
 - WSL is installed for Docker Desktop; the `docker-desktop` WSL distro runs as WSL2.
 - Docker Compose is verified with `docker compose run --rm --build launcher`.

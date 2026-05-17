@@ -14,7 +14,7 @@ import sqlite3
 import threading
 import webbrowser
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, Text, Tk, messagebox
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
 
 import APIkeys_collection as core
@@ -141,6 +141,114 @@ class ProviderRow:
         return ""
 
 
+class ProviderEditorDialog:
+    def __init__(self, parent: Tk, row: ProviderRow | None = None):
+        self.parent = parent
+        self.row = row
+        self.result: core.Provider | None = None
+        self.window = Toplevel(parent)
+        self.window.title("編輯資料源" if row else "新增資料源")
+        self.window.transient(parent)
+        self.window.grab_set()
+        self.window.configure(bg=COLORS["panel"])
+        self.window.minsize(620, 640)
+
+        self.vars = {
+            "provider_id": StringVar(value=row.provider_id if row else ""),
+            "name": StringVar(value=row.name if row else ""),
+            "owner": StringVar(value=row.owner if row else ""),
+            "categories": StringVar(value=row.category_label if row else ""),
+            "geographic_scope": StringVar(value=row.geographic_scope if row else "global"),
+            "docs_url": StringVar(value=row.docs_url if row else ""),
+            "api_base_url": StringVar(value=row.api_base_url if row else ""),
+            "signup_url": StringVar(value=row.signup_url if row else ""),
+            "auth_type": StringVar(value=row.auth_type if row else "unknown"),
+            "key_env_var": StringVar(value=row.key_env_var if row else ""),
+        }
+
+        self._build()
+        self.window.bind("<Escape>", lambda _event: self.cancel())
+        self.window.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.window.wait_window()
+
+    def _build(self) -> None:
+        frame = ttk.Frame(self.window, style="Panel.TFrame")
+        frame.pack(fill=BOTH, expand=True, padx=22, pady=22)
+
+        fields = [
+            ("Provider ID", "provider_id"),
+            ("名稱", "name"),
+            ("Owner", "owner"),
+            ("類別（逗號分隔）", "categories"),
+            ("範圍", "geographic_scope"),
+            ("Docs URL", "docs_url"),
+            ("API Base URL", "api_base_url"),
+            ("Signup URL", "signup_url"),
+            ("Auth Type", "auth_type"),
+            ("Key Env Var", "key_env_var"),
+        ]
+        for label, key in fields:
+            ttk.Label(frame, text=label, style="DetailSection.TLabel").pack(anchor="w", pady=(8, 2))
+            entry = ttk.Entry(frame, textvariable=self.vars[key], font=("Helvetica", 12))
+            entry.pack(fill=X)
+            if key == "provider_id" and self.row is not None:
+                entry.configure(state="disabled")
+
+        ttk.Label(frame, text="Launcher 描述", style="DetailSection.TLabel").pack(anchor="w", pady=(12, 2))
+        self.notes_text = Text(
+            frame,
+            height=7,
+            wrap=WORD,
+            bg=COLORS["bg"],
+            fg=COLORS["text"],
+            insertbackground=COLORS["text"],
+            relief="flat",
+            padx=10,
+            pady=10,
+            font=("Helvetica", 11),
+        )
+        self.notes_text.pack(fill=BOTH, expand=True)
+        if self.row and self.row.notes:
+            self.notes_text.insert("1.0", self.row.notes)
+
+        buttons = ttk.Frame(frame, style="Panel.TFrame")
+        buttons.pack(fill=X, pady=(16, 0))
+        ttk.Button(buttons, text="儲存", style="Action.TButton", command=self.save).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(buttons, text="取消", style="Action.TButton", command=self.cancel).pack(side=RIGHT)
+
+    def save(self) -> None:
+        provider_id = self.vars["provider_id"].get().strip()
+        name = self.vars["name"].get().strip()
+        owner = self.vars["owner"].get().strip()
+        docs_url = self.vars["docs_url"].get().strip()
+        if not provider_id or not name or not owner or not docs_url:
+            messagebox.showerror("資料不足", "Provider ID、名稱、Owner、Docs URL 都必須填寫。", parent=self.window)
+            return
+        categories = tuple(
+            value.strip()
+            for value in self.vars["categories"].get().split(",")
+            if value.strip()
+        )
+        self.result = core.Provider(
+            provider_id=provider_id,
+            name=name,
+            owner=owner,
+            categories=categories or ("custom",),
+            geographic_scope=self.vars["geographic_scope"].get().strip() or "global",
+            docs_url=docs_url,
+            api_base_url=self.vars["api_base_url"].get().strip(),
+            signup_url=self.vars["signup_url"].get().strip(),
+            auth_type=self.vars["auth_type"].get().strip() or "unknown",
+            key_env_var=self.vars["key_env_var"].get().strip(),
+            notes=self.notes_text.get("1.0", END).strip(),
+        )
+        self.window.destroy()
+
+    def cancel(self) -> None:
+        self.result = None
+        self.window.destroy()
+
+
 class ApiCollectionUi:
     def __init__(self, root: Tk):
         self.root = root
@@ -246,7 +354,10 @@ class ApiCollectionUi:
         ttk.Button(controls, text="爬取選取 Metadata", style="Action.TButton", command=self.crawl_selected).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="匯出下載計畫", style="Action.TButton", command=self.export_download_plan).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="開啟文件", style="Action.TButton", command=self.open_selected_docs).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="資料源詳情", style="Action.TButton", command=self.open_detail_drawer).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="新增來源", style="Action.TButton", command=self.add_provider).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="編輯來源", style="Action.TButton", command=self.edit_active_provider).pack(side=LEFT, padx=(0, 12))
         ttk.Entry(controls, textvariable=self.search_var, font=("Helvetica", 14)).pack(side=RIGHT, fill=X, expand=True)
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
@@ -326,8 +437,11 @@ class ApiCollectionUi:
         actions = ttk.Frame(self.detail, style="Panel.TFrame")
         actions.pack(fill=X, padx=18, pady=(18, 0))
         ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X)
+        ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="編輯描述", style="Action.TButton", command=self.edit_active_provider).pack(fill=X)
 
     def open_detail_drawer(self) -> None:
         if not self.active_provider_id and self.filtered_rows:
@@ -557,6 +671,138 @@ class ApiCollectionUi:
         self.preview_box.delete("1.0", END)
         self.preview_box.insert("1.0", text)
         self.preview_box.configure(state="disabled")
+
+    def add_provider(self) -> None:
+        dialog = ProviderEditorDialog(self.root)
+        if dialog.result is None:
+            return
+        self.save_provider(dialog.result)
+        self.active_provider_id = dialog.result.provider_id
+        self.reload_data()
+        self.open_detail_drawer()
+        self.status_var.set(f"已新增資料源：{dialog.result.name}")
+
+    def edit_active_provider(self) -> None:
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row is None:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        dialog = ProviderEditorDialog(self.root, row)
+        if dialog.result is None:
+            return
+        self.save_provider(dialog.result)
+        self.active_provider_id = dialog.result.provider_id
+        self.reload_data()
+        if self.detail_visible:
+            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.status_var.set(f"已更新資料源：{dialog.result.name}")
+
+    def save_provider(self, provider: core.Provider) -> None:
+        conn = self._connect()
+        try:
+            core.ApiCatalogRepository(conn).upsert_provider(provider)
+        finally:
+            conn.close()
+
+    def provider_from_row(self, row: ProviderRow, notes: str | None = None) -> core.Provider:
+        return core.Provider(
+            provider_id=row.provider_id,
+            name=row.name,
+            owner=row.owner,
+            categories=row.categories,
+            geographic_scope=row.geographic_scope,
+            docs_url=row.docs_url,
+            api_base_url=row.api_base_url,
+            signup_url=row.signup_url,
+            auth_type=row.auth_type,
+            key_env_var=row.key_env_var,
+            notes=row.notes if notes is None else notes,
+        )
+
+    def open_database_tool(self) -> None:
+        try:
+            profile = core.open_database_client()
+        except Exception as exc:
+            messagebox.showerror(
+                "無法開啟資料庫工具",
+                (
+                    f"{exc}\n\n"
+                    "請複製 launcher_integrations.example.json 為 "
+                    "launcher_integrations.local.json，並調整你的 MySQL Workbench、DBeaver "
+                    "或其他資料庫工具路徑。"
+                ),
+            )
+            self.status_var.set(f"資料庫工具啟動失敗：{exc}")
+            return
+        self.status_var.set(f"已開啟資料庫工具：{profile.label}")
+
+    def generate_active_summary(self) -> None:
+        row = self.row_by_provider_id(self.active_provider_id)
+        if row is None:
+            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
+            return
+        profile = core.active_ai_profile()
+        if profile is None:
+            messagebox.showinfo(
+                "尚未設定 AI 摘要",
+                (
+                    "請在 launcher_integrations.local.json 啟用一個 ai_summary_profiles。"
+                    "預設建議使用本機 Ollama，免登入也不需要雲端 API key。"
+                ),
+            )
+            return
+        self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
+        thread = threading.Thread(target=self._summary_worker, args=(row.provider_id,), daemon=True)
+        thread.start()
+
+    def _summary_worker(self, provider_id: str) -> None:
+        saved_summary = False
+        try:
+            conn = self._connect()
+            try:
+                repository = core.ApiCatalogRepository(conn)
+                providers = repository.load_providers([provider_id])
+                if not providers:
+                    raise RuntimeError(f"Unknown provider_id: {provider_id}")
+                provider = providers[0]
+                summary = core.generate_provider_summary(provider)
+                if not provider.notes:
+                    provider = core.Provider(
+                        provider_id=provider.provider_id,
+                        name=provider.name,
+                        owner=provider.owner,
+                        categories=provider.categories,
+                        geographic_scope=provider.geographic_scope,
+                        docs_url=provider.docs_url,
+                        api_base_url=provider.api_base_url,
+                        signup_url=provider.signup_url,
+                        auth_type=provider.auth_type,
+                        key_env_var=provider.key_env_var,
+                        license_url=provider.license_url,
+                        terms_url=provider.terms_url,
+                        notes=summary,
+                        crawl_urls=provider.crawl_urls,
+                    )
+                    repository.upsert_provider(provider)
+                    saved_summary = True
+            finally:
+                conn.close()
+        except Exception as exc:
+            error = str(exc)
+            self.root.after(0, lambda: messagebox.showerror("AI 摘要失敗", error))
+            self.root.after(0, lambda: self.status_var.set(f"AI 摘要失敗：{error}"))
+            return
+
+        def update_ui() -> None:
+            if saved_summary:
+                self.reload_data()
+                row = self.row_by_provider_id(provider_id)
+                self.status_var.set(f"AI 說明已寫入：{row.name if row else provider_id}")
+            else:
+                self.set_preview_text(summary)
+                self.status_var.set("AI 摘要已產生；既有描述未被覆蓋。")
+
+        self.root.after(0, update_ui)
 
     def run_row_action(self, provider_id: str) -> None:
         row = self.row_by_provider_id(provider_id)

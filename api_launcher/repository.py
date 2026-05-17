@@ -178,6 +178,9 @@ class ApiCatalogRepository:
     def seed_builtin_providers(self) -> None:
         seed_providers(self.conn, PROVIDERS)
 
+    def upsert_provider(self, provider: Provider) -> None:
+        seed_providers(self.conn, (provider,))
+
     def load_providers(self, provider_ids: list[str] | None = None) -> list[Provider]:
         return load_providers(self.conn, provider_ids)
 

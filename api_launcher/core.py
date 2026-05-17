@@ -37,6 +37,14 @@ import urllib.request
 from pathlib import Path
 
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
+from api_launcher.integrations import (
+    active_ai_profile,
+    active_database_client,
+    ai_summary_profiles,
+    database_client_profiles,
+    generate_provider_summary,
+    open_database_client,
+)
 from api_launcher.models import Provider
 from api_launcher.repository import (
     ApiCatalogRepository,

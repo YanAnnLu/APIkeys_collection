@@ -24,6 +24,7 @@ reference file, templates, and exports.
 - `api_launcher/models.py`: provider/catalog dataclasses.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
+- `api_launcher/integrations.py`: local integration profiles for database clients and optional AI summaries.
 - `APIkeys_collection_reference.json`: the crawler credential reference file. The first entry is NOAA's `NOAA_NCEI_CDO_TOKEN` reference. Keep real key values out of this file; put real keys in your shell environment or a private `.env`.
 - `APIkeys_collection.sqlite`: local SQLite database for providers, credential placeholders, and crawl metadata.
 - `.env.example`: environment-variable template generated from the database.
@@ -32,6 +33,7 @@ reference file, templates, and exports.
 - `APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
 - `APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
 - `APIkeys_collection_ui.py`: lightweight Tk download-guide UI. It lets you browse provider/database sources, run metadata checks, and export a download plan.
+- `launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.
 - `APIkeys_collection_credentials.private.template.json`: local-only credential template for your own accounts/tokens.
 - `.gitignore`: excludes filled private credential files and Python cache files.
 - `provider_registry.sample.json`: sample format for adding future providers without editing the Python file.
@@ -112,6 +114,20 @@ macOS/Linux:
 The virtual environment, SQLite database, local secrets, and Python cache files are local machine state and are ignored by git.
 On Windows, the setup script keeps the virtual environment under `%LOCALAPPDATA%\APIkeys_collection\venv-py313`
 so package installs do not fight the synced project folder.
+
+## Local Integrations
+
+The launcher can open your local database client without hard-coding one user's path. Copy the example config and edit it per machine:
+
+```powershell
+Copy-Item launcher_integrations.example.json launcher_integrations.local.json
+```
+
+`launcher_integrations.local.json` is ignored by git. Use it to choose MySQL Workbench, DBeaver, or another local database client. The same file also controls optional AI summaries.
+
+For no-login summaries, the default profile expects a local Ollama server at `http://localhost:11434/api/generate`. Install Ollama, pull a small model such as `gemma3:1b`, and keep `active_ai_summary_profile` set to `local_ollama`.
+
+Gemini is available as an optional cloud profile. Enable it only if you want that path and have `GEMINI_API_KEY` set in your environment.
 
 Git identity helper:
 

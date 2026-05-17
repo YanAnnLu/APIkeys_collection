@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "active_database_client": "mysql_workbench",
+  "active_ai_summary_profile": "local_ollama",
+  "database_clients": [
+    {
+      "id": "mysql_workbench",
+      "label": "MySQL Workbench",
+      "kind": "mysql",
+      "enabled": true,
+      "command_by_platform": {
+        "Windows": [
+          "C:\\Program Files\\MySQL\\MySQL Workbench 8.0\\MySQLWorkbench.exe"
+        ],
+        "Darwin": [
+          "open",
+          "-a",
+          "MySQLWorkbench"
+        ],
+        "Linux": [
+          "mysql-workbench"
+        ]
+      },
+      "notes": "Copy this file to launcher_integrations.local.json and adjust paths for your machine."
+    },
+    {
+      "id": "dbeaver",
+      "label": "DBeaver",
+      "kind": "universal_sql",
+      "enabled": false,
+      "command_by_platform": {
+        "Windows": [
+          "C:\\Program Files\\DBeaver\\dbeaver.exe"
+        ],
+        "Darwin": [
+          "open",
+          "-a",
+          "DBeaver"
+        ],
+        "Linux": [
+          "dbeaver"
+        ]
+      },
+      "notes": "Cross-database fallback for MySQL, PostgreSQL, SQLite, and more."
+    }
+  ],
+  "ai_summary_profiles": [
+    {
+      "id": "local_ollama",
+      "label": "Local Ollama",
+      "kind": "ollama",
+      "enabled": true,
+      "model": "gemma3:1b",
+      "endpoint": "http://localhost:11434/api/generate",
+      "notes": "No login required. Install Ollama and pull a small model, or change this model name in launcher_integrations.local.json."
+    },
+    {
+      "id": "gemini_flash",
+      "label": "Gemini Flash",
+      "kind": "gemini",
+      "enabled": false,
+      "model": "gemini-2.0-flash",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+      "api_key_env": "GEMINI_API_KEY",
+      "notes": "Optional cloud fallback. Enable only when GEMINI_API_KEY is available."
+    }
+  ]
+}
