@@ -43,6 +43,8 @@ git status --short
 git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md docs catalog config scripts .gitignore .gitattributes
 git commit -m "Describe the launcher change"
 git push origin main
+gh run list --repo YanAnnLu/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
 git status --short
 ```
 
@@ -83,6 +85,12 @@ For cross-Agent handoff, update and read `docs/AGENT_HANDOFF.zh-TW.md` first. It
 
 GitHub Actions runs a lightweight CI matrix on Windows and Ubuntu for pushes and pull requests to `main`. It runs unit
 tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid platform-specific `.pyc` lock issues.
+On macOS, `gh` is installed and authenticated as `YanAnnLu`; use it after push to confirm CI, because GitHub mobile
+notifications report workflow status, not whether `git push` reached the remote.
+
+If Windows CI fails with `PermissionError: [WinError 32]` around `*.sqlite` in a temp directory, check for unclosed
+SQLite connections. Python's `with sqlite3.connect(...)` manages transactions but does not close the connection; use
+`contextlib.closing(sqlite3.connect(...))` for short-lived probes/tests.
 
 Chinese setup notes for Windows/macOS/Linux live in `docs/SETUP.zh-TW.md`.
 

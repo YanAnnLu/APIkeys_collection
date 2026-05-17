@@ -27,6 +27,10 @@ The current launcher runtime intentionally uses only the Python standard library
 On the current macOS Codex handoff machine, use Conda env `metal_trade_312` for validation and any optional package
 installs. Do not install into base/system Python unless the user explicitly approves.
 
+For short-lived SQLite reads/writes, do not rely on `with sqlite3.connect(...)` to close the file handle. That context
+manager commits or rolls back transactions, but it does not close the connection; Windows CI can keep temp `.sqlite`
+files locked. Use `contextlib.closing(sqlite3.connect(...))` or an explicit `finally: conn.close()`.
+
 ## Renderer Stack
 
 Optional dependencies live in `requirements-renderer.txt`.

@@ -21,6 +21,13 @@ py -m unittest discover -s tests
 $env:PYTHONDONTWRITEBYTECODE='1'; py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py api_launcher\core.py api_launcher\db.py api_launcher\models.py api_launcher\repository.py
 ```
 
+8. After pushing, verify GitHub Actions rather than assuming push success means CI success:
+
+```bash
+gh run list --repo YanAnnLu/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
+```
+
 ## Design Rules
 
 - Treat `APIkeys_collection.py` as a compatibility wrapper; put new logic in `api_launcher/`.
@@ -36,6 +43,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - Distinguish official source data from curated, derived, analysis, and cache assets.
 - Do not execute `DROP DATABASE`, delete files, or remove tables until an adapter verifies the target and ownership.
 - API data still needs curation. Use `api_launcher/curation.py` patterns for field mapping, type casting, required checks, and deduplication.
+- For short-lived SQLite probes/tests, use `contextlib.closing(sqlite3.connect(...))`. Python's sqlite connection context manager does not close the connection, and Windows CI can fail with `WinError 32` when temp SQLite files remain locked.
 
 ## Repair Workflow
 

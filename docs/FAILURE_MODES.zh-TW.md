@@ -21,6 +21,8 @@
 | 使用者手動刪下載檔 | registry 指向不存在資產 | asset verifier 可標記 missing | UI 一鍵修復或重新下載缺失資產 |
 | 使用者手動刪 SQL database | launcher registry 變成死紀錄 | SQL self-check 已列入 GTD | MySQL/PostgreSQL/SQLite introspection |
 | SQLite 被同步碟鎖住 | 寫入失敗或 permission denied | startup checks 與 error log | 建議本機 state path 或 lock retry |
+| SQLite connection 未明確 close | Windows 刪除 temp SQLite 時 `WinError 32`，CI 只在 windows-latest 失敗 | 2026-05-17 已將短生命週期 `sqlite3.connect()` 改用 `contextlib.closing(...)` | 對 SQLite helper/測試避免裸用 `with sqlite3.connect(...)`，必要時加靜態檢查 |
+| 只看 `git push` 成功 | 手機收到 GitHub Actions failure，誤以為 push 失敗 | macOS 已安裝並登入 `gh`，可查/追 CI | 每次 push 後用 `gh run list` / `gh run watch --exit-status` 確認 Windows/Ubuntu 都綠 |
 | 切換版本到一半 | 新舊資料混合 | staging area、sidecar manifest、atomic promote、transition planner skeleton | SQLite manifest registry + rollback command |
 | 降版本 | 新 schema 不相容舊資料 | transition planner 可辨識 downgrade | rollback policy 與 schema migration |
 | provider 改 URL | seed/adapter 指到舊入口 | freshness/version metadata | scheduled metadata check |
@@ -38,6 +40,22 @@
 5. 若有未提交 diff，先用 `git diff > state/recovery/<timestamp>.patch` 或複製檔案到 ignored recovery 位置；不要把「看起來不符合文件」當成可丟棄內容。
 6. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health --list-manifests` 看 SQLite 中的健康統計與明細。
 7. 修改後跑測試與 Docker。
+8. push 後用 GitHub CLI 追 CI：`gh run list --repo YanAnnLu/APIkeys_collection --limit 5`，再對最新 run 執行 `gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status`。push 成功不代表 Windows/Ubuntu CI 成功。
+
+## SQLite / Windows CI 注意
+
+Python 的 `sqlite3.Connection` 雖然支援 context manager，但 `with sqlite3.connect(...) as conn:` 只管理 transaction commit/rollback，不會在離開區塊時自動關閉 connection。Linux/macOS 可以 unlink 仍被開啟的檔案，所以本機可能過；Windows 會保留檔案鎖，`TemporaryDirectory.cleanup()` 可能失敗並拋出 `PermissionError: [WinError 32]`。
+
+短生命週期 SQLite probe 或測試資料庫請使用：
+
+```python
+from contextlib import closing
+
+with closing(sqlite3.connect(path)) as conn:
+    conn.execute(...)
+```
+
+`api_launcher/db.py::connect_db()` 這類刻意回傳 connection、由呼叫方管理生命週期的函式可以例外，但測試必須在 `finally` 或 fixture cleanup 中明確 `close()`。
 
 ## 之後應該實作的恢復機制
 
