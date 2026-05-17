@@ -14,7 +14,7 @@ if (-not (Test-Path $PythonExe)) {
 }
 
 & $PythonExe -m pip install -r requirements-dev.txt
-& $PythonExe -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
+& $PythonExe -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\APIkeys_collection_ui.py
 & $PythonExe APIkeys_collection.py --summary
 
 Write-Host ""

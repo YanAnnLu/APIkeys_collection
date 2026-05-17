@@ -40,7 +40,8 @@ reference file, templates, and exports.
 - `catalog/APIkeys_collection_catalog.json`: machine-readable provider catalog export.
 - `catalog/APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
 - `catalog/APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
-- `APIkeys_collection_ui.py`: lightweight Tk download-guide UI. It lets you browse provider/database sources, run metadata checks, and export a download plan.
+- `APIkeys_collection_ui.py`: compatibility entry point for the Tk launcher UI. The implementation lives in `frontends/tk/APIkeys_collection_ui.py`.
+- `frontends/`: UI and frontend-specific bridge code. Keep frontend concerns out of the backend data-management package.
 - `renderers/taichi_global_bathymetry.py`: downstream Taichi visualization engine copied into this repo for bridge-asset integration.
 - `.codex/skills/apikeys-collection-launcher/`: project-local Codex skill draft for AI-agent handoff and safe development workflows.
 - `config/launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.

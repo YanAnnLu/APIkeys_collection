@@ -13,7 +13,7 @@ Do not move renderer dependencies into `requirements.txt` unless the Docker laun
 
 - Python 3.13
 - SQLite via `sqlite3`
-- Tkinter for `APIkeys_collection_ui.py`
+- Tkinter for `frontends/tk/APIkeys_collection_ui.py` with root-level `APIkeys_collection_ui.py` kept as a compatibility wrapper.
 - Standard-library networking via `urllib`
 - Docker Compose for CLI validation and future workers
 
@@ -214,7 +214,7 @@ Core validation:
 
 ```powershell
 py -m unittest discover -s tests
-$env:PYTHONDONTWRITEBYTECODE='1'; py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py renderers\taichi_global_bathymetry.py api_launcher\core.py api_launcher\db.py api_launcher\models.py api_launcher\repository.py
+$env:PYTHONDONTWRITEBYTECODE='1'; py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\APIkeys_collection_ui.py renderers\taichi_global_bathymetry.py api_launcher\core.py api_launcher\db.py api_launcher\models.py api_launcher\repository.py
 docker compose run --rm --build launcher
 ```
 
@@ -229,10 +229,21 @@ verify data before Unreal imports or reads it.
 - `api_launcher/environment.py`: Unreal engine/editor/project/content checks.
 - `api_launcher/unreal_bridge.py`: maps `render_bridge_assets` to Unreal `Content/APIkeysCollection` targets and
   `/Game/APIkeysCollection/...` mount paths.
+- `api_launcher/tile_manifests.py`: shared JSON schema helpers for file-backed or service-backed data tiles.
+- `api_launcher/rendering_profiles.py`: cross-platform frontend/backend and tile-budget hints for Taichi/Unreal.
+- `scripts/export_unreal_preview.py`: exports lightweight OBJ/MTL/CSV preview assets from Taichi Earth caches into
+  a local Unreal project.
 - `docs/UNREAL_BRIDGE.zh-TW.md`: Chinese design notes for the frontend bridge.
+- `docs/RENDER_FRONTENDS.zh-TW.md`: Chinese notes that define Taichi as the cross-platform GPU reference renderer
+  and Unreal as the final camera-driven streaming frontend.
 
 Current bridge command:
 
 ```powershell
 py APIkeys_collection.py --unreal-bridge-plan
+py scripts\export_unreal_preview.py --project K:\UnrealProjects\APIkeysVirtualTwin\APIkeysVirtualTwin.uproject --sample-step 2
 ```
+
+Taichi is a cross-platform reference renderer and smoke-test path, not the final frontend. The final Unreal path should
+use camera-driven tile streaming: first-person views request high-detail nearby tiles, second-person views refine around
+the followed target, and orbit/third-person views keep coarse global tiles with selective refinement.

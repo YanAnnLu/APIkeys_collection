@@ -83,13 +83,13 @@ def load_integration_config() -> dict[str, object]:
     path = integrations_path()
     if not path.exists():
         return {"database_clients": []}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def ensure_local_integration_config() -> dict[str, object]:
     local_path = local_integrations_path()
     if local_path.exists():
-        return json.loads(local_path.read_text(encoding="utf-8"))
+        return json.loads(local_path.read_text(encoding="utf-8-sig"))
     config = load_integration_config()
     save_integration_config(config)
     return config

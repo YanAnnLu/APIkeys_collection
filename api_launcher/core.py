@@ -87,6 +87,7 @@ from api_launcher.repository import (
 )
 from api_launcher.registry import provider_from_dict
 from api_launcher.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
+from api_launcher.tile_manifests import build_global_grid_manifest, write_tile_manifest
 from api_launcher.unreal_bridge import build_unreal_bridge_targets
 
 
@@ -541,6 +542,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
     parser.add_argument("--unreal-bridge-plan", action="store_true", help="print planned Unreal bridge asset sync targets")
+    parser.add_argument("--write-tile-manifest", help="write a global tile manifest skeleton JSON")
+    parser.add_argument("--tile-dataset-uid", default="gebco:2025", help="dataset uid for --write-tile-manifest")
+    parser.add_argument("--tile-version", default="2025", help="dataset version for --write-tile-manifest")
+    parser.add_argument("--tile-lod", type=int, default=0, help="LOD number for --write-tile-manifest")
+    parser.add_argument("--tile-degrees", type=float, default=30.0, help="global tile size in degrees for --write-tile-manifest")
+    parser.add_argument("--tile-format", default="npy:int16:elevation", help="tile format label for --write-tile-manifest")
+    parser.add_argument("--tile-role", default="data_tile", help="tile asset role for --write-tile-manifest")
+    parser.add_argument("--tile-uri-template", default="tiles/{tile_id}", help="URI template for generated tile entries")
     parser.add_argument("--export-json", help="write provider catalog JSON")
     parser.add_argument("--export-csv", help="write provider catalog CSV")
     parser.add_argument("--export-markdown", help="write provider catalog Markdown")
@@ -575,6 +584,7 @@ class CatalogLauncherCli:
             self.show_logs()
             self.write_handoff_report()
             self.show_unreal_bridge_plan()
+            self.write_tile_manifest()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
             discover_source_candidates(self.conn, self.args)
@@ -610,6 +620,7 @@ class CatalogLauncherCli:
             self.args.show_logs > 0,
             bool(self.args.handoff_report),
             self.args.unreal_bridge_plan,
+            bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
             bool(self.args.export_csv),
             bool(self.args.export_markdown),
@@ -736,6 +747,26 @@ class CatalogLauncherCli:
                 return
             for target in targets:
                 print(f"[unreal] {target.status:14s} {target.asset_role:18s} {target.source_path} -> {target.target_path or target.message}")
+
+    def write_tile_manifest(self) -> None:
+        if not self.args.write_tile_manifest:
+            return
+        manifest = build_global_grid_manifest(
+            dataset_uid=self.args.tile_dataset_uid,
+            version=self.args.tile_version,
+            lod=self.args.tile_lod,
+            lon_step_degrees=self.args.tile_degrees,
+            lat_step_degrees=self.args.tile_degrees,
+            uri_template=self.args.tile_uri_template,
+            tile_format=self.args.tile_format,
+            role=self.args.tile_role,
+            metadata={
+                "status": "skeleton",
+                "generated_by": "APIkeys_collection --write-tile-manifest",
+            },
+        )
+        output = write_tile_manifest(manifest, resolve_project_path(self.args.write_tile_manifest))
+        print(f"[tile-manifest] wrote {output} tiles={len(manifest.tiles)}")
 
     def export_catalogs(self) -> None:
         exporters = (

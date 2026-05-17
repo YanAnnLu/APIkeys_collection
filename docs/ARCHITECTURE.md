@@ -9,29 +9,117 @@ installed assets, and prepares data for downstream renderers such as
 
 ## Pipeline
 
+The product has two linked halves:
+
+- Steam-like data launcher: catalog, cart/download plan, install/update/uninstall safety, SQL/file/API integration.
+- Renderer data pipeline: curated datasets become tile/cache manifests that Taichi and Unreal can consume with different
+  performance budgets.
+
 ```mermaid
-flowchart LR
-    Seeds[Provider seeds / manual sources] --> Catalog[Provider catalog]
-    Catalog --> Discovery[Metadata discovery]
-    Catalog --> Plan[Download plan / cart]
-    Plan --> Queue[Nonblocking download queue]
-    Queue --> Transfer[HTTP adapter / external tools]
-    Transfer --> Raw[Raw assets]
-    Raw --> Curation[Validation and cleaning]
-    Curation --> Registry[Install registry]
-    Registry --> SQL[Database clients / SQL self-check]
-    Registry --> Bridge[Renderer bridge assets]
-    Bridge --> Taichi[Taichi global renderer]
-    Catalog --> UI[Steam-like Tk launcher UI]
-    Queue --> UI
-    Registry --> UI
+flowchart TD
+    subgraph UI[Steam-like Launcher UI]
+        Browse[Browse/search datasets]
+        Detail[Description / metadata drawer]
+        Cart[Download plan / cart]
+        Library[Installed library]
+        Actions[Right-click actions: star, version, update, uninstall, open DB, render]
+    end
+
+    subgraph Catalog[Catalog and Discovery]
+        Seeds[Discovery seeds]
+        Manual[Manual provider/source add]
+        Providers[Provider/resource-site registry]
+        Datasets[Canonical dataset catalog]
+        Versions[Version and freshness metadata]
+    end
+
+    subgraph Download[Download and Import]
+        Eligibility[Direct / adapter / docs eligibility]
+        Queue[Nonblocking job queue]
+        Transfer[HTTP adapter / aria2c / curl]
+        Staging[Staging area with resume]
+        Manifests[Sidecar manifests and checksums]
+        Imports[CSV / JSON / SQL / API import adapters]
+    end
+
+    subgraph DataCore[Data Governance Core]
+        Raw[Raw payloads]
+        Curation[Validation / cleaning / normalization]
+        Install[Install registry with install_id]
+        Repair[Repair scanner and logs]
+        SQL[SQL client integration and self-check]
+        Update[Update / downgrade / side-by-side planning]
+    end
+
+    subgraph RenderCore[Renderer Bridge Core]
+        Contracts[Renderer dataset contracts]
+        Tiles[Tile/cache manifest schema]
+        Budget[Render backend and performance profiles]
+        Effects[Data-driven render effect layers]
+        SimBridge[Simulation bridge contracts]
+        Service[Future local tile service or file-backed tile index]
+    end
+
+    subgraph Frontends[Rendering Frontends]
+        Taichi[Taichi reference renderer]
+        Unreal[Unreal Engine UI / rendering / lighting / baking]
+        Agents[Future agent skill / natural language control]
+    end
+
+    Browse --> Providers
+    Detail --> Datasets
+    Cart --> Eligibility
+    Library --> Install
+    Actions --> Versions
+    Actions --> Update
+
+    Seeds --> Providers
+    Manual --> Providers
+    Providers --> Datasets
+    Datasets --> Versions
+    Versions --> Cart
+
+    Eligibility --> Queue
+    Queue --> Transfer
+    Transfer --> Staging
+    Staging --> Manifests
+    Imports --> Manifests
+    Manifests --> Raw
+
+    Raw --> Curation
+    Curation --> Install
+    Install --> SQL
+    Install --> Update
+    Repair --> Install
+    Repair --> Manifests
+
+    Install --> Contracts
+    Contracts --> Tiles
+    Contracts --> Effects
+    Effects --> SimBridge
+    Tiles --> Service
+    SimBridge --> Service
+    Effects --> Service
+    Budget --> Service
+    Service --> Taichi
+    Service --> Unreal
+    Tiles --> Taichi
+    Tiles --> Unreal
+    Install --> Agents
+    Agents --> Cart
+    Agents --> SQL
 ```
+
+Important boundary: Unreal is a rendering/UI consumer, not the data owner. Raw data, versions, checksums, cleaning logs,
+and install identity remain in the launcher registry. Unreal may import, cache, stream, or bake frontend-specific assets
+only when that improves the user experience or performance.
 
 ## Runtime Layers
 
 | Layer | Files | Role |
 | --- | --- | --- |
-| Entry points | `APIkeys_collection.py`, `APIkeys_collection_ui.py` | CLI compatibility entry point and Tk launcher UI. |
+| Entry points | `APIkeys_collection.py`, `APIkeys_collection_ui.py` | Thin compatibility entry points. |
+| Frontends | `frontends/tk/APIkeys_collection_ui.py`, `renderers/`, future Unreal project/tooling | UI and renderer-facing code separated from the backend package. |
 | Core orchestration | `api_launcher/core.py` | CLI commands and shared exports used by the UI. |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py` | SQLite schema, catalog state, crawl results, install registry, local asset state. |
 | Catalog model | `api_launcher/models.py`, `api_launcher/registry.py`, catalog JSON/CSV/MD files | Provider and dataset definitions. |
@@ -42,7 +130,7 @@ flowchart LR
 | Environment checks | `api_launcher/environment.py`, `.editorconfig`, `.gitattributes` | Startup path/tool/encoding checks and cross-platform file rules. |
 | Install and uninstall safety | `api_launcher/asset_verifier.py`, `api_launcher/sql_assets.py`, `api_launcher/provenance.py`, `api_launcher/asset_roles.py` | Install IDs, asset verification, provenance, safe uninstall metadata. |
 | Data curation | `api_launcher/curation.py` | Early validation/normalization skeleton for API/CSV/JSON/manual imports. |
-| Renderer bridge | `api_launcher/renderer_contracts.py`, `renderers/taichi_global_bathymetry.py` | Dataset-to-renderer contracts and copied Taichi renderer. |
+| Renderer bridge | `api_launcher/renderer_contracts.py`, `api_launcher/tile_manifests.py`, `api_launcher/rendering_profiles.py`, `api_launcher/render_effects.py`, `api_launcher/simulation_bridge.py`, `renderers/taichi_global_bathymetry.py` | Dataset-to-renderer contracts, shared tile manifests, cross-platform render budgets, data-driven render effect layers, simulation bridge contracts, and copied Taichi renderer. |
 | Tests | `tests/` | Unit tests for catalog, plans, downloads, discovery, registry, renderer contracts. |
 
 ## Current Folder Hygiene
@@ -56,6 +144,7 @@ Current target structure:
 ```text
 APIkeys_collection/
   api_launcher/          # Python package
+  frontends/             # Tk UI and future frontend-specific glue
   renderers/             # Optional renderer engines
   tests/                 # Unit tests
   docs/                  # Architecture, GTD, tech stack, handoff notes
