@@ -1,6 +1,6 @@
 # APIkeys Collection 中文技術概要
 
-最後更新：2026-05-17
+最後更新：2026-05-18
 
 APIkeys Collection 是一個類 Steam 的資料庫與資料源啟動器。它的目標不是只保存 API key，而是協助大數據專案管理「資料源、下載計畫、本機資料庫、安裝狀態、清洗流程、渲染器橋接」。
 
@@ -11,6 +11,12 @@ APIkeys Collection 是一個類 Steam 的資料庫與資料源啟動器。它的
 它尚未完成的部分包括：完整 provider-specific adapters、SQL 自檢、資料清洗流程、手動 CSV/JSON 匯入、完整 UI 右鍵選單、資料庫安全刪除流程。
 
 若要先建立資料類型概念，請讀 `docs/DATASET_TYPE_MAP.zh-TW.md`。那份文件整理表格、GIS、時間序列、科學陣列、粒子事件、多媒體/3D、文件、圖網路與串流資料各自適合的儲存、分析與渲染方向。
+
+## 中期桌面常駐形態
+
+Steam-like 的產品形態不應只是一個手動開啟的視窗。中期目標是讓 launcher 成為常駐桌面程式：Windows 收在右下角系統匣，macOS 收在功能列 / menu bar。使用者可以從常駐入口快速開啟 library、暫停或恢復下載、查看修復提醒、進入設定、打開近期日誌。
+
+技術上，這代表要把「背景工作者」和「視窗 UI」分清楚。下載、匯入、修復掃描、更新提醒應該能透過共用 backend service/worker 和 CLI action 執行；Tk 視窗、未來系統匣 shell、macOS menu bar shell 都只是操作同一套能力的不同入口。這不是後端 MVP 的第一優先，但現在文件先記錄，避免後續把架構寫成一次性腳本。
 
 ## 主要流程
 

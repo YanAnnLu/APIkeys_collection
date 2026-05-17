@@ -20,6 +20,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 
 - Tk desktop UI in Traditional Chinese by default, with a language setting under `設定 > 介面語言`.
 - Steam-like source browsing with category/provider sidebar modes; provider mode can show cached website favicons.
+- Mid-term direction: evolve from a one-shot window into a resident desktop data manager, with Windows system-tray and macOS menu-bar entry points.
 - Search box, star/pin rows, right detail drawer, generated-description textbox, and a download-plan panel.
 - Manual table-column resizing like a spreadsheet; widths are remembered in local config.
 - `設定 > AI 輔助模型` lets the user choose which AI profile is actually used.
