@@ -39,17 +39,36 @@ COLORS = {
 
 
 TABLE_COLUMNS = (
-    ("star", "★", 56, "center", False),
-    ("install", "選取", 72, "center", False),
-    ("name", "名稱", 320, "w", True),
-    ("category", "類別", 220, "w", True),
-    ("auth", "認證", 200, "w", True),
-    ("status", "狀態", 100, "center", False),
-    ("update", "遠端更新", 110, "center", False),
-    ("local", "本地納管", 110, "center", False),
-    ("scope", "範圍", 120, "w", False),
-    ("action", "操作", 96, "center", False),
+    ("star", "★", 0.04, 44, 64, "center", False),
+    ("install", "選取", 0.055, 58, 78, "center", False),
+    ("name", "名稱", 0.24, 180, 420, "w", True),
+    ("category", "類別", 0.18, 150, 320, "w", True),
+    ("auth", "認證", 0.17, 145, 300, "w", True),
+    ("status", "狀態", 0.08, 82, 120, "center", False),
+    ("update", "遠端更新", 0.09, 92, 135, "center", False),
+    ("local", "本地納管", 0.09, 92, 135, "center", False),
+    ("scope", "範圍", 0.09, 95, 160, "w", False),
+    ("action", "操作", 0.075, 82, 120, "center", False),
 )
+
+LAYOUT = {
+    "initial_width_ratio": 0.82,
+    "initial_height_ratio": 0.78,
+    "min_width_ratio": 0.58,
+    "min_height_ratio": 0.52,
+    "sidebar_ratio": 0.145,
+    "sidebar_min": 220,
+    "sidebar_max": 320,
+    "outer_pad_ratio": 0.018,
+    "rowheight_ratio": 0.052,
+    "detail_ratio": 0.34,
+    "detail_min": 420,
+    "detail_max": 680,
+}
+
+
+def clamp(value: int, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, value))
 
 
 class ProviderRow:
@@ -126,8 +145,14 @@ class ApiCollectionUi:
     def __init__(self, root: Tk):
         self.root = root
         self.root.title("APIkeys_collection")
-        self.root.geometry("1280x820")
-        self.root.minsize(1040, 680)
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        initial_w = clamp(int(screen_w * LAYOUT["initial_width_ratio"]), 1080, 1680)
+        initial_h = clamp(int(screen_h * LAYOUT["initial_height_ratio"]), 720, 980)
+        min_w = max(980, int(screen_w * LAYOUT["min_width_ratio"]))
+        min_h = max(640, int(screen_h * LAYOUT["min_height_ratio"]))
+        self.root.geometry(f"{initial_w}x{initial_h}")
+        self.root.minsize(min_w, min_h)
         self.root.configure(bg=COLORS["bg"])
 
         self.search_var = StringVar()
@@ -138,10 +163,12 @@ class ApiCollectionUi:
         self.filtered_rows: list[ProviderRow] = []
         self.active_provider_id = ""
         self.detail_visible = False
+        self.resize_after_id: str | None = None
 
         self._init_database()
         self._setup_style()
         self._build_layout()
+        self.root.bind("<Configure>", self.on_root_configure)
         self.reload_data()
 
     def _init_database(self) -> None:
@@ -175,12 +202,16 @@ class ApiCollectionUi:
         style.map("Sidebar.TButton", background=[("active", COLORS["header"])])
         style.configure("Action.TButton", background=COLORS["header"], foreground=COLORS["text"], padding=(16, 10), font=("Helvetica", 12, "bold"))
         style.map("Action.TButton", background=[("active", COLORS["accent_dark"])])
-        style.configure("Treeview", background=COLORS["panel"], fieldbackground=COLORS["panel"], foreground=COLORS["text"], rowheight=58, font=("Helvetica", 12))
+        rowheight = clamp(int(self.root.winfo_height() * LAYOUT["rowheight_ratio"]), 42, 62)
+        style.configure("Treeview", background=COLORS["panel"], fieldbackground=COLORS["panel"], foreground=COLORS["text"], rowheight=rowheight, font=("Helvetica", 12))
         style.configure("Treeview.Heading", background=COLORS["header"], foreground=COLORS["text"], font=("Helvetica", 12, "bold"), padding=(10, 12))
         style.map("Treeview", background=[("selected", COLORS["accent_dark"])])
 
     def _build_layout(self) -> None:
-        sidebar = ttk.Frame(self.root, style="Sidebar.TFrame", width=280)
+        sidebar_width = clamp(int(self.root.winfo_width() * LAYOUT["sidebar_ratio"]), LAYOUT["sidebar_min"], LAYOUT["sidebar_max"])
+        outer_pad = self.scaled_pad()
+
+        sidebar = ttk.Frame(self.root, style="Sidebar.TFrame", width=sidebar_width)
         sidebar.pack(side=LEFT, fill=Y)
         sidebar.pack_propagate(False)
 
@@ -204,12 +235,12 @@ class ApiCollectionUi:
         main.pack(side=RIGHT, fill=BOTH, expand=True)
 
         header = ttk.Frame(main, style="App.TFrame")
-        header.pack(fill=X, padx=36, pady=(34, 20))
+        header.pack(fill=X, padx=outer_pad, pady=(outer_pad, max(12, outer_pad // 2)))
         ttk.Label(header, text="Database Sources", style="Header.TLabel").pack(anchor="w")
         ttk.Label(header, text="選取資料源，建立未來爬蟲與 taichi_global_bathymetry.py 的資料下載計畫。", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
 
         controls = ttk.Frame(main, style="App.TFrame")
-        controls.pack(fill=X, padx=36, pady=(0, 18))
+        controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
         ttk.Button(controls, text="刷新清單", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="自檢狀態", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="爬取選取 Metadata", style="Action.TButton", command=self.crawl_selected).pack(side=LEFT, padx=(0, 12))
@@ -220,15 +251,15 @@ class ApiCollectionUi:
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
 
         content = ttk.Frame(main, style="App.TFrame")
-        content.pack(fill=BOTH, expand=True, padx=36, pady=(0, 20))
+        content.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
 
         table_frame = ttk.Frame(content, style="Panel.TFrame")
         table_frame.pack(side=LEFT, fill=BOTH, expand=True)
         columns = tuple(column[0] for column in TABLE_COLUMNS)
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
-        for name, label, width, anchor, stretch in TABLE_COLUMNS:
+        for name, label, _ratio, min_width, _max_width, anchor, stretch in TABLE_COLUMNS:
             self.tree.heading(name, text=label)
-            self.tree.column(name, width=width, anchor=anchor, stretch=stretch)
+            self.tree.column(name, width=min_width, anchor=anchor, stretch=stretch)
         self.tree.tag_configure("has_action", foreground=COLORS["text"])
         self.tree.tag_configure("remote_updated", foreground=COLORS["accent"])
         self.tree.tag_configure("starred", foreground=COLORS["accent"])
@@ -243,12 +274,12 @@ class ApiCollectionUi:
         self._build_detail_panel(content)
 
         bottom = ttk.Frame(main, style="App.TFrame")
-        bottom.pack(fill=X, padx=36, pady=(0, 22))
+        bottom.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
         ttk.Label(bottom, textvariable=self.status_var, style="Muted.TLabel").pack(anchor="w")
 
     def _build_detail_panel(self, parent: ttk.Frame) -> None:
         self.detail_parent = parent
-        self.detail = ttk.Frame(parent, style="Panel.TFrame", width=600)
+        self.detail = ttk.Frame(parent, style="Panel.TFrame", width=self.detail_width())
         self.detail.pack_propagate(False)
 
         self.detail_star_var = StringVar(value="☆")
@@ -302,6 +333,7 @@ class ApiCollectionUi:
         if not self.active_provider_id and self.filtered_rows:
             self.active_provider_id = self.filtered_rows[0].provider_id
         self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.detail.configure(width=self.detail_width())
         if not self.detail_visible:
             self.detail.pack(side=RIGHT, fill=Y, padx=(18, 0))
             self.detail_visible = True
@@ -310,6 +342,41 @@ class ApiCollectionUi:
         if self.detail_visible:
             self.detail.pack_forget()
             self.detail_visible = False
+
+    def scaled_pad(self) -> int:
+        return clamp(int(self.root.winfo_width() * LAYOUT["outer_pad_ratio"]), 18, 40)
+
+    def detail_width(self) -> int:
+        return clamp(
+            int(self.root.winfo_width() * LAYOUT["detail_ratio"]),
+            LAYOUT["detail_min"],
+            LAYOUT["detail_max"],
+        )
+
+    def on_root_configure(self, event: object) -> None:
+        if getattr(event, "widget", None) is not self.root:
+            return
+        if self.resize_after_id:
+            self.root.after_cancel(self.resize_after_id)
+        self.resize_after_id = self.root.after(80, self.apply_responsive_layout)
+
+    def apply_responsive_layout(self) -> None:
+        self.resize_after_id = None
+        width = max(self.root.winfo_width(), 1)
+        height = max(self.root.winfo_height(), 1)
+        rowheight = clamp(int(height * LAYOUT["rowheight_ratio"]), 42, 62)
+        ttk.Style(self.root).configure("Treeview", rowheight=rowheight)
+        if self.detail_visible:
+            self.detail.configure(width=self.detail_width())
+        self.resize_table_columns()
+
+    def resize_table_columns(self) -> None:
+        table_width = max(self.tree.winfo_width(), 1)
+        reserved = 24
+        available = max(table_width - reserved, 1)
+        for name, _label, ratio, min_width, max_width, _anchor, _stretch in TABLE_COLUMNS:
+            width = clamp(int(available * ratio), min_width, max_width)
+            self.tree.column(name, width=width)
 
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
@@ -384,6 +451,7 @@ class ApiCollectionUi:
         if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
             self.tree.selection_set(self.active_provider_id)
             self.tree.focus(self.active_provider_id)
+        self.resize_table_columns()
         self.status_var.set(f"顯示 {len(self.filtered_rows)} / {len(self.rows)} 個資料源。")
 
     def on_tree_click(self, event: object) -> None:

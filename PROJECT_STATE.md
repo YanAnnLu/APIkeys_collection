@@ -54,6 +54,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `provider_preferences` and sort above normal rows.
 - The sidebar includes a starred-only view for important data sources.
 - Provider descriptions now open in an on-demand right-side drawer instead of a permanently cramped side panel.
+- The Tk UI now uses ratio-based sizing for the window, sidebar, detail drawer, row height, and table columns so it behaves better across Windows/macOS displays and DPI settings.
 
 ## Cross-Platform Notes
 
