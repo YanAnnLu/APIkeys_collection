@@ -23,6 +23,7 @@ from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingD
 from api_launcher.event_log import log_event, log_exception
 from api_launcher.http_downloader import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
+from api_launcher.repair import repair_summary, scan_download_manifests
 from api_launcher.paths import DOWNLOADS_DIR, catalog_file, state_file
 
 
@@ -548,6 +549,7 @@ class ApiCollectionUi:
         controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
         ttk.Button(controls, text="刷新清單", style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="自檢狀態", style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 12))
+        ttk.Button(controls, text="驗證檔案", style="Action.TButton", command=self.verify_download_manifests).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="爬取選取 Metadata", style="Action.TButton", command=self.crawl_selected).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="匯出下載計畫", style="Action.TButton", command=self.export_download_plan).pack(side=LEFT, padx=(0, 12))
         ttk.Button(controls, text="開啟文件", style="Action.TButton", command=self.open_selected_docs).pack(side=LEFT, padx=(0, 12))
@@ -1529,6 +1531,28 @@ class ApiCollectionUi:
         self.reload_data()
         scope = "下載計畫" if provider_ids else "全部資料源"
         self.status_var.set(f"已完成 {scope} 自檢，更新 {count} 筆狀態。")
+
+    def verify_download_manifests(self) -> None:
+        results = scan_download_manifests()
+        summary = repair_summary(results)
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            for result in results:
+                if result.status == "manifest_error":
+                    continue
+                manifest = read_manifest(result.manifest_path)
+                repository.upsert_dataset_asset_manifest(
+                    manifest,
+                    result.manifest_path,
+                    status=result.status,
+                    verify_error=result.message if result.needs_repair else "",
+                )
+        finally:
+            conn.close()
+        self.status_var.set(f"File health: {summary}")
+        if any(result.needs_repair for result in results):
+            messagebox.showwarning("File verification", f"Repair needed: {summary}")
 
     def crawl_selected(self) -> None:
         provider_ids = self.selected_provider_ids()
