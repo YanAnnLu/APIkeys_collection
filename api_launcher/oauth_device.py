@@ -259,6 +259,11 @@ def oauth_client_id(config: OAuthDeviceConfig) -> str:
     return config.client_id or (os.environ.get(config.client_id_env, "").strip() if config.client_id_env else "")
 
 
+def looks_like_google_oauth_client_id(client_id: str) -> bool:
+    value = client_id.strip()
+    return bool(re.fullmatch(r"[0-9A-Za-z._-]+\.apps\.googleusercontent\.com", value))
+
+
 def oauth_client_secret(config: OAuthDeviceConfig) -> str:
     return config.client_secret or (os.environ.get(config.client_secret_env, "").strip() if config.client_secret_env else "")
 

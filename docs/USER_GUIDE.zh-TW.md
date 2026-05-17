@@ -110,6 +110,8 @@ AI 相關設定在：
 
 第一次使用時仍需要 Google OAuth Client ID。它不是 Gmail，也不是 API key，而是 Google Cloud Console 裡替這個桌面程式建立的 app 身分。若尚未設定，launcher 會先開 `Google 登入前置設定` 說明頁，而不是直接跳出像密碼框的輸入視窗。設定後 launcher 會打開系統瀏覽器，由 Google 頁面處理選帳號、密碼、手機確認或掃 QR。Client ID 會寫進本機 `config/launcher_integrations.local.json`，不會提交到 Git。
 
+Google OAuth Client ID 通常長得像 `xxxxx.apps.googleusercontent.com`。如果使用者誤貼 Gmail、專案 ID、API key 或其他欄位，launcher 會拒絕保存，避免之後每次登入都重複撞到 Google 的 `invalid_client` 錯誤頁。
+
 登入成功後，token 會存在：
 
 ```text

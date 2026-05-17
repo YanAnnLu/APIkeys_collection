@@ -13,6 +13,7 @@ from api_launcher.oauth_device import (
     activate_saved_oauth_token,
     build_oauth_device_login_request,
     exchange_oauth_authorization_code,
+    looks_like_google_oauth_client_id,
     oauth_authorization_url,
     oauth_device_config_from_profile,
     oauth_token_status,
@@ -216,6 +217,12 @@ class OAuthDeviceTests(unittest.TestCase):
         self.assertNotIn("=", challenge)
         self.assertNotIn("+", challenge)
         self.assertNotIn("/", challenge)
+
+    def test_google_oauth_client_id_shape_validation(self) -> None:
+        self.assertTrue(looks_like_google_oauth_client_id("1234567890-abc_xyz.apps.googleusercontent.com"))
+        self.assertFalse(looks_like_google_oauth_client_id("user@gmail.com"))
+        self.assertFalse(looks_like_google_oauth_client_id("my-google-project"))
+        self.assertFalse(looks_like_google_oauth_client_id("AIzaSy_api_key_value"))
 
     def test_save_config_token_can_activate_profile_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

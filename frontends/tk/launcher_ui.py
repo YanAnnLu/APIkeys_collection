@@ -16,6 +16,7 @@ import secrets
 import shlex
 import sqlite3
 import subprocess
+import sys
 import threading
 import time
 import urllib.parse
@@ -37,7 +38,7 @@ from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import activate_saved_google_oauth_token, google_oauth_token_status
-from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
+from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 
@@ -367,7 +368,7 @@ class DatabaseClientSettingsDialog:
 
         buttons = ttk.Frame(frame, style="Panel.TFrame")
         buttons.pack(fill=X, pady=(16, 0))
-        ttk.Button(buttons, text="開啟本機設定檔", style="Action.TButton", command=self.open_config_file).pack(side=LEFT)
+        ttk.Button(buttons, text="顯示本機設定檔", style="Action.TButton", command=self.open_config_file).pack(side=LEFT)
         ttk.Button(buttons, text="測試開啟", style="Action.TButton", command=self.open_selected_client).pack(side=LEFT, padx=(10, 0))
         ttk.Button(buttons, text="設為預設", style="Action.TButton", command=self.save_active_client).pack(side=RIGHT)
         ttk.Button(buttons, text="關閉", style="Action.TButton", command=self.window.destroy).pack(side=RIGHT, padx=(0, 10))
@@ -430,7 +431,17 @@ class DatabaseClientSettingsDialog:
     def open_config_file(self) -> None:
         path = core.local_integrations_path()
         core.ensure_local_integration_config()
-        webbrowser.open(path.as_uri())
+        reveal_path_in_file_manager(path)
+
+
+def reveal_path_in_file_manager(path: Path) -> None:
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", str(path)])
+        return
+    if os.name == "nt":
+        subprocess.Popen(["explorer", f"/select,{path}"])
+        return
+    webbrowser.open(path.parent.as_uri())
 
 
 class ApiCollectionUi:
@@ -732,7 +743,7 @@ class ApiCollectionUi:
         integrations_menu.add_command(label=self.tr("資料儲存連線", "Data store connections"), command=self.open_data_store_connection_settings)
         integrations_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
         integrations_menu.add_separator()
-        integrations_menu.add_command(label=self.tr("開啟本機整合設定檔", "Open integration config"), command=self.open_integration_config_file)
+        integrations_menu.add_command(label=self.tr("顯示本機整合設定檔", "Reveal integration config"), command=self.open_integration_config_file)
         menu_bar.add_cascade(label=self.tr("整合", "Integrations"), menu=integrations_menu)
 
         tools_menu = Menu(menu_bar, tearoff=0)
@@ -2046,8 +2057,8 @@ class ApiCollectionUi:
 
     def open_integration_config_file(self) -> None:
         core.ensure_local_integration_config()
-        webbrowser.open(core.local_integrations_path().as_uri())
-        self.status_var.set(self.tr("已開啟本機整合設定檔。", "Opened local integration config."))
+        reveal_path_in_file_manager(core.local_integrations_path())
+        self.status_var.set(self.tr("已在檔案管理器顯示本機整合設定檔。", "Revealed local integration config in the file manager."))
 
     def open_doc_file(self, name: str) -> None:
         path = PROJECT_ROOT / "docs" / name
@@ -2273,7 +2284,7 @@ class ApiCollectionUi:
         ttk.Button(actions, text=self.tr("設定 OAuth Client ID", "Set OAuth Client ID"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("用帳號登入選取模型", "Sign in selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("貼上本次 API key", "Paste session API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def ai_profile_login_status(self, profile: core.AiSummaryProfile) -> str:
@@ -2353,7 +2364,7 @@ class ApiCollectionUi:
             messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), f"{profile.label}\n\n{result.status}: {result.message}")
 
         ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def show_environment_checks(self) -> None:
@@ -2543,7 +2554,7 @@ class ApiCollectionUi:
         ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
         ttk.Button(secondary_actions, text=self.tr("貼上本次 API key（備用）", "Paste session API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(secondary_actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(secondary_actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(secondary_actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
 
     def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:
         selection = table.selection()
@@ -2578,7 +2589,7 @@ class ApiCollectionUi:
             )
             return False
         current_client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
-        client_id = self.ask_oauth_client_id_with_guide(profile.label, current_client_id, parent=parent or self.root)
+        client_id = self.ask_oauth_client_id_with_guide(profile.label, current_client_id, provider=oauth_config.provider, parent=parent or self.root)
         if not client_id:
             return False
         if not self.save_oauth_client_id_for_profile(profile_id, oauth_config, client_id.strip(), parent=parent or self.root):
@@ -2598,7 +2609,7 @@ class ApiCollectionUi:
             self.open_ai_profile_browser_login_dialog(profile_id, parent=parent)
         return True
 
-    def ask_oauth_client_id_with_guide(self, profile_label: str, current_client_id: str = "", parent: Toplevel | Tk | None = None) -> str:
+    def ask_oauth_client_id_with_guide(self, profile_label: str, current_client_id: str = "", provider: str = "", parent: Toplevel | Tk | None = None) -> str:
         owner = parent or self.root
         dialog = Toplevel(owner)
         dialog.title(self.tr("Google 登入前置設定", "Google login setup"))
@@ -2662,7 +2673,18 @@ class ApiCollectionUi:
         actions.pack(fill=X, padx=24, pady=(0, 20))
 
         def save_and_close() -> None:
-            result["client_id"] = client_id_var.get().strip()
+            candidate = client_id_var.get().strip()
+            if provider == "google" and not looks_like_google_oauth_client_id(candidate):
+                messagebox.showwarning(
+                    self.tr("OAuth Client ID 格式不正確", "Invalid OAuth Client ID format"),
+                    self.tr(
+                        "這個值不會被保存，因為它不像 Google OAuth Client ID。\n\n請貼 Google Cloud Console 裡 Desktop app 的 Client ID，格式通常是：\nxxxxx.apps.googleusercontent.com",
+                        "This value will not be saved because it does not look like a Google OAuth Client ID.\n\nPaste the Desktop app Client ID from Google Cloud Console. It usually looks like:\nxxxxx.apps.googleusercontent.com",
+                    ),
+                    parent=dialog,
+                )
+                return
+            result["client_id"] = candidate
             dialog.destroy()
 
         def cancel() -> None:
@@ -2683,6 +2705,16 @@ class ApiCollectionUi:
 
     def save_oauth_client_id_for_profile(self, profile_id: str, oauth_config: object, client_id: str, parent: Toplevel | Tk | None = None) -> bool:
         if not client_id:
+            return False
+        if oauth_config.provider == "google" and not looks_like_google_oauth_client_id(client_id):
+            messagebox.showwarning(
+                self.tr("OAuth Client ID 格式不正確", "Invalid OAuth Client ID format"),
+                self.tr(
+                    "這個 Client ID 看起來不是 Google OAuth Client ID，因此沒有保存。",
+                    "This Client ID does not look like a Google OAuth Client ID, so it was not saved.",
+                ),
+                parent=parent or self.root,
+            )
             return False
         config = core.ensure_local_integration_config()
         profiles = config.setdefault("ai_summary_profiles", [])
@@ -2784,18 +2816,34 @@ class ApiCollectionUi:
             )
             self.open_ai_profile_login_dialog(profile.id, parent=parent)
             return
-        if not oauth_config.client_id and not (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else ""):
+        client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
+        if not client_id:
             if not self.configure_oauth_client_for_profile(profile.id, parent=parent, start_login=False):
                 return
             profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), None)
             oauth_config = oauth_device_config_from_profile(profile) if profile else None
-            if oauth_config is None or not (oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")):
+            client_id = ""
+            if oauth_config is not None:
+                client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
+            if oauth_config is None or not client_id:
                 messagebox.showerror(
                     self.tr("Google 登入設定失敗", "Google login setup failed"),
                     self.tr("尚未取得 OAuth Client ID，無法開啟 Google 帳號登入。", "No OAuth Client ID is available, so Google account login cannot start."),
                     parent=parent or self.root,
                 )
                 return
+        if oauth_config.provider == "google" and not looks_like_google_oauth_client_id(client_id):
+            messagebox.showwarning(
+                self.tr("OAuth Client ID 格式不正確", "Invalid OAuth Client ID format"),
+                self.tr(
+                    "目前儲存的 Client ID 看起來不像 Google OAuth Client ID。\n\n它應該類似：xxxxx.apps.googleusercontent.com\n\n我不會再把這個值送去 Google，避免反覆出現 invalid_client。",
+                    "The saved Client ID does not look like a Google OAuth Client ID.\n\nIt should look like: xxxxx.apps.googleusercontent.com\n\nThe launcher will not send this value to Google, to avoid repeated invalid_client errors.",
+                ),
+                parent=parent or self.root,
+            )
+            if self.configure_oauth_client_for_profile(profile.id, parent=parent, start_login=False):
+                self.open_ai_profile_browser_login_dialog(profile.id, parent=parent)
+            return
 
         owner = parent or self.root
         dialog = Toplevel(owner)
@@ -2985,7 +3033,7 @@ class ApiCollectionUi:
         start_button.pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("重新開啟瀏覽器頁面", "Reopen browser page"), style="Action.TButton", command=open_current_auth_url).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("進階 QR / 裝置碼", "Advanced QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=close_dialog).pack(side=RIGHT)
         dialog.protocol("WM_DELETE_WINDOW", close_dialog)
         dialog.after(250, start_login)
@@ -3116,7 +3164,7 @@ class ApiCollectionUi:
             ttk.Button(actions, text=self.tr("進階：設定 OAuth Client ID", "Advanced: set OAuth Client ID"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("用瀏覽器登入", "Browser login"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("貼上 API key（備用）", "Paste API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         if request.device_code:
             ttk.Button(actions, text=self.tr("重新檢查登入", "Check login"), style="Action.TButton", command=poll_once).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=close_dialog).pack(side=RIGHT)
