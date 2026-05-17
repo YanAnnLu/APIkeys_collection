@@ -2,6 +2,7 @@
   "schema_version": 1,
   "active_database_client": "mysql_workbench",
   "active_ai_summary_profile": "local_ollama",
+  "active_download_tool": "python_internal",
   "database_clients": [
     {
       "id": "mysql_workbench",
@@ -42,6 +43,58 @@
         ]
       },
       "notes": "Cross-database fallback for MySQL, PostgreSQL, SQLite, and more."
+    }
+  ],
+  "download_tools": [
+    {
+      "id": "python_internal",
+      "label": "Python internal downloader",
+      "kind": "python_internal",
+      "enabled": true,
+      "command": [],
+      "supports_resume": true,
+      "supports_parallel": true,
+      "notes": "Default orchestrated downloader. Best for API adapters, authentication, validation, and UI progress."
+    },
+    {
+      "id": "aria2c",
+      "label": "aria2c",
+      "kind": "external_cli",
+      "enabled": false,
+      "command_by_platform": {
+        "Windows": [
+          "aria2c.exe"
+        ],
+        "Darwin": [
+          "aria2c"
+        ],
+        "Linux": [
+          "aria2c"
+        ]
+      },
+      "supports_resume": true,
+      "supports_parallel": true,
+      "notes": "Strong candidate for large HTTP/FTP files with segmented download, resume, and retries."
+    },
+    {
+      "id": "curl",
+      "label": "curl",
+      "kind": "external_cli",
+      "enabled": false,
+      "command_by_platform": {
+        "Windows": [
+          "curl.exe"
+        ],
+        "Darwin": [
+          "curl"
+        ],
+        "Linux": [
+          "curl"
+        ]
+      },
+      "supports_resume": true,
+      "supports_parallel": false,
+      "notes": "Portable fallback for direct URLs. Useful when aria2c is unavailable."
     }
   ],
   "ai_summary_profiles": [

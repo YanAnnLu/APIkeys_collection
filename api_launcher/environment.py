@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.db import SCRIPT_DIR, resolve_project_path
-from api_launcher.integrations import database_client_profiles, integrations_path
+from api_launcher.integrations import database_client_profiles, download_tool_profiles, integrations_path
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,7 @@ def run_startup_checks(db_path: str | Path = "APIkeys_collection.sqlite") -> lis
         check_python_encoding(),
     ]
     checks.extend(check_database_client_paths())
+    checks.extend(check_download_tool_paths())
     return checks
 
 
@@ -62,4 +63,24 @@ def check_database_client_paths() -> list[EnvironmentCheck]:
         status = "ok" if exists else "warning"
         detail = command if exists else f"Command not found on this machine: {command}"
         checks.append(EnvironmentCheck(f"db_client:{profile.id}", status, detail))
+    return checks
+
+
+def check_download_tool_paths() -> list[EnvironmentCheck]:
+    checks = []
+    for profile in download_tool_profiles():
+        if not profile.enabled:
+            continue
+        if profile.kind == "python_internal":
+            checks.append(EnvironmentCheck(f"download_tool:{profile.id}", "ok", "Built-in Python transfer engine."))
+            continue
+        command = profile.command[0] if profile.command else ""
+        if not command:
+            checks.append(EnvironmentCheck(f"download_tool:{profile.id}", "error", "Empty command."))
+            continue
+        path = Path(command)
+        exists = path.exists() if path.is_absolute() else shutil.which(command) is not None
+        status = "ok" if exists else "warning"
+        detail = command if exists else f"Command not found on this machine: {command}"
+        checks.append(EnvironmentCheck(f"download_tool:{profile.id}", status, detail))
     return checks

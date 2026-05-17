@@ -101,6 +101,19 @@ Adapters should report progress through `DownloadProgress` and call
 should prefer ranged requests or chunk manifests so interrupted jobs can resume
 instead of starting over.
 
+The launcher is allowed to delegate large direct file transfers to external
+tools through `api_launcher/transfer_tools.py`. Python remains the orchestrator
+for state, UI, credentials, validation, and provenance. External tools are
+profiles in `launcher_integrations.example.json`:
+
+- `python_internal`: default for APIs, authenticated requests, and adapter logic.
+- `aria2c`: preferred optional engine for large direct HTTP/FTP files with
+  segmented resume.
+- `curl`: portable fallback for simple direct URLs.
+
+Avoid raw shell scripts as the core contract. Keep arguments as lists so Windows,
+macOS, and Linux do not diverge on quoting and escaping.
+
 ## Cross-platform Path and Encoding Rules
 
 - Source files are UTF-8 with LF endings. See `.editorconfig` and `.gitattributes`.

@@ -47,8 +47,10 @@ from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
+    active_download_tool,
     ai_summary_profiles,
     database_client_profiles,
+    download_tool_profiles,
     ensure_local_integration_config,
     generate_provider_summary,
     local_integrations_path,
@@ -72,6 +74,7 @@ from api_launcher.repository import (
     seed_providers,
 )
 from api_launcher.registry import provider_from_dict
+from api_launcher.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
 
 
 DB_NAME = "APIkeys_collection.sqlite"

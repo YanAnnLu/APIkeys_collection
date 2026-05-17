@@ -38,6 +38,18 @@ class AiSummaryProfile:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class DownloadToolProfile:
+    id: str
+    label: str
+    kind: str
+    enabled: bool
+    command: tuple[str, ...]
+    supports_resume: bool
+    supports_parallel: bool
+    notes: str = ""
+
+
 def integrations_path() -> Path:
     local_path = local_integrations_path()
     if local_path.exists():
@@ -137,6 +149,44 @@ def open_database_client(profile_id: str | None = None) -> DatabaseClientProfile
         raise RuntimeError(f"Database client profile has no command: {profile.id}")
     subprocess.Popen(profile.command)
     return profile
+
+
+def download_tool_profiles() -> list[DownloadToolProfile]:
+    return download_tool_profiles_from_config(load_integration_config())
+
+
+def download_tool_profiles_from_config(config: dict[str, object]) -> list[DownloadToolProfile]:
+    system = platform.system()
+    profiles = []
+    for item in config.get("download_tools", []):
+        command_by_platform = item.get("command_by_platform") or {}
+        command = command_by_platform.get(system) or item.get("command") or ()
+        if isinstance(command, str):
+            command = (command,)
+        profiles.append(
+            DownloadToolProfile(
+                id=str(item.get("id") or "").strip(),
+                label=str(item.get("label") or "").strip(),
+                kind=str(item.get("kind") or "").strip(),
+                enabled=bool(item.get("enabled", True)),
+                command=tuple(str(value) for value in command),
+                supports_resume=bool(item.get("supports_resume", False)),
+                supports_parallel=bool(item.get("supports_parallel", False)),
+                notes=str(item.get("notes") or "").strip(),
+            )
+        )
+    return [profile for profile in profiles if profile.id and profile.label and profile.kind]
+
+
+def active_download_tool() -> DownloadToolProfile | None:
+    config = load_integration_config()
+    active_id = str(config.get("active_download_tool") or "").strip()
+    profiles = download_tool_profiles()
+    if active_id:
+        for profile in profiles:
+            if profile.id == active_id and profile.enabled:
+                return profile
+    return next((profile for profile in profiles if profile.enabled), None)
 
 
 def ai_summary_profiles() -> list[AiSummaryProfile]:
