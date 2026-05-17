@@ -34,6 +34,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Database self-check now verifies managed SQLite database and table assets from the install registry. Whole-database
   assets use read-only schema fingerprints; table assets use `source_uri` as the SQLite path and `asset_name` as the
   table name, preserving missing/error details for repair work.
+- MySQL/PostgreSQL connection probes now have reusable `information_schema` helpers for table counts, table names,
+  table existence, column signatures, and schema fingerprints. Database assets with registered fingerprints can request
+  deep schema summaries when the optional DB driver and env vars are available.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,
   and the launcher has an Unreal bridge profile/check/plan skeleton.
 
@@ -64,8 +67,8 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
 - `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
 - `api_launcher/manifests.py`, `staging.py`, and `repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
-- `api_launcher/data_store_connections.py` and `database_self_check.py`: configured data-store probes plus registry-backed
-  database/table asset self-checks.
+- `api_launcher/data_store_connections.py` and `database_self_check.py`: configured data-store probes, SQL
+  `information_schema` helpers, plus registry-backed database/table asset self-checks.
 - `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
 - `api_launcher/unreal_bridge.py`: maps registered renderer bridge assets to future Unreal Content targets.
 - `scripts/export_unreal_preview.py`: creates lightweight Unreal preview assets from Taichi cache data and records
@@ -139,8 +142,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Add MySQL/PostgreSQL schema/table introspection to the existing data-store self-check path.
-2. Build richer ownership mapping between DB/table assets and install records across engines.
+1. Build richer ownership mapping between DB/table assets and install records across MySQL/PostgreSQL.
+2. Add MySQL/PostgreSQL table asset existence checks using the new `information_schema` helpers.
 3. Expand repair suggestions to adapter-specific datasets and agent-readable repair summaries.
 4. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
 5. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.

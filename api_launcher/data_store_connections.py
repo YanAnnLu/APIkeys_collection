@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 import os
 import sqlite3
 import urllib.parse
@@ -32,6 +34,17 @@ class DataStoreConnectionTestResult:
     @property
     def ok(self) -> bool:
         return self.status == "ok"
+
+
+@dataclass(frozen=True)
+class RelationalSchemaSummary:
+    engine: str
+    database: str
+    schema: str
+    table_count: int
+    tables: tuple[str, ...]
+    column_signatures: tuple[str, ...]
+    schema_fingerprint: str
 
 
 DEFAULT_DATA_STORE_PROFILES = (
@@ -128,6 +141,7 @@ def data_store_profiles_by_kind(kind: str) -> tuple[DataStoreConnectionProfile, 
 def test_data_store_connection(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str] | None = None,
+    include_schema_summary: bool = False,
 ) -> DataStoreConnectionTestResult:
     values = env if env is not None else os.environ
     missing = tuple(name for name in profile.required_env_vars if not str(values.get(name) or "").strip())
@@ -143,9 +157,9 @@ def test_data_store_connection(
     if profile.engine == "sqlite":
         return _test_sqlite_connection(profile, values)
     if profile.engine == "mysql":
-        return _test_mysql_connection(profile, values)
+        return _test_mysql_connection(profile, values, include_schema_summary)
     if profile.engine == "postgresql":
-        return _test_postgresql_connection(profile, values)
+        return _test_postgresql_connection(profile, values, include_schema_summary)
     return DataStoreConnectionTestResult(
         profile_id=profile.profile_id,
         engine=profile.engine,
@@ -202,6 +216,7 @@ def _test_sqlite_connection(
 def _test_mysql_connection(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
+    include_schema_summary: bool,
 ) -> DataStoreConnectionTestResult:
     if not _module_available("mysql.connector"):
         return DataStoreConnectionTestResult(
@@ -226,6 +241,12 @@ def _test_mysql_connection(
             cursor = conn.cursor()
             cursor.execute("SELECT DATABASE()")
             database = cursor.fetchone()[0]
+            if include_schema_summary:
+                schema_summary = mysql_schema_summary_from_cursor(cursor, str(database))
+                table_count = schema_summary.table_count
+            else:
+                schema_summary = None
+                table_count = mysql_table_count(cursor, str(database))
         finally:
             conn.close()
     except Exception as exc:
@@ -237,23 +258,37 @@ def _test_mysql_connection(
             details={"host": env.get("APIKEYS_MYSQL_HOST"), "database": env.get("APIKEYS_MYSQL_DATABASE")},
         )
 
+    details: dict[str, object] = {
+        "host": env.get("APIKEYS_MYSQL_HOST"),
+        "database": database,
+        "table_count": table_count,
+    }
+    if schema_summary is not None:
+        details.update(
+            {
+                "schema_fingerprint": schema_summary.schema_fingerprint,
+                "tables": schema_summary.tables,
+                "column_count": len(schema_summary.column_signatures),
+            }
+        )
     return DataStoreConnectionTestResult(
         profile_id=profile.profile_id,
         engine=profile.engine,
         status="ok",
         message="MySQL connection and SELECT DATABASE() succeeded.",
-        details={"host": env.get("APIKEYS_MYSQL_HOST"), "database": database},
+        details=details,
     )
 
 
 def _test_postgresql_connection(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
+    include_schema_summary: bool,
 ) -> DataStoreConnectionTestResult:
     if _module_available("psycopg"):
-        return _test_postgresql_psycopg3(profile, env)
+        return _test_postgresql_psycopg3(profile, env, include_schema_summary)
     if _module_available("psycopg2"):
-        return _test_postgresql_psycopg2(profile, env)
+        return _test_postgresql_psycopg2(profile, env, include_schema_summary)
     return DataStoreConnectionTestResult(
         profile_id=profile.profile_id,
         engine=profile.engine,
@@ -277,6 +312,7 @@ def _postgresql_kwargs(env: Mapping[str, str]) -> dict[str, object]:
 def _test_postgresql_psycopg3(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
+    include_schema_summary: bool,
 ) -> DataStoreConnectionTestResult:
     import psycopg  # type: ignore[import-not-found]
 
@@ -285,14 +321,21 @@ def _test_postgresql_psycopg3(
             with conn.cursor() as cursor:
                 cursor.execute("SELECT current_database()")
                 database = cursor.fetchone()[0]
+                if include_schema_summary:
+                    schema_summary = postgresql_schema_summary_from_cursor(cursor, str(database), schema="public")
+                    table_count = schema_summary.table_count
+                else:
+                    schema_summary = None
+                    table_count = postgresql_table_count(cursor)
     except Exception as exc:
         return _postgresql_error(profile, env, exc)
-    return _postgresql_ok(profile, env, database)
+    return _postgresql_ok(profile, env, database, table_count, schema_summary)
 
 
 def _test_postgresql_psycopg2(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
+    include_schema_summary: bool,
 ) -> DataStoreConnectionTestResult:
     import psycopg2  # type: ignore[import-not-found]
 
@@ -302,11 +345,17 @@ def _test_postgresql_psycopg2(
             cursor = conn.cursor()
             cursor.execute("SELECT current_database()")
             database = cursor.fetchone()[0]
+            if include_schema_summary:
+                schema_summary = postgresql_schema_summary_from_cursor(cursor, str(database), schema="public")
+                table_count = schema_summary.table_count
+            else:
+                schema_summary = None
+                table_count = postgresql_table_count(cursor)
         finally:
             conn.close()
     except Exception as exc:
         return _postgresql_error(profile, env, exc)
-    return _postgresql_ok(profile, env, database)
+    return _postgresql_ok(profile, env, database, table_count, schema_summary)
 
 
 def _postgresql_error(
@@ -327,13 +376,219 @@ def _postgresql_ok(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
     database: object,
+    table_count: int,
+    schema_summary: RelationalSchemaSummary | None,
 ) -> DataStoreConnectionTestResult:
+    details: dict[str, object] = {
+        "host": env.get("APIKEYS_POSTGRES_HOST"),
+        "database": database,
+        "schema": "public",
+        "table_count": table_count,
+    }
+    if schema_summary is not None:
+        details.update(
+            {
+                "schema_fingerprint": schema_summary.schema_fingerprint,
+                "tables": schema_summary.tables,
+                "column_count": len(schema_summary.column_signatures),
+            }
+        )
     return DataStoreConnectionTestResult(
         profile_id=profile.profile_id,
         engine=profile.engine,
         status="ok",
         message="PostgreSQL connection and SELECT current_database() succeeded.",
-        details={"host": env.get("APIKEYS_POSTGRES_HOST"), "database": database},
+        details=details,
+    )
+
+
+def mysql_schema_summary_from_cursor(cursor: object, database: str) -> RelationalSchemaSummary:
+    database_name = database.strip()
+    tables = mysql_table_names(cursor, database_name)
+    column_signatures: list[str] = []
+    for table in tables:
+        column_signatures.extend(mysql_column_signatures(cursor, database_name, table))
+    fingerprint = schema_fingerprint_from_signatures(column_signatures)
+    return RelationalSchemaSummary(
+        engine="mysql",
+        database=database_name,
+        schema=database_name,
+        table_count=len(tables),
+        tables=tables,
+        column_signatures=tuple(column_signatures),
+        schema_fingerprint=fingerprint,
+    )
+
+
+def mysql_table_count(cursor: object, database: str) -> int:
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_type = 'BASE TABLE'
+        """,
+        (database,),
+    )
+    return int(cursor.fetchone()[0])
+
+
+def mysql_table_names(cursor: object, database: str) -> tuple[str, ...]:
+    cursor.execute(
+        """
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_type = 'BASE TABLE'
+        ORDER BY table_name
+        """,
+        (database,),
+    )
+    return tuple(str(row[0]) for row in cursor.fetchall())
+
+
+def mysql_table_exists(cursor: object, database: str, table: str) -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND table_type = 'BASE TABLE'
+        LIMIT 1
+        """,
+        (database, table),
+    )
+    return cursor.fetchone() is not None
+
+
+def mysql_column_signatures(cursor: object, database: str, table: str) -> tuple[str, ...]:
+    cursor.execute(
+        """
+        SELECT ordinal_position, column_name, data_type, is_nullable, column_default, column_key
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+        ORDER BY ordinal_position
+        """,
+        (database, table),
+    )
+    return tuple(_column_signature(table, row) for row in cursor.fetchall())
+
+
+def postgresql_schema_summary_from_cursor(
+    cursor: object,
+    database: str = "",
+    schema: str = "public",
+) -> RelationalSchemaSummary:
+    schema_name = schema.strip() or "public"
+    tables = postgresql_table_names(cursor, schema_name)
+    column_signatures: list[str] = []
+    for table in tables:
+        column_signatures.extend(postgresql_column_signatures(cursor, table, schema_name))
+    fingerprint = schema_fingerprint_from_signatures(column_signatures)
+    return RelationalSchemaSummary(
+        engine="postgresql",
+        database=database.strip(),
+        schema=schema_name,
+        table_count=len(tables),
+        tables=tables,
+        column_signatures=tuple(column_signatures),
+        schema_fingerprint=fingerprint,
+    )
+
+
+def postgresql_table_count(cursor: object, schema: str = "public") -> int:
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_type = 'BASE TABLE'
+        """,
+        (schema,),
+    )
+    return int(cursor.fetchone()[0])
+
+
+def postgresql_table_names(cursor: object, schema: str = "public") -> tuple[str, ...]:
+    cursor.execute(
+        """
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_type = 'BASE TABLE'
+        ORDER BY table_name
+        """,
+        (schema,),
+    )
+    return tuple(str(row[0]) for row in cursor.fetchall())
+
+
+def postgresql_table_exists(cursor: object, table: str, schema: str = "public") -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND table_type = 'BASE TABLE'
+        LIMIT 1
+        """,
+        (schema, table),
+    )
+    return cursor.fetchone() is not None
+
+
+def postgresql_column_signatures(cursor: object, table: str, schema: str = "public") -> tuple[str, ...]:
+    cursor.execute(
+        """
+        SELECT
+            c.ordinal_position,
+            c.column_name,
+            c.data_type,
+            c.is_nullable,
+            c.column_default,
+            CASE WHEN EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                  ON kcu.constraint_schema = tc.constraint_schema
+                 AND kcu.constraint_name = tc.constraint_name
+                 AND kcu.table_schema = tc.table_schema
+                 AND kcu.table_name = tc.table_name
+                WHERE tc.constraint_type = 'PRIMARY KEY'
+                  AND tc.table_schema = c.table_schema
+                  AND tc.table_name = c.table_name
+                  AND kcu.column_name = c.column_name
+            ) THEN 1 ELSE 0 END AS is_primary_key
+        FROM information_schema.columns c
+        WHERE c.table_schema = %s
+          AND c.table_name = %s
+        ORDER BY c.ordinal_position
+        """,
+        (schema, table),
+    )
+    return tuple(_column_signature(table, row) for row in cursor.fetchall())
+
+
+def schema_fingerprint_from_signatures(column_signatures: tuple[str, ...] | list[str]) -> str:
+    payload = json.dumps(tuple(column_signatures), ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _column_signature(table: str, row: object) -> str:
+    ordinal, name, column_type, nullable, default_value, primary_key = row
+    return "|".join(
+        [
+            table,
+            str(ordinal),
+            str(name).strip().lower(),
+            str(column_type or "").strip().upper(),
+            "0" if str(nullable).strip().upper() == "YES" else "1",
+            str(int(bool(primary_key == "PRI" or primary_key == 1 or primary_key is True))),
+            "default" if default_value is not None else "",
+        ]
     )
 
 

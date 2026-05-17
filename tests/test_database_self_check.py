@@ -6,9 +6,11 @@ import unittest
 import io
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.asset_verifier import AssetRecord
+from api_launcher.data_store_connections import DataStoreConnectionTestResult
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
     database_self_check_target,
@@ -214,6 +216,61 @@ class DatabaseSelfCheckTests(unittest.TestCase):
 
         self.assertEqual("error", result.status)
         self.assertIn("Table self-check is not implemented", result.error)
+
+    def test_mysql_database_asset_compares_schema_fingerprint_when_available(self) -> None:
+        calls: list[bool] = []
+
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False):
+            calls.append(include_schema_summary)
+            return DataStoreConnectionTestResult(
+                profile_id=profile.profile_id,
+                engine=profile.engine,
+                status="ok",
+                message="ok",
+                details={"database": "weather", "schema_fingerprint": "expected", "table_count": 1},
+            )
+
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="database",
+            engine="mysql",
+            asset_name="weather",
+            schema_fingerprint="expected",
+        )
+
+        with patch("api_launcher.database_self_check.test_data_store_connection", fake_test_data_store_connection):
+            result = DatabaseAssetVerifier().verify(asset)
+
+        self.assertEqual("present", result.status)
+        self.assertEqual([True], calls)
+
+    def test_postgresql_database_asset_detects_schema_fingerprint_drift(self) -> None:
+        def fake_test_data_store_connection(profile, env=None, include_schema_summary=False):
+            return DataStoreConnectionTestResult(
+                profile_id=profile.profile_id,
+                engine=profile.engine,
+                status="ok",
+                message="ok",
+                details={"database": "weather", "schema_fingerprint": "actual", "table_count": 2},
+            )
+
+        asset = AssetRecord(
+            asset_id="asset_1",
+            install_id="inst_1",
+            provider_id="sample",
+            asset_kind="database",
+            engine="postgresql",
+            asset_name="weather",
+            schema_fingerprint="expected",
+        )
+
+        with patch("api_launcher.database_self_check.test_data_store_connection", fake_test_data_store_connection):
+            result = DatabaseAssetVerifier().verify(asset)
+
+        self.assertEqual("error", result.status)
+        self.assertIn("PostgreSQL schema fingerprint drift", result.error)
 
     def test_repository_self_check_updates_sqlite_database_asset_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

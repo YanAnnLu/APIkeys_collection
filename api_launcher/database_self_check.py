@@ -111,7 +111,8 @@ class DatabaseAssetVerifier:
                 engine="mysql",
                 required_env_vars=("APIKEYS_MYSQL_HOST", "APIKEYS_MYSQL_DATABASE", "APIKEYS_MYSQL_USER", "APIKEYS_MYSQL_PASSWORD"),
                 optional_env_vars=("APIKEYS_MYSQL_PORT",),
-            )
+            ),
+            include_schema_summary=bool(asset.schema_fingerprint),
         )
         if result.status == "ok":
             connected_database = str(result.details.get("database") or "")
@@ -121,6 +122,22 @@ class DatabaseAssetVerifier:
                     "error",
                     f"MySQL profile connected to {connected_database}, but registry asset expects {target.asset_name}.",
                 )
+            if asset.schema_fingerprint:
+                actual = str(result.details.get("schema_fingerprint") or "")
+                if not actual:
+                    return AssetVerificationResult(
+                        asset.asset_id,
+                        "error",
+                        "MySQL schema fingerprint was requested but no schema summary was returned.",
+                    )
+                if actual != asset.schema_fingerprint:
+                    return AssetVerificationResult(
+                        asset.asset_id,
+                        "error",
+                        "MySQL schema fingerprint drift: "
+                        f"expected {asset.schema_fingerprint}, got {actual}; "
+                        f"tables={result.details.get('table_count', '-')}",
+                    )
             return AssetVerificationResult(asset.asset_id, "present")
         return AssetVerificationResult(asset.asset_id, "error", result.message)
 
@@ -133,7 +150,8 @@ class DatabaseAssetVerifier:
                 engine="postgresql",
                 required_env_vars=("APIKEYS_POSTGRES_HOST", "APIKEYS_POSTGRES_DATABASE", "APIKEYS_POSTGRES_USER", "APIKEYS_POSTGRES_PASSWORD"),
                 optional_env_vars=("APIKEYS_POSTGRES_PORT",),
-            )
+            ),
+            include_schema_summary=bool(asset.schema_fingerprint),
         )
         if result.status == "ok":
             connected_database = str(result.details.get("database") or "")
@@ -143,6 +161,22 @@ class DatabaseAssetVerifier:
                     "error",
                     f"PostgreSQL profile connected to {connected_database}, but registry asset expects {target.asset_name}.",
                 )
+            if asset.schema_fingerprint:
+                actual = str(result.details.get("schema_fingerprint") or "")
+                if not actual:
+                    return AssetVerificationResult(
+                        asset.asset_id,
+                        "error",
+                        "PostgreSQL schema fingerprint was requested but no schema summary was returned.",
+                    )
+                if actual != asset.schema_fingerprint:
+                    return AssetVerificationResult(
+                        asset.asset_id,
+                        "error",
+                        "PostgreSQL schema fingerprint drift: "
+                        f"expected {asset.schema_fingerprint}, got {actual}; "
+                        f"tables={result.details.get('table_count', '-')}",
+                    )
             return AssetVerificationResult(asset.asset_id, "present")
         return AssetVerificationResult(asset.asset_id, "error", result.message)
 
