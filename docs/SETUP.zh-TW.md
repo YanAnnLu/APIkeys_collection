@@ -94,10 +94,11 @@ python3 APIkeys_collection.py --verify-downloads-json
 
 - 不要提交 `state/`、`downloads/`、`.env`、`*.private.json`。
 - 不要提交 `config/launcher_integrations.local.json`；它保存本機 UI 語言、欄寬、工具路徑與 AI profile 覆寫。
-- AI QR/device 登入 token 會放在 `state/private/ai_oauth_tokens/`，這是本機私有狀態，不可提交。
+- AI OAuth / QR-device 登入 token 會放在 `state/private/ai_oauth_tokens/`，這是本機私有狀態，不可提交。
 - 提供商 favicon 快取會放在 `state/favicons/`，可刪除重抓，不可提交。
 - SQLite 在同步碟上可能被鎖住；大量寫入時最好改成本機 state path。
 - Windows 有時會鎖 `.pyc`，建議設定 `PYTHONDONTWRITEBYTECODE=1`。
+- macOS 若專案放在 CloudMounter / 雲端同步碟，Python 讀寫 `__pycache__` 可能卡住；跑測試可加 `PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache`，把 bytecode 快取放到本機暫存。
 - Renderer dependencies 放在 `requirements-renderer.txt`，不要混進 launcher core。
 - 如果 UI 中文顯示異常，先不要批次轉碼，避免破壞既有檔案；應該另開一次 encoding cleanup。
 - macOS 若看到 Windows `K:\...` 路徑，通常代表本機整合設定尚未分平台配置；應改用 `*_by_platform` 或在 Mac 的 local config 指向 macOS 實際路徑。
@@ -107,8 +108,9 @@ python3 APIkeys_collection.py --verify-downloads-json
 | 入口 | 用途 |
 | --- | --- |
 | `設定 > 介面語言` | 切換繁中/英文。 |
-| `設定 > AI 輔助模型` | 選擇真正要調用的 AI profile；也可登入選取模型或貼本次 API key。 |
-| `整合 > Google / Gemini 與 AI 設定` | Google/Gemini token 狀態與 QR 登入入口；不負責切換模型。 |
-| `整合 > Google QR 登入` | 直接開啟 Gemini/Google QR 登入；若尚未設定 Client ID，會提供 `設定 QR 登入`。 |
+| `設定 > AI 輔助模型` | 選擇真正要調用的 AI profile；也可用帳號登入選取模型或貼本次 API key。 |
+| `整合 > Google / Gemini 與 AI 設定` | Google/Gemini token 狀態與登入入口；不負責切換模型。 |
+| `整合 > Google 帳號登入（瀏覽器）` | 打開系統瀏覽器進入 Google 授權頁，讓使用者選帳號或使用 Google 頁面提供的手機確認 / 掃碼登入。 |
+| `整合 > 進階：Google QR / 裝置碼登入` | 開啟 Gemini/Google device-code 登入；適合無鍵盤或跨裝置情境。 |
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |

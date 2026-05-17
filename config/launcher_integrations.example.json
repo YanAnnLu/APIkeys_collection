@@ -310,6 +310,7 @@
         "provider": "google",
         "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
         "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+        "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
         "device_code_url": "https://oauth2.googleapis.com/device/code",
         "token_url": "https://oauth2.googleapis.com/token",
         "verification_url": "https://www.google.com/device",
@@ -320,7 +321,7 @@
         "token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
         "token_store": "state/private/ai_oauth_tokens/gemini_flash.json"
       },
-      "notes": "Optional cloud fallback. Enable API key auth with GEMINI_API_KEY, or set oauth_device.enabled=true plus GOOGLE_OAUTH_CLIENT_ID for QR/device login."
+      "notes": "Optional cloud profile. Main UX uses Google browser OAuth with GOOGLE_OAUTH_CLIENT_ID; API key auth with GEMINI_API_KEY remains a fallback."
     },
     {
       "id": "openai_compatible",
@@ -337,6 +338,7 @@
         "provider": "openai_compatible",
         "client_id_env": "OPENAI_COMPATIBLE_OAUTH_CLIENT_ID",
         "client_secret_env": "OPENAI_COMPATIBLE_OAUTH_CLIENT_SECRET",
+        "authorization_url": "",
         "device_code_url": "",
         "token_url": "",
         "verification_url": "",
@@ -344,7 +346,7 @@
         "token_env": "AI_OAUTH_ACCESS_TOKEN_OPENAI_COMPATIBLE",
         "token_store": "state/private/ai_oauth_tokens/openai_compatible.json"
       },
-      "notes": "Optional OpenAI-compatible chat completions profile. Use OPENAI_API_KEY, or fill oauth_device endpoints for a compatible provider that supports OAuth device-code QR login."
+      "notes": "Optional OpenAI-compatible chat completions profile. Use OPENAI_API_KEY, or fill official OAuth endpoints for a compatible provider that supports browser/device login."
     }
   ],
   "google_oauth": {
@@ -356,8 +358,8 @@
       "https://www.googleapis.com/auth/generative-language.retriever"
     ],
     "token_store": "state/private/google_oauth_tokens.json",
-    "login_mode": "device_qr",
-    "notes": "QR/device login for Gemini and Google services. Token storage must stay local and ignored by Git. If Google rejects these scopes for device login, use the Gemini API key profile or a desktop OAuth flow."
+    "login_mode": "browser_oauth",
+    "notes": "Browser OAuth for Gemini and Google services is the primary login UX. QR/device-code remains an advanced fallback. Token storage must stay local and ignored by Git."
   },
   "account_link_providers": [
     {

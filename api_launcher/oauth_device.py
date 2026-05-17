@@ -4,6 +4,8 @@ import json
 import os
 import re
 import time
+import base64
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from urllib import error, parse, request
@@ -12,6 +14,8 @@ from api_launcher.paths import PROJECT_ROOT
 
 
 DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
+AUTHORIZATION_CODE_GRANT_TYPE = "authorization_code"
+GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 
 
 @dataclass(frozen=True)
@@ -24,6 +28,7 @@ class OAuthDeviceConfig:
     client_secret: str
     client_id_env: str
     client_secret_env: str
+    authorization_url: str
     device_code_url: str
     token_url: str
     verification_url: str
@@ -92,6 +97,7 @@ def oauth_device_config_from_profile(profile: object) -> OAuthDeviceConfig | Non
         client_secret=str(raw.get("client_secret") or "").strip(),
         client_id_env=str(raw.get("client_id_env") or "").strip(),
         client_secret_env=str(raw.get("client_secret_env") or "").strip(),
+        authorization_url=str(raw.get("authorization_url") or default_authorization_url(provider)).strip(),
         device_code_url=str(raw.get("device_code_url") or "").strip(),
         token_url=str(raw.get("token_url") or "").strip(),
         verification_url=str(raw.get("verification_url") or "").strip(),
@@ -180,6 +186,104 @@ def poll_oauth_device_token(login_request: OAuthDeviceLoginRequest, timeout: flo
     )
 
 
+def oauth_authorization_url(
+    config: OAuthDeviceConfig,
+    redirect_uri: str,
+    state: str,
+    code_challenge: str,
+) -> str:
+    client_id = oauth_client_id(config)
+    if not client_id:
+        raise RuntimeError(f"Missing OAuth client id: {config.client_id_env or 'oauth_device.client_id'}")
+    if not config.authorization_url:
+        raise RuntimeError(f"{config.label} has no OAuth authorization URL configured.")
+    params = {
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": " ".join(config.scopes),
+        "state": state,
+        "access_type": "offline",
+        "prompt": "select_account consent",
+        "include_granted_scopes": "true",
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
+    return config.authorization_url + "?" + parse.urlencode(params)
+
+
+def exchange_oauth_authorization_code(
+    config: OAuthDeviceConfig,
+    code: str,
+    redirect_uri: str,
+    code_verifier: str,
+    timeout: float = 15.0,
+) -> OAuthDeviceTokenResult:
+    client_id = oauth_client_id(config)
+    client_secret = oauth_client_secret(config)
+    if not client_id:
+        return OAuthDeviceTokenResult("missing_client_id", f"Missing OAuth client id: {config.client_id_env or 'oauth_device.client_id'}")
+    payload = {
+        "client_id": client_id,
+        "code": code,
+        "code_verifier": code_verifier,
+        "grant_type": AUTHORIZATION_CODE_GRANT_TYPE,
+        "redirect_uri": redirect_uri,
+    }
+    if client_secret:
+        payload["client_secret"] = client_secret
+    try:
+        data = _post_form(config.token_url, payload, timeout=timeout)
+    except Exception as exc:
+        return OAuthDeviceTokenResult("request_failed", f"{config.label} authorization-code token request failed: {exc}")
+    access_token = str(data.get("access_token") or "")
+    if not access_token:
+        return OAuthDeviceTokenResult("empty_token", f"{config.label} returned no access_token.")
+    return OAuthDeviceTokenResult(
+        status="success",
+        message=f"{config.label} OAuth token received.",
+        access_token=access_token,
+        refresh_token=str(data.get("refresh_token") or ""),
+        token_type=str(data.get("token_type") or ""),
+        expires_in=int(data.get("expires_in") or 0),
+        scope=str(data.get("scope") or ""),
+    )
+
+
+def pkce_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
+def oauth_client_id(config: OAuthDeviceConfig) -> str:
+    return config.client_id or (os.environ.get(config.client_id_env, "").strip() if config.client_id_env else "")
+
+
+def oauth_client_secret(config: OAuthDeviceConfig) -> str:
+    return config.client_secret or (os.environ.get(config.client_secret_env, "").strip() if config.client_secret_env else "")
+
+
+def save_oauth_config_token(result: OAuthDeviceTokenResult, config: OAuthDeviceConfig) -> Path:
+    path = token_store_path(config.token_store)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "provider": config.provider,
+        "profile_id": config.profile_id,
+        "created_at": int(time.time()),
+        "token_type": result.token_type,
+        "access_token": result.access_token,
+        "refresh_token": result.refresh_token,
+        "expires_in": result.expires_in,
+        "scope": result.scope,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+    return path
+
+
 def save_oauth_device_token(result: OAuthDeviceTokenResult, login_request: OAuthDeviceLoginRequest) -> Path:
     path = token_store_path(login_request.token_store)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,6 +354,7 @@ def default_oauth_device_config(profile_id: str, kind: str) -> dict[str, object]
             "provider": "google",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+            "authorization_url": GOOGLE_AUTHORIZATION_URL,
             "device_code_url": "https://oauth2.googleapis.com/device/code",
             "token_url": "https://oauth2.googleapis.com/token",
             "verification_url": "https://www.google.com/device",
@@ -267,6 +372,7 @@ def default_oauth_device_config(profile_id: str, kind: str) -> dict[str, object]
             "provider": kind,
             "client_id_env": f"{suffix}_OAUTH_CLIENT_ID",
             "client_secret_env": f"{suffix}_OAUTH_CLIENT_SECRET",
+            "authorization_url": "",
             "device_code_url": "",
             "token_url": "",
             "verification_url": "",
@@ -307,6 +413,10 @@ def _empty_request(config: OAuthDeviceConfig, status: str, message: str, client_
         status=status,
         message=message,
     )
+
+
+def default_authorization_url(provider: str) -> str:
+    return GOOGLE_AUTHORIZATION_URL if provider == "google" else ""
 
 
 def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, object]:

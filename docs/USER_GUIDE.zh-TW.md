@@ -95,22 +95,22 @@ AI 相關設定在：
 目前支援的方向：
 
 - `Local Ollama`：本機模型，不需要雲端登入。
-- `Gemini Flash`：可用 `GEMINI_API_KEY`，也可用 Google OAuth device-code QR 登入。
+- `Gemini Flash`：主路線是 Google 帳號瀏覽器登入；`GEMINI_API_KEY` 只作為備用入口。
 - `OpenAI-compatible`：使用 chat-completions JSON 格式，可指向 OpenAI 或相容服務。
 
 ## AI 登入與 token
 
-在 `設定 > AI 輔助模型` 選取某個 profile 後，可以按 `登入選取模型`。
+在 `設定 > AI 輔助模型` 選取某個 profile 後，可以按 `用帳號登入選取模型`。
 
-如果要使用 Google/Gemini QR 登入，最短路徑是：
+如果要使用 Google/Gemini 帳號登入，最短路徑是：
 
 ```text
-整合 > Google QR 登入
+整合 > Google 帳號登入（瀏覽器）
 ```
 
-如果尚未設定 Google OAuth Client ID，畫面會出現 `設定 QR 登入`。按下後貼上 Client ID，launcher 會把它寫進本機 `config/launcher_integrations.local.json`，不會提交到 Git。設定完成後會重新打開 QR/device 登入畫面。
+第一次使用時仍需要 Google OAuth Client ID。它不是 Gmail，也不是 API key，而是 Google Cloud Console 裡替這個桌面程式建立的 app 身分。設定後 launcher 會打開系統瀏覽器，由 Google 頁面處理選帳號、密碼、手機確認或掃 QR。Client ID 會寫進本機 `config/launcher_integrations.local.json`，不會提交到 Git。
 
-如果該 profile 有 `oauth_device` 設定，UI 會顯示 QR code 或 device code。登入成功後，token 會存在：
+登入成功後，token 會存在：
 
 ```text
 state/private/ai_oauth_tokens/
@@ -118,11 +118,11 @@ state/private/ai_oauth_tokens/
 
 這個資料夾被 `.gitignore` 排除，不會提交到 GitHub。
 
-如果某個 AI 服務沒有 OAuth device-code 端點，launcher 不會假裝可以掃 QR。這時請使用 `貼上本次 API key`，或在 `config/launcher_integrations.local.json` 補上該服務官方提供的 device-code endpoints。
+`整合 > 進階：Google QR / 裝置碼登入` 保留給 device-code 情境：例如沒有鍵盤的裝置、或需要在另一台裝置輸入代碼。它不是一般 Google 網頁服務的快速登入。如果某個 AI 服務沒有官方 OAuth / device-code 端點，launcher 不會假裝可以掃 QR。
 
 ## Google / Gemini 入口
 
-`整合 > Google / Gemini 與 AI 設定` 是 Google/Gemini 的快速入口。它只負責登入與 token 狀態，不會自動幫你切換目前使用的 AI 模型。這個面板也有 `設定 QR 登入`、`開始 QR 登入`、`貼上 Gemini API key`。
+`整合 > Google / Gemini 與 AI 設定` 是 Google/Gemini 的快速入口。它只負責登入與 token 狀態，不會自動幫你切換目前使用的 AI 模型。這個面板的主按鈕是 `用 Google 帳號登入`；`進階 QR / 裝置碼` 與 `貼上本次 API key（備用）` 只是其他入口。
 
 要切換模型，仍然回到：
 

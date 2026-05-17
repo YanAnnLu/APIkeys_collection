@@ -10,13 +10,17 @@ future crawler stages. It does not download bulk datasets.
 from __future__ import annotations
 
 import json
+import html
 import os
+import secrets
 import shlex
 import sqlite3
 import subprocess
 import threading
+import time
 import urllib.parse
 import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Canvas, Menu, PhotoImage, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
 from tkinter import ttk
@@ -33,7 +37,7 @@ from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import activate_saved_google_oauth_token, google_oauth_token_status
-from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, oauth_device_config_from_profile, oauth_token_status, poll_oauth_device_token, save_oauth_device_token
+from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 
@@ -722,7 +726,8 @@ class ApiCollectionUi:
 
         integrations_menu = Menu(menu_bar, tearoff=0)
         integrations_menu.add_command(label=self.tr("Google / Gemini 與 AI 設定", "Google / Gemini login and AI"), command=self.open_google_gemini_settings)
-        integrations_menu.add_command(label=self.tr("Google QR 登入", "Google QR login"), command=self.open_google_qr_login_dialog)
+        integrations_menu.add_command(label=self.tr("Google 帳號登入（瀏覽器）", "Google account login (browser)"), command=self.open_google_browser_login_dialog)
+        integrations_menu.add_command(label=self.tr("進階：Google QR / 裝置碼登入", "Advanced: Google QR / device-code login"), command=self.open_google_qr_login_dialog)
         integrations_menu.add_command(label=self.tr("資料庫工具設定", "Database tool settings"), command=self.open_database_settings)
         integrations_menu.add_command(label=self.tr("資料儲存連線", "Data store connections"), command=self.open_data_store_connection_settings)
         integrations_menu.add_command(label=self.tr("開啟資料庫工具", "Open database tool"), command=self.open_database_tool)
@@ -947,7 +952,7 @@ class ApiCollectionUi:
         actions.pack(fill=X, padx=18, pady=(18, 18))
         ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="Google QR 登入", style="Action.TButton", command=self.open_google_qr_login_dialog).pack(fill=X, pady=(0, 8))
+        ttk.Button(actions, text="Google 帳號登入", style="Action.TButton", command=self.open_google_browser_login_dialog).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="開啟資料庫工具", style="Action.TButton", command=self.open_database_tool).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="資料庫工具設定", style="Action.TButton", command=self.open_database_settings).pack(fill=X, pady=(0, 8))
         ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
@@ -2251,7 +2256,7 @@ class ApiCollectionUi:
             if not selection:
                 messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=dialog)
                 return
-            self.open_ai_profile_login_dialog(str(selection[0]), parent=dialog)
+            self.open_ai_profile_browser_login_dialog(str(selection[0]), parent=dialog)
 
         def paste_key_for_selected() -> None:
             selection = table.selection()
@@ -2265,8 +2270,8 @@ class ApiCollectionUi:
 
         table.bind("<Double-1>", lambda _event: use_selected())
         ttk.Button(actions, text=self.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=use_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("登入選取模型", "Login selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("設定 OAuth Client ID", "Set OAuth Client ID"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("用帳號登入選取模型", "Sign in selected model"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("貼上本次 API key", "Paste session API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
@@ -2275,11 +2280,11 @@ class ApiCollectionUi:
         oauth_config = oauth_device_config_from_profile(profile)
         if oauth_config is not None:
             if not oauth_config.enabled:
-                return self.tr("QR 已停用", "QR disabled")
-            if not oauth_config.device_code_url or not oauth_config.token_url:
-                return self.tr("QR 待設定", "QR setup needed")
+                return self.tr("OAuth 已停用", "OAuth disabled")
+            if not oauth_config.authorization_url and (not oauth_config.device_code_url or not oauth_config.token_url):
+                return self.tr("OAuth 待設定", "OAuth setup needed")
             status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
-            return self.tr(f"QR {status}", f"QR {status}")
+            return self.tr(f"OAuth {status}", f"OAuth {status}")
         if profile.api_key_env:
             return self.tr(f"API key：{profile.api_key_env}", f"API key: {profile.api_key_env}")
         return self.tr("不需登入", "No login")
@@ -2464,8 +2469,8 @@ class ApiCollectionUi:
             token_status, token_message = google_oauth_token_status()
         token_text = self.tr(f"Gemini / Google token：{token_status} - {token_message}", f"Gemini / Google token: {token_status} - {token_message}")
         readiness_text = self.tr(
-            "目前狀態：AI 生成管線已存在，但要先有 local Ollama、Gemini API key，或可用的 OAuth token 才會真的呼叫模型。",
-            "Current status: AI generation exists, but it needs local Ollama, a Gemini API key, or a usable OAuth token before it can call a model.",
+            "目前狀態：AI 生成管線已存在。Google 登入主路線會開啟系統瀏覽器，讓你選帳號或使用 Google 頁面提供的手機確認 / 掃碼登入。",
+            "Current status: AI generation exists. The main Google login path opens the system browser so you can choose an account or use the phone/QR options shown by Google.",
         )
         ttk.Label(dialog, text=readiness_text, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 10))
         text = Text(dialog, height=12, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
@@ -2481,10 +2486,11 @@ class ApiCollectionUi:
                     token_text,
                     "",
                     "目前支援：",
-                    "1. Google QR/device login：設定 GOOGLE_OAUTH_CLIENT_ID 後，可掃 QR 登入並把 token 儲存在 state/private。",
-                    "2. Gemini API key：到 Google AI Studio 建立 key，再到 AI 輔助模型設定貼上本次 session key。",
+                    "1. Google 帳號瀏覽器登入：打開 Google 授權頁，完成後 token 存在本機 private state。",
+                    "2. Google QR/device-code：給無鍵盤或跨裝置情境使用，屬於進階備用入口。",
+                    "3. Session API key：只作為雲端 AI profile 的備用入口，不是主要建議路線。",
                     "",
-                    "token 不會寫進 Git；若過期，重新掃 QR 即可。QR 登入成功也不會自動切換 AI 模型。",
+                    "第一次使用仍需 OAuth Client ID，因為 Google 必須知道是哪個桌面程式在要求授權。token 不會寫進 Git；登入成功也不會自動切換 AI 模型。",
                 ]
             ),
             "\n".join(
@@ -2497,10 +2503,11 @@ class ApiCollectionUi:
                     token_text,
                     "",
                     "Currently supported:",
-                    "1. Google QR/device login: set GOOGLE_OAUTH_CLIENT_ID, scan the QR code, and store the token under state/private.",
-                    "2. Gemini API key: create a key in Google AI Studio, then paste a session key under AI assistant model settings.",
+                    "1. Google browser account login: opens Google's authorization page and stores the token under local private state.",
+                    "2. Google QR/device-code: an advanced fallback for limited-input or cross-device situations.",
+                    "3. Session API key: a fallback entry for cloud AI profiles, not the main suggested path.",
                     "",
-                    "Tokens are not committed to Git; scan QR again if the saved token expires. QR login does not switch the active AI model.",
+                    "First-time use still needs an OAuth Client ID because Google needs to identify the desktop app requesting access. Tokens are not committed to Git; login does not switch the active AI model.",
                 ]
             ),
         )
@@ -2529,12 +2536,12 @@ class ApiCollectionUi:
         secondary_actions = ttk.Frame(actions, style="Panel.TFrame")
         secondary_actions.pack(fill=X)
 
-        ttk.Button(primary_actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_profile("gemini_flash", parent=dialog, start_login=True)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("貼上 Gemini API key", "Paste Gemini API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("開始 QR 登入", "Start QR login"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("用 Google 帳號登入", "Sign in with Google"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(primary_actions, text=self.tr("進階 QR / 裝置碼", "Advanced QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("產生目前資料源描述", "Generate selected source description"), style="Action.TButton", command=self.generate_active_summary).pack(side=LEFT, padx=(0, 10))
         ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ttk.Button(secondary_actions, text=self.tr("貼上本次 API key（備用）", "Paste session API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(secondary_actions, text=self.tr("開啟 Google AI Studio", "Open Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(secondary_actions, text=self.tr("開啟本機整合設定檔", "Open local integration config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
 
@@ -2571,10 +2578,10 @@ class ApiCollectionUi:
             return False
         current_client_id = oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")
         client_id = simpledialog.askstring(
-            self.tr("設定 QR 登入 Client ID", "Set QR login client ID"),
+            self.tr("Google OAuth Client ID", "Google OAuth Client ID"),
             self.tr(
-                "貼上 Google OAuth Client ID。\n它會存到本機 integration local config，不會提交到 Git。\nClient secret 通常可留空；若你的 Google 專案需要 secret，可之後打開本機設定檔補上 client_secret。",
-                "Paste the Google OAuth Client ID.\nIt will be saved to the local integration config and will not be committed to Git.\nClient secret is usually blank; if your Google project requires it, add client_secret in the local config later.",
+                "這不是 Gmail，也不是 API key。\n這是 Google Cloud Console 裡替「這個桌面程式」建立的 OAuth Client ID。\n設定一次後，launcher 就能打開 Google 登入頁，讓你選帳號或使用 Google 提供的手機確認 / 掃碼登入。\n\nClient ID 會存到本機 integration local config，不會提交到 Git。",
+                "This is not a Gmail address and not an API key.\nIt is the OAuth Client ID created in Google Cloud Console for this desktop app.\nAfter it is saved once, the launcher can open Google's login page so you can choose an account or use Google's phone/QR options.\n\nThe Client ID is saved to local integration config and is not committed to Git.",
             ),
             parent=parent or self.root,
             initialvalue=current_client_id,
@@ -2599,6 +2606,7 @@ class ApiCollectionUi:
                 "client_id": client_id.strip(),
                 "client_id_env": oauth_config.client_id_env,
                 "client_secret_env": oauth_config.client_secret_env,
+                "authorization_url": oauth_config.authorization_url,
                 "device_code_url": oauth_config.device_code_url,
                 "token_url": oauth_config.token_url,
                 "verification_url": oauth_config.verification_url,
@@ -2609,12 +2617,12 @@ class ApiCollectionUi:
         )
         target["oauth_device"] = oauth_device
         save_integration_config(config)
-        self.status_var.set(self.tr(f"{profile.label} QR 登入已設定 Client ID。", f"{profile.label} QR login client ID saved."))
+        self.status_var.set(self.tr(f"{profile.label} 已儲存 Google OAuth Client ID。", f"{profile.label} Google OAuth Client ID saved."))
         messagebox.showinfo(
-            self.tr("QR 登入已設定", "QR login configured"),
+            self.tr("Google 登入已設定", "Google login configured"),
             self.tr(
-                "已儲存 Client ID。接下來可以開啟 QR 登入畫面。",
-                "Client ID saved. You can now open the QR login screen.",
+                "已儲存 Client ID。接下來可以開啟 Google 帳號登入。",
+                "Client ID saved. You can now start Google account login.",
             ),
             parent=parent or self.root,
         )
@@ -2671,6 +2679,232 @@ class ApiCollectionUi:
     def open_google_qr_login_dialog(self) -> None:
         self.open_ai_profile_login_dialog("gemini_flash")
 
+    def open_google_browser_login_dialog(self) -> None:
+        self.open_ai_profile_browser_login_dialog("gemini_flash")
+
+    def open_ai_profile_browser_login_dialog(self, profile_id: str | None = None, parent: Toplevel | None = None) -> None:
+        profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None) if profile_id else core.active_ai_profile()
+        if profile is None:
+            messagebox.showinfo(self.tr("尚未設定 AI profile", "No AI profile"), self.tr("請先到「設定 > AI 輔助模型」選擇一個 AI profile。", "Choose an AI profile under Settings > AI assistant model first."), parent=parent or self.root)
+            return
+        oauth_config = oauth_device_config_from_profile(profile)
+        if oauth_config is None or not oauth_config.authorization_url or not oauth_config.token_url:
+            messagebox.showinfo(
+                self.tr("尚未支援瀏覽器登入", "Browser login is not configured"),
+                self.tr(
+                    f"{profile.label} 目前沒有瀏覽器 OAuth 登入端點。若此服務支援 device-code，會改開進階 QR / 裝置碼入口。",
+                    f"{profile.label} has no browser OAuth endpoint. If this service supports device-code, the advanced QR/device-code dialog will open instead.",
+                ),
+                parent=parent or self.root,
+            )
+            self.open_ai_profile_login_dialog(profile.id, parent=parent)
+            return
+        if not oauth_config.client_id and not (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else ""):
+            if not self.configure_oauth_client_for_profile(profile.id, parent=parent, start_login=False):
+                return
+            profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), None)
+            oauth_config = oauth_device_config_from_profile(profile) if profile else None
+            if oauth_config is None or not (oauth_config.client_id or (os.environ.get(oauth_config.client_id_env, "").strip() if oauth_config.client_id_env else "")):
+                messagebox.showerror(
+                    self.tr("Google 登入設定失敗", "Google login setup failed"),
+                    self.tr("尚未取得 OAuth Client ID，無法開啟 Google 帳號登入。", "No OAuth Client ID is available, so Google account login cannot start."),
+                    parent=parent or self.root,
+                )
+                return
+
+        owner = parent or self.root
+        dialog = Toplevel(owner)
+        dialog.title(self.tr(f"{profile.label} Google 帳號登入", f"{profile.label} Google account login"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("760x500")
+        dialog.transient(owner)
+        dialog.grab_set()
+        ttk.Label(dialog, text=self.tr("Google 帳號登入", "Google account login"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "launcher 會打開你的系統瀏覽器。你會在 Google 頁面選帳號；如果 Google 當下提供手機確認或掃 QR，也會在那個頁面完成。",
+                "The launcher will open your system browser. You choose the account on Google's page; if Google offers phone confirmation or QR there, it happens on that page.",
+            ),
+            style="DetailMuted.TLabel",
+            wraplength=700,
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 12))
+        body = Text(dialog, height=9, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
+        body.pack(fill=X, padx=24, pady=(0, 14))
+        body.insert(
+            "1.0",
+            self.tr(
+                "\n".join(
+                    [
+                        "白話說，這個流程分兩層：",
+                        "1. Google 帳號登入：由 Google 網頁處理選帳號、密碼、手機確認或 QR。",
+                        "2. App 授權：Google 需要知道是哪個程式要代表你呼叫 API，所以第一次要先有 OAuth Client ID。",
+                        "",
+                        "登入成功後，access token 會存在 state/private，不會提交到 Git。下次開啟 launcher 會優先嘗試讀取已保存 token。",
+                    ]
+                ),
+                "\n".join(
+                    [
+                        "Plainly, this flow has two layers:",
+                        "1. Google account login: Google's web page handles account choice, password, phone confirmation, or QR.",
+                        "2. App authorization: Google must know which app is requesting API access, so first-time setup needs an OAuth Client ID.",
+                        "",
+                        "After success, the access token is stored under state/private and is not committed to Git. The launcher will prefer saved tokens next time.",
+                    ]
+                ),
+            ),
+        )
+        body.configure(state="disabled")
+        status_var = StringVar(value=self.tr("準備開啟 Google 登入頁...", "Preparing to open Google's login page..."))
+        ttk.Label(dialog, textvariable=status_var, style="DetailMuted.TLabel", wraplength=700).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+        cancel_event = threading.Event()
+        auth_url_holder: dict[str, str] = {"value": ""}
+        started: dict[str, bool] = {"value": False}
+
+        def dialog_exists() -> bool:
+            try:
+                return bool(dialog.winfo_exists())
+            except TclError:
+                return False
+
+        def set_status(message: str) -> None:
+            def handle() -> None:
+                if dialog_exists():
+                    status_var.set(message)
+
+            self.root.after(0, handle)
+
+        def close_dialog() -> None:
+            cancel_event.set()
+            dialog.destroy()
+
+        def open_current_auth_url() -> None:
+            if auth_url_holder["value"]:
+                webbrowser.open(auth_url_holder["value"])
+            else:
+                status_var.set(self.tr("Google 登入網址尚未產生，請稍候。", "The Google login URL is not ready yet."))
+
+        def start_login() -> None:
+            if started["value"]:
+                open_current_auth_url()
+                return
+            started["value"] = True
+            start_button.configure(state="disabled")
+
+            def worker() -> None:
+                result_box: dict[str, str] = {"code": "", "error": ""}
+                state = secrets.token_urlsafe(24)
+                code_verifier = secrets.token_urlsafe(48)
+                code_challenge = pkce_code_challenge(code_verifier)
+
+                class OAuthCallbackHandler(BaseHTTPRequestHandler):
+                    def do_GET(self) -> None:
+                        parsed = urllib.parse.urlparse(self.path)
+                        params = urllib.parse.parse_qs(parsed.query)
+                        returned_state = str((params.get("state") or [""])[0])
+                        error_text = str((params.get("error") or [""])[0])
+                        code = str((params.get("code") or [""])[0])
+                        if parsed.path not in {"/", "/oauth/callback"}:
+                            self._respond(404, self.server_message(False, "找不到這個本機登入回呼頁。"))
+                            return
+                        if returned_state != state:
+                            result_box["error"] = "Google 回傳的 state 不符合，登入已停止。"
+                            self._respond(400, self.server_message(False, result_box["error"]))
+                            return
+                        if error_text:
+                            result_box["error"] = error_text
+                            self._respond(400, self.server_message(False, f"Google 登入未完成：{error_text}"))
+                            return
+                        if not code:
+                            result_box["error"] = "Google 沒有回傳授權碼。"
+                            self._respond(400, self.server_message(False, result_box["error"]))
+                            return
+                        result_box["code"] = code
+                        self._respond(200, self.server_message(True, "登入完成，可以回到 APIkeys_collection。"))
+
+                    def _respond(self, status: int, content: str) -> None:
+                        encoded = content.encode("utf-8")
+                        self.send_response(status)
+                        self.send_header("Content-Type", "text/html; charset=utf-8")
+                        self.send_header("Content-Length", str(len(encoded)))
+                        self.end_headers()
+                        self.wfile.write(encoded)
+
+                    def server_message(self, success: bool, message: str) -> str:
+                        title = "APIkeys_collection Google 登入"
+                        color = "#146c43" if success else "#9b1c1c"
+                        return (
+                            "<!doctype html><html><head><meta charset='utf-8'>"
+                            f"<title>{html.escape(title)}</title>"
+                            "<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+                            "background:#111827;color:#f9fafb;margin:0;padding:48px;}"
+                            "main{max-width:720px;margin:auto;}h1{font-size:28px;}p{font-size:18px;line-height:1.6;}"
+                            f".badge{{display:inline-block;background:{color};padding:8px 12px;border-radius:6px;margin-bottom:16px;}}"
+                            "</style></head><body><main>"
+                            f"<div class='badge'>{'完成' if success else '未完成'}</div>"
+                            f"<h1>{html.escape(title)}</h1><p>{html.escape(message)}</p>"
+                            "<p>你可以關閉這個瀏覽器分頁，回到 launcher。</p>"
+                            "</main></body></html>"
+                        )
+
+                    def log_message(self, _format: str, *_args: object) -> None:
+                        return
+
+                server = None
+                try:
+                    server = ThreadingHTTPServer(("127.0.0.1", 0), OAuthCallbackHandler)
+                    server.timeout = 1
+                    redirect_uri = f"http://127.0.0.1:{server.server_port}/"
+                    auth_url = oauth_authorization_url(oauth_config, redirect_uri, state, code_challenge)
+                    auth_url_holder["value"] = auth_url
+                    set_status(self.tr("已打開 Google 登入頁；請在瀏覽器完成選帳號與授權。", "Google login page opened; finish account choice and consent in the browser."))
+                    webbrowser.open(auth_url)
+                    deadline = time.time() + 300
+                    while time.time() < deadline and not cancel_event.is_set() and not result_box["code"] and not result_box["error"]:
+                        server.handle_request()
+                    if cancel_event.is_set():
+                        set_status(self.tr("登入已取消。", "Login cancelled."))
+                        return
+                    if result_box["error"]:
+                        set_status(self.tr(f"Google 登入未完成：{result_box['error']}", f"Google login was not completed: {result_box['error']}"))
+                        return
+                    if not result_box["code"]:
+                        set_status(self.tr("等候逾時。請重新開啟 Google 登入。", "Timed out. Start Google login again."))
+                        return
+                    set_status(self.tr("已收到 Google 授權碼，正在換取 token...", "Authorization code received; exchanging it for a token..."))
+                    result = exchange_oauth_authorization_code(oauth_config, result_box["code"], redirect_uri, code_verifier)
+                    if result.status != "success":
+                        set_status(result.message)
+                        return
+                    path = save_oauth_config_token(result, oauth_config)
+                    activate_saved_oauth_token(oauth_config.token_store, oauth_config.token_env, label=profile.label)
+
+                    def handle_success() -> None:
+                        if not dialog_exists():
+                            return
+                        status_var.set(self.tr(f"登入成功，token 已儲存：{path}", f"Login succeeded; token saved: {path}"))
+                        self.status_var.set(self.tr(f"{profile.label} Google 帳號登入完成；下次會優先使用已儲存 token。", f"{profile.label} Google account login completed; saved token will be reused next time."))
+
+                    self.root.after(0, handle_success)
+                except Exception as exc:
+                    set_status(self.tr(f"Google 登入失敗：{exc}", f"Google login failed: {exc}"))
+                finally:
+                    if server is not None:
+                        server.server_close()
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        start_button = ttk.Button(actions, text=self.tr("開啟 Google 登入頁", "Open Google login page"), style="Action.TButton", command=start_login)
+        start_button.pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("重新開啟瀏覽器頁面", "Reopen browser page"), style="Action.TButton", command=open_current_auth_url).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("進階 QR / 裝置碼", "Advanced QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=close_dialog).pack(side=RIGHT)
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
+        dialog.after(250, start_login)
+
     def open_ai_profile_login_dialog(self, profile_id: str | None = None, parent: Toplevel | None = None) -> None:
         profile = next((item for item in core.ai_summary_profiles() if item.id == profile_id), None) if profile_id else core.active_ai_profile()
         if profile is None:
@@ -2681,8 +2915,8 @@ class ApiCollectionUi:
             messagebox.showinfo(
                 self.tr("此 profile 沒有 QR 登入", "No QR login for this profile"),
                 self.tr(
-                    f"{profile.label} 目前沒有 oauth_device 設定。可以先貼上 API key，或在本機整合設定檔替這個 profile 加上 OAuth device-code 端點。",
-                    f"{profile.label} has no oauth_device settings. Paste an API key for now, or add OAuth device-code endpoints for this profile in the local integration config.",
+                    f"{profile.label} 目前沒有 oauth_device 設定。若服務商支援 QR/device-code，請在本機整合設定檔替這個 profile 加上官方 OAuth 端點。",
+                    f"{profile.label} has no oauth_device settings. If the provider supports QR/device-code, add its official OAuth endpoints in the local integration config.",
                 ),
                 parent=parent or self.root,
             )
@@ -2710,7 +2944,8 @@ class ApiCollectionUi:
         if request.device_code:
             fallback_text = "\n".join(
                 [
-                    self.tr("掃描 QR 或開啟裝置頁面後，輸入下列代碼完成登入。", "Scan the QR code or open the device page, then enter this code to finish login."),
+                    self.tr("這是進階 OAuth/device-code 授權，不是一般 Google 網頁服務的快速登入。", "This is advanced OAuth/device-code authorization, not the regular Google web-service quick login."),
+                    self.tr("掃描 QR 或開啟裝置頁面後，輸入下列代碼完成授權。", "Scan the QR code or open the device page, then enter this code to finish authorization."),
                     "",
                     self.tr(f"頁面：{request.verification_url}", f"Page: {request.verification_url}"),
                     self.tr(f"代碼：{request.user_code}", f"Code: {request.user_code}"),
@@ -2720,11 +2955,14 @@ class ApiCollectionUi:
         else:
             fallback_text = "\n".join(
                 [
-                    self.tr("QR 登入尚未設定。", "QR login is not configured yet."),
+                    self.tr("QR/OAuth 登入尚未設定。", "QR/OAuth login is not configured yet."),
+                    "",
+                    self.tr(
+                        "如果你想要一般 Google 服務那種選帳號或手機掃碼登入，請用「Google 帳號登入（瀏覽器）」。這個頁面是進階 device-code 流程，適合無鍵盤或跨裝置情境。",
+                        "If you want the normal Google account chooser or phone/QR login, use Google account login (browser). This page is the advanced device-code flow for limited-input or cross-device situations.",
+                    ),
                     "",
                     request.message,
-                    "",
-                    self.tr("設定 OAuth device-code 端點與 client id 後，這個面板會顯示可掃描的 QR / device-code 登入。", "After OAuth device-code endpoints and a client id are configured, this panel will show a scan-ready QR/device-code login."),
                 ]
             )
         fallback.insert("1.0", fallback_text)
@@ -2790,8 +3028,9 @@ class ApiCollectionUi:
                     close_dialog()
                     self.open_ai_profile_login_dialog(profile.id, parent=owner)
 
-            ttk.Button(actions, text=self.tr("設定 QR 登入", "Set up QR login"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("貼上 API key", "Paste API key"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
+            ttk.Button(actions, text=self.tr("進階：設定 OAuth Client ID", "Advanced: set OAuth Client ID"), style="Action.TButton", command=configure_and_restart).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("用瀏覽器登入", "Browser login"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog(profile.id, parent=dialog)).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("貼上 API key（備用）", "Paste API key (fallback)"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session(profile.id)).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟本機設定", "Open local config"), style="Action.TButton", command=lambda: webbrowser.open(core.local_integrations_path().as_uri())).pack(side=LEFT, padx=(0, 10))
         if request.device_code:
             ttk.Button(actions, text=self.tr("重新檢查登入", "Check login"), style="Action.TButton", command=poll_once).pack(side=LEFT, padx=(0, 10))

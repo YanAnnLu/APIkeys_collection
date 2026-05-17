@@ -3,16 +3,22 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from urllib import parse
 from unittest.mock import patch
 
 from api_launcher.integrations import AiSummaryProfile, ai_summary_profiles_from_config
 from api_launcher.oauth_device import (
     OAuthDeviceConfig,
+    OAuthDeviceTokenResult,
     activate_saved_oauth_token,
     build_oauth_device_login_request,
+    exchange_oauth_authorization_code,
+    oauth_authorization_url,
     oauth_device_config_from_profile,
     oauth_token_status,
+    pkce_code_challenge,
     poll_oauth_device_token,
+    save_oauth_config_token,
     save_oauth_device_token,
 )
 
@@ -140,6 +146,95 @@ class OAuthDeviceTests(unittest.TestCase):
         self.assertEqual("authorization_pending", request.status)
         self.assertEqual("saved-client-id", request.client_id)
         self.assertEqual("saved-client-id", post_form.call_args.args[1]["client_id"])
+
+    def test_authorization_url_uses_pkce_and_saved_client_id(self) -> None:
+        profile = self.profile()
+        oauth_device = dict(profile.oauth_device)
+        oauth_device["provider"] = "google"
+        oauth_device["client_id"] = "saved-client-id"
+        oauth_device["authorization_url"] = "https://accounts.google.com/o/oauth2/v2/auth"
+        profile = AiSummaryProfile(
+            id=profile.id,
+            label=profile.label,
+            kind="gemini",
+            enabled=profile.enabled,
+            model=profile.model,
+            endpoint=profile.endpoint,
+            api_key_env=profile.api_key_env,
+            oauth_token_env=profile.oauth_token_env,
+            token_store=profile.token_store,
+            oauth_device=oauth_device,
+        )
+        config = oauth_device_config_from_profile(profile)
+
+        auth_url = oauth_authorization_url(config, "http://127.0.0.1:49152/", "state-value", "challenge-value")
+        query = parse.parse_qs(parse.urlparse(auth_url).query)
+
+        self.assertEqual(["saved-client-id"], query["client_id"])
+        self.assertEqual(["code"], query["response_type"])
+        self.assertEqual(["http://127.0.0.1:49152/"], query["redirect_uri"])
+        self.assertEqual(["state-value"], query["state"])
+        self.assertEqual(["challenge-value"], query["code_challenge"])
+        self.assertEqual(["S256"], query["code_challenge_method"])
+        self.assertEqual(["select_account consent"], query["prompt"])
+        self.assertEqual(["true"], query["include_granted_scopes"])
+
+    def test_exchange_authorization_code_posts_pkce_payload(self) -> None:
+        profile = self.profile()
+        oauth_device = dict(profile.oauth_device)
+        oauth_device["client_id"] = "saved-client-id"
+        profile = AiSummaryProfile(
+            id=profile.id,
+            label=profile.label,
+            kind=profile.kind,
+            enabled=profile.enabled,
+            model=profile.model,
+            endpoint=profile.endpoint,
+            api_key_env=profile.api_key_env,
+            oauth_token_env=profile.oauth_token_env,
+            token_store=profile.token_store,
+            oauth_device=oauth_device,
+        )
+        config = oauth_device_config_from_profile(profile)
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "api_launcher.oauth_device._post_form",
+            return_value={"access_token": "access", "refresh_token": "refresh", "expires_in": 3600, "token_type": "Bearer"},
+        ) as post_form:
+            result = exchange_oauth_authorization_code(config, "auth-code", "http://127.0.0.1:49152/", "verifier")
+
+        self.assertEqual("success", result.status)
+        payload = post_form.call_args.args[1]
+        self.assertEqual("saved-client-id", payload["client_id"])
+        self.assertEqual("auth-code", payload["code"])
+        self.assertEqual("verifier", payload["code_verifier"])
+        self.assertEqual("authorization_code", payload["grant_type"])
+        self.assertEqual("http://127.0.0.1:49152/", payload["redirect_uri"])
+
+    def test_pkce_code_challenge_is_url_safe(self) -> None:
+        challenge = pkce_code_challenge("abcdefghijklmnopqrstuvwxyz0123456789")
+
+        self.assertNotIn("=", challenge)
+        self.assertNotIn("+", challenge)
+        self.assertNotIn("/", challenge)
+
+    def test_save_config_token_can_activate_profile_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = self.profile(token_store=os.path.join(tmp, "browser-token.json"))
+            config = oauth_device_config_from_profile(profile)
+            token_result = OAuthDeviceTokenResult(
+                status="success",
+                message="ok",
+                token_type="Bearer",
+                access_token="browser-access",
+                refresh_token="browser-refresh",
+                expires_in=3600,
+                scope="summary",
+            )
+
+            save_oauth_config_token(token_result, config)
+            with patch.dict(os.environ, {}, clear=True):
+                activate_saved_oauth_token(config.token_store, config.token_env, label=profile.label)
+                self.assertEqual("browser-access", os.environ["TEST_AI_OAUTH_ACCESS_TOKEN"])
 
     def test_poll_and_save_token_can_activate_profile_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
