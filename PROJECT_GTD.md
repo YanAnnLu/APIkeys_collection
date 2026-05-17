@@ -2,18 +2,37 @@
 
 Last updated: 2026-05-17
 
-| Area | Status | Current progress | Next step |
+## Product GTD
+
+| Area | Status | Current Progress | Next Step |
 | --- | --- | --- | --- |
-| Provider catalog | MVP | Built-in provider list, manual add/edit, categories, metadata fields, source discovery seeds, duplicate-aware provider model. | Improve provider-source separation so the same dataset can have multiple resource sites. |
-| Steam-like UI | In progress | Responsive Tk UI, category sidebar, source table, right detail drawer, star/pin, double-click to add to plan. | Add right-click context menu and simplify crowded toolbar actions. |
-| Download plan/cart | MVP | Download Plan panel, add/remove/clear/export plan JSON, double-click source row to add, plan schema declares nonblocking pause/resume policy. | Turn plan items into executable download jobs with adapters. |
-| Download engine | MVP | Nonblocking worker queue, progress snapshots, pause, resume, cancel, tests, pluggable transfer tool profiles, and working HTTP(S) adapter with `.part` resume. | Wire HTTP jobs into the UI with visible progress and controls. |
-| Database tool interface | MVP | Local integration config, active database client selection, UI settings dialog, open/test configured client. | Add custom profile creation/editing directly in UI instead of editing JSON. |
-| Install registry/uninstall | Skeleton | Install IDs, fingerprints, asset roles, provenance metadata, safe uninstall planning. | Implement SQL-backed install verification and guarded database deletion flow. |
-| SQL/database self-check | Planned | Concept defined: detect manually deleted, pre-existing, imported, or drifted databases. | Build DB connector abstraction for MySQL/PostgreSQL/SQLite introspection. |
-| Data cleaning pipeline | Planned | Need acknowledged for API/CSV/JSON normalization before import. | Define dataset adapter contract with validation and cleaning stages. |
-| Provider discovery/crawling | MVP | Discovery seed config and CLI can collect candidate metadata from source sites without scraping secrets. | Add UI search/import flow for discovered provider candidates. |
-| AI summary | MVP | Local Ollama and optional Gemini profile support can generate provider descriptions. | Add per-provider prompt controls and cache generated summaries. |
-| Taichi renderer bridge | Skeleton | Renderer contracts, GEBCO/HYG dataset IDs, copied renderer under `renderers/`, renderer requirements documented. | Build adapter that maps installed dataset IDs to renderer-ready file paths. |
-| Cross-platform setup | MVP | Git/GitHub, Docker, PowerShell runner, example/local config split, UTF-8/LF rules, startup environment checks. | Add CI workflow and surface startup checks in the UI. |
-| Documentation | In progress | `TECH_STACK.md`, renderer contract docs, this GTD tracker. | Keep architecture diagrams and feature status current after each milestone. |
+| Product architecture | In progress | Architecture documented in `ARCHITECTURE.md`; pipeline and runtime layers are now explicit. | Move docs/catalog/config/scripts/state into clearer folders in small verified steps. |
+| Folder hygiene | Planned | Root folder audit completed; runtime files and source/catalog files are mixed. | Add `state/`, `catalog/`, `docs/`, `scripts/` migration plan and update path constants. |
+| Provider catalog | MVP | Built-in provider list, manual add/edit, categories, metadata fields, source discovery seeds, duplicate-aware provider model. | Improve provider-source separation so one dataset can have multiple resource sites. |
+| Provider/source discovery | MVP | Discovery seed config and CLI collect candidate metadata from source sites without scraping secrets. | Add UI search/import flow for discovered provider candidates. |
+| Steam-like UI | In progress | Responsive Tk UI, category sidebar, source table, right detail drawer, star/pin, double-click to add to plan. | Add right-click context menu, simplify toolbar, and expose environment checks. |
+| Download plan/cart | MVP | Download Plan panel, add/remove/clear/export plan JSON, double-click source row to add, plan schema declares nonblocking download policy. | Send plan items into the download queue from the UI. |
+| Download engine | MVP | Nonblocking worker queue, progress snapshots, pause/resume/cancel, tests, pluggable transfer tools, HTTP(S) adapter with `.part` resume. | Wire HTTP jobs into the UI with visible progress and controls. |
+| External transfer tools | MVP | `python_internal`, `aria2c`, and `curl` profiles exist; commands are built as cross-platform argument lists. | Add runtime selection UI and optional `aria2c` install guidance. |
+| Database client interface | MVP | Local integration config, active database client selection, UI settings dialog, open/test configured client. | Add custom profile creation/editing directly in UI instead of editing JSON. |
+| SQL/database self-check | Planned | Requirement defined: detect manually deleted, pre-existing, imported, or drifted databases. | Build MySQL/PostgreSQL/SQLite introspection layer. |
+| Install registry | Skeleton | Install IDs, fingerprints, asset roles, provenance metadata, managed/unmanaged states. | Connect real downloaded/imported assets to install records automatically. |
+| Uninstall/delete database | Skeleton | Safe uninstall metadata exists; current flow marks registry assets removed, not destructive SQL. | Implement guarded SQL `DROP DATABASE` / file delete only for verified install IDs. |
+| Data cleaning pipeline | Planned | Need acknowledged for API/CSV/JSON/manual SQL normalization. | Define adapter contract for raw -> curated validation, schema fingerprinting, and error reports. |
+| Manual import support | Planned | Product requirement defined for CSV/JSON/manual SQL imports. | Add import wizard and provenance rules for user-provided files/tables. |
+| AI summary | MVP | Local Ollama and optional Gemini profile support can generate provider descriptions. | Add per-provider prompt controls, cache generated summaries, and UI status. |
+| Renderer bridge | Skeleton | Renderer contracts, GEBCO/HYG dataset IDs, copied `taichi_global_bathymetry.py`, renderer requirements documented. | Map installed dataset IDs to renderer-ready file paths and test with real assets. |
+| Taichi renderer health | Planned | Renderer copied into project but not refactored or performance-tested in this cycle. | Add smoke tests/config checks without forcing heavy renderer dependencies into launcher. |
+| Cross-platform setup | MVP | Git/GitHub, Docker, PowerShell/bash runners, example/local config split, UTF-8/LF rules, startup environment checks. | Add CI workflow and macOS/Windows setup notes. |
+| Agent skill packaging | Skeleton | Local `.codex/skills/apikeys-collection-launcher` draft exists. | Turn launcher operations into a documented agent skill interface. |
+| Documentation | In progress | `ARCHITECTURE.md`, `TECH_STACK.md`, renderer notes, GTD tracker, handoff docs exist. | Consolidate docs into `docs/` after path cleanup plan is approved. |
+
+## Status Legend
+
+| Status | Meaning |
+| --- | --- |
+| Planned | Requirement is known, but implementation has not started. |
+| Skeleton | Core shape exists, but not enough for normal user workflow. |
+| MVP | Works in a narrow tested path and can be built upon. |
+| In progress | Partially usable, active design/implementation still changing. |
+| Done | Stable enough that only maintenance is expected. |
