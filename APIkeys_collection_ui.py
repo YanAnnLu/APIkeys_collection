@@ -385,7 +385,7 @@ class ApiCollectionUi:
         scrollbar.pack(side=RIGHT, fill=Y)
         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
-        self.tree.bind("<Double-1>", lambda _event: self.open_detail_drawer())
+        self.tree.bind("<Double-1>", self.on_tree_double_click)
 
         self._build_detail_panel(content)
 
@@ -625,6 +625,15 @@ class ApiCollectionUi:
         elif column == f"#{len(TABLE_COLUMNS)}":
             self.run_row_action(item)
 
+    def on_tree_double_click(self, event: object) -> None:
+        region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
+        if region != "cell":
+            return
+        item = self.tree.identify_row(getattr(event, "y", 0))
+        if not item:
+            return
+        self.add_provider_to_plan(item)
+
     def on_tree_select(self, _event: object) -> None:
         selection = self.tree.selection()
         if not selection:
@@ -658,6 +667,19 @@ class ApiCollectionUi:
         row = self.row_by_provider_id(provider_id)
         label = row.name if row else provider_id
         self.status_var.set(f"{'已加入下載計畫' if var.get() else '已移出下載計畫'}：{label}")
+
+    def add_provider_to_plan(self, provider_id: str) -> None:
+        row = self.row_by_provider_id(provider_id)
+        if row is None:
+            return
+        var = self.selected.setdefault(provider_id, BooleanVar(value=False))
+        already_selected = var.get()
+        var.set(True)
+        self.active_provider_id = provider_id
+        self.render_table()
+        self.status_var.set(
+            f"{'已在下載計畫中' if already_selected else '已加入下載計畫'}：{row.name}"
+        )
 
     def selected_provider_ids(self) -> list[str]:
         return [provider_id for provider_id, var in self.selected.items() if var.get()]
@@ -939,10 +961,7 @@ class ApiCollectionUi:
         if not self.active_provider_id:
             messagebox.showinfo("尚未選取", "請先選取一個資料源。")
             return
-        self.selected.setdefault(self.active_provider_id, BooleanVar(value=False)).set(True)
-        self.render_table()
-        row = self.row_by_provider_id(self.active_provider_id)
-        self.status_var.set(f"已加入下載計畫：{row.name if row else self.active_provider_id}")
+        self.add_provider_to_plan(self.active_provider_id)
 
     def manage_active_provider(self) -> None:
         if not self.active_provider_id:
