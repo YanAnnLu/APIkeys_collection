@@ -36,15 +36,13 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
-from api_launcher.discovery import (
-    DEFAULT_SEEDS_NAME,
-    LOCAL_SEEDS_NAME,
-    ProviderSeed,
-    append_discovery_seed,
-    discover_provider_candidates,
-    load_all_discovery_seeds,
+from api_launcher.cli_discovery import (
+    add_discovery_args,
+    add_local_discovery_seed,
+    discover_source_candidates,
+    discovery_command_active,
 )
+from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
@@ -524,21 +522,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--write-sample-key-reference", help="write a sample key reference JSON")
     parser.add_argument("--write-credentials-template", action="store_true", help="write a private credentials template")
     parser.add_argument("--discover-datasets", action="store_true", help="placeholder for future provider-specific dataset adapters")
-    parser.add_argument("--discover-provider-candidates", action="store_true", help="crawl official source pages into reviewable provider candidates")
-    parser.add_argument("--provider-discovery-seeds", default=DEFAULT_SEEDS_NAME, help="JSON seed list for provider discovery")
-    parser.add_argument("--provider-discovery-local-seeds", default=LOCAL_SEEDS_NAME, help="local JSON seed list for user-added source sites")
-    parser.add_argument("--write-provider-candidates", default="provider_candidates.discovered.json", help="output JSON for discovered provider candidates")
-    parser.add_argument("--add-discovery-seed", action="store_true", help="append one local source-site seed for future provider discovery")
-    parser.add_argument("--seed-provider-id", default="", help="provider/source id for --add-discovery-seed")
-    parser.add_argument("--seed-name", default="", help="display name for --add-discovery-seed")
-    parser.add_argument("--seed-owner", default="", help="owner for --add-discovery-seed")
-    parser.add_argument("--seed-category", action="append", default=[], help="category for --add-discovery-seed; can be repeated")
-    parser.add_argument("--seed-scope", default="global", help="geographic scope for --add-discovery-seed")
-    parser.add_argument("--seed-homepage-url", default="", help="homepage URL for --add-discovery-seed")
-    parser.add_argument("--seed-docs-url", default="", help="docs URL for --add-discovery-seed")
-    parser.add_argument("--seed-api-base-url", default="", help="API base URL for --add-discovery-seed")
-    parser.add_argument("--seed-signup-url", default="", help="signup URL for --add-discovery-seed")
-    parser.add_argument("--seed-auth-type", default="unknown", help="expected auth type for --add-discovery-seed")
+    add_discovery_args(parser)
     parser.add_argument("--summary", action="store_true", help="print database summary")
     return parser.parse_args(argv)
 
@@ -560,8 +544,8 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.export_catalogs()
-            self.add_local_discovery_seed()
-            self.discover_source_candidates()
+            add_local_discovery_seed(self.args)
+            discover_source_candidates(self.conn, self.args)
             self.write_samples()
             self.handle_dataset_discovery()
             self.show_summary()
@@ -587,8 +571,7 @@ class CatalogLauncherCli:
             bool(self.args.write_sample_key_reference),
             self.args.write_credentials_template,
             self.args.discover_datasets,
-            self.args.discover_provider_candidates,
-            self.args.add_discovery_seed,
+            discovery_command_active(self.args),
             self.args.summary,
         )
         if any(command_flags):
@@ -648,53 +631,6 @@ class CatalogLauncherCli:
         for output_path, exporter in exporters:
             if output_path:
                 exporter(self.conn, Path(output_path))
-
-    def discover_source_candidates(self) -> None:
-        if not self.args.discover_provider_candidates:
-            return
-        seed_path = resolve_project_path(self.args.provider_discovery_seeds)
-        local_seed_path = resolve_project_path(self.args.provider_discovery_local_seeds)
-        output_path = resolve_project_path(self.args.write_provider_candidates)
-        existing = {provider.provider_id for provider in load_providers(self.conn)}
-        seeds = load_all_discovery_seeds(seed_path, local_seed_path)
-        candidates = discover_provider_candidates(seeds, existing_provider_ids=existing, timeout=self.args.timeout)
-        payload = {
-            "schema_version": 1,
-            "created_at": utc_now_iso(),
-            "role": "reviewable source candidates; metadata only; no API secrets collected",
-            "candidate_count": len(candidates),
-            "candidates": [candidate.to_dict() for candidate in candidates],
-        }
-        output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"[discover] wrote {len(candidates)} provider candidates to {output_path}")
-
-    def add_local_discovery_seed(self) -> None:
-        if not self.args.add_discovery_seed:
-            return
-        required = {
-            "--seed-provider-id": self.args.seed_provider_id,
-            "--seed-name": self.args.seed_name,
-            "--seed-owner": self.args.seed_owner,
-            "--seed-homepage-url": self.args.seed_homepage_url,
-        }
-        missing = [flag for flag, value in required.items() if not value.strip()]
-        if missing:
-            raise SystemExit(f"--add-discovery-seed missing required fields: {', '.join(missing)}")
-        seed = ProviderSeed(
-            provider_id=self.args.seed_provider_id.strip(),
-            name=self.args.seed_name.strip(),
-            owner=self.args.seed_owner.strip(),
-            categories=tuple(self.args.seed_category or ["custom"]),
-            geographic_scope=self.args.seed_scope.strip() or "global",
-            homepage_url=self.args.seed_homepage_url.strip(),
-            docs_url=self.args.seed_docs_url.strip(),
-            api_base_url=self.args.seed_api_base_url.strip(),
-            signup_url=self.args.seed_signup_url.strip(),
-            expected_auth_type=self.args.seed_auth_type.strip() or "unknown",
-        )
-        path = resolve_project_path(self.args.provider_discovery_local_seeds)
-        append_discovery_seed(path, seed)
-        print(f"[discover] added local source seed {seed.provider_id} to {path}")
 
     def write_samples(self) -> None:
         sample_writers = (
