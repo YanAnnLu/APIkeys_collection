@@ -69,6 +69,7 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
             "git status --short --branch",
             "$env:PYTHONDONTWRITEBYTECODE='1'; py -m unittest discover -s tests",
             "py APIkeys_collection.py --verify-downloads --manifest-health",
+            "py APIkeys_collection.py --verify-downloads-json",
             "docker compose -f docker-compose.yml run --rm --build launcher",
             "```",
             "",

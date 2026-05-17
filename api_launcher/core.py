@@ -85,7 +85,7 @@ from api_launcher.renderer_contracts import (
     TAICHI_GLOBAL_BATHYMETRY_CONTRACTS,
     TAICHI_GLOBAL_BATHYMETRY_RENDERER_ID,
 )
-from api_launcher.repair import repair_summary, scan_download_manifests
+from api_launcher.repair import download_repair_agent_payload, repair_summary, scan_download_manifests
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,
@@ -549,6 +549,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-categories", action="store_true", help="print provider categories and exit")
     parser.add_argument("--self-check", action="store_true", help="refresh launcher remote/local status from crawl metadata")
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
+    parser.add_argument("--verify-downloads-json", action="store_true", help="verify downloaded payloads and emit agent-readable JSON")
+    parser.add_argument("--downloads-root", default="downloads", help="directory containing download sidecar manifests")
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
@@ -654,6 +656,7 @@ class CatalogLauncherCli:
             self.args.list_categories,
             self.args.self_check,
             self.args.verify_downloads,
+            self.args.verify_downloads_json,
             self.args.manifest_health,
             self.args.list_manifests,
             self.args.show_logs > 0,
@@ -728,8 +731,8 @@ class CatalogLauncherCli:
             print(f"[self-check] refreshed {count} provider states")
 
     def verify_downloads(self) -> None:
-        if self.args.verify_downloads:
-            results = scan_download_manifests()
+        if self.args.verify_downloads or self.args.verify_downloads_json:
+            results = scan_download_manifests(resolve_project_path(self.args.downloads_root))
             summary = repair_summary(results)
             for result in results:
                 if result.status == "manifest_error":
@@ -741,6 +744,9 @@ class CatalogLauncherCli:
                     status=result.status,
                     verify_error=result.message if result.needs_repair else "",
                 )
+            if self.args.verify_downloads_json:
+                print(json.dumps(download_repair_agent_payload(results), ensure_ascii=False, indent=2))
+                return
             print(f"[verify-downloads] checked {len(results)} manifests: {summary}")
             for result in results:
                 if result.needs_repair:

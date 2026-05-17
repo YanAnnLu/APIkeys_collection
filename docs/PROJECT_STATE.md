@@ -28,8 +28,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
   verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.
-- CLI handoff and observability commands now exist: `--verify-downloads`, `--manifest-health`, `--show-logs`, and
-  `--handoff-report`.
+- CLI handoff and observability commands now exist: `--verify-downloads`, `--verify-downloads-json`,
+  `--manifest-health`, `--show-logs`, and `--handoff-report`.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
   `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
 - Database self-check now verifies managed SQLite database and table assets from the install registry. Whole-database
@@ -42,6 +42,8 @@ The project is not a secret harvester. Credential files are templates for user-o
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
   `--self-check-databases-json` for UI or agent handoff workflows.
+- Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
+  summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese without
   executing destructive SQL. UI language is configurable through `ui_language` in local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
@@ -160,9 +162,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 1. Add per-asset SQL profile/schema selection instead of relying only on default MySQL/PostgreSQL env vars.
 2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
-3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand repair suggestions to adapter-specific datasets.
+3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
-5. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
-6. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-7. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-8. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
+6. Add NOAA/NASA or ERDDAP dataset adapters with real download manifests.
+7. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+8. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+9. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.

@@ -205,7 +205,8 @@ downloading full replacements.
 
 Sidecar manifests are also registered in SQLite table `dataset_asset_manifests`. CLI `--verify-downloads` scans the
 manifest files, verifies payload presence/size/SHA-256, and syncs the health status back into SQLite for future UI and
-agent repair workflows.
+agent repair workflows. `--verify-downloads-json` emits the same scan as agent-readable JSON with issues, repair
+suggestions, and safe HTTP(S) requeue plan entries.
 
 `APIkeys_collection_ui.py` can now submit download-plan rows into the
 nonblocking queue, display job progress, and pause/resume/cancel selected jobs.

@@ -24,6 +24,20 @@ class ManifestVerification:
     def needs_repair(self) -> bool:
         return self.status in {"missing", "size_mismatch", "checksum_mismatch", "manifest_error"}
 
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "manifest_path": str(self.manifest_path),
+            "payload_path": str(self.payload_path) if str(self.payload_path) != "." else "",
+            "status": self.status,
+            "provider_id": self.provider_id,
+            "dataset_uid": self.dataset_uid,
+            "dataset_id": self.dataset_id,
+            "version": self.version,
+            "source_url": self.source_url,
+            "message": self.message,
+            "needs_repair": self.needs_repair,
+        }
+
 
 @dataclass(frozen=True)
 class RepairSuggestion:
@@ -32,6 +46,15 @@ class RepairSuggestion:
     description: str
     can_requeue: bool = False
     plan_entry: dict[str, object] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "action_id": self.action_id,
+            "label": self.label,
+            "description": self.description,
+            "can_requeue": self.can_requeue,
+            "plan_entry": self.plan_entry,
+        }
 
 
 def verify_manifest_file(path: str | Path) -> ManifestVerification:
@@ -69,6 +92,31 @@ def repair_summary(results: list[ManifestVerification]) -> dict[str, int]:
     for result in results:
         summary[result.status] = summary.get(result.status, 0) + 1
     return summary
+
+
+def download_repair_agent_payload(results: list[ManifestVerification]) -> dict[str, object]:
+    result_payloads = []
+    issue_payloads = []
+    requeue_count = 0
+    for result in results:
+        suggestion = repair_suggestion_for_result(result)
+        payload = {
+            **result.as_dict(),
+            "repair_suggestion": suggestion.as_dict(),
+        }
+        result_payloads.append(payload)
+        if result.needs_repair:
+            issue_payloads.append(payload)
+        if suggestion.can_requeue:
+            requeue_count += 1
+    return {
+        "summary": repair_summary(results),
+        "checked_count": len(results),
+        "issue_count": len(issue_payloads),
+        "requeue_count": requeue_count,
+        "issues": issue_payloads,
+        "results": result_payloads,
+    }
 
 
 def repair_suggestion_for_result(result: ManifestVerification) -> RepairSuggestion:

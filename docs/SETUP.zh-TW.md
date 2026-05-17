@@ -87,6 +87,7 @@ git pull
 git status --short --branch
 python3 -m unittest discover -s tests
 python3 APIkeys_collection.py --verify-downloads --manifest-health --show-logs 20
+python3 APIkeys_collection.py --verify-downloads-json
 ```
 
 ## 注意事項
