@@ -70,6 +70,23 @@ Provider/source discovery currently uses only the Python standard library:
 Discovery searches metadata and documentation only. It must not collect real API keys, tokens, passwords, cookies, or
 other secret values.
 
+The built-in seed list is intentionally broad but shallow. It is a discovery starting point, not a hard-coded final
+catalog. As of 2026-05-17 it contains 30 official source-site seeds across weather, climate, ocean, biodiversity,
+geospatial, statistics, research metadata, and Taiwan regional open data.
+
+Dataset-specific discovery is separate from source-site discovery:
+
+- `api_launcher/adapters/base.py`: adapter protocol and stable dataset UID helper.
+- `api_launcher/dataset_adapters.py`: registry for provider-specific dataset adapters.
+- `api_launcher/adapters/hyg.py`: first concrete adapter; maps HYG Database to the HYG v3.8 star catalog dataset using
+  the renderer contract ID.
+
+Run the HYG dataset adapter smoke path with:
+
+```powershell
+py APIkeys_collection.py --init-db --seed --discover-datasets --provider hyg_database --db state\hyg_adapter_smoke.sqlite --summary
+```
+
 ## Data Pipeline
 
 ```text
@@ -89,6 +106,10 @@ API, CSV, JSON, manual SQL imports, and derived outputs must carry provenance:
 - `schema_fingerprint`
 
 This prevents derived analysis tables from being mistaken for official upstream data.
+
+Future AI/LLM workflows should not treat every downloaded file as training-ready. Provider and dataset metadata should
+eventually include license, attribution, redistribution, commercial-use, and `training_allowed` fields. Numeric grids and
+tables may be better suited for RAG, SQL agents, feature stores, or domain models than direct language-model training.
 
 ## Download Engine
 

@@ -182,7 +182,7 @@
       "renderer_bridge"
     ],
     "geographic_scope": "celestial",
-    "docs_url": "https://github.com/astronexus/HYG-Database",
+    "docs_url": "https://codeberg.org/astronexus/hyg",
     "api_base_url": "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/v3/hyg_v38.csv.gz",
     "signup_url": "",
     "auth_type": "no_key_for_public_data",

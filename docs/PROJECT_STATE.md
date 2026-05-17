@@ -22,7 +22,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars.
 - `APIkeys_collection_ui.py` is a Tk launcher prototype for selecting providers and exporting a download plan.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
-- Dataset-level adapter interfaces now exist, but provider-specific adapters such as GEBCO or NOAA are not implemented yet.
+- Dataset-level adapter interfaces now exist. The first concrete provider-specific adapter is `HYGStarCatalogAdapter`,
+  which discovers the HYG v3.8 star catalog dataset from the HYG provider into the dataset table.
 
 Current SQLite counts observed on this machine:
 
@@ -76,7 +77,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - `taichi_global_bathymetry.py` is treated as a downstream visualization engine. The launcher should produce bridge
   assets such as GEBCO topography grids and HYG star catalogs, then register them in `render_bridge_assets`.
 - Provider discovery now distinguishes source sites from canonical datasets. Built-in and local seeds produce reviewable
-  candidates with dedupe keys; no API secret values are collected.
+  candidates with dedupe keys; no API secret values are collected. Built-in source-site discovery seeds currently cover
+  30 official sources across climate, ocean, biodiversity, geospatial, statistics, research metadata, and Taiwan open data.
+- Dataset adapter discovery is now separate from source-site discovery. `api_launcher/dataset_adapters.py` owns the
+  adapter registry, and the HYG adapter uses the shared renderer contract ID for the HYG v3.8 star catalog.
 - Product metaphor: providers are like publishers/source stations, while datasets/databases are the library items.
   Dedupe should prefer canonical dataset identity over provider names.
 - Local database tools are profile-driven through `launcher_integrations.local.json`; MySQL Workbench is only the current user's profile, not a hard-coded app dependency.
@@ -99,5 +103,6 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 1. Refactor the single large core file into a small package.
 2. Keep the UI import path stable by re-exporting the public API from `APIkeys_collection.py`.
-3. Add the first dataset adapter candidate: GEBCO or NOAA NCEI CDO.
-4. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.
+3. Add GEBCO or NOAA/NASA dataset adapters with real download manifests.
+4. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+5. Add download queue state that matches the launcher metaphor: queued, checking, downloading, paused, installed, update_available, failed.

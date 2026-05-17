@@ -42,6 +42,7 @@ from api_launcher.cli_discovery import (
     discover_source_candidates,
     discovery_command_active,
 )
+from api_launcher.dataset_adapters import adapters_for_provider
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
@@ -657,7 +658,17 @@ class CatalogLauncherCli:
 
     def handle_dataset_discovery(self) -> None:
         if self.args.discover_datasets:
-            raise SystemExit("Dataset discovery adapters are not implemented yet. Next target: NOAA CDO and GEBCO adapters.")
+            providers = self.selected_providers(required=False) if self.args.provider else load_providers(self.conn)
+            discovered = 0
+            for provider in providers:
+                for adapter in adapters_for_provider(provider):
+                    datasets = adapter.discover(provider)
+                    for dataset in datasets:
+                        self.repository.upsert_dataset(dataset)
+                    discovered += len(datasets)
+                    print(f"[dataset] {provider.provider_id}: {len(datasets)} datasets via {adapter.__class__.__name__}")
+            if discovered == 0:
+                print("[dataset] no dataset adapters matched the selected providers")
 
     def show_summary(self) -> None:
         if self.args.summary:
