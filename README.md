@@ -21,6 +21,8 @@ reference file, templates, and exports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
+- `docs/DOCS_INDEX.zh-TW.md`: suggested reading order and next-stage documentation cleanup plan.
+- `docs/PRODUCT_POSITIONING.zh-TW.md`: Chinese product positioning note for the evolved Steam-like dataset launcher and virtual twin data pipeline.
 - `docs/PROJECT_GTD.md`: current product status and next steps.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.

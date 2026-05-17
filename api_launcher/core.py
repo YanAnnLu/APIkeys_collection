@@ -85,7 +85,10 @@ from api_launcher.repository import (
     row_categories,
     seed_providers,
 )
+from api_launcher.render_effects import DEFAULT_RENDER_EFFECT_LAYERS
+from api_launcher.rendering_profiles import build_render_backend_profile
 from api_launcher.registry import provider_from_dict
+from api_launcher.simulation_bridge import DEFAULT_SIMULATION_BACKENDS, DEFAULT_SIMULATION_INPUT_CONTRACTS
 from api_launcher.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
 from api_launcher.tile_manifests import build_global_grid_manifest, write_tile_manifest
 from api_launcher.unreal_bridge import build_unreal_bridge_targets
@@ -542,6 +545,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
     parser.add_argument("--unreal-bridge-plan", action="store_true", help="print planned Unreal bridge asset sync targets")
+    parser.add_argument("--show-render-profile", action="append", default=[], help="print inferred renderer profile for a frontend, e.g. taichi or unreal")
+    parser.add_argument("--list-render-effects", action="store_true", help="print data-driven render effect layer contracts")
+    parser.add_argument("--list-simulation-contracts", action="store_true", help="print simulation bridge input/backend contracts")
     parser.add_argument("--write-tile-manifest", help="write a global tile manifest skeleton JSON")
     parser.add_argument("--tile-dataset-uid", default="gebco:2025", help="dataset uid for --write-tile-manifest")
     parser.add_argument("--tile-version", default="2025", help="dataset version for --write-tile-manifest")
@@ -584,6 +590,9 @@ class CatalogLauncherCli:
             self.show_logs()
             self.write_handoff_report()
             self.show_unreal_bridge_plan()
+            self.show_render_profiles()
+            self.list_render_effects()
+            self.list_simulation_contracts()
             self.write_tile_manifest()
             self.export_catalogs()
             add_local_discovery_seed(self.args)
@@ -620,6 +629,9 @@ class CatalogLauncherCli:
             self.args.show_logs > 0,
             bool(self.args.handoff_report),
             self.args.unreal_bridge_plan,
+            bool(self.args.show_render_profile),
+            self.args.list_render_effects,
+            self.args.list_simulation_contracts,
             bool(self.args.write_tile_manifest),
             bool(self.args.export_json),
             bool(self.args.export_csv),
@@ -747,6 +759,49 @@ class CatalogLauncherCli:
                 return
             for target in targets:
                 print(f"[unreal] {target.status:14s} {target.asset_role:18s} {target.source_path} -> {target.target_path or target.message}")
+
+    def show_render_profiles(self) -> None:
+        for frontend in self.args.show_render_profile:
+            profile = build_render_backend_profile(frontend)
+            backend_order = ",".join(profile.backend_order) if profile.backend_order else "-"
+            graphics_order = ",".join(profile.graphics_api_order) if profile.graphics_api_order else "-"
+            print(
+                "[render-profile] "
+                f"{profile.id} frontend={profile.frontend} platform={profile.platform_name} "
+                f"tier={profile.performance_tier} backends={backend_order} graphics={graphics_order} "
+                f"tiles={profile.max_parallel_tiles} radius={profile.default_stream_radius_tiles} fps={profile.target_fps}"
+            )
+
+    def list_render_effects(self) -> None:
+        if not self.args.list_render_effects:
+            return
+        for layer in DEFAULT_RENDER_EFFECT_LAYERS:
+            datasets = ",".join(layer.driving_datasets)
+            requirements = ",".join(layer.data_requirements)
+            print(
+                "[render-effect] "
+                f"{layer.layer_id} domain={layer.domain} datasets={datasets} "
+                f"requirements={requirements}"
+            )
+
+    def list_simulation_contracts(self) -> None:
+        if not self.args.list_simulation_contracts:
+            return
+        for contract in DEFAULT_SIMULATION_INPUT_CONTRACTS:
+            required = ",".join(contract.required_roles)
+            optional = ",".join(contract.optional_roles) or "-"
+            print(
+                "[simulation-input] "
+                f"{contract.input_id} domain={contract.domain} required={required} optional={optional}"
+            )
+        for backend in DEFAULT_SIMULATION_BACKENDS:
+            inputs = ",".join(backend.input_contracts)
+            outputs = ",".join(backend.output_roles)
+            print(
+                "[simulation-backend] "
+                f"{backend.backend_id} domain={backend.domain} status={backend.implementation_status} "
+                f"maturity={backend.maturity} inputs={inputs} outputs={outputs}"
+            )
 
     def write_tile_manifest(self) -> None:
         if not self.args.write_tile_manifest:
