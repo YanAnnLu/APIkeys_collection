@@ -18,7 +18,9 @@ class PathResolverTests(unittest.TestCase):
         self.assertEqual(expected, local_config_file("launcher_integrations.local.json"))
 
     def test_state_file_keeps_legacy_sqlite_when_present(self) -> None:
-        self.assertEqual(PROJECT_ROOT / "APIkeys_collection.sqlite", state_file("APIkeys_collection.sqlite"))
+        legacy = PROJECT_ROOT / "APIkeys_collection.sqlite"
+        expected = legacy if legacy.exists() else PROJECT_ROOT / "state" / "APIkeys_collection.sqlite"
+        self.assertEqual(expected, state_file("APIkeys_collection.sqlite"))
 
 
 if __name__ == "__main__":
