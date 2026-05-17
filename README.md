@@ -10,6 +10,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Generates `.env.example` and `api_keys.txt.template`.
 - Optionally fetches small metadata pages from whitelisted official URLs.
 - Plans and runs direct downloads only when the source is explicitly safe enough for the current downloader.
+- Exports adapter-discovered dataset-version download plans with direct/review eligibility.
 - Does not search for leaked keys or scrape secrets.
 
 ## Current Launcher Features
@@ -34,6 +35,7 @@ reference file, templates, and exports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
+- `docs/DATASET_TYPE_MAP.zh-TW.md`: beginner-friendly taxonomy for dataset families, storage choices, analysis tools, and rendering targets.
 - `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and daily-use guide.
 - `docs/DOCS_INDEX.zh-TW.md`: suggested reading order and next-stage documentation cleanup plan.
 - `docs/PRODUCT_POSITIONING.zh-TW.md`: Chinese product positioning note for the evolved Steam-like dataset launcher and virtual twin data pipeline.

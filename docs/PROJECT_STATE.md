@@ -68,7 +68,16 @@ The project is not a secret harvester. Credential files are templates for user-o
   point-in-polygon checks, but PostGIS is the preferred backend for heavier spatial analysis and tiling.
 - Financial market data should be modeled as time-series ingest, not static file versions. Store `event_time`,
   `received_at`, and `ingest_run_id`; keep revisions/backfills explicit; use MySQL only for MVP-scale storage and
-  prefer TimescaleDB/ClickHouse/Parquet-DuckDB style backends for larger tick or intraday history.
+  prefer TimescaleDB/ClickHouse/Parquet-DuckDB style backends for larger tick or intraday history. TradingView-like
+  charting is the UX/rendering benchmark for time-series analysis, separate from Taichi/Unreal globe rendering.
+- Collider and large-instrument data should be modeled as scientific event/array data. SQL should hold metadata,
+  file indexes, run IDs, calibration versions, provenance, and manifests; raw payloads should usually remain in
+  ROOT/HDF5/Parquet/Zarr/FITS/NetCDF/object storage and be analyzed with ROOT/uproot, DuckDB/Parquet, Dask/Spark,
+  ClickHouse, or domain-specific tooling.
+- Cultural heritage, multimedia, and 3D collections should be modeled as asset bundles. SQL should index metadata,
+  location, period, licenses, thumbnails, versions, and provenance; raw photos/video/audio/meshes/point clouds/BIM
+  files/textures should remain in filesystem or object storage with manifests and viewer hints for Three.js, Cesium,
+  Unreal, Blender, or GLTF pipelines.
 
 Current SQLite counts observed on this machine:
 

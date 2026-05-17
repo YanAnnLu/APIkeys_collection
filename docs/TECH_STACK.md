@@ -107,6 +107,16 @@ Version selection is generic, not GEBCO-specific. Adapters may expose `metadata.
 `api_launcher/dataset_versions.py` layer converts any dataset into sorted version options for CLI/UI use. The Tk UI
 uses that shared function to build the right-click dataset-version menu dynamically.
 
+The CLI can export adapter-discovered dataset versions into a download-plan JSON:
+
+```powershell
+py APIkeys_collection.py --init-db --seed --provider hyg_database --export-dataset-plan state\hyg_dataset_plan.json
+```
+
+Direct file URLs get `download_url`, `target_path`, `dataset_version`, and `use_staging` fields. URLs that look like
+landing pages, API selectors, or download portals are deliberately marked `adapter_required` with an
+`adapter_review_url`, so the downloader does not accidentally save an HTML page as if it were a dataset.
+
 Dataset transitions should avoid brute-force delete-and-redownload when possible. The generic planner in
 `api_launcher/dataset_updates.py` decides whether to install new data, skip an already-current version, upgrade,
 downgrade, move to an intermediate newer/older version, compare before updating, or keep an older compatibility version

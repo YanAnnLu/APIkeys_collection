@@ -63,6 +63,14 @@ Seed 只能代表「官方入口」或「可探索來源」，不能保證它指
 - 下載計畫需要記錄使用者選擇的 dataset version。
 - 未來同一資料集應可在同一計畫中同時排入多個版本，用於比較、重現研究或 migration 測試。
 
+Dataset-version 下載計畫也是通用機制。`api_launcher/plans.py` 可把 adapter 發現的 `DatasetVersionOption` 轉成 plan entry，包含 `dataset_version`、direct/review eligibility、staging 設定，以及穩定的 `downloads/{provider}/{dataset}/{version}/...` 目標路徑。CLI 用法：
+
+```bash
+python3 APIkeys_collection.py --init-db --seed --provider hyg_database --export-dataset-plan state/hyg_dataset_plan.json
+```
+
+若版本 URL 看起來是入口頁、API endpoint 或下載 selector，而不是具體檔案，計畫會標記 `adapter_required`，並把網址放在 `adapter_review_url`；不要直接交給 HTTP downloader。
+
 ## 版本轉換與增量更新
 
 版本切換不一定永遠是「更新到最新版」。使用者可能從很早期資料移到中間版本，也可能為了重現研究而降版本。

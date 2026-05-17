@@ -78,7 +78,12 @@ from api_launcher.library_actions import LibraryContext, build_library_actions, 
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
 from api_launcher.paths import catalog_file
-from api_launcher.plans import build_download_plan
+from api_launcher.plans import (
+    build_dataset_download_plan,
+    build_download_plan,
+    provider_dataset_version_plan_entry,
+    provider_plan_entry,
+)
 from api_launcher.renderer_contracts import (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
     HYG_V38_STAR_CONTRACT,
@@ -587,6 +592,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--export-json", help="write provider catalog JSON")
     parser.add_argument("--export-csv", help="write provider catalog CSV")
     parser.add_argument("--export-markdown", help="write provider catalog Markdown")
+    parser.add_argument("--export-dataset-plan", help="write adapter-discovered dataset-version download plan JSON")
     parser.add_argument("--write-sample-registry", help="write a sample provider registry JSON")
     parser.add_argument("--write-sample-key-reference", help="write a sample key reference JSON")
     parser.add_argument("--write-credentials-template", action="store_true", help="write a private credentials template")
@@ -631,6 +637,7 @@ class CatalogLauncherCli:
             discover_source_candidates(self.conn, self.args)
             self.write_samples()
             self.handle_dataset_discovery()
+            self.export_dataset_plan()
             self.show_summary()
             return 0
         except Exception as exc:
@@ -675,6 +682,7 @@ class CatalogLauncherCli:
             bool(self.args.export_json),
             bool(self.args.export_csv),
             bool(self.args.export_markdown),
+            bool(self.args.export_dataset_plan),
             bool(self.args.write_sample_registry),
             bool(self.args.write_sample_key_reference),
             self.args.write_credentials_template,
@@ -1003,6 +1011,42 @@ class CatalogLauncherCli:
                     print(f"[dataset] {provider.provider_id}: {len(datasets)} datasets via {adapter.__class__.__name__}")
             if discovered == 0:
                 print("[dataset] no dataset adapters matched the selected providers")
+
+    def export_dataset_plan(self) -> None:
+        if not self.args.export_dataset_plan:
+            return
+        providers = self.selected_providers(required=False) if (
+            self.args.provider or self.args.category or self.args.auth_type or self.args.all
+        ) else load_providers(self.conn)
+        entries: list[dict[str, object]] = []
+        discovered_count = 0
+        for provider in providers:
+            datasets = list(self.repository.list_datasets(provider.provider_id))
+            if not datasets:
+                for adapter in adapters_for_provider(provider):
+                    discovered = adapter.discover(provider)
+                    for dataset in discovered:
+                        self.repository.upsert_dataset(dataset)
+                    datasets.extend(discovered)
+                    discovered_count += len(discovered)
+            for dataset in datasets:
+                for option in version_options_for_dataset(dataset):
+                    entries.append(
+                        provider_dataset_version_plan_entry(
+                            provider,
+                            dataset,
+                            option,
+                            downloads_root=self.args.downloads_root,
+                        )
+                    )
+        output_path = resolve_project_path(self.args.export_dataset_plan)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = build_dataset_download_plan(entries, plan_name=output_path.stem)
+        output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(
+            "[dataset-plan] "
+            f"wrote {output_path} entries={len(entries)} discovered={discovered_count}"
+        )
 
     def show_summary(self) -> None:
         if self.args.summary:

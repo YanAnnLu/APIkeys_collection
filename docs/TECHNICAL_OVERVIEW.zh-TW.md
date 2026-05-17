@@ -10,6 +10,8 @@ APIkeys Collection 是一個類 Steam 的資料庫與資料源啟動器。它的
 
 它尚未完成的部分包括：完整 provider-specific adapters、SQL 自檢、資料清洗流程、手動 CSV/JSON 匯入、完整 UI 右鍵選單、資料庫安全刪除流程。
 
+若要先建立資料類型概念，請讀 `docs/DATASET_TYPE_MAP.zh-TW.md`。那份文件整理表格、GIS、時間序列、科學陣列、粒子事件、多媒體/3D、文件、圖網路與串流資料各自適合的儲存、分析與渲染方向。
+
 ## 主要流程
 
 這份專案要同時保留兩件事：
@@ -279,6 +281,20 @@ MySQL spatial table 可作為 MVP：它能存 `POINT` / `POLYGON` / `MULTIPOLYGO
 | `realtime_stream` | 即時報價/tick/成交資料；即使版本相同也要維持 ingest。 |
 
 金融資料至少應保留 `event_time`（市場發生時間）、`received_at`（本機收到時間）、`ingest_run_id`（匯入批次）。若資料商有回補或修正，還要保留 `revision` 或 `source_sequence`，避免覆蓋掉「當時我們看到的資料」。MySQL spatial/relational table 可作 MVP；大量 tick 或長期回測應優先考慮 PostgreSQL + TimescaleDB、ClickHouse、Parquet/DuckDB，Redis/Kafka 只適合作熱資料串流或中繼，不應作唯一長期存檔。
+
+時間序列資料也應有自己的 renderer/frontend 對標。地理資料可以對標 Taichi/Unreal globe；金融與其他時間序列資料則可把 TradingView 視為互動體驗參考：K 線、成交量、技術指標、多時間週期切換、縮放/拖曳、十字游標、即時更新與回放。這裡的意思不是立刻整合 TradingView 服務，而是提醒後續前端與資料契約要能支撐「TradingView-like chart」這類可互動的時序分析畫面。
+
+## 大型科學實驗與事件資料
+
+高能粒子對撞機、天文巡天、基因定序或大型感測器陣列資料，不應被硬塞成一般 SQL 資料庫。這類資料通常是大量 event records、陣列、影像、波形或高維特徵，原始資料更適合保留在 ROOT、HDF5、Parquet、Zarr、FITS、NetCDF 或物件儲存中，再用專門分析工具讀取。
+
+SQL 在這裡仍然有用，但角色偏 metadata/index：實驗批次、run ID、檔案清單、探測器設定、校準版本、provenance、權限、標註與品質旗標。MVP 可以先用 SQLite/MySQL 記錄檔案索引與 manifest；若要分析大量事件資料，應優先考慮 ROOT/uproot、HDF5、Parquet/DuckDB、Dask/Spark、ClickHouse 或物件儲存搭配 columnar query，而不是把所有 raw event 塞進 MySQL。
+
+## 文化資產、多媒體與 3D 模型資料
+
+歷史建築、博物館藏品、考古現場、城市掃描或數位典藏資料，也不是單純 SQL 表格。這類資料可能同時包含照片、影片、音訊、3D mesh、點雲、材質貼圖、BIM/IFC、GLTF/GLB、OBJ、USD、地理座標、年代、作者、授權與修復紀錄。
+
+SQL 適合管理資產目錄、地點、時間、版本、授權、檔案索引、縮圖、標籤與 provenance；原始多媒體與 3D asset 應保留在檔案系統或物件儲存，並用 manifest 記錄檔案群、checksum、LOD、座標系、材質依賴與授權。GIS 可處理地點與空間查詢；Three.js/Cesium/Unreal/Blender/GLTF 工具鏈則更適合作為 3D 檢視與渲染目標。
 
 ## AI 輔助模型與 Google 登入
 

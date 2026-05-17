@@ -14,7 +14,8 @@
 | 4 | `ARCHITECTURE.md` | 看總 pipeline 與模組邊界。 |
 | 5 | `USER_GUIDE.zh-TW.md` | 初學者/使用者操作指南：UI、AI 登入、提供商圖示、常用操作。 |
 | 6 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
-| 7 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
+| 7 | `DATASET_TYPE_MAP.zh-TW.md` | 初學者友善的資料類型地圖：不同資料該用什麼儲存、分析、渲染方式。 |
+| 8 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
 
 ## 可合併候選
 
@@ -24,6 +25,7 @@
 | `RENDER_FRONTENDS.zh-TW.md` | 長期可併入 `TECHNICAL_OVERVIEW.zh-TW.md` 的 renderer/frontends 章節。 |
 | `FAILURE_MODES.zh-TW.md` | 保留為附錄，和 repair/logs 功能同步更新。 |
 | `DATASET_DISCOVERY_NOTES.zh-TW.md` | 保留為 discovery/provider adapter 附錄。 |
+| `DATASET_TYPE_MAP.zh-TW.md` | 保留為概念層附錄，也可在成熟後併入中文技術總覽。 |
 | `TECH_STACK.md` | 可保留英文/雙語技術棧，但避免和中文 overview 重複太多。 |
 | `PROJECT_STATE.md` | 可被 `PROJECT_GTD.md` 與 handoff report 取代，之後考慮縮短。 |
 
@@ -38,6 +40,7 @@ docs/
   PROJECT_GTD.md
   ARCHITECTURE.md
   TECHNICAL_OVERVIEW.zh-TW.md
+  DATASET_TYPE_MAP.zh-TW.md
   SETUP.zh-TW.md
   appendices/
     discovery.zh-TW.md
