@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Any
 
 
 @dataclasses.dataclass(frozen=True)
@@ -67,3 +68,24 @@ class ProviderCatalogEntry:
     install_id: str
     install_fingerprint: str
     is_starred: bool
+
+
+@dataclasses.dataclass(frozen=True)
+class Dataset:
+    dataset_uid: str
+    provider_id: str
+    dataset_id: str
+    title: str
+    categories: tuple[str, ...]
+    data_type: str = ""
+    native_format: str = ""
+    geographic_scope: str = ""
+    temporal_coverage: str = ""
+    landing_url: str = ""
+    api_url: str = ""
+    license_url: str = ""
+    version: str = ""
+    remote_updated_at: str = ""
+    remote_etag: str = ""
+    remote_hash: str = ""
+    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)

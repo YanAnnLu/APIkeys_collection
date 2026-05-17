@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from api_launcher.db import SCRIPT_DIR, init_db, resolve_project_path, utc_now_iso
-from api_launcher.models import Provider, ProviderCatalogEntry
+from api_launcher.models import Dataset, Provider, ProviderCatalogEntry
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
 from api_launcher.sql_assets import database_uninstall_command
 
@@ -171,6 +171,28 @@ def load_providers(
     return [provider_from_row(row) for row in rows]
 
 
+def dataset_from_row(row: sqlite3.Row) -> Dataset:
+    return Dataset(
+        dataset_uid=row["dataset_uid"],
+        provider_id=row["provider_id"],
+        dataset_id=row["dataset_id"],
+        title=row["title"],
+        categories=tuple(json.loads(row["categories_json"])),
+        data_type=row["data_type"] or "",
+        native_format=row["native_format"] or "",
+        geographic_scope=row["geographic_scope"] or "",
+        temporal_coverage=row["temporal_coverage"] or "",
+        landing_url=row["landing_url"] or "",
+        api_url=row["api_url"] or "",
+        license_url=row["license_url"] or "",
+        version=row["version"] or "",
+        remote_updated_at=row["remote_updated_at"] or "",
+        remote_etag=row["remote_etag"] or "",
+        remote_hash=row["remote_hash"] or "",
+        metadata=json.loads(row["metadata_json"] or "{}"),
+    )
+
+
 class ApiCatalogRepository:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -186,6 +208,83 @@ class ApiCatalogRepository:
 
     def load_providers(self, provider_ids: list[str] | None = None) -> list[Provider]:
         return load_providers(self.conn, provider_ids)
+
+    def upsert_dataset(self, dataset: Dataset) -> None:
+        now = utc_now_iso()
+        existing = self.conn.execute(
+            "SELECT created_at FROM datasets WHERE dataset_uid = ?",
+            (dataset.dataset_uid,),
+        ).fetchone()
+        created_at = existing["created_at"] if existing else now
+        self.conn.execute(
+            """
+            INSERT INTO datasets (
+                dataset_uid, provider_id, dataset_id, title, categories_json,
+                data_type, native_format, geographic_scope, temporal_coverage,
+                landing_url, api_url, license_url, version, remote_updated_at,
+                remote_etag, remote_hash, metadata_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(dataset_uid) DO UPDATE SET
+                provider_id = excluded.provider_id,
+                dataset_id = excluded.dataset_id,
+                title = excluded.title,
+                categories_json = excluded.categories_json,
+                data_type = excluded.data_type,
+                native_format = excluded.native_format,
+                geographic_scope = excluded.geographic_scope,
+                temporal_coverage = excluded.temporal_coverage,
+                landing_url = excluded.landing_url,
+                api_url = excluded.api_url,
+                license_url = excluded.license_url,
+                version = excluded.version,
+                remote_updated_at = excluded.remote_updated_at,
+                remote_etag = excluded.remote_etag,
+                remote_hash = excluded.remote_hash,
+                metadata_json = excluded.metadata_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                dataset.dataset_uid,
+                dataset.provider_id,
+                dataset.dataset_id,
+                dataset.title,
+                json.dumps(dataset.categories, ensure_ascii=True),
+                dataset.data_type,
+                dataset.native_format,
+                dataset.geographic_scope,
+                dataset.temporal_coverage,
+                dataset.landing_url,
+                dataset.api_url,
+                dataset.license_url,
+                dataset.version,
+                dataset.remote_updated_at,
+                dataset.remote_etag,
+                dataset.remote_hash,
+                json.dumps(dataset.metadata, ensure_ascii=False, sort_keys=True),
+                created_at,
+                now,
+            ),
+        )
+        self.conn.execute(
+            """
+            INSERT INTO dataset_sync_state (
+                dataset_uid, diff_status, updated_at
+            ) VALUES (?, 'unknown', ?)
+            ON CONFLICT(dataset_uid) DO NOTHING
+            """,
+            (dataset.dataset_uid, now),
+        )
+        self.conn.commit()
+
+    def list_datasets(self, provider_id: str | None = None) -> list[Dataset]:
+        if provider_id:
+            rows = self.conn.execute(
+                "SELECT * FROM datasets WHERE provider_id = ? ORDER BY title COLLATE NOCASE",
+                (provider_id,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM datasets ORDER BY provider_id, title COLLATE NOCASE").fetchall()
+        return [dataset_from_row(row) for row in rows]
 
     def seed_key_reference_if_exists(self, path: str | Path) -> int:
         path = resolve_project_path(path)

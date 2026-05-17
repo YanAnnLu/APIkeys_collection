@@ -45,7 +45,7 @@ from api_launcher.integrations import (
     generate_provider_summary,
     open_database_client,
 )
-from api_launcher.models import Provider
+from api_launcher.models import Dataset, Provider
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,

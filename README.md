@@ -22,6 +22,7 @@ reference file, templates, and exports.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
 - `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.
 - `api_launcher/models.py`: provider/catalog dataclasses.
+- `api_launcher/adapters/`: dataset-adapter interfaces. Adapters discover dataset records without downloading bulk data.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
 - `api_launcher/integrations.py`: local integration profiles for database clients and optional AI summaries.
@@ -90,6 +91,9 @@ leaving dead registry entries when a source is unmanaged or removed.
 SQL uninstall commands are generated only for validated identifiers and stored as registry metadata first. For example,
 a MySQL database asset can store `DROP DATABASE IF EXISTS \`sample_db\`;`, but destructive execution stays disabled
 until a database adapter can verify the target connection and ownership.
+
+Dataset adapters should return `Dataset` records first, then let later downloader/importer workers create local assets.
+This keeps discovery, download, import, and uninstall as separate stages.
 
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for

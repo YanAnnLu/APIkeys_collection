@@ -43,6 +43,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/registry.py`: provider catalog JSON loading and provider overlays.
 - `api_launcher/db.py`: project paths, SQLite connection, timestamps, and schema setup.
 - `api_launcher/repository.py`: provider seeding, provider queries, UI catalog entries, and starred preferences.
+- `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 
