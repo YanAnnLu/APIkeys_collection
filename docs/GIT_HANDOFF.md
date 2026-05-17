@@ -70,6 +70,9 @@ py APIkeys_collection.py --handoff-report state\handoff.md --manifest-health --s
 
 The report includes Git status, current HEAD, catalog counts, manifest health, recent structured logs, and suggested resume checks.
 
+GitHub Actions runs a lightweight CI matrix on Windows and Ubuntu for pushes and pull requests to `main`. It runs unit
+tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid platform-specific `.pyc` lock issues.
+
 If the project is on a synced Windows drive and `.pyc` writes are locked, use:
 
 ```powershell
