@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib import request
 
-from api_launcher.db import SCRIPT_DIR
 from api_launcher.models import Provider
+from api_launcher.paths import config_file, local_config_file
 
 
 LOCAL_INTEGRATIONS_NAME = "launcher_integrations.local.json"
@@ -58,11 +58,11 @@ def integrations_path() -> Path:
 
 
 def local_integrations_path() -> Path:
-    return SCRIPT_DIR / LOCAL_INTEGRATIONS_NAME
+    return local_config_file(LOCAL_INTEGRATIONS_NAME)
 
 
 def example_integrations_path() -> Path:
-    return SCRIPT_DIR / EXAMPLE_INTEGRATIONS_NAME
+    return config_file(EXAMPLE_INTEGRATIONS_NAME)
 
 
 def load_integration_config() -> dict[str, object]:
@@ -83,6 +83,7 @@ def ensure_local_integration_config() -> dict[str, object]:
 
 def save_integration_config(config: dict[str, object]) -> Path:
     path = local_integrations_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 

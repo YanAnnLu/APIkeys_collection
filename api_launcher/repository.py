@@ -9,14 +9,15 @@ from typing import Iterable
 
 from api_launcher.asset_roles import normalize_asset_role
 from api_launcher.asset_verifier import AssetRecord, AssetVerifier, RegistryOnlyVerifier
-from api_launcher.db import SCRIPT_DIR, init_db, resolve_project_path, utc_now_iso
+from api_launcher.db import init_db, resolve_project_path, utc_now_iso
 from api_launcher.models import Dataset, Provider, ProviderCatalogEntry, RenderBridgeAsset
+from api_launcher.paths import catalog_file
 from api_launcher.provenance import normalize_source_format
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
 from api_launcher.sql_assets import database_uninstall_command
 
 
-PROVIDERS: tuple[Provider, ...] = load_provider_catalog(SCRIPT_DIR / PROVIDER_CATALOG_NAME)
+PROVIDERS: tuple[Provider, ...] = load_provider_catalog(catalog_file(PROVIDER_CATALOG_NAME))
 
 
 def seed_providers(conn: sqlite3.Connection, providers: Iterable[Provider]) -> None:

@@ -63,7 +63,7 @@ The renderer may read the contract constants, but the launcher should register b
 
 Provider/source discovery currently uses only the Python standard library:
 
-- `provider_discovery_seeds.json`: built-in official source-site seeds.
+- `catalog/provider_discovery_seeds.json`: built-in official source-site seeds.
 - `provider_discovery_seeds.local.json`: ignored local seeds for regional platforms and user projects.
 - `api_launcher/discovery.py`: polite metadata crawler for docs/API/signup/auth hints.
 
@@ -104,7 +104,7 @@ instead of starting over.
 The launcher is allowed to delegate large direct file transfers to external
 tools through `api_launcher/transfer_tools.py`. Python remains the orchestrator
 for state, UI, credentials, validation, and provenance. External tools are
-profiles in `launcher_integrations.example.json`:
+profiles in `config/launcher_integrations.example.json`:
 
 - `python_internal`: default for APIs, authenticated requests, and adapter logic.
 - `aria2c`: preferred optional engine for large direct HTTP/FTP files with

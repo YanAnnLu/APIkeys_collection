@@ -6,8 +6,8 @@ Last updated: 2026-05-17
 
 | Area | Status | Current Progress | Next Step |
 | --- | --- | --- | --- |
-| Product architecture | In progress | Architecture documented in `ARCHITECTURE.md`; pipeline and runtime layers are now explicit. | Move docs/catalog/config/scripts/state into clearer folders in small verified steps. |
-| Folder hygiene | Planned | Root folder audit completed; runtime files and source/catalog files are mixed. | Add `state/`, `catalog/`, `docs/`, `scripts/` migration plan and update path constants. |
+| Product architecture | In progress | Architecture documented in `docs/ARCHITECTURE.md`; pipeline, runtime layers, and path resolver are explicit. | Keep architecture current as UI/download/database workflows are connected. |
+| Folder hygiene | MVP | Docs, catalog/reference files, example config, and scripts moved into folders; resolver keeps legacy root files compatible. | Move remaining runtime files into ignored `state/` after compatibility checks. |
 | Provider catalog | MVP | Built-in provider list, manual add/edit, categories, metadata fields, source discovery seeds, duplicate-aware provider model. | Improve provider-source separation so one dataset can have multiple resource sites. |
 | Provider/source discovery | MVP | Discovery seed config and CLI collect candidate metadata from source sites without scraping secrets. | Add UI search/import flow for discovered provider candidates. |
 | Steam-like UI | In progress | Responsive Tk UI, category sidebar, source table, right detail drawer, star/pin, double-click to add to plan. | Add right-click context menu, simplify toolbar, and expose environment checks. |
@@ -25,7 +25,7 @@ Last updated: 2026-05-17
 | Taichi renderer health | Planned | Renderer copied into project but not refactored or performance-tested in this cycle. | Add smoke tests/config checks without forcing heavy renderer dependencies into launcher. |
 | Cross-platform setup | MVP | Git/GitHub, Docker, PowerShell/bash runners, example/local config split, UTF-8/LF rules, startup environment checks. | Add CI workflow and macOS/Windows setup notes. |
 | Agent skill packaging | Skeleton | Local `.codex/skills/apikeys-collection-launcher` draft exists. | Turn launcher operations into a documented agent skill interface. |
-| Documentation | In progress | `ARCHITECTURE.md`, `TECH_STACK.md`, renderer notes, GTD tracker, handoff docs exist. | Consolidate docs into `docs/` after path cleanup plan is approved. |
+| Documentation | In progress | `docs/ARCHITECTURE.md`, `docs/TECH_STACK.md`, renderer notes, GTD tracker, handoff docs exist. | Update README sections as features move from skeleton to MVP. |
 
 ## Status Legend
 

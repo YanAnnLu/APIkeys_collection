@@ -19,7 +19,7 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars.
 - `APIkeys_collection_ui.py` is a Tk launcher prototype for selecting providers and exporting a download plan.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist, but provider-specific adapters such as GEBCO or NOAA are not implemented yet.
@@ -52,7 +52,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/core.py`: current crawl, export, and CLI coordination layer.
 - `APIkeys_collection.py`: thin CLI/UI compatibility wrapper.
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
-- `TECH_STACK.md`: dependency boundary notes for launcher core, Docker, and optional renderer stack.
+- `docs/TECH_STACK.md`: dependency boundary notes for launcher core, Docker, and optional renderer stack.
 
 The next refactor should split `api_launcher/core.py` further into crawl, exports, and CLI modules.
 

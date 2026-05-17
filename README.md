@@ -18,7 +18,9 @@ You can move the whole `APIkeys_collection/` folder elsewhere and the crawler wi
 reference file, templates, and exports.
 
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
-- `TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
+- `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
+- `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
+- `docs/PROJECT_GTD.md`: current product status and next steps.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
 - `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.
@@ -30,20 +32,20 @@ reference file, templates, and exports.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
 - `api_launcher/integrations.py`: local integration profiles for database clients and optional AI summaries.
-- `APIkeys_collection_reference.json`: the crawler credential reference file. The first entry is NOAA's `NOAA_NCEI_CDO_TOKEN` reference. Keep real key values out of this file; put real keys in your shell environment or a private `.env`.
+- `catalog/APIkeys_collection_reference.json`: the crawler credential reference file. The first entry is NOAA's `NOAA_NCEI_CDO_TOKEN` reference. Keep real key values out of this file; put real keys in your shell environment or a private `.env`.
 - `APIkeys_collection.sqlite`: local SQLite database for providers, credential placeholders, and crawl metadata.
 - `.env.example`: environment-variable template generated from the database.
-- `api_keys.txt.template`: human-readable API key checklist generated from the database.
-- `APIkeys_collection_catalog.json`: machine-readable provider catalog export.
-- `APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
-- `APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
+- `catalog/api_keys.txt.template`: human-readable API key checklist generated from the database.
+- `catalog/APIkeys_collection_catalog.json`: machine-readable provider catalog export.
+- `catalog/APIkeys_collection_catalog.csv`: spreadsheet-friendly provider catalog export.
+- `catalog/APIkeys_collection_catalog.md`: Markdown provider catalog export for review notes.
 - `APIkeys_collection_ui.py`: lightweight Tk download-guide UI. It lets you browse provider/database sources, run metadata checks, and export a download plan.
 - `renderers/taichi_global_bathymetry.py`: downstream Taichi visualization engine copied into this repo for bridge-asset integration.
 - `.codex/skills/apikeys-collection-launcher/`: project-local Codex skill draft for AI-agent handoff and safe development workflows.
-- `launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.
-- `APIkeys_collection_credentials.private.template.json`: local-only credential template for your own accounts/tokens.
+- `config/launcher_integrations.example.json`: cross-platform examples for external database tools and AI summary providers. Copy it to `launcher_integrations.local.json` for machine-specific paths and credentials.
+- `catalog/APIkeys_collection_credentials.private.template.json`: local-only credential template for your own accounts/tokens.
 - `.gitignore`: excludes filled private credential files and Python cache files.
-- `provider_registry.sample.json`: sample format for adding future providers without editing the Python file.
+- `catalog/provider_registry.sample.json`: sample format for adding future providers without editing the Python file.
 
 ## Pipeline Role
 
@@ -109,7 +111,7 @@ Renderer contracts define stable IDs shared by the launcher and render layer. Fo
 current contracts are GEBCO 2025 topography (`topography_grid`) and HYG v3.8 stars (`star_catalog`), both targeting
 `~/.cache/taichi_earth` bridge assets.
 
-Provider discovery is seed-driven. `provider_discovery_seeds.json` contains built-in official source sites, while
+Provider discovery is seed-driven. `catalog/provider_discovery_seeds.json` contains built-in official source sites, while
 `provider_discovery_seeds.local.json` is ignored by git and can hold user-added regional or project-specific source
 sites. Discovery outputs reviewable candidates only; it never collects API secret values.
 
@@ -142,15 +144,15 @@ py APIkeys_collection.py
 Windows PowerShell:
 
 ```powershell
-.\setup_env.ps1
-.\run_ui.ps1
+.\scripts\setup_env.ps1
+.\scripts\run_ui.ps1
 ```
 
 macOS/Linux:
 
 ```bash
-./setup_env.sh
-./run_ui.sh
+./scripts/setup_env.sh
+./scripts/run_ui.sh
 ```
 
 The virtual environment, SQLite database, local secrets, and Python cache files are local machine state and are ignored by git.
@@ -169,7 +171,7 @@ python renderers/taichi_global_bathymetry.py
 The launcher can open your local database client without hard-coding one user's path. Copy the example config and edit it per machine:
 
 ```powershell
-Copy-Item launcher_integrations.example.json launcher_integrations.local.json
+Copy-Item config\launcher_integrations.example.json launcher_integrations.local.json
 ```
 
 `launcher_integrations.local.json` is ignored by git. Use it to choose MySQL Workbench, DBeaver, or another local database client. The same file also controls optional AI summaries.
@@ -181,7 +183,7 @@ Gemini is available as an optional cloud profile. Enable it only if you want tha
 Git identity helper:
 
 ```powershell
-.\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
+.\scripts\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
 ```
 
 ## Docker
@@ -278,7 +280,7 @@ Keep provider entries constrained to official documentation and metadata endpoin
 
 ## Credential Reference Rules
 
-`APIkeys_collection_reference.json` is a reference map, not a secret store. A reference entry should describe:
+`catalog/APIkeys_collection_reference.json` is a reference map, not a secret store. A reference entry should describe:
 
 - `provider_id`: the provider in SQLite, such as `noaa_ncei_cdo`.
 - `env_var`: the environment variable your crawler should read, such as `NOAA_NCEI_CDO_TOKEN`.

@@ -5,8 +5,9 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from api_launcher.paths import PROJECT_ROOT, project_path
 
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = PROJECT_ROOT
 
 
 def utc_now_iso() -> str:
@@ -14,10 +15,7 @@ def utc_now_iso() -> str:
 
 
 def resolve_project_path(path: str | Path) -> Path:
-    path = Path(path)
-    if path.is_absolute():
-        return path
-    return SCRIPT_DIR / path
+    return project_path(path)
 
 
 def connect_db(path: str | Path) -> sqlite3.Connection:

@@ -59,6 +59,7 @@ from api_launcher.integrations import (
     set_active_database_client,
 )
 from api_launcher.models import Dataset, Provider
+from api_launcher.paths import catalog_file
 from api_launcher.plans import build_download_plan
 from api_launcher.renderer_contracts import (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
@@ -603,7 +604,7 @@ class CatalogLauncherCli:
             count = seed_json_registry(self.conn, Path(registry_path))
             print(f"[seed] upserted {count} providers from {registry_path}")
         if self.args.seed_key_reference:
-            count = self.repository.seed_key_reference_if_exists(KEY_REFERENCE_NAME)
+            count = self.repository.seed_key_reference_if_exists(catalog_file(KEY_REFERENCE_NAME))
             print(f"[seed] upserted {count} credential references")
 
     def show_lists(self) -> None:

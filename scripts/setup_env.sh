@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv
@@ -15,4 +15,4 @@ fi
 echo
 echo "Environment ready."
 echo "Activate with: source .venv/bin/activate"
-echo "Run UI with: .venv/bin/python APIkeys_collection_ui.py"
+echo "Run UI with: ./scripts/run_ui.sh"

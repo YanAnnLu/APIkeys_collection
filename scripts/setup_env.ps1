@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $ProjectRoot
 
 $VenvRoot = Join-Path $env:LOCALAPPDATA "APIkeys_collection"
@@ -21,4 +21,4 @@ Write-Host ""
 Write-Host "Environment ready."
 Write-Host "Virtual environment: $VenvPath"
 Write-Host "Activate with: & `"$VenvPath\Scripts\Activate.ps1`""
-Write-Host "Run UI with: .\run_ui.ps1"
+Write-Host "Run UI with: .\scripts\run_ui.ps1"

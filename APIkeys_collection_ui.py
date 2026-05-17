@@ -18,10 +18,11 @@ from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, StringVar, T
 from tkinter import ttk
 
 import APIkeys_collection as core
+from api_launcher.paths import catalog_file, state_file
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DB_PATH = SCRIPT_DIR / core.DB_NAME
+DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
 
 
@@ -415,7 +416,7 @@ class ApiCollectionUi:
             repository = core.ApiCatalogRepository(conn)
             repository.init_schema()
             repository.seed_builtin_providers()
-            repository.seed_key_reference_if_exists(SCRIPT_DIR / core.KEY_REFERENCE_NAME)
+            repository.seed_key_reference_if_exists(catalog_file(core.KEY_REFERENCE_NAME))
         finally:
             conn.close()
 
@@ -979,7 +980,7 @@ class ApiCollectionUi:
                 "無法開啟資料庫工具",
                 (
                     f"{exc}\n\n"
-                    "請複製 launcher_integrations.example.json 為 "
+                    "請複製 config/launcher_integrations.example.json 為 "
                     "launcher_integrations.local.json，並調整你的 MySQL Workbench、DBeaver "
                     "或其他資料庫工具路徑。"
                 ),
@@ -1237,7 +1238,8 @@ class ApiCollectionUi:
             [self.provider_from_row(row) for row in rows],
             plan_name=plan_name,
         )
-        output_path = SCRIPT_DIR / DOWNLOAD_PLAN_NAME
+        output_path = state_file(DOWNLOAD_PLAN_NAME)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         self.status_var.set(f"已匯出下載計畫：{plan_name} ({len(rows)} 個資料源)")
         messagebox.showinfo("匯出完成", f"已建立 {output_path}\n\nPlan: {plan_name}")

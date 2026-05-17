@@ -17,7 +17,7 @@ On Windows PowerShell, after Git is installed:
 
 ```powershell
 cd K:\APIkeys_collection
-.\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
+.\scripts\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
 git status --short --branch
 ```
 
@@ -40,7 +40,7 @@ Before switching machines:
 
 ```bash
 git status --short
-git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md PROJECT_STATE.md GIT_HANDOFF.md .gitignore .gitattributes
+git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md docs catalog config scripts .gitignore .gitattributes
 git commit -m "Describe the launcher change"
 git status --short
 ```
@@ -74,7 +74,7 @@ py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
 - Do not commit filled `*.private.json`, `*.secret.json`, or real `.env` files.
 - Avoid editing the same file on both machines before committing.
 - Avoid simultaneous SQLite writes from Mac and Windows through a synced drive.
-- Do not rely on chat history as the only handoff memory. Put decisions in `PROJECT_STATE.md`.
+- Do not rely on chat history as the only handoff memory. Put decisions in `docs/PROJECT_STATE.md`.
 
 ## Good Commit Messages
 

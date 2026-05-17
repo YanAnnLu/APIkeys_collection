@@ -14,6 +14,7 @@ from api_launcher.discovery import (
     load_all_discovery_seeds,
 )
 from api_launcher.repository import load_providers
+from api_launcher.paths import catalog_file, local_config_file, state_file
 
 
 def add_discovery_args(parser: argparse.ArgumentParser) -> None:
@@ -62,7 +63,7 @@ def add_local_discovery_seed(args: argparse.Namespace) -> None:
         signup_url=args.seed_signup_url.strip(),
         expected_auth_type=args.seed_auth_type.strip() or "unknown",
     )
-    path = resolve_project_path(args.provider_discovery_local_seeds)
+    path = local_config_file(args.provider_discovery_local_seeds)
     append_discovery_seed(path, seed)
     print(f"[discover] added local source seed {seed.provider_id} to {path}")
 
@@ -70,9 +71,10 @@ def add_local_discovery_seed(args: argparse.Namespace) -> None:
 def discover_source_candidates(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
     if not args.discover_provider_candidates:
         return
-    seed_path = resolve_project_path(args.provider_discovery_seeds)
-    local_seed_path = resolve_project_path(args.provider_discovery_local_seeds)
-    output_path = resolve_project_path(args.write_provider_candidates)
+    seed_path = catalog_file(args.provider_discovery_seeds)
+    local_seed_path = local_config_file(args.provider_discovery_local_seeds)
+    output_path = state_file(args.write_provider_candidates)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     existing = {provider.provider_id for provider in load_providers(conn)}
     seeds = load_all_discovery_seeds(seed_path, local_seed_path)
     candidates = discover_provider_candidates(seeds, existing_provider_ids=existing, timeout=args.timeout)
