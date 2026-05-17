@@ -252,7 +252,7 @@ SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不
 python APIkeys_collection.py --self-check-databases
 ```
 
-目前這會用 registry asset verifier 檢查 managed database assets。SQLite asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，並把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status。MySQL/PostgreSQL 仍需要對應 env vars 與 optional driver，下一步才會擴充到 table/schema fingerprint 與 drift summary。
+目前這會用 registry asset verifier 檢查 managed database assets。SQLite asset 會依 `source_uri` 或 path-like `asset_name` 做 read-only 檢查，計算 table/column schema fingerprint；若 registry 已保存 `schema_fingerprint`，會偵測 drift 並把 `present` / `missing` / `error` 回寫到 `provider_installation_assets` 與 provider local status。CLI 也會列出 missing/error 明細。MySQL/PostgreSQL 仍需要對應 env vars 與 optional driver，下一步才會擴充到跨引擎 table/schema introspection 與 ownership mapping。
 
 ## Gemini / Google 登入
 

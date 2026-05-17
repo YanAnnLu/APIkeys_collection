@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import sqlite3
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +16,15 @@ class DatabaseSelfCheckTarget:
     engine: str
     asset_name: str
     path: str = ""
+
+
+@dataclass(frozen=True)
+class DatabaseSchemaSummary:
+    engine: str
+    table_count: int
+    tables: tuple[str, ...]
+    column_signatures: tuple[str, ...]
+    schema_fingerprint: str
 
 
 def database_self_check_target(asset: AssetRecord) -> DatabaseSelfCheckTarget:
@@ -48,6 +61,16 @@ class DatabaseAssetVerifier:
             {"APIKEYS_SQLITE_PATH": str(Path(target.path))},
         )
         if result.status == "ok":
+            if asset.schema_fingerprint:
+                summary = sqlite_schema_summary(target.path)
+                if summary.schema_fingerprint != asset.schema_fingerprint:
+                    return AssetVerificationResult(
+                        asset.asset_id,
+                        "error",
+                        "SQLite schema fingerprint drift: "
+                        f"expected {asset.schema_fingerprint}, got {summary.schema_fingerprint}; "
+                        f"tables={summary.table_count}",
+                    )
             return AssetVerificationResult(asset.asset_id, "present")
         if result.status == "missing_target":
             return AssetVerificationResult(asset.asset_id, "missing", result.message)
@@ -96,3 +119,48 @@ class DatabaseAssetVerifier:
                 )
             return AssetVerificationResult(asset.asset_id, "present")
         return AssetVerificationResult(asset.asset_id, "error", result.message)
+
+
+def sqlite_schema_summary(path: str | Path) -> DatabaseSchemaSummary:
+    db_path = Path(path).expanduser()
+    uri = f"file:{urllib.parse.quote(str(db_path.resolve()))}?mode=ro"
+    with sqlite3.connect(uri, uri=True) as conn:
+        rows = conn.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+            """
+        ).fetchall()
+        tables = tuple(str(row[0]) for row in rows)
+        column_signatures: list[str] = []
+        for table in tables:
+            columns = conn.execute(f"PRAGMA table_info({quote_sqlite_identifier(table)})").fetchall()
+            for cid, name, column_type, notnull, default_value, pk in columns:
+                column_signatures.append(
+                    "|".join(
+                        [
+                            table,
+                            str(cid),
+                            str(name).strip().lower(),
+                            str(column_type or "").strip().upper(),
+                            str(int(bool(notnull))),
+                            str(int(pk or 0)),
+                            "default" if default_value is not None else "",
+                        ]
+                    )
+                )
+    payload = json.dumps(column_signatures, ensure_ascii=True, separators=(",", ":"))
+    return DatabaseSchemaSummary(
+        engine="sqlite",
+        table_count=len(tables),
+        tables=tables,
+        column_signatures=tuple(column_signatures),
+        schema_fingerprint=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+    )
+
+
+def quote_sqlite_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'

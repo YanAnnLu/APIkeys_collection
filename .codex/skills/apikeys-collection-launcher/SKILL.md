@@ -48,6 +48,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID` to test one configured data-store profile, or `--test-data-store all` for every profile.
 - Use `python APIkeys_collection.py --self-check-databases` to verify managed database assets recorded in the install registry.
 - SQLite checks are read-only and should not create a missing database file.
+- SQLite managed database assets with `schema_fingerprint` are checked for table/column drift and will be marked `error` when the actual fingerprint changes.
 - MySQL/PostgreSQL checks first report missing env vars or optional Python drivers; do not add driver packages to base/system environments without user approval.
 
 ## References

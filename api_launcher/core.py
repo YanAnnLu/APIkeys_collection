@@ -885,6 +885,36 @@ class CatalogLauncherCli:
             return
         summary = self.repository.verify_provider_assets(self.args.provider or None, verifier=DatabaseAssetVerifier())
         print(f"[database-self-check] {summary}")
+        provider_filter = ""
+        params: tuple[str, ...] = ()
+        if self.args.provider:
+            placeholders = ",".join("?" for _ in self.args.provider)
+            provider_filter = f"AND pi.provider_id IN ({placeholders})"
+            params = tuple(self.args.provider)
+        rows = self.conn.execute(
+            f"""
+            SELECT
+                pi.provider_id,
+                pia.asset_id,
+                pia.engine,
+                pia.asset_name,
+                pia.status,
+                COALESCE(pia.last_verify_error, '') AS last_verify_error
+            FROM provider_installation_assets pia
+            JOIN provider_installations pi ON pi.install_id = pia.install_id
+            WHERE pia.asset_kind = 'database'
+              AND pia.status IN ('missing', 'error')
+              {provider_filter}
+            ORDER BY pi.provider_id, pia.engine, pia.asset_name
+            """,
+            params,
+        ).fetchall()
+        for row in rows:
+            print(
+                "[database-self-check] "
+                f"{row['provider_id']} {row['engine'] or '-'}:{row['asset_name']} "
+                f"status={row['status']} error={row['last_verify_error'] or '-'}"
+            )
 
     def generate_ai_summary(self) -> None:
         if not self.args.generate_ai_summary:
