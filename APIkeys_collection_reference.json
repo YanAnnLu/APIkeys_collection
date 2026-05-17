@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "description": "Crawler credential reference. Keep real key values out of source control. This file describes which environment variables the crawler should read.",
+  "crawler": {
+    "relative_file": "APIkeys_collection.py",
+    "path_resolution": "Crawler defaults resolve relative to this folder, so moving the whole folder keeps references valid.",
+    "downstream_renderer": "taichi_global_bathymetry.py",
+    "role": "pre-crawler API/provider/key reference only; not a bulk data downloader or renderer"
+  },
+  "credentials": [
+    {
+      "provider_id": "noaa_ncei_cdo",
+      "provider_name": "NOAA NCEI Climate Data Online",
+      "env_var": "NOAA_NCEI_CDO_TOKEN",
+      "auth_type": "api_token_required",
+      "placeholder": "paste_your_own_noaa_ncei_cdo_token_here",
+      "value": "",
+      "docs_url": "https://www.ncei.noaa.gov/cdo-web/webservices/v2",
+      "signup_url": "https://www.ncei.noaa.gov/cdo-web/token",
+      "usage": {
+        "header": "token",
+        "query_param": "",
+        "example": "Send HTTP header: token=${NOAA_NCEI_CDO_TOKEN}"
+      },
+      "notes": "NOAA CDO v2 uses the token HTTP header. Leave value empty here; set the real key in .env or your shell."
+    }
+  ]
+}

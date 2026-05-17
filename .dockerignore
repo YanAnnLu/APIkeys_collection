@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+*.private.json
+*.secret.json
+.DS_Store
+Thumbs.db

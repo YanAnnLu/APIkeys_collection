@@ -1,0 +1,124 @@
+APIkeys_collection generated template
+Fill only keys you own. Do not paste leaked or third-party secrets.
+
+[KEYS]
+ALPHAVANTAGE_API_KEY = your_alphavantage_api_key
+  provider: Alpha Vantage (alphavantage)
+  auth: api_key_required
+  docs: https://www.alphavantage.co/documentation/
+  signup: https://www.alphavantage.co/support/#api-key
+
+CDSAPI_KEY = your_cdsapi_key
+  provider: Copernicus Climate Data Store API (copernicus_cds)
+  auth: account_key_required
+  docs: https://cds.climate.copernicus.eu/how-to-api
+  signup: https://cds.climate.copernicus.eu/
+
+COPERNICUS_DATASPACE_TOKEN = your_copernicus_dataspace_token
+  provider: Copernicus Data Space Ecosystem (copernicus_dataspace)
+  auth: oauth2_or_account
+  docs: https://documentation.dataspace.copernicus.eu/APIs.html
+  signup: https://dataspace.copernicus.eu/
+
+COPERNICUS_MARINE_PASSWORD = your_copernicus_marine_password
+  provider: Copernicus Marine Service (copernicus_marine)
+  auth: account_required
+  docs: https://help.marine.copernicus.eu/en/articles/4794731-which-apis-are-provided
+  signup: https://data.marine.copernicus.eu/register
+
+COPERNICUS_MARINE_USERNAME = your_copernicus_marine_username
+  provider: Copernicus Marine Service (copernicus_marine)
+  auth: account_required
+  docs: https://help.marine.copernicus.eu/en/articles/4794731-which-apis-are-provided
+  signup: https://data.marine.copernicus.eu/register
+
+EIA_API_KEY = your_eia_api_key
+  provider: EIA Open Data API (eia_open_data)
+  auth: api_key_required
+  docs: https://www.eia.gov/opendata/documentation.php
+  signup: https://www.eia.gov/opendata/register.php
+
+FRED_API_KEY = your_fred_api_key
+  provider: FRED API (fred)
+  auth: api_key_required
+  docs: https://fred.stlouisfed.org/docs/api/fred/
+  signup: https://fred.stlouisfed.org/docs/api/api_key.html
+
+GEONAMES_USERNAME = your_geonames_username
+  provider: GeoNames Web Services (geonames)
+  auth: username_required
+  docs: https://www.geonames.org/export/ws-overview.html
+  signup: https://www.geonames.org/login
+
+NASA_API_KEY = your_nasa_api_key
+  provider: NASA Open APIs (nasa_open_apis)
+  auth: api_key_required
+  docs: https://api.nasa.gov/
+  signup: https://api.nasa.gov/
+
+NASA_EARTHDATA_PASSWORD = your_nasa_earthdata_password
+  provider: NASA Earthdata (nasa_earthdata)
+  auth: account_token_or_login
+  docs: https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api
+  signup: https://urs.earthdata.nasa.gov/
+
+NASA_EARTHDATA_TOKEN = your_nasa_earthdata_token
+  provider: NASA Earthdata (nasa_earthdata)
+  auth: account_token_or_login
+  docs: https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api
+  signup: https://urs.earthdata.nasa.gov/
+
+NASA_EARTHDATA_USERNAME = your_nasa_earthdata_username
+  provider: NASA Earthdata (nasa_earthdata)
+  auth: account_token_or_login
+  docs: https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api
+  signup: https://urs.earthdata.nasa.gov/
+
+NOAA_NCEI_CDO_TOKEN = paste_your_own_noaa_ncei_cdo_token_here
+  provider: NOAA NCEI Climate Data Online (noaa_ncei_cdo)
+  auth: api_token_required
+  docs: https://www.ncei.noaa.gov/cdo-web/webservices/v2
+  signup: https://www.ncei.noaa.gov/cdo-web/token
+
+OPENAQ_API_KEY = your_openaq_api_key
+  provider: OpenAQ API (openaq)
+  auth: api_key_may_be_required
+  docs: https://docs.openaq.org/
+  signup: https://explore.openaq.org/
+
+OPENSKY_PASSWORD = your_opensky_password
+  provider: OpenSky Network API (opensky_network)
+  auth: account_optional_or_required_for_limits
+  docs: https://openskynetwork.github.io/opensky-api/rest.html
+  signup: https://opensky-network.org/index.php?option=com_users&view=registration
+
+OPENSKY_USERNAME = your_opensky_username
+  provider: OpenSky Network API (opensky_network)
+  auth: account_optional_or_required_for_limits
+  docs: https://openskynetwork.github.io/opensky-api/rest.html
+  signup: https://opensky-network.org/index.php?option=com_users&view=registration
+
+OPENWEATHER_API_KEY = your_openweather_api_key
+  provider: OpenWeather (openweathermap)
+  auth: api_key_required
+  docs: https://openweathermap.org/api
+  signup: https://home.openweathermap.org/users/sign_up
+
+USGS_M2M_API_KEY = your_usgs_m2m_api_key
+  provider: USGS EROS Machine-to-Machine API (usgs_m2m)
+  auth: account_token_required
+  docs: https://m2m.cr.usgs.gov/
+  signup: https://ers.cr.usgs.gov/register/
+
+[NO_KEY_OR_PUBLIC_METADATA]
+binance_public | no_key_for_public_market_data | https://developers.binance.com/docs/binance-spot-api-docs/rest-api
+ecmwf_open_data | no_key_for_open_data | https://www.ecmwf.int/en/forecasts/datasets/open-data
+gebco | no_key_for_download_pages | https://www.gebco.net/data_and_products/gridded_bathymetry_data/
+imf_data | no_key_or_mixed | https://data.imf.org/en/Resource-Pages/IMF-API
+natural_earth | no_key | https://www.naturalearthdata.com/downloads/
+noaa_coops | no_key | https://api.tidesandcurrents.noaa.gov/api/prod/
+noaa_ncei_access_data | no_key | https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation
+oecd_sdmx | no_key | https://data-explorer.oecd.org/
+open_meteo | no_key_for_public_tier | https://open-meteo.com/en/docs
+usgs_earthquake | no_key | https://earthquake.usgs.gov/fdsnws/event/1/
+world_bank_indicators | no_key | https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation

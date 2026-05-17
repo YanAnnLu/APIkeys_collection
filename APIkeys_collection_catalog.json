@@ -1,0 +1,483 @@
+[
+  {
+    "provider_id": "alphavantage",
+    "name": "Alpha Vantage",
+    "owner": "Alpha Vantage",
+    "categories": [
+      "finance",
+      "stocks",
+      "forex",
+      "crypto"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://www.alphavantage.co/documentation/",
+    "api_base_url": "https://www.alphavantage.co/query",
+    "signup_url": "https://www.alphavantage.co/support/#api-key",
+    "auth_type": "api_key_required",
+    "key_env_var": "ALPHAVANTAGE_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "binance_public",
+    "name": "Binance Public Market Data",
+    "owner": "Binance",
+    "categories": [
+      "finance",
+      "crypto",
+      "market_data"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://developers.binance.com/docs/binance-spot-api-docs/rest-api",
+    "api_base_url": "https://api.binance.com",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_market_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "copernicus_cds",
+    "name": "Copernicus Climate Data Store API",
+    "owner": "Copernicus Climate Change Service / ECMWF",
+    "categories": [
+      "climate",
+      "reanalysis",
+      "weather"
+    ],
+    "geographic_scope": "global/europe",
+    "docs_url": "https://cds.climate.copernicus.eu/how-to-api",
+    "api_base_url": "https://cds.climate.copernicus.eu/api",
+    "signup_url": "https://cds.climate.copernicus.eu/",
+    "auth_type": "account_key_required",
+    "key_env_var": "CDSAPI_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "copernicus_dataspace",
+    "name": "Copernicus Data Space Ecosystem",
+    "owner": "European Union / ESA",
+    "categories": [
+      "satellite",
+      "sentinel",
+      "earth_observation"
+    ],
+    "geographic_scope": "global/europe",
+    "docs_url": "https://documentation.dataspace.copernicus.eu/APIs.html",
+    "api_base_url": "https://catalogue.dataspace.copernicus.eu/odata/v1",
+    "signup_url": "https://dataspace.copernicus.eu/",
+    "auth_type": "oauth2_or_account",
+    "key_env_var": "COPERNICUS_DATASPACE_TOKEN",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "copernicus_marine",
+    "name": "Copernicus Marine Service",
+    "owner": "Copernicus Marine",
+    "categories": [
+      "ocean",
+      "marine",
+      "forecast",
+      "reanalysis"
+    ],
+    "geographic_scope": "global/europe",
+    "docs_url": "https://help.marine.copernicus.eu/en/articles/4794731-which-apis-are-provided",
+    "api_base_url": "https://data.marine.copernicus.eu/",
+    "signup_url": "https://data.marine.copernicus.eu/register",
+    "auth_type": "account_required",
+    "key_env_var": "COPERNICUS_MARINE_USERNAME",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "ecmwf_open_data",
+    "name": "ECMWF Open Data",
+    "owner": "European Centre for Medium-Range Weather Forecasts",
+    "categories": [
+      "weather",
+      "forecast",
+      "model"
+    ],
+    "geographic_scope": "global/europe",
+    "docs_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    "api_base_url": "https://data.ecmwf.int/forecasts/",
+    "signup_url": "",
+    "auth_type": "no_key_for_open_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "eia_open_data",
+    "name": "EIA Open Data API",
+    "owner": "U.S. Energy Information Administration",
+    "categories": [
+      "energy",
+      "economics",
+      "commodities"
+    ],
+    "geographic_scope": "us/global",
+    "docs_url": "https://www.eia.gov/opendata/documentation.php",
+    "api_base_url": "https://api.eia.gov/v2",
+    "signup_url": "https://www.eia.gov/opendata/register.php",
+    "auth_type": "api_key_required",
+    "key_env_var": "EIA_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "fred",
+    "name": "FRED API",
+    "owner": "Federal Reserve Bank of St. Louis",
+    "categories": [
+      "economics",
+      "finance",
+      "macro"
+    ],
+    "geographic_scope": "us/global",
+    "docs_url": "https://fred.stlouisfed.org/docs/api/fred/",
+    "api_base_url": "https://api.stlouisfed.org/fred",
+    "signup_url": "https://fred.stlouisfed.org/docs/api/api_key.html",
+    "auth_type": "api_key_required",
+    "key_env_var": "FRED_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "gebco",
+    "name": "GEBCO",
+    "owner": "General Bathymetric Chart of the Oceans",
+    "categories": [
+      "bathymetry",
+      "ocean",
+      "terrain"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://www.gebco.net/data_and_products/gridded_bathymetry_data/",
+    "api_base_url": "https://www.gebco.net/data_and_products/gridded_bathymetry_data/",
+    "signup_url": "",
+    "auth_type": "no_key_for_download_pages",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Catalog only; do not bulk download grids unless storage is planned."
+  },
+  {
+    "provider_id": "geonames",
+    "name": "GeoNames Web Services",
+    "owner": "GeoNames",
+    "categories": [
+      "geocoding",
+      "geography",
+      "places"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://www.geonames.org/export/ws-overview.html",
+    "api_base_url": "https://api.geonames.org",
+    "signup_url": "https://www.geonames.org/login",
+    "auth_type": "username_required",
+    "key_env_var": "GEONAMES_USERNAME",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "imf_data",
+    "name": "IMF Data API",
+    "owner": "International Monetary Fund",
+    "categories": [
+      "economics",
+      "finance",
+      "macro"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://data.imf.org/en/Resource-Pages/IMF-API",
+    "api_base_url": "https://www.imf.org/external/datamapper/api/v1",
+    "signup_url": "",
+    "auth_type": "no_key_or_mixed",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "nasa_earthdata",
+    "name": "NASA Earthdata",
+    "owner": "NASA Earthdata",
+    "categories": [
+      "satellite",
+      "earth_observation",
+      "climate",
+      "ocean"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api",
+    "api_base_url": "https://cmr.earthdata.nasa.gov/search/",
+    "signup_url": "https://urs.earthdata.nasa.gov/",
+    "auth_type": "account_token_or_login",
+    "key_env_var": "NASA_EARTHDATA_TOKEN",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "nasa_open_apis",
+    "name": "NASA Open APIs",
+    "owner": "NASA",
+    "categories": [
+      "space",
+      "satellite",
+      "astronomy",
+      "earth_observation"
+    ],
+    "geographic_scope": "global/space",
+    "docs_url": "https://api.nasa.gov/",
+    "api_base_url": "https://api.nasa.gov/",
+    "signup_url": "https://api.nasa.gov/",
+    "auth_type": "api_key_required",
+    "key_env_var": "NASA_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Includes DEMO_KEY examples, but production use should use a user-owned key."
+  },
+  {
+    "provider_id": "natural_earth",
+    "name": "Natural Earth",
+    "owner": "Natural Earth",
+    "categories": [
+      "gis",
+      "basemap",
+      "vector"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://www.naturalearthdata.com/downloads/",
+    "api_base_url": "https://www.naturalearthdata.com/downloads/",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "noaa_coops",
+    "name": "NOAA CO-OPS Tides and Currents",
+    "owner": "NOAA / Center for Operational Oceanographic Products and Services",
+    "categories": [
+      "ocean",
+      "tides",
+      "water_level",
+      "currents"
+    ],
+    "geographic_scope": "us/coastal",
+    "docs_url": "https://api.tidesandcurrents.noaa.gov/api/prod/",
+    "api_base_url": "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "noaa_ncei_access_data",
+    "name": "NOAA NCEI Access Data Service",
+    "owner": "NOAA / National Centers for Environmental Information",
+    "categories": [
+      "weather",
+      "climate",
+      "ocean",
+      "archive"
+    ],
+    "geographic_scope": "global/us",
+    "docs_url": "https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation",
+    "api_base_url": "https://www.ncei.noaa.gov/access/services/data/v1",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "REST metadata/subset access. Use cautiously; this script only catalogs endpoints."
+  },
+  {
+    "provider_id": "noaa_ncei_cdo",
+    "name": "NOAA NCEI Climate Data Online",
+    "owner": "NOAA / National Centers for Environmental Information",
+    "categories": [
+      "weather",
+      "climate",
+      "stations"
+    ],
+    "geographic_scope": "global/us",
+    "docs_url": "https://www.ncei.noaa.gov/cdo-web/webservices/v2",
+    "api_base_url": "https://www.ncei.noaa.gov/cdo-web/api/v2",
+    "signup_url": "https://www.ncei.noaa.gov/cdo-web/token",
+    "auth_type": "api_token_required",
+    "key_env_var": "NOAA_NCEI_CDO_TOKEN",
+    "license_url": "",
+    "terms_url": "https://www.ncei.noaa.gov/cdo-web/webservices/v2",
+    "notes": "NOAA was written as NAOO in the request; this entry targets NOAA/NCEI CDO."
+  },
+  {
+    "provider_id": "oecd_sdmx",
+    "name": "OECD Data API",
+    "owner": "OECD",
+    "categories": [
+      "economics",
+      "statistics",
+      "development"
+    ],
+    "geographic_scope": "global/oecd",
+    "docs_url": "https://data-explorer.oecd.org/",
+    "api_base_url": "https://sdmx.oecd.org/public/rest/v1",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "open_meteo",
+    "name": "Open-Meteo",
+    "owner": "Open-Meteo",
+    "categories": [
+      "weather",
+      "climate",
+      "air_quality",
+      "marine"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://open-meteo.com/en/docs",
+    "api_base_url": "https://api.open-meteo.com/v1/forecast",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_tier",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "openaq",
+    "name": "OpenAQ API",
+    "owner": "OpenAQ",
+    "categories": [
+      "air_quality",
+      "environment"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://docs.openaq.org/",
+    "api_base_url": "https://api.openaq.org/v3",
+    "signup_url": "https://explore.openaq.org/",
+    "auth_type": "api_key_may_be_required",
+    "key_env_var": "OPENAQ_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "opensky_network",
+    "name": "OpenSky Network API",
+    "owner": "OpenSky Network",
+    "categories": [
+      "aviation",
+      "ads-b",
+      "traffic"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://openskynetwork.github.io/opensky-api/rest.html",
+    "api_base_url": "https://opensky-network.org/api",
+    "signup_url": "https://opensky-network.org/index.php?option=com_users&view=registration",
+    "auth_type": "account_optional_or_required_for_limits",
+    "key_env_var": "OPENSKY_USERNAME",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "openweathermap",
+    "name": "OpenWeather",
+    "owner": "OpenWeather Ltd.",
+    "categories": [
+      "weather",
+      "forecast",
+      "air_pollution"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://openweathermap.org/api",
+    "api_base_url": "https://api.openweathermap.org/",
+    "signup_url": "https://home.openweathermap.org/users/sign_up",
+    "auth_type": "api_key_required",
+    "key_env_var": "OPENWEATHER_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "usgs_earthquake",
+    "name": "USGS Earthquake Hazards Program API",
+    "owner": "U.S. Geological Survey",
+    "categories": [
+      "earthquake",
+      "hazards",
+      "geophysics"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://earthquake.usgs.gov/fdsnws/event/1/",
+    "api_base_url": "https://earthquake.usgs.gov/fdsnws/event/1/query",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "usgs_m2m",
+    "name": "USGS EROS Machine-to-Machine API",
+    "owner": "U.S. Geological Survey",
+    "categories": [
+      "satellite",
+      "landsat",
+      "remote_sensing"
+    ],
+    "geographic_scope": "global/us",
+    "docs_url": "https://m2m.cr.usgs.gov/",
+    "api_base_url": "https://m2m.cr.usgs.gov/api/api/json/stable/",
+    "signup_url": "https://ers.cr.usgs.gov/register/",
+    "auth_type": "account_token_required",
+    "key_env_var": "USGS_M2M_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  },
+  {
+    "provider_id": "world_bank_indicators",
+    "name": "World Bank Indicators API",
+    "owner": "World Bank",
+    "categories": [
+      "economics",
+      "development",
+      "population"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation",
+    "api_base_url": "https://api.worldbank.org/v2",
+    "signup_url": "",
+    "auth_type": "no_key",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": ""
+  }
+]

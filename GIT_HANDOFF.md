@@ -1,0 +1,75 @@
+# Git Handoff Guide
+
+Use this project as the handoff unit between Mac and Windows.
+
+## First-Time Setup
+
+On macOS:
+
+```bash
+cd APIkeys_collection
+git init
+git add .
+git commit -m "Initialize APIkeys_collection launcher"
+```
+
+On Windows PowerShell, after Git is installed:
+
+```powershell
+cd K:\APIkeys_collection
+.\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
+git status --short --branch
+```
+
+GitHub CLI authentication, once per machine:
+
+```bash
+gh auth login
+gh auth status
+```
+
+If the project folder is on a synced or network drive and Git reports dubious ownership:
+
+```bash
+git config --global --add safe.directory "<absolute project path>"
+```
+
+## Daily Handoff Loop
+
+Before switching machines:
+
+```bash
+git status --short
+git add APIkeys_collection.py APIkeys_collection_ui.py README.md PROJECT_STATE.md GIT_HANDOFF.md .gitignore .gitattributes
+git commit -m "Describe the launcher change"
+git status --short
+```
+
+After switching machines:
+
+```bash
+git status --short --branch
+python3 -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
+python3 APIkeys_collection.py --summary
+```
+
+On Windows, replace `python3` with `py`:
+
+```powershell
+py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py
+py APIkeys_collection.py --summary
+```
+
+## What To Avoid
+
+- Do not commit filled `*.private.json`, `*.secret.json`, or real `.env` files.
+- Avoid editing the same file on both machines before committing.
+- Avoid simultaneous SQLite writes from Mac and Windows through a synced drive.
+- Do not rely on chat history as the only handoff memory. Put decisions in `PROJECT_STATE.md`.
+
+## Good Commit Messages
+
+- `Refactor provider registry into data module`
+- `Add launcher download state model`
+- `Wire Tk UI to provider repository`
+- `Add GEBCO dataset adapter skeleton`

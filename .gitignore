@@ -1,0 +1,12 @@
+APIkeys_collection_credentials.private.json
+.env
+*.private.json
+*.secret.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

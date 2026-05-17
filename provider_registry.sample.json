@@ -1,0 +1,26 @@
+{
+  "providers": [
+    {
+      "provider_id": "example_provider",
+      "name": "Example Provider",
+      "owner": "Example Organization",
+      "categories": [
+        "weather",
+        "metadata"
+      ],
+      "geographic_scope": "global",
+      "docs_url": "https://example.com/docs",
+      "api_base_url": "https://api.example.com/v1",
+      "signup_url": "https://example.com/signup",
+      "auth_type": "api_key_required",
+      "key_env_var": "EXAMPLE_API_KEY",
+      "secret_env_vars": [],
+      "license_url": "https://example.com/license",
+      "terms_url": "https://example.com/terms",
+      "notes": "Official metadata endpoint only; do not add bulk data URLs here.",
+      "crawl_urls": [
+        "https://example.com/status"
+      ]
+    }
+  ]
+}
