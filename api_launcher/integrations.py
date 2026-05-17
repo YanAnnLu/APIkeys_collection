@@ -59,6 +59,21 @@ class DownloadToolProfile:
 
 
 @dataclass(frozen=True)
+class RuntimeOrchestrationProfile:
+    id: str
+    label: str
+    kind: str
+    enabled: bool
+    command: tuple[str, ...]
+    namespace: str = ""
+    context: str = ""
+    required_env_vars: tuple[str, ...] = ()
+    optional_env_vars: tuple[str, ...] = ()
+    env_var_map: dict[str, str] = field(default_factory=dict)
+    notes: str = ""
+
+
+@dataclass(frozen=True)
 class UnrealProjectProfile:
     id: str
     label: str
@@ -204,6 +219,59 @@ def active_download_tool() -> DownloadToolProfile | None:
     config = load_integration_config()
     active_id = str(config.get("active_download_tool") or "").strip()
     profiles = download_tool_profiles()
+    if active_id:
+        for profile in profiles:
+            if profile.id == active_id and profile.enabled:
+                return profile
+    return next((profile for profile in profiles if profile.enabled), None)
+
+
+def runtime_orchestration_profiles() -> list[RuntimeOrchestrationProfile]:
+    return runtime_orchestration_profiles_from_config(load_integration_config())
+
+
+def runtime_orchestration_profiles_from_config(config: dict[str, object]) -> list[RuntimeOrchestrationProfile]:
+    system = platform.system()
+    profiles = []
+    for item in config.get("runtime_orchestration_profiles", []):
+        command_by_platform = item.get("command_by_platform") or {}
+        command = command_by_platform.get(system) or item.get("command") or ()
+        if isinstance(command, str):
+            command = (command,)
+        raw_env_var_map = item.get("env_var_map") or {}
+        env_var_map = (
+            {
+                str(key).strip(): str(value).strip()
+                for key, value in raw_env_var_map.items()
+                if str(key).strip() and str(value).strip()
+            }
+            if isinstance(raw_env_var_map, dict)
+            else {}
+        )
+        required = item.get("required_env_vars") or ()
+        optional = item.get("optional_env_vars") or ()
+        profiles.append(
+            RuntimeOrchestrationProfile(
+                id=str(item.get("id") or "").strip(),
+                label=str(item.get("label") or "").strip(),
+                kind=str(item.get("kind") or "").strip(),
+                enabled=bool(item.get("enabled", True)),
+                command=tuple(str(value) for value in command),
+                namespace=str(item.get("namespace") or "").strip(),
+                context=str(item.get("context") or "").strip(),
+                required_env_vars=tuple(str(value).strip() for value in required if str(value).strip()),
+                optional_env_vars=tuple(str(value).strip() for value in optional if str(value).strip()),
+                env_var_map=env_var_map,
+                notes=str(item.get("notes") or "").strip(),
+            )
+        )
+    return [profile for profile in profiles if profile.id and profile.label and profile.kind]
+
+
+def active_runtime_orchestration_profile() -> RuntimeOrchestrationProfile | None:
+    config = load_integration_config()
+    active_id = str(config.get("active_runtime_orchestration_profile") or "").strip()
+    profiles = runtime_orchestration_profiles()
     if active_id:
         for profile in profiles:
             if profile.id == active_id and profile.enabled:

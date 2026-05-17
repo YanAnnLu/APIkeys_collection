@@ -14,6 +14,7 @@ scientific/geospatial/financial data sources. It is crawler/downloader preparati
 - Runs direct entries from a download-plan JSON and registers healthy manifest-backed file assets.
 - Imports verified CSV/CSV.GZ and JSON/JSONL/GeoJSON manifests into curated SQLite tables and registers table assets.
 - Batch-imports healthy CSV or JSON manifests from the registry while skipping unsupported, unhealthy, or already-imported tables.
+- Reserves a Hadoop/HDFS data-lake connection profile for future handoff to a separate Hadoop team.
 - Does not search for leaked keys or scrape secrets.
 
 ## Current Launcher Features
@@ -153,6 +154,10 @@ validation is implemented.
 The bridge layer is the contract between raw downloaded data and the renderer. Raw files may be NetCDF, Zarr,
 GeoTIFF, GeoParquet, CSV, or provider-native formats. Bridge assets should be compact, indexed, and shaped for
 `taichi_global_bathymetry.py` to load quickly.
+
+Mid-term Hadoop integration should stay manifest-driven. The launcher can prepare verified dataset IDs, versions,
+checksums, partition hints, HDFS/Hive targets, and job/output metadata, while the Hadoop team owns the actual
+HDFS/Hive/Spark cluster behavior.
 
 ## Quick Start
 

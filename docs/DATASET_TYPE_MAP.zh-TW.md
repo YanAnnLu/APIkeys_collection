@@ -1,6 +1,6 @@
 # 資料類型地圖
 
-最後更新：2026-05-17
+最後更新：2026-05-18
 
 這份文件用來補足專案的概念層：資料集不只是「一堆數字」或「一段文字」。同一個 launcher 未來會碰到表格、地圖、時間序列、科學陣列、粒子事件、圖片、影片、3D 模型、文件、圖網路與即時串流。不同資料類型需要不同儲存、分析與渲染目標。
 
@@ -20,6 +20,7 @@
 | 文字/文件/RAG | 論文、法規、報告、網頁、OCR | PDF/HTML/TXT/Markdown、object storage | 文件 metadata、授權、切片索引、來源鏈 | 全文搜尋、向量 DB、RAG |
 | 圖網路/關係圖 | 供應鏈、知識圖譜、引用網路、社群網 | graph DB、edge list、Parquet | 節點/邊版本、來源、權重、命名空間 | Neo4j、network analysis、graph visualization |
 | 即時串流/log | market feed、感測器 stream、系統 log | Kafka/Redpanda、Redis stream、append-only files | topic、offset、checkpoint、retention、consumer state | stream processor、live dashboard |
+| 分散式資料湖/批次運算 | 大量 raw files、跨資料集 join、長時間 ETL、特徵工程 | HDFS、Hive table、Parquet/ORC、object storage | dataset ID、manifest、partition、job run、lineage、權限 | Hadoop、Hive、Spark、MapReduce |
 | ML artifact/embedding | 模型權重、特徵、向量索引 | model registry、object storage、vector DB | 模型版本、訓練資料來源、評估結果、license | vector search、模型 serving、agent tools |
 
 ## MVP 怎麼落地
@@ -47,6 +48,8 @@ Adapter metadata 可以逐步補這些欄位，不需要一次全部完成：
 | `viewer_hint` | 建議前端或 renderer，例如 `tradingview_like_chart`、`cesium`、`unreal`、`threejs`、`rag_search`。 |
 | `chunking_hint` | 大資料如何切分，例如 time window、tile、LOD、run ID、file shard。 |
 | `license_scope` | 下載、再散佈、AI 訓練、商用或展示限制。 |
+| `distributed_backend_hint` | 是否適合交給 Hadoop/HDFS/Hive/Spark，例如大量檔案、Parquet partition、批次 ETL 或跨資料集 join。 |
+| `orchestration_hint` | 是否適合交給 K8S worker/job，例如定期同步、長時間 importer、repair scanner 或 ETL job。 |
 
 ## 不要硬塞進 SQL 的訊號
 

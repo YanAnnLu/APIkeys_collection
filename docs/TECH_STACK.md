@@ -161,6 +161,7 @@ Provider catalog
 -> Dataset adapter
 -> Raw download/import
 -> Curation
+-> Optional Hadoop/HDFS/Hive/Spark handoff for large batch/data-lake workloads
 -> Render bridge asset
 -> taichi_global_bathymetry.py
 ```
@@ -171,6 +172,14 @@ API, CSV, JSON, manual SQL imports, and derived outputs must carry provenance:
 - `source_format`: `api`, `csv`, `json`, `sqlite`, `manual`, or `unknown`
 - `source_uri`
 - `schema_fingerprint`
+
+For mid-term Hadoop integration, keep the launcher/Hadoop boundary manifest-driven. The launcher should not assume it
+owns the Hadoop cluster. It should hand over verified dataset IDs, versions, checksums, partitions, HDFS/Hive targets,
+job run IDs, and lineage metadata, then read back status/output manifests from the Hadoop team's pipeline.
+
+For mid-term Kubernetes integration, keep the launcher/K8S boundary job-spec-driven. K8S should run containerized
+workers, scheduled jobs, API services, and repair scanners, while the launcher records desired job specs and consumes
+status/output manifests. Cluster secrets, scaling, network policy, and operational health belong to the K8S team.
 
 This prevents derived analysis tables from being mistaken for official upstream data.
 

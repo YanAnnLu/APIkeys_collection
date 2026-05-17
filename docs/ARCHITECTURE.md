@@ -15,6 +15,63 @@ The product has two linked halves:
 - Renderer data pipeline: curated datasets become tile/cache manifests that Taichi and Unreal can consume with different
   performance budgets.
 
+For handoff discussions, keep two pipeline levels separate: the MVP loop that runs on a local machine today, and the
+mid-term distributed loop where Hadoop and Kubernetes may be owned by other teams.
+
+### MVP Loop
+
+```mermaid
+flowchart LR
+    Provider[Provider / official source]
+    Catalog[Provider + dataset catalog]
+    Plan[Download plan]
+    Download[Direct downloader]
+    Manifest[Sidecar manifest + checksum]
+    Registry[Install registry]
+    Curated[Curated SQLite table]
+    Repair[Repair / self-check]
+    Renderer[Tile/cache or renderer bridge]
+
+    Provider --> Catalog
+    Catalog --> Plan
+    Plan --> Download
+    Download --> Manifest
+    Manifest --> Registry
+    Manifest --> Curated
+    Curated --> Registry
+    Registry --> Repair
+    Registry --> Renderer
+```
+
+### Mid-Term Distributed Loop
+
+```mermaid
+flowchart TD
+    Launcher[APIkeys launcher governance]
+    Manifest[Dataset IDs / manifests / checksums / license]
+    LocalWorker[Local downloader/importer worker]
+    Hadoop[Hadoop / HDFS / Hive / Spark data lake]
+    K8S[Kubernetes orchestration]
+    Jobs[Downloader / importer / repair / ETL jobs]
+    Results[Output manifests / job status / lineage]
+    Registry[Launcher install registry]
+    Consumers[UI / mobile remote / agent / Taichi / Unreal]
+
+    Launcher --> Manifest
+    Manifest --> LocalWorker
+    Manifest --> Hadoop
+    Launcher --> K8S
+    K8S --> Jobs
+    Jobs --> Hadoop
+    Jobs --> Results
+    Hadoop --> Results
+    Results --> Registry
+    Registry --> Consumers
+```
+
+Hadoop is the future distributed storage/compute layer. Kubernetes is the future runtime orchestration layer. The
+launcher should not own either cluster; it should prepare contracts, submit or describe jobs, and read back status.
+
 ```mermaid
 flowchart TD
     subgraph UI[Steam-like Launcher UI]
@@ -41,6 +98,11 @@ flowchart TD
         Staging[Staging area with resume]
         Manifests[Sidecar manifests and checksums]
         Imports[CSV / JSON / SQL / API import adapters]
+    end
+
+    subgraph Distributed[Future Distributed Backends]
+        Hadoop[Hadoop / HDFS / Hive / Spark]
+        K8S[Kubernetes jobs / workers / services]
     end
 
     subgraph DataCore[Data Governance Core]
@@ -89,8 +151,12 @@ flowchart TD
     Staging --> Manifests
     Imports --> Manifests
     Manifests --> Raw
+    Manifests --> Hadoop
+    K8S --> Queue
+    K8S --> Imports
 
     Raw --> Curation
+    Hadoop --> Curation
     Curation --> Install
     Install --> SQL
     Install --> Update
@@ -132,6 +198,16 @@ redistributable. The launcher must verify license/redistribution metadata, datas
 checksums, and user opt-in before seeding. Token-protected APIs, private datasets, terms-restricted downloads, and
 unknown-origin files must stay outside the P2P path.
 
+Hadoop boundary: Hadoop/HDFS/Hive/Spark is a mid-term distributed data lake and batch-compute backend owned by a
+separate team. The launcher should pass dataset IDs, versions, manifests, checksums, license/provenance metadata,
+partition hints, HDFS/Hive targets, and job metadata. Hadoop should return output manifests, lineage, schema summaries,
+and job status that the launcher can store in the registry.
+
+Kubernetes boundary: Kubernetes is an orchestration layer, not a database. It can later run downloader workers,
+importer jobs, repair scanners, remote-control API services, scheduled syncs, or Spark/Hadoop bridge jobs. The launcher
+should reserve job specs and status contracts, while the Kubernetes team owns cluster deployment, scaling, secrets,
+network policy, and operational health.
+
 ## Runtime Layers
 
 | Layer | Files | Role |
@@ -146,7 +222,9 @@ unknown-origin files must stay outside the P2P path.
 | Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
 | Downloading | `api_launcher/download_jobs.py`, `api_launcher/http_downloader.py`, `api_launcher/transfer_tools.py` | Nonblocking job queue, resumable HTTP adapter, optional external transfer tools. |
 | Future P2P distribution | Not implemented yet | Optional BitTorrent-like dataset sharing for redistributable public data only, guarded by license, version, checksum, and opt-in policy. |
-| Integration settings | `api_launcher/integrations.py`, `api_launcher/data_store_connections.py`, `config/launcher_integrations.example.json` | Database clients, data-store connection profiles, AI summary profiles, download tool profiles. |
+| Future distributed data lake | `api_launcher/data_store_connections.py`, future Hadoop adapter | Reserved Hadoop/HDFS/Hive/Spark handoff for large raw/curated datasets and batch compute. |
+| Future orchestration | `api_launcher/integrations.py`, future K8S job specs | Reserved Kubernetes/Docker orchestration profiles for workers, jobs, services, and scheduled tasks. |
+| Integration settings | `api_launcher/integrations.py`, `api_launcher/data_store_connections.py`, `config/launcher_integrations.example.json` | Database clients, data-store connection profiles, AI summary profiles, download tool profiles, orchestration profiles. |
 | Environment checks | `api_launcher/environment.py`, `.editorconfig`, `.gitattributes` | Startup path/tool/encoding checks and cross-platform file rules. |
 | Install and uninstall safety | `api_launcher/asset_verifier.py`, `api_launcher/sql_assets.py`, `api_launcher/provenance.py`, `api_launcher/asset_roles.py` | Install IDs, asset verification, provenance, safe uninstall metadata. |
 | Data curation | `api_launcher/curation.py` | Early validation/normalization skeleton for API/CSV/JSON/manual imports. |

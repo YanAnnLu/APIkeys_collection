@@ -39,6 +39,7 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertIn("relational_sql", kinds)
         self.assertIn("document_nosql", kinds)
         self.assertIn("object_storage", kinds)
+        self.assertIn("distributed_data_lake", kinds)
         self.assertIn("vector_database", kinds)
 
     def test_mongodb_profile_uses_uri_env(self) -> None:
@@ -54,6 +55,24 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertEqual("relational_sql", profile.store_kind)
         self.assertIn("APIKEYS_MYSQL_PASSWORD", profile.required_env_vars)
         self.assertIn("APIKEYS_MYSQL_PORT", profile.optional_env_vars)
+
+    def test_hadoop_profile_reserves_distributed_data_lake_contract(self) -> None:
+        profile = data_store_profile("hadoop_default")
+
+        self.assertIsNotNone(profile)
+        self.assertEqual("distributed_data_lake", profile.store_kind)
+        self.assertEqual("hadoop", profile.engine)
+        self.assertEqual(("APIKEYS_HADOOP_NAMENODE_URI",), profile.required_env_vars)
+        self.assertEqual("APIKEYS_HIVE_METASTORE_URI", profile.env_var_map["hive_metastore_uri"])
+
+    def test_hadoop_connection_test_is_explicitly_reserved(self) -> None:
+        profile = data_store_profile("hadoop_default")
+        self.assertIsNotNone(profile)
+
+        result = test_data_store_connection(profile, {"APIKEYS_HADOOP_NAMENODE_URI": "hdfs://namenode:8020"})
+
+        self.assertEqual("unsupported", result.status)
+        self.assertEqual("distributed_data_lake", result.details["store_kind"])
 
     def test_profiles_can_be_filtered_by_kind(self) -> None:
         profiles = data_store_profiles_by_kind("relational_sql")

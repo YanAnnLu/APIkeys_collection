@@ -29,6 +29,64 @@ Steam-like 的產品形態不應只是一個手動開啟的視窗。中期目標
 - Steam-like 資料庫安裝器：搜尋資料集、加入下載計畫、下載、安裝、更新、解除安裝、開啟資料庫工具。
 - 虛擬孿生資料管線：把已安裝資料轉成 Taichi/Unreal 可讀的 cache、tile manifest 或串流索引。
 
+先把它想成兩層會比較好懂：
+
+1. 目前 MVP 閉環：單機 launcher 先能下載、驗證 manifest、匯入 SQLite、登錄 install registry。
+2. 中後期分散式閉環：Hadoop 負責大型資料湖/批次運算，K8S 負責部署與調度很多 worker/job/service。
+
+### 目前 MVP 閉環
+
+```mermaid
+flowchart LR
+    Source[官方資料源]
+    Catalog[Provider / Dataset catalog]
+    Plan[下載計畫]
+    Download[Direct downloader]
+    Manifest[Manifest + checksum]
+    Registry[Install registry]
+    Curated[Curated SQLite table]
+    Repair[修復 / 自檢]
+    Bridge[Renderer / 分析橋接]
+
+    Source --> Catalog
+    Catalog --> Plan
+    Plan --> Download
+    Download --> Manifest
+    Manifest --> Registry
+    Manifest --> Curated
+    Curated --> Registry
+    Registry --> Repair
+    Registry --> Bridge
+```
+
+### 中後期分散式閉環
+
+```mermaid
+flowchart TD
+    Launcher[Launcher 資料治理]
+    Contract[Dataset ID / manifest / checksum / license]
+    LocalWorker[本機 worker]
+    Hadoop[Hadoop / HDFS / Hive / Spark]
+    K8S[Kubernetes]
+    Jobs[Downloader / Importer / Repair / ETL jobs]
+    Result[輸出 manifest / job status / lineage]
+    Registry[Install registry]
+    Consumer[UI / 手機遙控 / Agent / Taichi / Unreal]
+
+    Launcher --> Contract
+    Contract --> LocalWorker
+    Contract --> Hadoop
+    Launcher --> K8S
+    K8S --> Jobs
+    Jobs --> Hadoop
+    Jobs --> Result
+    Hadoop --> Result
+    Result --> Registry
+    Registry --> Consumer
+```
+
+白話說，Hadoop 像大型資料倉庫與批次工廠；K8S 像負責部署、排程、重啟與擴縮 worker 的調度中心。本專案不要一開始就擁有 Hadoop/K8S，而是先把交接契約留下來：manifest、dataset ID、版本、checksum、授權、partition、job ID、輸出 manifest 與狀態。
+
 ```mermaid
 flowchart TD
     subgraph UI[Steam-like 啟動器]
@@ -51,9 +109,15 @@ flowchart TD
         Eligibility[Direct / Adapter / Docs 判斷]
         Queue[非阻塞下載 queue]
         Transfer[HTTP adapter / aria2c / curl]
+        P2P[未來 P2P 分發]
         Staging[Staging + 續傳]
         Manifest[Sidecar manifest / checksum]
         Import[CSV / JSON / SQL / API 匯入 adapter]
+    end
+
+    subgraph Distributed[中後期分散式後端]
+        Hadoop[Hadoop / HDFS / Hive / Spark]
+        K8S[Kubernetes worker / job / service]
     end
 
     subgraph Governance[資料治理核心]
@@ -95,12 +159,18 @@ flowchart TD
 
     Eligibility --> Queue
     Queue --> Transfer
+    Queue --> P2P
     Transfer --> Staging
+    P2P --> Staging
     Staging --> Manifest
     Import --> Manifest
     Manifest --> Raw
+    Manifest --> Hadoop
+    K8S --> Queue
+    K8S --> Import
 
     Raw --> Clean
+    Hadoop --> Clean
     Clean --> Install
     Install --> SQL
     Install --> Update
@@ -125,6 +195,10 @@ flowchart TD
 ```
 
 重要邊界：Unreal 是前端與渲染器，不是資料主權所在。原始資料、版本、checksum、清洗紀錄、install_id 仍由 launcher 管理；Unreal 只在需要時匯入、快取、串流或烘焙前端專用資產。
+
+Hadoop 邊界：Hadoop/HDFS/Hive/Spark 是中後期的大型資料湖與批次運算後端，可能由另一個小組負責。Launcher 應提供 dataset ID、manifest、checksum、授權/provenance、partition hint、HDFS/Hive target 與 job metadata；Hadoop 端回傳 output manifest、lineage、schema summary 與 job status。
+
+K8S 邊界：Kubernetes 不是資料庫，而是部署與調度層。未來它可以跑 downloader worker、importer job、repair scanner、remote API service、排程同步、或 Hadoop/Spark bridge job。Launcher 應保留 job spec/status contract；K8S 小組負責 cluster deployment、scaling、secrets、network policy 與健康監控。
 
 ## 重要資料夾
 
@@ -248,7 +322,7 @@ py APIkeys_collection.py --show-library-actions gebco --library-local-status man
 選單列也有 `Integrations > Data store connections`。這和「資料庫工具」不同：
 
 - Database tool settings：設定要開啟 MySQL Workbench、DBeaver 或其他 GUI client。
-- Data store connections：保留 MySQL/PostgreSQL/SQLite、MongoDB、S3-compatible object storage、vector DB 等連線 profile 與環境變數名稱，供未來自檢、登入、測試連線、install/uninstall adapter 使用。
+- Data store connections：保留 MySQL/PostgreSQL/SQLite、MongoDB、S3-compatible object storage、Hadoop/HDFS data lake、vector DB 等連線 profile 與環境變數名稱，供未來自檢、登入、測試連線、install/uninstall adapter 使用。
 
 SQL 不再有獨立的連線 profile 模組；MySQL、PostgreSQL、SQLite 會被視為 data store connection 的一種。這樣可以避免未來同時維護 SQL-only 與 NoSQL/object/vector profile 兩套相似結構。
 
@@ -262,6 +336,19 @@ python APIkeys_collection.py --test-data-store all
 ```
 
 SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不會為了測試而建立缺失的資料庫檔。MySQL/PostgreSQL 會先檢查必要環境變數與 optional Python driver；未安裝 driver 時只回報 `dependency_missing`，不會嘗試連線或要求把套件裝進 base/system 環境。
+
+`hadoop_default` 目前是預留 profile。它代表未來可對接 Hadoop/HDFS/Hive/Spark，但現在 tester 只會明確回報 unsupported。這是刻意的：先讓另一個小組有正式入口，不在 launcher 裡臨時硬寫 Hadoop 指令。
+
+## Hadoop 與 K8S 的中後期角色
+
+Hadoop 和 K8S 常被一起提到，但角色不同：
+
+| 名稱 | 白話理解 | 在本專案可能做什麼 |
+| --- | --- | --- |
+| Hadoop / HDFS / Hive / Spark | 大型資料倉庫與批次運算工廠 | 存放大量 raw/curated files，跑長時間 ETL、跨資料集 join、批次分析，回傳 output manifest。 |
+| Kubernetes / K8S | 服務與 worker 的調度中心 | 部署 downloader/importer/repair/API workers，排程 job，重啟失敗服務，按負載擴縮。 |
+
+所以 Hadoop 比較接近「資料在哪裡、怎麼大量處理」；K8S 比較接近「誰來跑這些工作、怎麼保持服務活著」。Launcher 的角色是資料治理與任務入口：它知道資料來源、授權、版本、checksum、manifest、install_id、job status。未來如果要接 Hadoop/K8S，也應該透過 manifest/job spec/status 回寫，不應讓 UI 直接知道叢集內部細節。
 
 如果資料庫資產已經被 install registry 納管，可以跑：
 

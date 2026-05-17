@@ -91,6 +91,12 @@ The project is not a secret harvester. Credential files are templates for user-o
   location, period, licenses, thumbnails, versions, and provenance; raw photos/video/audio/meshes/point clouds/BIM
   files/textures should remain in filesystem or object storage with manifests and viewer hints for Three.js, Cesium,
   Unreal, Blender, or GLTF pipelines.
+- Hadoop/HDFS/Hive/Spark integration is a mid-term handoff point for another team, not a current MVP dependency. The
+  launcher should keep manifests, dataset IDs, checksums, provenance, partitions, and job/output metadata as the stable
+  contract. `hadoop_default` is reserved in data-store profiles so future adapters have a named integration point.
+- Kubernetes/K8S integration is a mid-term orchestration handoff point for containerized workers and services, not a
+  database. The launcher should keep job specs, dataset manifest inputs, output manifests, status, retries, and namespace
+  metadata as the contract. Runtime orchestration profiles are reserved in integration config for Docker Compose and K8S.
 
 Current SQLite counts observed on this machine:
 

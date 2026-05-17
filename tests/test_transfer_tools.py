@@ -5,7 +5,13 @@ from pathlib import Path
 
 import json
 
-from api_launcher.integrations import DownloadToolProfile, download_policy_from_config, download_tool_profiles_from_config, example_integrations_path
+from api_launcher.integrations import (
+    DownloadToolProfile,
+    download_policy_from_config,
+    download_tool_profiles_from_config,
+    example_integrations_path,
+    runtime_orchestration_profiles_from_config,
+)
 from api_launcher.transfer_tools import build_external_transfer_command, transfer_url_from_plan_entry
 
 
@@ -24,6 +30,16 @@ class TransferToolTests(unittest.TestCase):
         self.assertEqual(3, policy.max_parallel_jobs)
         self.assertEqual(1, policy.max_parallel_per_host)
         self.assertIn(429, policy.cooldown_status_codes)
+
+    def test_example_config_reserves_runtime_orchestration_profiles(self) -> None:
+        config = json.loads(example_integrations_path().read_text(encoding="utf-8"))
+        profiles = {profile.id: profile for profile in runtime_orchestration_profiles_from_config(config)}
+
+        self.assertIn("local_docker_compose", profiles)
+        self.assertIn("kubernetes_default", profiles)
+        self.assertEqual("kubernetes", profiles["kubernetes_default"].kind)
+        self.assertEqual("apikeys-collection", profiles["kubernetes_default"].namespace)
+        self.assertIn("KUBECONFIG", profiles["kubernetes_default"].required_env_vars)
 
     def test_build_aria2c_command_uses_resume_and_split_flags(self) -> None:
         profile = DownloadToolProfile(

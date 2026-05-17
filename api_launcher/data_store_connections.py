@@ -109,6 +109,30 @@ DEFAULT_DATA_STORE_PROFILES = (
         notes="Reserved for object storage, data lakes, and large raw/curated asset buckets.",
     ),
     DataStoreConnectionProfile(
+        profile_id="hadoop_default",
+        label="Hadoop / HDFS data lake",
+        store_kind="distributed_data_lake",
+        engine="hadoop",
+        required_env_vars=("APIKEYS_HADOOP_NAMENODE_URI",),
+        optional_env_vars=(
+            "HADOOP_CONF_DIR",
+            "APIKEYS_HDFS_USER",
+            "APIKEYS_HIVE_METASTORE_URI",
+            "APIKEYS_SPARK_MASTER",
+        ),
+        notes=(
+            "Reserved for the Hadoop team's distributed storage/compute layer. "
+            "Use manifests and dataset IDs as the handoff contract before any HDFS/Hive/Spark adapter is implemented."
+        ),
+        env_var_map={
+            "namenode_uri": "APIKEYS_HADOOP_NAMENODE_URI",
+            "hadoop_conf_dir": "HADOOP_CONF_DIR",
+            "hdfs_user": "APIKEYS_HDFS_USER",
+            "hive_metastore_uri": "APIKEYS_HIVE_METASTORE_URI",
+            "spark_master": "APIKEYS_SPARK_MASTER",
+        },
+    ),
+    DataStoreConnectionProfile(
         profile_id="vector_db_default",
         label="Vector DB default",
         store_kind="vector_database",
