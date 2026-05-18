@@ -66,6 +66,29 @@
 | new | P2 |  |  |  | 待判斷 |  |  |  |  |  |  |
 | new | P2 |  |  |  | 待判斷 |  |  |  |  |  |  |
 
+## 程式檢查方式
+
+組員填完表格後，可以先讓程式做一次整理。這不會下載資料，也不會把內容直接寫入正式 catalog；它只會把 Markdown 表格轉成工程可讀的 review JSON。
+
+```bash
+conda run -n metal_trade_312 python APIkeys_collection.py \
+  --portal-intake-report \
+  --write-portal-intake-json state/portal_intake.review.json
+```
+
+輸出會把每一列分成幾種動作：
+
+| 動作 | 意思 |
+| --- | --- |
+| `provider_seed_draft` | 可轉成資料商/provider seed 草稿。 |
+| `dataset_discovery_source_draft` | 可轉成 dataset discovery source 草稿。 |
+| `crawler_mapping_needed` | 入口像資料目錄 API，但還不知道該用哪種 crawler。 |
+| `dataset_candidate_review` | 單一資料集頁，先進候選/adapter review。 |
+| `direct_resource_review` | 直接檔案，仍要先看大小、授權、格式。 |
+| `integration_backlog` | 需要登入/OAuth/API key，先放到串接待辦。 |
+| `triage_needed` | 類型不明，先人工判斷。 |
+| `incomplete` | 缺網站名稱或 URL，請補資料。 |
+
 ## 已納入專案的代表入口
 
 這些已經進入目前專案設定，可作為組員填寫時的參考。

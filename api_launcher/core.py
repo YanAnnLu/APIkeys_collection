@@ -47,6 +47,11 @@ from api_launcher.cli_dataset_discovery import (
     dataset_discovery_command_active,
     discover_dataset_candidates_cli,
 )
+from api_launcher.cli_portal_intake import (
+    add_portal_intake_args,
+    portal_intake_cli,
+    portal_intake_command_active,
+)
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
 from api_launcher.dataset_discovery import (
@@ -638,6 +643,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--discover-datasets", action="store_true", help="placeholder for future provider-specific dataset adapters")
     add_discovery_args(parser)
     add_dataset_discovery_args(parser)
+    add_portal_intake_args(parser)
     parser.add_argument("--summary", action="store_true", help="print database summary")
     return parser.parse_args(argv)
 
@@ -670,6 +676,7 @@ class CatalogLauncherCli:
             self.list_manifests()
             self.show_logs()
             self.write_handoff_report()
+            portal_intake_cli(self.args)
             self.show_unreal_bridge_plan()
             self.show_render_profiles()
             self.list_render_effects()
@@ -750,6 +757,7 @@ class CatalogLauncherCli:
             self.args.discover_datasets,
             discovery_command_active(self.args),
             dataset_discovery_command_active(self.args),
+            portal_intake_command_active(self.args),
             self.args.summary,
         )
         if any(command_flags):
