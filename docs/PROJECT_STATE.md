@@ -181,7 +181,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   for future workers. Supported downloaded CSV/JSON plan items can now be imported from the UI into
   `state/curated_imports.sqlite` after sidecar manifest verification. The cart and download job table expose import
   readiness/status and target table hints so users can see whether an item is waiting for download, ready to import,
-  imported, blocked by adapter review, or blocked by unpack/adapter work.
+  imported, blocked by adapter review, or blocked by unpack/adapter work. If the target table already exists, the UI
+  now safely auto-renames the new import to the next available table name instead of replacing existing data.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.

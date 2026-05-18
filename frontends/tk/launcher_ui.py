@@ -32,6 +32,7 @@ from api_launcher.downloads.jobs import DownloadProgress, JobStatus, NonBlocking
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.downloads.plan_runner import import_completed_plan_entry
+from api_launcher.importers.csv_importer import table_exists
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
@@ -1752,8 +1753,9 @@ class ApiCollectionUi:
         import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
         status = str(import_plan.get("status") or "").strip()
         table_hint = str(import_plan.get("table_hint") or "").strip()
-        table_label = f" -> {table_hint}" if table_hint else ""
         if status == "supported_after_download":
+            target_table = self.unique_import_table_name(state_file(CURATED_IMPORTS_NAME), table_hint) if table_hint else ""
+            table_label = f" -> {target_table}" if target_table else ""
             manifest_status = self.plan_entry_manifest_status(entry)
             if manifest_status == "ok":
                 return self.tr(f"可匯入{table_label}", f"Ready to import{table_label}")
@@ -1777,6 +1779,19 @@ class ApiCollectionUi:
         if not manifest_path.exists():
             return "missing"
         return verify_manifest_file(manifest_path).status
+
+    def unique_import_table_name(self, sqlite_path: Path, table_name: str) -> str:
+        base = table_name.strip() or "imported_dataset"
+        if not table_exists(sqlite_path, base):
+            return base
+        for index in range(2, 1000):
+            suffix = f"_{index}"
+            candidate = f"{base[:63 - len(suffix)]}{suffix}"
+            if not table_exists(sqlite_path, candidate):
+                return candidate
+        timestamp = time.strftime("%Y%m%d%H%M%S")
+        suffix = f"_{timestamp}"
+        return f"{base[:63 - len(suffix)]}{suffix}"
 
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
@@ -2131,6 +2146,14 @@ class ApiCollectionUi:
                     manifest = read_manifest(manifest_path)
                     repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
                     repository.register_downloaded_manifest_asset(manifest, manifest_path)
+                    if table_hint:
+                        unique_table = self.unique_import_table_name(sqlite_path, table_hint)
+                        if unique_table != table_hint:
+                            entry = dict(entry)
+                            import_plan = dict(import_plan)
+                            import_plan["table_hint"] = unique_table
+                            entry["import_plan"] = import_plan
+                            table_hint = unique_table
                     result = import_completed_plan_entry(
                         repository,
                         entry,
