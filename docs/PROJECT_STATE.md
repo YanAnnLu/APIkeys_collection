@@ -26,9 +26,11 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
 - Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 10 metadata-only
-  sources, and `api_launcher/dataset_discovery.py` can parse NOAA/NCEI search, ERDDAP `allDatasets`, HTML file
-  indexes, NASA CMR collections, STAC collections, GBIF dataset search, and CKAN `package_search` into reviewable
-  dataset candidates without bulk downloads.
+  sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
+  search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search, and
+  CKAN `package_search`, producing reviewable dataset candidates without bulk downloads. The orchestrator now reports
+  audit warnings for suspicious "successful" crawls, such as zero candidates, low candidate counts, or malformed
+  candidate metadata.
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be
   verified later instead of being treated as anonymous blobs. If the target file and sidecar manifest already verify
   and match the requested provider/dataset/version/source/path, the HTTP adapter reuses the file instead of downloading again.

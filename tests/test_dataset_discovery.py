@@ -6,7 +6,9 @@ from pathlib import Path
 
 from api_launcher.dataset_discovery import (
     DatasetDiscoverySource,
+    DatasetCrawlOptions,
     ckan_candidates_from_payload,
+    crawl_dataset_sources,
     cmr_candidates_from_payload,
     erddap_candidates_from_payload,
     gbif_candidates_from_payload,
@@ -17,7 +19,9 @@ from api_launcher.dataset_discovery import (
     ncei_search_url,
     stac_candidates_from_payload,
 )
+from api_launcher.crawlers import dataset_sources
 from api_launcher.downloads.eligibility import looks_like_direct_download
+from api_launcher.models import Dataset
 
 
 class DatasetDiscoveryTests(unittest.TestCase):
@@ -276,7 +280,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
         <a href="ais-2025-01-02.csv.zst">ais-2025-01-02.csv.zst</a>
         """
 
-        candidates = html_file_index_candidates_from_text(source, html, source.endpoint_url, 10)
+        candidates = html_file_index_candidates_from_text(source, html, source.endpoint_url, 0)
 
         self.assertEqual(1, len(candidates))
         dataset = candidates[0].dataset
@@ -285,8 +289,111 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(2, len(dataset.metadata["available_versions"]))
         self.assertTrue(looks_like_direct_download(dataset.metadata["available_versions"][0]["download_url"]))
 
+    def test_dataset_crawler_orchestrator_dedupes_and_captures_errors(self) -> None:
+        sources = [
+            DatasetDiscoverySource(
+                source_id="source_a",
+                provider_id="sample_provider",
+                name="Source A",
+                source_type="sample",
+                endpoint_url="https://example.test/a",
+            ),
+            DatasetDiscoverySource(
+                source_id="source_b",
+                provider_id="sample_provider",
+                name="Source B",
+                source_type="sample",
+                endpoint_url="https://example.test/b",
+            ),
+            DatasetDiscoverySource(
+                source_id="bad_source",
+                provider_id="sample_provider",
+                name="Bad Source",
+                source_type="sample",
+                endpoint_url="https://example.test/bad",
+            ),
+        ]
+        original = dataset_sources.discover_dataset_candidates_for_source
+
+        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+            if source.source_id == "bad_source":
+                raise RuntimeError("network down")
+            return [
+                dataset_sources.DatasetCandidate(
+                    dataset=Dataset(
+                        dataset_uid="ds_duplicate",
+                        provider_id="sample_provider",
+                        dataset_id="same_dataset",
+                        title="Same Dataset",
+                        categories=("test",),
+                        metadata={"candidate_status": "needs_review"},
+                    ),
+                    source_id=source.source_id,
+                    source_type=source.source_type,
+                    source_url=source.endpoint_url,
+                    confidence=0.9,
+                    evidence=("unit test",),
+                )
+            ]
+
+        dataset_sources.discover_dataset_candidates_for_source = fake_discover
+        try:
+            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=3, full_crawl=True))
+        finally:
+            dataset_sources.discover_dataset_candidates_for_source = original
+
+        self.assertEqual(1, result.candidate_count)
+        self.assertEqual(1, result.duplicate_count)
+        self.assertEqual(1, result.error_count)
+        self.assertEqual(1, result.warning_count)
+        self.assertIn("network down", [item.error for item in result.source_results if item.source_id == "bad_source"][0])
+        duplicate_result = [item for item in result.source_results if item.duplicate_candidate_count == 1][0]
+        self.assertEqual(0, duplicate_result.unique_candidate_count)
+        self.assertEqual(1, duplicate_result.duplicate_candidate_count)
+        self.assertIn("all_candidates_duplicate", duplicate_result.warnings[0])
+
+    def test_dataset_crawler_orchestrator_warns_on_empty_success(self) -> None:
+        sources = [
+            DatasetDiscoverySource(
+                source_id="empty_source",
+                provider_id="sample_provider",
+                name="Empty Source",
+                source_type="sample",
+                endpoint_url="https://example.test/empty",
+            )
+        ]
+        original = dataset_sources.discover_dataset_candidates_for_source
+
+        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+            return []
+
+        dataset_sources.discover_dataset_candidates_for_source = fake_discover
+        try:
+            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1))
+        finally:
+            dataset_sources.discover_dataset_candidates_for_source = original
+
+        self.assertEqual(0, result.candidate_count)
+        self.assertEqual(0, result.error_count)
+        self.assertEqual(1, result.warning_count)
+        self.assertEqual("warning", result.source_results[0].audit_status)
+        self.assertIn("zero_candidates", result.source_results[0].warnings[0])
+
+    def test_payload_shape_mismatch_is_not_silent_success(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="noaa_ncei_dataset_search",
+            provider_id="noaa_ncei_access_data",
+            name="NOAA NCEI Search",
+            source_type="ncei_search",
+            endpoint_url="https://example.test/search",
+        )
+
+        with self.assertRaisesRegex(ValueError, "results list"):
+            ncei_candidates_from_payload(source, {"unexpected": []}, source.endpoint_url, 5)
+
     def test_search_url_and_family_inference_are_stable(self) -> None:
         self.assertIn("text=cloud+moisture", ncei_search_url("https://example.test/search", "cloud moisture", 3))
+        self.assertIn("offset=100", ncei_search_url("https://example.test/search", "cloud moisture", 100, offset=100))
         self.assertEqual("raster_or_grid", infer_data_family("GOES cloud moisture imagery ABI raster"))
         self.assertEqual("spatiotemporal_trajectory", infer_data_family("AIS vessel trajectory"))
 

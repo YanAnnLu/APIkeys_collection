@@ -75,7 +75,21 @@ python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --d
 Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
-- `api_launcher/dataset_discovery.py`：負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index、NASA CMR、STAC、GBIF、CKAN 抓取可審核的 dataset candidate。
+- `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
+- `api_launcher/crawlers/dataset_sources.py`：目前的 source-type crawler 集合，負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index、NASA CMR、STAC、GBIF、CKAN 抓取可審核的 dataset candidate。
+- `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
+
+新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。
+
+Crawler 不能只用「沒報錯」當成功標準。現在 orchestrator 會對每個 source 做基礎審核：
+
+- endpoint 回傳的資料結構若不像預期，例如 NCEI 沒有 `results`、STAC 沒有 `collections`、CKAN 沒有 `result.results`，解析器會直接報錯。
+- source 成功跑完但回傳 0 筆，會標成 warning，因為這可能是搜尋詞、分頁、網頁結構或反爬規則失效。
+- 每個 source 可設定 `min_expected_candidates`；若候選數低於最低預期，也會標成 warning。
+- source 有回傳候選，但全部都是其他來源已經抓過的重複項，也會標成 warning，避免「看似有資料、其實沒有新增資訊」。
+- 候選缺少 dataset id、title、source url、evidence 或 provider 對不上，也會標成 warning。
+
+白話說，crawler 的審核要回答「我真的看到了資料嗎？」而不是只回答「我有沒有崩潰？」。CLI 可用 `--dataset-discovery-strict-audit` 把 warning/error 變成失敗，適合未來 CI 或定期健康檢查。
 - `api_launcher/dataset_adapters.py`：集中註冊 provider-specific dataset adapter。
 - `api_launcher/adapters/gebco.py`：把 GEBCO 對應成 GEBCO 2025 全球高程網格 dataset。
 - `api_launcher/adapters/hyg.py`：第一個具體 adapter，會把 HYG Database 對應成 HYG v3.8 星表 dataset。

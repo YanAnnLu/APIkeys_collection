@@ -732,6 +732,7 @@ class ApiCollectionUi:
         library_menu = Menu(menu_bar, tearoff=0)
         library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_separator()
@@ -2612,6 +2613,78 @@ class ApiCollectionUi:
         status_box.bind("<<ComboboxSelected>>", lambda _event: load_candidates())
         candidate_tree.bind("<<TreeviewSelect>>", lambda _event: render_candidate_detail(selected_candidate()))
         load_candidates()
+
+    def discover_dataset_candidates_from_ui(self) -> None:
+        selected_provider_ids = tuple(self.selected_provider_ids())
+        scope = (
+            self.tr(f"{len(selected_provider_ids)} 個選取資料源", f"{len(selected_provider_ids)} selected sources")
+            if selected_provider_ids
+            else self.tr("所有已設定 crawler 的資料源", "all configured crawler sources")
+        )
+        self.status_var.set(self.tr(f"正在並行發現資料集候選：{scope}", f"Discovering dataset candidates concurrently: {scope}"))
+        thread = threading.Thread(target=self._dataset_candidate_discovery_worker, args=(selected_provider_ids,), daemon=True)
+        thread.start()
+
+    def _dataset_candidate_discovery_worker(self, provider_ids: tuple[str, ...]) -> None:
+        try:
+            sources = core.load_dataset_discovery_sources(catalog_file(core.DEFAULT_DATASET_DISCOVERY_SOURCES_NAME))
+            if provider_ids:
+                wanted = set(provider_ids)
+                sources = [source for source in sources if source.provider_id in wanted]
+            result = core.crawl_dataset_sources(
+                sources,
+                core.DatasetCrawlOptions(
+                    timeout=12.0,
+                    max_results_override=100,
+                    full_crawl=True,
+                    max_pages=0,
+                    max_workers=4,
+                ),
+            )
+            conn = self._connect()
+            try:
+                repository = core.ApiCatalogRepository(conn)
+                existing_provider_ids = {provider.provider_id for provider in core.load_providers(conn)}
+                upserted = 0
+                for candidate in result.candidates:
+                    if candidate.dataset.provider_id not in existing_provider_ids:
+                        continue
+                    repository.upsert_dataset(candidate.dataset)
+                    upserted += 1
+            finally:
+                conn.close()
+        except Exception as exc:
+            log_exception(
+                "dataset_candidate_discovery_failed",
+                exc,
+                component="ui.dataset_discovery",
+                context={"provider_ids": provider_ids},
+            )
+            self.root.after(0, lambda: messagebox.showerror(self.tr("資料集發現失敗", "Dataset discovery failed"), str(exc)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"資料集發現失敗：{exc}", f"Dataset discovery failed: {exc}")))
+            return
+
+        def finish() -> None:
+            message = self.tr(
+                f"資料集候選發現完成：新增/更新 {upserted} 筆；錯誤來源 {result.error_count}；警告 {result.warning_count}；重複 {result.duplicate_count}",
+                f"Dataset discovery complete: upserted {upserted}; source errors {result.error_count}; warnings {result.warning_count}; duplicates {result.duplicate_count}",
+            )
+            self.status_var.set(message)
+            if result.error_count or result.warning_count:
+                issue_lines = []
+                for item in result.source_results:
+                    if item.error:
+                        issue_lines.append(f"{item.source_id}: {item.error}")
+                    for warning in item.warnings:
+                        issue_lines.append(f"{item.source_id}: {warning}")
+                issue_lines = issue_lines[:8]
+                messagebox.showwarning(
+                    self.tr("部分 crawler 需要檢查", "Some crawlers need review"),
+                    message + "\n\n" + "\n".join(issue_lines),
+                )
+            self.open_dataset_candidate_review_panel()
+
+        self.root.after(0, finish)
 
     def show_environment_checks(self) -> None:
         checks = core.run_startup_checks(DB_PATH)

@@ -47,6 +47,12 @@ from api_launcher.cli_dataset_discovery import (
     dataset_discovery_command_active,
     discover_dataset_candidates_cli,
 )
+from api_launcher.dataset_discovery import (
+    DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
+    DatasetCrawlOptions,
+    crawl_dataset_sources,
+    load_dataset_discovery_sources,
+)
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_self_check import (
