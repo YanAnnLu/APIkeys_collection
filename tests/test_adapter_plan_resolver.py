@@ -142,6 +142,25 @@ class AdapterPlanResolverTests(unittest.TestCase):
         )
         self.assertEqual("supported_after_download", entry["import_plan"]["status"])
 
+    def test_stac_collection_metadata_promotes_bounded_item_sample_entry(self) -> None:
+        plan = {"providers": [stac_review_entry()]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("stac_bounded_item_search_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("https://stac.example.test/collections/sentinel-2-l2a/items?limit=1", entry["download_url"])
+        self.assertEqual("geojson", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual("planned", entry["plan_status"])
+        self.assertTrue(entry["target_path"].endswith(".geojson"))
+        self.assertNotIn("adapter_review", entry)
+
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
 
@@ -253,6 +272,48 @@ def erddap_review_entry(protocol: str) -> dict[str, object]:
         "adapter_review": {
             "adapter_id": "emodnet_erddap_adapter",
             "source_url": f"/erddap/{protocol}/sample_dataset",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def stac_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "earth_search_stac",
+        "name": "Earth Search STAC",
+        "dataset_uid": "earth_search_stac:sentinel-2-l2a",
+        "dataset_id": "sentinel-2-l2a",
+        "dataset_title": "Sentinel-2 Level-2A",
+        "categories": ["stac", "satellite", "earth_observation"],
+        "geographic_scope": "global",
+        "download_eligibility": {"status": "adapter_required", "reason": "STAC item search must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "earth_search_stac_sentinel_2_l2a"},
+        "dataset_version": {
+            "dataset_uid": "earth_search_stac:sentinel-2-l2a",
+            "dataset_id": "sentinel-2-l2a",
+            "label": "discovered",
+            "version": "1.0.0",
+            "version_status": "unknown",
+            "download_url": "https://stac.example.test/collections/sentinel-2-l2a/items",
+            "landing_url": "https://stac.example.test/collections/sentinel-2-l2a",
+            "metadata": {
+                "native_format": "stac_collection",
+                "data_family": "raster_or_grid",
+                "stac_id": "sentinel-2-l2a",
+                "asset_keys": ["visual", "red", "green", "blue"],
+                "links": [
+                    {
+                        "rel": "items",
+                        "type": "application/geo+json",
+                        "href": "https://stac.example.test/collections/sentinel-2-l2a/items",
+                    },
+                    {"rel": "self", "href": "https://stac.example.test/collections/sentinel-2-l2a"},
+                ],
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "earth_search_stac_adapter",
+            "source_url": "https://stac.example.test/collections/sentinel-2-l2a/items",
             "required_action": "resolve_source_to_direct_download_entries",
         },
     }
