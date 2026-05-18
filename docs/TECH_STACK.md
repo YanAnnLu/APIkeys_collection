@@ -93,6 +93,20 @@ python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates \
   --upsert-dataset-candidates
 ```
 
+Reviewed crawler candidates can then be turned into the same dataset-version plan schema used by adapters:
+
+```bash
+python3 APIkeys_collection.py --db state/candidate_plan_smoke.sqlite \
+  --export-candidate-plan state/candidate_plan.json \
+  --candidate-plan-status needs_review \
+  --candidate-plan-limit 2
+```
+
+Plan entries include `download_eligibility`, stable `target_path` for direct file URLs, `dataset_version`, and an
+`import_plan`. The import plan is intentionally conservative: CSV/CSV.GZ and JSON/JSONL/GeoJSON can be routed to the
+current SQLite MVP importers after manifest verification; compressed bundles such as CSV.ZST are downloadable but
+marked `requires_unpack_or_adapter`; API selectors and landing pages stay `adapter_review_required`.
+
 AIS and satellite cloud imagery should be treated as representative crawler targets. Avoid turning each one into a
 hardcoded Python adapter until the crawler has produced a candidate and the remaining work is provider-specific query,
 auth, transform, or import logic.

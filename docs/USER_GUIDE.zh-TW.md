@@ -164,8 +164,16 @@ python -m unittest discover -s tests
 你可以先看候選的提供商、資料類型、格式、來源網址與 crawler 摘要，再選擇：
 
 - `標記可用`：代表這個候選值得後續做下載/匯入。
-- `加入下載計畫`：把候選所屬資料源加入目前下載計畫，並把候選狀態標成 `planned`。
+- `加入下載計畫`：把候選所屬資料源加入目前下載計畫，並把候選狀態標成 `planned`。Launcher 會先判斷候選版本是不是直接檔案 URL；只有 direct download 才會送進下載器，入口頁/API selector 會保持需要 adapter 審核，避免把 HTML 頁面誤當資料檔下載。
 - `拒絕候選`：代表暫時不適合 MVP 或來源不清楚。
+
+CLI 也能把審核過的候選輸出成下載/匯入計畫：
+
+```bash
+python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json --candidate-plan-status approved
+```
+
+這份 plan 會標出哪些候選可以直接下載、哪些需要 adapter review，以及下載後是否能用目前 CSV/JSON -> SQLite 的 MVP 匯入器處理。
 
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 

@@ -90,6 +90,21 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | Tk UI 實作 | `frontends/tk/launcher_ui.py` |
 | 使用者指南 | `docs/USER_GUIDE.zh-TW.md` |
 
+## 使用者合作偏好與雷點
+
+這一段是給下一位 Agent 的人類協作提示，不是產品規格。使用者很願意討論概念層，也能接受快速推進，但對「看起來做了、其實沒有閉環」很敏感。
+
+- 匯報要面向初學者：少用抽象工程術語，多用白話說明「這一步解決什麼、還差什麼、為什麼重要」。每次中途或最後匯報，順手說明距離 MVP 還剩哪些大塊。
+- 做到一個穩定節點就要 commit/push，並用 `gh run watch` 或 `gh run list` 確認 CI。使用者手機會收到 GitHub Actions 通知，所以不要只說 push 成功。
+- 不要在 base/system Python 裝套件；目前 macOS 主要使用 `conda run -n metal_trade_312 ...`。
+- 遇到環境差異先配置，不要假設 Windows 路徑可在 Mac 用。尤其 Mac 啟動時要依系統選路徑分隔符與平台路徑，不要讓 Windows `K:\...` 類路徑阻擋 UI。
+- 不要硬編碼代表資料集。使用者反覆強調 crawler-first：先找供應商/目錄，解析目錄，再產生候選；adapter 只處理 bounded query、auth、轉換、匯入等必要邏輯。
+- Crawler 不能只看「程式沒報錯」。如果抓到 0 筆、低於預期、全是重複、payload shape 不符，都要明確 warning/error；使用者特別在意這種假成功。
+- 未提交檔案或大改動不要擅自刪除、覆蓋、`git restore`。2026-05-17 曾發生誤還原事故，讓使用者很不安；任何看似奇怪的檔案都先備份/看 diff/產生 patch。
+- UI 預設要繁中；如果新增 UI，放到合適的選單或設定，不要到處新增零散入口。使用者覺得 Tk UI 目前只是過渡，PySide/Qt 是中期路線，MVP 前不要重寫。
+- 使用者喜歡產品概念層被記錄下來，例如 Steam-like library/install/workspace、renderer bridge、Hadoop/K8S、GIS/時間序列/多媒體資料類型。但實作時仍要先收束 MVP。
+- 使用者會提出發散想法；可以記錄到文檔/中期目標，但當前開發要常提醒「這次實際推進的是哪個 MVP 環節」。
+
 ## 最近完成
 
 - Tk UI 實作檔已從 `frontends/tk/APIkeys_collection_ui.py` 改名為 `frontends/tk/launcher_ui.py`。
@@ -133,14 +148,15 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 第 1 項目前已調整為「善用 crawler 發現 provider/source 與 dataset candidates」，不要把每個代表資料集都硬寫成 Python adapter。`catalog/dataset_discovery_sources.json` 描述可爬的資料目錄；`api_launcher/crawlers/orchestrator.py` 統一調度 source crawlers，並行執行、去重、收斂 per-source error/warning；`api_launcher/crawlers/dataset_sources.py` 暫時放 NOAA/NCEI Search、ERDDAP `allDatasets`、HTML file index、NASA CMR collection search、STAC collections、GBIF dataset search、CKAN `package_search` 的解析與 pagination。Crawler 審核不能只看「沒報錯」：0 筆候選、低於 `min_expected_candidates`、只抓到全域重複候選、payload shape 不符、候選缺少 evidence/source url 都要提示或失敗。未來新增供應商時，優先新增/配置 crawler，由 orchestrator 調度；不要讓特殊網頁邏輯散進 UI 或 core。AIS 與衛星雲圖是代表測試案例：AIS 應由 MarineCadastre index 發現 shards，衛星雲圖應由 NOAA/NCEI/GOES-R/Earth Engine/STAC 類 catalog 發現 raster/grid 候選。
 - Dataset candidates 現在有初步 review loop：repository 可列出/標記 candidate status，CLI 可用 `--list-dataset-candidates`、`--dataset-candidates-json`、`--review-dataset-candidate UID --dataset-candidate-decision approved|planned|rejected`，Tk UI 在 `資料庫 > 審核資料集候選` 可查看、開來源、標記可用/拒絕或加入目前下載計畫。這仍是 metadata-only registry 狀態，不會下載或改動資料本體。
+- Crawler candidates 現在可以進一步輸出成後端 plan：CLI `--export-candidate-plan PATH --candidate-plan-status approved|needs_review|planned|all` 會把候選 dataset/version 轉成與 adapter 共用的 dataset-version plan schema。每個 entry 都有 `download_eligibility`、direct 檔案的 `target_path`、`dataset_version`、`candidate_review`，以及保守的 `import_plan`。CSV/JSON 類標成可在下載驗證後進 SQLite MVP importer；CSV.ZST/ZIP/TAR 類標成需要解壓或 adapter；API/landing page 保持 adapter review。UI 的候選加入下載計畫也改走 `provider_dataset_version_plan_entry()`，避免把入口頁當成 direct download。
 - 金融/即時市場資料請記住：這不是一般「同版本就跳過」的靜態資料。`dataset_updates.py` 現在有 append-only / revisable / realtime time-series contract；金融 adapter 應保留 `event_time`、`received_at`、`ingest_run_id`，必要時保留 `revision`/`source_sequence`。MySQL 可做 MVP，重度 tick/回測資料優先考慮 TimescaleDB、ClickHouse、Parquet/DuckDB。時間序列的視覺化對標是 TradingView-like chart：K 線、成交量、指標、縮放拖曳、十字游標與即時更新，而不是只想 Taichi/Unreal 地球渲染。
 - 高能粒子對撞機等大型科學實驗資料請記住：這類是 event/array data，不是普通 SQL row store。SQL 可管 run ID、檔案索引、校準版本、provenance、manifest 與權限；raw data 優先保留 ROOT/HDF5/Parquet/Zarr/FITS/NetCDF 或物件儲存，再用 ROOT/uproot、DuckDB/Parquet、Dask/Spark、ClickHouse 等工具分析。
 - 歷史建築/文化資產/多媒體資料請記住：這類常是 asset bundle，可能含照片、影片、音訊、3D mesh、點雲、BIM/IFC、材質貼圖與地理/年代/授權 metadata。SQL 管目錄與索引；raw asset 放檔案/物件儲存並用 manifest 記 checksum、LOD、座標系與依賴；viewer/render target 可是 Three.js、Cesium、Unreal、Blender 或 GLTF pipeline。
 
 ## 下一步優先事項
 
-1. Tighten dataset candidate -> download plan behavior：同 provider 多 dataset/version 的 plan 選擇要更準，避免只用 provider_id 當唯一 cart key。
-2. 把下載後 CSV/JSON manifest 匯入做成更像一般使用者流程的 UI / guided action。
+1. Tighten multi-dataset cart behavior：目前 UI plan 仍以 provider_id 當主要 key，同一 provider 多 dataset/version 會互相覆蓋；後續要改成 dataset_uid/version 級別的 cart row。
+2. 把 `import_plan` 接成一般使用者流程：下載完成後若 entry 標示 CSV/JSON 可匯入，UI 應提供 guided action 進入 SQLite curated import；CSV.ZST/ZIP/TAR 則顯示需要解壓/adapter。
 3. 擴充 repair 建議到 adapter-specific datasets，並把 download/database JSON repair payload 接到更完整事件 log 與 UI guided repair flows。
 4. 擴充 SQL/database self-check：把 per-asset SQL profile/schema 選擇做進 UI，加入真實 driver smoke 覆蓋，並把現有 UI repair suggestion 升級成 adapter-owned guarded action。
 5. 繼續擴充 crawler source 類型，但要維持設定檔驅動；下一批可評估 OGC API Records、Dataverse、Socrata、OpenAlex/DataCite 類 metadata 來源。
@@ -175,7 +191,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file handle、路徑與 `.pyc` 鎖。SQLite 短生命週期連線要用 contextlib.closing。
 
-目前第 1 項已經改成 crawler-first：provider/source discovery 找供應商與入口，dataset discovery sources 找資料集候選，adapter 只在 crawler 候選需要 bounded query/auth/transform/import 時才寫。請優先看 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/orchestrator.py`、`api_launcher/crawlers/dataset_sources.py`、`api_launcher/cli_dataset_discovery.py`。下一步重點是 dataset candidate review/import UI，讓使用者能審核 crawler 找到的資料集，再排入下載或匯入計畫。AIS 與衛星雲圖是代表測試案例，但不要再把每個資料集硬寫成 Python 類別。
+目前第 1 項已經改成 crawler-first：provider/source discovery 找供應商與入口，dataset discovery sources 找資料集候選，adapter 只在 crawler 候選需要 bounded query/auth/transform/import 時才寫。請優先看 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/orchestrator.py`、`api_launcher/crawlers/dataset_sources.py`、`api_launcher/cli_dataset_discovery.py`、`api_launcher/plans.py`。Crawler candidates 已能用 `--export-candidate-plan` 轉成 dataset-version download/import plan。下一步重點是把 UI cart 從 provider_id 級別提升到 dataset_uid/version 級別，並把 `import_plan` 接成下載後 guided import。AIS 與衛星雲圖是代表測試案例，但不要再把每個資料集硬寫成 Python 類別。
 
 注意：SQL-only connection layer 已被合併到 api_launcher/data_store_connections.py，不要重新建立 sql_connection_profiles 或 sql_connections.py。
 

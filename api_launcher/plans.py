@@ -115,6 +115,7 @@ def provider_dataset_version_plan_entry(
             "target": "local_file_asset",
             "use_staging": True,
             "download_eligibility": eligibility.to_dict(),
+            "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
             "plan_status": "planned" if eligibility.status == "direct_download" else "needs_adapter_review",
         }
     )
@@ -126,6 +127,53 @@ def provider_dataset_version_plan_entry(
     elif option.download_url:
         entry["adapter_review_url"] = option.download_url
     return entry
+
+
+def dataset_import_plan_entry(
+    dataset: Dataset,
+    option: DatasetVersionOption,
+    eligibility: DownloadEligibility,
+) -> dict[str, object]:
+    source_format = (dataset.native_format or str((option.metadata or {}).get("native_format") or "")).strip().lower()
+    data_family = str(dataset.metadata.get("data_family") or dataset.data_type or "").strip()
+    base = {
+        "target_engine": "sqlite_mvp",
+        "source_format": source_format or "unknown",
+        "data_family": data_family or "unknown",
+        "table_hint": safe_path_part(f"{dataset.provider_id}_{dataset.dataset_id}").lower(),
+        "post_download": True,
+    }
+    if eligibility.status != "direct_download":
+        return {
+            **base,
+            "status": "adapter_review_required",
+            "reason": "Download/import must wait until an adapter turns this catalog/API/landing URL into bounded files.",
+        }
+    if source_format in {"csv", "csv.gz"}:
+        return {
+            **base,
+            "status": "supported_after_download",
+            "importer": "csv_to_sqlite",
+            "reason": "CSV/CSV.GZ manifests can be imported by the current SQLite MVP importer after download verification.",
+        }
+    if source_format in {"json", "jsonl", "geojson"}:
+        return {
+            **base,
+            "status": "supported_after_download",
+            "importer": "json_to_sqlite",
+            "reason": "JSON/JSONL/GeoJSON manifests can be imported by the current SQLite MVP importer after download verification.",
+        }
+    if source_format in {"csv.zst", "zst", "zip", "tar", "tar.gz", "7z", "bz2", "xz"}:
+        return {
+            **base,
+            "status": "requires_unpack_or_adapter",
+            "reason": "The file can be downloaded, but the MVP importer needs a decompression/extraction step before curated SQLite import.",
+        }
+    return {
+        **base,
+        "status": "manual_review_required",
+        "reason": "The file can be downloaded, but no MVP importer is registered for this source format yet.",
+    }
 
 
 def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEligibility:

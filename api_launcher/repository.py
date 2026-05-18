@@ -333,6 +333,13 @@ class ApiCatalogRepository:
             rows = self.conn.execute("SELECT * FROM datasets ORDER BY provider_id, title COLLATE NOCASE").fetchall()
         return [dataset_from_row(row) for row in rows]
 
+    def get_dataset(self, dataset_uid: str) -> Dataset | None:
+        row = self.conn.execute(
+            "SELECT * FROM datasets WHERE dataset_uid = ?",
+            (dataset_uid,),
+        ).fetchone()
+        return dataset_from_row(row) if row is not None else None
+
     def list_dataset_candidates(self, status: str | None = "needs_review", provider_id: str | None = None) -> list[Dataset]:
         requested_status = (status or "all").strip().lower()
         if requested_status != "all" and requested_status not in DATASET_CANDIDATE_STATUSES:

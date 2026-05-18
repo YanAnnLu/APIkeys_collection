@@ -9,6 +9,7 @@ from api_launcher.dataset_discovery import (
     DatasetCandidate,
     DatasetCrawlOptions,
     crawl_dataset_sources,
+    dataset_with_candidate_metadata,
     load_dataset_discovery_sources,
 )
 from api_launcher.db import utc_now_iso
@@ -123,7 +124,7 @@ def upsert_candidates(conn: sqlite3.Connection, candidates: list[DatasetCandidat
     for candidate in candidates:
         if candidate.dataset.provider_id not in existing_provider_ids:
             continue
-        repository.upsert_dataset(candidate.dataset)
+        repository.upsert_dataset(dataset_with_candidate_metadata(candidate))
         count += 1
     return count
 

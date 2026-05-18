@@ -51,6 +51,7 @@ from api_launcher.dataset_discovery import (
     DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
     DatasetCrawlOptions,
     crawl_dataset_sources,
+    dataset_with_candidate_metadata,
     load_dataset_discovery_sources,
 )
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
@@ -618,6 +619,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--export-csv", help="write provider catalog CSV")
     parser.add_argument("--export-markdown", help="write provider catalog Markdown")
     parser.add_argument("--export-dataset-plan", help="write adapter-discovered dataset-version download plan JSON")
+    parser.add_argument("--export-candidate-plan", help="write crawler-discovered dataset candidates as a download/import plan JSON")
+    parser.add_argument("--candidate-plan-status", default="approved", help="candidate status for --export-candidate-plan: needs_review, approved, planned, rejected, or all")
+    parser.add_argument("--candidate-plan-dataset", action="append", default=[], help="dataset_uid to include in --export-candidate-plan; can be repeated")
+    parser.add_argument("--candidate-plan-limit", type=int, default=0, help="maximum dataset-version entries to export from candidates; 0 means all")
+    parser.add_argument("--mark-candidate-plan-planned", action="store_true", help="mark exported candidate datasets as planned after writing --export-candidate-plan")
     parser.add_argument("--write-sample-registry", help="write a sample provider registry JSON")
     parser.add_argument("--write-sample-key-reference", help="write a sample key reference JSON")
     parser.add_argument("--write-credentials-template", action="store_true", help="write a private credentials template")
@@ -669,6 +675,7 @@ class CatalogLauncherCli:
             discover_dataset_candidates_cli(self.conn, self.args)
             self.write_samples()
             self.handle_dataset_discovery()
+            self.export_candidate_plan()
             self.export_dataset_plan()
             self.show_summary()
             return 0
@@ -720,6 +727,7 @@ class CatalogLauncherCli:
             bool(self.args.export_csv),
             bool(self.args.export_markdown),
             bool(self.args.export_dataset_plan),
+            bool(self.args.export_candidate_plan),
             bool(self.args.write_sample_registry),
             bool(self.args.write_sample_key_reference),
             self.args.write_credentials_template,
@@ -1150,6 +1158,85 @@ class CatalogLauncherCli:
                     print(f"[dataset] {provider.provider_id}: {len(datasets)} datasets via {adapter.__class__.__name__}")
             if discovered == 0:
                 print("[dataset] no dataset adapters matched the selected providers")
+
+    def export_candidate_plan(self) -> None:
+        if not self.args.export_candidate_plan:
+            return
+        provider_filter = set(self.args.provider or [])
+        if self.args.candidate_plan_dataset:
+            datasets = []
+            for dataset_uid in self.args.candidate_plan_dataset:
+                dataset = self.repository.get_dataset(dataset_uid)
+                if dataset is None:
+                    raise SystemExit(f"Unknown dataset_uid for --candidate-plan-dataset: {dataset_uid}")
+                if not dataset.metadata.get("candidate_status"):
+                    raise SystemExit(f"Dataset is not a crawler candidate: {dataset_uid}")
+                datasets.append(dataset)
+        else:
+            datasets = self.repository.list_dataset_candidates(self.args.candidate_plan_status)
+        if provider_filter:
+            datasets = [dataset for dataset in datasets if dataset.provider_id in provider_filter]
+
+        provider_map = {provider.provider_id: provider for provider in load_providers(self.conn)}
+        entries: list[dict[str, object]] = []
+        planned_dataset_uids: set[str] = set()
+        missing_provider_ids: set[str] = set()
+        for dataset in datasets:
+            provider = provider_map.get(dataset.provider_id)
+            if provider is None:
+                missing_provider_ids.add(dataset.provider_id)
+                continue
+            for option in version_options_for_dataset(dataset):
+                if self.args.candidate_plan_limit and len(entries) >= self.args.candidate_plan_limit:
+                    break
+                entry = provider_dataset_version_plan_entry(
+                    provider,
+                    dataset,
+                    option,
+                    downloads_root=self.args.downloads_root,
+                )
+                entry["candidate_review"] = {
+                    "candidate_status": dataset.metadata.get("candidate_status") or "",
+                    "discovery_source_id": dataset.metadata.get("discovery_source_id") or "",
+                    "discovery_source_type": dataset.metadata.get("discovery_source_type") or "",
+                    "source_url": dataset.metadata.get("source_url") or "",
+                    "confidence": dataset.metadata.get("confidence") or "",
+                }
+                entries.append(entry)
+                planned_dataset_uids.add(dataset.dataset_uid)
+            if self.args.candidate_plan_limit and len(entries) >= self.args.candidate_plan_limit:
+                break
+
+        output_path = resolve_project_path(self.args.export_candidate_plan)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = build_dataset_download_plan(entries, plan_name=output_path.stem)
+        payload["source"] = {
+            "kind": "crawler_dataset_candidates",
+            "status_filter": self.args.candidate_plan_status,
+            "dataset_uid_filter": list(self.args.candidate_plan_dataset),
+            "candidate_count": len(datasets),
+            "missing_provider_ids": sorted(missing_provider_ids),
+        }
+        output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        if self.args.mark_candidate_plan_planned:
+            for dataset_uid in planned_dataset_uids:
+                self.repository.mark_dataset_candidate_status(
+                    dataset_uid,
+                    "planned",
+                    reviewed_by="cli",
+                    note=f"Exported to candidate plan: {output_path}",
+                )
+
+        direct_count = int(payload["summary"]["direct_download_count"])
+        review_count = int(payload["summary"]["review_required_count"])
+        print(
+            "[candidate-plan] "
+            f"wrote {output_path} candidates={len(datasets)} entries={len(entries)} "
+            f"direct={direct_count} review_required={review_count} missing_providers={len(missing_provider_ids)}"
+        )
+        for provider_id in sorted(missing_provider_ids):
+            print(f"[candidate-plan] missing_provider {provider_id}")
 
     def export_dataset_plan(self) -> None:
         if not self.args.export_dataset_plan:

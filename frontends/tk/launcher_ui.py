@@ -1656,6 +1656,13 @@ class ApiCollectionUi:
         finally:
             conn.close()
 
+    def dataset_for_version_option(self, option: core.DatasetVersionOption) -> core.Dataset | None:
+        conn = self._connect()
+        try:
+            return core.ApiCatalogRepository(conn).get_dataset(option.dataset_uid)
+        finally:
+            conn.close()
+
     def selected_provider_ids(self) -> list[str]:
         return [provider_id for provider_id, var in self.selected.items() if var.get()]
 
@@ -1711,23 +1718,39 @@ class ApiCollectionUi:
         for row in rows:
             if not self.prepare_provider_for_download(row.provider_id):
                 continue
-            eligibility = row.download_eligibility
-            url = eligibility.direct_url
-            if eligibility.status != "direct_download" or not url:
-                version = self.plan_version_by_provider.get(row.provider_id)
-                if version and version.download_url:
-                    url = version.download_url
-                else:
+            version = self.plan_version_by_provider.get(row.provider_id)
+            if version:
+                dataset = self.dataset_for_version_option(version)
+                if dataset is None:
+                    skipped += 1
+                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", self.tr("找不到候選資料集 metadata", "Dataset metadata was not found"))
+                    continue
+                plan_entry = core.provider_dataset_version_plan_entry(
+                    self.provider_from_row(row),
+                    dataset,
+                    version,
+                    downloads_root=DOWNLOADS_DIR,
+                )
+                eligibility = plan_entry.get("download_eligibility", {})
+                status = str(eligibility.get("status") if isinstance(eligibility, dict) else "")
+                url = str(plan_entry.get("download_url") or "")
+                if status != "direct_download" or not url:
+                    reason = str(eligibility.get("reason") if isinstance(eligibility, dict) else "") or self.tr("需要 adapter 審核後才能下載", "Adapter review is required before download")
+                    skipped += 1
+                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", reason)
+                    continue
+                target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
+            else:
+                eligibility = row.download_eligibility
+                url = eligibility.direct_url
+                if eligibility.status != "direct_download" or not url:
                     skipped += 1
                     self.download_status_by_provider[row.provider_id] = ("skipped", "0%", eligibility.reason)
                     continue
-            target_path = self.download_target_for_row(row, url)
-            plan_entry = core.provider_plan_entry(self.provider_from_row(row))
-            version = self.plan_version_by_provider.get(row.provider_id)
-            if version:
-                plan_entry["dataset_version"] = version.to_plan_metadata()
-            plan_entry["download_url"] = url
-            plan_entry["target_path"] = str(target_path)
+                target_path = self.download_target_for_row(row, url)
+                plan_entry = core.provider_plan_entry(self.provider_from_row(row))
+                plan_entry["download_url"] = url
+                plan_entry["target_path"] = str(target_path)
             job = self.download_queue.submit(plan_entry)
             self.download_jobs_by_provider[row.provider_id] = job.job_id
             self.download_providers_by_job[job.job_id] = row.provider_id
@@ -2649,7 +2672,7 @@ class ApiCollectionUi:
                 for candidate in result.candidates:
                     if candidate.dataset.provider_id not in existing_provider_ids:
                         continue
-                    repository.upsert_dataset(candidate.dataset)
+                    repository.upsert_dataset(core.dataset_with_candidate_metadata(candidate))
                     upserted += 1
             finally:
                 conn.close()
@@ -4139,13 +4162,24 @@ class ApiCollectionUi:
             [self.provider_from_row(row) for row in rows],
             plan_name=plan_name,
         )
-        for entry in payload["providers"]:
+        planned_entries = []
+        for row, entry in zip(rows, payload["providers"]):
             if not isinstance(entry, dict):
                 continue
-            option = self.plan_version_by_provider.get(str(entry.get("provider_id") or ""))
+            option = self.plan_version_by_provider.get(row.provider_id)
             if option:
-                entry["dataset_version"] = option.to_plan_metadata()
-                entry["download_url"] = option.download_url
+                dataset = self.dataset_for_version_option(option)
+                if dataset is not None:
+                    entry = core.provider_dataset_version_plan_entry(
+                        self.provider_from_row(row),
+                        dataset,
+                        option,
+                        downloads_root=DOWNLOADS_DIR,
+                    )
+                else:
+                    entry["dataset_version"] = option.to_plan_metadata()
+            planned_entries.append(entry)
+        payload["providers"] = planned_entries
         output_path = state_file(DOWNLOAD_PLAN_NAME)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

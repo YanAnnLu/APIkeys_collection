@@ -10,9 +10,11 @@ from pathlib import Path
 from api_launcher.adapters.gebco import GEBCOTopographyAdapter
 from api_launcher.adapters.hyg import HYGStarCatalogAdapter
 from api_launcher.core import main
+from api_launcher.db import connect_db
 from api_launcher.dataset_versions import version_options_for_dataset
-from api_launcher.models import Provider
+from api_launcher.models import Dataset, Provider
 from api_launcher.plans import build_dataset_download_plan, provider_dataset_version_plan_entry
+from api_launcher.repository import ApiCatalogRepository
 from api_launcher.renderer_contracts import GEBCO_PROVIDER_ID, HYG_PROVIDER_ID
 
 
@@ -38,6 +40,8 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertTrue(entry["use_staging"])
         self.assertEqual("3.8", entry["dataset_version"]["version"])
         self.assertEqual(option.download_url, entry["download_url"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
         self.assertEqual(
             "downloads/hyg_database/hyg_v38_bright_star_catalog/3.8/hyg_v38.csv.gz",
             entry["target_path"],
@@ -60,6 +64,7 @@ class DatasetDownloadPlanTests(unittest.TestCase):
 
         self.assertEqual("2026", entry["dataset_version"]["version"])
         self.assertEqual("adapter_required", entry["download_eligibility"]["status"])
+        self.assertEqual("adapter_review_required", entry["import_plan"]["status"])
         self.assertEqual("needs_adapter_review", entry["plan_status"])
         self.assertEqual(latest_option.download_url, entry["adapter_review_url"])
         self.assertNotIn("download_url", entry)
@@ -107,6 +112,85 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual(1, payload["summary"]["direct_download_count"])
         self.assertEqual(HYG_PROVIDER_ID, payload["providers"][0]["provider_id"])
         self.assertEqual("hyg_v38_bright_star_catalog", payload["providers"][0]["dataset_id"])
+
+    def test_cli_exports_candidate_plan_from_reviewable_dataset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "candidate_plan.json"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="ds_candidate_ais",
+                        provider_id="noaa_marinecadastre_ais",
+                        dataset_id="marinecadastre_ais_daily_shards",
+                        title="NOAA MarineCadastre AIS daily shards",
+                        categories=("ais", "maritime"),
+                        data_type="spatiotemporal_trajectory",
+                        native_format="csv.zst",
+                        geographic_scope="us/offshore",
+                        landing_url="https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html",
+                        api_url="https://example.test/ais-2025-01-01.csv.zst",
+                        version="2025-01-01",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "data_family": "spatiotemporal_trajectory",
+                            "available_versions": [
+                                {
+                                    "label": "ais-2025-01-01.csv.zst",
+                                    "version": "2025-01-01",
+                                    "version_status": "discovered_file_shard",
+                                    "download_url": "https://example.test/ais-2025-01-01.csv.zst",
+                                    "landing_url": "https://example.test/index.html",
+                                },
+                                {
+                                    "label": "ais-2025-01-02.csv.zst",
+                                    "version": "2025-01-02",
+                                    "version_status": "discovered_file_shard",
+                                    "download_url": "https://example.test/ais-2025-01-02.csv.zst",
+                                    "landing_url": "https://example.test/index.html",
+                                },
+                            ],
+                        },
+                    )
+                )
+            finally:
+                conn.close()
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--export-candidate-plan",
+                        str(plan_path),
+                        "--candidate-plan-status",
+                        "needs_review",
+                        "--candidate-plan-limit",
+                        "1",
+                        "--mark-candidate-plan-planned",
+                    ]
+                )
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+            conn = connect_db(db_path)
+            try:
+                planned = ApiCatalogRepository(conn).get_dataset("ds_candidate_ais")
+            finally:
+                conn.close()
+
+        self.assertEqual(0, rc)
+        self.assertIn("[candidate-plan] wrote", output.getvalue())
+        self.assertEqual("crawler_dataset_candidates", payload["source"]["kind"])
+        self.assertEqual(1, payload["summary"]["dataset_version_count"])
+        self.assertEqual(1, payload["summary"]["direct_download_count"])
+        self.assertEqual("requires_unpack_or_adapter", payload["providers"][0]["import_plan"]["status"])
+        self.assertEqual("noaa_marinecadastre_ais", payload["providers"][0]["provider_id"])
+        self.assertIsNotNone(planned)
+        self.assertEqual("planned", planned.metadata["candidate_status"])
 
 
 if __name__ == "__main__":

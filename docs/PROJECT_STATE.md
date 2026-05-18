@@ -39,6 +39,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Adapter-discovered dataset plans can now be safely executed from CLI with `--run-download-plan`; only direct entries
   are submitted, `adapter_required` entries are skipped, and completed payloads are manifest-verified before registry
   asset ownership is updated.
+- Crawler-discovered dataset candidates can now be exported with `--export-candidate-plan`; this uses the same
+  dataset-version plan schema as adapters and adds candidate review metadata plus conservative import hints.
 - Verified CSV/CSV.GZ manifests can now be imported into curated SQLite tables through `--import-csv-manifest`; columns
   are normalized as safe SQL identifiers, table schema fingerprints are recorded, and the result is registered as a
   managed curated table asset.
@@ -127,7 +129,9 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/registry.py`: provider catalog JSON loading and provider overlays.
 - `api_launcher/db.py`: project paths, SQLite connection, timestamps, and schema setup.
 - `api_launcher/repository.py`: provider seeding, provider queries, UI catalog entries, and starred preferences.
-- `api_launcher/plans.py`: shared Download Plan JSON schema builder used by the UI and future workers.
+- `api_launcher/plans.py`: shared Download Plan JSON schema builder used by the UI and future workers. It now covers
+  provider plans, adapter-discovered dataset-version plans, and crawler-candidate plans with direct/review eligibility
+  plus conservative `import_plan` hints for SQLite MVP importers.
 - `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.

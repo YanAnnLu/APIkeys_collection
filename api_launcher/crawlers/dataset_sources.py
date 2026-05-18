@@ -4,7 +4,7 @@ import json
 import re
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +58,16 @@ class DatasetCandidate:
             "evidence": self.evidence,
             "dataset": dataset_to_dict(self.dataset),
         }
+
+
+def dataset_with_candidate_metadata(candidate: DatasetCandidate) -> Dataset:
+    metadata = dict(candidate.dataset.metadata)
+    metadata["confidence"] = candidate.confidence
+    metadata["evidence"] = list(candidate.evidence)
+    metadata["source_url"] = candidate.source_url
+    metadata["discovery_source_id"] = candidate.source_id
+    metadata["discovery_source_type"] = candidate.source_type
+    return replace(candidate.dataset, metadata=metadata)
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:

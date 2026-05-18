@@ -126,13 +126,21 @@ Seed 只能代表「官方入口」或「可探索來源」，不能保證它指
 - 下載計畫需要記錄使用者選擇的 dataset version。
 - 未來同一資料集應可在同一計畫中同時排入多個版本，用於比較、重現研究或 migration 測試。
 
-Dataset-version 下載計畫也是通用機制。`api_launcher/plans.py` 可把 adapter 發現的 `DatasetVersionOption` 轉成 plan entry，包含 `dataset_version`、direct/review eligibility、staging 設定，以及穩定的 `downloads/{provider}/{dataset}/{version}/...` 目標路徑。CLI 用法：
+Dataset-version 下載計畫也是通用機制。`api_launcher/plans.py` 可把 adapter 發現的 `DatasetVersionOption` 或 crawler 審核後的候選資料集轉成 plan entry，包含 `dataset_version`、direct/review eligibility、staging 設定、保守的 `import_plan`，以及穩定的 `downloads/{provider}/{dataset}/{version}/...` 目標路徑。CLI 用法：
 
 ```bash
 python3 APIkeys_collection.py --init-db --seed --provider hyg_database --export-dataset-plan state/hyg_dataset_plan.json
 ```
 
+Crawler candidate 版本可用：
+
+```bash
+python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json --candidate-plan-status approved
+```
+
 若版本 URL 看起來是入口頁、API endpoint 或下載 selector，而不是具體檔案，計畫會標記 `adapter_required`，並把網址放在 `adapter_review_url`；不要直接交給 HTTP downloader。
+
+`import_plan` 不是自動匯入，而是下一步提示：CSV/CSV.GZ 與 JSON/JSONL/GeoJSON 可在下載驗證後進入現有 SQLite MVP importer；CSV.ZST、ZIP、TAR 等壓縮包可下載但需要解壓或 adapter；API/入口頁仍需 adapter review。
 
 若計畫裡已有 direct entry，可用 CLI 執行：
 
