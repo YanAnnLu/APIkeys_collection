@@ -183,6 +183,8 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 這會先下載 direct entries、驗證 manifest，然後只把支援的 CSV/JSON 類結果匯入 SQLite；不支援的格式會跳過，不會硬塞進資料庫。
 
+在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON 項目會匯入 `state/curated_imports.sqlite`。
+
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 
 ## Steam-like 資料模型

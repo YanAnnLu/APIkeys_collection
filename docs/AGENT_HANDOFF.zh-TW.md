@@ -127,6 +127,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - CLI `--import-json-manifest MANIFEST --import-sqlite-db PATH --import-table TABLE` 現在可把健康 JSON/JSONL/GeoJSON manifest payload 匯入 curated SQLite table。支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列，以及基本 GeoJSON FeatureCollection；欄位先以 `TEXT` 存入並登錄 `asset_role=curated`、`source_format=json` 與 schema fingerprint。
 - CLI `--import-verified-json-manifests --import-sqlite-db PATH` 可批次匯入 registry 裡的健康 JSON/JSONL/GeoJSON manifests；預設跳過非 JSON、不健康 manifest、已存在 table。這是 CSV 後的第二條 raw -> curated MVP 路徑。
 - CLI `--run-download-plan PATH --import-supported-plan-results --import-sqlite-db PATH` 現在可在 direct entries 下載並驗證 manifest 後，依 plan entry 的 `import_plan` 自動匯入支援的 CSV/JSON 類 payload。匯入成功、跳過、不支援、匯入失敗會和 download/manifest 結果分開統計。
+- Tk UI 已把 plan-driven import 接成 guided action：下載計畫區有 `匯入` 按鈕，`資料庫 > 匯入可支援下載結果` 與「更多」選單也有入口。它會取目前 plan item / 實際下載 plan entry，先驗 sidecar manifest，再對 `import_plan.status=supported_after_download` 的 CSV/JSON 項目呼叫現有 importer，目標 SQLite 是 `state/curated_imports.sqlite`。目前不做 replace；若 table 已存在，會回報失敗/需人工處理，避免覆蓋使用者資料。
 - `--verify-downloads-json` 已提供下載檔驗證的 agent-readable JSON：包含 summary、issues、repair suggestion、以及 HTTP(S) manifest 可安全重排下載的 plan entry。若要指定掃描資料夾，可搭配 `--downloads-root PATH`。
 - Tk UI 新增 `設定 > 介面語言`，語言存在 `launcher_integrations.local.json` 的 `ui_language`。預設是 `zh-TW`；新開啟 dialog 會套用，主畫面完整套用需重新啟動。後續碰 UI 時應優先補齊繁中顯示與 `tr(...)` 英文 fallback。
 - Tk UI 的登入/串接入口已集中到上方 `整合` 選單：`AI / Gemini 串接中心`、`保存 Gemini API key`、`AI 輔助模型選擇`、`Google OAuth（中期 / 開發者）`、資料儲存連線與資料庫工具都在這裡。主工具列和右側抽屜不要再新增登入/API key/資料庫工具設定入口；抽屜只保留目前資料源的動作。
@@ -158,7 +159,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 ## 下一步優先事項
 
-1. 把 `import_plan` 接進 UI：下載完成後若 entry 標示 CSV/JSON 可匯入，UI 應提供 guided action 觸發目前 CLI 已完成的 plan-driven import；CSV.ZST/ZIP/TAR 則顯示需要解壓/adapter。這是目前最靠近後端 MVP 閉環的一步。
+1. 讓 UI 更清楚顯示 import 狀態與目標 table：目前 guided import 能跑，但還缺「哪些項目已匯入、table 叫什麼、table 已存在時要不要 replace」的友善流程。
 2. 擴充 repair 建議到 adapter-specific datasets，並把 download/database JSON repair payload 接到更完整事件 log 與 UI guided repair flows。
 3. 擴充 SQL/database self-check：把 per-asset SQL profile/schema 選擇做進 UI，加入真實 driver smoke 覆蓋，並把現有 UI repair suggestion 升級成 adapter-owned guarded action。
 4. 繼續擴充 crawler source 類型，但要維持設定檔驅動；下一批可評估 OGC API Records、Dataverse、Socrata、OpenAlex/DataCite 類 metadata 來源。
@@ -193,7 +194,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file handle、路徑與 `.pyc` 鎖。SQLite 短生命週期連線要用 contextlib.closing。
 
-目前第 1 項已經改成 crawler-first：provider/source discovery 找供應商與入口，dataset discovery sources 找資料集候選，adapter 只在 crawler 候選需要 bounded query/auth/transform/import 時才寫。請優先看 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/orchestrator.py`、`api_launcher/crawlers/dataset_sources.py`、`api_launcher/cli_dataset_discovery.py`、`api_launcher/plans.py`。Crawler candidates 已能用 `--export-candidate-plan` 轉成 dataset-version download/import plan；Tk UI cart 也已從 provider_id 級別提升到 dataset_uid/version plan item。下一步重點是把 `import_plan` 接成下載後 guided import。AIS 與衛星雲圖是代表測試案例，但不要再把每個資料集硬寫成 Python 類別。
+目前第 1 項已經改成 crawler-first：provider/source discovery 找供應商與入口，dataset discovery sources 找資料集候選，adapter 只在 crawler 候選需要 bounded query/auth/transform/import 時才寫。請優先看 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/orchestrator.py`、`api_launcher/crawlers/dataset_sources.py`、`api_launcher/cli_dataset_discovery.py`、`api_launcher/plans.py`。Crawler candidates 已能用 `--export-candidate-plan` 轉成 dataset-version download/import plan；Tk UI cart 也已從 provider_id 級別提升到 dataset_uid/version plan item；`import_plan` 也已接成下載後 guided import。下一步重點是讓匯入狀態/table 目的地更可視化，並補 adapter-specific repair / non-direct adapter。AIS 與衛星雲圖是代表測試案例，但不要再把每個資料集硬寫成 Python 類別。
 
 注意：SQL-only connection layer 已被合併到 api_launcher/data_store_connections.py，不要重新建立 sql_connection_profiles 或 sql_connections.py。
 

@@ -3,8 +3,8 @@
 Tk control panel for APIkeys_collection.
 
 This UI is a lightweight data source manager: it lists provider/database entries,
-lets you select sources, runs metadata crawls, and writes a JSON download plan for
-future crawler stages. It does not download bulk datasets.
+lets you select sources, runs metadata crawls, writes download plans, runs direct
+downloads, and can import supported CSV/JSON results into the local MVP SQLite store.
 """
 
 from __future__ import annotations
@@ -30,9 +30,10 @@ import APIkeys_collection as core
 from api_launcher.favicons import download_favicon_png, favicon_cache_path, favicon_url_for_page, provider_home_url
 from api_launcher.downloads.jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
-from api_launcher.downloads.http import HTTPDownloadAdapter
+from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
+from api_launcher.downloads.plan_runner import import_completed_plan_entry
 from api_launcher.manifests import read_manifest
-from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests
+from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
@@ -47,6 +48,7 @@ from api_launcher.data_store_connections import data_store_profiles_from_config,
 SCRIPT_DIR = Path(__file__).resolve().parent
 DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
+CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
     "zh-TW": "繁體中文",
@@ -736,6 +738,7 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
+        library_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         library_menu.add_separator()
         library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
         library_menu.add_command(label=self.tr("解除納管目前資料源", "Unmanage active source"), command=self.unmanage_active_provider)
@@ -835,6 +838,7 @@ class ApiCollectionUi:
         more_menu = Menu(more_button, tearoff=0)
         more_menu.add_command(label=self.tr("抓取選取 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
+        more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -1115,6 +1119,7 @@ class ApiCollectionUi:
         ttk.Label(header, textvariable=self.plan_count_var, style="DetailSection.TLabel").pack(side=LEFT)
         ttk.Entry(header, textvariable=self.plan_name_var, font=("Helvetica", 12), width=34).pack(side=LEFT, padx=(14, 8))
         ttk.Button(header, text=self.tr("開始", "Start"), style="Action.TButton", command=self.start_download_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("匯入", "Import"), style="Action.TButton", command=self.import_supported_plan_results_from_ui).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text=self.tr("暫停", "Pause"), style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text=self.tr("繼續", "Resume"), style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text=self.tr("取消", "Cancel"), style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
@@ -1695,6 +1700,34 @@ class ApiCollectionUi:
             return f"{label} / {option.dataset_id} {option.version or option.label}"
         return label
 
+    def plan_entry_for_item(
+        self,
+        row: ProviderRow,
+        option: core.DatasetVersionOption | None = None,
+    ) -> tuple[dict[str, object] | None, str]:
+        if option:
+            dataset = self.dataset_for_version_option(option)
+            if dataset is None:
+                return None, self.tr("找不到候選資料集 metadata", "Dataset metadata was not found")
+            return (
+                core.provider_dataset_version_plan_entry(
+                    self.provider_from_row(row),
+                    dataset,
+                    option,
+                    downloads_root=DOWNLOADS_DIR,
+                ),
+                "",
+            )
+
+        entry = core.provider_plan_entry(self.provider_from_row(row))
+        eligibility = row.download_eligibility
+        if eligibility.status == "direct_download" and eligibility.direct_url:
+            target_path = self.download_target_for_row(row, eligibility.direct_url)
+            entry["download_url"] = eligibility.direct_url
+            entry["target_path"] = str(target_path)
+            entry["use_staging"] = True
+        return entry, ""
+
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
         try:
@@ -1775,38 +1808,21 @@ class ApiCollectionUi:
         for plan_key, row, version in items:
             if not self.prepare_provider_for_download(plan_key):
                 continue
-            if version:
-                dataset = self.dataset_for_version_option(version)
-                if dataset is None:
-                    skipped += 1
-                    self.download_status_by_provider[plan_key] = ("skipped", "0%", self.tr("找不到候選資料集 metadata", "Dataset metadata was not found"))
-                    continue
-                plan_entry = core.provider_dataset_version_plan_entry(
-                    self.provider_from_row(row),
-                    dataset,
-                    version,
-                    downloads_root=DOWNLOADS_DIR,
-                )
-                eligibility = plan_entry.get("download_eligibility", {})
-                status = str(eligibility.get("status") if isinstance(eligibility, dict) else "")
-                url = str(plan_entry.get("download_url") or "")
-                if status != "direct_download" or not url:
-                    reason = str(eligibility.get("reason") if isinstance(eligibility, dict) else "") or self.tr("需要 adapter 審核後才能下載", "Adapter review is required before download")
-                    skipped += 1
-                    self.download_status_by_provider[plan_key] = ("skipped", "0%", reason)
-                    continue
-                target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
-            else:
-                eligibility = row.download_eligibility
-                url = eligibility.direct_url
-                if eligibility.status != "direct_download" or not url:
-                    skipped += 1
-                    self.download_status_by_provider[plan_key] = ("skipped", "0%", eligibility.reason)
-                    continue
-                target_path = self.download_target_for_row(row, url)
-                plan_entry = core.provider_plan_entry(self.provider_from_row(row))
-                plan_entry["download_url"] = url
-                plan_entry["target_path"] = str(target_path)
+            plan_entry, build_error = self.plan_entry_for_item(row, version)
+            if plan_entry is None:
+                skipped += 1
+                self.download_status_by_provider[plan_key] = ("skipped", "0%", build_error)
+                continue
+            eligibility = plan_entry.get("download_eligibility", {})
+            status = str(eligibility.get("status") if isinstance(eligibility, dict) else "")
+            url = str(plan_entry.get("download_url") or "")
+            if status != "direct_download" or not url:
+                reason = str(eligibility.get("reason") if isinstance(eligibility, dict) else "") or self.tr("需要 adapter 審核後才能下載", "Adapter review is required before download")
+                skipped += 1
+                self.download_status_by_provider[plan_key] = ("skipped", "0%", reason)
+                continue
+            target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
+            plan_entry["target_path"] = str(target_path)
             job = self.download_queue.submit(plan_entry)
             self.download_jobs_by_provider[plan_key] = job.job_id
             self.download_providers_by_job[job.job_id] = plan_key
@@ -1974,6 +1990,140 @@ class ApiCollectionUi:
             conn.close()
         self.reload_data()
         self.status_var.set(self.tr(f"下載完成：{row.name if row else provider_id}", f"Download completed: {row.name if row else provider_id}"))
+
+    def import_supported_plan_results_from_ui(self) -> None:
+        items = self.selected_plan_items()
+        if not items:
+            messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先加入至少一個資料集/資料源。", "Add at least one dataset/source first."))
+            return
+        supported: list[tuple[str, dict[str, object], str]] = []
+        skipped: list[str] = []
+        for plan_key, row, option in items:
+            label = self.plan_item_label(plan_key, row, option)
+            entry = dict(self.download_plan_entries_by_provider.get(plan_key) or {})
+            if not entry:
+                built_entry, build_error = self.plan_entry_for_item(row, option)
+                if built_entry is None:
+                    skipped.append(f"{label}: {build_error}")
+                    continue
+                entry = built_entry
+            import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+            if import_plan.get("status") != "supported_after_download":
+                reason = str(import_plan.get("reason") or import_plan.get("status") or self.tr("目前不是 CSV/JSON 可自動匯入項目", "This item is not an auto-importable CSV/JSON item"))
+                skipped.append(f"{label}: {reason}")
+                continue
+            supported.append((plan_key, entry, label))
+
+        if not supported:
+            detail = "\n".join(skipped[:6])
+            messagebox.showinfo(
+                self.tr("沒有可匯入項目", "No importable items"),
+                self.tr("目前下載計畫中沒有已支援的 CSV/JSON 匯入項目。", "The current plan has no supported CSV/JSON import items.")
+                + (f"\n\n{detail}" if detail else ""),
+            )
+            return
+
+        sqlite_path = state_file(CURATED_IMPORTS_NAME)
+        skipped_hint = self.tr(f"\n\n會略過：{len(skipped)} 個不支援或未準備好的項目。", f"\n\nWill skip {len(skipped)} unsupported or unready items.") if skipped else ""
+        confirmed = messagebox.askyesno(
+            self.tr("匯入下載結果", "Import downloaded results"),
+            self.tr(
+                f"將把 {len(supported)} 個已支援項目匯入 SQLite：\n{sqlite_path}\n\n匯入前會先檢查 sidecar manifest 是否健康。",
+                f"Import {len(supported)} supported items into SQLite:\n{sqlite_path}\n\nSidecar manifests will be verified before import.",
+            )
+            + skipped_hint,
+        )
+        if not confirmed:
+            return
+
+        self.status_var.set(self.tr(f"正在匯入 {len(supported)} 個下載結果到 SQLite...", f"Importing {len(supported)} downloaded results into SQLite..."))
+        threading.Thread(
+            target=self.import_supported_plan_results_worker,
+            args=(supported, sqlite_path),
+            daemon=True,
+        ).start()
+
+    def import_supported_plan_results_worker(
+        self,
+        entries: list[tuple[str, dict[str, object], str]],
+        sqlite_path: Path,
+    ) -> None:
+        imported = 0
+        skipped = 0
+        failed = 0
+        messages: list[str] = []
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            for _plan_key, entry, label in entries:
+                try:
+                    target = download_target_from_plan_entry(entry)
+                    manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
+                    verification = verify_manifest_file(manifest_path)
+                    if verification.status != "ok":
+                        skipped += 1
+                        messages.append(f"{label}: manifest {verification.status} {verification.message}")
+                        continue
+                    manifest = read_manifest(manifest_path)
+                    repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
+                    repository.register_downloaded_manifest_asset(manifest, manifest_path)
+                    result = import_completed_plan_entry(
+                        repository,
+                        entry,
+                        manifest_path,
+                        sqlite_path=sqlite_path,
+                        row_limit=0,
+                        replace=False,
+                    )
+                except Exception as exc:
+                    failed += 1
+                    messages.append(f"{label}: {type(exc).__name__}: {exc}")
+                    continue
+                if result == "imported":
+                    imported += 1
+                elif result == "skipped":
+                    skipped += 1
+                    messages.append(f"{label}: import_plan skipped")
+                else:
+                    failed += 1
+                    messages.append(f"{label}: {result}")
+        finally:
+            conn.close()
+
+        self.root.after(
+            0,
+            lambda: self.finish_import_supported_plan_results(imported, skipped, failed, tuple(messages), sqlite_path),
+        )
+
+    def finish_import_supported_plan_results(
+        self,
+        imported: int,
+        skipped: int,
+        failed: int,
+        messages: tuple[str, ...],
+        sqlite_path: Path,
+    ) -> None:
+        self.reload_data()
+        summary = self.tr(
+            f"匯入完成：成功 {imported}，略過 {skipped}，失敗 {failed}",
+            f"Import finished: imported {imported}, skipped {skipped}, failed {failed}",
+        )
+        self.status_var.set(summary)
+        log_event(
+            "ui_import_supported_plan_results",
+            summary,
+            level="error" if failed else "info",
+            component="ui.import",
+            context={"imported": imported, "skipped": skipped, "failed": failed, "sqlite_path": str(sqlite_path)},
+        )
+        detail = "\n".join(messages[:8])
+        body = f"{summary}\n\nSQLite: {sqlite_path}"
+        if detail:
+            body += f"\n\n{detail}"
+        if failed:
+            messagebox.showwarning(self.tr("匯入完成但有問題", "Import finished with issues"), body)
+        else:
+            messagebox.showinfo(self.tr("匯入完成", "Import finished"), body)
 
     def remove_selected_from_plan(self) -> None:
         selection = self.cart_tree.selection()
@@ -4224,22 +4374,15 @@ class ApiCollectionUi:
         planned_entries = []
         has_dataset_entries = False
         for _plan_key, row, option in items:
-            if option:
-                dataset = self.dataset_for_version_option(option)
-                if dataset is not None:
-                    entry = core.provider_dataset_version_plan_entry(
-                        self.provider_from_row(row),
-                        dataset,
-                        option,
-                        downloads_root=DOWNLOADS_DIR,
-                    )
-                    has_dataset_entries = True
-                else:
-                    entry = core.provider_plan_entry(self.provider_from_row(row))
-                    entry["dataset_version"] = option.to_plan_metadata()
-                    has_dataset_entries = True
-            else:
+            entry, build_error = self.plan_entry_for_item(row, option)
+            if entry is None:
                 entry = core.provider_plan_entry(self.provider_from_row(row))
+                if option:
+                    entry["dataset_version"] = option.to_plan_metadata()
+                entry["plan_status"] = "metadata_missing"
+                entry["plan_error"] = build_error
+            if option:
+                has_dataset_entries = True
             planned_entries.append(entry)
         if has_dataset_entries:
             payload = core.build_dataset_download_plan(planned_entries, plan_name=plan_name)

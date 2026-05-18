@@ -178,7 +178,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   Cart rows use plan item keys, so a row can represent either a whole provider or one dataset/version under that
   provider. This lets multiple crawler-reviewed candidates from the same provider stay in the same plan without
   overwriting each other. Exports include a plan name, provider count, planned status, priority, and target fields
-  for future workers.
+  for future workers. Supported downloaded CSV/JSON plan items can now be imported from the UI into
+  `state/curated_imports.sqlite` after sidecar manifest verification.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.
