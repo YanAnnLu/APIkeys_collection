@@ -104,6 +104,27 @@ conda run -n metal_trade_312 python APIkeys_collection.py \
 
 它不會直接改正式 `catalog/`。這樣做的目的，是讓新入口先進「本機草稿區」，跑過 discovery/crawler 檢查後，再由開發者決定要不要正式納入專案。
 
+本機草稿要進正式 catalog 時，必須再跑一次 crawler audit：
+
+```bash
+conda run -n metal_trade_312 python APIkeys_collection.py \
+  --promote-local-discovery-catalog \
+  --write-local-discovery-audit-json state/local_discovery_audit.json
+```
+
+這個指令只會提升 audit 通過的 dataset discovery source：
+
+- crawler 沒有 exception。
+- warning 數量是 0。
+- 候選資料有基本 metadata，例如 provider_id、dataset_id、title、source_url、evidence。
+- 如果正式 provider catalog 還沒有對應 provider，必須在本機 provider seed 找得到草稿，才會一起提升。
+
+如果只是想先看結果、不寫正式 catalog，加上：
+
+```bash
+--promote-local-discovery-dry-run
+```
+
 ## 已納入專案的代表入口
 
 這些已經進入目前專案設定，可作為組員填寫時的參考。

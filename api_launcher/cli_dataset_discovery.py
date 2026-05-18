@@ -13,8 +13,10 @@ from api_launcher.dataset_discovery import (
     dataset_with_candidate_metadata,
     load_all_dataset_discovery_sources,
 )
-from api_launcher.db import utc_now_iso
+from api_launcher.db import resolve_project_path, utc_now_iso
+from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.paths import catalog_file, local_config_file, state_file
+from api_launcher.registry import PROVIDER_CATALOG_NAME
 from api_launcher.repository import ApiCatalogRepository, load_providers
 
 
@@ -38,10 +40,18 @@ def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--review-dataset-candidate", action="append", default=[], help="dataset_uid to mark with --dataset-candidate-decision; can be repeated")
     parser.add_argument("--dataset-candidate-decision", default="approved", choices=("needs_review", "approved", "planned", "rejected"), help="review decision for --review-dataset-candidate")
     parser.add_argument("--dataset-candidate-note", default="", help="review note to store in candidate metadata")
+    parser.add_argument("--promote-local-discovery-catalog", action="store_true", help="audit local dataset discovery sources and promote passing drafts into official catalog files")
+    parser.add_argument("--promote-local-discovery-dry-run", action="store_true", help="run local discovery promotion audit without writing official catalog files")
+    parser.add_argument("--write-local-discovery-audit-json", default="", help="write promotion audit result JSON for --promote-local-discovery-catalog")
 
 
 def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
-    return bool(args.discover_dataset_candidates or args.list_dataset_candidates or args.review_dataset_candidate)
+    return bool(
+        args.discover_dataset_candidates
+        or args.list_dataset_candidates
+        or args.review_dataset_candidate
+        or args.promote_local_discovery_catalog
+    )
 
 
 def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
@@ -118,6 +128,50 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             )
 
     review_dataset_candidates_cli(conn, args)
+    promote_local_discovery_catalog_cli(args)
+
+
+def promote_local_discovery_catalog_cli(args: argparse.Namespace) -> None:
+    if not args.promote_local_discovery_catalog:
+        return
+    result = promote_local_discovery_catalog(
+        local_provider_seed_path=local_config_file(args.provider_discovery_local_seeds),
+        local_dataset_source_path=local_config_file(args.dataset_discovery_local_sources),
+        provider_catalog_path=catalog_file(PROVIDER_CATALOG_NAME),
+        dataset_source_catalog_path=catalog_file(args.dataset_discovery_sources),
+        options=DatasetCrawlOptions(
+            timeout=args.timeout,
+            max_results_override=args.dataset_discovery_limit,
+            search_terms_override=tuple(args.dataset_discovery_term),
+            full_crawl=args.dataset_discovery_full_crawl,
+            max_pages=args.dataset_discovery_max_pages,
+            max_workers=args.dataset_discovery_workers,
+            min_candidates_per_source_override=args.dataset_discovery_min_candidates_per_source,
+        ),
+        source_ids=set(args.dataset_discovery_source),
+        dry_run=args.promote_local_discovery_dry_run,
+    )
+    payload = result.to_dict()
+    print(
+        "[local-discovery-promote] "
+        f"audited={result.audited_source_count} "
+        f"providers={result.promoted_provider_count} "
+        f"sources={result.promoted_source_count} "
+        f"skipped={result.skipped_count} "
+        f"audit_issues={payload['audit']['audit_issue_count']}"
+    )
+    for skipped in result.skipped:
+        print(
+            "[local-discovery-promote] skipped "
+            f"source={skipped.get('source_id') or '-'} "
+            f"provider={skipped.get('provider_id') or '-'} "
+            f"reason={skipped.get('reason') or '-'}"
+        )
+    if args.write_local_discovery_audit_json:
+        output_path = resolve_project_path(args.write_local_discovery_audit_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"[local-discovery-promote] wrote {output_path}")
 
 
 def upsert_candidates(conn: sqlite3.Connection, candidates: list[DatasetCandidate]) -> int:

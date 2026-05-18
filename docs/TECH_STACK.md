@@ -75,6 +75,7 @@ Provider/source discovery currently uses only the Python standard library:
 - `dataset_discovery_sources.local.json`: ignored local dataset-crawler sources promoted from team portal intake.
 - `api_launcher/discovery.py`: polite metadata crawler for docs/API/signup/auth hints.
 - `api_launcher/crawlers/`: metadata-only dataset candidate crawlers. The orchestrator runs source crawlers concurrently, dedupes results, and reports both errors and audit warnings; source-specific parsers handle searchable APIs, ERDDAP JSON tables, HTML file indexes, CMR, STAC, GBIF, Dataverse, Zenodo, and CKAN.
+- `api_launcher/discovery_promotion.py`: guarded promotion from ignored local source config into official catalog files after crawler audit passes without errors or warnings.
 
 Discovery searches metadata and documentation only. It must not collect real API keys, tokens, passwords, cookies, or
 other secret values.

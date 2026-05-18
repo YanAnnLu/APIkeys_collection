@@ -148,6 +148,8 @@ sites. Discovery outputs reviewable candidates only; it never collects API secre
 Team portal intake is the staging layer before discovery. `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` lets teammates collect
 new database portal URLs, `--portal-intake-report` turns the table into review JSON, and
 `--promote-portal-intake-local` writes only clean drafts into ignored local provider/source config.
+When a local dataset source is ready, `--promote-local-discovery-catalog` runs the crawler audit and promotes only
+passing/no-warning local sources into the official catalog files.
 
 Think of providers as publishers or source stations, not the canonical database identity. A provider may expose many
 datasets, and the same canonical dataset may later have multiple mirrors. Dataset identity and dedupe should be handled
