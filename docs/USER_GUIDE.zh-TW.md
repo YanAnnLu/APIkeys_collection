@@ -187,6 +187,8 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
 
+目前 ZIP/TAR 壓縮包已有第一個 MVP adapter：如果 plan 標示 `requires_unpack_or_adapter`，而壓縮包裡有 CSV/JSON/JSONL/GeoJSON，launcher 會抽出第一個支援檔、建立衍生 manifest，再接到 SQLite 匯入流程。它仍然是保守策略，不會嘗試猜測複雜壓縮包裡所有檔案的語意。
+
 可以從 `資料庫 > Adapter 待辦` 或下載計畫上方 `更多 > Adapter 待辦` 打開目前下載計畫的 adapter 工作清單。CLI 也可以讀取已匯出的 plan：
 
 ```bash

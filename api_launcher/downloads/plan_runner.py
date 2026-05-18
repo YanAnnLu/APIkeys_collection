@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
+from api_launcher.importers.archive_importer import extract_first_supported_member_manifest
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import read_manifest
@@ -189,6 +190,23 @@ def import_completed_plan_entry(
     replace: bool = False,
 ) -> str:
     import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+    if import_plan.get("status") == "requires_unpack_or_adapter":
+        try:
+            extracted = extract_first_supported_member_manifest(manifest_path)
+        except Exception as exc:
+            return f"{type(exc).__name__}: {exc}"
+        entry = dict(entry)
+        import_plan = dict(import_plan)
+        if extracted.source_format in {"csv", "csv.gz"}:
+            import_plan["status"] = "supported_after_download"
+            import_plan["importer"] = "csv_to_sqlite"
+        elif extracted.source_format in {"json", "jsonl", "geojson"}:
+            import_plan["status"] = "supported_after_download"
+            import_plan["importer"] = "json_to_sqlite"
+        else:
+            return "skipped"
+        entry["import_plan"] = import_plan
+        manifest_path = extracted.manifest_path
     if import_plan.get("status") != "supported_after_download":
         return "skipped"
     importer = str(import_plan.get("importer") or "").strip()

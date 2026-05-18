@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+import zipfile
 from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,6 +20,13 @@ from api_launcher.repository import ApiCatalogRepository
 
 PLAN_BYTES = b"download-plan-runner-payload"
 CSV_BYTES = b"name,value\nalpha,1\nbeta,2\n"
+
+
+def zip_csv_bytes() -> bytes:
+    handle = io.BytesIO()
+    with zipfile.ZipFile(handle, "w") as archive:
+        archive.writestr("nested/sample.csv", CSV_BYTES)
+    return handle.getvalue()
 
 
 class PlanRunnerHandler(BaseHTTPRequestHandler):
@@ -125,6 +133,46 @@ class DownloadPlanRunnerTests(unittest.TestCase):
             plan_path = Path(tmpdir) / "plan.json"
             sqlite_path = Path(tmpdir) / "curated.sqlite"
             plan_path.write_text(json.dumps(sample_plan(url, output_path, native_format="csv"), ensure_ascii=False), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--run-download-plan",
+                        str(plan_path),
+                        "--download-timeout",
+                        "5",
+                        "--import-supported-plan-results",
+                        "--import-sqlite-db",
+                        str(sqlite_path),
+                    ]
+                )
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                rows = conn.execute("SELECT name, value FROM hyg_sample ORDER BY name").fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(0, rc)
+        self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
+        self.assertIn("imported=1", stdout.getvalue())
+
+    def test_cli_can_unpack_zip_plan_result_before_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(zip_csv_bytes()) as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.zip"
+            plan_path = Path(tmpdir) / "plan.json"
+            sqlite_path = Path(tmpdir) / "curated.sqlite"
+            plan = sample_plan(url, output_path, native_format="zip")
+            plan["providers"][0]["import_plan"] = {
+                "status": "requires_unpack_or_adapter",
+                "table_hint": "hyg_sample",
+                "source_format": "zip",
+            }
+            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
             stdout = io.StringIO()
 
             with redirect_stdout(stdout):
