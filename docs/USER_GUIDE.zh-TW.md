@@ -187,6 +187,12 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
 
+可以從 `資料庫 > Adapter 待辦` 或下載計畫上方 `更多 > Adapter 待辦` 打開目前下載計畫的 adapter 工作清單。CLI 也可以讀取已匯出的 plan：
+
+```bash
+python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json
+```
+
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 
 ## Steam-like 資料模型

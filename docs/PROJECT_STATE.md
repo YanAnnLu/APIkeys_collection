@@ -185,7 +185,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   now safely auto-renames the new import to the next available table name instead of replacing existing data.
 - Dataset-version plan entries that are not directly downloadable, or that need post-download unpack/transform work, now
   include an `adapter_review` handoff block. It records the adapter id, source URL, required action, expected output,
-  and reason so future non-direct adapters have a concrete contract instead of a vague "adapter required" label.
+  and reason so future non-direct adapters have a concrete contract instead of a vague "adapter required" label. CLI
+  `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.

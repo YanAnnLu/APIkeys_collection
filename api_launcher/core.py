@@ -47,6 +47,7 @@ from api_launcher.cli_dataset_discovery import (
     dataset_discovery_command_active,
     discover_dataset_candidates_cli,
 )
+from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.dataset_discovery import (
     DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
     DatasetCrawlOptions,
@@ -574,6 +575,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
+    parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
+    parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--import-supported-plan-results", action="store_true", help="after --run-download-plan, import supported CSV/JSON plan results into --import-sqlite-db")
     parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
     parser.add_argument("--import-verified-csv-manifests", action="store_true", help="import healthy CSV/CSV.GZ manifests from the registry into curated SQLite tables")
@@ -652,6 +655,7 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.run_download_plan()
+            self.show_adapter_review_plan()
             self.import_csv_manifest()
             self.import_verified_csv_manifests()
             self.import_json_manifest()
@@ -705,6 +709,8 @@ class CatalogLauncherCli:
             self.args.verify_downloads,
             self.args.verify_downloads_json,
             bool(self.args.run_download_plan),
+            bool(self.args.adapter_review_plan),
+            self.args.adapter_review_json,
             self.args.import_supported_plan_results,
             bool(self.args.import_csv_manifest),
             self.args.import_verified_csv_manifests,
@@ -834,6 +840,26 @@ class CatalogLauncherCli:
         )
         for error in result.errors:
             print(f"[download-plan] error {error}")
+
+    def show_adapter_review_plan(self) -> None:
+        if not self.args.adapter_review_plan:
+            return
+        payload = load_download_plan_file(resolve_project_path(self.args.adapter_review_plan))
+        if self.args.adapter_review_json:
+            print(json.dumps(adapter_review_agent_payload(payload), ensure_ascii=False, indent=2))
+            return
+        items = adapter_review_items(payload)
+        adapter_count = len({item.adapter_id for item in items})
+        print(f"[adapter-review] items={len(items)} adapters={adapter_count}")
+        for item in items:
+            print(
+                "[adapter-review] "
+                f"#{item.plan_index} provider={item.provider_id} dataset={item.dataset_id or '-'} "
+                f"version={item.version or '-'} adapter={item.adapter_id} action={item.required_action} "
+                f"source={item.source_url or item.landing_url or '-'}"
+            )
+            if item.reason:
+                print(f"[adapter-review]    reason={item.reason}")
 
     def import_csv_manifest(self) -> None:
         if not self.args.import_csv_manifest:

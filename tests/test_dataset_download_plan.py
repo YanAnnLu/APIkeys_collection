@@ -9,6 +9,7 @@ from pathlib import Path
 
 from api_launcher.adapters.gebco import GEBCOTopographyAdapter
 from api_launcher.adapters.hyg import HYGStarCatalogAdapter
+from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.dataset_versions import version_options_for_dataset
@@ -74,6 +75,30 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertNotIn("download_url", entry)
         self.assertNotIn("target_path", entry)
 
+    def test_adapter_review_payload_collects_non_direct_entries(self) -> None:
+        entry = {
+            "provider_id": "example_provider",
+            "dataset_id": "selector_dataset",
+            "dataset_title": "Selector Dataset",
+            "dataset_version": {"version": "2026", "download_url": "https://example.test/select"},
+            "download_eligibility": {"status": "adapter_required", "reason": "selector page"},
+            "import_plan": {"status": "adapter_review_required", "reason": "needs bounded query"},
+            "adapter_review": {
+                "adapter_id": "ExampleSelectorAdapter",
+                "source_url": "https://example.test/select",
+                "required_action": "resolve_source_to_direct_download_entries",
+            },
+        }
+
+        payload = adapter_review_agent_payload({"providers": [entry]})
+        items = adapter_review_items({"providers": [entry]})
+
+        self.assertEqual(1, payload["summary"]["item_count"])
+        self.assertEqual({"ExampleSelectorAdapter": 1}, payload["summary"]["by_adapter"])
+        self.assertEqual(1, len(items))
+        self.assertEqual("ExampleSelectorAdapter", items[0].adapter_id)
+        self.assertEqual("resolve_source_to_direct_download_entries", items[0].required_action)
+
     def test_dataset_plan_summary_counts_direct_and_review_entries(self) -> None:
         entries = [
             {"provider_id": "direct", "download_eligibility": {"status": "direct_download"}},
@@ -116,6 +141,39 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual(1, payload["summary"]["direct_download_count"])
         self.assertEqual(HYG_PROVIDER_ID, payload["providers"][0]["provider_id"])
         self.assertEqual("hyg_v38_bright_star_catalog", payload["providers"][0]["dataset_id"])
+
+    def test_cli_lists_adapter_review_items_from_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "providers": [
+                            {
+                                "provider_id": "gebco",
+                                "dataset_id": "gebco_grid",
+                                "dataset_version": {"version": "2026"},
+                                "download_eligibility": {"status": "adapter_required"},
+                                "import_plan": {"status": "adapter_review_required"},
+                                "adapter_review": {
+                                    "adapter_id": "GEBCOTopographyAdapter",
+                                    "source_url": "https://download.gebco.net/downloads",
+                                    "required_action": "resolve_source_to_direct_download_entries",
+                                },
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(["--db", str(Path(tmpdir) / "launcher.sqlite"), "--adapter-review-plan", str(plan_path)])
+
+        self.assertEqual(0, rc)
+        self.assertIn("[adapter-review] items=1 adapters=1", output.getvalue())
+        self.assertIn("adapter=GEBCOTopographyAdapter", output.getvalue())
 
     def test_cli_exports_candidate_plan_from_reviewable_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

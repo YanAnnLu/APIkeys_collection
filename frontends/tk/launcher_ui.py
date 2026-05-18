@@ -44,6 +44,7 @@ from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_de
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
+from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -741,6 +742,7 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
+        library_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         library_menu.add_separator()
         library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
         library_menu.add_command(label=self.tr("解除納管目前資料源", "Unmanage active source"), command=self.unmanage_active_provider)
@@ -841,6 +843,7 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("抓取選取 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
+        more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -4468,13 +4471,9 @@ class ApiCollectionUi:
         self.root.after(0, self.reload_data)
         self.root.after(0, lambda: self.status_var.set("metadata 爬取完成。"))
 
-    def export_download_plan(self) -> None:
+    def current_planned_entries(self) -> tuple[list[dict[str, object]], bool]:
         items = self.selected_plan_items()
-        if not items:
-            messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
-            return
-        plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
-        planned_entries = []
+        planned_entries: list[dict[str, object]] = []
         has_dataset_entries = False
         for _plan_key, row, option in items:
             entry, build_error = self.plan_entry_for_item(row, option)
@@ -4487,6 +4486,118 @@ class ApiCollectionUi:
             if option:
                 has_dataset_entries = True
             planned_entries.append(entry)
+        return planned_entries, has_dataset_entries
+
+    def open_adapter_review_panel(self) -> None:
+        if not self.selected_plan_items():
+            messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先把資料集或資料源加入下載計畫。", "Add datasets or sources to the download plan first."))
+            return
+        planned_entries, _has_dataset_entries = self.current_planned_entries()
+        review_items = adapter_review_items({"providers": planned_entries})
+        if not review_items:
+            messagebox.showinfo(self.tr("沒有 Adapter 待辦", "No adapter review items"), self.tr("目前下載計畫沒有需要 adapter 接手的項目。", "The current plan has no adapter-required items."))
+            return
+
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("Adapter 待辦", "Adapter review queue"))
+        dialog.geometry("980x560")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=self.tr("Adapter 待辦", "Adapter review queue"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 6))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                f"目前有 {len(review_items)} 個項目需要 adapter 把 API、頁面、選擇器或壓縮格式轉成可下載/可匯入流程。",
+                f"{len(review_items)} items need an adapter to turn APIs, pages, selectors, or packed formats into downloadable/importable flows.",
+            ),
+            style="DetailMuted.TLabel",
+            wraplength=900,
+        ).pack(anchor="w", padx=24, pady=(0, 12))
+
+        table = ttk.Treeview(dialog, columns=("adapter", "action", "provider", "dataset", "version", "source"), show="headings", height=10, selectmode="browse")
+        for name, label, width in [
+            ("adapter", self.tr("Adapter", "Adapter"), 180),
+            ("action", self.tr("下一步", "Next action"), 220),
+            ("provider", self.tr("資料源", "Provider"), 150),
+            ("dataset", self.tr("資料集", "Dataset"), 180),
+            ("version", self.tr("版本", "Version"), 90),
+            ("source", self.tr("來源 URL", "Source URL"), 260),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+
+        item_by_iid: dict[str, AdapterReviewItem] = {}
+        for index, item in enumerate(review_items):
+            iid = str(index)
+            item_by_iid[iid] = item
+            table.insert(
+                "",
+                END,
+                iid=iid,
+                values=(item.adapter_id, item.required_action, item.provider_id, item.dataset_id, item.version or "-", item.source_url or item.landing_url),
+            )
+
+        detail = Text(dialog, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        detail.configure(state="disabled")
+
+        def selected_item() -> AdapterReviewItem | None:
+            selection = table.selection()
+            return item_by_iid.get(str(selection[0])) if selection else None
+
+        def show_selected(_event: object | None = None) -> None:
+            item = selected_item()
+            detail.configure(state="normal")
+            detail.delete("1.0", END)
+            if item is None:
+                detail.insert(END, self.tr("請選取一個 adapter 待辦項目。", "Select an adapter review item."))
+            else:
+                detail.insert(
+                    END,
+                    "\n".join(
+                        [
+                            f"adapter_id: {item.adapter_id}",
+                            f"required_action: {item.required_action}",
+                            f"expected_output: {item.expected_output}",
+                            f"provider_id: {item.provider_id}",
+                            f"dataset_uid: {item.dataset_uid or '-'}",
+                            f"dataset_id: {item.dataset_id or '-'}",
+                            f"version: {item.version or '-'}",
+                            f"source_url: {item.source_url or '-'}",
+                            f"landing_url: {item.landing_url or '-'}",
+                            f"download_status: {item.download_status or '-'}",
+                            f"import_status: {item.import_status or '-'}",
+                            f"reason: {item.reason or '-'}",
+                        ]
+                    ),
+                )
+            detail.configure(state="disabled")
+
+        def open_item_url(kind: str) -> None:
+            item = selected_item()
+            if item is None:
+                return
+            url = item.source_url if kind == "source" else item.landing_url
+            if url:
+                webbrowser.open(url)
+
+        table.bind("<<TreeviewSelect>>", show_selected)
+        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 10))
+        detail.pack(fill=BOTH, expand=True, padx=24, pady=(0, 12))
+        show_selected()
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.tr("開來源 URL", "Open source URL"), style="Action.TButton", command=lambda: open_item_url("source")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開 landing 頁", "Open landing page"), style="Action.TButton", command=lambda: open_item_url("landing")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def export_download_plan(self) -> None:
+        items = self.selected_plan_items()
+        if not items:
+            messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
+            return
+        plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
+        planned_entries, has_dataset_entries = self.current_planned_entries()
         if has_dataset_entries:
             payload = core.build_dataset_download_plan(planned_entries, plan_name=plan_name)
         else:
