@@ -91,7 +91,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records payload parser、Zenodo pagination flow、檔案摘要 helper 與簡單 markup 清理 helper。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index parser，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
-- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、source-specific URL builder 與 source-specific pagination flow。
+- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher 與少量 non-full query glue。
 - `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
 
 新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。
