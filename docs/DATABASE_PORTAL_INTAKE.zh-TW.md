@@ -89,6 +89,21 @@ conda run -n metal_trade_312 python APIkeys_collection.py \
 | `triage_needed` | 類型不明，先人工判斷。 |
 | `incomplete` | 缺網站名稱或 URL，請補資料。 |
 
+如果檢查結果乾淨，也可以把可升級的列先寫入本機草稿設定：
+
+```bash
+conda run -n metal_trade_312 python APIkeys_collection.py \
+  --portal-intake-path docs/DATABASE_PORTAL_INTAKE.zh-TW.md \
+  --promote-portal-intake-local
+```
+
+這只會寫入被 Git 忽略的 local 檔案：
+
+- `config/provider_discovery_seeds.local.json`
+- `config/dataset_discovery_sources.local.json`
+
+它不會直接改正式 `catalog/`。這樣做的目的，是讓新入口先進「本機草稿區」，跑過 discovery/crawler 檢查後，再由開發者決定要不要正式納入專案。
+
 ## 已納入專案的代表入口
 
 這些已經進入目前專案設定，可作為組員填寫時的參考。

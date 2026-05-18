@@ -96,6 +96,7 @@ def append_discovery_seed(path: str | Path, seed: ProviderSeed) -> None:
     seeds = [item for item in data.get("seeds", []) if item.get("provider_id") != seed.provider_id]
     seeds.append(seed_to_dict(seed))
     data["seeds"] = sorted(seeds, key=lambda item: item["provider_id"])
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 

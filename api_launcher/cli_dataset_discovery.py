@@ -6,20 +6,22 @@ import sqlite3
 
 from api_launcher.dataset_discovery import (
     DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
+    LOCAL_DATASET_DISCOVERY_SOURCES_NAME,
     DatasetCandidate,
     DatasetCrawlOptions,
     crawl_dataset_sources,
     dataset_with_candidate_metadata,
-    load_dataset_discovery_sources,
+    load_all_dataset_discovery_sources,
 )
 from api_launcher.db import utc_now_iso
-from api_launcher.paths import catalog_file, state_file
+from api_launcher.paths import catalog_file, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository, load_providers
 
 
 def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--discover-dataset-candidates", action="store_true", help="crawl configured source catalogs into reviewable dataset candidates")
     parser.add_argument("--dataset-discovery-sources", default=DEFAULT_DATASET_DISCOVERY_SOURCES_NAME, help="JSON source list for dataset discovery")
+    parser.add_argument("--dataset-discovery-local-sources", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local JSON source list for user-added dataset discovery sources")
     parser.add_argument("--dataset-discovery-source", action="append", default=[], help="source_id to crawl; can be repeated")
     parser.add_argument("--dataset-discovery-term", action="append", default=[], help="override search term for searchable sources; can be repeated")
     parser.add_argument("--dataset-discovery-limit", type=int, default=0, help="page size / max candidates per source request; 0 uses source config")
@@ -45,7 +47,8 @@ def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
 def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
     if args.discover_dataset_candidates:
         source_path = catalog_file(args.dataset_discovery_sources)
-        sources = load_dataset_discovery_sources(source_path)
+        local_source_path = local_config_file(args.dataset_discovery_local_sources)
+        sources = load_all_dataset_discovery_sources(source_path, local_source_path)
         if args.provider:
             wanted_providers = set(args.provider)
             sources = [source for source in sources if source.provider_id in wanted_providers]

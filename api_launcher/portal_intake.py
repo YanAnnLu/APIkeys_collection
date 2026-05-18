@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from api_launcher.crawlers.dataset_sources import DatasetDiscoverySource, append_dataset_discovery_source
+from api_launcher.discovery import ProviderSeed, append_discovery_seed
+
 
 DEFAULT_PORTAL_INTAKE_PATH = "docs/DATABASE_PORTAL_INTAKE.zh-TW.md"
 
@@ -386,3 +389,131 @@ def infer_expected_auth_type(access: str) -> str:
 
 def portal_intake_payload_to_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
+def promote_portal_intake_payload(
+    payload: dict[str, Any],
+    provider_seed_path: str | Path,
+    dataset_source_path: str | Path,
+) -> dict[str, object]:
+    provider_seed_path = Path(provider_seed_path)
+    dataset_source_path = Path(dataset_source_path)
+    provider_seed_count = 0
+    dataset_source_count = 0
+    skipped: list[dict[str, object]] = []
+    promoted_provider_ids: set[str] = set()
+
+    if payload.get("parse_warnings"):
+        return {
+            "provider_seed_count": 0,
+            "dataset_source_count": 0,
+            "skipped_count": len(payload.get("entries", [])),
+            "provider_seed_path": str(provider_seed_path),
+            "dataset_source_path": str(dataset_source_path),
+            "skipped": [
+                {
+                    "row_number": entry.get("row_number"),
+                    "name": entry.get("name"),
+                    "reason": "parse_warnings_present",
+                }
+                for entry in payload.get("entries", [])
+            ],
+        }
+
+    for entry in payload.get("entries", []):
+        action = str(entry.get("recommended_action") or "")
+        if entry.get("warnings"):
+            skipped.append(skipped_entry(entry, "warnings_present"))
+            continue
+        if action == "provider_seed_draft":
+            seed = provider_seed_from_draft(entry.get("provider_seed_draft") or {})
+            append_discovery_seed(provider_seed_path, seed)
+            provider_seed_count += 1
+            promoted_provider_ids.add(seed.provider_id)
+        elif action == "dataset_discovery_source_draft":
+            source = dataset_source_from_draft(entry.get("dataset_discovery_source_draft") or {})
+            append_dataset_discovery_source(dataset_source_path, source)
+            dataset_source_count += 1
+            if source.provider_id not in promoted_provider_ids:
+                append_discovery_seed(provider_seed_path, provider_seed_for_dataset_source_entry(entry, source))
+                provider_seed_count += 1
+                promoted_provider_ids.add(source.provider_id)
+        else:
+            skipped.append(skipped_entry(entry, f"not_promotable:{action}"))
+
+    return {
+        "provider_seed_count": provider_seed_count,
+        "dataset_source_count": dataset_source_count,
+        "skipped_count": len(skipped),
+        "provider_seed_path": str(provider_seed_path),
+        "dataset_source_path": str(dataset_source_path),
+        "skipped": skipped,
+    }
+
+
+def skipped_entry(entry: dict[str, Any], reason: str) -> dict[str, object]:
+    return {
+        "row_number": entry.get("row_number"),
+        "name": entry.get("name"),
+        "recommended_action": entry.get("recommended_action"),
+        "reason": reason,
+    }
+
+
+def provider_seed_from_draft(draft: object) -> ProviderSeed:
+    if not isinstance(draft, dict):
+        raise ValueError("provider_seed_draft must be an object")
+    return ProviderSeed(
+        provider_id=str(draft["provider_id"]).strip(),
+        name=str(draft["name"]).strip(),
+        owner=str(draft["owner"]).strip(),
+        categories=tuple(str(value).strip() for value in draft.get("categories", []) if str(value).strip()),
+        geographic_scope=str(draft.get("geographic_scope") or "global").strip(),
+        homepage_url=str(draft["homepage_url"]).strip(),
+        docs_url=str(draft.get("docs_url") or "").strip(),
+        api_base_url=str(draft.get("api_base_url") or "").strip(),
+        signup_url=str(draft.get("signup_url") or "").strip(),
+        expected_auth_type=str(draft.get("expected_auth_type") or "unknown").strip(),
+    )
+
+
+def dataset_source_from_draft(draft: object) -> DatasetDiscoverySource:
+    if not isinstance(draft, dict):
+        raise ValueError("dataset_discovery_source_draft must be an object")
+    return DatasetDiscoverySource(
+        source_id=str(draft["source_id"]).strip(),
+        provider_id=str(draft["provider_id"]).strip(),
+        name=str(draft["name"]).strip(),
+        source_type=str(draft["source_type"]).strip(),
+        endpoint_url=str(draft["endpoint_url"]).strip(),
+        docs_url=str(draft.get("docs_url") or "").strip(),
+        search_terms=tuple(str(value).strip() for value in draft.get("search_terms", []) if str(value).strip()),
+        categories=tuple(str(value).strip() for value in draft.get("categories", []) if str(value).strip()),
+        geographic_scope=str(draft.get("geographic_scope") or "global").strip(),
+        max_results=int(draft.get("max_results") or 10),
+        dataset_id=str(draft.get("dataset_id") or "").strip(),
+        dataset_title=str(draft.get("dataset_title") or "").strip(),
+        data_type=str(draft.get("data_type") or "").strip(),
+        native_format=str(draft.get("native_format") or "").strip(),
+        file_url_regex=str(draft.get("file_url_regex") or "").strip(),
+        min_expected_candidates=int(draft.get("min_expected_candidates") or 1),
+        notes=str(draft.get("notes") or "").strip(),
+    )
+
+
+def provider_seed_for_dataset_source_entry(entry: dict[str, Any], source: DatasetDiscoverySource) -> ProviderSeed:
+    url = str(entry.get("url") or source.endpoint_url)
+    parsed = urllib.parse.urlparse(url)
+    homepage_url = f"{parsed.scheme}://{parsed.netloc}/" if parsed.scheme and parsed.netloc else url
+    return ProviderSeed(
+        provider_id=source.provider_id,
+        name=str(entry.get("owner") or entry.get("name") or source.name).strip(),
+        owner=str(entry.get("owner") or entry.get("name") or source.name).strip(),
+        categories=tuple(source.categories or ("custom",)),
+        geographic_scope=source.geographic_scope,
+        homepage_url=homepage_url,
+        docs_url="",
+        api_base_url=source.endpoint_url,
+        signup_url="",
+        expected_auth_type=infer_expected_auth_type(str(entry.get("access") or "")),
+    )

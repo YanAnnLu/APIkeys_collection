@@ -4,6 +4,7 @@ APIkeys_collection_credentials.private.json
 *.secret.json
 launcher_integrations.local.json
 provider_discovery_seeds.local.json
+dataset_discovery_sources.local.json
 provider_candidates.discovered.json
 /state/
 /downloads/

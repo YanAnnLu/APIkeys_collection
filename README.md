@@ -145,6 +145,10 @@ Provider discovery is seed-driven. `catalog/provider_discovery_seeds.json` conta
 `provider_discovery_seeds.local.json` is ignored by git and can hold user-added regional or project-specific source
 sites. Discovery outputs reviewable candidates only; it never collects API secret values.
 
+Team portal intake is the staging layer before discovery. `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` lets teammates collect
+new database portal URLs, `--portal-intake-report` turns the table into review JSON, and
+`--promote-portal-intake-local` writes only clean drafts into ignored local provider/source config.
+
 Think of providers as publishers or source stations, not the canonical database identity. A provider may expose many
 datasets, and the same canonical dataset may later have multiple mirrors. Dataset identity and dedupe should be handled
 by dataset names/IDs, versions, scope, and fingerprints, while providers remain provenance/download context.

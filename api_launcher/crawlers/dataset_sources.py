@@ -16,6 +16,7 @@ from api_launcher.models import Dataset
 
 USER_AGENT = "APIkeys_collection/0.4 (+dataset-discovery; metadata only)"
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
+LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
 MAX_FULL_CRAWL_PAGES = 1000
 
@@ -95,6 +96,61 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
         )
         for item in data.get("sources", [])
     ]
+
+
+def load_all_dataset_discovery_sources(
+    primary_path: str | Path,
+    local_path: str | Path | None = None,
+) -> list[DatasetDiscoverySource]:
+    paths = [Path(primary_path)]
+    if local_path is not None:
+        paths.append(Path(local_path))
+    sources: list[DatasetDiscoverySource] = []
+    seen: set[str] = set()
+    for path in paths:
+        if not path.exists():
+            continue
+        for source in load_dataset_discovery_sources(path):
+            if source.source_id in seen:
+                continue
+            seen.add(source.source_id)
+            sources.append(source)
+    return sources
+
+
+def append_dataset_discovery_source(path: str | Path, source: DatasetDiscoverySource) -> None:
+    path = Path(path)
+    if path.exists():
+        data = json.loads(path.read_text(encoding="utf-8"))
+    else:
+        data = {"schema_version": 1, "sources": []}
+    sources = [item for item in data.get("sources", []) if item.get("source_id") != source.source_id]
+    sources.append(source_to_dict(source))
+    data["sources"] = sorted(sources, key=lambda item: item["source_id"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
+    return {
+        "source_id": source.source_id,
+        "provider_id": source.provider_id,
+        "name": source.name,
+        "source_type": source.source_type,
+        "endpoint_url": source.endpoint_url,
+        "docs_url": source.docs_url,
+        "search_terms": list(source.search_terms),
+        "categories": list(source.categories),
+        "geographic_scope": source.geographic_scope,
+        "max_results": source.max_results,
+        "dataset_id": source.dataset_id,
+        "dataset_title": source.dataset_title,
+        "data_type": source.data_type,
+        "native_format": source.native_format,
+        "file_url_regex": source.file_url_regex,
+        "min_expected_candidates": source.min_expected_candidates,
+        "notes": source.notes,
+    }
 
 
 def discover_dataset_candidates(
