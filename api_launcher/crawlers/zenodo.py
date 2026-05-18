@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json, search_endpoint_url
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -16,6 +17,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -92,6 +94,30 @@ def zenodo_candidates_from_payload(
                 evidence=("Zenodo records search result", f"record: {item.get('recid') or item.get('id') or 'unknown'}"),
             )
         )
+    return candidates
+
+
+def paginated_zenodo_candidates(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    next_url = search_endpoint_url(source.endpoint_url, {"q": search_term, "type": "dataset", "size": str(max(1, page_size))})
+    for _page in range(discovery_page_cap(max_pages)):
+        payload = fetch_json(next_url, timeout=timeout)
+        hits = payload.get("hits") if isinstance(payload.get("hits"), dict) else {}
+        records = hits.get("hits", [])
+        page_candidates = zenodo_candidates_from_payload(source, payload, next_url, page_size)
+        added = append_new_candidates(candidates, page_candidates, seen)
+        links = payload.get("links") if isinstance(payload.get("links"), dict) else {}
+        next_candidate = str(links.get("next") or "")
+        if not isinstance(records, list) or not records or len(records) < page_size or added == 0 or not next_candidate:
+            break
+        next_url = next_candidate
     return candidates
 
 

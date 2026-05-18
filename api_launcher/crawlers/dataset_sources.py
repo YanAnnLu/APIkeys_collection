@@ -24,7 +24,7 @@ from api_launcher.crawlers.types import (
     dataset_to_dict,
     dataset_with_candidate_metadata,
 )
-from api_launcher.crawlers.zenodo import zenodo_candidates_from_payload
+from api_launcher.crawlers.zenodo import paginated_zenodo_candidates, zenodo_candidates_from_payload
 
 
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
@@ -139,7 +139,6 @@ def discover_dataset_candidates(
             seen.add(key)
             candidates.append(candidate)
     return candidates
-
 
 def discover_dataset_candidates_for_source(
     source: DatasetDiscoverySource,
@@ -256,28 +255,4 @@ def paginated_ncei_candidates(
         if not isinstance(page_items, list) or not page_items or len(page_items) < page_size or added == 0:
             break
         offset += len(page_items)
-    return candidates
-
-
-def paginated_zenodo_candidates(
-    source: DatasetDiscoverySource,
-    search_term: str,
-    timeout: float,
-    page_size: int,
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    next_url = search_endpoint_url(source.endpoint_url, {"q": search_term, "type": "dataset", "size": str(max(1, page_size))})
-    for _page in range(discovery_page_cap(max_pages)):
-        payload = fetch_json(next_url, timeout=timeout)
-        hits = payload.get("hits") if isinstance(payload.get("hits"), dict) else {}
-        records = hits.get("hits", [])
-        page_candidates = zenodo_candidates_from_payload(source, payload, next_url, page_size)
-        added = append_new_candidates(candidates, page_candidates, seen)
-        links = payload.get("links") if isinstance(payload.get("links"), dict) else {}
-        next_candidate = str(links.get("next") or "")
-        if not isinstance(records, list) or not records or len(records) < page_size or added == 0 or not next_candidate:
-            break
-        next_url = next_candidate
     return candidates

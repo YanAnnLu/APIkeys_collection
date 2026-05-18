@@ -88,7 +88,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/cmr.py`：放 NASA CMR collection payload parser、CMR link/platform helper 與 CMR pagination flow。
 - `api_launcher/crawlers/gbif.py`：放 GBIF dataset search payload parser 與 GBIF pagination flow，保留 GBIF key、record count 與 organization metadata。
 - `api_launcher/crawlers/dataverse.py`：放 Dataverse search payload parser 與 Dataverse pagination flow，保留 global id、版本、dataverse alias 與 file count metadata。
-- `api_launcher/crawlers/zenodo.py`：放 Zenodo records payload parser、檔案摘要 helper 與簡單 markup 清理 helper。
+- `api_launcher/crawlers/zenodo.py`：放 Zenodo records payload parser、Zenodo pagination flow、檔案摘要 helper 與簡單 markup 清理 helper。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index parser，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
 - `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、source-specific URL builder 與 source-specific pagination flow。
