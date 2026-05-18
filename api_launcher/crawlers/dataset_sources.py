@@ -15,7 +15,7 @@ from api_launcher.crawlers.erddap import erddap_candidates_from_payload
 from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_url
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload, paginated_gbif_candidates
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
-from api_launcher.crawlers.ncei import ncei_candidates_from_payload
+from api_launcher.crawlers.ncei import ncei_candidates_from_payload, ncei_search_url, paginated_ncei_candidates
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.stac import paginated_stac_candidates, stac_candidates_from_payload, stac_next_link
 from api_launcher.crawlers.types import (
@@ -140,6 +140,7 @@ def discover_dataset_candidates(
             candidates.append(candidate)
     return candidates
 
+
 def discover_dataset_candidates_for_source(
     source: DatasetDiscoverySource,
     timeout: float = 12.0,
@@ -224,35 +225,3 @@ def discover_dataset_candidates_for_source(
             candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
         return candidates
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
-
-
-def ncei_search_url(endpoint_url: str, search_term: str, limit: int, offset: int = 0) -> str:
-    params = {"limit": str(max(1, limit)), "available": "true", "text": search_term}
-    if offset > 0:
-        params["offset"] = str(offset)
-    return search_endpoint_url(
-        endpoint_url,
-        params,
-    )
-
-
-def paginated_ncei_candidates(
-    source: DatasetDiscoverySource,
-    search_term: str,
-    timeout: float,
-    page_size: int,
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    offset = 0
-    for _page in range(discovery_page_cap(max_pages)):
-        url = ncei_search_url(source.endpoint_url, search_term, page_size, offset)
-        payload = fetch_json(url, timeout=timeout)
-        page_items = payload.get("results", [])
-        page_candidates = ncei_candidates_from_payload(source, payload, url, page_size)
-        added = append_new_candidates(candidates, page_candidates, seen)
-        if not isinstance(page_items, list) or not page_items or len(page_items) < page_size or added == 0:
-            break
-        offset += len(page_items)
-    return candidates

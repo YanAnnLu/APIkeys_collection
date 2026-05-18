@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json, search_endpoint_url
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     choose_native_format,
@@ -16,8 +17,19 @@ from api_launcher.crawlers.metadata import (
     tuple_names,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
+
+
+def ncei_search_url(endpoint_url: str, search_term: str, limit: int, offset: int = 0) -> str:
+    params = {"limit": str(max(1, limit)), "available": "true", "text": search_term}
+    if offset > 0:
+        params["offset"] = str(offset)
+    return search_endpoint_url(
+        endpoint_url,
+        params,
+    )
 
 
 def ncei_candidates_from_payload(
@@ -87,4 +99,26 @@ def ncei_candidates_from_payload(
                 evidence=("NCEI search result", f"formats: {', '.join(formats) or 'unknown'}"),
             )
         )
+    return candidates
+
+
+def paginated_ncei_candidates(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    offset = 0
+    for _page in range(discovery_page_cap(max_pages)):
+        url = ncei_search_url(source.endpoint_url, search_term, page_size, offset)
+        payload = fetch_json(url, timeout=timeout)
+        page_items = payload.get("results", [])
+        page_candidates = ncei_candidates_from_payload(source, payload, url, page_size)
+        added = append_new_candidates(candidates, page_candidates, seen)
+        if not isinstance(page_items, list) or not page_items or len(page_items) < page_size or added == 0:
+            break
+        offset += len(page_items)
     return candidates

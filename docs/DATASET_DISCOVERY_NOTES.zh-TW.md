@@ -81,7 +81,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/metadata.py`：放共用 metadata helper，例如安全 dataset id、分類合併、資料家族推論、storage/sql/analysis/viewer hint。
 - `api_launcher/crawlers/fetch.py`：放 crawler 共用的 HTTP fetch helper、JSON 讀取檢查與搜尋 endpoint URL 組裝。
 - `api_launcher/crawlers/pagination.py`：放 crawler 共用的 full-crawl page cap 與候選去重 append helper。
-- `api_launcher/crawlers/ncei.py`：放 NOAA/NCEI Search payload parser，保留 result/file id、format、observation type、keyword、link 與 temporal coverage metadata。
+- `api_launcher/crawlers/ncei.py`：放 NOAA/NCEI Search payload parser 與 NCEI pagination flow，保留 result/file id、format、observation type、keyword、link 與 temporal coverage metadata。
 - `api_launcher/crawlers/stac.py`：放 STAC collection payload parser 與 STAC `next` link pagination flow。
 - `api_launcher/crawlers/ckan.py`：放 CKAN `package_search` payload parser、resource 摘要 helper 與 CKAN pagination flow。
 - `api_launcher/crawlers/erddap.py`：放 ERDDAP `allDatasets` payload parser，保留 griddap/tabledap/wms protocol metadata 給後續 bounded adapter resolver 使用。
