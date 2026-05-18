@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-from api_launcher.download_jobs import JobStatus, NonBlockingDownloadQueue
-from api_launcher.download_policy import PoliteDownloadPolicy
-from api_launcher.http_downloader import HTTPDownloadAdapter, download_target_from_plan_entry
+from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
+from api_launcher.downloads.policy import PoliteDownloadPolicy
+from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.manifests import read_manifest
-from api_launcher.repair import verify_manifest_file
+from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository
 
 

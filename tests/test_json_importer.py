@@ -10,7 +10,7 @@ from pathlib import Path
 
 from api_launcher.core import main
 from api_launcher.db import connect_db
-from api_launcher.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
+from api_launcher.importers.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
 from api_launcher.manifests import build_asset_manifest, read_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
 

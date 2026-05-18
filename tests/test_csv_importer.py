@@ -8,7 +8,7 @@ from contextlib import closing, redirect_stdout
 from pathlib import Path
 
 from api_launcher.core import main
-from api_launcher.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository

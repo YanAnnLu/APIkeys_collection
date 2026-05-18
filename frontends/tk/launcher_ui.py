@@ -28,11 +28,11 @@ from tkinter import ttk
 
 import APIkeys_collection as core
 from api_launcher.favicons import download_favicon_png, favicon_cache_path, favicon_url_for_page, provider_home_url
-from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
+from api_launcher.downloads.jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
-from api_launcher.http_downloader import HTTPDownloadAdapter
+from api_launcher.downloads.http import HTTPDownloadAdapter
 from api_launcher.manifests import read_manifest
-from api_launcher.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests
+from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file

@@ -11,7 +11,7 @@ from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
-from api_launcher.repair import (
+from api_launcher.downloads.repair import (
     download_repair_agent_payload,
     repair_summary,
     repair_suggestion_for_result,

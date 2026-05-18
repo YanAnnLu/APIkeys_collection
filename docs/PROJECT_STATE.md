@@ -129,9 +129,9 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
-- `api_launcher/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
+- `api_launcher/importers/curation.py`: first data-cleaning primitives for field mapping, type casting, required checks, and deduplication.
 - `api_launcher/discovery.py`: seed-driven official source-site metadata discovery for reviewable provider candidates.
-- `api_launcher/manifests.py`, `staging.py`, and `repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
+- `api_launcher/manifests.py`, `api_launcher/downloads/staging.py`, and `api_launcher/downloads/repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
 - `api_launcher/data_store_connections.py` and `database_self_check.py`: configured data-store probes, SQL
   `information_schema` helpers, plus registry-backed database/table asset self-checks.
 - `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
@@ -148,7 +148,7 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `APIkeys_collection_ui.py`: thin Tk UI compatibility wrapper; implementation lives in
   `frontends/tk/launcher_ui.py`.
 - `renderers/taichi_global_bathymetry.py`: Taichi visualization engine copied into the launcher repo and wired to renderer contracts for cache IDs/paths.
-- `docs/RENDER_FRONTENDS.zh-TW.md`: Chinese note that separates Taichi reference rendering from the final Unreal
+- `docs/appendices/render_frontends.zh-TW.md`: Chinese note that separates Taichi reference rendering from the final Unreal
   virtual twin frontend and records the future camera-driven tile streaming direction.
 - `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and day-to-day operation guide.
 - `docs/TECH_STACK.md`: dependency boundary notes for launcher core, Docker, and optional renderer stack.
@@ -194,7 +194,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - The install registry can register whole-database assets and individual table assets, then verify managed SQLite
   assets with `--self-check-databases`.
 - GitHub Actions CI runs tests and a CLI smoke check on Windows and Ubuntu.
-- Unreal bridge planning is documented in `docs/UNREAL_BRIDGE.zh-TW.md`; no real `.uproject` has been configured yet.
+- Unreal bridge planning is documented in `docs/appendices/unreal_bridge.zh-TW.md`; no real `.uproject` has been configured yet.
 
 ## Cross-Platform Notes
 

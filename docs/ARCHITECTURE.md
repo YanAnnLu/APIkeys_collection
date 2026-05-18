@@ -242,14 +242,14 @@ network policy, and operational health.
 | Discovery | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `catalog/provider_discovery_seeds.json` | Polite metadata/source discovery without collecting secrets. |
 | Planning | `api_launcher/plans.py` | Builds download-plan JSON and declares nonblocking download policy. |
 | Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
-| Downloading | `api_launcher/download_jobs.py`, `api_launcher/http_downloader.py`, `api_launcher/transfer_tools.py` | Nonblocking job queue, resumable HTTP adapter, optional external transfer tools. |
+| Downloading | `api_launcher/downloads/` | Nonblocking job queue, resumable HTTP adapter, staging, manifest repair, and optional external transfer tools. |
 | Future P2P distribution | Not implemented yet | Optional BitTorrent-like dataset sharing for redistributable public data only, guarded by license, version, checksum, and opt-in policy. |
 | Future distributed data lake | `api_launcher/data_store_connections.py`, future Hadoop adapter | Reserved Hadoop/HDFS/Hive/Spark handoff for large raw/curated datasets and batch compute. |
 | Future orchestration | `api_launcher/integrations.py`, future K8S job specs | Reserved Kubernetes/Docker orchestration profiles for workers, jobs, services, and scheduled tasks. |
 | Integration settings | `api_launcher/integrations.py`, `api_launcher/data_store_connections.py`, `config/launcher_integrations.example.json` | Database clients, data-store connection profiles, AI summary profiles, download tool profiles, orchestration profiles. |
 | Environment checks | `api_launcher/environment.py`, `.editorconfig`, `.gitattributes` | Startup path/tool/encoding checks and cross-platform file rules. |
 | Install and uninstall safety | `api_launcher/asset_verifier.py`, `api_launcher/sql_assets.py`, `api_launcher/provenance.py`, `api_launcher/asset_roles.py` | Install IDs, asset verification, provenance, safe uninstall metadata. |
-| Data curation | `api_launcher/curation.py` | Early validation/normalization skeleton for API/CSV/JSON/manual imports. |
+| Data curation | `api_launcher/importers/` | CSV/JSON importers plus early validation/normalization skeleton for API/CSV/JSON/manual imports. |
 | Renderer bridge | `api_launcher/renderer_contracts.py`, `api_launcher/tile_manifests.py`, `api_launcher/rendering_profiles.py`, `api_launcher/render_effects.py`, `api_launcher/simulation_bridge.py`, `renderers/taichi_global_bathymetry.py` | Dataset-to-renderer contracts, shared tile manifests, cross-platform render budgets, data-driven render effect layers, simulation bridge contracts, and copied Taichi renderer. |
 | Tests | `tests/` | Unit tests for catalog, plans, downloads, discovery, registry, renderer contracts. |
 
@@ -264,10 +264,13 @@ Current target structure:
 ```text
 APIkeys_collection/
   api_launcher/          # Python package
+    downloads/           # download queue, HTTP, staging, repair, transfer tools
+    importers/           # CSV/JSON importers and curation helpers
   frontends/             # Tk UI and future frontend-specific glue
   renderers/             # Optional renderer engines
   tests/                 # Unit tests
   docs/                  # Architecture, GTD, tech stack, handoff notes
+    appendices/          # subsystem notes that should not crowd the main docs
   catalog/               # Built-in provider catalog and reference templates
   config/                # Example configs only
   scripts/               # setup/run scripts

@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Iterable
 
 from api_launcher.db import resolve_project_path
-from api_launcher.download_jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
-from api_launcher.download_policy import HostThrottle, PoliteDownloadPolicy
+from api_launcher.downloads.jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
+from api_launcher.downloads.policy import HostThrottle, PoliteDownloadPolicy
 from api_launcher.manifests import manifest_matches_plan_entry, read_manifest
-from api_launcher.repair import verify_manifest_file
-from api_launcher.staging import StagingPaths, promote_staged_payload, staging_paths_for_plan_entry
-from api_launcher.transfer_tools import transfer_url_from_plan_entry
+from api_launcher.downloads.repair import verify_manifest_file
+from api_launcher.downloads.staging import StagingPaths, promote_staged_payload, staging_paths_for_plan_entry
+from api_launcher.downloads.transfer_tools import transfer_url_from_plan_entry
 
 
 DEFAULT_DOWNLOAD_DIR = "downloads"

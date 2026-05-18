@@ -11,8 +11,8 @@ from pathlib import Path
 
 from api_launcher.core import main
 from api_launcher.db import connect_db
-from api_launcher.download_plan_runner import run_download_plan_payload
-from api_launcher.download_policy import PoliteDownloadPolicy
+from api_launcher.downloads.plan_runner import run_download_plan_payload
+from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.repository import ApiCatalogRepository
 
 

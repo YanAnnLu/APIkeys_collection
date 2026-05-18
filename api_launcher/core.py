@@ -47,7 +47,7 @@ from api_launcher.cli_dataset_discovery import (
     dataset_discovery_command_active,
     discover_dataset_candidates_cli,
 )
-from api_launcher.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
@@ -58,12 +58,12 @@ from api_launcher.dataset_adapters import adapters_for_provider
 from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
 from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
-from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
-from api_launcher.download_plan_runner import load_download_plan_file, run_download_plan_payload
+from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
+from api_launcher.downloads.plan_runner import load_download_plan_file, run_download_plan_payload
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
-from api_launcher.http_downloader import HTTPDownloadAdapter, download_target_from_plan_entry
+from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
@@ -81,7 +81,7 @@ from api_launcher.integrations import (
     set_active_ai_profile,
     set_active_database_client,
 )
-from api_launcher.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
+from api_launcher.importers.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
@@ -98,7 +98,7 @@ from api_launcher.renderer_contracts import (
     TAICHI_GLOBAL_BATHYMETRY_CONTRACTS,
     TAICHI_GLOBAL_BATHYMETRY_RENDERER_ID,
 )
-from api_launcher.repair import download_repair_agent_payload, repair_summary, scan_download_manifests
+from api_launcher.downloads.repair import download_repair_agent_payload, repair_summary, scan_download_manifests
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,
@@ -111,7 +111,7 @@ from api_launcher.render_effects import DEFAULT_RENDER_EFFECT_LAYERS
 from api_launcher.rendering_profiles import build_render_backend_profile
 from api_launcher.registry import provider_from_dict
 from api_launcher.simulation_bridge import DEFAULT_SIMULATION_BACKENDS, DEFAULT_SIMULATION_INPUT_CONTRACTS
-from api_launcher.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
+from api_launcher.downloads.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
 from api_launcher.tile_manifests import build_global_grid_manifest, write_tile_manifest
 from api_launcher.unreal_bridge import build_unreal_bridge_targets
 

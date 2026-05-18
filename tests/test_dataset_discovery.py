@@ -17,7 +17,7 @@ from api_launcher.dataset_discovery import (
     ncei_search_url,
     stac_candidates_from_payload,
 )
-from api_launcher.download_eligibility import looks_like_direct_download
+from api_launcher.downloads.eligibility import looks_like_direct_download
 
 
 class DatasetDiscoveryTests(unittest.TestCase):

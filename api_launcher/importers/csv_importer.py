@@ -11,7 +11,7 @@ from typing import Iterable
 
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.provenance import schema_fingerprint
-from api_launcher.repair import verify_manifest_file
+from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.sql_assets import validate_sql_identifier
 

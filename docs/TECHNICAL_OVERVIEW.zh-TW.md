@@ -266,11 +266,11 @@ state_file("APIkeys_collection.sqlite")
 
 | 層 | 檔案 | 用途 |
 | --- | --- | --- |
-| Job queue | `api_launcher/download_jobs.py` | 管理 queued/running/paused/completed/failed/cancelled 狀態。 |
-| HTTP adapter | `api_launcher/http_downloader.py` | 真正下載 direct HTTP(S) 檔案，支援 `.part` 與 Range 續傳。 |
-| 外部工具 profile | `api_launcher/transfer_tools.py` | 建立 aria2c/curl 等外部工具命令，但不用 shell 字串拼接。 |
-| 可下載性判斷 | `api_launcher/download_eligibility.py` | 判斷資料源是 Direct、Adapter、Docs 或 Unavailable。 |
-| 禮貌下載政策 | `api_launcher/download_policy.py` | 控制每 host 延遲、重試退避、429/503 冷卻、User-Agent。 |
+| Job queue | `api_launcher/downloads/jobs.py` | 管理 queued/running/paused/completed/failed/cancelled 狀態。 |
+| HTTP adapter | `api_launcher/downloads/http.py` | 真正下載 direct HTTP(S) 檔案，支援 `.part` 與 Range 續傳。 |
+| 外部工具 profile | `api_launcher/downloads/transfer_tools.py` | 建立 aria2c/curl 等外部工具命令，但不用 shell 字串拼接。 |
+| 可下載性判斷 | `api_launcher/downloads/eligibility.py` | 判斷資料源是 Direct、Adapter、Docs 或 Unavailable。 |
+| 禮貌下載政策 | `api_launcher/downloads/policy.py` | 控制每 host 延遲、重試退避、429/503 冷卻、User-Agent。 |
 | 未來 P2P 分發 | 尚未實作 | 遠期可選能力；只能用於授權允許再散布的 public dataset，並且必須依 manifest/checksum 驗證。 |
 
 目前 UI 只會直接下載 Direct 類型資料源。API endpoint 或 docs page 會被標為需要 adapter，避免把文件頁誤當資料集下載。

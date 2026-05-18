@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import unittest
 
-from api_launcher.download_jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
+from api_launcher.downloads.jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 
 
 class BlockingFakeAdapter:

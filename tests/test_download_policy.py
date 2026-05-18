@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from api_launcher.download_policy import HostThrottle, PoliteDownloadPolicy, host_key, parse_retry_after_seconds
+from api_launcher.downloads.policy import HostThrottle, PoliteDownloadPolicy, host_key, parse_retry_after_seconds
 
 
 class DownloadPolicyTests(unittest.TestCase):

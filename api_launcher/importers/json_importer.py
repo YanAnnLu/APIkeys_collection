@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from api_launcher.csv_importer import (
+from api_launcher.importers.csv_importer import (
     import_rows_to_sqlite,
     normalized_column_names,
     table_exists,
@@ -14,7 +14,7 @@ from api_launcher.csv_importer import (
 )
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.provenance import schema_fingerprint
-from api_launcher.repair import verify_manifest_file
+from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.sql_assets import validate_sql_identifier
 

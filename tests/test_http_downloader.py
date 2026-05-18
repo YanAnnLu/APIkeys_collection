@@ -6,9 +6,9 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from api_launcher.download_jobs import NonBlockingDownloadQueue
-from api_launcher.download_policy import PoliteDownloadPolicy
-from api_launcher.http_downloader import (
+from api_launcher.downloads.jobs import NonBlockingDownloadQueue
+from api_launcher.downloads.policy import PoliteDownloadPolicy
+from api_launcher.downloads.http import (
     HTTPDownloadAdapter,
     build_download_request,
     download_target_from_plan_entry,

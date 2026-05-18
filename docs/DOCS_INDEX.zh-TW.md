@@ -1,8 +1,8 @@
 # 文件索引與整理計畫
 
-最後更新：2026-05-17
+最後更新：2026-05-18
 
-目前文件數量偏多，原因是專案定位快速擴張，需要先留下決策痕跡。下一階段應整理成「少數主文件 + 附錄」，避免接手者不知道該先讀哪裡。
+目前文件已開始整理成「少數主文件 + 附錄」。主文件回答產品定位、目前進度、架構、操作與設定；附錄保留 discovery、failure modes、Unreal/render frontend 等子系統細節，避免接手者一進來就被大量 `.md` 淹沒。
 
 ## 建議閱讀順序
 
@@ -17,21 +17,21 @@
 | 7 | `DATASET_TYPE_MAP.zh-TW.md` | 初學者友善的資料類型地圖：不同資料該用什麼儲存、分析、渲染方式。 |
 | 8 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
 
-## 可合併候選
+## 附錄現況
 
 | 文件 | 建議 |
 | --- | --- |
-| `UNREAL_BRIDGE.zh-TW.md` | 長期可併入 `frontends/unreal/README.zh-TW.md`，保留必要設計重點即可。 |
-| `RENDER_FRONTENDS.zh-TW.md` | 長期可併入 `TECHNICAL_OVERVIEW.zh-TW.md` 的 renderer/frontends 章節。 |
-| `FAILURE_MODES.zh-TW.md` | 保留為附錄，和 repair/logs 功能同步更新。 |
-| `DATASET_DISCOVERY_NOTES.zh-TW.md` | 保留為 discovery/provider adapter 附錄。 |
+| `appendices/unreal_bridge.zh-TW.md` | 長期可併入 `frontends/unreal/README.zh-TW.md`，保留必要設計重點即可。 |
+| `appendices/render_frontends.zh-TW.md` | 長期可併入 `TECHNICAL_OVERVIEW.zh-TW.md` 的 renderer/frontends 章節。 |
+| `appendices/failure_modes.zh-TW.md` | 保留為附錄，和 repair/logs 功能同步更新。 |
+| `appendices/discovery.zh-TW.md` | 保留為 discovery/provider adapter 附錄。 |
 | `DATASET_TYPE_MAP.zh-TW.md` | 保留為概念層附錄，也可在成熟後併入中文技術總覽。 |
 | `TECH_STACK.md` | 可保留英文/雙語技術棧，但避免和中文 overview 重複太多。 |
 | `PROJECT_STATE.md` | 可被 `PROJECT_GTD.md` 與 handoff report 取代，之後考慮縮短。 |
 
 ## 整理目標
 
-下一階段文件結構建議：
+目前文件結構目標：
 
 ```text
 docs/
@@ -53,7 +53,7 @@ docs/
 
 - 主文件回答「這是什麼、做到哪、怎麼跑、下一步」。
 - `AGENT_HANDOFF.zh-TW.md` 是唯一的跨 Agent 接力卡，每次換手前都要更新。
-- 附錄回答「某個子系統的細節」。
+- 附錄回答「某個子系統的細節」，路徑統一放在 `docs/appendices/`。
 - GTD 是唯一進度主索引。
 - 文件不要重複敘述同一段 pipeline；改成互相引用。
 - 中文文件優先，英文文件保留給開源與跨團隊使用。

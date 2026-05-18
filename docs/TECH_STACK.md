@@ -235,7 +235,7 @@ tables may be better suited for RAG, SQL agents, feature stores, or domain model
 ## Download Engine
 
 Download/import work must stay off the Tk UI thread. The queue skeleton lives in
-`api_launcher/download_jobs.py` and uses a worker pool with progress snapshots,
+`api_launcher/downloads/jobs.py` and uses a worker pool with progress snapshots,
 pause, resume, cancel, and retry-ready status fields.
 
 Adapters should report progress through `DownloadProgress` and call
@@ -244,7 +244,7 @@ should prefer ranged requests or chunk manifests so interrupted jobs can resume
 instead of starting over.
 
 The launcher is allowed to delegate large direct file transfers to external
-tools through `api_launcher/transfer_tools.py`. Python remains the orchestrator
+tools through `api_launcher/downloads/transfer_tools.py`. Python remains the orchestrator
 for state, UI, credentials, validation, and provenance. External tools are
 profiles in `config/launcher_integrations.example.json`:
 
@@ -256,7 +256,7 @@ profiles in `config/launcher_integrations.example.json`:
 Avoid raw shell scripts as the core contract. Keep arguments as lists so Windows,
 macOS, and Linux do not diverge on quoting and escaping.
 
-The first working downloader is `api_launcher/http_downloader.py`. It supports
+The first working downloader is `api_launcher/downloads/http.py`. It supports
 direct HTTP(S) URLs, chunk progress, `.part` files, HTTP Range resume, staging,
 sidecar manifests, and atomic promote into the final target path. Dataset-specific API adapters should either
 produce direct URLs for this adapter or implement the same `DownloadAdapter`
@@ -264,7 +264,7 @@ protocol.
 
 Staging and manifests live in:
 
-- `api_launcher/staging.py`: stable staging paths, legacy `.part` migration, atomic promote.
+- `api_launcher/downloads/staging.py`: stable staging paths, legacy `.part` migration, atomic promote.
 - `api_launcher/manifests.py`: JSON manifest creation with size, SHA-256, source URL, dataset UID, dataset ID, and version.
 - `state/staging/`: ignored runtime staging area.
 
@@ -283,7 +283,7 @@ nonblocking queue, display job progress, and pause/resume/cancel selected jobs.
 The UI intentionally starts only rows with an API/download URL; provider-specific
 adapters should later decide how catalog pages become real dataset files.
 
-Polite download behavior lives in `api_launcher/download_policy.py`. Adapters
+Polite download behavior lives in `api_launcher/downloads/policy.py`. Adapters
 should respect per-host pacing, bounded retries, `Retry-After`, and cooldowns for
 rate-limit responses such as HTTP 429 and temporary overload responses such as
 HTTP 503. Do not increase concurrency globally without checking provider terms.
@@ -312,7 +312,7 @@ Runtime logs live under ignored `state/logs/`:
 
 Use `api_launcher/event_log.py` instead of ad hoc `print()` or silent exception swallowing when an error affects user
 state, downloads, adapters, database tools, AI summaries, or startup environment checks. Failure scenarios and recovery
-rules are tracked in `docs/FAILURE_MODES.zh-TW.md`.
+rules are tracked in `docs/appendices/failure_modes.zh-TW.md`.
 
 ## Validation
 
@@ -339,8 +339,8 @@ verify data before Unreal imports or reads it.
 - `api_launcher/rendering_profiles.py`: cross-platform frontend/backend and tile-budget hints for Taichi/Unreal.
 - `scripts/export_unreal_preview.py`: exports lightweight OBJ/MTL/CSV preview assets from Taichi Earth caches into
   a local Unreal project.
-- `docs/UNREAL_BRIDGE.zh-TW.md`: Chinese design notes for the frontend bridge.
-- `docs/RENDER_FRONTENDS.zh-TW.md`: Chinese notes that define Taichi as the cross-platform GPU reference renderer
+- `docs/appendices/unreal_bridge.zh-TW.md`: Chinese design notes for the frontend bridge.
+- `docs/appendices/render_frontends.zh-TW.md`: Chinese notes that define Taichi as the cross-platform GPU reference renderer
   and Unreal as the final camera-driven streaming frontend.
 
 Current bridge command:

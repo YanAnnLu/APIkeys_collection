@@ -11,7 +11,7 @@ from urllib import request
 from api_launcher.ai_prompts import provider_description_prompt
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys
 
-from api_launcher.download_policy import PoliteDownloadPolicy
+from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
 from api_launcher.oauth_device import oauth_device_config_from_profile
 from api_launcher.paths import config_file, local_config_file

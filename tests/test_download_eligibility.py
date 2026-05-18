@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from api_launcher.download_eligibility import assess_provider_download, looks_like_direct_download
+from api_launcher.downloads.eligibility import assess_provider_download, looks_like_direct_download
 from api_launcher.models import Provider
 
 

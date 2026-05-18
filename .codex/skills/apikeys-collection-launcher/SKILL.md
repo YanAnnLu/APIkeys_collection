@@ -44,7 +44,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - Register SQL/file assets in `provider_installation_assets` with `asset_role`, `source_format`, `source_uri`, and `schema_fingerprint`. Use `register_provider_database_asset` for whole databases and `register_provider_table_asset` for individual tables.
 - Distinguish official source data from curated, derived, analysis, and cache assets.
 - Do not execute `DROP DATABASE`, delete files, or remove tables until an adapter verifies the target and ownership.
-- API data still needs curation. Use `api_launcher/curation.py` patterns for field mapping, type casting, required checks, and deduplication.
+- API data still needs curation. Use `api_launcher/importers/curation.py` patterns for field mapping, type casting, required checks, and deduplication.
 - For short-lived SQLite probes/tests, use `contextlib.closing(sqlite3.connect(...))`. Python's sqlite connection context manager does not close the connection, and Windows CI can fail with `WinError 32` when temp SQLite files remain locked.
 
 ## Repair Workflow

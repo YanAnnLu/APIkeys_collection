@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from api_launcher.curation import CleaningSpec, FieldRule, clean_records
+from api_launcher.importers.curation import CleaningSpec, FieldRule, clean_records
 
 
 class CurationTests(unittest.TestCase):

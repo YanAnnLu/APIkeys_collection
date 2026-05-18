@@ -56,7 +56,8 @@ reference file, templates, and exports.
 - `api_launcher/plans.py`: shared Download Plan JSON schema builder.
 - `api_launcher/renderer_contracts.py`: shared IDs and bridge-asset contracts for downstream renderers such as `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset-adapter interfaces. Adapters discover dataset records without downloading bulk data.
-- `api_launcher/curation.py`: small, testable data-cleaning primitives for normalizing records after API/download ingestion.
+- `api_launcher/downloads/`: download eligibility, queue, HTTP transfer, staging, repair, and external transfer-tool helpers.
+- `api_launcher/importers/curation.py`: small, testable data-cleaning primitives for normalizing records after API/download ingestion.
 - `api_launcher/db.py`: SQLite connection, paths, schema setup, and migrations.
 - `api_launcher/registry.py`: JSON provider catalog loading and provider overlays.
 - `api_launcher/integrations.py`: local integration profiles for database clients and optional AI summaries.
@@ -148,7 +149,7 @@ Think of providers as publishers or source stations, not the canonical database 
 datasets, and the same canonical dataset may later have multiple mirrors. Dataset identity and dedupe should be handled
 by dataset names/IDs, versions, scope, and fingerprints, while providers remain provenance/download context.
 
-Downloaded API data still needs curation. The `curation` layer is where raw records are renamed, type-cast,
+Downloaded API data still needs curation. The `api_launcher/importers/curation.py` layer is where raw records are renamed, type-cast,
 deduplicated, checked for required fields, and eventually normalized for database/import targets. The current MVP can
 promote verified CSV/CSV.GZ and JSON/JSONL/GeoJSON manifests into curated SQLite tables before richer provider-specific
 validation is implemented.

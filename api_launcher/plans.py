@@ -6,9 +6,9 @@ from typing import Iterable
 
 from api_launcher.db import utc_now_iso
 from api_launcher.dataset_versions import DatasetVersionOption
-from api_launcher.download_eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
+from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.models import Dataset, Provider
-from api_launcher.staging import safe_path_part
+from api_launcher.downloads.staging import safe_path_part
 
 
 def build_download_plan(

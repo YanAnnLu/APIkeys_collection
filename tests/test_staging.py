@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from api_launcher.manifests import build_asset_manifest, read_manifest, write_manifest
-from api_launcher.staging import promote_staged_payload, safe_path_part, staging_paths_for_plan_entry, staging_root_for_final_path
+from api_launcher.downloads.staging import promote_staged_payload, safe_path_part, staging_paths_for_plan_entry, staging_root_for_final_path
 
 
 class StagingTests(unittest.TestCase):

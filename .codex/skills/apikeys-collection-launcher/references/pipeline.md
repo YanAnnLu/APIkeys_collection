@@ -14,7 +14,7 @@
 - `api_launcher/asset_verifier.py`: local asset verification contracts.
 - `api_launcher/asset_roles.py`: source/curated/derived/analysis/cache roles.
 - `api_launcher/provenance.py`: source format and schema fingerprint helpers.
-- `api_launcher/curation.py`: record-cleaning primitives.
+- `api_launcher/importers/curation.py`: record-cleaning primitives.
 - `api_launcher/sql_assets.py`: safe SQL uninstall metadata generation.
 
 ## Product Model

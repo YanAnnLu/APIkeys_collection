@@ -12,7 +12,7 @@ from api_launcher.integrations import (
     example_integrations_path,
     runtime_orchestration_profiles_from_config,
 )
-from api_launcher.transfer_tools import build_external_transfer_command, transfer_url_from_plan_entry
+from api_launcher.downloads.transfer_tools import build_external_transfer_command, transfer_url_from_plan_entry
 
 
 class TransferToolTests(unittest.TestCase):
