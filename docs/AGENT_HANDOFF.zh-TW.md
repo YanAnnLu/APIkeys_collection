@@ -125,6 +125,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - CLI `--import-verified-csv-manifests --import-sqlite-db PATH` 可批次匯入 registry 裡的健康 CSV/CSV.GZ manifests；預設跳過非 CSV、不健康 manifest、已存在 table。可搭配 `--provider ID` 限定資料商。
 - CLI `--import-json-manifest MANIFEST --import-sqlite-db PATH --import-table TABLE` 現在可把健康 JSON/JSONL/GeoJSON manifest payload 匯入 curated SQLite table。支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列，以及基本 GeoJSON FeatureCollection；欄位先以 `TEXT` 存入並登錄 `asset_role=curated`、`source_format=json` 與 schema fingerprint。
 - CLI `--import-verified-json-manifests --import-sqlite-db PATH` 可批次匯入 registry 裡的健康 JSON/JSONL/GeoJSON manifests；預設跳過非 JSON、不健康 manifest、已存在 table。這是 CSV 後的第二條 raw -> curated MVP 路徑。
+- CLI `--run-download-plan PATH --import-supported-plan-results --import-sqlite-db PATH` 現在可在 direct entries 下載並驗證 manifest 後，依 plan entry 的 `import_plan` 自動匯入支援的 CSV/JSON 類 payload。匯入成功、跳過、不支援、匯入失敗會和 download/manifest 結果分開統計。
 - `--verify-downloads-json` 已提供下載檔驗證的 agent-readable JSON：包含 summary、issues、repair suggestion、以及 HTTP(S) manifest 可安全重排下載的 plan entry。若要指定掃描資料夾，可搭配 `--downloads-root PATH`。
 - Tk UI 新增 `設定 > 介面語言`，語言存在 `launcher_integrations.local.json` 的 `ui_language`。預設是 `zh-TW`；新開啟 dialog 會套用，主畫面完整套用需重新啟動。後續碰 UI 時應優先補齊繁中顯示與 `tr(...)` 英文 fallback。
 - Tk UI 的登入/串接入口已集中到上方 `整合` 選單：`AI / Gemini 串接中心`、`保存 Gemini API key`、`AI 輔助模型選擇`、`Google OAuth（中期 / 開發者）`、資料儲存連線與資料庫工具都在這裡。主工具列和右側抽屜不要再新增登入/API key/資料庫工具設定入口；抽屜只保留目前資料源的動作。
@@ -156,7 +157,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 ## 下一步優先事項
 
 1. Tighten multi-dataset cart behavior：目前 UI plan 仍以 provider_id 當主要 key，同一 provider 多 dataset/version 會互相覆蓋；後續要改成 dataset_uid/version 級別的 cart row。
-2. 把 `import_plan` 接成一般使用者流程：下載完成後若 entry 標示 CSV/JSON 可匯入，UI 應提供 guided action 進入 SQLite curated import；CSV.ZST/ZIP/TAR 則顯示需要解壓/adapter。
+2. 把 `import_plan` 接進 UI：下載完成後若 entry 標示 CSV/JSON 可匯入，UI 應提供 guided action 觸發目前 CLI 已完成的 plan-driven import；CSV.ZST/ZIP/TAR 則顯示需要解壓/adapter。
 3. 擴充 repair 建議到 adapter-specific datasets，並把 download/database JSON repair payload 接到更完整事件 log 與 UI guided repair flows。
 4. 擴充 SQL/database self-check：把 per-asset SQL profile/schema 選擇做進 UI，加入真實 driver smoke 覆蓋，並把現有 UI repair suggestion 升級成 adapter-owned guarded action。
 5. 繼續擴充 crawler source 類型，但要維持設定檔驅動；下一批可評估 OGC API Records、Dataverse、Socrata、OpenAlex/DataCite 類 metadata 來源。

@@ -574,6 +574,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
+    parser.add_argument("--import-supported-plan-results", action="store_true", help="after --run-download-plan, import supported CSV/JSON plan results into --import-sqlite-db")
     parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
     parser.add_argument("--import-verified-csv-manifests", action="store_true", help="import healthy CSV/CSV.GZ manifests from the registry into curated SQLite tables")
     parser.add_argument("--import-json-manifest", help="import a verified JSON/JSONL/GeoJSON payload manifest into a curated SQLite table")
@@ -704,6 +705,7 @@ class CatalogLauncherCli:
             self.args.verify_downloads,
             self.args.verify_downloads_json,
             bool(self.args.run_download_plan),
+            self.args.import_supported_plan_results,
             bool(self.args.import_csv_manifest),
             self.args.import_verified_csv_manifests,
             bool(self.args.import_json_manifest),
@@ -818,12 +820,17 @@ class CatalogLauncherCli:
             policy=active_download_policy(),
             timeout=self.args.download_timeout,
             limit=self.args.download_plan_limit,
+            import_supported_results=self.args.import_supported_plan_results,
+            import_sqlite_path=resolve_project_path(self.args.import_sqlite_db),
+            import_row_limit=self.args.import_row_limit,
+            import_replace=self.args.import_replace_table,
         )
         print(
             "[download-plan] "
             f"entries={result.entry_count} submitted={result.submitted} "
             f"completed={result.completed} failed={result.failed} "
-            f"skipped={result.skipped} registered_assets={result.registered_assets}"
+            f"skipped={result.skipped} registered_assets={result.registered_assets} "
+            f"imported={result.imported} import_skipped={result.import_skipped} import_failed={result.import_failed}"
         )
         for error in result.errors:
             print(f"[download-plan] error {error}")

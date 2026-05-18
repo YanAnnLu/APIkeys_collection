@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -17,25 +18,31 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 PLAN_BYTES = b"download-plan-runner-payload"
+CSV_BYTES = b"name,value\nalpha,1\nbeta,2\n"
 
 
 class PlanRunnerHandler(BaseHTTPRequestHandler):
     request_count: int = 0
+    payload: bytes = PLAN_BYTES
 
     def do_GET(self) -> None:
         self.__class__.request_count += 1
         self.send_response(200)
-        self.send_header("Content-Length", str(len(PLAN_BYTES)))
+        self.send_header("Content-Length", str(len(self.__class__.payload)))
         self.end_headers()
-        self.wfile.write(PLAN_BYTES)
+        self.wfile.write(self.__class__.payload)
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
 
 
 class HTTPServerFixture:
+    def __init__(self, payload: bytes = PLAN_BYTES):
+        self.payload = payload
+
     def __enter__(self) -> str:
         PlanRunnerHandler.request_count = 0
+        PlanRunnerHandler.payload = self.payload
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), PlanRunnerHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -46,6 +53,7 @@ class HTTPServerFixture:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+        PlanRunnerHandler.payload = PLAN_BYTES
 
 
 class DownloadPlanRunnerTests(unittest.TestCase):
@@ -111,8 +119,42 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual(PLAN_BYTES, payload_bytes)
         self.assertIn("submitted=1 completed=1 failed=0 skipped=1 registered_assets=1", stdout.getvalue())
 
+    def test_cli_can_import_supported_plan_results_after_download(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.csv"
+            plan_path = Path(tmpdir) / "plan.json"
+            sqlite_path = Path(tmpdir) / "curated.sqlite"
+            plan_path.write_text(json.dumps(sample_plan(url, output_path, native_format="csv"), ensure_ascii=False), encoding="utf-8")
+            stdout = io.StringIO()
 
-def sample_plan(url: str, output_path: Path) -> dict[str, object]:
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--run-download-plan",
+                        str(plan_path),
+                        "--download-timeout",
+                        "5",
+                        "--import-supported-plan-results",
+                        "--import-sqlite-db",
+                        str(sqlite_path),
+                    ]
+                )
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                rows = conn.execute("SELECT name, value FROM hyg_sample ORDER BY name").fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(0, rc)
+        self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
+        self.assertIn("imported=1", stdout.getvalue())
+
+
+def sample_plan(url: str, output_path: Path, native_format: str = "bin") -> dict[str, object]:
     return {
         "schema_version": 1,
         "providers": [
@@ -127,7 +169,12 @@ def sample_plan(url: str, output_path: Path) -> dict[str, object]:
                     "dataset_id": "hyg_sample",
                     "version": "1.0",
                     "download_url": url,
-                    "metadata": {"native_format": "bin"},
+                    "metadata": {"native_format": native_format},
+                },
+                "import_plan": {
+                    "status": "supported_after_download" if native_format == "csv" else "manual_review_required",
+                    "importer": "csv_to_sqlite" if native_format == "csv" else "",
+                    "table_hint": "hyg_sample",
                 },
             },
             {

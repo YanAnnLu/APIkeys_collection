@@ -175,6 +175,14 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 這份 plan 會標出哪些候選可以直接下載、哪些需要 adapter review，以及下載後是否能用目前 CSV/JSON -> SQLite 的 MVP 匯入器處理。
 
+若 plan 裡的項目已標示可匯入，可以在執行下載計畫時加上：
+
+```bash
+python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite
+```
+
+這會先下載 direct entries、驗證 manifest，然後只把支援的 CSV/JSON 類結果匯入 SQLite；不支援的格式會跳過，不會硬塞進資料庫。
+
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 
 ## Steam-like 資料模型

@@ -158,6 +158,16 @@ py APIkeys_collection.py --init-db --seed --run-download-plan state\hyg_dataset_
 Completed downloads are verified through their sidecar manifest and registered as managed filesystem `file` assets.
 Use `--download-plan-limit N` for smoke tests or when you want to run only the first few direct entries.
 
+If a plan entry has `import_plan.status=supported_after_download`, the runner can import supported CSV/JSON payloads
+immediately after manifest verification:
+
+```powershell
+py APIkeys_collection.py --run-download-plan state\candidate_plan.json --import-supported-plan-results --import-sqlite-db state\curated_imports.sqlite
+```
+
+This is intentionally opt-in. The runner skips unsupported formats, and import failures are reported separately from
+download/manifest failures.
+
 Verified CSV or CSV.GZ payloads can now be imported into a curated SQLite table:
 
 ```powershell

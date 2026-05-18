@@ -41,6 +41,8 @@ The project is not a secret harvester. Credential files are templates for user-o
   asset ownership is updated.
 - Crawler-discovered dataset candidates can now be exported with `--export-candidate-plan`; this uses the same
   dataset-version plan schema as adapters and adds candidate review metadata plus conservative import hints.
+- `--run-download-plan` can optionally add `--import-supported-plan-results`, which imports supported CSV/JSON plan
+  results into curated SQLite after manifest verification while tracking import skipped/failed counts separately.
 - Verified CSV/CSV.GZ manifests can now be imported into curated SQLite tables through `--import-csv-manifest`; columns
   are normalized as safe SQL identifiers, table schema fingerprints are recorded, and the result is registered as a
   managed curated table asset.

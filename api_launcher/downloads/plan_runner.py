@@ -8,6 +8,8 @@ from typing import Any, Iterable
 from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite
+from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository
@@ -21,6 +23,9 @@ class DownloadPlanRunResult:
     failed: int
     skipped: int
     registered_assets: int
+    imported: int = 0
+    import_skipped: int = 0
+    import_failed: int = 0
     errors: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,6 +36,9 @@ class DownloadPlanRunResult:
             "failed": self.failed,
             "skipped": self.skipped,
             "registered_assets": self.registered_assets,
+            "imported": self.imported,
+            "import_skipped": self.import_skipped,
+            "import_failed": self.import_failed,
             "errors": list(self.errors),
         }
 
@@ -74,6 +82,10 @@ def run_download_plan_payload(
     policy: PoliteDownloadPolicy | None = None,
     timeout: float = 30.0,
     limit: int = 0,
+    import_supported_results: bool = False,
+    import_sqlite_path: str | Path = "state/curated_imports.sqlite",
+    import_row_limit: int = 0,
+    import_replace: bool = False,
 ) -> DownloadPlanRunResult:
     entries = plan_entries(plan_payload)
     selected = direct_download_entries(entries, limit=limit)
@@ -98,6 +110,9 @@ def run_download_plan_payload(
     completed = 0
     failed = 0
     registered_assets = 0
+    imported = 0
+    import_skipped = 0
+    import_failed = 0
     try:
         for entry in selected:
             jobs.append((queue.submit(entry), entry))
@@ -117,6 +132,22 @@ def run_download_plan_payload(
             if registration:
                 completed += 1
                 registered_assets += 1
+                if import_supported_results:
+                    import_result = import_completed_plan_entry(
+                        repository,
+                        entry,
+                        registration,
+                        sqlite_path=import_sqlite_path,
+                        row_limit=import_row_limit,
+                        replace=import_replace,
+                    )
+                    if import_result == "imported":
+                        imported += 1
+                    elif import_result == "skipped":
+                        import_skipped += 1
+                    else:
+                        import_failed += 1
+                        errors.append(f"{job.provider_id}: import failed for {registration}: {import_result}")
             else:
                 failed += 1
                 errors.append(f"{job.provider_id}: completed download did not produce a healthy manifest")
@@ -130,17 +161,59 @@ def run_download_plan_payload(
         failed=failed,
         skipped=skipped,
         registered_assets=registered_assets,
+        imported=imported,
+        import_skipped=import_skipped,
+        import_failed=import_failed,
         errors=tuple(errors),
     )
 
 
-def register_completed_plan_entry(repository: ApiCatalogRepository, entry: dict[str, object]) -> bool:
+def register_completed_plan_entry(repository: ApiCatalogRepository, entry: dict[str, object]) -> Path | None:
     target = download_target_from_plan_entry(entry)
     manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
     verification = verify_manifest_file(manifest_path)
     if verification.status != "ok":
-        return False
+        return None
     manifest = read_manifest(manifest_path)
     repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
     repository.register_downloaded_manifest_asset(manifest, manifest_path)
-    return True
+    return manifest_path
+
+
+def import_completed_plan_entry(
+    repository: ApiCatalogRepository,
+    entry: dict[str, object],
+    manifest_path: str | Path,
+    sqlite_path: str | Path,
+    row_limit: int = 0,
+    replace: bool = False,
+) -> str:
+    import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+    if import_plan.get("status") != "supported_after_download":
+        return "skipped"
+    importer = str(import_plan.get("importer") or "").strip()
+    table_name = str(import_plan.get("table_hint") or "").strip()
+    try:
+        if importer == "csv_to_sqlite":
+            import_csv_manifest_to_sqlite(
+                manifest_path,
+                sqlite_path,
+                repository,
+                table_name=table_name,
+                replace=replace,
+                row_limit=row_limit,
+            )
+            return "imported"
+        if importer == "json_to_sqlite":
+            import_json_manifest_to_sqlite(
+                manifest_path,
+                sqlite_path,
+                repository,
+                table_name=table_name,
+                replace=replace,
+                row_limit=row_limit,
+            )
+            return "imported"
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+    return "skipped"
