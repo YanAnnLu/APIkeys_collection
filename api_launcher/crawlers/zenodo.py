@@ -22,6 +22,10 @@ from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
+def zenodo_records_search_url(endpoint_url: str, search_term: str, limit: int) -> str:
+    return search_endpoint_url(endpoint_url, {"q": search_term, "type": "dataset", "size": str(max(1, limit))})
+
+
 def zenodo_candidates_from_payload(
     source: DatasetDiscoverySource,
     payload: dict[str, Any],
@@ -106,7 +110,7 @@ def paginated_zenodo_candidates(
 ) -> list[DatasetCandidate]:
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
-    next_url = search_endpoint_url(source.endpoint_url, {"q": search_term, "type": "dataset", "size": str(max(1, page_size))})
+    next_url = zenodo_records_search_url(source.endpoint_url, search_term, page_size)
     for _page in range(discovery_page_cap(max_pages)):
         payload = fetch_json(next_url, timeout=timeout)
         hits = payload.get("hits") if isinstance(payload.get("hits"), dict) else {}

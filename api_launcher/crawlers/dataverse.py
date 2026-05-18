@@ -18,6 +18,13 @@ from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
+def dataverse_search_url(endpoint_url: str, search_term: str, limit: int, start: int | None = None) -> str:
+    params = {"q": search_term, "type": "dataset", "per_page": str(max(1, limit))}
+    if start is not None:
+        params["start"] = str(max(0, start))
+    return search_endpoint_url(endpoint_url, params)
+
+
 def dataverse_candidates_from_payload(
     source: DatasetDiscoverySource,
     payload: dict[str, Any],
@@ -105,10 +112,7 @@ def paginated_dataverse_candidates(
     seen: set[str] = set()
     start = 0
     for _page in range(discovery_page_cap(max_pages)):
-        url = search_endpoint_url(
-            source.endpoint_url,
-            {"q": search_term, "type": "dataset", "per_page": str(max(1, page_size)), "start": str(start)},
-        )
+        url = dataverse_search_url(source.endpoint_url, search_term, page_size, start=start)
         payload = fetch_json(url, timeout=timeout)
         data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
         items = data.get("items", [])

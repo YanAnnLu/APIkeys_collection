@@ -3,17 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from api_launcher.crawlers.ckan import ckan_candidates_from_payload, paginated_ckan_candidates
+from api_launcher.crawlers.ckan import ckan_candidates_from_payload, ckan_package_search_url, paginated_ckan_candidates
 from api_launcher.crawlers.cmr import (
     cmr_candidates_from_payload,
     cmr_collections_url,
     cmr_payload_entries,
     paginated_cmr_candidates,
 )
-from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload, paginated_dataverse_candidates
+from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload, dataverse_search_url, paginated_dataverse_candidates
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
-from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_url
-from api_launcher.crawlers.gbif import gbif_candidates_from_payload, paginated_gbif_candidates
+from api_launcher.crawlers.fetch import fetch_json, fetch_text
+from api_launcher.crawlers.gbif import gbif_candidates_from_payload, gbif_dataset_search_url, paginated_gbif_candidates
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.ncei import ncei_candidates_from_payload, ncei_search_url, paginated_ncei_candidates
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
@@ -24,7 +24,7 @@ from api_launcher.crawlers.types import (
     dataset_to_dict,
     dataset_with_candidate_metadata,
 )
-from api_launcher.crawlers.zenodo import paginated_zenodo_candidates, zenodo_candidates_from_payload
+from api_launcher.crawlers.zenodo import paginated_zenodo_candidates, zenodo_candidates_from_payload, zenodo_records_search_url
 
 
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
@@ -190,7 +190,7 @@ def discover_dataset_candidates_for_source(
             if full_crawl:
                 candidates.extend(paginated_gbif_candidates(source, term, timeout, limit, max_pages))
                 continue
-            url = search_endpoint_url(source.endpoint_url, {"q": term, "limit": str(max(1, limit))})
+            url = gbif_dataset_search_url(source.endpoint_url, term, limit)
             payload = fetch_json(url, timeout=timeout)
             candidates.extend(gbif_candidates_from_payload(source, payload, url, limit))
         return candidates
@@ -200,7 +200,7 @@ def discover_dataset_candidates_for_source(
             if full_crawl:
                 candidates.extend(paginated_dataverse_candidates(source, term, timeout, limit, max_pages))
                 continue
-            url = search_endpoint_url(source.endpoint_url, {"q": term, "type": "dataset", "per_page": str(max(1, limit))})
+            url = dataverse_search_url(source.endpoint_url, term, limit)
             payload = fetch_json(url, timeout=timeout)
             candidates.extend(dataverse_candidates_from_payload(source, payload, url, limit))
         return candidates
@@ -210,7 +210,7 @@ def discover_dataset_candidates_for_source(
             if full_crawl:
                 candidates.extend(paginated_zenodo_candidates(source, term, timeout, limit, max_pages))
                 continue
-            url = search_endpoint_url(source.endpoint_url, {"q": term, "type": "dataset", "size": str(max(1, limit))})
+            url = zenodo_records_search_url(source.endpoint_url, term, limit)
             payload = fetch_json(url, timeout=timeout)
             candidates.extend(zenodo_candidates_from_payload(source, payload, url, limit))
         return candidates
@@ -220,7 +220,7 @@ def discover_dataset_candidates_for_source(
             if full_crawl:
                 candidates.extend(paginated_ckan_candidates(source, term, timeout, limit, max_pages))
                 continue
-            url = search_endpoint_url(source.endpoint_url, {"q": term, "rows": str(max(1, limit))})
+            url = ckan_package_search_url(source.endpoint_url, term, limit)
             payload = fetch_json(url, timeout=timeout)
             candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
         return candidates

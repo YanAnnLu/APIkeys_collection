@@ -18,6 +18,13 @@ from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
+def gbif_dataset_search_url(endpoint_url: str, search_term: str, limit: int, offset: int | None = None) -> str:
+    params = {"q": search_term, "limit": str(max(1, limit))}
+    if offset is not None:
+        params["offset"] = str(max(0, offset))
+    return search_endpoint_url(endpoint_url, params)
+
+
 def gbif_candidates_from_payload(
     source: DatasetDiscoverySource,
     payload: dict[str, Any],
@@ -96,7 +103,7 @@ def paginated_gbif_candidates(
     seen: set[str] = set()
     offset = 0
     for _page in range(discovery_page_cap(max_pages)):
-        url = search_endpoint_url(source.endpoint_url, {"q": search_term, "limit": str(max(1, page_size)), "offset": str(offset)})
+        url = gbif_dataset_search_url(source.endpoint_url, search_term, page_size, offset=offset)
         payload = fetch_json(url, timeout=timeout)
         results = payload.get("results", [])
         page_candidates = gbif_candidates_from_payload(source, payload, url, page_size)
