@@ -191,8 +191,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
 - The first plan-level non-direct resolver exists in `api_launcher/adapter_plan_resolver.py`. CLI
   `--resolve-adapter-plan INPUT --write-resolved-adapter-plan OUTPUT` can promote CKAN-like `resources` metadata that
-  already contains direct file URLs into direct plan entries, while HTML/API/unknown resources remain in review. Tk UI
-  exposes the same flow through `解析 Adapter 計畫` and the Adapter review panel.
+  already contains direct file URLs into direct plan entries, and now also scans NCEI/CMR/STAC-like `links` metadata
+  for direct file URLs. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
+  `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
   into the existing SQLite import path. This keeps the MVP conservative while making simple archives actionable.

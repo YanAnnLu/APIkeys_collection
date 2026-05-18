@@ -128,24 +128,44 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
     candidates.extend(
         (
             nested_meta.get("resources"),
+            nested_meta.get("links"),
             entry.get("resources"),
             entry.get("resource_summaries"),
+            entry.get("links"),
         )
     )
     resources: list[dict[str, object]] = []
     seen_urls: set[str] = set()
     for candidate in candidates:
-        if not isinstance(candidate, list):
-            continue
-        for item in candidate:
-            if not isinstance(item, dict):
-                continue
+        for item in resource_mappings_from_candidate(candidate):
             url = resource_url(item)
             if url in seen_urls:
                 continue
             if url:
                 seen_urls.add(url)
             resources.append(dict(item))
+    return resources
+
+
+def resource_mappings_from_candidate(candidate: object, group: str = "") -> list[dict[str, object]]:
+    if isinstance(candidate, list):
+        resources: list[dict[str, object]] = []
+        for item in candidate:
+            resources.extend(resource_mappings_from_candidate(item, group=group))
+        return resources
+    if not isinstance(candidate, dict):
+        return []
+    if resource_url(candidate):
+        resource = dict(candidate)
+        if group and not resource.get("group"):
+            resource["group"] = group
+        if group and not resource.get("name") and not resource.get("title"):
+            resource["name"] = group
+        return [resource]
+    resources = []
+    for key, value in candidate.items():
+        if isinstance(value, (list, dict)):
+            resources.extend(resource_mappings_from_candidate(value, group=str(key)))
     return resources
 
 
@@ -164,7 +184,7 @@ def direct_resource_entry(
     version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
     option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
     source_format = source_format_for_resource(resource, url, str(entry.get("source_format") or "unknown"))
-    resource_name = first_text(resource.get("name"), resource.get("id"), resource.get("title"), Path(urllib.parse.urlparse(url).path).name)
+    resource_name = first_text(resource.get("name"), resource.get("id"), resource.get("title"), resource.get("rel"), resource.get("group"), Path(urllib.parse.urlparse(url).path).name)
     base_version = first_text(version_meta.get("version"), entry.get("version"), "resolved")
     resource_part = safe_path_part(resource_name or f"resource_{resource_index}")
     version = f"{base_version}-{resource_part}" if base_version and resource_part else base_version or resource_part
@@ -226,7 +246,7 @@ def direct_resource_entry(
                 "original_plan_index": plan_index,
                 "resource_index": resource_index,
                 "resource_name": resource_name,
-                "resource_format": first_text(resource.get("format"), resource.get("mimetype")),
+                "resource_format": first_text(resource.get("format"), resource.get("mimetype"), resource.get("type")),
                 "source_url": first_text(
                     (entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else "",
                     entry.get("adapter_review_url"),
@@ -241,7 +261,7 @@ def direct_resource_entry(
 
 
 def source_format_for_resource(resource: dict[str, object], url: str, fallback: str = "unknown") -> str:
-    hinted = normalize_resource_format(first_text(resource.get("format"), resource.get("mimetype"), resource.get("media_type")))
+    hinted = normalize_resource_format(first_text(resource.get("format"), resource.get("mimetype"), resource.get("media_type"), resource.get("type")))
     inferred = source_format_from_url(url)
     if inferred in {"csv.gz", "csv.zst", "tar.gz", "zip", "zst", "gz", "xz", "bz2"}:
         return inferred
@@ -262,7 +282,7 @@ def normalize_resource_format(value: str) -> str:
         return "csv.zst"
     if "csv" in normalized and "gz" in normalized:
         return "csv.gz"
-    if "geojson" in normalized:
+    if "geojson" in normalized or "geo+json" in normalized:
         return "geojson"
     if "jsonl" in normalized or "ndjson" in normalized:
         return "jsonl"

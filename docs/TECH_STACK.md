@@ -154,8 +154,8 @@ Adapter review entries can now be passed through a conservative resource resolve
 py APIkeys_collection.py --resolve-adapter-plan state\candidate_plan.json --write-resolved-adapter-plan state\candidate_plan.resolved.json
 ```
 
-`api_launcher/adapter_plan_resolver.py` currently handles the common catalog/resource shape used by CKAN-like
-sources. If a review entry carries `dataset_version.metadata.resources`, the resolver promotes only URLs that already
+`api_launcher/adapter_plan_resolver.py` currently handles common catalog/resource shapes used by CKAN-like and
+metadata-link sources. If a review entry carries `dataset_version.metadata.resources` or `dataset_version.metadata.links`, the resolver promotes only URLs that already
 look like direct downloadable files into new direct plan entries with fresh `target_path`, `download_eligibility`, and
 `import_plan` fields. It leaves HTML pages, API selectors, and unknown resources in adapter review, so this is a
 bounded plan rewrite rather than a hidden scraper.

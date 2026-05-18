@@ -39,6 +39,7 @@ class AdapterPlanResolverTests(unittest.TestCase):
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
         metadata["resources"] = [{"name": "HTML landing", "format": "HTML", "url": "https://example.test/page"}]
+        metadata.pop("links", None)
 
         resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
 
@@ -48,6 +49,25 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual(1, resolved["summary"]["review_required_count"])
         self.assertIn("no direct downloadable resource URL", result.warnings[0])
         self.assertIn("adapter_review", resolved["providers"][0])
+
+    def test_link_metadata_promotes_direct_geojson_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata["links"] = {
+            "access": [
+                {"rel": "data", "type": "application/geo+json", "url": "https://example.test/boundaries.geojson"},
+                {"rel": "documentation", "href": "https://example.test/about"},
+            ]
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://example.test/boundaries.geojson", resolved_entry["download_url"])
+        self.assertEqual("geojson", resolved_entry["source_format"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
 
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}

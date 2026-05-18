@@ -201,7 +201,7 @@ python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json
 python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json
 ```
 
-這一步會保守地掃描 plan 裡的 resource metadata，只把看起來是直接檔案 URL 的 CSV/JSON/ZIP 等項目轉成 direct download entry；HTML 頁、API selector、登入頁仍會留在 adapter review。白話說，它是把「資料目錄中的可下載檔案」挑出來，不是背景亂爬整站。
+這一步會保守地掃描 plan 裡的 resource/link metadata，只把看起來是直接檔案 URL 的 CSV/JSON/GeoJSON/ZIP 等項目轉成 direct download entry；HTML 頁、API selector、登入頁仍會留在 adapter review。白話說，它是把「資料目錄中的可下載檔案」挑出來，不是背景亂爬整站。
 
 UI 裡也有同一個入口：`資料庫 > 解析 Adapter 計畫`、上方 `更多 > 解析 Adapter 計畫`，或 `Adapter 待辦` 視窗中的 `解析可下載 resources`。成功解析後，下方下載計畫會新增可下載項目，接著按 `開始` 即可跑下載。
 
