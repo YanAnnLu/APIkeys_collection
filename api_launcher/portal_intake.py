@@ -34,6 +34,7 @@ PORTAL_TABLE_COLUMNS = (
 SUPPORTED_CRAWLER_TYPES = {
     "ckan_package_search",
     "cmr_collections",
+    "datacite_dois",
     "dataverse_search",
     "erddap_all_datasets",
     "gbif_dataset_search",

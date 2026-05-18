@@ -310,6 +310,30 @@
       "notes": "Zenodo records can contain very large archives. The crawler records file summaries but keeps downloads behind adapter review."
     },
     {
+      "source_id": "datacite_dois_search",
+      "provider_id": "datacite",
+      "name": "DataCite DOI dataset search",
+      "source_type": "datacite_dois",
+      "endpoint_url": "https://api.datacite.org/dois",
+      "docs_url": "https://support.datacite.org/docs/api",
+      "search_terms": [
+        "climate",
+        "satellite imagery",
+        "ocean",
+        "cultural heritage",
+        "particle physics"
+      ],
+      "categories": [
+        "doi",
+        "metadata",
+        "research_data",
+        "dataset_catalog"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "DataCite public DOI metadata search filtered to resourceTypeGeneral=Dataset. Candidates remain metadata-only until landing pages, files, license, and repository context are reviewed."
+    },
+    {
       "source_id": "canada_open_data_package_search",
       "provider_id": "canada_open_data",
       "name": "Government of Canada CKAN package search",

@@ -16,6 +16,13 @@ from api_launcher.crawlers.cmr import (
     cmr_payload_entries,
     paginated_cmr_candidates,
 )
+from api_launcher.crawlers.datacite import (
+    datacite_candidates_for_source,
+    datacite_candidates_from_payload,
+    datacite_dois_search_url,
+    datacite_payload_items,
+    paginated_datacite_candidates,
+)
 from api_launcher.crawlers.dataverse import (
     dataverse_candidates_for_source,
     dataverse_candidates_from_payload,
@@ -204,4 +211,6 @@ def discover_dataset_candidates_for_source(
         return zenodo_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "ckan_package_search":
         return ckan_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
+    if source.source_type == "datacite_dois":
+        return datacite_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")

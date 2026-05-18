@@ -1,6 +1,6 @@
 # 資料庫入口網站收集表
 
-最後更新：2026-05-18
+最後更新：2026-05-19
 
 這份文件給團隊成員收集「資料庫 / 資料商 / 資料目錄入口網站」。它的用途不是立刻下載資料，而是把入口整理成可審核、可轉成 crawler 設定的清單。
 
@@ -20,7 +20,7 @@
 | 類型 | 怎麼辨認 | 進專案後通常變成 |
 | --- | --- | --- |
 | 資料商 / 機構首頁 | 例如 NOAA、NASA、World Bank 的資料入口首頁 | provider seed |
-| 資料目錄 API | 可以搜尋很多 dataset，例如 CKAN、STAC、ERDDAP、Dataverse、Zenodo | dataset discovery source |
+| 資料目錄 API | 可以搜尋很多 dataset，例如 CKAN、STAC、ERDDAP、Dataverse、Zenodo、DataCite | dataset discovery source |
 | 單一資料集頁 | 只描述某一個資料集，有版本或檔案清單 | dataset candidate 或 adapter review |
 | 直接檔案 | URL 看起來是 `.csv`、`.json`、`.zip`、`.nc`、`.parquet` 等 | direct download plan，仍需檢查大小/授權 |
 | 登入後平台 | 需要帳號、OAuth、API key 或專案註冊 | integration / auth / adapter，中期處理 |
@@ -138,6 +138,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py \
 | crawler_supported | GBIF dataset search | 生物多樣性資料目錄 | `gbif_dataset_search` |
 | crawler_supported | Dataverse search | 研究資料倉儲 | `harvard_dataverse_search` |
 | crawler_supported | Zenodo records | 研究資料倉儲 | `zenodo_records_search` |
+| crawler_supported | DataCite DOI search | DOI / 研究資料 metadata | `datacite_dois_search` |
 | crawler_supported | CKAN package_search | 政府 / 開放資料目錄 | `*_package_search` |
 
 ## 轉入工程設定的判斷

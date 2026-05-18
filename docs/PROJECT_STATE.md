@@ -1,6 +1,6 @@
 # APIkeys_collection Project State
 
-Last local review: 2026-05-18
+Last local review: 2026-05-19
 
 ## Product Intent
 
@@ -19,16 +19,16 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 48 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, and Canada/UK/Australia/HDX CKAN portals.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 49 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, DataCite, and Canada/UK/Australia/HDX CKAN portals.
 - `APIkeys_collection_ui.py` is now a compatibility wrapper for the Tk launcher implementation in
   `frontends/tk/launcher_ui.py`.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
-- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 17 metadata-only
+- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 18 metadata-only
   sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
   search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search,
-  Dataverse search, Zenodo records search, and CKAN `package_search`, producing reviewable dataset candidates without bulk downloads. The orchestrator now reports
+  Dataverse search, Zenodo records search, DataCite DOI search, and CKAN `package_search`, producing reviewable dataset candidates without bulk downloads. The orchestrator now reports
   audit warnings for suspicious "successful" crawls, such as zero candidates, low candidate counts, or malformed
   candidate metadata.
 - HTTP downloads now use staging, sidecar manifests, and SQLite manifest registration so downloaded files can be

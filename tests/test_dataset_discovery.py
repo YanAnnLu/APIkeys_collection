@@ -10,6 +10,8 @@ from api_launcher.dataset_discovery import (
     ckan_candidates_from_payload,
     crawl_dataset_sources,
     cmr_candidates_from_payload,
+    datacite_candidates_from_payload,
+    datacite_dois_search_url,
     dataverse_candidates_from_payload,
     erddap_candidates_from_payload,
     gbif_candidates_from_payload,
@@ -320,6 +322,52 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("https://zenodo.example.test/api/records/123/files/huge.zip/content", dataset.metadata["resources"][0]["download_url"])
         self.assertEqual("huge.zip", dataset.metadata["files"][0]["key"])
 
+    def test_datacite_dois_payload_becomes_research_dataset_candidate(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="datacite_dois_search",
+            provider_id="datacite",
+            name="DataCite DOI Search",
+            source_type="datacite_dois",
+            endpoint_url="https://api.datacite.example.test/dois",
+            categories=("doi", "research_data", "metadata"),
+            geographic_scope="global",
+        )
+        payload = {
+            "data": [
+                {
+                    "id": "10.1234/example.dataset",
+                    "type": "dois",
+                    "attributes": {
+                        "doi": "10.1234/example.dataset",
+                        "titles": [{"title": "Global cloud imagery training dataset"}],
+                        "publisher": "Example Repository",
+                        "publicationYear": 2026,
+                        "subjects": [{"subject": "satellite imagery"}, {"subject": "cloud"}],
+                        "formats": ["GeoTIFF", "NetCDF"],
+                        "types": {"resourceTypeGeneral": "Dataset", "schemaOrg": "Dataset"},
+                        "descriptions": [{"description": "<p>Satellite cloud raster grids for research.</p>"}],
+                        "url": "https://example.test/datasets/cloud",
+                        "rightsList": [{"rightsUri": "https://creativecommons.org/licenses/by/4.0/"}],
+                        "updated": "2026-05-01T00:00:00Z",
+                        "state": "findable",
+                        "viewCount": 4,
+                        "downloadCount": 2,
+                    },
+                    "relationships": {"client": {"data": {"id": "example.repo", "type": "clients"}}},
+                }
+            ]
+        }
+
+        candidates = datacite_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("datacite", dataset.provider_id)
+        self.assertEqual("10.1234_example.dataset", dataset.dataset_id)
+        self.assertEqual("raster_or_grid", dataset.metadata["data_family"])
+        self.assertEqual("netcdf", dataset.native_format)
+        self.assertEqual("https://api.datacite.example.test/dois/10.1234%2Fexample.dataset", dataset.api_url)
+        self.assertEqual("example.repo", dataset.metadata["client_id"])
+
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:
         source = DatasetDiscoverySource(
             source_id="data_gov_package_search",
@@ -485,6 +533,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
     def test_search_url_and_family_inference_are_stable(self) -> None:
         self.assertIn("text=cloud+moisture", ncei_search_url("https://example.test/search", "cloud moisture", 3))
         self.assertIn("offset=100", ncei_search_url("https://example.test/search", "cloud moisture", 100, offset=100))
+        self.assertIn("query=cloud+moisture", datacite_dois_search_url("https://example.test/dois", "cloud moisture", 3))
+        self.assertIn("resource-type-id=dataset", datacite_dois_search_url("https://example.test/dois", "cloud moisture", 3))
         self.assertEqual("raster_or_grid", infer_data_family("GOES cloud moisture imagery ABI raster"))
         self.assertEqual("spatiotemporal_trajectory", infer_data_family("AIS vessel trajectory"))
 

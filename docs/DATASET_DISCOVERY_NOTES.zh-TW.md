@@ -45,7 +45,7 @@ provider / source platform
 
 `catalog/dataset_discovery_sources.json` 是下一層：它不是新增供應商，而是描述「去哪個供應商的哪個目錄找資料集」。
 
-目前 `catalog/dataset_discovery_sources.json` 內建 17 個可爬資料目錄。支援的通用 crawler 類型：
+目前 `catalog/dataset_discovery_sources.json` 內建 18 個可爬資料目錄。支援的通用 crawler 類型：
 
 - `ncei_search`：查 NOAA/NCEI Common Access Search Service，適合從關鍵字找到 NOAA 資料集候選。
 - `erddap_all_datasets`：讀 ERDDAP `allDatasets` JSON table，適合從 ERDDAP 站點列出可用 dataset。
@@ -55,6 +55,7 @@ provider / source platform
 - `gbif_dataset_search`：查 GBIF registry dataset search，適合先發現生物多樣性資料集與 record count，再決定是否進入 GBIF download workflow。
 - `dataverse_search`：查 Dataverse search API，適合 Harvard Dataverse 這類研究資料平台，先取得可審核的 dataset metadata。
 - `zenodo_records_search`：查 Zenodo records API，適合先發現研究資料記錄與檔案摘要，再決定是否能進入 direct download 或 adapter review。
+- `datacite_dois`：查 DataCite `/dois` public API，並以 `resource-type-id=dataset` 先找研究資料 DOI metadata；它只產生候選，不直接下載 DOI landing page 背後的檔案。
 - `ckan_package_search`：讀 CKAN `package_search`，適合 Data.gov 這類政府開放資料目錄；resource URL 可能是檔案、API、入口頁或外部系統，必須 review。
 
 這些 crawler 的共通目標是「先產生候選 metadata」。例如 STAC 只先列 collection，不直接抓每一張影像；CMR 只先列 collection，不直接全量抓 granules；CKAN 只先保留 resource 摘要，不把未知 URL 直接交給 downloader。
@@ -89,6 +90,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/gbif.py`：放 GBIF dataset search query URL builder、payload parser、source-level fetch/parse flow 與 GBIF pagination flow，保留 GBIF key、record count 與 organization metadata。
 - `api_launcher/crawlers/dataverse.py`：放 Dataverse search query URL builder、payload parser、source-level fetch/parse flow 與 Dataverse pagination flow，保留 global id、版本、dataverse alias 與 file count metadata。
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records query URL builder、payload parser、source-level fetch/parse flow、Zenodo pagination flow、檔案摘要 helper 與簡單 markup 清理 helper。
+- `api_launcher/crawlers/datacite.py`：放 DataCite `/dois` query URL builder、payload parser、source-level fetch/parse flow 與 DataCite pagination flow；保留 DOI、publisher、client id、subjects、formats、rights 與 usage count metadata。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index source-level fetch/parse flow，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
 - `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、limit/search_terms 正規化與舊匯入相容；各來源 API 參數組裝、一般抓取解析與 full-crawl 分頁都已優先放回 source module。

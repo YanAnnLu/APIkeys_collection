@@ -849,6 +849,26 @@
     "notes": "General research repository. Some records contain very large archives; crawler candidates must remain metadata/review until bounded download policy exists."
   },
   {
+    "provider_id": "datacite",
+    "name": "DataCite REST API",
+    "owner": "DataCite",
+    "categories": [
+      "doi",
+      "metadata",
+      "research_data",
+      "discovery"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://support.datacite.org/docs/api",
+    "api_base_url": "https://api.datacite.org/dois",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Public DataCite DOI metadata API. Use it as a catalog-first discovery source; DOI landing pages and files still need review before download."
+  },
+  {
     "provider_id": "canada_open_data",
     "name": "Government of Canada Open Data CKAN",
     "owner": "Government of Canada",
