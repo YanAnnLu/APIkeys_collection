@@ -42,13 +42,18 @@ reference file, templates, and exports.
 
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
+- `docs/AGENT_HANDOFF.zh-TW.md`: cross-agent handoff card; read this first when taking over work.
+- `docs/PROJECT_GTD.md`: current product status, progress table, and next steps.
+- `docs/DOCS_INDEX.zh-TW.md`: documentation map; explains every important doc and when to update it.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`: crawler-first dataset discovery notes, candidate review rules, and adapter handoff guidance.
 - `docs/DATASET_TYPE_MAP.zh-TW.md`: beginner-friendly taxonomy for dataset families, storage choices, analysis tools, and rendering targets.
+- `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`: team intake sheet/rules for collecting new database portal URLs.
 - `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and daily-use guide.
-- `docs/DOCS_INDEX.zh-TW.md`: suggested reading order and next-stage documentation cleanup plan.
+- `docs/WORKSPACE_LAYOUT.zh-TW.md`: workspace/file responsibility map, split priorities, and cleanup rules.
 - `docs/PRODUCT_POSITIONING.zh-TW.md`: Chinese product positioning note for the evolved Steam-like dataset launcher and virtual twin data pipeline.
-- `docs/PROJECT_GTD.md`: current product status and next steps.
+- `docs/SETUP.zh-TW.md`: setup and launch notes for Windows/macOS/Linux.
 - `api_launcher/`: package that holds the launcher core, models, registry loading, and SQLite setup.
 - `api_launcher/core.py`: CLI coordination, metadata crawl helpers, exports, and compatibility re-exports.
 - `api_launcher/repository.py`: database repository used by both the CLI and Tk UI.

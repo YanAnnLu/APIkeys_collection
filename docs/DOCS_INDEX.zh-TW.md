@@ -1,65 +1,70 @@
-# 文件索引與整理計畫
+# 文件索引與整理規則
 
 最後更新：2026-05-18
 
-目前文件已開始整理成「少數主文件 + 附錄」。主文件回答產品定位、目前進度、架構、操作與設定；附錄保留 discovery、failure modes、Unreal/render frontend 等子系統細節，避免接手者一進來就被大量 `.md` 淹沒。
+這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
-## 建議閱讀順序
+核心原則：目前 `docs/` 裡的每份文件都可能保存重要決策。不要因為兩份文件看起來重複，就直接刪除、覆蓋或忽略；先確認它們各自承載的是接力、產品定位、使用說明、技術總覽、子系統細節，還是歷史狀態。
 
-| 順序 | 文件 | 角色 |
+## 快速閱讀路線
+
+| 情境 | 建議先讀 | 目的 |
 | --- | --- | --- |
-| 1 | `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力的固定入口。 |
-| 2 | `PRODUCT_POSITIONING.zh-TW.md` | 先理解產品定位：科學資料集 launcher + 虛擬孿生資料管線。 |
-| 3 | `PROJECT_GTD.md` | 看目前功能進度與下一步。 |
-| 4 | `ARCHITECTURE.md` | 看總 pipeline 與模組邊界。 |
-| 5 | `USER_GUIDE.zh-TW.md` | 初學者/使用者操作指南：UI、AI 登入、提供商圖示、常用操作。 |
-| 6 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，給團隊快速接手。 |
-| 7 | `DATASET_TYPE_MAP.zh-TW.md` | 初學者友善的資料類型地圖：不同資料該用什麼儲存、分析、渲染方式。 |
-| 8 | `DATABASE_PORTAL_INTAKE.zh-TW.md` | 組員收集資料庫入口網站的統一表格與規則。 |
-| 9 | `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、`.py` 拆分優先順序與路徑規則。 |
-| 10 | `SETUP.zh-TW.md` | 本機環境、Windows/macOS/Linux 啟動方式。 |
+| 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、下一步在哪、文件怎麼找。 |
+| 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
+| 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `appendices/discovery.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first。 |
+| 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |
+| 要整理檔案或重構 | `WORKSPACE_LAYOUT.zh-TW.md` -> `ARCHITECTURE.md` | 先看檔案分類、路徑規則與拆分優先順序。 |
+| 要給使用者操作 | `USER_GUIDE.zh-TW.md` -> `SETUP.zh-TW.md` | 先確認 UI、設定、啟動與日常操作說法。 |
 
-## 附錄現況
+## 主文件地圖
 
-| 文件 | 建議 |
-| --- | --- |
-| `appendices/unreal_bridge.zh-TW.md` | 長期可併入 `frontends/unreal/README.zh-TW.md`，保留必要設計重點即可。 |
-| `appendices/render_frontends.zh-TW.md` | 長期可併入 `TECHNICAL_OVERVIEW.zh-TW.md` 的 renderer/frontends 章節。 |
-| `appendices/failure_modes.zh-TW.md` | 保留為附錄，和 repair/logs 功能同步更新。 |
-| `appendices/discovery.zh-TW.md` | 保留為 discovery/provider adapter 附錄。 |
-| `DATASET_TYPE_MAP.zh-TW.md` | 保留為概念層附錄，也可在成熟後併入中文技術總覽。 |
-| `DATABASE_PORTAL_INTAKE.zh-TW.md` | 保留為團隊資料入口收集表，定期轉入 catalog/crawler 設定。 |
-| `WORKSPACE_LAYOUT.zh-TW.md` | 保留為工作區分類與拆分規則，避免 core/UI/crawler 持續膨脹。 |
-| `TECH_STACK.md` | 可保留英文/雙語技術棧，但避免和中文 overview 重複太多。 |
-| `PROJECT_STATE.md` | 可被 `PROJECT_GTD.md` 與 handoff report 取代，之後考慮縮短。 |
+| 文件 | 角色 | 何時更新 |
+| --- | --- | --- |
+| `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力卡，記錄最新狀態、雷點與下一步。 | 每次穩定節點、commit/push 前後、跨 Agent 前更新。 |
+| `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
+| `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
+| `PRODUCT_POSITIONING.zh-TW.md` | 產品定位：科學資料集 launcher、資料工程版 Steam、虛擬孿生資料管線。 | 產品語言或中長期方向改變時更新。 |
+| `ARCHITECTURE.md` | 架構圖、pipeline、模組邊界、Hadoop/K8S/renderer/mobile/P2P 邊界。 | 模組責任或資料流改變時更新。 |
+| `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，白話說明資料、下載、SQL、AI、renderer 等主線。 | 新功能進入 MVP 或 skeleton 邊界改變時更新。 |
+| `DATASET_TYPE_MAP.zh-TW.md` | 資料類型地圖，說明 table、GIS、time-series、array、media、RAG 等資料該怎麼想。 | 新增資料類型、storage hint、viewer hint 時更新。 |
+| `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 補充說明，聚焦 crawler-first、candidate review、adapter 邊界與版本計畫。 | 改 crawler、candidate、adapter resolver、download plan 時更新。 |
+| `DATABASE_PORTAL_INTAKE.zh-TW.md` | 組員收集資料入口網站的表格與規則。 | intake 欄位、promotion 流程、Notion 同步規則改變時更新。 |
+| `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序與路徑規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime 目錄時更新。 |
+| `USER_GUIDE.zh-TW.md` | 使用者操作指南，面向初學者。 | UI/CLI 操作、選單名稱、使用流程改變時更新。 |
+| `SETUP.zh-TW.md` | 安裝與啟動說明。 | Python/Conda/Docker/GitHub CLI/跨平台設定改變時更新。 |
+| `TECH_STACK.md` | 技術棧與依賴邊界，偏工程/英文或雙語。 | 依賴、CI、Docker、optional renderer stack 改變時更新。 |
+| `PROJECT_STATE.md` | 較完整的狀態快照與歷史脈絡。 | 大型里程碑或需要保留歷史狀態時更新；平常優先更新 GTD/handoff。 |
+| `GIT_HANDOFF.md` | Git/接力相關補充。 | Git 流程、雲端同步碟風險、CI 追蹤方式改變時更新。 |
 
-## 整理目標
+## 附錄地圖
 
-目前文件結構目標：
+| 文件 | 角色 | 何時更新 |
+| --- | --- | --- |
+| `appendices/discovery.zh-TW.md` | discovery 子系統完整補充，與 `DATASET_DISCOVERY_NOTES.zh-TW.md` 互相對照。 | crawler source type、adapter handoff、candidate plan 流程改變時更新。 |
+| `appendices/failure_modes.zh-TW.md` | 失敗模式與修復思路。 | 新增 repair scanner、database self-check、path repair、download recovery 時更新。 |
+| `appendices/render_frontends.zh-TW.md` | renderer / frontend 方向補充。 | Taichi、Unreal、Cesium、chart frontend 邊界改變時更新。 |
+| `appendices/unreal_bridge.zh-TW.md` | Unreal bridge 設計補充。 | Unreal exporter、tile manifest、UE 專案邊界改變時更新。 |
 
-```text
-docs/
-  PRODUCT_POSITIONING.zh-TW.md
-  USER_GUIDE.zh-TW.md
-  PROJECT_GTD.md
-  ARCHITECTURE.md
-  TECHNICAL_OVERVIEW.zh-TW.md
-  DATASET_TYPE_MAP.zh-TW.md
-  DATABASE_PORTAL_INTAKE.zh-TW.md
-  WORKSPACE_LAYOUT.zh-TW.md
-  SETUP.zh-TW.md
-  appendices/
-    discovery.zh-TW.md
-    failure_modes.zh-TW.md
-    unreal_bridge.zh-TW.md
-    render_frontends.zh-TW.md
-```
+## 每次改動後的文件回頭檢查
 
-整理原則：
+改完程式後，請至少問自己這五件事：
 
-- 主文件回答「這是什麼、做到哪、怎麼跑、下一步」。
-- `AGENT_HANDOFF.zh-TW.md` 是唯一的跨 Agent 接力卡，每次換手前都要更新。
-- 附錄回答「某個子系統的細節」，路徑統一放在 `docs/appendices/`。
-- GTD 是唯一進度主索引。
-- 文件不要重複敘述同一段 pipeline；改成互相引用。
-- 中文文件優先，英文文件保留給開源與跨團隊使用。
+1. 這個改動有沒有改變「目前進度」？有的話更新 `PROJECT_GTD.md`。
+2. 這個改動會不會影響下一位 Agent 接力？有的話更新 `AGENT_HANDOFF.zh-TW.md`。
+3. 這個改動是否新增/改變一條使用流程？有的話更新 `USER_GUIDE.zh-TW.md` 或 `SETUP.zh-TW.md`。
+4. 這個改動是否改變資料流、模組邊界或長期架構？有的話更新 `ARCHITECTURE.md` 或 `TECHNICAL_OVERVIEW.zh-TW.md`。
+5. 這個改動是否屬於某個子系統細節？有的話更新對應附錄或補充文件，例如 discovery、failure modes、Unreal bridge。
+
+白話說：程式讓機器知道怎麼跑，文件讓下一個人知道為什麼這樣跑。兩邊都要保留。
+
+## 整理策略
+
+目前不建議一次大搬家。比較安全的整理順序是：
+
+1. 先在 `DOCS_INDEX.zh-TW.md` 裡標出每份文件的角色。
+2. 再在 `WORKSPACE_LAYOUT.zh-TW.md` 裡標出每類檔案的責任。
+3. 等內容穩定後，若真的要合併文件，先把被合併文件改成短 redirect/summary，再觀察一段時間。
+4. 只有在 Git 狀態乾淨、測試通過、使用者知道風險時，才搬移或刪除文件。
+
+目前文件結構的目標不是「文件越少越好」，而是「每份文件有清楚任務」。接力文件、GTD、架構、技術總覽、使用者指南、工作區規則與各附錄都可以共存，只要索引清楚即可。

@@ -2,10 +2,11 @@
 
 最後更新：2026-05-18
 
-這份文件用來回答兩個問題：
+這份文件用來回答三個問題：
 
 1. 這個專案的檔案應該放在哪裡。
 2. 當核心 `.py` 變大時，應該先拆哪裡、怎麼拆，才不會破壞路徑與相容入口。
+3. 看到看似雜亂的檔案時，怎麼先分類，而不是直接刪除或搬移。
 
 ## 快速盤點指令
 
@@ -37,6 +38,40 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `state/` | 本機 runtime 狀態 | ignored；放 logs、SQLite、private keys、staging、audit JSON。 |
 | `downloads/` | 本機下載成果 | ignored；放資料 payload，不放 Python 原始碼。 |
 
+## 檔案責任地圖
+
+| 類型 | 例子 | 責任 | 整理方式 |
+| --- | --- | --- | --- |
+| 相容入口 | `APIkeys_collection.py`, `APIkeys_collection_ui.py` | 保留舊指令可用，實際邏輯轉到 package/frontend。 | 不要刪；只保持薄 wrapper。 |
+| 後端產品邏輯 | `api_launcher/*.py` | catalog、repository、CLI、下載、匯入、repair、AI、data store、renderer contract。 | 依子系統拆小，不把業務邏輯放回根目錄。 |
+| 前端入口 | `frontends/tk/launcher_ui.py`, `frontends/unreal/` | Tk UI 與未來 Unreal/Qt/mobile 前端邊界。 | UI 只呈現與觸發，複雜規則往 `api_launcher/` 移。 |
+| 正式 catalog/config | `catalog/*.json`, `config/*.example.json` | 可提交的 provider/source/reference/example 設定。 | 只有通過 review/audit 的資料進正式 catalog。 |
+| 文件 | `docs/*.md`, `docs/appendices/*.md` | 保存產品定位、接力狀態、架構、操作、子系統細節。 | 每份都視為重要；先更新索引，不直接刪除。 |
+| 測試 | `tests/test_*.py` | 保護既有行為，尤其下載、匯入、crawler、repair。 | 新拆模組或新功能要補小測試。 |
+| 腳本 | `scripts/*` | 開發、啟動、環境設定。 | 不把一次性操作散進核心；跨平台腳本分開維護。 |
+| renderer prototype | `renderers/taichi_global_bathymetry.py` | 下游渲染參考，不是資料治理 owner。 | 不讓重型 renderer 依賴影響基本 launcher 測試。 |
+| runtime state | `state/`, root `*.sqlite`, `provider_candidates.discovered.json` | 本機資料庫、logs、staging、audit、暫存候選。 | 預設 ignored；能搬進 `state/` 的新輸出就不要留根目錄。 |
+| downloaded payload | `downloads/` | 真正下載的資料檔。 | 預設 ignored；用 manifest/registry 管理，不手動提交。 |
+
+## 目前已知的根目錄 runtime 檔
+
+workspace inventory 目前會看到這些根目錄 runtime 產物：
+
+- `APIkeys_collection.sqlite`
+- `APIkeys_collection.sqlite-shm`
+- `APIkeys_collection.sqlite-wal`
+- `provider_candidates.discovered.json`
+
+它們不是原始碼，也不應提交。短期保留是為了相容舊路徑與目前使用者環境；新增功能產生的新狀態檔，預設應放進 `state/`。
+
+## 文件整理規則
+
+- `docs/DOCS_INDEX.zh-TW.md` 是文件地圖；新增或改名文件時要更新它。
+- `docs/AGENT_HANDOFF.zh-TW.md` 是接力卡；穩定節點、commit/push、CI 結果、重要雷點要更新。
+- `docs/PROJECT_GTD.md` 是進度主索引；每個功能閉環完成後要更新。
+- 子系統文件與附錄都要被尊重。若內容重複，先標註角色與引用關係，不要直接刪。
+- 文件合併要分階段：先索引、再摘要、再 redirect，最後才考慮刪除。
+
 ## 目前拆分優先順序
 
 | 優先 | 檔案 | 現況 | 建議拆法 |
@@ -65,3 +100,5 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 ## 給下一位 Agent
 
 整理工作區時，先跑 workspace inventory，再看 `git status --short`。不要因為某檔案位置看起來怪，就直接刪除或 `git restore`；先確認它是 runtime、local config、相容入口、正式 catalog，還是上一位 Agent/使用者留下的未提交成果。
+
+若 Git 在雲端掛載碟上異常，例如 `status`/`diff` 崩潰或 object missing，先停止卡死的 Git 程序、確認沒有正在寫 index，再修復或改用乾淨 clone；不要在不確定 Git 狀態時做大規模搬檔。

@@ -106,6 +106,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 未提交檔案或大改動不要擅自刪除、覆蓋、`git restore`。2026-05-17 曾發生誤還原事故，讓使用者很不安；任何看似奇怪的檔案都先備份/看 diff/產生 patch。
 - UI 預設要繁中；如果新增 UI，放到合適的選單或設定，不要到處新增零散入口。使用者覺得 Tk UI 目前只是過渡，PySide/Qt 是中期路線，MVP 前不要重寫。
 - 使用者喜歡產品概念層被記錄下來，例如 Steam-like library/install/workspace、renderer bridge、Hadoop/K8S、GIS/時間序列/多媒體資料類型。但實作時仍要先收束 MVP。
+- 使用者認為所有文件都重要；不要把任何 `.md` 當成可忽略雜檔。每次功能改動後，至少回頭檢查 `PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`，必要時也更新 `DOCS_INDEX.zh-TW.md`、`WORKSPACE_LAYOUT.zh-TW.md`、使用者指南或相關附錄，讓下一位 Agent 容易接力。
 - 使用者會提出發散想法；可以記錄到文檔/中期目標，但當前開發要常提醒「這次實際推進的是哪個 MVP 環節」。
 - 使用者說「繼續推進」或暫離時，通常期待 Agent 自主完成下一個合理小階段：實作、驗證、更新文檔、git commit/push、查 CI。不要每個小選擇都停下來問，但遇到會破壞資料、刪檔、改秘密資訊、或安裝環境不明時要先保守處理。
 
@@ -153,6 +154,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - macOS 目前已安裝並登入 GitHub CLI (`gh`) 為 `YanAnnLu`，可直接查 CI run/log。
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 團隊開始共同尋找資料庫入口網站時，請先寫入 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`。這是組員用的入口收集表，不要貼 API key/token/cookie；只記網站、API 文件、授權、入口類型、主題、地理範圍與是否需要登入。CLI 已有 `--portal-intake-report --write-portal-intake-json state/portal_intake.review.json`，會把表格整理成 provider seed 草稿、dataset discovery source 草稿、crawler mapping 待辦、adapter/integration backlog 或 incomplete warning；`--promote-portal-intake-local` 只會把乾淨草稿寫進被 Git 忽略的 `config/provider_discovery_seeds.local.json` 與 `config/dataset_discovery_sources.local.json`，不直接改正式 catalog。草稿要進正式 catalog 時，用 `--promote-local-discovery-catalog --write-local-discovery-audit-json state/local_discovery_audit.json`；這會先跑 crawler audit，只有 error=0/warning=0 的 local dataset source 才會寫入正式 catalog。
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 補充文件，不是暫存雜檔；它和 `docs/appendices/discovery.zh-TW.md` 一起保存 crawler-first、candidate review、adapter handoff、dataset-version plan 的設計脈絡。
 - 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
 - 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
 - CLI handoff report 已補 portal intake / local discovery 摘要：`--handoff-report PATH` 現在會列出 portal intake rows/actionable/warnings/local provider seeds/local dataset sources，以及從 Markdown/Notion staging 進 local config，再經 crawler audit promote 到 catalog 的指令流。
@@ -186,6 +188,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 - 每完成一個功能，要更新 `docs/PROJECT_GTD.md`。
 - 每次跨機器或跨 Agent 接力，要更新這份 `docs/AGENT_HANDOFF.zh-TW.md`。
+- 新增、移動或重新定位文件時，要更新 `docs/DOCS_INDEX.zh-TW.md`；整理工作區或調整檔案責任時，要更新 `docs/WORKSPACE_LAYOUT.zh-TW.md`。
 - 不要提交 `config/launcher_integrations.local.json`、`state/`、`downloads/`、真實 token、真實 API key。
 - 不要把本機絕對路徑寫死在程式碼；路徑要走 `api_launcher/paths.py` 或 config。
 - 預留端口不是死碼；但如果兩個模組表達同一件事，要優先合併抽象。
