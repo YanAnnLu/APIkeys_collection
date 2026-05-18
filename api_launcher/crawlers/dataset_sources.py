@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import json
-import urllib.parse
 from pathlib import Path
-from typing import Any
 
 from api_launcher.crawlers.ckan import ckan_candidates_from_payload
 from api_launcher.crawlers.cmr import cmr_candidates_from_payload, cmr_payload_entries
@@ -14,7 +12,7 @@ from api_launcher.crawlers.gbif import gbif_candidates_from_payload
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.ncei import ncei_candidates_from_payload
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
-from api_launcher.crawlers.stac import stac_candidates_from_payload
+from api_launcher.crawlers.stac import paginated_stac_candidates, stac_candidates_from_payload, stac_next_link
 from api_launcher.crawlers.types import (
     DatasetCandidate,
     DatasetDiscoverySource,
@@ -286,32 +284,6 @@ def paginated_cmr_candidates(
     return candidates
 
 
-def paginated_stac_candidates(
-    source: DatasetDiscoverySource,
-    timeout: float,
-    page_size: int,
-    search_terms: tuple[str, ...],
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    seen_page_urls: set[str] = set()
-    next_url = source.endpoint_url
-    for _page in range(discovery_page_cap(max_pages)):
-        if next_url in seen_page_urls:
-            break
-        seen_page_urls.add(next_url)
-        payload = fetch_json(next_url, timeout=timeout)
-        collections = payload.get("collections", [])
-        page_candidates = stac_candidates_from_payload(source, payload, next_url, page_size, search_terms)
-        append_new_candidates(candidates, page_candidates, seen)
-        next_link = stac_next_link(payload, next_url)
-        if not isinstance(collections, list) or not collections or not next_link:
-            break
-        next_url = next_link
-    return candidates
-
-
 def paginated_gbif_candidates(
     source: DatasetDiscoverySource,
     search_term: str,
@@ -412,17 +384,3 @@ def paginated_zenodo_candidates(
             break
         next_url = next_candidate
     return candidates
-
-
-def stac_next_link(payload: dict[str, Any], current_url: str) -> str:
-    links = payload.get("links", [])
-    if not isinstance(links, list):
-        return ""
-    for item in links:
-        if not isinstance(item, dict):
-            continue
-        rel = str(item.get("rel") or "").lower()
-        href = str(item.get("href") or "").strip()
-        if rel == "next" and href:
-            return urllib.parse.urljoin(current_url, href)
-    return ""

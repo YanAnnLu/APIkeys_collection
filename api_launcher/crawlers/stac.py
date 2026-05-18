@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import urllib.parse
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -14,6 +16,7 @@ from api_launcher.crawlers.metadata import (
     temporal_coverage,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -106,11 +109,51 @@ def stac_candidates_from_payload(
     return candidates
 
 
+def paginated_stac_candidates(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    page_size: int,
+    search_terms: tuple[str, ...],
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    seen_page_urls: set[str] = set()
+    next_url = source.endpoint_url
+    for _page in range(discovery_page_cap(max_pages)):
+        if next_url in seen_page_urls:
+            break
+        seen_page_urls.add(next_url)
+        payload = fetch_json(next_url, timeout=timeout)
+        collections = payload.get("collections", [])
+        page_candidates = stac_candidates_from_payload(source, payload, next_url, page_size, search_terms)
+        append_new_candidates(candidates, page_candidates, seen)
+        next_link = stac_next_link(payload, next_url)
+        if not isinstance(collections, list) or not collections or not next_link:
+            break
+        next_url = next_link
+    return candidates
+
+
 def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:
     for rel in rels:
         for link in links:
             if isinstance(link, dict) and str(link.get("rel") or "").lower() == rel and link.get("href"):
                 return str(link["href"])
+    return ""
+
+
+def stac_next_link(payload: dict[str, Any], current_url: str) -> str:
+    links = payload.get("links", [])
+    if not isinstance(links, list):
+        return ""
+    for item in links:
+        if not isinstance(item, dict):
+            continue
+        rel = str(item.get("rel") or "").lower()
+        href = str(item.get("href") or "").strip()
+        if rel == "next" and href:
+            return urllib.parse.urljoin(current_url, href)
     return ""
 
 
