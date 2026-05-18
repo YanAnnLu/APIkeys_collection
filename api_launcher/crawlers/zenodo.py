@@ -125,6 +125,25 @@ def paginated_zenodo_candidates(
     return candidates
 
 
+def zenodo_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    for term in search_terms or ("",):
+        if full_crawl:
+            candidates.extend(paginated_zenodo_candidates(source, term, timeout, limit, max_pages))
+            continue
+        url = zenodo_records_search_url(source.endpoint_url, term, limit)
+        payload = fetch_json(url, timeout=timeout)
+        candidates.extend(zenodo_candidates_from_payload(source, payload, url, limit))
+    return candidates
+
+
 def zenodo_file_summaries(files: object) -> list[dict[str, object]]:
     if not isinstance(files, list):
         return []

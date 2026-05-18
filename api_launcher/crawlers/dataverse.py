@@ -125,3 +125,22 @@ def paginated_dataverse_candidates(
         if total_count and start >= total_count:
             break
     return candidates
+
+
+def dataverse_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    for term in search_terms or ("",):
+        if full_crawl:
+            candidates.extend(paginated_dataverse_candidates(source, term, timeout, limit, max_pages))
+            continue
+        url = dataverse_search_url(source.endpoint_url, term, limit)
+        payload = fetch_json(url, timeout=timeout)
+        candidates.extend(dataverse_candidates_from_payload(source, payload, url, limit))
+    return candidates

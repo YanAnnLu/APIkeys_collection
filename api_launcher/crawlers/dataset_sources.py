@@ -3,28 +3,61 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from api_launcher.crawlers.ckan import ckan_candidates_from_payload, ckan_package_search_url, paginated_ckan_candidates
+from api_launcher.crawlers.ckan import (
+    ckan_candidates_for_source,
+    ckan_candidates_from_payload,
+    ckan_package_search_url,
+    paginated_ckan_candidates,
+)
 from api_launcher.crawlers.cmr import (
+    cmr_candidates_for_source,
     cmr_candidates_from_payload,
     cmr_collections_url,
     cmr_payload_entries,
     paginated_cmr_candidates,
 )
-from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload, dataverse_search_url, paginated_dataverse_candidates
-from api_launcher.crawlers.erddap import erddap_candidates_from_payload
-from api_launcher.crawlers.fetch import fetch_json, fetch_text
-from api_launcher.crawlers.gbif import gbif_candidates_from_payload, gbif_dataset_search_url, paginated_gbif_candidates
-from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
-from api_launcher.crawlers.ncei import ncei_candidates_from_payload, ncei_search_url, paginated_ncei_candidates
+from api_launcher.crawlers.dataverse import (
+    dataverse_candidates_for_source,
+    dataverse_candidates_from_payload,
+    dataverse_search_url,
+    paginated_dataverse_candidates,
+)
+from api_launcher.crawlers.erddap import erddap_candidates_for_source, erddap_candidates_from_payload
+from api_launcher.crawlers.gbif import (
+    gbif_candidates_for_source,
+    gbif_candidates_from_payload,
+    gbif_dataset_search_url,
+    paginated_gbif_candidates,
+)
+from api_launcher.crawlers.html_index import (
+    html_file_index_candidates_for_source,
+    html_file_index_candidates_from_text,
+)
+from api_launcher.crawlers.ncei import (
+    ncei_candidates_for_source,
+    ncei_candidates_from_payload,
+    ncei_search_url,
+    paginated_ncei_candidates,
+)
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
-from api_launcher.crawlers.stac import paginated_stac_candidates, stac_candidates_from_payload, stac_next_link
+from api_launcher.crawlers.stac import (
+    paginated_stac_candidates,
+    stac_candidates_for_source,
+    stac_candidates_from_payload,
+    stac_next_link,
+)
 from api_launcher.crawlers.types import (
     DatasetCandidate,
     DatasetDiscoverySource,
     dataset_to_dict,
     dataset_with_candidate_metadata,
 )
-from api_launcher.crawlers.zenodo import paginated_zenodo_candidates, zenodo_candidates_from_payload, zenodo_records_search_url
+from api_launcher.crawlers.zenodo import (
+    paginated_zenodo_candidates,
+    zenodo_candidates_for_source,
+    zenodo_candidates_from_payload,
+    zenodo_records_search_url,
+)
 
 
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
@@ -154,74 +187,21 @@ def discover_dataset_candidates_for_source(
         limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
     search_terms = search_terms_override or source.search_terms
     if source.source_type == "ncei_search":
-        candidates: list[DatasetCandidate] = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_ncei_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = ncei_search_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(ncei_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return ncei_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "erddap_all_datasets":
-        payload = fetch_json(source.endpoint_url, timeout=timeout)
-        return erddap_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+        return erddap_candidates_for_source(source, timeout, limit, search_terms)
     if source.source_type == "html_file_index":
-        text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
-        return html_file_index_candidates_from_text(source, text, final_url, 0 if full_crawl else limit)
+        return html_file_index_candidates_for_source(source, timeout, limit, full_crawl)
     if source.source_type == "cmr_collections":
-        candidates = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_cmr_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = cmr_collections_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(cmr_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return cmr_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "stac_collections":
-        if full_crawl:
-            return paginated_stac_candidates(source, timeout, limit, search_terms, max_pages)
-        payload = fetch_json(source.endpoint_url, timeout=timeout)
-        return stac_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+        return stac_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "gbif_dataset_search":
-        candidates = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_gbif_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = gbif_dataset_search_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(gbif_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return gbif_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "dataverse_search":
-        candidates = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_dataverse_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = dataverse_search_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(dataverse_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return dataverse_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "zenodo_records_search":
-        candidates = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_zenodo_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = zenodo_records_search_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(zenodo_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return zenodo_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     if source.source_type == "ckan_package_search":
-        candidates = []
-        for term in search_terms or ("",):
-            if full_crawl:
-                candidates.extend(paginated_ckan_candidates(source, term, timeout, limit, max_pages))
-                continue
-            url = ckan_package_search_url(source.endpoint_url, term, limit)
-            payload = fetch_json(url, timeout=timeout)
-            candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
-        return candidates
+        return ckan_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")

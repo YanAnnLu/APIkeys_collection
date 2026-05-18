@@ -122,3 +122,22 @@ def paginated_ncei_candidates(
             break
         offset += len(page_items)
     return candidates
+
+
+def ncei_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    for term in search_terms or ("",):
+        if full_crawl:
+            candidates.extend(paginated_ncei_candidates(source, term, timeout, limit, max_pages))
+            continue
+        url = ncei_search_url(source.endpoint_url, term, limit)
+        payload = fetch_json(url, timeout=timeout)
+        candidates.extend(ncei_candidates_from_payload(source, payload, url, limit))
+    return candidates

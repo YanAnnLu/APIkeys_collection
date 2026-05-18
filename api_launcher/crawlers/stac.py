@@ -135,6 +135,20 @@ def paginated_stac_candidates(
     return candidates
 
 
+def stac_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    if full_crawl:
+        return paginated_stac_candidates(source, timeout, limit, search_terms, max_pages)
+    payload = fetch_json(source.endpoint_url, timeout=timeout)
+    return stac_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+
+
 def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:
     for rel in rels:
         for link in links:

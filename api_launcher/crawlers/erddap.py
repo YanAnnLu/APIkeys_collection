@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -92,3 +93,13 @@ def erddap_candidates_from_payload(
         if len(candidates) >= limit:
             break
     return candidates
+
+
+def erddap_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+) -> list[DatasetCandidate]:
+    payload = fetch_json(source.endpoint_url, timeout=timeout)
+    return erddap_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)

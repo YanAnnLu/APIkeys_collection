@@ -5,6 +5,7 @@ import urllib.parse
 from pathlib import Path
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_text
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -91,3 +92,13 @@ def html_file_index_candidates_from_text(
             evidence=(f"matched {len(versions)} file links",),
         )
     ]
+
+
+def html_file_index_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    full_crawl: bool,
+) -> list[DatasetCandidate]:
+    text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
+    return html_file_index_candidates_from_text(source, text, final_url, 0 if full_crawl else limit)

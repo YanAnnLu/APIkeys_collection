@@ -126,6 +126,25 @@ def paginated_ckan_candidates(
     return candidates
 
 
+def ckan_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    for term in search_terms or ("",):
+        if full_crawl:
+            candidates.extend(paginated_ckan_candidates(source, term, timeout, limit, max_pages))
+            continue
+        url = ckan_package_search_url(source.endpoint_url, term, limit)
+        payload = fetch_json(url, timeout=timeout)
+        candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
+    return candidates
+
+
 def first_resource_url(resources: list[object]) -> str:
     for resource in resources:
         if isinstance(resource, dict) and resource.get("url"):

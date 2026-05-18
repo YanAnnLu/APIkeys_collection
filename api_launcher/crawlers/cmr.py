@@ -142,6 +142,25 @@ def paginated_cmr_candidates(
     return candidates
 
 
+def cmr_candidates_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    for term in search_terms or ("",):
+        if full_crawl:
+            candidates.extend(paginated_cmr_candidates(source, term, timeout, limit, max_pages))
+            continue
+        url = cmr_collections_url(source.endpoint_url, term, limit)
+        payload = fetch_json(url, timeout=timeout)
+        candidates.extend(cmr_candidates_from_payload(source, payload, url, limit))
+    return candidates
+
+
 def first_cmr_link_url(links: list[object], hints: tuple[str, ...]) -> str:
     for link in links:
         if not isinstance(link, dict) or not link.get("href"):
