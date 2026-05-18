@@ -105,6 +105,41 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("geojson", resolved_entry["source_format"])
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
 
+    def test_ckan_package_show_api_promotes_direct_resource_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata.pop("links", None)
+        metadata["ckan_id"] = "ocean-buoy-observations"
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=ckan_package_show_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        fetch.assert_called_once_with("https://api.example.test/action/package_show?id=ocean-buoy-observations")
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("ckan_package_show_resource_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("https://api.example.test/files/buoy.csv", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+
+    def test_ckan_package_search_url_can_be_turned_into_package_show_lookup(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata.pop("links", None)
+        entry["adapter_review"]["source_url"] = "https://api.example.test/action/package_search"
+        entry["dataset_version"]["download_url"] = "https://api.example.test/action/package_search"
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=ckan_package_show_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        fetch.assert_called_once_with("https://api.example.test/action/package_show?id=ocean-buoy-observations")
+        self.assertEqual(1, result.direct_entries_added)
+        self.assertEqual("https://api.example.test/files/buoy.csv", resolved["providers"][0]["download_url"])
+
     def test_erddap_griddap_metadata_promotes_bounded_csv_sample_entry(self) -> None:
         plan = {"providers": [erddap_review_entry("griddap")]}
 
@@ -315,6 +350,32 @@ def stac_review_entry() -> dict[str, object]:
             "adapter_id": "earth_search_stac_adapter",
             "source_url": "https://stac.example.test/collections/sentinel-2-l2a/items",
             "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def ckan_package_show_payload() -> dict[str, object]:
+    return {
+        "success": True,
+        "result": {
+            "id": "pkg-1",
+            "name": "ocean-buoy-observations",
+            "resources": [
+                {
+                    "id": "res-1",
+                    "name": "Hourly buoy CSV",
+                    "format": "CSV",
+                    "mimetype": "text/csv",
+                    "url": "https://api.example.test/files/buoy.csv",
+                    "size": 2048,
+                },
+                {
+                    "id": "res-2",
+                    "name": "Documentation page",
+                    "format": "HTML",
+                    "url": "https://api.example.test/dataset/ocean-buoy-observations",
+                },
+            ],
         },
     }
 

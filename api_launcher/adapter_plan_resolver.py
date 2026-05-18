@@ -21,6 +21,7 @@ from api_launcher.plans import (
 
 
 RESOURCE_RESOLVER_ID = "generic_resource_direct_download_resolver"
+CKAN_PACKAGE_RESOLVER_ID = "ckan_package_show_resource_resolver"
 ERDDAP_RESOLVER_ID = "erddap_bounded_sample_query_resolver"
 STAC_RESOLVER_ID = "stac_bounded_item_search_resolver"
 ERDDAP_SAMPLE_LIMIT = 25
@@ -133,7 +134,8 @@ def direct_resource_entries_for_plan_entry(
     stac_entry = stac_bounded_item_search_entry(entry, plan_index, downloads_root)
     if stac_entry:
         resolved_entries.append(stac_entry)
-    for resource_index, resource in enumerate(resource_mappings_from_entry(entry), start=1):
+    resources = resource_mappings_from_entry(entry)
+    for resource_index, resource in enumerate(resources, start=1):
         url = resource_url(resource)
         if not url or not resource_looks_downloadable(resource, url):
             continue
@@ -144,6 +146,8 @@ def direct_resource_entries_for_plan_entry(
         resolved = direct_resource_entry(entry, resource, plan_index, resource_index, url, downloads_root)
         if resolved:
             resolved_entries.append(resolved)
+    if not resolved_entries and not resources:
+        resolved_entries.extend(ckan_package_show_resource_entries(entry, plan_index, downloads_root))
     erddap_entry = erddap_bounded_sample_entry(entry, plan_index, downloads_root)
     if erddap_entry:
         resolved_entries.append(erddap_entry)
@@ -217,6 +221,8 @@ def direct_resource_entry(
     resource_index: int,
     url: str,
     downloads_root: str | Path,
+    resolver_id: str = RESOURCE_RESOLVER_ID,
+    resolver_source_url: str = "",
 ) -> dict[str, object]:
     version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
     option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
@@ -257,7 +263,7 @@ def direct_resource_entry(
             "native_format": source_format,
             "resource": resource,
             "resolved_from_plan_index": plan_index,
-            "resolver_id": RESOURCE_RESOLVER_ID,
+            "resolver_id": resolver_id,
         },
     )
     eligibility = assess_dataset_version_download(option)
@@ -286,7 +292,7 @@ def direct_resource_entry(
             "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
             "plan_status": "planned",
             "adapter_resolution": {
-                "resolver_id": RESOURCE_RESOLVER_ID,
+                "resolver_id": resolver_id,
                 "original_plan_index": plan_index,
                 "resource_index": resource_index,
                 "resource_name": resource_name,
@@ -294,6 +300,7 @@ def direct_resource_entry(
                 "resource_size_bytes": resource_size_bytes(resource),
                 "max_resource_size_bytes": DIRECT_RESOURCE_MAX_BYTES,
                 "source_url": first_text(
+                    resolver_source_url,
                     (entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else "",
                     entry.get("adapter_review_url"),
                     version_meta.get("download_url"),
@@ -304,6 +311,97 @@ def direct_resource_entry(
     resolved.pop("adapter_review", None)
     resolved.pop("adapter_review_url", None)
     return resolved
+
+
+def ckan_package_show_resource_entries(
+    entry: dict[str, object],
+    plan_index: int,
+    downloads_root: str | Path,
+) -> list[dict[str, object]]:
+    package_url = ckan_package_show_url(entry)
+    if not package_url:
+        return []
+    try:
+        payload = fetch_json(package_url)
+    except Exception:
+        return []
+    resources = ckan_package_show_resources(payload)
+    resolved_entries: list[dict[str, object]] = []
+    for resource_index, resource in enumerate(resources, start=1):
+        url = resource_url(resource)
+        if not url or not resource_looks_downloadable(resource, url):
+            continue
+        if resource_exceeds_size_bound(resource):
+            continue
+        resolved = direct_resource_entry(
+            entry,
+            resource,
+            plan_index,
+            resource_index,
+            url,
+            downloads_root,
+            resolver_id=CKAN_PACKAGE_RESOLVER_ID,
+            resolver_source_url=package_url,
+        )
+        if resolved:
+            resolved_entries.append(resolved)
+    return resolved_entries
+
+
+def ckan_package_show_url(entry: dict[str, object]) -> str:
+    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+    option_metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
+    package_id = first_text(option_metadata.get("ckan_id"), entry.get("dataset_id"), version_meta.get("dataset_id"))
+    candidates = (
+        first_text((entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else ""),
+        first_text(entry.get("adapter_review_url")),
+        first_text(version_meta.get("download_url")),
+        first_text(entry.get("api_base_url")),
+    )
+    for raw_url in candidates:
+        parsed = urllib.parse.urlparse(raw_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
+        path = parsed.path.rstrip("/")
+        endpoint = path.rsplit("/", 1)[-1].lower()
+        if endpoint == "package_show":
+            return ckan_url_with_package_id(raw_url, package_id)
+        if endpoint == "package_search":
+            package_show_path = f"{path.rsplit('/', 1)[0]}/package_show"
+            package_show_url = urllib.parse.urlunparse(parsed._replace(path=package_show_path, query=""))
+            return ckan_url_with_package_id(package_show_url, package_id)
+    return ""
+
+
+def ckan_url_with_package_id(raw_url: str, package_id: str) -> str:
+    parsed = urllib.parse.urlparse(raw_url)
+    query_pairs = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
+    if not query_pairs.get("id"):
+        if not package_id:
+            return ""
+        query_pairs["id"] = package_id
+    return urllib.parse.urlunparse(parsed._replace(query=urllib.parse.urlencode(query_pairs)))
+
+
+def ckan_package_show_resources(payload: dict[str, object]) -> list[dict[str, object]]:
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    resources = result.get("resources") if isinstance(result.get("resources"), list) else []
+    normalized: list[dict[str, object]] = []
+    for resource in resources:
+        if not isinstance(resource, dict):
+            continue
+        normalized.append(
+            {
+                "id": resource.get("id") or "",
+                "name": first_text(resource.get("name"), resource.get("description"), resource.get("id")),
+                "format": resource.get("format") or resource.get("mimetype") or "",
+                "mimetype": resource.get("mimetype") or "",
+                "url": resource.get("url") or resource.get("download_url") or "",
+                "size": resource.get("size") or resource.get("bytes") or resource.get("content_length") or "",
+                "last_modified": resource.get("last_modified") or resource.get("created") or "",
+            }
+        )
+    return normalized
 
 
 def stac_bounded_item_search_entry(

@@ -161,7 +161,9 @@ Zenodo-like, and metadata-link sources. If a review entry carries `dataset_versi
 `dataset_version.metadata.links`, the resolver promotes only bounded resources that already look like direct files,
 or whose resource metadata declares a supported file format, into new direct plan entries with fresh `target_path`,
 `download_eligibility`, and `import_plan` fields. Declared resources larger than 100 MB remain in adapter review.
-It also handles the first bounded API-query path for ERDDAP: candidates with
+For CKAN/Data.gov entries that only expose a `package_show` URL, or a `package_search` URL plus dataset id, it performs
+one bounded `package_show` metadata lookup and then applies the same direct-resource rules. It also handles bounded
+API-query paths for ERDDAP: candidates with
 `dataset_version.metadata.erddap_protocols` are checked against the official `info/{dataset}/index.json`, then turned
 into a small CSV sample URL using `.limit=25` for tabledap or a minimum grid slice for griddap. It leaves HTML pages,
 login pages, broad API selectors, and unknown resources in adapter review, so this is a bounded plan rewrite rather
