@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +9,7 @@ from api_launcher.crawlers.ckan import ckan_candidates_from_payload
 from api_launcher.crawlers.cmr import cmr_candidates_from_payload, cmr_payload_entries
 from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
+from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_url
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.ncei import ncei_candidates_from_payload
@@ -23,7 +23,6 @@ from api_launcher.crawlers.types import (
 from api_launcher.crawlers.zenodo import zenodo_candidates_from_payload
 
 
-USER_AGENT = "APIkeys_collection/0.4 (+dataset-discovery; metadata only)"
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
@@ -245,12 +244,6 @@ def cmr_collections_url(endpoint_url: str, search_term: str, limit: int, page_nu
     )
 
 
-def search_endpoint_url(endpoint_url: str, params: dict[str, str]) -> str:
-    clean_params = {key: value for key, value in params.items() if value}
-    separator = "&" if urllib.parse.urlparse(endpoint_url).query else "?"
-    return endpoint_url + separator + urllib.parse.urlencode(clean_params)
-
-
 def paginated_ncei_candidates(
     source: DatasetDiscoverySource,
     search_term: str,
@@ -451,20 +444,3 @@ def stac_next_link(payload: dict[str, Any], current_url: str) -> str:
         if rel == "next" and href:
             return urllib.parse.urljoin(current_url, href)
     return ""
-
-
-def fetch_json(url: str, timeout: float) -> dict[str, Any]:
-    text, _ = fetch_text(url, timeout=timeout)
-    payload = json.loads(text)
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected JSON object from {url}")
-    return payload
-
-
-def fetch_text(url: str, timeout: float) -> tuple[str, str]:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = response.read()
-        charset = response.headers.get_content_charset() or "utf-8"
-        final_url = response.geturl()
-    return data.decode(charset, errors="replace"), final_url
