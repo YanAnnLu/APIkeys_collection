@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json, search_endpoint_url
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     choose_native_format,
@@ -13,6 +14,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -88,6 +90,32 @@ def ckan_candidates_from_payload(
                 evidence=("CKAN package_search result", f"resources: {len(resources)}"),
             )
         )
+    return candidates
+
+
+def paginated_ckan_candidates(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    start = 0
+    for _page in range(discovery_page_cap(max_pages)):
+        url = search_endpoint_url(source.endpoint_url, {"q": search_term, "rows": str(max(1, page_size)), "start": str(start)})
+        payload = fetch_json(url, timeout=timeout)
+        result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+        results = result.get("results", [])
+        page_candidates = ckan_candidates_from_payload(source, payload, url, page_size)
+        added = append_new_candidates(candidates, page_candidates, seen)
+        count = int(result.get("count") or 0)
+        if not isinstance(results, list) or not results or len(results) < page_size or added == 0:
+            break
+        start += len(results)
+        if count and start >= count:
+            break
     return candidates
 
 

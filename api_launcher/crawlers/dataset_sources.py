@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from api_launcher.crawlers.ckan import ckan_candidates_from_payload
+from api_launcher.crawlers.ckan import ckan_candidates_from_payload, paginated_ckan_candidates
 from api_launcher.crawlers.cmr import (
     cmr_candidates_from_payload,
     cmr_collections_url,
@@ -279,32 +279,6 @@ def paginated_gbif_candidates(
         if not isinstance(results, list) or not results or end_of_records or len(results) < page_size or added == 0:
             break
         offset += len(results)
-    return candidates
-
-
-def paginated_ckan_candidates(
-    source: DatasetDiscoverySource,
-    search_term: str,
-    timeout: float,
-    page_size: int,
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    start = 0
-    for _page in range(discovery_page_cap(max_pages)):
-        url = search_endpoint_url(source.endpoint_url, {"q": search_term, "rows": str(max(1, page_size)), "start": str(start)})
-        payload = fetch_json(url, timeout=timeout)
-        result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
-        results = result.get("results", [])
-        page_candidates = ckan_candidates_from_payload(source, payload, url, page_size)
-        added = append_new_candidates(candidates, page_candidates, seen)
-        count = int(result.get("count") or 0)
-        if not isinstance(results, list) or not results or len(results) < page_size or added == 0:
-            break
-        start += len(results)
-        if count and start >= count:
-            break
     return candidates
 
 
