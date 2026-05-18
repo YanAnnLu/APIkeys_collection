@@ -19,13 +19,13 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 35 providers.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 42 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, and EMODnet ERDDAP.
 - `APIkeys_collection_ui.py` is now a compatibility wrapper for the Tk launcher implementation in
   `frontends/tk/launcher_ui.py`.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
-- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 10 metadata-only
+- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 11 metadata-only
   sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
   search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search, and
   CKAN `package_search`, producing reviewable dataset candidates without bulk downloads. The orchestrator now reports
@@ -81,10 +81,11 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese without
   executing destructive SQL. UI language is configurable through `ui_language` in local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
-  `state/favicons/`.
+  `state/favicons/`. The main table can optionally show crawler-imported dataset rows under each provider, so dataset
+  discovery results are visible without opening the review dialog first.
 - AI-generated provider descriptions now use explicit AI profile selection under `整合 > AI 輔助模型選擇`. For the
   current MVP loop, Gemini API keys can be saved under ignored `state/private/ai_api_keys.private.json` and loaded at
-  startup. Google browser account login and QR/device-code are still desired mid-term product goals, but they should wait
+  startup. Startup should not activate Google/OAuth tokens or open browser/config windows. Google browser account login and QR/device-code are still desired mid-term product goals, but they should wait
   until the backend MVP loop is closed and the project can provide an official OAuth app or broker; normal users should
   not be asked to paste OAuth Client IDs.
 - Unreal Engine 5 is now treated as the future interactive frontend. Local UE 5.7 is detected on this Windows machine,

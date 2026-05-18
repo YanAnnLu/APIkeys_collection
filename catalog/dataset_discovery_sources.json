@@ -236,6 +236,30 @@
       "geographic_scope": "us/coastal",
       "max_results": 10,
       "notes": "IOOS ERDDAP is another generic ERDDAP catalog. It is useful for testing that ERDDAP support is source-driven, not tied only to NOAA CoastWatch."
+    },
+    {
+      "source_id": "emodnet_erddap_all_datasets",
+      "provider_id": "emodnet_erddap",
+      "name": "EMODnet ERDDAP allDatasets",
+      "source_type": "erddap_all_datasets",
+      "endpoint_url": "https://erddap.emodnet.eu/erddap/tabledap/allDatasets.json?datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl",
+      "docs_url": "https://erddap.emodnet.eu/erddap/rest.html",
+      "search_terms": [
+        "bathymetry",
+        "temperature",
+        "salinity",
+        "waves",
+        "currents"
+      ],
+      "categories": [
+        "emodnet",
+        "erddap",
+        "marine",
+        "ocean"
+      ],
+      "geographic_scope": "europe/global_ocean",
+      "max_results": 10,
+      "notes": "ERDDAP crawler coverage should not be NOAA-only. This source exercises the same parser against a European marine data portal."
     }
   ]
 }

@@ -662,6 +662,152 @@
     "notes": "NOAA PMEL ERDDAP publishes many ocean-observation datasets through a machine-readable allDatasets table."
   },
   {
+    "provider_id": "noaa_goes_aws",
+    "name": "NOAA GOES-R Series on AWS",
+    "owner": "NOAA / AWS Open Data",
+    "categories": [
+      "satellite",
+      "weather",
+      "cloud_imagery",
+      "raster_grid",
+      "aws_open_data"
+    ],
+    "geographic_scope": "americas/pacific/space_weather",
+    "docs_url": "https://registry.opendata.aws/noaa-goes/",
+    "api_base_url": "s3://noaa-goes/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_s3",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Representative rendering challenge source for satellite cloud imagery. Treat as object-storage catalog data; future adapter should select satellite/product/time/band before download."
+  },
+  {
+    "provider_id": "noaa_nomads",
+    "name": "NOAA NOMADS Model Data",
+    "owner": "NOAA / NCEP",
+    "categories": [
+      "weather",
+      "forecast",
+      "model",
+      "grib",
+      "timeseries_grid"
+    ],
+    "geographic_scope": "global/us",
+    "docs_url": "https://nomads.ncep.noaa.gov/info.php?page=gribfilter",
+    "api_base_url": "https://nomads.ncep.noaa.gov/cgi-bin/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_data",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "NOMADS grib_filter can generate bounded GRIB2 subset URLs. Future adapter should enforce model/run/variable/level/bbox and polite delay."
+  },
+  {
+    "provider_id": "marine_regions",
+    "name": "Marine Regions Maritime Boundaries",
+    "owner": "Flanders Marine Institute (VLIZ)",
+    "categories": [
+      "marine_boundaries",
+      "eez",
+      "territorial_sea",
+      "gis",
+      "vector"
+    ],
+    "geographic_scope": "global/ocean",
+    "docs_url": "https://www.marineregions.org/downloads.php",
+    "api_base_url": "https://www.marineregions.org/",
+    "signup_url": "",
+    "auth_type": "no_key_or_account_for_bulk",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Concept seed for territorial sea / EEZ / high-seas boundary layers. This is GIS vector data, not a simple lat/lon stamp."
+  },
+  {
+    "provider_id": "gadm_boundaries",
+    "name": "GADM Administrative Boundaries",
+    "owner": "GADM",
+    "categories": [
+      "gis",
+      "administrative_boundaries",
+      "vector",
+      "geopackage"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://gadm.org/download_world.html",
+    "api_base_url": "https://gadm.org/download_world.html",
+    "signup_url": "",
+    "auth_type": "license_restricted_noncommercial",
+    "key_env_var": "",
+    "license_url": "https://gadm.org/license.html",
+    "terms_url": "https://gadm.org/license.html",
+    "notes": "Administrative boundary dataset. Use country-scoped downloads where possible; license is not fully open for redistribution/commercial use."
+  },
+  {
+    "provider_id": "osm_overpass",
+    "name": "OpenStreetMap Overpass API",
+    "owner": "OpenStreetMap community / Overpass API",
+    "categories": [
+      "osm",
+      "gis",
+      "vector",
+      "features",
+      "poi"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://dev.overpass-api.de/overpass-doc/en/",
+    "api_base_url": "https://overpass-api.de/api/interpreter",
+    "signup_url": "",
+    "auth_type": "no_key_but_rate_limited",
+    "key_env_var": "",
+    "license_url": "https://www.openstreetmap.org/copyright",
+    "terms_url": "https://operations.osmfoundation.org/policies/tiles/",
+    "notes": "Read-only query API for selected OSM features. Future adapter must require bounded bbox/timeouts and respect public endpoint limits."
+  },
+  {
+    "provider_id": "us_census_tigerweb",
+    "name": "U.S. Census TIGERweb GeoServices",
+    "owner": "U.S. Census Bureau",
+    "categories": [
+      "gis",
+      "boundaries",
+      "census",
+      "vector",
+      "geoservices"
+    ],
+    "geographic_scope": "us",
+    "docs_url": "https://www.census.gov/data/developers/guidance/api-user-guide.html",
+    "api_base_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/",
+    "signup_url": "https://api.census.gov/data/key_signup.html",
+    "auth_type": "api_key_may_be_required",
+    "key_env_var": "CENSUS_API_KEY",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "Census geography service for boundaries and FIPS-based lookups. Pair with Census Data API when joining attributes to shapes."
+  },
+  {
+    "provider_id": "emodnet_erddap",
+    "name": "EMODnet ERDDAP",
+    "owner": "European Marine Observation and Data Network",
+    "categories": [
+      "marine",
+      "ocean",
+      "erddap",
+      "europe",
+      "grid"
+    ],
+    "geographic_scope": "europe/global_ocean",
+    "docs_url": "https://emodnet.ec.europa.eu/",
+    "api_base_url": "https://erddap.emodnet.eu/erddap/",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "European marine data portal with ERDDAP-style catalog access. Good test case for source-driven crawler expansion beyond NOAA."
+  },
+  {
     "provider_id": "world_bank_indicators",
     "name": "World Bank Indicators API",
     "owner": "World Bank",

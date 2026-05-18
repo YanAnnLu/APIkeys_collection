@@ -116,6 +116,8 @@ state/private/ai_api_keys.private.json
 
 這個資料夾被 `.gitignore` 排除，不會提交到 GitHub。程式啟動時會自動讀取已保存的 key，使用者不需要每次重貼。
 
+啟動時只會讀取本機保存的 API key，不應該自動啟動 Google/OAuth 登入、開瀏覽器、開本機設定檔，或要求使用者貼 OAuth Client ID。Google 登入入口只在使用者主動從 `整合` 選單開啟時才出現。
+
 Google 帳號登入與 QR / 裝置碼登入不是取消，而是中期再做：等 MVP 閉環完成、專案有官方 OAuth App 或後端授權 broker 後，再當成正式入口。一般網路服務能讓使用者直接選 Google 帳號，是因為服務方已經替使用者處理好 OAuth App；使用者不應被要求貼 OAuth Client ID。若目前開發版沒有官方 OAuth App，launcher 只會說明尚未開通，不再把使用者導到 Client ID 輸入框。
 
 OAuth 登入成功後，token 會存在：
@@ -139,6 +141,16 @@ state/private/ai_oauth_tokens/
 ## 登入 / 串接入口整理
 
 帳號、API key、OAuth、資料庫工具與資料儲存連線都集中在上方選單列的 `整合`。右側資料源抽屜只保留跟目前資料源直接相關的動作，例如開啟文件、AI 產生說明、檢查 metadata、加入下載計畫與納管操作。
+
+右側抽屜分成固定標題列、可捲動內容區、固定底部動作區。也就是說：關閉按鈕和底部動作按鈕不應該被長描述推走。
+
+Crawler 發現的資料集候選會先進入本機 catalog。主列表可以直接顯示在各 provider 底下，若畫面太滿，可用：
+
+```text
+資料庫 > 在列表顯示 crawler 資料集
+```
+
+切換顯示/隱藏。更完整的審核、標記可用、拒絕、加入下載計畫，仍在 `資料庫 > 審核資料集候選`。
 
 Tk UI 目前仍可用來完成 MVP 閉環，但它在彈窗比例、複雜設定頁與桌面常駐能力上已接近上限。中期路線已記錄為 PySide6 / Qt：等後端 MVP 穩定後，再把 UI 遷移成 Qt 的主視窗、設定中心、splitter/dock、系統匣 / macOS menu bar shell。現在不展開重寫，先把功能閉環做完。
 

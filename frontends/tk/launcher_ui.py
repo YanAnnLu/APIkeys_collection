@@ -39,7 +39,7 @@ from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelf
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
-from api_launcher.google_auth import activate_saved_google_oauth_token, google_oauth_token_status
+from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
@@ -507,6 +507,11 @@ class ApiCollectionUi:
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.plan_provider_by_key: dict[str, str] = {}
         self.registered_completed_downloads: set[str] = set()
+        self.datasets_by_provider: dict[str, list[core.Dataset]] = {}
+        self.dataset_table_items: dict[str, core.Dataset] = {}
+        self.show_dataset_rows_var = BooleanVar(value=True)
+        self.current_filter_query = ""
+        self.current_filter_category = "all"
 
         self._init_database()
         self._setup_style()
@@ -516,7 +521,7 @@ class ApiCollectionUi:
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
         self.reload_data()
         self.run_startup_environment_checks()
-        self.activate_saved_google_login()
+        self.load_saved_ai_api_keys_for_startup()
 
     def tr(self, zh_tw: str, en_us: str = "") -> str:
         if self.ui_language == "en-US" and en_us:
@@ -683,23 +688,11 @@ class ApiCollectionUi:
                 details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
                 messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
 
-    def activate_saved_google_login(self) -> None:
+    def load_saved_ai_api_keys_for_startup(self) -> None:
+        """Startup may read local private API-key state, but must not trigger OAuth/login UI."""
         loaded_api_keys = load_saved_ai_api_keys(core.ai_summary_profiles())
-        loaded_profiles = []
-        for profile in core.ai_summary_profiles():
-            oauth_config = oauth_device_config_from_profile(profile)
-            if oauth_config is None:
-                continue
-            status, _message = activate_saved_oauth_token(oauth_config.token_store, oauth_config.token_env, label=profile.label)
-            if status == "ready":
-                loaded_profiles.append(profile.label)
-        status, _message = activate_saved_google_oauth_token()
         if loaded_api_keys:
             self.status_var.set(self.tr(f"已載入本機 AI API key：{', '.join(loaded_api_keys[:3])}", f"Loaded local AI API keys: {', '.join(loaded_api_keys[:3])}"))
-        elif loaded_profiles:
-            self.status_var.set(self.tr(f"已載入 AI 登入 token：{', '.join(loaded_profiles[:3])}", f"Loaded AI login tokens: {', '.join(loaded_profiles[:3])}"))
-        elif status == "ready":
-            self.status_var.set(self.tr("已載入已儲存的 Google 登入 token。", "Loaded saved Google login token."))
 
     def _setup_style(self) -> None:
         style = ttk.Style(self.root)
@@ -741,6 +734,11 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
+        library_menu.add_checkbutton(
+            label=self.tr("在列表顯示 crawler 資料集", "Show crawler datasets in list"),
+            variable=self.show_dataset_rows_var,
+            command=self.apply_filter,
+        )
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         library_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
@@ -843,6 +841,8 @@ class ApiCollectionUi:
         more_button = ttk.Menubutton(controls, text=self.tr("更多", "More"), style="Action.TButton")
         more_menu = Menu(more_button, tearoff=0)
         more_menu.add_command(label=self.tr("抓取選取 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        more_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
+        more_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
@@ -875,6 +875,7 @@ class ApiCollectionUi:
         self.tree.tag_configure("has_action", foreground=COLORS["text"])
         self.tree.tag_configure("remote_updated", foreground=COLORS["accent"])
         self.tree.tag_configure("starred", foreground=COLORS["accent"])
+        self.tree.tag_configure("dataset_row", foreground=COLORS["muted"])
         scrollbar = ttk.Scrollbar(self.table_frame, orient="vertical", command=self.tree.yview)
         x_scrollbar = ttk.Scrollbar(self.table_frame, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=scrollbar.set, xscrollcommand=x_scrollbar.set)
@@ -904,18 +905,6 @@ class ApiCollectionUi:
         self.detail = ttk.Frame(parent, style="Panel.TFrame", width=self.detail_width())
         self.detail.pack_propagate(False)
         self.detail_wrap_labels: list[ttk.Label] = []
-        self.detail_canvas = Canvas(self.detail, bg=COLORS["panel"], highlightthickness=0, borderwidth=0)
-        self.detail_scrollbar = ttk.Scrollbar(self.detail, orient="vertical", command=self.detail_canvas.yview)
-        self.detail_canvas.configure(yscrollcommand=self.detail_scrollbar.set)
-        self.detail_scrollbar.pack(side=RIGHT, fill=Y)
-        self.detail_canvas.pack(side=LEFT, fill=BOTH, expand=True)
-        self.detail_body = ttk.Frame(self.detail_canvas, style="Panel.TFrame")
-        self.detail_canvas_window = self.detail_canvas.create_window((0, 0), window=self.detail_body, anchor="nw")
-        self.detail_body.bind("<Configure>", self.update_detail_scrollregion)
-        self.detail_canvas.bind("<Configure>", self.on_detail_canvas_configure)
-        self.detail_canvas.bind("<MouseWheel>", self.on_detail_mousewheel)
-        self.detail_body.bind("<MouseWheel>", self.on_detail_mousewheel)
-
         self.detail_star_var = StringVar(value="☆")
         self.detail_title_var = StringVar(value="選取一個資料源")
         self.detail_owner_var = StringVar(value="像 Steam 商店頁一樣查看用途、狀態與官方入口。")
@@ -926,15 +915,30 @@ class ApiCollectionUi:
         self.detail_urls_var = StringVar(value="")
         self.ai_summary_placeholder = self.tr("按「AI 產生說明」後，目前選取的 AI profile 產生的描述會顯示在這裡。", "Descriptions generated by the selected AI profile will appear here after you click AI description.")
 
-        hero = ttk.Frame(self.detail_body, style="Panel.TFrame")
-        hero.pack(fill=X, padx=18, pady=(18, 12))
-        ttk.Button(hero, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
-        title_label = ttk.Label(hero, textvariable=self.detail_title_var, style="DetailTitle.TLabel", wraplength=self.detail_content_wraplength())
+        header = ttk.Frame(self.detail, style="Panel.TFrame")
+        header.pack(fill=X, padx=18, pady=(18, 10))
+        ttk.Button(header, text="×", width=3, command=self.close_detail_drawer).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(header, textvariable=self.detail_star_var, width=3, command=self.toggle_active_star).pack(side=LEFT, padx=(0, 10))
+        title_label = ttk.Label(header, textvariable=self.detail_title_var, style="DetailTitle.TLabel", wraplength=self.detail_content_wraplength())
         title_label.pack(side=LEFT, fill=X, expand=True)
         self.detail_wrap_labels.append(title_label)
-        ttk.Button(hero, text="×", width=3, command=self.close_detail_drawer).pack(side=RIGHT)
+
+        scroll_area = ttk.Frame(self.detail, style="Panel.TFrame")
+        scroll_area.pack(fill=BOTH, expand=True)
+        self.detail_canvas = Canvas(scroll_area, bg=COLORS["panel"], highlightthickness=0, borderwidth=0)
+        self.detail_scrollbar = ttk.Scrollbar(scroll_area, orient="vertical", command=self.detail_canvas.yview)
+        self.detail_canvas.configure(yscrollcommand=self.detail_scrollbar.set)
+        self.detail_scrollbar.pack(side=RIGHT, fill=Y)
+        self.detail_canvas.pack(side=LEFT, fill=BOTH, expand=True)
+        self.detail_body = ttk.Frame(self.detail_canvas, style="Panel.TFrame")
+        self.detail_canvas_window = self.detail_canvas.create_window((0, 0), window=self.detail_body, anchor="nw")
+        self.detail_body.bind("<Configure>", self.update_detail_scrollregion)
+        self.detail_canvas.bind("<Configure>", self.on_detail_canvas_configure)
+        self.detail_canvas.bind("<MouseWheel>", self.on_detail_mousewheel)
+        self.detail_body.bind("<MouseWheel>", self.on_detail_mousewheel)
+
         owner_label = ttk.Label(self.detail_body, textvariable=self.detail_owner_var, style="DetailMuted.TLabel", wraplength=self.detail_content_wraplength())
-        owner_label.pack(anchor="w", fill=X, padx=18)
+        owner_label.pack(anchor="w", fill=X, padx=18, pady=(0, 10))
         self.detail_wrap_labels.append(owner_label)
 
         self.preview_box = Text(
@@ -979,17 +983,29 @@ class ApiCollectionUi:
             value_label.pack(anchor="w", fill=X, padx=18)
             self.detail_wrap_labels.append(value_label)
 
-        actions = ttk.Frame(self.detail_body, style="Panel.TFrame")
-        actions.pack(fill=X, padx=18, pady=(18, 18))
-        ttk.Button(actions, text="開啟文件", style="Action.TButton", command=self.open_active_docs).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="AI 產生說明", style="Action.TButton", command=self.generate_active_summary).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="檢查 Metadata", style="Action.TButton", command=self.check_active_metadata).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="驗證本地資產", style="Action.TButton", command=self.verify_active_assets).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="加入下載計畫", style="Action.TButton", command=self.select_active_provider).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="標記已納管", style="Action.TButton", command=self.manage_active_provider).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="解除納管", style="Action.TButton", command=self.unmanage_active_provider).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="移除本地資料", style="Action.TButton", command=self.uninstall_active_provider).pack(fill=X, pady=(0, 8))
-        ttk.Button(actions, text="編輯描述", style="Action.TButton", command=self.edit_active_provider).pack(fill=X)
+        actions = ttk.Frame(self.detail, style="Panel.TFrame")
+        actions.pack(fill=X, padx=18, pady=(12, 18))
+        action_specs = [
+            ("開啟文件", self.open_active_docs),
+            ("AI 產生說明", self.generate_active_summary),
+            ("檢查 Metadata", self.check_active_metadata),
+            ("驗證本地資產", self.verify_active_assets),
+            ("加入下載計畫", self.select_active_provider),
+            ("標記已納管", self.manage_active_provider),
+            ("解除納管", self.unmanage_active_provider),
+            ("移除本地資料", self.uninstall_active_provider),
+            ("編輯描述", self.edit_active_provider),
+        ]
+        actions.columnconfigure(0, weight=1)
+        actions.columnconfigure(1, weight=1)
+        for index, (label, command) in enumerate(action_specs):
+            ttk.Button(actions, text=label, style="Action.TButton", command=command).grid(
+                row=index // 2,
+                column=index % 2,
+                sticky="ew",
+                padx=(0, 6) if index % 2 == 0 else (6, 0),
+                pady=(0, 8),
+            )
 
     def category_sidebar_items(self) -> list[tuple[str, str, str]]:
         return [
@@ -1429,10 +1445,17 @@ class ApiCollectionUi:
     def reload_data(self) -> None:
         conn = self._connect()
         try:
-            entries = core.ApiCatalogRepository(conn).list_provider_catalog_entries()
+            repository = core.ApiCatalogRepository(conn)
+            entries = repository.list_provider_catalog_entries()
+            datasets = repository.list_datasets()
         finally:
             conn.close()
         self.rows = [ProviderRow(entry) for entry in entries]
+        self.datasets_by_provider = {}
+        for dataset in datasets:
+            self.datasets_by_provider.setdefault(dataset.provider_id, []).append(dataset)
+        for provider_datasets in self.datasets_by_provider.values():
+            provider_datasets.sort(key=lambda item: item.title.lower())
         for row in self.rows:
             self.selected.setdefault(row.provider_id, BooleanVar(value=False))
         known_ids = {row.provider_id for row in self.rows}
@@ -1453,8 +1476,11 @@ class ApiCollectionUi:
             return
         query = "" if self.search_placeholder_active else self.search_var.get().strip().lower()
         category = self.category_var.get()
+        self.current_filter_query = query
+        self.current_filter_category = category
         filtered = []
         for row in self.rows:
+            provider_datasets = self.datasets_by_provider.get(row.provider_id, [])
             if category == "starred" and not row.is_starred:
                 continue
             if category == "noaa" and "noaa" not in row.provider_id.lower() and "noaa" not in row.owner.lower():
@@ -1464,11 +1490,27 @@ class ApiCollectionUi:
             if category.startswith("provider:"):
                 if row.owner != category.removeprefix("provider:"):
                     continue
-            elif category not in ("all", "starred", "noaa", "requires_key") and category not in row.categories:
-                continue
+            elif category not in ("all", "starred", "noaa", "requires_key"):
+                if category not in row.categories and not any(category in dataset.categories for dataset in provider_datasets):
+                    continue
             haystack = " ".join([row.provider_id, row.name, row.owner, row.category_label, row.auth_type, row.notes]).lower()
+            dataset_haystack = " ".join(
+                " ".join(
+                    [
+                        dataset.dataset_id,
+                        dataset.title,
+                        ", ".join(dataset.categories),
+                        dataset.data_type,
+                        dataset.native_format,
+                        dataset.geographic_scope,
+                        str(dataset.metadata.get("candidate_status") or ""),
+                    ]
+                )
+                for dataset in provider_datasets
+            ).lower()
             if query and query not in haystack:
-                continue
+                if query not in dataset_haystack:
+                    continue
             filtered.append(row)
         self.filtered_rows = filtered
         self.render_table()
@@ -1476,6 +1518,7 @@ class ApiCollectionUi:
     def render_table(self) -> None:
         for item in self.tree.get_children():
             self.tree.delete(item)
+        self.dataset_table_items = {}
         for row in self.filtered_rows:
             checked = "?" if self.selected[row.provider_id].get() else ""
             tags = []
@@ -1485,6 +1528,10 @@ class ApiCollectionUi:
                 tags.append("has_action")
             if row.update_status == "remote_updated":
                 tags.append("remote_updated")
+            provider_datasets = self.visible_datasets_for_provider(row.provider_id)
+            row_name = row.name
+            if provider_datasets:
+                row_name = self.tr(f"{row.name}（{len(provider_datasets)} 筆資料集）", f"{row.name} ({len(provider_datasets)} datasets)")
             self.tree.insert(
                 "",
                 END,
@@ -1492,7 +1539,7 @@ class ApiCollectionUi:
                 values=(
                     row.star_label,
                     checked,
-                    row.name,
+                    row_name,
                     row.category_label,
                     row.local_label,
                     self.localized_download_label(row.download_eligibility),
@@ -1500,12 +1547,113 @@ class ApiCollectionUi:
                 ),
                 tags=tuple(tags),
             )
+            if self.show_dataset_rows_var.get():
+                for dataset in provider_datasets:
+                    item_id = self.dataset_tree_iid(dataset)
+                    self.dataset_table_items[item_id] = dataset
+                    self.tree.insert(
+                        "",
+                        END,
+                        iid=item_id,
+                        values=(
+                            "",
+                            "+",
+                            f"  ↳ {dataset.title}",
+                            self.dataset_category_label(dataset),
+                            self.dataset_candidate_status_label(dataset),
+                            self.dataset_download_label(dataset),
+                            self.tr("加入", "Add"),
+                        ),
+                        tags=("dataset_row",),
+                    )
         if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
             self.tree.selection_set(self.active_provider_id)
             self.tree.focus(self.active_provider_id)
         self.resize_table_columns()
         self.update_download_plan_panel()
         self.status_var.set(f"顯示 {len(self.filtered_rows)} / {len(self.rows)} 個資料源。")
+
+    def dataset_tree_iid(self, dataset: core.Dataset) -> str:
+        return f"dataset::{dataset.dataset_uid}"
+
+    def dataset_for_table_item(self, item: object) -> core.Dataset | None:
+        return self.dataset_table_items.get(str(item))
+
+    def provider_id_for_table_item(self, item: object) -> str:
+        dataset = self.dataset_for_table_item(item)
+        if dataset is not None:
+            return dataset.provider_id
+        return str(item)
+
+    def visible_datasets_for_provider(self, provider_id: str) -> list[core.Dataset]:
+        datasets = self.datasets_by_provider.get(provider_id, [])
+        query = self.current_filter_query
+        category = self.current_filter_category
+        visible = []
+        for dataset in datasets:
+            if self.dataset_candidate_status(dataset) == "rejected":
+                continue
+            if category not in ("all", "starred", "noaa", "requires_key") and not category.startswith("provider:"):
+                if category not in dataset.categories:
+                    continue
+            if query and query not in self.dataset_search_text(dataset):
+                continue
+            visible.append(dataset)
+        return visible
+
+    def dataset_search_text(self, dataset: core.Dataset) -> str:
+        metadata = dataset.metadata
+        return " ".join(
+            [
+                dataset.dataset_uid,
+                dataset.provider_id,
+                dataset.dataset_id,
+                dataset.title,
+                ", ".join(dataset.categories),
+                dataset.data_type,
+                dataset.native_format,
+                dataset.geographic_scope,
+                dataset.temporal_coverage,
+                str(metadata.get("candidate_status") or ""),
+                str(metadata.get("source_url") or ""),
+            ]
+        ).lower()
+
+    def dataset_candidate_status(self, dataset: core.Dataset) -> str:
+        return str(dataset.metadata.get("candidate_status") or "").strip().lower()
+
+    def dataset_candidate_status_label(self, dataset: core.Dataset) -> str:
+        labels = {
+            "needs_review": self.tr("待審核", "Needs review"),
+            "approved": self.tr("可用", "Approved"),
+            "planned": self.tr("已排入", "Planned"),
+            "rejected": self.tr("已拒絕", "Rejected"),
+        }
+        return labels.get(self.dataset_candidate_status(dataset), self.tr("已發現", "Discovered"))
+
+    def dataset_category_label(self, dataset: core.Dataset) -> str:
+        values = [*dataset.categories]
+        if dataset.data_type and dataset.data_type not in values:
+            values.append(dataset.data_type)
+        if dataset.native_format and dataset.native_format not in values:
+            values.append(dataset.native_format)
+        return ", ".join(values)
+
+    def dataset_download_label(self, dataset: core.Dataset) -> str:
+        options = core.version_options_for_dataset(dataset)
+        option = options[0] if options else None
+        if option and option.download_url and core.looks_like_direct_download(option.download_url):
+            return self.tr("直接下載", "Direct")
+        if option and option.download_url:
+            return self.tr("需轉接器", "Needs adapter")
+        return self.tr("metadata", "metadata")
+
+    def add_dataset_to_plan(self, dataset: core.Dataset) -> None:
+        options = core.version_options_for_dataset(dataset)
+        if not options:
+            self.status_var.set(self.tr(f"這筆資料集沒有版本資訊：{dataset.title}", f"No version metadata for dataset: {dataset.title}"))
+            return
+        self.add_provider_version_to_plan(dataset.provider_id, options[0])
 
     def on_tree_click(self, event: object) -> None:
         region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
@@ -1514,6 +1662,11 @@ class ApiCollectionUi:
         column = self.tree.identify_column(getattr(event, "x", 0))
         item = self.tree.identify_row(getattr(event, "y", 0))
         if not item:
+            return
+        dataset = self.dataset_for_table_item(item)
+        if dataset is not None:
+            if column in {"#2", f"#{len(TABLE_COLUMNS)}"}:
+                self.add_dataset_to_plan(dataset)
             return
         if column == "#1":
             self.toggle_star(item)
@@ -1529,29 +1682,46 @@ class ApiCollectionUi:
         item = self.tree.identify_row(getattr(event, "y", 0))
         if not item:
             return
-        self.add_provider_to_plan(item)
+        dataset = self.dataset_for_table_item(item)
+        if dataset is not None:
+            self.add_dataset_to_plan(dataset)
+            return
+        self.add_provider_to_plan(self.provider_id_for_table_item(item))
 
     def on_tree_context_menu(self, event: object) -> None:
         item = self.tree.identify_row(getattr(event, "y", 0))
         if not item:
             return
-        self.active_provider_id = str(item)
+        dataset = self.dataset_for_table_item(item)
+        self.active_provider_id = self.provider_id_for_table_item(item)
         self.tree.selection_set(item)
         self.tree.focus(item)
-        row = self.row_by_provider_id(item)
+        if dataset is not None:
+            menu = Menu(self.root, tearoff=0)
+            menu.add_command(label=self.tr("加入資料集到下載計畫", "Add dataset to download plan"), command=lambda selected=dataset: self.add_dataset_to_plan(selected))
+            source_url = str(dataset.metadata.get("source_url") or dataset.landing_url or dataset.api_url or "")
+            if source_url:
+                menu.add_command(label=self.tr("開啟資料集來源", "Open dataset source"), command=lambda url=source_url: webbrowser.open(url))
+            menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
+            menu.add_separator()
+            menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
+            menu.tk_popup(getattr(event, "x_root", 0), getattr(event, "y_root", 0))
+            menu.grab_release()
+            return
+        row = self.row_by_provider_id(self.active_provider_id)
         actions = self.library_action_map_for_row(row)
         menu = Menu(self.root, tearoff=0)
-        self.add_action_menu_item(menu, actions, "add_to_plan", lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        self.add_action_menu_item(menu, actions, "add_to_plan", lambda provider_id=self.active_provider_id: self.add_provider_to_plan(provider_id))
         self.add_action_menu_item(menu, actions, "install", self.manage_active_provider)
-        self.add_action_menu_item(menu, actions, "update", lambda provider_id=item: self.add_provider_to_plan(provider_id))
+        self.add_action_menu_item(menu, actions, "update", lambda provider_id=self.active_provider_id: self.add_provider_to_plan(provider_id))
         self.add_action_menu_item(menu, actions, "repair", self.verify_active_assets)
-        version_options = self.version_options_for_provider(item)
+        version_options = self.version_options_for_provider(self.active_provider_id)
         if version_options:
             version_menu = Menu(menu, tearoff=0)
             for option in version_options:
                 version_menu.add_command(
                     label=option.menu_label,
-                    command=lambda provider_id=item, selected=option: self.add_provider_version_to_plan(provider_id, selected),
+                    command=lambda provider_id=self.active_provider_id, selected=option: self.add_provider_version_to_plan(provider_id, selected),
                 )
             menu.add_cascade(label=self.tr("版本 / 舊版下載", "Version / legacy download"), menu=version_menu)
         menu.add_separator()
@@ -1600,13 +1770,17 @@ class ApiCollectionUi:
         selection = self.tree.selection()
         if not selection:
             return
-        self.active_provider_id = str(selection[0])
+        selected_item = str(selection[0])
+        dataset = self.dataset_for_table_item(selected_item)
+        self.active_provider_id = self.provider_id_for_table_item(selected_item)
         if not self.detail_visible:
             self.open_detail_drawer()
         else:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         row = self.row_by_provider_id(self.active_provider_id)
-        if row:
+        if dataset is not None:
+            self.status_var.set(self.tr(f"已選取資料集：{dataset.title}", f"Selected dataset: {dataset.title}"))
+        elif row:
             self.status_var.set(self.tr(f"已選取：{row.name}", f"Selected: {row.name}"))
 
     def toggle_star(self, provider_id: str) -> None:
@@ -2294,6 +2468,7 @@ class ApiCollectionUi:
         self.detail_status_var.set(
             f"{self.tr('遠端', 'Remote')}: {row.status_label} / {row.update_label}\n"
             f"{self.tr('本地', 'Local')}: {row.local_label}\n"
+            f"{self.tr('已發現資料集', 'Discovered datasets')}: {len(self.datasets_by_provider.get(row.provider_id, []))}\n"
             f"{self.tr('安裝 ID', 'Install ID')}: {row.install_id or self.tr('未納管', 'not managed')}\n"
             f"{self.tr('下載', 'Download')}: "
             f"{self.localized_download_label(row.download_eligibility)} - "
@@ -3018,6 +3193,8 @@ class ApiCollectionUi:
                 f"資料集候選發現完成：新增/更新 {upserted} 筆；錯誤來源 {result.error_count}；警告 {result.warning_count}；重複 {result.duplicate_count}",
                 f"Dataset discovery complete: upserted {upserted}; source errors {result.error_count}; warnings {result.warning_count}; duplicates {result.duplicate_count}",
             )
+            self.status_var.set(message)
+            self.reload_data()
             self.status_var.set(message)
             if result.error_count or result.warning_count:
                 issue_lines = []
