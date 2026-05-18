@@ -82,8 +82,9 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/stac.py`：放 STAC collection payload parser；`dataset_sources.py` 仍保留 STAC pagination glue，之後可再抽出共用 pagination/fetch 層。
 - `api_launcher/crawlers/ckan.py`：放 CKAN `package_search` payload parser 與 resource 摘要 helper；`dataset_sources.py` 仍保留 CKAN pagination glue。
 - `api_launcher/crawlers/erddap.py`：放 ERDDAP `allDatasets` payload parser，保留 griddap/tabledap/wms protocol metadata 給後續 bounded adapter resolver 使用。
+- `api_launcher/crawlers/cmr.py`：放 NASA CMR collection payload parser 與 CMR link/platform helper；`dataset_sources.py` 仍保留 CMR pagination glue。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
-- `api_launcher/crawlers/dataset_sources.py`：目前保留 dispatcher、pagination glue 與尚未拆出的 source-type parser，負責從 provider/source 的搜尋 API、HTML index、NASA CMR、GBIF、Dataverse、Zenodo 抓取可審核的 dataset candidate。
+- `api_launcher/crawlers/dataset_sources.py`：目前保留 dispatcher、pagination glue 與尚未拆出的 source-type parser，負責從 provider/source 的搜尋 API、HTML index、GBIF、Dataverse、Zenodo 抓取可審核的 dataset candidate。
 - `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
 
 新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。
