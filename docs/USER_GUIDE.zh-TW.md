@@ -195,6 +195,14 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json
 ```
 
+若候選來自 CKAN/Data.gov 這類「一個 dataset 底下有多個 resource」的平台，可以先嘗試解析 plan：
+
+```bash
+python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json
+```
+
+這一步會保守地掃描 plan 裡的 resource metadata，只把看起來是直接檔案 URL 的 CSV/JSON/ZIP 等項目轉成 direct download entry；HTML 頁、API selector、登入頁仍會留在 adapter review。白話說，它是把「資料目錄中的可下載檔案」挑出來，不是背景亂爬整站。
+
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 
 ## Steam-like 資料模型

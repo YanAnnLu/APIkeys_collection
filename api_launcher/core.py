@@ -48,6 +48,7 @@ from api_launcher.cli_dataset_discovery import (
     discover_dataset_candidates_cli,
 )
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
+from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
 from api_launcher.dataset_discovery import (
     DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
     DatasetCrawlOptions,
@@ -577,6 +578,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
+    parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
+    parser.add_argument("--write-resolved-adapter-plan", default="", help="output JSON for --resolve-adapter-plan; defaults beside the input plan")
+    parser.add_argument("--keep-original-adapter-entries", action="store_true", help="keep original review entries when --resolve-adapter-plan adds direct entries")
     parser.add_argument("--import-supported-plan-results", action="store_true", help="after --run-download-plan, import supported CSV/JSON plan results into --import-sqlite-db")
     parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
     parser.add_argument("--import-verified-csv-manifests", action="store_true", help="import healthy CSV/CSV.GZ manifests from the registry into curated SQLite tables")
@@ -656,6 +660,7 @@ class CatalogLauncherCli:
             self.refresh_state()
             self.run_download_plan()
             self.show_adapter_review_plan()
+            self.resolve_adapter_plan()
             self.import_csv_manifest()
             self.import_verified_csv_manifests()
             self.import_json_manifest()
@@ -711,6 +716,9 @@ class CatalogLauncherCli:
             bool(self.args.run_download_plan),
             bool(self.args.adapter_review_plan),
             self.args.adapter_review_json,
+            bool(self.args.resolve_adapter_plan),
+            bool(self.args.write_resolved_adapter_plan),
+            self.args.keep_original_adapter_entries,
             self.args.import_supported_plan_results,
             bool(self.args.import_csv_manifest),
             self.args.import_verified_csv_manifests,
@@ -860,6 +868,31 @@ class CatalogLauncherCli:
             )
             if item.reason:
                 print(f"[adapter-review]    reason={item.reason}")
+
+    def resolve_adapter_plan(self) -> None:
+        if not self.args.resolve_adapter_plan:
+            return
+        input_path = resolve_project_path(self.args.resolve_adapter_plan)
+        payload = load_download_plan_file(input_path)
+        resolved_payload, result = resolve_adapter_review_plan_payload(
+            payload,
+            downloads_root=self.args.downloads_root,
+            keep_original_review_entries=self.args.keep_original_adapter_entries,
+        )
+        if self.args.write_resolved_adapter_plan:
+            output_path = resolve_project_path(self.args.write_resolved_adapter_plan)
+        else:
+            output_path = input_path.with_name(f"{input_path.stem}.resolved{input_path.suffix}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(resolved_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(
+            "[adapter-resolve] "
+            f"wrote {output_path} entries={result.entry_count}->{result.output_entry_count} "
+            f"resolved={result.resolved_review_entries} unresolved={result.unresolved_review_entries} "
+            f"direct_added={result.direct_entries_added}"
+        )
+        for warning in result.warnings:
+            print(f"[adapter-resolve] warning {warning}")
 
     def import_csv_manifest(self) -> None:
         if not self.args.import_csv_manifest:

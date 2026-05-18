@@ -134,6 +134,8 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/plans.py`: shared Download Plan JSON schema builder used by the UI and future workers. It now covers
   provider plans, adapter-discovered dataset-version plans, and crawler-candidate plans with direct/review eligibility
   plus conservative `import_plan` hints for SQLite MVP importers.
+- `api_launcher/adapter_review.py` and `adapter_plan_resolver.py`: adapter handoff queues plus a bounded resolver that
+  turns CKAN-like direct file resources into executable plan entries.
 - `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
@@ -187,6 +189,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   include an `adapter_review` handoff block. It records the adapter id, source URL, required action, expected output,
   and reason so future non-direct adapters have a concrete contract instead of a vague "adapter required" label. CLI
   `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
+- The first plan-level non-direct resolver exists in `api_launcher/adapter_plan_resolver.py`. CLI
+  `--resolve-adapter-plan INPUT --write-resolved-adapter-plan OUTPUT` can promote CKAN-like `resources` metadata that
+  already contains direct file URLs into direct plan entries, while HTML/API/unknown resources remain in review.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
   into the existing SQLite import path. This keeps the MVP conservative while making simple archives actionable.
@@ -240,7 +245,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-7. Expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, ERDDAP, MarineCadastre AIS, GOES-R/cloud imagery, and Earth Engine candidates before writing provider-specific adapters.
+7. Expose the adapter plan resolver in the UI, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, ERDDAP, MarineCadastre AIS, GOES-R/cloud imagery, and Earth Engine candidates before writing provider-specific adapters.
 8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
 9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

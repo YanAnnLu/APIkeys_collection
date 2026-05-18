@@ -148,6 +148,18 @@ Direct file URLs get `download_url`, `target_path`, `dataset_version`, and `use_
 landing pages, API selectors, or download portals are deliberately marked `adapter_required` with an
 `adapter_review_url`, so the downloader does not accidentally save an HTML page as if it were a dataset.
 
+Adapter review entries can now be passed through a conservative resource resolver:
+
+```powershell
+py APIkeys_collection.py --resolve-adapter-plan state\candidate_plan.json --write-resolved-adapter-plan state\candidate_plan.resolved.json
+```
+
+`api_launcher/adapter_plan_resolver.py` currently handles the common catalog/resource shape used by CKAN-like
+sources. If a review entry carries `dataset_version.metadata.resources`, the resolver promotes only URLs that already
+look like direct downloadable files into new direct plan entries with fresh `target_path`, `download_eligibility`, and
+`import_plan` fields. It leaves HTML pages, API selectors, and unknown resources in adapter review, so this is a
+bounded plan rewrite rather than a hidden scraper.
+
 The direct entries in a plan can then be executed by the CLI:
 
 ```powershell
