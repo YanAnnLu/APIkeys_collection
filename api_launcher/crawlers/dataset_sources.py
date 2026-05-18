@@ -13,6 +13,7 @@ from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.ncei import ncei_candidates_from_payload
+from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.stac import stac_candidates_from_payload
 from api_launcher.crawlers.types import (
     DatasetCandidate,
@@ -26,7 +27,6 @@ from api_launcher.crawlers.zenodo import zenodo_candidates_from_payload
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
-MAX_FULL_CRAWL_PAGES = 1000
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:
@@ -412,24 +412,6 @@ def paginated_zenodo_candidates(
             break
         next_url = next_candidate
     return candidates
-
-
-def discovery_page_cap(max_pages: int) -> int:
-    if max_pages > 0:
-        return min(max_pages, MAX_FULL_CRAWL_PAGES)
-    return MAX_FULL_CRAWL_PAGES
-
-
-def append_new_candidates(candidates: list[DatasetCandidate], page_candidates: list[DatasetCandidate], seen: set[str]) -> int:
-    added = 0
-    for candidate in page_candidates:
-        key = candidate.dataset.dataset_uid
-        if key in seen:
-            continue
-        seen.add(key)
-        candidates.append(candidate)
-        added += 1
-    return added
 
 
 def stac_next_link(payload: dict[str, Any], current_url: str) -> str:

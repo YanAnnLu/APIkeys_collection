@@ -80,6 +80,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/types.py`：放 dataset crawler 共用資料結構，例如 `DatasetDiscoverySource`、`DatasetCandidate` 與候選 metadata 轉換 helper。
 - `api_launcher/crawlers/metadata.py`：放共用 metadata helper，例如安全 dataset id、分類合併、資料家族推論、storage/sql/analysis/viewer hint。
 - `api_launcher/crawlers/fetch.py`：放 crawler 共用的 HTTP fetch helper、JSON 讀取檢查與搜尋 endpoint URL 組裝。
+- `api_launcher/crawlers/pagination.py`：放 crawler 共用的 full-crawl page cap 與候選去重 append helper。
 - `api_launcher/crawlers/ncei.py`：放 NOAA/NCEI Search payload parser，保留 result/file id、format、observation type、keyword、link 與 temporal coverage metadata。
 - `api_launcher/crawlers/stac.py`：放 STAC collection payload parser；`dataset_sources.py` 仍保留 STAC pagination glue，之後可再抽出共用 pagination/fetch 層。
 - `api_launcher/crawlers/ckan.py`：放 CKAN `package_search` payload parser 與 resource 摘要 helper；`dataset_sources.py` 仍保留 CKAN pagination glue。
@@ -90,7 +91,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records payload parser、檔案摘要 helper 與簡單 markup 清理 helper。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index parser，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
-- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、source-specific URL builder 與 pagination glue。
+- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、source-specific URL builder 與 source-specific pagination flow。
 - `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
 
 新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。
