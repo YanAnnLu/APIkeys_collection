@@ -500,6 +500,7 @@ class ApiCollectionUi:
         self.download_progress_by_provider: dict[str, DownloadProgress] = {}
         self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
         self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
+        self.import_status_by_plan_key: dict[str, tuple[str, str]] = {}
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.plan_provider_by_key: dict[str, str] = {}
         self.registered_completed_downloads: set[str] = set()
@@ -1128,26 +1129,28 @@ class ApiCollectionUi:
         ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
 
-        columns = ("name", "auth", "scope", "status")
+        columns = ("name", "auth", "scope", "status", "import")
         self.cart_tree = ttk.Treeview(plan, columns=columns, show="headings", height=4, selectmode="browse")
         for name, label, width, anchor in [
-            ("name", "資料源", 280, "w"),
-            ("auth", "認證", 180, "w"),
+            ("name", "資料源", 260, "w"),
+            ("auth", "認證", 150, "w"),
             ("scope", "範圍", 130, "w"),
-            ("status", "計畫狀態", 140, "center"),
+            ("status", "下載狀態", 120, "center"),
+            ("import", "匯入狀態", 210, "w"),
         ]:
             self.cart_tree.heading(name, text=label)
             self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
         self.cart_tree.pack(fill=X, padx=14, pady=(0, 12))
         self.cart_tree.bind("<<TreeviewSelect>>", self.on_cart_select)
 
-        job_columns = ("name", "status", "progress", "target")
+        job_columns = ("name", "status", "progress", "import", "target")
         self.download_tree = ttk.Treeview(plan, columns=job_columns, show="headings", height=4, selectmode="browse")
         for name, label, width, anchor in [
-            ("name", self.tr("下載工作", "Download Job"), 260, "w"),
-            ("status", self.tr("狀態", "Status"), 120, "center"),
-            ("progress", self.tr("進度", "Progress"), 120, "center"),
-            ("target", self.tr("目標", "Target"), 420, "w"),
+            ("name", self.tr("下載工作", "Download Job"), 240, "w"),
+            ("status", self.tr("狀態", "Status"), 100, "center"),
+            ("progress", self.tr("進度", "Progress"), 95, "center"),
+            ("import", self.tr("匯入", "Import"), 190, "w"),
+            ("target", self.tr("目標", "Target"), 360, "w"),
         ]:
             self.download_tree.heading(name, text=label)
             self.download_tree.column(name, width=width, anchor=anchor, stretch=True)
@@ -1728,6 +1731,53 @@ class ApiCollectionUi:
             entry["use_staging"] = True
         return entry, ""
 
+    def import_status_label(
+        self,
+        plan_key: str,
+        row: ProviderRow | None = None,
+        option: core.DatasetVersionOption | None = None,
+    ) -> str:
+        remembered = self.import_status_by_plan_key.get(plan_key)
+        if remembered:
+            status, detail = remembered
+            return f"{status}: {detail}" if detail else status
+        entry = dict(self.download_plan_entries_by_provider.get(plan_key) or {})
+        if not entry:
+            row = row or self.row_by_provider_id(self.provider_id_for_plan_key(plan_key))
+            if row is None:
+                return self.tr("未準備", "Not ready")
+            entry, build_error = self.plan_entry_for_item(row, option or self.plan_version_by_provider.get(plan_key))
+            if entry is None:
+                return self.tr(f"metadata 缺失: {build_error}", f"Missing metadata: {build_error}")
+        import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+        status = str(import_plan.get("status") or "").strip()
+        table_hint = str(import_plan.get("table_hint") or "").strip()
+        table_label = f" -> {table_hint}" if table_hint else ""
+        if status == "supported_after_download":
+            manifest_status = self.plan_entry_manifest_status(entry)
+            if manifest_status == "ok":
+                return self.tr(f"可匯入{table_label}", f"Ready to import{table_label}")
+            if manifest_status:
+                return self.tr(f"待下載/驗證{table_label}", f"Needs download/verify{table_label}")
+            return self.tr(f"可匯入{table_label}", f"Ready to import{table_label}")
+        if status == "adapter_review_required":
+            return self.tr("需 adapter", "Adapter needed")
+        if status == "requires_unpack_or_adapter":
+            return self.tr("需解壓/adapter", "Unpack/adapter needed")
+        if status:
+            return status
+        return self.tr("未支援自動匯入", "No auto import")
+
+    def plan_entry_manifest_status(self, entry: dict[str, object]) -> str:
+        try:
+            target = download_target_from_plan_entry(entry)
+        except Exception:
+            return ""
+        manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
+        if not manifest_path.exists():
+            return "missing"
+        return verify_manifest_file(manifest_path).status
+
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
         try:
@@ -1770,7 +1820,13 @@ class ApiCollectionUi:
                 "",
                 END,
                 iid=plan_key,
-                values=(self.plan_item_label(plan_key, row, version), row.auth_type, row.geographic_scope, version_label),
+                values=(
+                    self.plan_item_label(plan_key, row, version),
+                    row.auth_type,
+                    row.geographic_scope,
+                    version_label,
+                    self.import_status_label(plan_key, row, version),
+                ),
             )
         self.plan_count_var.set(self.tr(f"下載計畫：{len(items)} 個項目", f"Download Plan: {len(items)} items"))
 
@@ -1823,6 +1879,7 @@ class ApiCollectionUi:
                 continue
             target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
             plan_entry["target_path"] = str(target_path)
+            self.import_status_by_plan_key.pop(plan_key, None)
             job = self.download_queue.submit(plan_entry)
             self.download_jobs_by_provider[plan_key] = job.job_id
             self.download_providers_by_job[job.job_id] = plan_key
@@ -1842,6 +1899,7 @@ class ApiCollectionUi:
             self.download_providers_by_job.pop(job_id, None)
             self.download_plan_entries_by_provider.pop(plan_key, None)
             self.registered_completed_downloads.discard(plan_key)
+            self.import_status_by_plan_key.pop(plan_key, None)
             return True
         return False
 
@@ -1898,6 +1956,7 @@ class ApiCollectionUi:
             self.download_providers_by_job.pop(job_id, None)
         self.download_plan_entries_by_provider.pop(plan_key, None)
         self.registered_completed_downloads.discard(plan_key)
+        self.import_status_by_plan_key.pop(plan_key, None)
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
         self.start_download_plan_items([(plan_key, row, self.plan_version_by_provider.get(plan_key))])
 
@@ -1952,7 +2011,7 @@ class ApiCollectionUi:
                 "",
                 END,
                 iid=plan_key,
-                values=(self.plan_item_label(plan_key, row), status, progress, target),
+                values=(self.plan_item_label(plan_key, row), status, progress, self.import_status_label(plan_key, row), target),
             )
 
     def register_completed_download(self, plan_key: str, target: str) -> None:
@@ -2052,17 +2111,22 @@ class ApiCollectionUi:
         skipped = 0
         failed = 0
         messages: list[str] = []
+        item_statuses: list[tuple[str, str, str]] = []
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
-            for _plan_key, entry, label in entries:
+            for plan_key, entry, label in entries:
+                import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+                table_hint = str(import_plan.get("table_hint") or "").strip()
                 try:
                     target = download_target_from_plan_entry(entry)
                     manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
                     verification = verify_manifest_file(manifest_path)
                     if verification.status != "ok":
                         skipped += 1
-                        messages.append(f"{label}: manifest {verification.status} {verification.message}")
+                        detail = f"manifest {verification.status} {verification.message}".strip()
+                        item_statuses.append((plan_key, self.tr("略過", "Skipped"), detail))
+                        messages.append(f"{label}: {detail}")
                         continue
                     manifest = read_manifest(manifest_path)
                     repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
@@ -2077,22 +2141,28 @@ class ApiCollectionUi:
                     )
                 except Exception as exc:
                     failed += 1
-                    messages.append(f"{label}: {type(exc).__name__}: {exc}")
+                    detail = f"{type(exc).__name__}: {exc}"
+                    item_statuses.append((plan_key, self.tr("失敗", "Failed"), detail))
+                    messages.append(f"{label}: {detail}")
                     continue
                 if result == "imported":
                     imported += 1
+                    detail = table_hint or self.tr("已寫入 SQLite", "Written to SQLite")
+                    item_statuses.append((plan_key, self.tr("已匯入", "Imported"), detail))
                 elif result == "skipped":
                     skipped += 1
+                    item_statuses.append((plan_key, self.tr("略過", "Skipped"), "import_plan skipped"))
                     messages.append(f"{label}: import_plan skipped")
                 else:
                     failed += 1
+                    item_statuses.append((plan_key, self.tr("失敗", "Failed"), result))
                     messages.append(f"{label}: {result}")
         finally:
             conn.close()
 
         self.root.after(
             0,
-            lambda: self.finish_import_supported_plan_results(imported, skipped, failed, tuple(messages), sqlite_path),
+            lambda: self.finish_import_supported_plan_results(imported, skipped, failed, tuple(messages), tuple(item_statuses), sqlite_path),
         )
 
     def finish_import_supported_plan_results(
@@ -2101,9 +2171,13 @@ class ApiCollectionUi:
         skipped: int,
         failed: int,
         messages: tuple[str, ...],
+        item_statuses: tuple[tuple[str, str, str], ...],
         sqlite_path: Path,
     ) -> None:
+        for plan_key, status, detail in item_statuses:
+            self.import_status_by_plan_key[plan_key] = (status, detail)
         self.reload_data()
+        self.update_download_plan_panel()
         summary = self.tr(
             f"匯入完成：成功 {imported}，略過 {skipped}，失敗 {failed}",
             f"Import finished: imported {imported}, skipped {skipped}, failed {failed}",
@@ -2136,6 +2210,7 @@ class ApiCollectionUi:
         label = self.plan_item_label(plan_key, row)
         self.plan_version_by_provider.pop(plan_key, None)
         self.plan_provider_by_key.pop(plan_key, None)
+        self.import_status_by_plan_key.pop(plan_key, None)
         if plan_key == provider_id or not self.version_plan_keys_for_provider(provider_id):
             self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
         self.render_table()
@@ -2149,6 +2224,7 @@ class ApiCollectionUi:
             var.set(False)
         self.plan_version_by_provider.clear()
         self.plan_provider_by_key.clear()
+        self.import_status_by_plan_key.clear()
         self.render_table()
         self.status_var.set("已清空下載計畫。")
 

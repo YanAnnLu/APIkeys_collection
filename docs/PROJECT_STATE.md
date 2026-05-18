@@ -179,7 +179,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   provider. This lets multiple crawler-reviewed candidates from the same provider stay in the same plan without
   overwriting each other. Exports include a plan name, provider count, planned status, priority, and target fields
   for future workers. Supported downloaded CSV/JSON plan items can now be imported from the UI into
-  `state/curated_imports.sqlite` after sidecar manifest verification.
+  `state/curated_imports.sqlite` after sidecar manifest verification. The cart and download job table expose import
+  readiness/status and target table hints so users can see whether an item is waiting for download, ready to import,
+  imported, blocked by adapter review, or blocked by unpack/adapter work.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.
