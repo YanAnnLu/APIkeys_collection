@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.adapter_plan_resolver import (
     direct_resource_entries_for_plan_entry,
@@ -68,6 +69,43 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("https://example.test/boundaries.geojson", resolved_entry["download_url"])
         self.assertEqual("geojson", resolved_entry["source_format"])
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+
+    def test_erddap_griddap_metadata_promotes_bounded_csv_sample_entry(self) -> None:
+        plan = {"providers": [erddap_review_entry("griddap")]}
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=erddap_info_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        fetch.assert_called_once_with("https://erddap.example.test/erddap/info/sample_dataset/index.json")
+        entry = resolved["providers"][0]
+        self.assertEqual("erddap_bounded_sample_query_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("griddap", entry["adapter_resolution"]["protocol"])
+        self.assertEqual("csv", entry["source_format"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual(
+            "https://erddap.example.test/erddap/griddap/sample_dataset.csv?sea_water_temperature[0:1:0][0:1:0][0:1:0]",
+            entry["download_url"],
+        )
+        self.assertNotIn("adapter_review", entry)
+
+    def test_erddap_tabledap_metadata_promotes_limited_csv_sample_entry(self) -> None:
+        plan = {"providers": [erddap_review_entry("tabledap")]}
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=erddap_info_payload()):
+            resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("tabledap", entry["adapter_resolution"]["protocol"])
+        self.assertEqual(
+            "https://erddap.example.test/erddap/tabledap/sample_dataset.csv?time,latitude,longitude,sea_water_temperature,sea_water_salinity&.limit=25",
+            entry["download_url"],
+        )
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
 
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
@@ -145,6 +183,58 @@ def ckan_review_entry() -> dict[str, object]:
             "source_url": "https://api.example.test/action/package_show?id=ocean-buoy-observations",
             "required_action": "resolve_source_to_direct_download_entries",
         },
+    }
+
+
+def erddap_review_entry(protocol: str) -> dict[str, object]:
+    protocols = {"tabledap": "", "griddap": ""}
+    protocols[protocol] = f"/erddap/{protocol}/sample_dataset"
+    return {
+        "provider_id": "emodnet_erddap",
+        "name": "EMODnet ERDDAP",
+        "dataset_uid": "emodnet_erddap:sample_dataset",
+        "dataset_id": "sample_dataset",
+        "dataset_title": "Sample ERDDAP dataset",
+        "categories": ["erddap", "ocean"],
+        "geographic_scope": "global",
+        "download_eligibility": {"status": "adapter_required", "reason": "ERDDAP query must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "emodnet_erddap_sample_dataset"},
+        "dataset_version": {
+            "dataset_uid": "emodnet_erddap:sample_dataset",
+            "dataset_id": "sample_dataset",
+            "label": "discovered",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": f"/erddap/{protocol}/sample_dataset",
+            "landing_url": "https://publisher.example.test/dataset-page",
+            "metadata": {
+                "native_format": "erddap",
+                "data_family": "grid" if protocol == "griddap" else "table",
+                "source_url": "https://erddap.example.test/erddap/tabledap/allDatasets.json",
+                "erddap_dataset_id": "sample_dataset",
+                "erddap_protocols": protocols,
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "emodnet_erddap_adapter",
+            "source_url": f"/erddap/{protocol}/sample_dataset",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def erddap_info_payload() -> dict[str, object]:
+    return {
+        "table": {
+            "columnNames": ["Row Type", "Variable Name", "Attribute Name", "Data Type", "Value"],
+            "rows": [
+                ["dimension", "time", "", "double", ""],
+                ["dimension", "latitude", "", "double", ""],
+                ["dimension", "longitude", "", "double", ""],
+                ["variable", "sea_water_temperature", "", "float", ""],
+                ["variable", "sea_water_salinity", "", "float", ""],
+            ],
+        }
     }
 
 
