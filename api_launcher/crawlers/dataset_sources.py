@@ -5,11 +5,16 @@ import json
 import re
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.types import (
+    DatasetCandidate,
+    DatasetDiscoverySource,
+    dataset_to_dict,
+    dataset_with_candidate_metadata,
+)
 from api_launcher.discovery import extract_links
 from api_launcher.models import Dataset
 
@@ -19,57 +24,6 @@ DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
 MAX_FULL_CRAWL_PAGES = 1000
-
-
-@dataclass(frozen=True)
-class DatasetDiscoverySource:
-    source_id: str
-    provider_id: str
-    name: str
-    source_type: str
-    endpoint_url: str
-    docs_url: str = ""
-    search_terms: tuple[str, ...] = ()
-    categories: tuple[str, ...] = ()
-    geographic_scope: str = "global"
-    max_results: int = 10
-    dataset_id: str = ""
-    dataset_title: str = ""
-    data_type: str = ""
-    native_format: str = ""
-    file_url_regex: str = ""
-    min_expected_candidates: int = 1
-    notes: str = ""
-
-
-@dataclass(frozen=True)
-class DatasetCandidate:
-    dataset: Dataset
-    source_id: str
-    source_type: str
-    source_url: str
-    confidence: float
-    evidence: tuple[str, ...]
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "source_id": self.source_id,
-            "source_type": self.source_type,
-            "source_url": self.source_url,
-            "confidence": self.confidence,
-            "evidence": self.evidence,
-            "dataset": dataset_to_dict(self.dataset),
-        }
-
-
-def dataset_with_candidate_metadata(candidate: DatasetCandidate) -> Dataset:
-    metadata = dict(candidate.dataset.metadata)
-    metadata["confidence"] = candidate.confidence
-    metadata["evidence"] = list(candidate.evidence)
-    metadata["source_url"] = candidate.source_url
-    metadata["discovery_source_id"] = candidate.source_id
-    metadata["discovery_source_type"] = candidate.source_type
-    return replace(candidate.dataset, metadata=metadata)
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:
@@ -1205,28 +1159,6 @@ def fetch_text(url: str, timeout: float) -> tuple[str, str]:
         charset = response.headers.get_content_charset() or "utf-8"
         final_url = response.geturl()
     return data.decode(charset, errors="replace"), final_url
-
-
-def dataset_to_dict(dataset: Dataset) -> dict[str, object]:
-    return {
-        "dataset_uid": dataset.dataset_uid,
-        "provider_id": dataset.provider_id,
-        "dataset_id": dataset.dataset_id,
-        "title": dataset.title,
-        "categories": list(dataset.categories),
-        "data_type": dataset.data_type,
-        "native_format": dataset.native_format,
-        "geographic_scope": dataset.geographic_scope,
-        "temporal_coverage": dataset.temporal_coverage,
-        "landing_url": dataset.landing_url,
-        "api_url": dataset.api_url,
-        "license_url": dataset.license_url,
-        "version": dataset.version,
-        "remote_updated_at": dataset.remote_updated_at,
-        "remote_etag": dataset.remote_etag,
-        "remote_hash": dataset.remote_hash,
-        "metadata": dataset.metadata,
-    }
 
 
 def safe_dataset_id(value: str) -> str:

@@ -4,7 +4,7 @@ import concurrent.futures
 from dataclasses import dataclass, replace
 
 from api_launcher.crawlers import dataset_sources
-from api_launcher.crawlers.dataset_sources import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 
 
 @dataclass(frozen=True)

@@ -45,7 +45,7 @@ provider / source platform
 
 `catalog/dataset_discovery_sources.json` 是下一層：它不是新增供應商，而是描述「去哪個供應商的哪個目錄找資料集」。
 
-目前 `catalog/dataset_discovery_sources.json` 內建 10 個可爬資料目錄。支援的通用 crawler 類型：
+目前 `catalog/dataset_discovery_sources.json` 內建 17 個可爬資料目錄。支援的通用 crawler 類型：
 
 - `ncei_search`：查 NOAA/NCEI Common Access Search Service，適合從關鍵字找到 NOAA 資料集候選。
 - `erddap_all_datasets`：讀 ERDDAP `allDatasets` JSON table，適合從 ERDDAP 站點列出可用 dataset。
@@ -53,6 +53,8 @@ provider / source platform
 - `cmr_collections`：查 NASA Earthdata CMR collection search，適合從 NASA/Earthdata 目錄找到可再審核的衛星、海洋、氣候資料集。
 - `stac_collections`：讀 STAC `/collections`，適合 Microsoft Planetary Computer、Earth Search 這類雲端地球觀測 catalog。
 - `gbif_dataset_search`：查 GBIF registry dataset search，適合先發現生物多樣性資料集與 record count，再決定是否進入 GBIF download workflow。
+- `dataverse_search`：查 Dataverse search API，適合 Harvard Dataverse 這類研究資料平台，先取得可審核的 dataset metadata。
+- `zenodo_records_search`：查 Zenodo records API，適合先發現研究資料記錄與檔案摘要，再決定是否能進入 direct download 或 adapter review。
 - `ckan_package_search`：讀 CKAN `package_search`，適合 Data.gov 這類政府開放資料目錄；resource URL 可能是檔案、API、入口頁或外部系統，必須 review。
 
 這些 crawler 的共通目標是「先產生候選 metadata」。例如 STAC 只先列 collection，不直接抓每一張影像；CMR 只先列 collection，不直接全量抓 granules；CKAN 只先保留 resource 摘要，不把未知 URL 直接交給 downloader。
@@ -75,8 +77,9 @@ python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --d
 Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
+- `api_launcher/crawlers/types.py`：放 dataset crawler 共用資料結構，例如 `DatasetDiscoverySource`、`DatasetCandidate` 與候選 metadata 轉換 helper。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
-- `api_launcher/crawlers/dataset_sources.py`：目前的 source-type crawler 集合，負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index、NASA CMR、STAC、GBIF、CKAN 抓取可審核的 dataset candidate。
+- `api_launcher/crawlers/dataset_sources.py`：目前的 source-type crawler 集合，負責從 provider/source 的搜尋 API、ERDDAP `allDatasets`、HTML index、NASA CMR、STAC、GBIF、Dataverse、Zenodo、CKAN 抓取可審核的 dataset candidate。
 - `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
 
 新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。

@@ -24,7 +24,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `APIkeys_collection_ui.py` | Tk UI 相容啟動入口 | 只轉呼叫 `frontends/tk/launcher_ui.py`。 |
 | `api_launcher/` | 後端主套件 | Catalog、下載、匯入、crawler、整合、repository、CLI 都在這裡。 |
 | `api_launcher/cli_*.py` | CLI 子功能 | 新 CLI 群組優先放這裡，避免 `core.py` 繼續變大。 |
-| `api_launcher/crawlers/` | 資料集發現爬蟲 | 上層 orchestrator 統一調度，小爬蟲依 source type 拆分。 |
+| `api_launcher/crawlers/` | 資料集發現爬蟲 | `types.py` 放共用資料結構，上層 orchestrator 統一調度，小爬蟲依 source type 拆分。 |
 | `api_launcher/downloads/` | 下載/驗證/修復 | 不要被 `.gitignore` 的 `/downloads/` runtime 目錄誤傷。 |
 | `api_launcher/importers/` | CSV/JSON/archive 匯入 | raw -> curated 的 bounded transform 放這裡。 |
 | `frontends/tk/` | 目前 Tk 控制台 | UI 過渡期仍保留，但業務邏輯要慢慢外移到 `api_launcher/`。 |
@@ -77,12 +77,12 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 | 優先 | 檔案 | 現況 | 建議拆法 |
 | --- | --- | --- | --- |
 | 1 | `api_launcher/core.py` | CLI orchestration 仍偏胖 | 每新增一群 CLI 功能，先建 `api_launcher/cli_*.py`；`core.py` 只保留 parse/run/order。 |
-| 2 | `api_launcher/crawlers/dataset_sources.py` | 多種 source parser 擠在同檔 | 依 source type 拆成 CKAN、STAC、ERDDAP、CMR、repository index 等模組，再由 orchestrator 調度。 |
+| 2 | `api_launcher/crawlers/dataset_sources.py` | 共用型別已先移到 `api_launcher/crawlers/types.py`，但多種 source parser 仍擠在同檔 | 依 source type 拆成 CKAN、STAC、ERDDAP、CMR、repository index 等模組，再由 orchestrator 調度。 |
 | 3 | `frontends/tk/launcher_ui.py` | UI 檔案最大 | MVP 後依 panel/dialog/service boundary 拆；不要在 UI 裡複製下載、匯入、crawler 判斷。 |
 | 4 | `api_launcher/repository.py` | schema 穩定前仍集中 | 等 table contract 穩定後，拆 provider/dataset/manifest/install registry repository。 |
 | 5 | `api_launcher/data_store_connections.py` | 多 engine contract 同檔 | 等 MySQL/PostgreSQL/SQLite/Hadoop profiles 更穩後，再拆 driver family。 |
 
-這次已先做第一步小拆分：`api_launcher/cli_flags.py` 集中判斷「是否有 CLI 指令被指定」，讓 `core.py` 不再維護一大段旗標清單。
+這次已先做兩個小拆分：`api_launcher/cli_flags.py` 集中判斷「是否有 CLI 指令被指定」，讓 `core.py` 不再維護一大段旗標清單；`api_launcher/crawlers/types.py` 集中 crawler 共用資料結構，讓後續拆 STAC、CKAN、ERDDAP、CMR 等 parser 時不需要先動每個呼叫端。
 
 ## 路徑規則
 
