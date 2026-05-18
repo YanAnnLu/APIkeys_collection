@@ -175,7 +175,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Search has placeholder text so the top entry field is less mysterious.
 - Users can add new provider/API sources and edit launcher descriptions directly from the UI.
 - The UI now has an explicit Download Plan panel, which acts like a cart/install queue for selected data sources.
-  Exports include a plan name, provider count, planned status, priority, and target fields for future workers.
+  Cart rows use plan item keys, so a row can represent either a whole provider or one dataset/version under that
+  provider. This lets multiple crawler-reviewed candidates from the same provider stay in the same plan without
+  overwriting each other. Exports include a plan name, provider count, planned status, priority, and target fields
+  for future workers.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.

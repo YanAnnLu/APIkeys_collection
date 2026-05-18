@@ -499,6 +499,7 @@ class ApiCollectionUi:
         self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
         self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
+        self.plan_provider_by_key: dict[str, str] = {}
         self.registered_completed_downloads: set[str] = set()
 
         self._init_database()
@@ -1620,7 +1621,7 @@ class ApiCollectionUi:
         row = self.row_by_provider_id(provider_id)
         if row is None:
             return
-        self.plan_version_by_provider.pop(provider_id, None)
+        self.remove_provider_version_plan_items(provider_id)
         var = self.selected.setdefault(provider_id, BooleanVar(value=False))
         already_selected = var.get()
         var.set(True)
@@ -1634,11 +1635,65 @@ class ApiCollectionUi:
         row = self.row_by_provider_id(provider_id)
         if row is None:
             return
-        self.plan_version_by_provider[provider_id] = option
+        plan_key = self.plan_key_for_version(provider_id, option)
+        self.plan_version_by_provider[plan_key] = option
+        self.plan_provider_by_key[plan_key] = provider_id
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
         self.active_provider_id = provider_id
         self.render_table()
         self.status_var.set(self.tr(f"已加入下載計畫：{row.name} {option.menu_label}", f"Added {row.name} {option.menu_label} to download plan"))
+
+    def plan_key_for_version(self, provider_id: str, option: core.DatasetVersionOption) -> str:
+        version = option.version or option.label or "unversioned"
+        return f"{provider_id}::dataset::{option.dataset_uid}::{version}"
+
+    def provider_id_for_plan_key(self, plan_key: str) -> str:
+        if plan_key in self.plan_provider_by_key:
+            return self.plan_provider_by_key[plan_key]
+        if "::dataset::" in plan_key:
+            return plan_key.split("::dataset::", 1)[0]
+        return plan_key
+
+    def version_plan_keys_for_provider(self, provider_id: str) -> list[str]:
+        return [
+            plan_key
+            for plan_key in self.plan_version_by_provider
+            if self.provider_id_for_plan_key(plan_key) == provider_id
+        ]
+
+    def remove_provider_version_plan_items(self, provider_id: str) -> None:
+        for plan_key in self.version_plan_keys_for_provider(provider_id):
+            self.plan_version_by_provider.pop(plan_key, None)
+            self.plan_provider_by_key.pop(plan_key, None)
+
+    def selected_plan_items(self) -> list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]:
+        items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]] = []
+        seen_keys: set[str] = set()
+        for plan_key, option in self.plan_version_by_provider.items():
+            provider_id = self.provider_id_for_plan_key(plan_key)
+            row = self.row_by_provider_id(provider_id)
+            if row is not None:
+                items.append((plan_key, row, option))
+                seen_keys.add(plan_key)
+        for row in self.selected_rows():
+            if self.version_plan_keys_for_provider(row.provider_id):
+                continue
+            if row.provider_id not in seen_keys:
+                items.append((row.provider_id, row, None))
+                seen_keys.add(row.provider_id)
+        return items
+
+    def selected_plan_keys(self) -> list[str]:
+        return [plan_key for plan_key, _row, _option in self.selected_plan_items()]
+
+    def plan_item_label(self, plan_key: str, row: ProviderRow | None = None, option: core.DatasetVersionOption | None = None) -> str:
+        provider_id = self.provider_id_for_plan_key(plan_key)
+        row = row or self.row_by_provider_id(provider_id)
+        label = row.name if row else provider_id
+        option = option or self.plan_version_by_provider.get(plan_key)
+        if option:
+            return f"{label} / {option.dataset_id} {option.version or option.label}"
+        return label
 
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
@@ -1675,17 +1730,16 @@ class ApiCollectionUi:
             return
         for item in self.cart_tree.get_children():
             self.cart_tree.delete(item)
-        rows = self.selected_rows()
-        for row in rows:
-            version = self.plan_version_by_provider.get(row.provider_id)
+        items = self.selected_plan_items()
+        for plan_key, row, version in items:
             version_label = version.menu_label if version else self.localized_download_label(row.download_eligibility)
             self.cart_tree.insert(
                 "",
                 END,
-                iid=row.provider_id,
-                values=(row.name, row.auth_type, row.geographic_scope, version_label),
+                iid=plan_key,
+                values=(self.plan_item_label(plan_key, row, version), row.auth_type, row.geographic_scope, version_label),
             )
-        self.plan_count_var.set(self.tr(f"下載計畫：{len(rows)} 個資料源", f"Download Plan: {len(rows)} sources"))
+        self.plan_count_var.set(self.tr(f"下載計畫：{len(items)} 個項目", f"Download Plan: {len(items)} items"))
 
         self.update_download_jobs_panel()
 
@@ -1693,7 +1747,7 @@ class ApiCollectionUi:
         selection = self.cart_tree.selection()
         if not selection:
             return
-        self.active_provider_id = str(selection[0])
+        self.active_provider_id = self.provider_id_for_plan_key(str(selection[0]))
         if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
             self.tree.selection_set(self.active_provider_id)
             self.tree.focus(self.active_provider_id)
@@ -1703,27 +1757,29 @@ class ApiCollectionUi:
     def on_download_select(self, _event: object) -> None:
         selection = self.download_tree.selection()
         if selection:
-            self.active_provider_id = str(selection[0])
+            self.active_provider_id = self.provider_id_for_plan_key(str(selection[0]))
 
     def start_download_plan(self) -> None:
-        rows = self.selected_rows()
-        if not rows:
+        items = self.selected_plan_items()
+        if not items:
             messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先加入至少一個資料源。", "Add at least one source to the download plan first."))
             return
-        self.start_download_rows(rows)
+        self.start_download_plan_items(items)
 
     def start_download_rows(self, rows: list[ProviderRow]) -> None:
+        self.start_download_plan_items([(row.provider_id, row, self.plan_version_by_provider.get(row.provider_id)) for row in rows])
+
+    def start_download_plan_items(self, items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]) -> None:
         started = 0
         skipped = 0
-        for row in rows:
-            if not self.prepare_provider_for_download(row.provider_id):
+        for plan_key, row, version in items:
+            if not self.prepare_provider_for_download(plan_key):
                 continue
-            version = self.plan_version_by_provider.get(row.provider_id)
             if version:
                 dataset = self.dataset_for_version_option(version)
                 if dataset is None:
                     skipped += 1
-                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", self.tr("找不到候選資料集 metadata", "Dataset metadata was not found"))
+                    self.download_status_by_provider[plan_key] = ("skipped", "0%", self.tr("找不到候選資料集 metadata", "Dataset metadata was not found"))
                     continue
                 plan_entry = core.provider_dataset_version_plan_entry(
                     self.provider_from_row(row),
@@ -1737,7 +1793,7 @@ class ApiCollectionUi:
                 if status != "direct_download" or not url:
                     reason = str(eligibility.get("reason") if isinstance(eligibility, dict) else "") or self.tr("需要 adapter 審核後才能下載", "Adapter review is required before download")
                     skipped += 1
-                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", reason)
+                    self.download_status_by_provider[plan_key] = ("skipped", "0%", reason)
                     continue
                 target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
             else:
@@ -1745,31 +1801,31 @@ class ApiCollectionUi:
                 url = eligibility.direct_url
                 if eligibility.status != "direct_download" or not url:
                     skipped += 1
-                    self.download_status_by_provider[row.provider_id] = ("skipped", "0%", eligibility.reason)
+                    self.download_status_by_provider[plan_key] = ("skipped", "0%", eligibility.reason)
                     continue
                 target_path = self.download_target_for_row(row, url)
                 plan_entry = core.provider_plan_entry(self.provider_from_row(row))
                 plan_entry["download_url"] = url
                 plan_entry["target_path"] = str(target_path)
             job = self.download_queue.submit(plan_entry)
-            self.download_jobs_by_provider[row.provider_id] = job.job_id
-            self.download_providers_by_job[job.job_id] = row.provider_id
-            self.download_plan_entries_by_provider[row.provider_id] = dict(plan_entry)
-            self.download_status_by_provider[row.provider_id] = ("queued", "0%", str(target_path))
+            self.download_jobs_by_provider[plan_key] = job.job_id
+            self.download_providers_by_job[job.job_id] = plan_key
+            self.download_plan_entries_by_provider[plan_key] = dict(plan_entry)
+            self.download_status_by_provider[plan_key] = ("queued", "0%", str(target_path))
             started += 1
         self.update_download_jobs_panel()
         self.status_var.set(self.tr(f"下載工作已開始：{started}；略過：{skipped}", f"Download jobs started: {started}; skipped: {skipped}"))
 
-    def prepare_provider_for_download(self, provider_id: str) -> bool:
-        job_id = self.download_jobs_by_provider.get(provider_id)
+    def prepare_provider_for_download(self, plan_key: str) -> bool:
+        job_id = self.download_jobs_by_provider.get(plan_key)
         if not job_id:
             return True
-        progress = self.download_progress_by_provider.get(provider_id)
+        progress = self.download_progress_by_provider.get(plan_key)
         if progress and progress.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
-            self.download_jobs_by_provider.pop(provider_id, None)
+            self.download_jobs_by_provider.pop(plan_key, None)
             self.download_providers_by_job.pop(job_id, None)
-            self.download_plan_entries_by_provider.pop(provider_id, None)
-            self.registered_completed_downloads.discard(provider_id)
+            self.download_plan_entries_by_provider.pop(plan_key, None)
+            self.registered_completed_downloads.discard(plan_key)
             return True
         return False
 
@@ -1785,8 +1841,8 @@ class ApiCollectionUi:
 
     def active_download_job_id(self) -> str | None:
         selection = self.download_tree.selection()
-        provider_id = str(selection[0]) if selection else self.active_provider_id
-        return self.download_jobs_by_provider.get(provider_id)
+        plan_key = str(selection[0]) if selection else self.active_provider_id
+        return self.download_jobs_by_provider.get(plan_key)
 
     def pause_active_download(self) -> None:
         job_id = self.active_download_job_id()
@@ -1810,23 +1866,24 @@ class ApiCollectionUi:
         self.download_queue.cancel(job_id)
 
     def retry_active_download(self) -> None:
-        provider_id = self.active_download_provider_id()
+        plan_key = self.active_download_provider_id()
+        provider_id = self.provider_id_for_plan_key(plan_key)
         row = self.row_by_provider_id(provider_id)
         if row is None:
             self.status_var.set(self.tr("沒有可重試的下載工作。", "No active download job to retry."))
             return
-        job_id = self.download_jobs_by_provider.get(provider_id)
-        progress = self.download_progress_by_provider.get(provider_id)
+        job_id = self.download_jobs_by_provider.get(plan_key)
+        progress = self.download_progress_by_provider.get(plan_key)
         if job_id and progress and progress.status not in {JobStatus.FAILED, JobStatus.CANCELLED}:
             self.status_var.set(self.tr("只有失敗或取消的下載工作可以重試。", "Only failed or cancelled jobs can be retried."))
             return
-        self.download_jobs_by_provider.pop(provider_id, None)
+        self.download_jobs_by_provider.pop(plan_key, None)
         if job_id:
             self.download_providers_by_job.pop(job_id, None)
-        self.download_plan_entries_by_provider.pop(provider_id, None)
-        self.registered_completed_downloads.discard(provider_id)
+        self.download_plan_entries_by_provider.pop(plan_key, None)
+        self.registered_completed_downloads.discard(plan_key)
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
-        self.start_download_rows([row])
+        self.start_download_plan_items([(plan_key, row, self.plan_version_by_provider.get(plan_key))])
 
     def active_download_provider_id(self) -> str:
         selection = self.download_tree.selection()
@@ -1836,18 +1893,19 @@ class ApiCollectionUi:
         self.root.after(0, lambda update=progress: self.on_download_progress(update))
 
     def on_download_progress(self, progress: DownloadProgress) -> None:
-        provider_id = self.download_providers_by_job.get(progress.job_id, progress.provider_id)
-        self.download_progress_by_provider[provider_id] = progress
-        target = self.download_status_by_provider.get(provider_id, ("", "", ""))[2]
-        self.download_status_by_provider[provider_id] = (
+        plan_key = self.download_providers_by_job.get(progress.job_id, progress.provider_id)
+        self.download_progress_by_provider[plan_key] = progress
+        target = self.download_status_by_provider.get(plan_key, ("", "", ""))[2]
+        self.download_status_by_provider[plan_key] = (
             progress.status.value,
             self.format_download_percent(progress),
             target or progress.message,
         )
         self.update_download_jobs_panel()
         if progress.status == JobStatus.COMPLETED:
-            self.register_completed_download(provider_id, target)
+            self.register_completed_download(plan_key, target)
         elif progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
+            provider_id = self.provider_id_for_plan_key(plan_key)
             log_event(
                 "download_job_problem",
                 progress.error or progress.message,
@@ -1869,23 +1927,25 @@ class ApiCollectionUi:
             return
         for item in self.download_tree.get_children():
             self.download_tree.delete(item)
-        provider_ids = list(dict.fromkeys([*self.selected_provider_ids(), *self.download_status_by_provider.keys()]))
-        for provider_id in provider_ids:
+        plan_keys = list(dict.fromkeys([*self.selected_plan_keys(), *self.download_status_by_provider.keys()]))
+        for plan_key in plan_keys:
+            provider_id = self.provider_id_for_plan_key(plan_key)
             row = self.row_by_provider_id(provider_id)
-            status, progress, target = self.download_status_by_provider.get(provider_id, ("planned", "0%", ""))
+            status, progress, target = self.download_status_by_provider.get(plan_key, ("planned", "0%", ""))
             self.download_tree.insert(
                 "",
                 END,
-                iid=provider_id,
-                values=(row.name if row else provider_id, status, progress, target),
+                iid=plan_key,
+                values=(self.plan_item_label(plan_key, row), status, progress, target),
             )
 
-    def register_completed_download(self, provider_id: str, target: str) -> None:
-        if provider_id in self.registered_completed_downloads:
+    def register_completed_download(self, plan_key: str, target: str) -> None:
+        if plan_key in self.registered_completed_downloads:
             return
-        self.registered_completed_downloads.add(provider_id)
+        self.registered_completed_downloads.add(plan_key)
+        provider_id = self.provider_id_for_plan_key(plan_key)
         row = self.row_by_provider_id(provider_id)
-        plan_entry = self.download_plan_entries_by_provider.get(provider_id, {})
+        plan_entry = self.download_plan_entries_by_provider.get(plan_key, {})
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -1920,12 +1980,16 @@ class ApiCollectionUi:
         if not selection:
             messagebox.showinfo("尚未選取", "請先在下載計畫中選取一個資料源。")
             return
-        provider_id = str(selection[0])
-        self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
-        self.plan_version_by_provider.pop(provider_id, None)
-        self.render_table()
+        plan_key = str(selection[0])
+        provider_id = self.provider_id_for_plan_key(plan_key)
         row = self.row_by_provider_id(provider_id)
-        self.status_var.set(f"已移出下載計畫：{row.name if row else provider_id}")
+        label = self.plan_item_label(plan_key, row)
+        self.plan_version_by_provider.pop(plan_key, None)
+        self.plan_provider_by_key.pop(plan_key, None)
+        if plan_key == provider_id or not self.version_plan_keys_for_provider(provider_id):
+            self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
+        self.render_table()
+        self.status_var.set(f"已移出下載計畫：{label}")
 
     def clear_download_plan(self) -> None:
         if not self.selected_provider_ids():
@@ -1934,6 +1998,7 @@ class ApiCollectionUi:
         for var in self.selected.values():
             var.set(False)
         self.plan_version_by_provider.clear()
+        self.plan_provider_by_key.clear()
         self.render_table()
         self.status_var.set("已清空下載計畫。")
 
@@ -2604,9 +2669,7 @@ class ApiCollectionUi:
             if not options:
                 messagebox.showinfo(self.tr("沒有版本", "No version"), self.tr("這個候選資料集還沒有可加入計畫的版本資訊。", "This candidate does not expose a plannable version yet."), parent=dialog)
                 return
-            self.selected.setdefault(dataset.provider_id, BooleanVar(value=False)).set(True)
-            self.plan_version_by_provider[dataset.provider_id] = options[0]
-            self.active_provider_id = dataset.provider_id
+            self.add_provider_version_to_plan(dataset.provider_id, options[0])
             conn = self._connect()
             try:
                 core.ApiCatalogRepository(conn).mark_dataset_candidate_status(
@@ -2617,7 +2680,6 @@ class ApiCollectionUi:
                 )
             finally:
                 conn.close()
-            self.render_table()
             self.update_download_plan_panel()
             self.status_var.set(self.tr(f"已加入下載計畫：{dataset.title}", f"Added to download plan: {dataset.title}"))
             load_candidates()
@@ -4077,6 +4139,7 @@ class ApiCollectionUi:
             self.download_jobs_by_provider[provider_id] = job.job_id
             self.download_providers_by_job[job.job_id] = provider_id
             self.download_plan_entries_by_provider[provider_id] = dict(plan_entry)
+            self.plan_provider_by_key[provider_id] = provider_id
             self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
             self.update_download_jobs_panel()
             self.status_var.set(self.tr(f"已重新排修復下載：{provider_id}", f"Repair download queued: {provider_id}"))
@@ -4153,20 +4216,14 @@ class ApiCollectionUi:
         self.root.after(0, lambda: self.status_var.set("metadata 爬取完成。"))
 
     def export_download_plan(self) -> None:
-        rows = self.selected_rows()
-        if not rows:
+        items = self.selected_plan_items()
+        if not items:
             messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
             return
         plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
-        payload = core.build_download_plan(
-            [self.provider_from_row(row) for row in rows],
-            plan_name=plan_name,
-        )
         planned_entries = []
-        for row, entry in zip(rows, payload["providers"]):
-            if not isinstance(entry, dict):
-                continue
-            option = self.plan_version_by_provider.get(row.provider_id)
+        has_dataset_entries = False
+        for _plan_key, row, option in items:
             if option:
                 dataset = self.dataset_for_version_option(option)
                 if dataset is not None:
@@ -4176,14 +4233,25 @@ class ApiCollectionUi:
                         option,
                         downloads_root=DOWNLOADS_DIR,
                     )
+                    has_dataset_entries = True
                 else:
+                    entry = core.provider_plan_entry(self.provider_from_row(row))
                     entry["dataset_version"] = option.to_plan_metadata()
+                    has_dataset_entries = True
+            else:
+                entry = core.provider_plan_entry(self.provider_from_row(row))
             planned_entries.append(entry)
-        payload["providers"] = planned_entries
+        if has_dataset_entries:
+            payload = core.build_dataset_download_plan(planned_entries, plan_name=plan_name)
+        else:
+            payload = core.build_download_plan([], plan_name=plan_name)
+            payload["providers"] = planned_entries
+            payload["summary"]["provider_count"] = len({str(entry.get("provider_id") or "") for entry in planned_entries if isinstance(entry, dict)})
+        payload["summary"]["plan_item_count"] = len(planned_entries)
         output_path = state_file(DOWNLOAD_PLAN_NAME)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        self.status_var.set(f"已匯出下載計畫：{plan_name} ({len(rows)} 個資料源)")
+        self.status_var.set(f"已匯出下載計畫：{plan_name} ({len(items)} 個項目)")
         messagebox.showinfo("匯出完成", f"已建立 {output_path}\n\nPlan: {plan_name}")
 
     def open_selected_docs(self) -> None:
