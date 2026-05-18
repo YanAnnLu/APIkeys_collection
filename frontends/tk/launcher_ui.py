@@ -50,6 +50,7 @@ from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 SCRIPT_DIR = Path(__file__).resolve().parent
 DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
+RESOLVED_DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.resolved.json"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
@@ -743,6 +744,7 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         library_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
+        library_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
         library_menu.add_separator()
         library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
         library_menu.add_command(label=self.tr("解除納管目前資料源", "Unmanage active source"), command=self.unmanage_active_provider)
@@ -844,6 +846,7 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
+        more_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -1711,7 +1714,10 @@ class ApiCollectionUi:
         self,
         row: ProviderRow,
         option: core.DatasetVersionOption | None = None,
+        plan_key: str = "",
     ) -> tuple[dict[str, object] | None, str]:
+        if plan_key and plan_key in self.download_plan_entries_by_provider:
+            return dict(self.download_plan_entries_by_provider[plan_key]), ""
         if option:
             dataset = self.dataset_for_version_option(option)
             if dataset is None:
@@ -1750,7 +1756,7 @@ class ApiCollectionUi:
             row = row or self.row_by_provider_id(self.provider_id_for_plan_key(plan_key))
             if row is None:
                 return self.tr("未準備", "Not ready")
-            entry, build_error = self.plan_entry_for_item(row, option or self.plan_version_by_provider.get(plan_key))
+            entry, build_error = self.plan_entry_for_item(row, option or self.plan_version_by_provider.get(plan_key), plan_key=plan_key)
             if entry is None:
                 return self.tr(f"metadata 缺失: {build_error}", f"Missing metadata: {build_error}")
         import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
@@ -1886,7 +1892,7 @@ class ApiCollectionUi:
         for plan_key, row, version in items:
             if not self.prepare_provider_for_download(plan_key):
                 continue
-            plan_entry, build_error = self.plan_entry_for_item(row, version)
+            plan_entry, build_error = self.plan_entry_for_item(row, version, plan_key=plan_key)
             if plan_entry is None:
                 skipped += 1
                 self.download_status_by_provider[plan_key] = ("skipped", "0%", build_error)
@@ -2083,7 +2089,7 @@ class ApiCollectionUi:
             label = self.plan_item_label(plan_key, row, option)
             entry = dict(self.download_plan_entries_by_provider.get(plan_key) or {})
             if not entry:
-                built_entry, build_error = self.plan_entry_for_item(row, option)
+                built_entry, build_error = self.plan_entry_for_item(row, option, plan_key=plan_key)
                 if built_entry is None:
                     skipped.append(f"{label}: {build_error}")
                     continue
@@ -2240,6 +2246,7 @@ class ApiCollectionUi:
         label = self.plan_item_label(plan_key, row)
         self.plan_version_by_provider.pop(plan_key, None)
         self.plan_provider_by_key.pop(plan_key, None)
+        self.download_plan_entries_by_provider.pop(plan_key, None)
         self.import_status_by_plan_key.pop(plan_key, None)
         if plan_key == provider_id or not self.version_plan_keys_for_provider(provider_id):
             self.selected.setdefault(provider_id, BooleanVar(value=False)).set(False)
@@ -2254,6 +2261,7 @@ class ApiCollectionUi:
             var.set(False)
         self.plan_version_by_provider.clear()
         self.plan_provider_by_key.clear()
+        self.download_plan_entries_by_provider.clear()
         self.import_status_by_plan_key.clear()
         self.render_table()
         self.status_var.set("已清空下載計畫。")
@@ -4475,8 +4483,8 @@ class ApiCollectionUi:
         items = self.selected_plan_items()
         planned_entries: list[dict[str, object]] = []
         has_dataset_entries = False
-        for _plan_key, row, option in items:
-            entry, build_error = self.plan_entry_for_item(row, option)
+        for plan_key, row, option in items:
+            entry, build_error = self.plan_entry_for_item(row, option, plan_key=plan_key)
             if entry is None:
                 entry = core.provider_plan_entry(self.provider_from_row(row))
                 if option:
@@ -4487,6 +4495,121 @@ class ApiCollectionUi:
                 has_dataset_entries = True
             planned_entries.append(entry)
         return planned_entries, has_dataset_entries
+
+    def current_download_plan_payload(self) -> tuple[dict[str, object], list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]]:
+        items = self.selected_plan_items()
+        plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
+        planned_entries, has_dataset_entries = self.current_planned_entries()
+        if has_dataset_entries:
+            payload = core.build_dataset_download_plan(planned_entries, plan_name=plan_name)
+        else:
+            payload = core.build_download_plan([], plan_name=plan_name)
+            payload["providers"] = planned_entries
+            payload["summary"]["provider_count"] = len({str(entry.get("provider_id") or "") for entry in planned_entries if isinstance(entry, dict)})
+        payload["summary"]["plan_item_count"] = len(planned_entries)
+        return payload, items
+
+    def resolve_adapter_plan_from_ui(self) -> None:
+        if not self.selected_plan_items():
+            messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先把資料集或資料源加入下載計畫。", "Add datasets or sources to the download plan first."))
+            return
+        payload, items = self.current_download_plan_payload()
+        index_to_plan_key = {index: plan_key for index, (plan_key, _row, _option) in enumerate(items, start=1)}
+        index_has_version = {index: option is not None for index, (_plan_key, _row, option) in enumerate(items, start=1)}
+        resolved_payload, result = core.resolve_adapter_review_plan_payload(payload, downloads_root=DOWNLOADS_DIR)
+        output_path = state_file(RESOLVED_DOWNLOAD_PLAN_NAME)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(resolved_payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+        resolved_entries = [
+            entry
+            for entry in resolved_payload.get("providers", [])
+            if isinstance(entry, dict) and isinstance(entry.get("adapter_resolution"), dict)
+        ]
+        resolved_original_indices = {
+            int((entry.get("adapter_resolution") or {}).get("original_plan_index"))
+            for entry in resolved_entries
+            if isinstance(entry.get("adapter_resolution"), dict) and str((entry.get("adapter_resolution") or {}).get("original_plan_index") or "").isdigit()
+        }
+        for original_index in resolved_original_indices:
+            original_key = index_to_plan_key.get(original_index, "")
+            if original_key and index_has_version.get(original_index):
+                self.plan_version_by_provider.pop(original_key, None)
+                self.plan_provider_by_key.pop(original_key, None)
+                self.download_plan_entries_by_provider.pop(original_key, None)
+                self.import_status_by_plan_key.pop(original_key, None)
+
+        added = 0
+        for entry in resolved_entries:
+            provider_id = str(entry.get("provider_id") or "").strip()
+            if not provider_id or self.row_by_provider_id(provider_id) is None:
+                continue
+            option = self.version_option_from_plan_entry(entry)
+            if option is None:
+                continue
+            plan_key = self.plan_key_for_resolved_entry(entry)
+            self.plan_version_by_provider[plan_key] = option
+            self.plan_provider_by_key[plan_key] = provider_id
+            self.download_plan_entries_by_provider[plan_key] = dict(entry)
+            self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
+            added += 1
+
+        self.render_table()
+        summary = self.tr(
+            f"Adapter 計畫解析完成：新增 {added} 個可下載項目；仍需 review {result.unresolved_review_entries} 個。",
+            f"Adapter plan resolved: added {added} direct items; {result.unresolved_review_entries} still need review.",
+        )
+        self.status_var.set(summary)
+        if added:
+            messagebox.showinfo(
+                self.tr("解析完成", "Resolve finished"),
+                self.tr(
+                    f"{summary}\n\n已同步到下方下載計畫，也已輸出：\n{output_path}\n\n接下來可以按「開始」下載新項目。",
+                    f"{summary}\n\nThe download plan panel was updated and a resolved plan was written to:\n{output_path}\n\nYou can click Start to download the new items.",
+                ),
+            )
+        else:
+            detail = "\n".join(result.warnings[:5])
+            message = self.tr(
+                f"目前沒有找到可以自動轉成 direct download 的 resource。\n\n已輸出檢查結果：\n{output_path}",
+                f"No resource could be safely promoted to direct download.\n\nA checked plan was written to:\n{output_path}",
+            )
+            if detail:
+                message += f"\n\n{detail}"
+            messagebox.showinfo(self.tr("沒有可自動解析項目", "No automatic resolution"), message)
+
+    def version_option_from_plan_entry(self, entry: dict[str, object]) -> core.DatasetVersionOption | None:
+        version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+        download_url = str(entry.get("download_url") or version_meta.get("download_url") or "").strip()
+        if not download_url:
+            return None
+        metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
+        return core.DatasetVersionOption(
+            dataset_uid=str(entry.get("dataset_uid") or version_meta.get("dataset_uid") or ""),
+            dataset_id=str(entry.get("dataset_id") or version_meta.get("dataset_id") or ""),
+            label=str(version_meta.get("label") or entry.get("dataset_title") or entry.get("name") or "resolved resource"),
+            version=str(version_meta.get("version") or "resolved"),
+            status=str(version_meta.get("version_status") or "resolved_resource"),
+            download_url=download_url,
+            landing_url=str(entry.get("landing_url") or version_meta.get("landing_url") or entry.get("docs_url") or ""),
+            update_strategy=str(version_meta.get("update_strategy") or "full_replace_if_needed"),
+            notes=str(version_meta.get("notes") or ""),
+            metadata=dict(metadata),
+        )
+
+    def plan_key_for_resolved_entry(self, entry: dict[str, object]) -> str:
+        version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+        provider_id = str(entry.get("provider_id") or "unknown_provider")
+        dataset_uid = str(entry.get("dataset_uid") or version_meta.get("dataset_uid") or entry.get("dataset_id") or "dataset")
+        version = str(version_meta.get("version") or "resolved")
+        filename = Path(urllib.parse.unquote(urllib.parse.urlparse(str(entry.get("download_url") or "")).path)).name or "resource"
+        base = f"{provider_id}::resolved::{dataset_uid}::{version}::{filename}"
+        candidate = base
+        suffix = 2
+        while candidate in self.plan_version_by_provider or candidate in self.plan_provider_by_key:
+            candidate = f"{base}::{suffix}"
+            suffix += 1
+        return candidate
 
     def open_adapter_review_panel(self) -> None:
         if not self.selected_plan_items():
@@ -4589,6 +4712,7 @@ class ApiCollectionUi:
         actions.pack(fill=X, padx=24, pady=(0, 18))
         ttk.Button(actions, text=self.tr("開來源 URL", "Open source URL"), style="Action.TButton", command=lambda: open_item_url("source")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開 landing 頁", "Open landing page"), style="Action.TButton", command=lambda: open_item_url("landing")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("解析可下載 resources", "Resolve downloadable resources"), style="Action.TButton", command=lambda: (dialog.destroy(), self.resolve_adapter_plan_from_ui())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def export_download_plan(self) -> None:
@@ -4597,14 +4721,7 @@ class ApiCollectionUi:
             messagebox.showinfo("下載計畫是空的", "請先把至少一個資料源加入下載計畫。")
             return
         plan_name = self.plan_name_var.get().strip() or "Untitled download plan"
-        planned_entries, has_dataset_entries = self.current_planned_entries()
-        if has_dataset_entries:
-            payload = core.build_dataset_download_plan(planned_entries, plan_name=plan_name)
-        else:
-            payload = core.build_download_plan([], plan_name=plan_name)
-            payload["providers"] = planned_entries
-            payload["summary"]["provider_count"] = len({str(entry.get("provider_id") or "") for entry in planned_entries if isinstance(entry, dict)})
-        payload["summary"]["plan_item_count"] = len(planned_entries)
+        payload, _items = self.current_download_plan_payload()
         output_path = state_file(DOWNLOAD_PLAN_NAME)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

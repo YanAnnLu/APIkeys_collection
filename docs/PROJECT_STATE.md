@@ -191,7 +191,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
 - The first plan-level non-direct resolver exists in `api_launcher/adapter_plan_resolver.py`. CLI
   `--resolve-adapter-plan INPUT --write-resolved-adapter-plan OUTPUT` can promote CKAN-like `resources` metadata that
-  already contains direct file URLs into direct plan entries, while HTML/API/unknown resources remain in review.
+  already contains direct file URLs into direct plan entries, while HTML/API/unknown resources remain in review. Tk UI
+  exposes the same flow through `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
   into the existing SQLite import path. This keeps the MVP conservative while making simple archives actionable.
@@ -245,7 +246,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-7. Expose the adapter plan resolver in the UI, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, ERDDAP, MarineCadastre AIS, GOES-R/cloud imagery, and Earth Engine candidates before writing provider-specific adapters.
+7. Add the first bounded API-query adapter, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, ERDDAP, MarineCadastre AIS, GOES-R/cloud imagery, and Earth Engine candidates before writing provider-specific adapters.
 8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
 9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

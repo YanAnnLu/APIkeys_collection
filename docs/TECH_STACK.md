@@ -160,6 +160,10 @@ look like direct downloadable files into new direct plan entries with fresh `tar
 `import_plan` fields. It leaves HTML pages, API selectors, and unknown resources in adapter review, so this is a
 bounded plan rewrite rather than a hidden scraper.
 
+The Tk UI exposes this through `資料庫 > 解析 Adapter 計畫`, `更多 > 解析 Adapter 計畫`, and the Adapter review panel's
+`解析可下載 resources` button. When it finds direct resources, it adds them back into the bottom download plan so the
+user can continue with the normal Start -> verify manifest -> import flow.
+
 The direct entries in a plan can then be executed by the CLI:
 
 ```powershell
