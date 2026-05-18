@@ -808,6 +808,128 @@
     "notes": "European marine data portal with ERDDAP-style catalog access. Good test case for source-driven crawler expansion beyond NOAA."
   },
   {
+    "provider_id": "harvard_dataverse",
+    "name": "Harvard Dataverse",
+    "owner": "Harvard Dataverse / Dataverse Project",
+    "categories": [
+      "research_repository",
+      "dataverse",
+      "doi",
+      "metadata"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://guides.dataverse.org/en/latest/api/search.html",
+    "api_base_url": "https://dataverse.harvard.edu/api/search",
+    "signup_url": "https://dataverse.harvard.edu/",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "https://dataverse.harvard.edu/dataverseuser.xhtml?selectTab=termsOfUse",
+    "notes": "Research repository catalog. Treat records as metadata first; file downloads need license, size, and citation review."
+  },
+  {
+    "provider_id": "zenodo",
+    "name": "Zenodo Records API",
+    "owner": "CERN / OpenAIRE",
+    "categories": [
+      "research_repository",
+      "doi",
+      "datasets",
+      "software",
+      "metadata"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://developers.zenodo.org/",
+    "api_base_url": "https://zenodo.org/api/records",
+    "signup_url": "https://zenodo.org/signup/",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "https://about.zenodo.org/terms/",
+    "notes": "General research repository. Some records contain very large archives; crawler candidates must remain metadata/review until bounded download policy exists."
+  },
+  {
+    "provider_id": "canada_open_data",
+    "name": "Government of Canada Open Data CKAN",
+    "owner": "Government of Canada",
+    "categories": [
+      "open_data",
+      "government",
+      "ckan",
+      "canada"
+    ],
+    "geographic_scope": "canada/global",
+    "docs_url": "https://open.canada.ca/data/en/developers",
+    "api_base_url": "https://open.canada.ca/data/api/action/package_search",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "https://open.canada.ca/en/open-government-licence-canada",
+    "terms_url": "https://open.canada.ca/en/open-government-licence-canada",
+    "notes": "CKAN catalog source. Resources can be files, APIs, or landing pages; use adapter review before download."
+  },
+  {
+    "provider_id": "uk_data_gov_ckan",
+    "name": "UK data.gov.uk CKAN",
+    "owner": "Government Digital Service / UK public sector",
+    "categories": [
+      "open_data",
+      "government",
+      "ckan",
+      "uk"
+    ],
+    "geographic_scope": "uk/global",
+    "docs_url": "https://docs.ckan.org/en/latest/api/",
+    "api_base_url": "https://ckan.publishing.service.gov.uk/api/3/action/package_search",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+    "terms_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+    "notes": "CKAN catalog source. Use configured crawler queries before adding provider-specific adapters."
+  },
+  {
+    "provider_id": "australia_data_gov_ckan",
+    "name": "data.gov.au CKAN",
+    "owner": "Australian Government",
+    "categories": [
+      "open_data",
+      "government",
+      "ckan",
+      "australia"
+    ],
+    "geographic_scope": "australia/global",
+    "docs_url": "https://data.gov.au/data/api/3",
+    "api_base_url": "https://data.gov.au/data/api/3/action/package_search",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "https://data.gov.au/data/terms",
+    "notes": "CKAN catalog source for Australian public datasets. Resource URLs still require direct/download eligibility review."
+  },
+  {
+    "provider_id": "hdx_ckan",
+    "name": "Humanitarian Data Exchange CKAN",
+    "owner": "United Nations OCHA",
+    "categories": [
+      "humanitarian",
+      "open_data",
+      "ckan",
+      "gis",
+      "crisis"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://data.humdata.org/api",
+    "api_base_url": "https://data.humdata.org/api/3/action/package_search",
+    "signup_url": "https://data.humdata.org/user/register",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "https://data.humdata.org/about/terms",
+    "notes": "Humanitarian CKAN catalog. License, sensitivity, and update cadence must be reviewed before installation."
+  },
+  {
     "provider_id": "world_bank_indicators",
     "name": "World Bank Indicators API",
     "owner": "World Bank",

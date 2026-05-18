@@ -10,6 +10,7 @@ from api_launcher.dataset_discovery import (
     ckan_candidates_from_payload,
     crawl_dataset_sources,
     cmr_candidates_from_payload,
+    dataverse_candidates_from_payload,
     erddap_candidates_from_payload,
     gbif_candidates_from_payload,
     html_file_index_candidates_from_text,
@@ -18,6 +19,7 @@ from api_launcher.dataset_discovery import (
     ncei_candidates_from_payload,
     ncei_search_url,
     stac_candidates_from_payload,
+    zenodo_candidates_from_payload,
 )
 from api_launcher.crawlers import dataset_sources
 from api_launcher.downloads.eligibility import looks_like_direct_download
@@ -228,6 +230,88 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("abc-123", dataset.dataset_id)
         self.assertEqual("biodiversity_occurrence", dataset.metadata["data_family"])
         self.assertEqual("https://api.gbif.org/v1/dataset/abc-123", dataset.api_url)
+
+    def test_dataverse_search_payload_becomes_repository_candidate(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="harvard_dataverse_search",
+            provider_id="harvard_dataverse",
+            name="Harvard Dataverse",
+            source_type="dataverse_search",
+            endpoint_url="https://dataverse.example.test/api/search",
+            categories=("research_repository", "dataverse"),
+        )
+        payload = {
+            "data": {
+                "total_count": 1,
+                "items": [
+                    {
+                        "name": "Climate survey dataset",
+                        "global_id": "doi:10.7910/DVN/ABC123",
+                        "description": "Daily climate observations and time series.",
+                        "keywords": ["climate"],
+                        "subjects": ["Earth and Environmental Sciences"],
+                        "url": "https://doi.org/10.7910/DVN/ABC123",
+                        "fileCount": 3,
+                        "majorVersion": 2,
+                        "minorVersion": 1,
+                    }
+                ],
+            }
+        }
+
+        candidates = dataverse_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("doi_10.7910_dvn_abc123", dataset.dataset_id)
+        self.assertEqual("dataverse_dataset", dataset.native_format)
+        self.assertEqual("timeseries", dataset.metadata["data_family"])
+        self.assertEqual(3, dataset.metadata["file_count"])
+
+    def test_zenodo_records_payload_becomes_repository_candidate_without_direct_download(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="zenodo_records_search",
+            provider_id="zenodo",
+            name="Zenodo",
+            source_type="zenodo_records_search",
+            endpoint_url="https://zenodo.example.test/api/records",
+            categories=("research_repository", "zenodo"),
+        )
+        payload = {
+            "hits": {
+                "hits": [
+                    {
+                        "id": 123,
+                        "recid": "123",
+                        "doi": "10.5281/zenodo.123",
+                        "title": "High-resolution climate raster bundle",
+                        "modified": "2026-01-02T00:00:00+00:00",
+                        "links": {
+                            "self": "https://zenodo.example.test/api/records/123",
+                            "self_html": "https://zenodo.example.test/records/123",
+                            "archive": "https://zenodo.example.test/api/records/123/files-archive",
+                        },
+                        "metadata": {
+                            "title": "High-resolution climate raster bundle",
+                            "description": "<p>Satellite cloud imagery and raster grids.</p>",
+                            "keywords": ["cloud", "raster"],
+                            "resource_type": {"title": "Dataset", "type": "dataset"},
+                            "license": {"id": "cc-by-4.0"},
+                        },
+                        "files": [{"key": "huge.zip", "size": 87000000000, "checksum": "md5:abc"}],
+                    }
+                ]
+            }
+        }
+
+        candidates = zenodo_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("10.5281_zenodo.123", dataset.dataset_id)
+        self.assertEqual("zenodo_record", dataset.native_format)
+        self.assertEqual("raster_or_grid", dataset.metadata["data_family"])
+        self.assertEqual("https://zenodo.example.test/api/records/123", dataset.api_url)
+        self.assertNotIn("resources", dataset.metadata)
+        self.assertEqual("huge.zip", dataset.metadata["files"][0]["key"])
 
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:
         source = DatasetDiscoverySource(

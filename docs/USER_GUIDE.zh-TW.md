@@ -169,6 +169,8 @@ python -m unittest discover -s tests
 
 `資料庫 > 發現資料集候選` 會根據目前設定的 crawler sources 並行抓取資料集目錄。它只抓 metadata，不下載大型資料檔。若你先在左側勾選幾個資料源，UI 會只爬那些資料源；若沒有勾選，會爬所有已設定 crawler 的資料源。
 
+目前內建來源包含 NOAA/NCEI、ERDDAP、NASA CMR、STAC、GBIF、Dataverse、Zenodo 與多個 CKAN 入口。Dataverse/Zenodo 這類研究倉儲常含很大的壓縮包或多媒體資產，所以 crawler 只記錄 metadata、DOI、file count 與檔案摘要，不會自動下載。
+
 發現完成後，UI 會顯示錯誤與警告。這裡的警告不是程式崩潰，而是 crawler 審核覺得「看起來有跑完，但結果不夠可信」，例如某個來源回傳 0 筆候選、低於最低預期筆數、只抓到已存在的重複候選，或候選 metadata 缺少來源/evidence。看到警告時，應先檢查該供應商頁面、搜尋詞或解析器，而不是直接假設沒有資料。
 
 `資料庫 > 審核資料集候選` 會打開 crawler 找到的資料集候選清單。這裡只審核 metadata，不會下載大檔，也不會改動資料本體。

@@ -260,6 +260,150 @@
       "geographic_scope": "europe/global_ocean",
       "max_results": 10,
       "notes": "ERDDAP crawler coverage should not be NOAA-only. This source exercises the same parser against a European marine data portal."
+    },
+    {
+      "source_id": "harvard_dataverse_search",
+      "provider_id": "harvard_dataverse",
+      "name": "Harvard Dataverse dataset search",
+      "source_type": "dataverse_search",
+      "endpoint_url": "https://dataverse.harvard.edu/api/search",
+      "docs_url": "https://guides.dataverse.org/en/latest/api/search.html",
+      "search_terms": [
+        "climate",
+        "ocean",
+        "gis",
+        "historical buildings",
+        "particle physics"
+      ],
+      "categories": [
+        "research_repository",
+        "dataverse",
+        "doi",
+        "metadata"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "Dataverse records are metadata/citation-first. Do not auto-download files until size, license, and file structure are reviewed."
+    },
+    {
+      "source_id": "zenodo_records_search",
+      "provider_id": "zenodo",
+      "name": "Zenodo records dataset search",
+      "source_type": "zenodo_records_search",
+      "endpoint_url": "https://zenodo.org/api/records",
+      "docs_url": "https://developers.zenodo.org/",
+      "search_terms": [
+        "climate",
+        "satellite imagery",
+        "3D model",
+        "cultural heritage",
+        "particle physics"
+      ],
+      "categories": [
+        "research_repository",
+        "zenodo",
+        "doi",
+        "metadata"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "Zenodo records can contain very large archives. The crawler records file summaries but keeps downloads behind adapter review."
+    },
+    {
+      "source_id": "canada_open_data_package_search",
+      "provider_id": "canada_open_data",
+      "name": "Government of Canada CKAN package search",
+      "source_type": "ckan_package_search",
+      "endpoint_url": "https://open.canada.ca/data/api/action/package_search",
+      "docs_url": "https://open.canada.ca/data/en/developers",
+      "search_terms": [
+        "climate",
+        "ocean",
+        "vessel",
+        "satellite",
+        "heritage"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "ckan",
+        "canada"
+      ],
+      "geographic_scope": "canada/global",
+      "max_results": 8,
+      "notes": "CKAN metadata source. Resource URLs may be direct files, APIs, or external landing pages, so adapter review remains required."
+    },
+    {
+      "source_id": "uk_data_gov_package_search",
+      "provider_id": "uk_data_gov_ckan",
+      "name": "UK data.gov.uk CKAN package search",
+      "source_type": "ckan_package_search",
+      "endpoint_url": "https://ckan.publishing.service.gov.uk/api/3/action/package_search",
+      "docs_url": "https://docs.ckan.org/en/latest/api/",
+      "search_terms": [
+        "climate",
+        "marine",
+        "transport",
+        "historic environment",
+        "geospatial"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "ckan",
+        "uk"
+      ],
+      "geographic_scope": "uk/global",
+      "max_results": 8,
+      "notes": "CKAN metadata source for UK public datasets. Use resource resolver only for clearly direct files."
+    },
+    {
+      "source_id": "australia_data_gov_package_search",
+      "provider_id": "australia_data_gov_ckan",
+      "name": "data.gov.au CKAN package search",
+      "source_type": "ckan_package_search",
+      "endpoint_url": "https://data.gov.au/data/api/3/action/package_search",
+      "docs_url": "https://data.gov.au/data/api/3",
+      "search_terms": [
+        "climate",
+        "marine",
+        "vessel",
+        "satellite",
+        "heritage"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "ckan",
+        "australia"
+      ],
+      "geographic_scope": "australia/global",
+      "max_results": 8,
+      "notes": "CKAN metadata source for Australian public datasets. Keep downloads conservative until resource type and license are clear."
+    },
+    {
+      "source_id": "hdx_package_search",
+      "provider_id": "hdx_ckan",
+      "name": "Humanitarian Data Exchange CKAN package search",
+      "source_type": "ckan_package_search",
+      "endpoint_url": "https://data.humdata.org/api/3/action/package_search",
+      "docs_url": "https://data.humdata.org/api",
+      "search_terms": [
+        "climate",
+        "flood",
+        "ports",
+        "population",
+        "boundaries"
+      ],
+      "categories": [
+        "humanitarian",
+        "open_data",
+        "ckan",
+        "gis"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "Humanitarian metadata source. Some datasets may be sensitive or frequently revised; review license and update cadence before install."
     }
   ]
 }
