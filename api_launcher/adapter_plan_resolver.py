@@ -9,7 +9,7 @@ from typing import Any, Iterable
 
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.db import utc_now_iso
-from api_launcher.downloads.eligibility import looks_like_direct_download
+from api_launcher.downloads.eligibility import DownloadEligibility, looks_like_direct_download
 from api_launcher.downloads.plan_runner import plan_entries
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.models import Dataset
@@ -23,6 +23,17 @@ from api_launcher.plans import (
 RESOURCE_RESOLVER_ID = "generic_resource_direct_download_resolver"
 ERDDAP_RESOLVER_ID = "erddap_bounded_sample_query_resolver"
 ERDDAP_SAMPLE_LIMIT = 25
+DIRECT_RESOURCE_MAX_BYTES = 100 * 1024 * 1024
+DIRECT_RESOURCE_FORMATS = {
+    "csv",
+    "csv.gz",
+    "geojson",
+    "json",
+    "jsonl",
+    "parquet",
+    "zip",
+    "tar.gz",
+}
 USER_AGENT = "APIkeys_collection/0.4 (+adapter-plan-resolver; metadata-only)"
 
 
@@ -73,7 +84,16 @@ def resolve_adapter_review_plan_payload(
         output_entries.append(entry)
         if wants_source_resolution(entry):
             unresolved_review_entries += 1
-            resource_count = len(resource_mappings_from_entry(entry))
+            resources = resource_mappings_from_entry(entry)
+            resource_count = len(resources)
+            oversized_count = sum(1 for resource in resources if resource_exceeds_size_bound(resource))
+            if oversized_count:
+                warnings.append(
+                    f"entry #{index} provider={entry.get('provider_id') or '-'} "
+                    f"dataset={entry.get('dataset_id') or '-'} oversized_resources={oversized_count} "
+                    f"exceeded the bounded resolver limit of {DIRECT_RESOURCE_MAX_BYTES} bytes"
+                )
+                continue
             if resource_count:
                 warnings.append(
                     f"entry #{index} provider={entry.get('provider_id') or '-'} "
@@ -110,7 +130,9 @@ def direct_resource_entries_for_plan_entry(
     resolved_entries: list[dict[str, object]] = []
     for resource_index, resource in enumerate(resource_mappings_from_entry(entry), start=1):
         url = resource_url(resource)
-        if not url or not looks_like_direct_download(url):
+        if not url or not resource_looks_downloadable(resource, url):
+            continue
+        if resource_exceeds_size_bound(resource):
             continue
         resolved = direct_resource_entry(entry, resource, plan_index, resource_index, url, downloads_root)
         if resolved:
@@ -233,7 +255,14 @@ def direct_resource_entry(
     )
     eligibility = assess_dataset_version_download(option)
     if eligibility.status != "direct_download":
-        return {}
+        if not resource_looks_downloadable(resource, url):
+            return {}
+        eligibility = DownloadEligibility(
+            status="direct_download",
+            label="Direct",
+            reason="The resource metadata declares a supported direct file format even though the URL path has no file extension.",
+            direct_url=url,
+        )
     resolved = dict(entry)
     resolved.update(
         {
@@ -255,6 +284,8 @@ def direct_resource_entry(
                 "resource_index": resource_index,
                 "resource_name": resource_name,
                 "resource_format": first_text(resource.get("format"), resource.get("mimetype"), resource.get("type")),
+                "resource_size_bytes": resource_size_bytes(resource),
+                "max_resource_size_bytes": DIRECT_RESOURCE_MAX_BYTES,
                 "source_url": first_text(
                     (entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else "",
                     entry.get("adapter_review_url"),
@@ -467,6 +498,33 @@ def tabledap_sample_variables(dimensions: list[str], variables: list[str]) -> li
         if len(ordered) >= 6:
             break
     return ordered[:6]
+
+
+def resource_exceeds_size_bound(resource: dict[str, object]) -> bool:
+    size = resource_size_bytes(resource)
+    return size > DIRECT_RESOURCE_MAX_BYTES if size is not None else False
+
+
+def resource_looks_downloadable(resource: dict[str, object], url: str) -> bool:
+    if looks_like_direct_download(url):
+        return True
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    return source_format_for_resource(resource, url, "unknown") in DIRECT_RESOURCE_FORMATS
+
+
+def resource_size_bytes(resource: dict[str, object]) -> int | None:
+    for key in ("size", "bytes", "content_length", "contentLength", "file_size"):
+        value = resource.get(key)
+        if value in ("", None):
+            continue
+        try:
+            size = int(value)
+        except (TypeError, ValueError):
+            continue
+        return size if size >= 0 else None
+    return None
 
 
 def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:

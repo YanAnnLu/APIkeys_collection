@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import urllib.parse
 from pathlib import Path
 from typing import Iterable
@@ -9,6 +10,7 @@ from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
 from api_launcher.models import Dataset, Provider
 from api_launcher.downloads.staging import safe_path_part
+from api_launcher.sql_assets import validate_sql_identifier
 
 
 def build_download_plan(
@@ -166,7 +168,7 @@ def dataset_import_plan_entry(
         "target_engine": "sqlite_mvp",
         "source_format": source_format or "unknown",
         "data_family": data_family or "unknown",
-        "table_hint": safe_path_part(f"{dataset.provider_id}_{dataset.dataset_id}").lower(),
+        "table_hint": sql_table_hint(f"{dataset.provider_id}_{dataset.dataset_id}"),
         "post_download": True,
     }
     if eligibility.status != "direct_download":
@@ -248,6 +250,16 @@ def dataset_download_filename(dataset: Dataset, option: DatasetVersionOption) ->
         return safe_path_part(filename)
     stem = safe_path_part(f"{dataset.dataset_id}-{option.version or 'unversioned'}")
     return f"{stem}{extension_for_native_format(dataset.native_format)}"
+
+
+def sql_table_hint(value: str, fallback: str = "dataset_table") -> str:
+    clean = re.sub(r"[^0-9A-Za-z_]+", "_", value.strip().lower())
+    clean = re.sub(r"_+", "_", clean).strip("_")
+    if not clean:
+        clean = fallback
+    if clean[0].isdigit():
+        clean = f"table_{clean}"
+    return validate_sql_identifier(clean[:63].rstrip("_") or fallback)
 
 
 def extension_for_native_format(native_format: str) -> str:

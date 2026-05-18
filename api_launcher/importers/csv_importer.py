@@ -283,5 +283,5 @@ def is_csv_payload(path: Path) -> bool:
 
 def open_csv_text(path: Path):
     if path.suffix.lower() == ".gz":
-        return gzip.open(path, "rt", encoding="utf-8-sig", newline="")
-    return path.open("r", encoding="utf-8-sig", newline="")
+        return gzip.open(path, "rt", encoding="utf-8-sig", errors="replace", newline="")
+    return path.open("r", encoding="utf-8-sig", errors="replace", newline="")

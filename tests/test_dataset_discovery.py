@@ -297,7 +297,14 @@ class DatasetDiscoveryTests(unittest.TestCase):
                             "resource_type": {"title": "Dataset", "type": "dataset"},
                             "license": {"id": "cc-by-4.0"},
                         },
-                        "files": [{"key": "huge.zip", "size": 87000000000, "checksum": "md5:abc"}],
+                        "files": [
+                            {
+                                "key": "huge.zip",
+                                "size": 87000000000,
+                                "checksum": "md5:abc",
+                                "links": {"self": "https://zenodo.example.test/api/records/123/files/huge.zip/content"},
+                            }
+                        ],
                     }
                 ]
             }
@@ -310,7 +317,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("zenodo_record", dataset.native_format)
         self.assertEqual("raster_or_grid", dataset.metadata["data_family"])
         self.assertEqual("https://zenodo.example.test/api/records/123", dataset.api_url)
-        self.assertNotIn("resources", dataset.metadata)
+        self.assertEqual("https://zenodo.example.test/api/records/123/files/huge.zip/content", dataset.metadata["resources"][0]["download_url"])
         self.assertEqual("huge.zip", dataset.metadata["files"][0]["key"])
 
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:

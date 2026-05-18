@@ -75,6 +75,32 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertNotIn("download_url", entry)
         self.assertNotIn("target_path", entry)
 
+    def test_doi_dataset_id_gets_sql_safe_table_hint(self) -> None:
+        provider = Provider(
+            provider_id="zenodo",
+            name="Zenodo",
+            owner="CERN",
+            categories=("research_repository",),
+            geographic_scope="global",
+            docs_url="https://zenodo.org/",
+            auth_type="no_key",
+        )
+        dataset = Dataset(
+            dataset_uid="zenodo:10.5281/zenodo.123",
+            provider_id="zenodo",
+            dataset_id="10.5281_zenodo.123",
+            title="Zenodo sample",
+            categories=("research_repository",),
+            native_format="csv",
+            api_url="https://zenodo.example.test/files/sample.csv",
+            metadata={"download_url": "https://zenodo.example.test/files/sample.csv"},
+        )
+        option = version_options_for_dataset(dataset)[0]
+
+        entry = provider_dataset_version_plan_entry(provider, dataset, option)
+
+        self.assertEqual("zenodo_10_5281_zenodo_123", entry["import_plan"]["table_hint"])
+
     def test_adapter_review_payload_collects_non_direct_entries(self) -> None:
         entry = {
             "provider_id": "example_provider",

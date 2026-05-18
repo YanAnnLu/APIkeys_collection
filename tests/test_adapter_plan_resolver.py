@@ -51,6 +51,41 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertIn("no direct downloadable resource URL", result.warnings[0])
         self.assertIn("adapter_review", resolved["providers"][0])
 
+    def test_oversized_declared_resource_remains_in_adapter_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {"name": "Huge ZIP", "format": "ZIP", "url": "https://example.test/huge.zip", "size": 250_000_000}
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertIn("oversized_resources=1", result.warnings[0])
+        self.assertIn("adapter_review", resolved["providers"][0])
+
+    def test_small_repository_resource_promotes_direct_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "Zenodo metadata CSV",
+                "format": "CSV",
+                "download_url": "https://zenodo.example.test/api/records/1/files/sample.csv/content",
+                "size": 2048,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("https://zenodo.example.test/api/records/1/files/sample.csv/content", entry["download_url"])
+        self.assertEqual(2048, entry["adapter_resolution"]["resource_size_bytes"])
+
     def test_link_metadata_promotes_direct_geojson_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]

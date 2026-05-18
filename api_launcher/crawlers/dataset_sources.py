@@ -967,6 +967,7 @@ def zenodo_candidates_from_payload(
                 "keywords": keywords,
                 "file_count": len(item.get("files") or []) if isinstance(item.get("files"), list) else 0,
                 "files": zenodo_file_summaries(item.get("files")),
+                "resources": zenodo_file_summaries(item.get("files")),
                 "links": {key: links.get(key) for key in ("self", "self_html", "files", "archive") if links.get(key)},
                 "notes": source.notes,
             },
@@ -1384,9 +1385,14 @@ def zenodo_file_summaries(files: object) -> list[dict[str, object]]:
     for file_meta in files[:12]:
         if not isinstance(file_meta, dict):
             continue
+        key = str(file_meta.get("key") or "")
+        links = file_meta.get("links") if isinstance(file_meta.get("links"), dict) else {}
         summaries.append(
             {
-                "key": file_meta.get("key") or "",
+                "key": key,
+                "name": key,
+                "format": Path(urllib.parse.urlparse(key).path).suffix.lower().lstrip(".") or "unknown",
+                "download_url": links.get("self") or links.get("content") or links.get("download") or "",
                 "size": file_meta.get("size") or 0,
                 "checksum": file_meta.get("checksum") or "",
             }

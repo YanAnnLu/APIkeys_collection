@@ -80,6 +80,30 @@ class CsvImporterTests(unittest.TestCase):
         self.assertEqual([("Sirius", "-1.46")], rows)
         self.assertIn("[csv-import] provider=hyg_database table=stars_curated rows=1 columns=2", stdout.getvalue())
 
+    def test_import_tolerates_non_utf8_csv_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "legacy.csv"
+            csv_path.write_bytes("name,notes\nSirius,smart quote \u2019\n".encode("cp1252"))
+            manifest_path = write_manifest(build_asset_manifest(csv_path, csv_plan_entry()), csv_path.with_suffix(".csv.manifest.json"))
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+
+                result = import_csv_manifest_to_sqlite(manifest_path, curated_db, repo, replace=False, row_limit=10)
+            finally:
+                conn.close()
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name, notes FROM "hyg_sample_1_0"').fetchall()
+
+        self.assertEqual(1, result.rows_imported)
+        self.assertEqual("Sirius", rows[0][0])
+        self.assertIn("smart quote", rows[0][1])
+
     def test_batch_imports_only_healthy_csv_registry_manifests(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             launcher_db = Path(tmpdir) / "launcher.sqlite"
