@@ -6,31 +6,14 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from api_launcher.adapters.base import dataset_uid
 from api_launcher.crawlers.ckan import ckan_candidates_from_payload
 from api_launcher.crawlers.cmr import cmr_candidates_from_payload, cmr_payload_entries
 from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
-from api_launcher.crawlers.metadata import (
-    analysis_hint_for_family,
-    choose_native_format,
-    first_link_url,
-    infer_data_family,
-    merge_categories,
-    safe_dataset_id,
-    sql_role_for_family,
-    storage_hint_for_family,
-    temporal_coverage,
-    tuple_names,
-    viewer_hint_for_family,
-)
-from api_launcher.crawlers.stac import (
-    first_stac_link_url,
-    stac_candidates_from_payload,
-    stac_temporal_coverage,
-)
+from api_launcher.crawlers.ncei import ncei_candidates_from_payload
+from api_launcher.crawlers.stac import stac_candidates_from_payload
 from api_launcher.crawlers.types import (
     DatasetCandidate,
     DatasetDiscoverySource,
@@ -38,7 +21,6 @@ from api_launcher.crawlers.types import (
     dataset_with_candidate_metadata,
 )
 from api_launcher.crawlers.zenodo import zenodo_candidates_from_payload
-from api_launcher.models import Dataset
 
 
 USER_AGENT = "APIkeys_collection/0.4 (+dataset-discovery; metadata only)"
@@ -469,76 +451,6 @@ def stac_next_link(payload: dict[str, Any], current_url: str) -> str:
         if rel == "next" and href:
             return urllib.parse.urljoin(current_url, href)
     return ""
-
-
-def ncei_candidates_from_payload(
-    source: DatasetDiscoverySource,
-    payload: dict[str, Any],
-    source_url: str,
-    limit: int,
-) -> list[DatasetCandidate]:
-    results = payload.get("results")
-    if not isinstance(results, list):
-        raise ValueError("NCEI search payload missing results list")
-    candidates: list[DatasetCandidate] = []
-    for item in results[:limit]:
-        if not isinstance(item, dict):
-            continue
-        dataset_id = safe_dataset_id(str(item.get("id") or item.get("fileId") or item.get("name") or "dataset"))
-        title = str(item.get("name") or dataset_id)
-        description = str(item.get("description") or "")
-        formats = tuple_names(item.get("formats"))
-        observation_types = tuple_names(item.get("observationTypes"))
-        keyword_names = tuple_names(item.get("keywords"))
-        categories = merge_categories(source.categories, formats[:3], observation_types[:3])
-        data_family = infer_data_family(" ".join((title, description, " ".join(categories), " ".join(keyword_names))))
-        links = item.get("links") if isinstance(item.get("links"), dict) else {}
-        landing_url = first_link_url(links, ("other", "documentation", "access")) or source.docs_url or source_url
-        api_url = first_link_url(links, ("access",)) or source_url
-        dataset = Dataset(
-            dataset_uid=dataset_uid(source.provider_id, dataset_id),
-            provider_id=source.provider_id,
-            dataset_id=dataset_id,
-            title=title,
-            categories=categories or ("discovered",),
-            data_type=data_family,
-            native_format=choose_native_format(formats),
-            geographic_scope=source.geographic_scope,
-            temporal_coverage=temporal_coverage(item.get("startDate"), item.get("endDate")),
-            landing_url=landing_url,
-            api_url=api_url,
-            version="discovered",
-            metadata={
-                "candidate_status": "needs_review",
-                "discovery_source_id": source.source_id,
-                "discovery_source_type": source.source_type,
-                "source_url": source_url,
-                "provider_backed": True,
-                "data_family": data_family,
-                "storage_hint": storage_hint_for_family(data_family),
-                "sql_role": sql_role_for_family(data_family),
-                "analysis_hint": analysis_hint_for_family(data_family),
-                "viewer_hint": viewer_hint_for_family(data_family),
-                "ncei_result_id": item.get("id") or "",
-                "ncei_file_id": item.get("fileId") or "",
-                "formats": formats,
-                "observation_types": observation_types,
-                "keyword_names": keyword_names[:12],
-                "links": links,
-                "notes": source.notes,
-            },
-        )
-        candidates.append(
-            DatasetCandidate(
-                dataset=dataset,
-                source_id=source.source_id,
-                source_type=source.source_type,
-                source_url=source_url,
-                confidence=0.82,
-                evidence=("NCEI search result", f"formats: {', '.join(formats) or 'unknown'}"),
-            )
-        )
-    return candidates
 
 
 def fetch_json(url: str, timeout: float) -> dict[str, Any]:
