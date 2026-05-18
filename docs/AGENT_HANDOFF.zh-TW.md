@@ -56,6 +56,49 @@
 
    注意：`git push` 成功只代表 commit 到遠端，不代表 Windows/Ubuntu CI 成功。手機 GitHub 通知若顯示 `CI failed`，要看 workflow log，不是重試 push。
 
+## 跨平台接力檢查
+
+這一段把 Windows、macOS、Linux 的接力注意事項集中在同一份接力卡。白話說，跨平台問題常常不是「程式邏輯錯」，而是「本機環境假設偷偷寫進程式」。
+
+每次接手先確認：
+
+```bash
+git pull origin main
+git status --short --branch
+git log -1 --oneline
+```
+
+如果 `git status` 看到未提交檔案，不要急著刪除、還原或覆蓋。先看 `git diff`，確認那是不是上一位 Agent 或使用者留下的成果。
+
+Windows PowerShell 建議這樣跑：
+
+```powershell
+$env:PYTHONPYCACHEPREFIX = Join-Path $env:TEMP 'apikeys_collection_pycache'
+py -m unittest discover -s tests
+py -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py api_launcher\core.py
+py APIkeys_collection.py --init-db --seed --manifest-health --db state\ci.sqlite --summary
+```
+
+macOS / Linux / Conda 建議這樣跑：
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest discover -s tests
+conda run -n metal_trade_312 python -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends/tk/launcher_ui.py api_launcher/core.py
+conda run -n metal_trade_312 python APIkeys_collection.py --init-db --seed --manifest-health --db state/ci.sqlite --summary
+```
+
+沒有 conda 時，可先用本機虛擬環境或 `python3`，但不要把依賴裝進 base/system Python。`PYTHONPYCACHEPREFIX` 是把 Python 暫存 bytecode 放到系統暫存目錄，避免雲端同步碟或跨平台檔案鎖干擾測試。
+
+路徑與本機狀態規則：
+
+- 程式裡不要寫死 `K:\...`、`/Users/...` 或任何本機絕對路徑。
+- 新程式優先用 `pathlib.Path`，專案內路徑優先走 `api_launcher/paths.py` 或既有 config resolver。
+- 對外輸出的跨平台路徑可用 `.as_posix()`，真的呼叫本機命令時再轉成本機字串。
+- `.gitignore` 裡的 runtime 目錄要寫成 `/state/`、`/downloads/`，避免誤忽略 `api_launcher/downloads/` 原始碼。
+- 不要提交 `state/`、`downloads/`、`config/*.local.json`、真實 API key/token/cookie/OAuth secret、本機 SQLite runtime 檔。
+
+切換平台或交給下一位 Agent 前，至少確認：測試通過、語法檢查通過、CLI smoke 通過、文件已更新、已 commit/push，並用 `gh run watch --exit-status` 確認 CI。
+
 ## 目前專案定位
 
 APIkeys Collection 是一個類 Steam 的科學資料集/資料庫 launcher。它不是單純 API key 管理器，而是要管理：
@@ -87,8 +130,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | --- | --- |
 | Branch | `main` |
 | 最新已推送 commit | 以 `git log -1 --oneline` 為準；每次接力前更新本文件 |
-| 上次本機驗證 | 2026-05-19：Windows `py -m unittest discover -s tests`，275 tests OK；`py -m py_compile ...` OK；CI 同款 `py APIkeys_collection.py --init-db --seed --manifest-health --db state\ci.sqlite --summary` OK；DataCite live discovery smoke OK；`git diff --check` OK |
-| 本次接力前新增重點 | workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分、crawler shared types/metadata/STAC/CKAN/ERDDAP/CMR/GBIF/Dataverse/Zenodo/DataCite/HTML index/NCEI 小拆分，source-level fetch/parse flow 已搬回各 source 模組 |
+| 上次本機驗證 | 2026-05-19：Windows `py -m unittest discover -s tests`，276 tests OK；`py -m py_compile ...` OK；JSON catalog 檢查 OK；CI 同款 `py APIkeys_collection.py --init-db --seed --manifest-health --db state\ci_registry.sqlite --summary` OK；DataCite live discovery smoke OK，10 candidates、0 errors、0 warnings；`git diff --check` OK |
+| 本次接力前新增重點 | workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分、crawler shared types/metadata/STAC/CKAN/ERDDAP/CMR/GBIF/Dataverse/Zenodo/DataCite/HTML index/NCEI 小拆分，source-level fetch/parse flow 已搬回各 source 模組；crawler source type dispatcher 已集中成 `SOURCE_CRAWLER_HANDLERS` mapping，portal intake 共用同一份 `SUPPORTED_DATASET_SOURCE_TYPES`；跨平台接力檢查已併入本文件 |
 | MVP 剩餘估算 | 約 25-30%；剩下主要是 bounded API/query adapter 擴充、database self-check UI/repair action、crawler source 類型擴充、import policy 與少量 UI polish |
 | UI 入口 | `python3 APIkeys_collection_ui.py` 或 `py APIkeys_collection_ui.py` |
 | Tk UI 實作 | `frontends/tk/launcher_ui.py` |
@@ -107,7 +150,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 未提交檔案或大改動不要擅自刪除、覆蓋、`git restore`。2026-05-17 曾發生誤還原事故，讓使用者很不安；任何看似奇怪的檔案都先備份/看 diff/產生 patch。
 - UI 預設要繁中；如果新增 UI，放到合適的選單或設定，不要到處新增零散入口。使用者覺得 Tk UI 目前只是過渡，PySide/Qt 是中期路線，MVP 前不要重寫。
 - 使用者喜歡產品概念層被記錄下來，例如 Steam-like library/install/workspace、renderer bridge、Hadoop/K8S、GIS/時間序列/多媒體資料類型。但實作時仍要先收束 MVP。
-- 使用者認為所有文件都重要；不要把任何 `.md` 當成可忽略雜檔。每次功能改動後，至少回頭檢查 `PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`，必要時也更新 `DOCS_INDEX.zh-TW.md`、`WORKSPACE_LAYOUT.zh-TW.md`、使用者指南或相關附錄，讓下一位 Agent 容易接力。
+- 使用者認為所有文件都重要；不要把任何 `.md` 當成可忽略雜檔。每次功能改動後，至少回頭檢查 `PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`；跨平台或接力流程改變時，直接更新本文件的「跨平台接力檢查」段落，必要時再更新 `DOCS_INDEX.zh-TW.md`、`WORKSPACE_LAYOUT.zh-TW.md`、使用者指南或相關附錄，讓下一位 Agent 容易接力。
 - 使用者會提出發散想法；可以記錄到文檔/中期目標，但當前開發要常提醒「這次實際推進的是哪個 MVP 環節」。
 - 使用者說「繼續推進」或暫離時，通常期待 Agent 自主完成下一個合理小階段：實作、驗證、更新文檔、git commit/push、查 CI。不要每個小選擇都停下來問，但遇到會破壞資料、刪檔、改秘密資訊、或安裝環境不明時要先保守處理。
 
@@ -159,7 +202,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
 - 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
 - Crawler 共用資料結構已從 `api_launcher/crawlers/dataset_sources.py` 拆到 `api_launcher/crawlers/types.py`。舊的 `dataset_sources.py` 匯入路徑仍可用，這是為了相容既有 CLI/UI/測試；新程式若只需要 `DatasetDiscoverySource` 或 `DatasetCandidate`，優先從 `api_launcher.crawlers.types` 匯入。
-- Crawler 共用 metadata helper 已拆到 `api_launcher/crawlers/metadata.py`，HTTP fetch/JSON/URL helper 已拆到 `api_launcher/crawlers/fetch.py`，共用 full-crawl page cap 與候選去重 append helper 已拆到 `api_launcher/crawlers/pagination.py`，STAC collection payload parser、source-level fetch/parse flow 與 STAC pagination flow 已拆到 `api_launcher/crawlers/stac.py`，CKAN package query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/ckan.py`，ERDDAP `allDatasets` source-level fetch/parse flow 已拆到 `api_launcher/crawlers/erddap.py`，NASA CMR collection query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/cmr.py`，GBIF dataset search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/gbif.py`，Dataverse search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/dataverse.py`，Zenodo records query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/zenodo.py`，DataCite `/dois` query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/datacite.py`，HTML file index source-level fetch/parse flow 已拆到 `api_launcher/crawlers/html_index.py`，NCEI search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/ncei.py`。`dataset_sources.py` 目前主要保留 dispatcher、limit/search_terms 正規化與舊匯入相容。
+- Crawler 共用 metadata helper 已拆到 `api_launcher/crawlers/metadata.py`，HTTP fetch/JSON/URL helper 已拆到 `api_launcher/crawlers/fetch.py`，共用 full-crawl page cap 與候選去重 append helper 已拆到 `api_launcher/crawlers/pagination.py`，STAC collection payload parser、source-level fetch/parse flow 與 STAC pagination flow 已拆到 `api_launcher/crawlers/stac.py`，CKAN package query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/ckan.py`，ERDDAP `allDatasets` source-level fetch/parse flow 已拆到 `api_launcher/crawlers/erddap.py`，NASA CMR collection query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/cmr.py`，GBIF dataset search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/gbif.py`，Dataverse search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/dataverse.py`，Zenodo records query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/zenodo.py`，DataCite `/dois` query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/datacite.py`，HTML file index source-level fetch/parse flow 已拆到 `api_launcher/crawlers/html_index.py`，NCEI search query URL builder/payload parser/source-level fetch/parse flow/pagination flow 已拆到 `api_launcher/crawlers/ncei.py`。`dataset_sources.py` 目前主要保留 `SOURCE_CRAWLER_HANDLERS` dispatcher mapping、limit/search_terms 正規化與舊匯入相容；`SUPPORTED_DATASET_SOURCE_TYPES` 會給 portal intake 共用，避免同一份 crawler type 清單在不同地方手抄漂移。
 - CLI handoff report 已補 portal intake / local discovery 摘要：`--handoff-report PATH` 現在會列出 portal intake rows/actionable/warnings/local provider seeds/local dataset sources，以及從 Markdown/Notion staging 進 local config，再經 crawler audit promote 到 catalog 的指令流。
 - 第 1 項目前已調整為「善用 crawler 發現 provider/source 與 dataset candidates」，不要把每個代表資料集都硬寫成 Python adapter。`catalog/APIkeys_collection_catalog.json` 目前有 49 個 provider seed，新增方向包含 NOAA GOES-R on AWS、NOAA NOMADS、Marine Regions、GADM、OpenStreetMap Overpass、U.S. Census TIGERweb、EMODnet ERDDAP、Harvard Dataverse、Zenodo、DataCite、Canada/UK/Australia/HDX CKAN。`catalog/dataset_discovery_sources.json` 描述可爬的資料目錄，目前 18 個 source；`api_launcher/crawlers/orchestrator.py` 統一調度 source crawlers，並行執行、去重、收斂 per-source error/warning；`api_launcher/crawlers/fetch.py` 已放共用 HTTP fetch/JSON/URL helper；`api_launcher/crawlers/pagination.py` 已放共用 full-crawl page cap 與候選去重 append helper；各 source 模組已接手 query URL builder、payload parser、source-level fetch/parse flow 與 full-crawl pagination flow；DataCite DOI search 會用 public `/dois` API 與 `resource-type-id=dataset` 產生 metadata-only 候選；`api_launcher/crawlers/dataset_sources.py` 目前主要保留 dispatcher、limit/search_terms 正規化與舊匯入相容。Crawler 審核不能只看「沒報錯」：0 筆候選、低於 `min_expected_candidates`、只抓到全域重複候選、payload shape 不符、候選缺少 evidence/source url 都要提示或失敗。未來新增供應商時，優先新增/配置 crawler，由 orchestrator 調度；不要讓特殊網頁邏輯散進 UI 或 core。AIS 與衛星雲圖是代表測試案例：AIS 應由 MarineCadastre index 發現 shards，衛星雲圖應由 NOAA/NCEI/GOES-R/Earth Engine/STAC 類 catalog 發現 raster/grid 候選。
 - Dataset candidates 現在有初步 review loop：repository 可列出/標記 candidate status，CLI 可用 `--list-dataset-candidates`、`--dataset-candidates-json`、`--review-dataset-candidate UID --dataset-candidate-decision approved|planned|rejected`，Tk UI 在 `資料庫 > 審核資料集候選` 可查看、開來源、標記可用/拒絕或加入目前下載計畫。主列表也會把 crawler 匯入的 dataset 顯示成 provider 底下的縮排列；`資料庫 > 在列表顯示 crawler 資料集` 可切換。這仍是 metadata-only registry 狀態，不會下載或改動資料本體。

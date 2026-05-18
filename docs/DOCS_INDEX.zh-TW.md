@@ -1,6 +1,6 @@
 # 文件索引與整理規則
 
-最後更新：2026-05-18
+最後更新：2026-05-19
 
 這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
@@ -10,7 +10,7 @@
 
 | 情境 | 建議先讀 | 目的 |
 | --- | --- | --- |
-| 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、下一步在哪、文件怎麼找。 |
+| 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、怎麼安全換平台、下一步在哪、文件怎麼找。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `appendices/discovery.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first。 |
 | 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |

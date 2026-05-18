@@ -9,7 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from api_launcher.crawlers.dataset_sources import DatasetDiscoverySource, append_dataset_discovery_source
+from api_launcher.crawlers.dataset_sources import (
+    SUPPORTED_DATASET_SOURCE_TYPES,
+    DatasetDiscoverySource,
+    append_dataset_discovery_source,
+)
 from api_launcher.discovery import ProviderSeed, append_discovery_seed
 
 
@@ -31,18 +35,7 @@ PORTAL_TABLE_COLUMNS = (
     "備註",
 )
 
-SUPPORTED_CRAWLER_TYPES = {
-    "ckan_package_search",
-    "cmr_collections",
-    "datacite_dois",
-    "dataverse_search",
-    "erddap_all_datasets",
-    "gbif_dataset_search",
-    "html_file_index",
-    "ncei_search",
-    "stac_collections",
-    "zenodo_records_search",
-}
+SUPPORTED_CRAWLER_TYPES = set(SUPPORTED_DATASET_SOURCE_TYPES)
 
 ACTION_LABELS = {
     "provider_seed_draft": "可轉成 provider seed 草稿",

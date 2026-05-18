@@ -32,7 +32,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `renderers/` | Taichi/renderer prototype | 保持輕量，不要讓重型 renderer 依賴污染 launcher 基本測試。 |
 | `catalog/` | 正式可提交 catalog/reference | 只有通過 review/audit 的 seed/source 才進這裡。 |
 | `config/` | example config 與 ignored local config | `*.local.json` 放本機設定，不提交 token/key。 |
-| `docs/` | 主文件與附錄 | `AGENT_HANDOFF.zh-TW.md` 是接力入口，`PROJECT_GTD.md` 是進度主索引。 |
+| `docs/` | 主文件與附錄 | `AGENT_HANDOFF.zh-TW.md` 是接力入口，裡面也包含跨平台檢查表；`PROJECT_GTD.md` 是進度主索引。 |
 | `scripts/` | 開發/維護腳本 | 不要把一次性 shell hack 寫進核心。 |
 | `tests/` | 單元測試 | 新拆出的模組要補小測試，避免核心瘦身後行為漂移。 |
 | `state/` | 本機 runtime 狀態 | ignored；放 logs、SQLite、private keys、staging、audit JSON。 |
@@ -67,7 +67,7 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 ## 文件整理規則
 
 - `docs/DOCS_INDEX.zh-TW.md` 是文件地圖；新增或改名文件時要更新它。
-- `docs/AGENT_HANDOFF.zh-TW.md` 是接力卡；穩定節點、commit/push、CI 結果、重要雷點要更新。
+- `docs/AGENT_HANDOFF.zh-TW.md` 是接力卡；穩定節點、commit/push、CI 結果、重要雷點、跨平台測試指令與平台雷點都要更新。
 - `docs/PROJECT_GTD.md` 是進度主索引；每個功能閉環完成後要更新。
 - 子系統文件與附錄都要被尊重。若內容重複，先標註角色與引用關係，不要直接刪。
 - 文件合併要分階段：先索引、再摘要、再 redirect，最後才考慮刪除。
@@ -77,12 +77,12 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 | 優先 | 檔案 | 現況 | 建議拆法 |
 | --- | --- | --- | --- |
 | 1 | `api_launcher/core.py` | CLI orchestration 仍偏胖 | 每新增一群 CLI 功能，先建 `api_launcher/cli_*.py`；`core.py` 只保留 parse/run/order。 |
-| 2 | `api_launcher/crawlers/dataset_sources.py` | 共用型別已移到 `api_launcher/crawlers/types.py`，共用 metadata helper 已移到 `metadata.py`，HTTP/JSON/URL helper 已移到 `fetch.py`，full-crawl page cap 與去重 append helper 已移到 `pagination.py`，各 source 的 query URL builder/parser/source-level fetch/parse flow/pagination flow 已移到各自模組；DataCite DOI crawler 也已獨立成 `datacite.py`；目前主要保留 dispatcher、limit/search_terms 正規化與舊匯入相容 | 若還要瘦身，可考慮把 if/elif dispatcher 改成明確 mapping，但要保留 `discover_dataset_candidates_for_source()` 的相容入口。 |
+| 2 | `api_launcher/crawlers/dataset_sources.py` | 共用型別已移到 `api_launcher/crawlers/types.py`，共用 metadata helper 已移到 `metadata.py`，HTTP/JSON/URL helper 已移到 `fetch.py`，full-crawl page cap 與去重 append helper 已移到 `pagination.py`，各 source 的 query URL builder/parser/source-level fetch/parse flow/pagination flow 已移到各自模組；DataCite DOI crawler 也已獨立成 `datacite.py`；source type dispatcher 已改成 `SOURCE_CRAWLER_HANDLERS` mapping，並匯出 `SUPPORTED_DATASET_SOURCE_TYPES` 給 portal intake 共用 | 後續再新增 crawler type 時，請只新增 handler entry 與測試，不要把 if/elif 鏈加回來；保留 `discover_dataset_candidates_for_source()` 的相容入口。 |
 | 3 | `frontends/tk/launcher_ui.py` | UI 檔案最大 | MVP 後依 panel/dialog/service boundary 拆；不要在 UI 裡複製下載、匯入、crawler 判斷。 |
 | 4 | `api_launcher/repository.py` | schema 穩定前仍集中 | 等 table contract 穩定後，拆 provider/dataset/manifest/install registry repository。 |
 | 5 | `api_launcher/data_store_connections.py` | 多 engine contract 同檔 | 等 MySQL/PostgreSQL/SQLite/Hadoop profiles 更穩後，再拆 driver family。 |
 
-這次已先做幾個小拆分：`api_launcher/cli_flags.py` 集中判斷「是否有 CLI 指令被指定」，讓 `core.py` 不再維護一大段旗標清單；`api_launcher/crawlers/types.py` 集中 crawler 共用資料結構；`api_launcher/crawlers/metadata.py`、`api_launcher/crawlers/fetch.py`、`api_launcher/crawlers/pagination.py`、`api_launcher/crawlers/ncei.py`、`api_launcher/crawlers/stac.py`、`api_launcher/crawlers/ckan.py`、`api_launcher/crawlers/erddap.py`、`api_launcher/crawlers/cmr.py`、`api_launcher/crawlers/gbif.py`、`api_launcher/crawlers/dataverse.py`、`api_launcher/crawlers/zenodo.py`、`api_launcher/crawlers/datacite.py`、`api_launcher/crawlers/html_index.py` 先把共用 helper、多個 source parser、query URL builder、source-level fetch/parse flow 與 NCEI/STAC/CMR/CKAN/GBIF/Dataverse/Zenodo/DataCite pagination flow 從 `dataset_sources.py` 拆出來。後續若繼續整理，請沿用這種小步、可測、保留舊匯入路徑的方式；若要再瘦身 `dataset_sources.py`，優先考慮 dispatcher mapping，不要改 orchestrator 行為。
+這次已先做幾個小拆分：`api_launcher/cli_flags.py` 集中判斷「是否有 CLI 指令被指定」，讓 `core.py` 不再維護一大段旗標清單；`api_launcher/crawlers/types.py` 集中 crawler 共用資料結構；`api_launcher/crawlers/metadata.py`、`api_launcher/crawlers/fetch.py`、`api_launcher/crawlers/pagination.py`、`api_launcher/crawlers/ncei.py`、`api_launcher/crawlers/stac.py`、`api_launcher/crawlers/ckan.py`、`api_launcher/crawlers/erddap.py`、`api_launcher/crawlers/cmr.py`、`api_launcher/crawlers/gbif.py`、`api_launcher/crawlers/dataverse.py`、`api_launcher/crawlers/zenodo.py`、`api_launcher/crawlers/datacite.py`、`api_launcher/crawlers/html_index.py` 先把共用 helper、多個 source parser、query URL builder、source-level fetch/parse flow 與 NCEI/STAC/CMR/CKAN/GBIF/Dataverse/Zenodo/DataCite pagination flow 從 `dataset_sources.py` 拆出來。`dataset_sources.py` 現在也把 source type dispatcher 收斂成 `SOURCE_CRAWLER_HANDLERS` mapping，並讓 portal intake 共用 `SUPPORTED_DATASET_SOURCE_TYPES`。後續若繼續整理，請沿用這種小步、可測、保留舊匯入路徑的方式；不要把 crawler type 清單散回 UI、core 或入口表格。
 
 ## 路徑規則
 

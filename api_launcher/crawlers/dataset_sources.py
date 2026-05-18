@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from api_launcher.crawlers.ckan import (
@@ -70,6 +71,47 @@ from api_launcher.crawlers.zenodo import (
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
+DatasetSourceCrawler = Callable[
+    [DatasetDiscoverySource, float, int, tuple[str, ...], bool, int],
+    list[DatasetCandidate],
+]
+
+
+def _erddap_source_crawler(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    _full_crawl: bool,
+    _max_pages: int,
+) -> list[DatasetCandidate]:
+    return erddap_candidates_for_source(source, timeout, limit, search_terms)
+
+
+def _html_file_index_source_crawler(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    _search_terms: tuple[str, ...],
+    full_crawl: bool,
+    _max_pages: int,
+) -> list[DatasetCandidate]:
+    return html_file_index_candidates_for_source(source, timeout, limit, full_crawl)
+
+
+SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
+    "ncei_search": ncei_candidates_for_source,
+    "erddap_all_datasets": _erddap_source_crawler,
+    "html_file_index": _html_file_index_source_crawler,
+    "cmr_collections": cmr_candidates_for_source,
+    "stac_collections": stac_candidates_for_source,
+    "gbif_dataset_search": gbif_candidates_for_source,
+    "dataverse_search": dataverse_candidates_for_source,
+    "zenodo_records_search": zenodo_candidates_for_source,
+    "ckan_package_search": ckan_candidates_for_source,
+    "datacite_dois": datacite_candidates_for_source,
+}
+SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:
@@ -193,24 +235,7 @@ def discover_dataset_candidates_for_source(
     if full_crawl and not max_results_override:
         limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
     search_terms = search_terms_override or source.search_terms
-    if source.source_type == "ncei_search":
-        return ncei_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "erddap_all_datasets":
-        return erddap_candidates_for_source(source, timeout, limit, search_terms)
-    if source.source_type == "html_file_index":
-        return html_file_index_candidates_for_source(source, timeout, limit, full_crawl)
-    if source.source_type == "cmr_collections":
-        return cmr_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "stac_collections":
-        return stac_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "gbif_dataset_search":
-        return gbif_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "dataverse_search":
-        return dataverse_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "zenodo_records_search":
-        return zenodo_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "ckan_package_search":
-        return ckan_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
-    if source.source_type == "datacite_dois":
-        return datacite_candidates_for_source(source, timeout, limit, search_terms, full_crawl, max_pages)
+    handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
+    if handler is not None:
+        return handler(source, timeout, limit, search_terms, full_crawl, max_pages)
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")

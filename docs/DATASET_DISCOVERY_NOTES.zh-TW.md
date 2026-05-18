@@ -93,10 +93,12 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/datacite.py`：放 DataCite `/dois` query URL builder、payload parser、source-level fetch/parse flow 與 DataCite pagination flow；保留 DOI、publisher、client id、subjects、formats、rights 與 usage count metadata。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index source-level fetch/parse flow，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
 - `api_launcher/crawlers/orchestrator.py`：統一調度所有 dataset crawler，負責並行、去重、錯誤收斂與回傳統一結果。
-- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 dispatcher、limit/search_terms 正規化與舊匯入相容；各來源 API 參數組裝、一般抓取解析與 full-crawl 分頁都已優先放回 source module。
+- `api_launcher/crawlers/dataset_sources.py`：目前主要保留 source type dispatcher、limit/search_terms 正規化與舊匯入相容；各來源 API 參數組裝、一般抓取解析與 full-crawl 分頁都已優先放回 source module。dispatcher 已集中成 `SOURCE_CRAWLER_HANDLERS` mapping，並匯出 `SUPPORTED_DATASET_SOURCE_TYPES` 給 portal intake 使用。
 - `api_launcher/dataset_discovery.py`：相容入口；新 crawler 程式碼應放在 `api_launcher/crawlers/`。
 
 新增供應商時，原則是先看它能否使用既有 crawler type；若不能，新增一個小 crawler，再交給 orchestrator 調度。特殊網頁結構的硬規則可以存在，但要集中在該 crawler 裡，不要散到 UI、core 或下載器。
+
+白話說，新增 crawler type 只應該有一份「正式支援清單」。目前這份清單在 `SOURCE_CRAWLER_HANDLERS`；`portal_intake.py` 會讀同一份清單，所以入口表格不需要另外手抄一份 crawler type。測試會檢查 catalog 內的 source type、dispatcher mapping、portal intake 支援清單三者一致。
 
 Crawler 不能只用「沒報錯」當成功標準。現在 orchestrator 會對每個 source 做基礎審核：
 

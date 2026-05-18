@@ -59,6 +59,17 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("sample_ncei", sources[0].source_id)
         self.assertEqual(("ais",), sources[0].search_terms)
 
+    def test_supported_source_types_match_catalog_and_portal_intake(self) -> None:
+        from api_launcher.portal_intake import SUPPORTED_CRAWLER_TYPES
+
+        catalog_path = Path(__file__).resolve().parents[1] / "catalog" / "dataset_discovery_sources.json"
+        catalog_source_types = {source.source_type for source in load_dataset_discovery_sources(catalog_path)}
+        supported_types = set(dataset_sources.SUPPORTED_DATASET_SOURCE_TYPES)
+
+        self.assertTrue(catalog_source_types <= supported_types)
+        self.assertEqual(supported_types, SUPPORTED_CRAWLER_TYPES)
+        self.assertEqual(set(dataset_sources.SOURCE_CRAWLER_HANDLERS), supported_types)
+
     def test_ncei_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(
             source_id="noaa_ncei_dataset_search",
