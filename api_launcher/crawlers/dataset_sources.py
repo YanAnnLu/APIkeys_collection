@@ -10,7 +10,7 @@ from api_launcher.crawlers.cmr import (
     cmr_payload_entries,
     paginated_cmr_candidates,
 )
-from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload
+from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload, paginated_dataverse_candidates
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
 from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_url
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload, paginated_gbif_candidates
@@ -256,35 +256,6 @@ def paginated_ncei_candidates(
         if not isinstance(page_items, list) or not page_items or len(page_items) < page_size or added == 0:
             break
         offset += len(page_items)
-    return candidates
-
-
-def paginated_dataverse_candidates(
-    source: DatasetDiscoverySource,
-    search_term: str,
-    timeout: float,
-    page_size: int,
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    start = 0
-    for _page in range(discovery_page_cap(max_pages)):
-        url = search_endpoint_url(
-            source.endpoint_url,
-            {"q": search_term, "type": "dataset", "per_page": str(max(1, page_size)), "start": str(start)},
-        )
-        payload = fetch_json(url, timeout=timeout)
-        data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-        items = data.get("items", [])
-        page_candidates = dataverse_candidates_from_payload(source, payload, url, page_size)
-        added = append_new_candidates(candidates, page_candidates, seen)
-        total_count = int(data.get("total_count") or 0)
-        if not isinstance(items, list) or not items or len(items) < page_size or added == 0:
-            break
-        start += len(items)
-        if total_count and start >= total_count:
-            break
     return candidates
 
 

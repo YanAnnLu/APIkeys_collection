@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json, search_endpoint_url
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -12,6 +13,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -89,4 +91,33 @@ def dataverse_candidates_from_payload(
                 evidence=("Dataverse search result", f"files: {item.get('fileCount') or 0}"),
             )
         )
+    return candidates
+
+
+def paginated_dataverse_candidates(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    start = 0
+    for _page in range(discovery_page_cap(max_pages)):
+        url = search_endpoint_url(
+            source.endpoint_url,
+            {"q": search_term, "type": "dataset", "per_page": str(max(1, page_size)), "start": str(start)},
+        )
+        payload = fetch_json(url, timeout=timeout)
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+        items = data.get("items", [])
+        page_candidates = dataverse_candidates_from_payload(source, payload, url, page_size)
+        added = append_new_candidates(candidates, page_candidates, seen)
+        total_count = int(data.get("total_count") or 0)
+        if not isinstance(items, list) or not items or len(items) < page_size or added == 0:
+            break
+        start += len(items)
+        if total_count and start >= total_count:
+            break
     return candidates
