@@ -9,6 +9,24 @@ from pathlib import Path
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.metadata import (
+    analysis_hint_for_family,
+    choose_native_format,
+    first_link_url,
+    infer_data_family,
+    merge_categories,
+    safe_dataset_id,
+    sql_role_for_family,
+    storage_hint_for_family,
+    temporal_coverage,
+    tuple_names,
+    viewer_hint_for_family,
+)
+from api_launcher.crawlers.stac import (
+    first_stac_link_url,
+    stac_candidates_from_payload,
+    stac_temporal_coverage,
+)
 from api_launcher.crawlers.types import (
     DatasetCandidate,
     DatasetDiscoverySource,
@@ -689,94 +707,6 @@ def cmr_candidates_from_payload(
     return candidates
 
 
-def stac_candidates_from_payload(
-    source: DatasetDiscoverySource,
-    payload: dict[str, Any],
-    source_url: str,
-    limit: int,
-    search_terms: tuple[str, ...],
-) -> list[DatasetCandidate]:
-    collections = payload.get("collections")
-    if not isinstance(collections, list):
-        raise ValueError("STAC collections payload missing collections list")
-    candidates: list[DatasetCandidate] = []
-    for item in collections:
-        if not isinstance(item, dict):
-            continue
-        keywords = tuple(str(value) for value in item.get("keywords") or [] if value)
-        providers = item.get("providers") if isinstance(item.get("providers"), list) else []
-        asset_map = item.get("assets") or item.get("item_assets") or {}
-        if not isinstance(asset_map, dict):
-            asset_map = {}
-        searchable = " ".join(
-            (
-                str(item.get("id") or ""),
-                str(item.get("title") or ""),
-                str(item.get("description") or ""),
-                " ".join(keywords),
-                " ".join(provider.get("name", "") for provider in providers if isinstance(provider, dict)),
-            )
-        )
-        if search_terms and not matches_any_term(searchable, search_terms):
-            continue
-        dataset_id = safe_dataset_id(str(item.get("id") or "dataset"))
-        title = str(item.get("title") or dataset_id)
-        data_family = infer_data_family(searchable)
-        links = item.get("links") if isinstance(item.get("links"), list) else []
-        landing_url = first_stac_link_url(links, ("self", "root", "parent")) or source.docs_url or source_url
-        api_url = first_stac_link_url(links, ("items", "self")) or source_url
-        temporal = stac_temporal_coverage(item.get("extent"))
-        categories = merge_categories(source.categories, keywords[:6])
-        dataset = Dataset(
-            dataset_uid=dataset_uid(source.provider_id, dataset_id),
-            provider_id=source.provider_id,
-            dataset_id=dataset_id,
-            title=title,
-            categories=categories or ("stac",),
-            data_type=data_family,
-            native_format="stac_collection",
-            geographic_scope=source.geographic_scope,
-            temporal_coverage=temporal,
-            landing_url=landing_url,
-            api_url=api_url,
-            license_url=str(item.get("license") or ""),
-            version=str(item.get("version") or item.get("stac_version") or "discovered"),
-            metadata={
-                "candidate_status": "needs_review",
-                "discovery_source_id": source.source_id,
-                "discovery_source_type": source.source_type,
-                "source_url": source_url,
-                "provider_backed": True,
-                "data_family": data_family,
-                "storage_hint": storage_hint_for_family(data_family),
-                "sql_role": sql_role_for_family(data_family),
-                "analysis_hint": analysis_hint_for_family(data_family),
-                "viewer_hint": viewer_hint_for_family(data_family),
-                "stac_id": item.get("id") or "",
-                "stac_version": item.get("stac_version") or "",
-                "keywords": keywords,
-                "providers": providers,
-                "asset_keys": sorted(asset_map.keys())[:24],
-                "extent": item.get("extent") or {},
-                "links": links[:12],
-                "notes": source.notes,
-            },
-        )
-        candidates.append(
-            DatasetCandidate(
-                dataset=dataset,
-                source_id=source.source_id,
-                source_type=source.source_type,
-                source_url=source_url,
-                confidence=0.87,
-                evidence=("STAC collection", f"collection: {dataset_id}"),
-            )
-        )
-        if len(candidates) >= limit:
-            break
-    return candidates
-
-
 def gbif_candidates_from_payload(
     source: DatasetDiscoverySource,
     payload: dict[str, Any],
@@ -1161,154 +1091,6 @@ def fetch_text(url: str, timeout: float) -> tuple[str, str]:
     return data.decode(charset, errors="replace"), final_url
 
 
-def safe_dataset_id(value: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "_", value.strip().lower()).strip("_")
-    return cleaned or "dataset"
-
-
-def tuple_names(value: object) -> tuple[str, ...]:
-    if not isinstance(value, list):
-        return ()
-    names = []
-    for item in value:
-        if isinstance(item, dict):
-            name = str(item.get("name") or item.get("id") or "").strip()
-        else:
-            name = str(item).strip()
-        if name:
-            names.append(name)
-    return tuple(names)
-
-
-def merge_categories(*groups: tuple[str, ...]) -> tuple[str, ...]:
-    values: list[str] = []
-    seen: set[str] = set()
-    for group in groups:
-        for value in group:
-            normalized = safe_dataset_id(value).replace("-", "_")
-            if normalized and normalized not in seen:
-                values.append(normalized)
-                seen.add(normalized)
-    return tuple(values)
-
-
-def first_link_url(links: object, groups: tuple[str, ...]) -> str:
-    if not isinstance(links, dict):
-        return ""
-    for group in groups:
-        values = links.get(group)
-        if not isinstance(values, list):
-            continue
-        for item in values:
-            if isinstance(item, dict) and item.get("url"):
-                return str(item["url"])
-    return ""
-
-
-def choose_native_format(formats: tuple[str, ...]) -> str:
-    preferred = (
-        "parquet",
-        "geoparquet",
-        "zarr",
-        "netcdf",
-        "hdf5",
-        "geotiff",
-        "tiff",
-        "grib",
-        "geojson",
-        "shapefile",
-        "csv",
-        "json",
-        "api",
-        "native",
-    )
-    lowered = {safe_dataset_id(value).replace("-", "_"): value.lower() for value in formats}
-    for value in preferred:
-        if value in lowered:
-            return lowered[value]
-    return formats[0].lower() if formats else "unknown"
-
-
-def temporal_coverage(start: object, end: object) -> str:
-    start_text = str(start or "").strip()
-    end_text = str(end or "").strip()
-    if start_text and end_text:
-        return f"{start_text}/{end_text}"
-    return start_text or end_text
-
-
-def infer_data_family(text: str) -> str:
-    lowered = text.lower()
-    if any(value in lowered for value in ("gbif", "biodiversity", "species occurrence", "occurrence", "taxon")):
-        return "biodiversity_occurrence"
-    if any(value in lowered for value in ("ais", "vessel", "trajectory", "ship")):
-        return "spatiotemporal_trajectory"
-    if any(value in lowered for value in ("cloud", "imagery", "satellite", "raster", "abi", "goes")):
-        return "raster_or_grid"
-    if any(value in lowered for value in ("netcdf", "grib", "grid", "sst", "sea surface temperature")):
-        return "grid_or_array"
-    if any(value in lowered for value in ("boundary", "polygon", "shapefile", "geojson", "gis")):
-        return "gis"
-    if any(value in lowered for value in ("hourly", "daily", "time series", "timeseries")):
-        return "timeseries"
-    return "table_or_document"
-
-
-def storage_hint_for_family(data_family: str) -> str:
-    hints = {
-        "biodiversity_occurrence": "duckdb_postgis_or_partitioned_occurrence_files",
-        "spatiotemporal_trajectory": "filesystem_or_object_storage_then_partitioned_columnar_store",
-        "raster_or_grid": "netcdf_zarr_cog_or_object_storage",
-        "grid_or_array": "netcdf_zarr_hdf5_or_object_storage",
-        "gis": "geopackage_geojson_shapefile_or_postgis",
-        "timeseries": "timeseries_db_or_partitioned_files",
-    }
-    return hints.get(data_family, "filesystem_or_sql_after_review")
-
-
-def sql_role_for_family(data_family: str) -> str:
-    if data_family in {"spatiotemporal_trajectory", "raster_or_grid", "grid_or_array", "gis"}:
-        return "metadata_index_or_curated_sample_table"
-    return "primary_or_curated_table_after_review"
-
-
-def analysis_hint_for_family(data_family: str) -> str:
-    hints = {
-        "biodiversity_occurrence": "duckdb_postgis_geopandas_or_gbif_tools",
-        "spatiotemporal_trajectory": "duckdb_geopandas_postgis_dask_spark",
-        "raster_or_grid": "xarray_rioxarray_dask_or_gdal",
-        "grid_or_array": "xarray_dask_or_netcdf_tools",
-        "gis": "qgis_postgis_geopandas",
-        "timeseries": "duckdb_timescaledb_clickhouse",
-    }
-    return hints.get(data_family, "python_sql_or_domain_adapter")
-
-
-def viewer_hint_for_family(data_family: str) -> str:
-    hints = {
-        "biodiversity_occurrence": "map_points_heatmap_or_species_filter",
-        "spatiotemporal_trajectory": "map_trajectory_heatmap_or_timeline",
-        "raster_or_grid": "globe_texture_or_time_animation",
-        "grid_or_array": "map_layer_or_timeseries_preview",
-        "gis": "map_layer_or_unreal_globe_overlay",
-        "timeseries": "tradingview_like_chart",
-    }
-    return hints.get(data_family, "table_or_document_preview")
-
-
-def matches_any_term(text: str, search_terms: tuple[str, ...]) -> bool:
-    lowered = text.lower()
-    return any(term.lower() in lowered for term in search_terms)
-
-
-def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:
-    for rel in rels:
-        for link in links:
-            if isinstance(link, dict) and str(link.get("rel") or "").lower() == rel and link.get("href"):
-                return str(link["href"])
-    return ""
-
-
 def first_cmr_link_url(links: list[object], hints: tuple[str, ...]) -> str:
     for link in links:
         if not isinstance(link, dict) or not link.get("href"):
@@ -1330,18 +1112,6 @@ def platform_names(platforms: object) -> str:
         if isinstance(platform, dict):
             names.append(str(platform.get("short_name") or platform.get("long_name") or ""))
     return " ".join(name for name in names if name)
-
-
-def stac_temporal_coverage(extent: object) -> str:
-    if not isinstance(extent, dict):
-        return ""
-    temporal = extent.get("temporal") if isinstance(extent.get("temporal"), dict) else {}
-    intervals = temporal.get("interval") if isinstance(temporal.get("interval"), list) else []
-    if not intervals or not isinstance(intervals[0], list):
-        return ""
-    start = str(intervals[0][0] or "") if len(intervals[0]) > 0 else ""
-    end = str(intervals[0][1] or "") if len(intervals[0]) > 1 else ""
-    return temporal_coverage(start, end)
 
 
 def first_resource_url(resources: list[object]) -> str:
