@@ -103,6 +103,7 @@ def provider_dataset_version_plan_entry(
     downloads_root: str | Path = "downloads",
 ) -> dict[str, object]:
     eligibility = assess_dataset_version_download(option)
+    import_plan = dataset_import_plan_entry(dataset, option, eligibility)
     entry = provider_plan_entry(provider)
     entry.update(
         {
@@ -115,7 +116,7 @@ def provider_dataset_version_plan_entry(
             "target": "local_file_asset",
             "use_staging": True,
             "download_eligibility": eligibility.to_dict(),
-            "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
+            "import_plan": import_plan,
             "plan_status": "planned" if eligibility.status == "direct_download" else "needs_adapter_review",
         }
     )
@@ -126,7 +127,32 @@ def provider_dataset_version_plan_entry(
         entry["target_path"] = dataset_download_target_path(provider.provider_id, dataset, option, downloads_root).as_posix()
     elif option.download_url:
         entry["adapter_review_url"] = option.download_url
+    if eligibility.status != "direct_download" or import_plan.get("status") in {"requires_unpack_or_adapter", "manual_review_required"}:
+        entry["adapter_review"] = adapter_review_plan_entry(provider, dataset, option, eligibility, import_plan)
     return entry
+
+
+def adapter_review_plan_entry(
+    provider: Provider,
+    dataset: Dataset,
+    option: DatasetVersionOption,
+    eligibility: DownloadEligibility,
+    import_plan: dict[str, object],
+) -> dict[str, object]:
+    adapter_id = str(dataset.metadata.get("adapter") or "").strip() or f"{provider.provider_id}_adapter"
+    source_url = option.download_url or option.landing_url or dataset.api_url or dataset.landing_url or provider.api_base_url or provider.docs_url
+    source_kind = "direct_file_needs_transform" if eligibility.status == "direct_download" else "api_landing_or_selector"
+    required_action = "unpack_or_transform_downloaded_payload" if eligibility.status == "direct_download" else "resolve_source_to_direct_download_entries"
+    return {
+        "status": "needs_adapter_review",
+        "adapter_id": adapter_id,
+        "source_url": source_url,
+        "landing_url": option.landing_url or dataset.landing_url or provider.docs_url,
+        "source_kind": source_kind,
+        "required_action": required_action,
+        "expected_output": "direct_download_plan_entries_with_manifests_and_import_plan",
+        "reason": str(import_plan.get("reason") or eligibility.reason),
+    }
 
 
 def dataset_import_plan_entry(

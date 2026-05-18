@@ -67,6 +67,10 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual("adapter_review_required", entry["import_plan"]["status"])
         self.assertEqual("needs_adapter_review", entry["plan_status"])
         self.assertEqual(latest_option.download_url, entry["adapter_review_url"])
+        self.assertEqual("needs_adapter_review", entry["adapter_review"]["status"])
+        self.assertEqual("GEBCOTopographyAdapter", entry["adapter_review"]["adapter_id"])
+        self.assertEqual("resolve_source_to_direct_download_entries", entry["adapter_review"]["required_action"])
+        self.assertEqual(latest_option.download_url, entry["adapter_review"]["source_url"])
         self.assertNotIn("download_url", entry)
         self.assertNotIn("target_path", entry)
 
@@ -188,6 +192,7 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual(1, payload["summary"]["dataset_version_count"])
         self.assertEqual(1, payload["summary"]["direct_download_count"])
         self.assertEqual("requires_unpack_or_adapter", payload["providers"][0]["import_plan"]["status"])
+        self.assertEqual("unpack_or_transform_downloaded_payload", payload["providers"][0]["adapter_review"]["required_action"])
         self.assertEqual("noaa_marinecadastre_ais", payload["providers"][0]["provider_id"])
         self.assertIsNotNone(planned)
         self.assertEqual("planned", planned.metadata["candidate_status"])

@@ -185,6 +185,8 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`需 adapter` 或 `需解壓/adapter`。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料。
 
+如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
+
 這符合 Steam-like 模型：審核候選像把遊戲加入 library 或願望清單；本機是否已安裝、是否有個人工作區資料，是另一件事。
 
 ## Steam-like 資料模型

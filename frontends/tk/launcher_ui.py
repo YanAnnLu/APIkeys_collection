@@ -1763,9 +1763,13 @@ class ApiCollectionUi:
                 return self.tr(f"待下載/驗證{table_label}", f"Needs download/verify{table_label}")
             return self.tr(f"可匯入{table_label}", f"Ready to import{table_label}")
         if status == "adapter_review_required":
-            return self.tr("需 adapter", "Adapter needed")
+            adapter = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
+            adapter_id = str(adapter.get("adapter_id") or "").strip()
+            return self.tr(f"需 adapter: {adapter_id}" if adapter_id else "需 adapter", f"Adapter needed: {adapter_id}" if adapter_id else "Adapter needed")
         if status == "requires_unpack_or_adapter":
-            return self.tr("需解壓/adapter", "Unpack/adapter needed")
+            adapter = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
+            adapter_id = str(adapter.get("adapter_id") or "").strip()
+            return self.tr(f"需解壓/adapter: {adapter_id}" if adapter_id else "需解壓/adapter", f"Unpack/adapter needed: {adapter_id}" if adapter_id else "Unpack/adapter needed")
         if status:
             return status
         return self.tr("未支援自動匯入", "No auto import")
