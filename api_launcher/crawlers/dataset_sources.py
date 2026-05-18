@@ -4,7 +4,12 @@ import json
 from pathlib import Path
 
 from api_launcher.crawlers.ckan import ckan_candidates_from_payload
-from api_launcher.crawlers.cmr import cmr_candidates_from_payload, cmr_payload_entries
+from api_launcher.crawlers.cmr import (
+    cmr_candidates_from_payload,
+    cmr_collections_url,
+    cmr_payload_entries,
+    paginated_cmr_candidates,
+)
 from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
 from api_launcher.crawlers.fetch import fetch_json, fetch_text, search_endpoint_url
@@ -232,16 +237,6 @@ def ncei_search_url(endpoint_url: str, search_term: str, limit: int, offset: int
     )
 
 
-def cmr_collections_url(endpoint_url: str, search_term: str, limit: int, page_num: int = 0) -> str:
-    params = {"page_size": str(max(1, limit)), "downloadable": "true", "keyword": search_term}
-    if page_num > 0:
-        params["page_num"] = str(page_num)
-    return search_endpoint_url(
-        endpoint_url,
-        params,
-    )
-
-
 def paginated_ncei_candidates(
     source: DatasetDiscoverySource,
     search_term: str,
@@ -261,26 +256,6 @@ def paginated_ncei_candidates(
         if not isinstance(page_items, list) or not page_items or len(page_items) < page_size or added == 0:
             break
         offset += len(page_items)
-    return candidates
-
-
-def paginated_cmr_candidates(
-    source: DatasetDiscoverySource,
-    search_term: str,
-    timeout: float,
-    page_size: int,
-    max_pages: int,
-) -> list[DatasetCandidate]:
-    candidates: list[DatasetCandidate] = []
-    seen: set[str] = set()
-    for page_num in range(1, discovery_page_cap(max_pages) + 1):
-        url = cmr_collections_url(source.endpoint_url, search_term, page_size, page_num)
-        payload = fetch_json(url, timeout=timeout)
-        entries = cmr_payload_entries(payload)
-        page_candidates = cmr_candidates_from_payload(source, payload, url, page_size)
-        added = append_new_candidates(candidates, page_candidates, seen)
-        if not entries or len(entries) < page_size or added == 0:
-            break
     return candidates
 
 

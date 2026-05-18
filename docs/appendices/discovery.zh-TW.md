@@ -85,7 +85,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/stac.py`：放 STAC collection payload parser 與 STAC `next` link pagination flow。
 - `api_launcher/crawlers/ckan.py`：放 CKAN `package_search` payload parser 與 resource 摘要 helper；`dataset_sources.py` 仍保留 CKAN pagination glue。
 - `api_launcher/crawlers/erddap.py`：放 ERDDAP `allDatasets` payload parser，保留 griddap/tabledap/wms protocol metadata 給後續 bounded adapter resolver 使用。
-- `api_launcher/crawlers/cmr.py`：放 NASA CMR collection payload parser 與 CMR link/platform helper；`dataset_sources.py` 仍保留 CMR pagination glue。
+- `api_launcher/crawlers/cmr.py`：放 NASA CMR collection payload parser、CMR link/platform helper 與 CMR pagination flow。
 - `api_launcher/crawlers/gbif.py`：放 GBIF dataset search payload parser，保留 GBIF key、record count 與 organization metadata。
 - `api_launcher/crawlers/dataverse.py`：放 Dataverse search payload parser，保留 global id、版本、dataverse alias 與 file count metadata。
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records payload parser、檔案摘要 helper 與簡單 markup 清理 helper。

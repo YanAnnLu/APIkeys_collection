@@ -4,6 +4,7 @@ import urllib.parse
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
+from api_launcher.crawlers.fetch import fetch_json, search_endpoint_url
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     infer_data_family,
@@ -14,8 +15,19 @@ from api_launcher.crawlers.metadata import (
     temporal_coverage,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
+
+
+def cmr_collections_url(endpoint_url: str, search_term: str, limit: int, page_num: int = 0) -> str:
+    params = {"page_size": str(max(1, limit)), "downloadable": "true", "keyword": search_term}
+    if page_num > 0:
+        params["page_num"] = str(page_num)
+    return search_endpoint_url(
+        endpoint_url,
+        params,
+    )
 
 
 def cmr_payload_entries(payload: dict[str, Any]) -> list[Any]:
@@ -107,6 +119,26 @@ def cmr_candidates_from_payload(
                 evidence=("NASA CMR collection search result", f"short_name: {short_name}"),
             )
         )
+    return candidates
+
+
+def paginated_cmr_candidates(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> list[DatasetCandidate]:
+    candidates: list[DatasetCandidate] = []
+    seen: set[str] = set()
+    for page_num in range(1, discovery_page_cap(max_pages) + 1):
+        url = cmr_collections_url(source.endpoint_url, search_term, page_size, page_num)
+        payload = fetch_json(url, timeout=timeout)
+        entries = cmr_payload_entries(payload)
+        page_candidates = cmr_candidates_from_payload(source, payload, url, page_size)
+        added = append_new_candidates(candidates, page_candidates, seen)
+        if not entries or len(entries) < page_size or added == 0:
+            break
     return candidates
 
 
