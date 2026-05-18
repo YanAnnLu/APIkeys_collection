@@ -11,6 +11,7 @@ from typing import Any
 from api_launcher.adapters.base import dataset_uid
 from api_launcher.crawlers.ckan import ckan_candidates_from_payload
 from api_launcher.crawlers.cmr import cmr_candidates_from_payload, cmr_payload_entries
+from api_launcher.crawlers.dataverse import dataverse_candidates_from_payload
 from api_launcher.crawlers.erddap import erddap_candidates_from_payload
 from api_launcher.crawlers.gbif import gbif_candidates_from_payload
 from api_launcher.crawlers.metadata import (
@@ -536,82 +537,6 @@ def ncei_candidates_from_payload(
                 source_url=source_url,
                 confidence=0.82,
                 evidence=("NCEI search result", f"formats: {', '.join(formats) or 'unknown'}"),
-            )
-        )
-    return candidates
-
-
-def dataverse_candidates_from_payload(
-    source: DatasetDiscoverySource,
-    payload: dict[str, Any],
-    source_url: str,
-    limit: int,
-) -> list[DatasetCandidate]:
-    data = payload.get("data")
-    if not isinstance(data, dict):
-        raise ValueError("Dataverse search payload missing data object")
-    items = data.get("items", [])
-    if not isinstance(items, list):
-        raise ValueError("Dataverse search payload missing data.items list")
-    candidates: list[DatasetCandidate] = []
-    for item in items[:limit]:
-        if not isinstance(item, dict):
-            continue
-        global_id = str(item.get("global_id") or item.get("identifier") or "").strip()
-        dataset_id = safe_dataset_id(global_id or item.get("name") or "dataset")
-        title = str(item.get("name") or dataset_id)
-        description = str(item.get("description") or "")
-        keywords = tuple(str(value) for value in item.get("keywords") or [] if value)
-        subjects = tuple(str(value) for value in item.get("subjects") or [] if value)
-        searchable = " ".join((title, description, " ".join(keywords), " ".join(subjects), " ".join(source.categories)))
-        data_family = infer_data_family(searchable)
-        major = str(item.get("majorVersion") or "").strip()
-        minor = str(item.get("minorVersion") or "").strip()
-        version = ".".join(value for value in (major, minor) if value) or str(item.get("updatedAt") or item.get("published_at") or "discovered")
-        dataset = Dataset(
-            dataset_uid=dataset_uid(source.provider_id, dataset_id),
-            provider_id=source.provider_id,
-            dataset_id=dataset_id,
-            title=title,
-            categories=merge_categories(source.categories, keywords[:8], subjects[:4]),
-            data_type=data_family,
-            native_format="dataverse_dataset",
-            geographic_scope=source.geographic_scope,
-            landing_url=str(item.get("url") or source.docs_url or source_url),
-            api_url=str(item.get("url") or source_url),
-            license_url=str(item.get("licenseUrl") or ""),
-            version=version,
-            remote_updated_at=str(item.get("updatedAt") or item.get("published_at") or ""),
-            metadata={
-                "candidate_status": "needs_review",
-                "discovery_source_id": source.source_id,
-                "discovery_source_type": source.source_type,
-                "source_url": source_url,
-                "provider_backed": True,
-                "data_family": data_family,
-                "storage_hint": storage_hint_for_family(data_family),
-                "sql_role": sql_role_for_family(data_family),
-                "analysis_hint": analysis_hint_for_family(data_family),
-                "viewer_hint": viewer_hint_for_family(data_family),
-                "global_id": global_id,
-                "publisher": item.get("publisher") or "",
-                "dataverse_alias": item.get("identifier_of_dataverse") or "",
-                "dataverse_name": item.get("name_of_dataverse") or "",
-                "subjects": subjects,
-                "keywords": keywords,
-                "file_count": item.get("fileCount") or 0,
-                "storage_identifier": item.get("storageIdentifier") or "",
-                "notes": source.notes,
-            },
-        )
-        candidates.append(
-            DatasetCandidate(
-                dataset=dataset,
-                source_id=source.source_id,
-                source_type=source.source_type,
-                source_url=source_url,
-                confidence=0.81,
-                evidence=("Dataverse search result", f"files: {item.get('fileCount') or 0}"),
             )
         )
     return candidates
