@@ -40,18 +40,13 @@ from api_launcher.cli_discovery import (
     add_discovery_args,
     add_local_discovery_seed,
     discover_source_candidates,
-    discovery_command_active,
 )
 from api_launcher.cli_dataset_discovery import (
     add_dataset_discovery_args,
-    dataset_discovery_command_active,
     discover_dataset_candidates_cli,
 )
-from api_launcher.cli_portal_intake import (
-    add_portal_intake_args,
-    portal_intake_cli,
-    portal_intake_command_active,
-)
+from api_launcher.cli_flags import command_requested
+from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
 from api_launcher.dataset_discovery import (
@@ -128,6 +123,11 @@ from api_launcher.simulation_bridge import DEFAULT_SIMULATION_BACKENDS, DEFAULT_
 from api_launcher.downloads.transfer_tools import TransferCommand, build_external_transfer_command, selected_transfer_tool, transfer_url_from_plan_entry
 from api_launcher.tile_manifests import build_global_grid_manifest, write_tile_manifest
 from api_launcher.unreal_bridge import build_unreal_bridge_targets
+from api_launcher.workspace_inventory import (
+    build_workspace_inventory,
+    render_workspace_inventory,
+    workspace_inventory_to_json,
+)
 
 
 DB_NAME = "APIkeys_collection.sqlite"
@@ -599,6 +599,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
+    parser.add_argument("--workspace-inventory", action="store_true", help="print workspace classification and split suggestions")
+    parser.add_argument(
+        "--write-workspace-inventory-json",
+        default="",
+        help="write workspace classification JSON for handoff/review",
+    )
     parser.add_argument("--unreal-bridge-plan", action="store_true", help="print planned Unreal bridge asset sync targets")
     parser.add_argument("--show-render-profile", action="append", default=[], help="print inferred renderer profile for a frontend, e.g. taichi or unreal")
     parser.add_argument("--list-render-effects", action="store_true", help="print data-driven render effect layer contracts")
@@ -676,6 +682,7 @@ class CatalogLauncherCli:
             self.list_manifests()
             self.show_logs()
             self.write_handoff_report()
+            self.show_workspace_inventory()
             portal_intake_cli(self.args)
             self.show_unreal_bridge_plan()
             self.show_render_profiles()
@@ -708,59 +715,7 @@ class CatalogLauncherCli:
             self.conn.close()
 
     def apply_default_action(self) -> None:
-        command_flags = (
-            self.args.init_db,
-            self.args.seed,
-            bool(self.args.seed_json),
-            self.args.seed_key_reference,
-            self.args.generate_templates,
-            self.args.crawl,
-            self.args.list_providers,
-            self.args.list_categories,
-            self.args.self_check,
-            self.args.verify_downloads,
-            self.args.verify_downloads_json,
-            bool(self.args.run_download_plan),
-            bool(self.args.adapter_review_plan),
-            self.args.adapter_review_json,
-            bool(self.args.resolve_adapter_plan),
-            bool(self.args.write_resolved_adapter_plan),
-            self.args.keep_original_adapter_entries,
-            self.args.import_supported_plan_results,
-            bool(self.args.import_csv_manifest),
-            self.args.import_verified_csv_manifests,
-            bool(self.args.import_json_manifest),
-            self.args.import_verified_json_manifests,
-            self.args.manifest_health,
-            self.args.list_manifests,
-            self.args.show_logs > 0,
-            bool(self.args.handoff_report),
-            self.args.unreal_bridge_plan,
-            bool(self.args.show_render_profile),
-            self.args.list_render_effects,
-            self.args.list_simulation_contracts,
-            bool(self.args.show_library_actions),
-            self.args.library_actions_json,
-            bool(self.args.test_data_store),
-            self.args.self_check_databases,
-            self.args.self_check_databases_json,
-            bool(self.args.generate_ai_summary),
-            bool(self.args.write_tile_manifest),
-            bool(self.args.export_json),
-            bool(self.args.export_csv),
-            bool(self.args.export_markdown),
-            bool(self.args.export_dataset_plan),
-            bool(self.args.export_candidate_plan),
-            bool(self.args.write_sample_registry),
-            bool(self.args.write_sample_key_reference),
-            self.args.write_credentials_template,
-            self.args.discover_datasets,
-            discovery_command_active(self.args),
-            dataset_discovery_command_active(self.args),
-            portal_intake_command_active(self.args),
-            self.args.summary,
-        )
-        if any(command_flags):
+        if command_requested(self.args):
             return
         self.args.init_db = True
         self.args.seed = True
@@ -1023,6 +978,18 @@ class CatalogLauncherCli:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(render_handoff_markdown(snapshot), encoding="utf-8")
             print(f"[handoff] wrote {output_path}")
+
+    def show_workspace_inventory(self) -> None:
+        if not (self.args.workspace_inventory or self.args.write_workspace_inventory_json):
+            return
+        inventory = build_workspace_inventory()
+        if self.args.write_workspace_inventory_json:
+            output_path = resolve_project_path(self.args.write_workspace_inventory_json)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(workspace_inventory_to_json(inventory), encoding="utf-8")
+            print(f"[workspace] wrote {output_path}")
+        if self.args.workspace_inventory:
+            print(render_workspace_inventory(inventory), end="")
 
     def show_unreal_bridge_plan(self) -> None:
         if self.args.unreal_bridge_plan:

@@ -21,6 +21,7 @@
    docs/ARCHITECTURE.md
    docs/TECHNICAL_OVERVIEW.zh-TW.md
    docs/DATASET_TYPE_MAP.zh-TW.md
+   docs/WORKSPACE_LAYOUT.zh-TW.md
    ```
 
 3. 跑基本驗證：
@@ -85,7 +86,9 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | --- | --- |
 | Branch | `main` |
 | 最新已推送 commit | 以 `git log -1 --oneline` 為準；每次接力前更新本文件 |
-| 上次驗證 | 2026-05-17：本機測試與 GitHub Actions 狀態以最新 commit 為準；接力前請重跑 |
+| 上次本機驗證 | 2026-05-18：`PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest discover -s tests`，273 tests OK；`python -m py_compile ...` OK；`git diff --check` OK |
+| 本次接力前新增重點 | workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分 |
+| MVP 剩餘估算 | 約 25-30%；剩下主要是 bounded API/query adapter 擴充、database self-check UI/repair action、crawler source 類型擴充、import policy 與少量 UI polish |
 | UI 入口 | `python3 APIkeys_collection_ui.py` 或 `py APIkeys_collection_ui.py` |
 | Tk UI 實作 | `frontends/tk/launcher_ui.py` |
 | 使用者指南 | `docs/USER_GUIDE.zh-TW.md` |
@@ -150,6 +153,9 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - macOS 目前已安裝並登入 GitHub CLI (`gh`) 為 `YanAnnLu`，可直接查 CI run/log。
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 團隊開始共同尋找資料庫入口網站時，請先寫入 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`。這是組員用的入口收集表，不要貼 API key/token/cookie；只記網站、API 文件、授權、入口類型、主題、地理範圍與是否需要登入。CLI 已有 `--portal-intake-report --write-portal-intake-json state/portal_intake.review.json`，會把表格整理成 provider seed 草稿、dataset discovery source 草稿、crawler mapping 待辦、adapter/integration backlog 或 incomplete warning；`--promote-portal-intake-local` 只會把乾淨草稿寫進被 Git 忽略的 `config/provider_discovery_seeds.local.json` 與 `config/dataset_discovery_sources.local.json`，不直接改正式 catalog。草稿要進正式 catalog 時，用 `--promote-local-discovery-catalog --write-local-discovery-audit-json state/local_discovery_audit.json`；這會先跑 crawler audit，只有 error=0/warning=0 的 local dataset source 才會寫入正式 catalog。
+- 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
+- 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
+- CLI handoff report 已補 portal intake / local discovery 摘要：`--handoff-report PATH` 現在會列出 portal intake rows/actionable/warnings/local provider seeds/local dataset sources，以及從 Markdown/Notion staging 進 local config，再經 crawler audit promote 到 catalog 的指令流。
 - 第 1 項目前已調整為「善用 crawler 發現 provider/source 與 dataset candidates」，不要把每個代表資料集都硬寫成 Python adapter。`catalog/APIkeys_collection_catalog.json` 目前有 48 個 provider seed，新增方向包含 NOAA GOES-R on AWS、NOAA NOMADS、Marine Regions、GADM、OpenStreetMap Overpass、U.S. Census TIGERweb、EMODnet ERDDAP、Harvard Dataverse、Zenodo、Canada/UK/Australia/HDX CKAN。`catalog/dataset_discovery_sources.json` 描述可爬的資料目錄，目前 17 個 source；`api_launcher/crawlers/orchestrator.py` 統一調度 source crawlers，並行執行、去重、收斂 per-source error/warning；`api_launcher/crawlers/dataset_sources.py` 暫時放 NOAA/NCEI Search、ERDDAP `allDatasets`、HTML file index、NASA CMR collection search、STAC collections、GBIF dataset search、Dataverse、Zenodo、CKAN `package_search` 的解析與 pagination。Crawler 審核不能只看「沒報錯」：0 筆候選、低於 `min_expected_candidates`、只抓到全域重複候選、payload shape 不符、候選缺少 evidence/source url 都要提示或失敗。未來新增供應商時，優先新增/配置 crawler，由 orchestrator 調度；不要讓特殊網頁邏輯散進 UI 或 core。AIS 與衛星雲圖是代表測試案例：AIS 應由 MarineCadastre index 發現 shards，衛星雲圖應由 NOAA/NCEI/GOES-R/Earth Engine/STAC 類 catalog 發現 raster/grid 候選。
 - Dataset candidates 現在有初步 review loop：repository 可列出/標記 candidate status，CLI 可用 `--list-dataset-candidates`、`--dataset-candidates-json`、`--review-dataset-candidate UID --dataset-candidate-decision approved|planned|rejected`，Tk UI 在 `資料庫 > 審核資料集候選` 可查看、開來源、標記可用/拒絕或加入目前下載計畫。主列表也會把 crawler 匯入的 dataset 顯示成 provider 底下的縮排列；`資料庫 > 在列表顯示 crawler 資料集` 可切換。這仍是 metadata-only registry 狀態，不會下載或改動資料本體。
 - Crawler candidates 現在可以進一步輸出成後端 plan：CLI `--export-candidate-plan PATH --candidate-plan-status approved|needs_review|planned|all` 會把候選 dataset/version 轉成與 adapter 共用的 dataset-version plan schema。每個 entry 都有 `download_eligibility`、direct 檔案的 `target_path`、`dataset_version`、`candidate_review`，以及保守的 `import_plan`。CSV/JSON 類標成可在下載驗證後進 SQLite MVP importer；CSV.ZST/ZIP/TAR 類標成需要解壓或 adapter；API/landing page 保持 adapter review。UI 的候選加入下載計畫也改走 `provider_dataset_version_plan_entry()`，避免把入口頁當成 direct download。
@@ -170,9 +176,10 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 4. 新增 financial/time-series adapter contract，處理 live market data、append windows、revision/backfill、retention policy。
 5. 新增 Marine Regions/VLIZ maritime boundaries adapter，支援領海、EEZ、爭議區、公海圖層。
 6. 中期再補 advanced import policy：讓 power user 在保留既有 / rename 新 table / 明確 replace 之間選擇；預設仍應保持不覆蓋。
-8. 用 SQLite `dataset_asset_manifests` 做更廣義的 update/dedupe 決策；目前只完成同一 target 檔案的 manifest 重用。
-9. 維護 `docs/AGENT_HANDOFF.zh-TW.md` 作為開發接力主入口；未來若要做 `.codex/skills/apikeys-collection-launcher`，應等 MVP 閉環穩定後再產品化成消費端/操作端技能。
-10. 繼續減少 Tk UI 內的業務邏輯，讓 UI 主要負責呈現與觸發。
+7. 用 SQLite `dataset_asset_manifests` 做更廣義的 update/dedupe 決策；目前只完成同一 target 檔案的 manifest 重用。
+8. 維護 `docs/AGENT_HANDOFF.zh-TW.md` 作為開發接力主入口；未來若要做 `.codex/skills/apikeys-collection-launcher`，應等 MVP 閉環穩定後再產品化成消費端/操作端技能。
+9. 繼續減少 Tk UI 內的業務邏輯，讓 UI 主要負責呈現與觸發。
+10. 繼續依 `docs/WORKSPACE_LAYOUT.zh-TW.md` 拆分大型 `.py`：短期先拆 `core.py` / `dataset_sources.py` 的明確邊界，Tk UI 等 backend MVP 更穩後再重構。
 
 ## 開發守則
 
@@ -200,6 +207,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file handle、路徑與 `.pyc` 鎖。SQLite 短生命週期連線要用 contextlib.closing。
 
 目前第 1 項已經改成 crawler-first：provider/source discovery 找供應商與入口，dataset discovery sources 找資料集候選，adapter 只在 crawler 候選需要 bounded query/auth/transform/import 時才寫。請優先看 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/orchestrator.py`、`api_launcher/crawlers/dataset_sources.py`、`api_launcher/cli_dataset_discovery.py`、`api_launcher/plans.py`、`api_launcher/adapter_review.py`、`api_launcher/adapter_plan_resolver.py`、`api_launcher/importers/archive_importer.py`。Crawler candidates 已能用 `--export-candidate-plan` 轉成 dataset-version download/import plan；Tk UI cart 也已從 provider_id 級別提升到 dataset_uid/version plan item；`import_plan` 也已接成下載後 guided import，並能在 cart/job table 顯示匯入狀態與 table hint；table 衝突會安全自動改名；non-direct/transform-needed plan entry 已帶 `adapter_review` handoff，CLI/UI 都能列出 Adapter 待辦；`--resolve-adapter-plan` 與 UI `解析 Adapter 計畫` 可先把 CKAN-like resources 裡的 direct file URL 提升成 direct entries，也可把 ERDDAP metadata 轉成 bounded sample CSV entry；ZIP/TAR 壓縮包已有 bounded transform adapter。下一步重點是擴充更多 bounded API-query adapter。AIS 與衛星雲圖是代表測試案例，但不要再把每個資料集硬寫成 Python 類別。
+
+若要整理工作區或拆大型 `.py`，先讀 `docs/WORKSPACE_LAYOUT.zh-TW.md`，再跑 `conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這只產生盤點，不會搬檔；任何搬移/刪除前都要看 `git status --short` 並保護使用者/上一位 Agent 的未提交成果。
 
 注意：SQL-only connection layer 已被合併到 api_launcher/data_store_connections.py，不要重新建立 sql_connection_profiles 或 sql_connections.py。
 

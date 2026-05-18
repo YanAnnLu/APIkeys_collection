@@ -24,6 +24,9 @@ class HandoffTests(unittest.TestCase):
 
         self.assertIn("# APIkeys_collection Handoff", report)
         self.assertIn("providers:", report)
+        self.assertIn("Portal Intake / Local Discovery", report)
+        self.assertIn("portal_intake_actionable:", report)
+        self.assertIn("local_dataset_sources:", report)
         self.assertIn("py -m unittest discover -s tests", report)
 
 
