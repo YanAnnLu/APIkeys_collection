@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.adapters.gebco import GEBCOTopographyAdapter
 from api_launcher.adapters.hyg import HYGStarCatalogAdapter
@@ -426,6 +427,105 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertIn("/access/services/search/v1/data", resolved_entry["download_url"])
         self.assertIn("dataset=automatic-identification-system-ais", resolved_entry["download_url"])
         self.assertIn("limit=25", resolved_entry["download_url"])
+
+    def test_dataverse_candidate_plan_resolves_to_latest_version_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "dataverse_candidate_plan.json"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="harvard_dataverse:doi_10.7910_dvn_abc123",
+                        provider_id="harvard_dataverse",
+                        dataset_id="doi_10.7910_dvn_abc123",
+                        title="Example Dataverse dataset",
+                        categories=("dataverse", "research_data"),
+                        data_type="table",
+                        native_format="dataverse_dataset",
+                        geographic_scope="global",
+                        landing_url="https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/ABC123",
+                        api_url="https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/ABC123",
+                        version="1.0",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "harvard_dataverse_search",
+                            "discovery_source_type": "dataverse_search",
+                            "source_url": "https://dataverse.harvard.edu/api/search?q=ocean&type=dataset",
+                            "data_family": "table",
+                            "global_id": "doi:10.7910/DVN/ABC123",
+                            "file_count": 2,
+                        },
+                    )
+                )
+            finally:
+                conn.close()
+
+            with redirect_stdout(io.StringIO()):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--export-candidate-plan",
+                        str(plan_path),
+                        "--candidate-plan-status",
+                        "needs_review",
+                        "--candidate-plan-limit",
+                        "1",
+                    ]
+                )
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+            with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=dataverse_latest_version_payload()):
+                resolved_payload, resolution = resolve_adapter_review_plan_payload(
+                    payload,
+                    downloads_root=Path(tmpdir) / "downloads",
+                )
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["summary"]["review_required_count"])
+        self.assertEqual("dataverse_search", payload["providers"][0]["candidate_review"]["discovery_source_type"])
+        self.assertEqual(1, resolution.resolved_review_entries)
+        self.assertEqual(1, resolution.direct_entries_added)
+        resolved_entry = resolved_payload["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual(
+            "dataverse_latest_version_file_resolver",
+            resolved_entry["adapter_resolution"]["resolver_id"],
+        )
+        self.assertEqual("https://dataverse.harvard.edu/api/access/datafile/12345", resolved_entry["download_url"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".csv"))
+
+
+def dataverse_latest_version_payload() -> dict[str, object]:
+    return {
+        "status": "OK",
+        "data": {
+            "files": [
+                {
+                    "restricted": False,
+                    "dataFile": {
+                        "id": 12345,
+                        "filename": "observations.csv",
+                        "contentType": "text/csv",
+                        "filesize": 4096,
+                    },
+                },
+                {
+                    "restricted": False,
+                    "dataFile": {
+                        "id": 23456,
+                        "filename": "readme.html",
+                        "contentType": "text/html",
+                        "filesize": 2048,
+                    },
+                },
+            ]
+        },
+    }
 
 
 if __name__ == "__main__":

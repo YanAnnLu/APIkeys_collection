@@ -140,6 +140,61 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual(1, result.direct_entries_added)
         self.assertEqual("https://api.example.test/files/buoy.csv", resolved["providers"][0]["download_url"])
 
+    def test_dataverse_latest_version_promotes_small_csv_file_entry(self) -> None:
+        plan = {"providers": [dataverse_review_entry()]}
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=dataverse_latest_version_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        fetch.assert_called_once_with(
+            "https://dataverse.example.test/api/datasets/:persistentId/versions/:latest?persistentId=doi%3A10.7910%2FDVN%2FABC123"
+        )
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("dataverse_latest_version_file_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("https://dataverse.example.test/api/access/datafile/12345", entry["download_url"])
+        self.assertEqual("csv", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual(4096, entry["adapter_resolution"]["resource_size_bytes"])
+        self.assertTrue(entry["target_path"].endswith(".csv"))
+        self.assertNotIn("adapter_review", entry)
+
+    def test_dataverse_oversized_or_restricted_files_stay_in_adapter_review(self) -> None:
+        payload = {
+            "data": {
+                "files": [
+                    {
+                        "restricted": True,
+                        "dataFile": {
+                            "id": 1,
+                            "filename": "secret.csv",
+                            "contentType": "text/csv",
+                            "filesize": 1024,
+                        },
+                    },
+                    {
+                        "dataFile": {
+                            "id": 2,
+                            "filename": "huge.csv",
+                            "contentType": "text/csv",
+                            "filesize": 250_000_000,
+                        },
+                    },
+                ]
+            }
+        }
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=payload):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [dataverse_review_entry()]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertIn("adapter_review", resolved["providers"][0])
+
     def test_erddap_griddap_metadata_promotes_bounded_csv_sample_entry(self) -> None:
         plan = {"providers": [erddap_review_entry("griddap")]}
 
@@ -454,6 +509,42 @@ def erddap_review_entry(protocol: str) -> dict[str, object]:
     }
 
 
+def dataverse_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "harvard_dataverse",
+        "name": "Harvard Dataverse",
+        "dataset_uid": "harvard_dataverse:doi_10.7910_dvn_abc123",
+        "dataset_id": "doi_10.7910_dvn_abc123",
+        "dataset_title": "Example Dataverse dataset",
+        "categories": ["dataverse", "research_data"],
+        "geographic_scope": "global",
+        "download_eligibility": {"status": "adapter_required", "reason": "Dataverse files must be selected first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "harvard_dataverse_example"},
+        "dataset_version": {
+            "dataset_uid": "harvard_dataverse:doi_10.7910_dvn_abc123",
+            "dataset_id": "doi_10.7910_dvn_abc123",
+            "label": "discovered",
+            "version": "1.0",
+            "version_status": "unknown",
+            "download_url": "https://dataverse.example.test/dataset.xhtml?persistentId=doi:10.7910/DVN/ABC123",
+            "landing_url": "https://dataverse.example.test/dataset.xhtml?persistentId=doi:10.7910/DVN/ABC123",
+            "metadata": {
+                "native_format": "dataverse_dataset",
+                "data_family": "table",
+                "discovery_source_type": "dataverse_search",
+                "source_url": "https://dataverse.example.test/api/search?q=ocean&type=dataset",
+                "global_id": "doi:10.7910/DVN/ABC123",
+                "file_count": 2,
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "harvard_dataverse_adapter",
+            "source_url": "https://dataverse.example.test/dataset.xhtml?persistentId=doi:10.7910/DVN/ABC123",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
 def stac_review_entry() -> dict[str, object]:
     return {
         "provider_id": "earth_search_stac",
@@ -637,6 +728,40 @@ def erddap_info_payload() -> dict[str, object]:
                 ["variable", "sea_water_salinity", "", "float", ""],
             ],
         }
+    }
+
+
+def dataverse_latest_version_payload() -> dict[str, object]:
+    return {
+        "status": "OK",
+        "data": {
+            "id": 99,
+            "versionNumber": 1,
+            "versionMinorNumber": 0,
+            "files": [
+                {
+                    "label": "observations.csv",
+                    "restricted": False,
+                    "dataFile": {
+                        "id": 12345,
+                        "filename": "observations.csv",
+                        "contentType": "text/csv",
+                        "filesize": 4096,
+                        "persistentId": "doi:10.7910/DVN/ABC123/FILE1",
+                    },
+                },
+                {
+                    "label": "readme.html",
+                    "restricted": False,
+                    "dataFile": {
+                        "id": 23456,
+                        "filename": "readme.html",
+                        "contentType": "text/html",
+                        "filesize": 2048,
+                    },
+                },
+            ],
+        },
     }
 
 
