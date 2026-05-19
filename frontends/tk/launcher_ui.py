@@ -4693,10 +4693,53 @@ class ApiCollectionUi:
             ttk.Button(buttons, text=self.tr("儲存並重新自檢", "Save and recheck"), style="Action.TButton", command=save_connection_metadata).pack(side=RIGHT)
             ttk.Button(buttons, text=self.tr("取消", "Cancel"), style="Action.TButton", command=editor.destroy).pack(side=RIGHT, padx=(0, 10))
 
+        def unmanage_selected_database_asset() -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo(self.tr("資料庫資產", "Database asset"), self.tr("請先選取一列資料庫問題。", "Select a database row first."))
+                return
+            if not messagebox.askyesno(
+                self.tr("停止追蹤資料庫資產", "Stop tracking database asset"),
+                self.tr(
+                    (
+                        f"要停止追蹤這筆資料庫資產嗎？\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        "這只會把 launcher registry 裡的單一資產標成 unmanaged，"
+                        "不會刪除資料庫、DROP table，或移動任何檔案。"
+                    ),
+                    (
+                        f"Stop tracking this database asset?\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        "This only marks one registry asset as unmanaged. It will not delete a database, DROP a table, or move files."
+                    ),
+                ),
+                parent=dialog,
+            ):
+                return
+            conn = self._connect()
+            try:
+                repository = core.ApiCatalogRepository(conn)
+                changed = repository.unmanage_database_asset(selected.asset_id)
+            finally:
+                conn.close()
+            if not changed:
+                messagebox.showerror(
+                    self.tr("資料庫資產", "Database asset"),
+                    self.tr("找不到這筆資料庫資產，可能已被其他流程更新。", "The database asset was not found; it may have been updated elsewhere."),
+                    parent=dialog,
+                )
+                return
+            dialog.destroy()
+            self.reload_data()
+            self.status_var.set(self.tr("已停止追蹤選取的資料庫資產，正在重新自檢。", "Selected database asset is now unmanaged; rerunning self-check."))
+            self.open_repair_panel()
+
         ttk.Button(actions, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("重新排下載", "Requeue selected download"), style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示資料庫建議", "Show database suggestion"), style="Action.TButton", command=show_selected_database_suggestion).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("調整資料庫連線", "Edit database connection"), style="Action.TButton", command=edit_selected_database_connection).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("停止追蹤", "Stop tracking"), style="Action.TButton", command=unmanage_selected_database_asset).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("資料儲存設定", "Data-store settings"), style="Action.TButton", command=self.open_data_store_connection_settings).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟下載資料夾", "Open downloads folder"), style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)

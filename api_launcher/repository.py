@@ -974,6 +974,98 @@ class ApiCatalogRepository:
         self.conn.commit()
         return cursor.rowcount > 0
 
+    def unmanage_database_asset(self, asset_id: str, notes: str = "") -> bool:
+        asset_id = asset_id.strip()
+        if not asset_id:
+            raise ValueError("asset_id is required")
+        now = utc_now_iso()
+        row = self.conn.execute(
+            """
+            SELECT pia.install_id, pi.provider_id
+            FROM provider_installation_assets pia
+            JOIN provider_installations pi ON pi.install_id = pia.install_id
+            WHERE pia.asset_id = ?
+              AND pia.asset_kind IN ('database', 'table')
+            """,
+            (asset_id,),
+        ).fetchone()
+        if row is None:
+            return False
+        note_text = notes.strip() or "Unmanaged from database repair workflow; no database object was modified."
+        self.conn.execute(
+            """
+            UPDATE provider_installation_assets
+            SET status = 'unmanaged',
+                last_verified_at = '',
+                last_verify_error = '',
+                notes = ?,
+                updated_at = ?
+            WHERE asset_id = ?
+            """,
+            (note_text, now, asset_id),
+        )
+        self._refresh_installation_status_from_assets(row["install_id"], row["provider_id"], now)
+        self.conn.commit()
+        return True
+
+    def _refresh_installation_status_from_assets(self, install_id: str, provider_id: str, now: str) -> None:
+        rows = self.conn.execute(
+            """
+            SELECT status
+            FROM provider_installation_assets
+            WHERE install_id = ?
+              AND status IN ('managed', 'present', 'missing', 'error')
+            """,
+            (install_id,),
+        ).fetchall()
+        statuses = {row["status"] for row in rows}
+        if not statuses:
+            install_status = "unmanaged"
+        elif "error" in statuses:
+            install_status = "error"
+        elif "missing" in statuses:
+            install_status = "missing"
+        else:
+            install_status = "managed"
+        self.conn.execute(
+            """
+            UPDATE provider_installations
+            SET status = ?, updated_at = ?
+            WHERE install_id = ?
+            """,
+            (install_status, now, install_id),
+        )
+        provider_rows = self.conn.execute(
+            """
+            SELECT status
+            FROM provider_installations
+            WHERE provider_id = ?
+              AND status IN ('managed', 'missing', 'error')
+            """,
+            (provider_id,),
+        ).fetchall()
+        provider_statuses = {provider_row["status"] for provider_row in provider_rows}
+        if not provider_statuses:
+            local_status = "not_imported"
+        elif "error" in provider_statuses:
+            local_status = "error"
+        elif "missing" in provider_statuses:
+            local_status = "missing"
+        else:
+            local_status = "imported"
+        self.conn.execute(
+            """
+            INSERT INTO provider_download_state (
+                provider_id, local_status, update_status, updated_at
+            ) VALUES (?, ?, 'unknown', ?)
+            ON CONFLICT(provider_id) DO UPDATE SET
+                local_status = excluded.local_status,
+                update_status = excluded.update_status,
+                updated_at = excluded.updated_at
+            """,
+            (provider_id, local_status, now),
+        )
+
     def register_provider_database_asset(
         self,
         provider_id: str,

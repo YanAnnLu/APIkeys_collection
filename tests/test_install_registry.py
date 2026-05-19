@@ -235,6 +235,75 @@ class InstallRegistryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.repo.update_database_asset_connection_metadata(asset_id, schema_name="public;drop")
 
+    def test_unmanage_database_asset_removes_it_from_self_check_scope(self) -> None:
+        asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="sqlite",
+            database_name="asset.sqlite",
+            table_name="missing_station",
+            source_uri=str(Path(self.tmpdir.name) / "asset.sqlite"),
+        )
+        self.repo.verify_provider_assets(verifier=StaticVerifier("missing"), asset_kinds=("database", "table"))
+
+        changed = self.repo.unmanage_database_asset(asset_id)
+
+        self.assertTrue(changed)
+        self.assertEqual("unmanaged", self._asset_status(asset_id))
+        self.assertEqual("unmanaged", self._latest_installation_status())
+        self.assertEqual("not_imported", self._local_status())
+        self.assertEqual([], self.repo.managed_asset_records("sample_provider"))
+
+    def test_unmanage_database_asset_keeps_install_managed_when_other_assets_remain(self) -> None:
+        install_id = self.repo.manage_provider_installation("sample_provider", location="mixed")
+        file_asset_id = self.repo.register_installation_asset(
+            install_id,
+            asset_kind="file",
+            engine="filesystem",
+            asset_name="sample.csv",
+        )
+        table_asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="sqlite",
+            database_name="asset.sqlite",
+            table_name="missing_station",
+            source_uri=str(Path(self.tmpdir.name) / "asset.sqlite"),
+            location="mixed",
+        )
+        self.repo.verify_provider_assets(verifier=StaticVerifier("missing"), asset_kinds=("database", "table"))
+
+        changed = self.repo.unmanage_database_asset(table_asset_id)
+
+        self.assertTrue(changed)
+        self.assertEqual("managed", self._asset_status(file_asset_id))
+        self.assertEqual("unmanaged", self._asset_status(table_asset_id))
+        self.assertEqual("managed", self._installation_status(install_id))
+        self.assertEqual("imported", self._local_status())
+
+    def test_unmanage_database_asset_preserves_provider_state_when_other_install_remains(self) -> None:
+        file_install_id = self.repo.manage_provider_installation("sample_provider", location="file-export")
+        self.repo.register_installation_asset(
+            file_install_id,
+            asset_kind="file",
+            engine="filesystem",
+            asset_name="sample.csv",
+        )
+        table_asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="sqlite",
+            database_name="asset.sqlite",
+            table_name="missing_station",
+            source_uri=str(Path(self.tmpdir.name) / "asset.sqlite"),
+            location="database-export",
+        )
+        self.repo.verify_provider_assets(verifier=StaticVerifier("missing"), asset_kinds=("database", "table"))
+
+        changed = self.repo.unmanage_database_asset(table_asset_id)
+
+        self.assertTrue(changed)
+        self.assertEqual("managed", self._installation_status(file_install_id))
+        self.assertEqual("unmanaged", self._asset_status(table_asset_id))
+        self.assertEqual("imported", self._local_status())
+
     def test_verify_assets_marks_missing_database(self) -> None:
         self.repo.register_provider_database_asset(
             "sample_provider",

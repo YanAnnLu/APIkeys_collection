@@ -79,8 +79,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also
-  update a selected database/table asset's `data_store_profile_id` and `schema_name`, then rerun self-check. This only
-  changes launcher registry metadata and does not execute destructive SQL. UI language is configurable through
+  update a selected database/table asset's `data_store_profile_id` and `schema_name`, or stop tracking a selected
+  database/table asset by marking only that registry asset `unmanaged`, then rerun self-check. These actions only
+  change launcher registry metadata and do not execute destructive SQL. UI language is configurable through
   `ui_language` in local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
   `state/favicons/`. The main table can optionally show crawler-imported dataset rows under each provider, so dataset
@@ -261,7 +262,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 ## Next Build Target
 
 1. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
-2. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
+2. Turn restore/reimport database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
 3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
