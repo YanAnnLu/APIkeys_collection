@@ -19,7 +19,7 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 52 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, DataCite, Canada/UK/Australia/HDX CKAN portals, and NYC/DataSF/Chicago Socrata portals.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 54 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, DataCite, OpenAlex, WMO WIS2 Global Discovery Catalogue, Canada/UK/Australia/HDX CKAN portals, and NYC/DataSF/Chicago Socrata portals.
 - `APIkeys_collection_ui.py` is now a compatibility wrapper for the Tk launcher implementation in
   `frontends/tk/launcher_ui.py`.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.

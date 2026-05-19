@@ -1033,6 +1033,27 @@
     "notes": "OpenAlex Works metadata source filtered to type:dataset. Use it to discover research dataset candidates, then review DOI/landing-page resources before download."
   },
   {
+    "provider_id": "wmo_wis2_gdc",
+    "name": "WMO WIS2 Global Discovery Catalogue",
+    "owner": "World Meteorological Organization / Environment and Climate Change Canada",
+    "categories": [
+      "weather",
+      "meteorology",
+      "ogc_api_records",
+      "metadata",
+      "wis2"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://wis2-gdc.readthedocs.io/en/latest/api.html",
+    "api_base_url": "https://wis2-gdc.weather.gc.ca/collections/wis2-discovery-metadata/items",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "",
+    "notes": "OGC API Records catalogue for WIS2 discovery metadata. Treat records as metadata candidates; actual data access may need a later bounded adapter per link/provider."
+  },
+  {
     "provider_id": "world_bank_indicators",
     "name": "World Bank Indicators API",
     "owner": "World Bank",

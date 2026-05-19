@@ -168,5 +168,6 @@ osm_overpass | no_key_but_rate_limited | https://dev.overpass-api.de/overpass-do
 sf_open_data_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
 uk_data_gov_ckan | no_key_for_public_metadata | https://docs.ckan.org/en/latest/api/
 usgs_earthquake | no_key | https://earthquake.usgs.gov/fdsnws/event/1/
+wmo_wis2_gdc | no_key_for_public_metadata | https://wis2-gdc.readthedocs.io/en/latest/api.html
 world_bank_indicators | no_key | https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation
 zenodo | no_key_for_public_metadata | https://developers.zenodo.org/

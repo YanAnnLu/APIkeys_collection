@@ -53,5 +53,6 @@
 | U.S. Census TIGERweb GeoServices (`us_census_tigerweb`) | gis, boundaries, census, vector, geoservices | api_key_may_be_required | [docs](https://www.census.gov/data/developers/guidance/api-user-guide.html) | [signup](https://api.census.gov/data/key_signup.html) |
 | USGS Earthquake Hazards Program API (`usgs_earthquake`) | earthquake, hazards, geophysics | no_key | [docs](https://earthquake.usgs.gov/fdsnws/event/1/) |  |
 | USGS EROS Machine-to-Machine API (`usgs_m2m`) | satellite, landsat, remote_sensing | account_token_required | [docs](https://m2m.cr.usgs.gov/) | [signup](https://ers.cr.usgs.gov/register/) |
+| WMO WIS2 Global Discovery Catalogue (`wmo_wis2_gdc`) | weather, meteorology, ogc_api_records, metadata, wis2 | no_key_for_public_metadata | [docs](https://wis2-gdc.readthedocs.io/en/latest/api.html) |  |
 | World Bank Indicators API (`world_bank_indicators`) | economics, development, population | no_key | [docs](https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation) |  |
 | Zenodo Records API (`zenodo`) | research_repository, doi, datasets, software, metadata | no_key_for_public_metadata | [docs](https://developers.zenodo.org/) | [signup](https://zenodo.org/signup/) |

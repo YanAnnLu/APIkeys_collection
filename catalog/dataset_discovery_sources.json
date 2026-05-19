@@ -527,6 +527,32 @@
       "geographic_scope": "global",
       "max_results": 8,
       "notes": "OpenAlex Works metadata filtered to type:dataset. Records are candidates only; DOI landing pages and repository resources still require review before download."
+    },
+    {
+      "source_id": "wmo_wis2_gdc_records",
+      "provider_id": "wmo_wis2_gdc",
+      "name": "WMO WIS2 Global Discovery Catalogue records",
+      "source_type": "ogc_api_records",
+      "endpoint_url": "https://wis2-gdc.weather.gc.ca/collections/wis2-discovery-metadata/items",
+      "docs_url": "https://wis2-gdc.readthedocs.io/en/latest/api.html",
+      "search_terms": [
+        "synop",
+        "marine",
+        "satellite",
+        "radar",
+        "forecast"
+      ],
+      "categories": [
+        "wmo",
+        "wis2",
+        "ogc_api_records",
+        "weather",
+        "metadata"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "min_expected_candidates": 1,
+      "notes": "Public OGC API Records endpoint for WIS2 discovery metadata. Use this as a generic OGC records smoke source; keep actual data links behind adapter review."
     }
   ]
 }
