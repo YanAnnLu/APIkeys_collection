@@ -269,7 +269,20 @@ def resource_mappings_from_candidate(candidate: object, group: str = "") -> list
 
 
 def resource_url(resource: dict[str, object]) -> str:
-    return first_text(resource.get("download_url"), resource.get("url"), resource.get("href"))
+    return first_text(
+        resource.get("download_url"),
+        resource.get("downloadURL"),
+        resource.get("downloadUrl"),
+        resource.get("downloadURI"),
+        resource.get("downloadUri"),
+        resource.get("contentUrl"),
+        resource.get("contentURL"),
+        resource.get("content_url"),
+        resource.get("fileUrl"),
+        resource.get("fileURL"),
+        resource.get("url"),
+        resource.get("href"),
+    )
 
 
 def direct_resource_entry(
@@ -2581,6 +2594,8 @@ def resource_size_bytes(resource: dict[str, object]) -> int | None:
         "size_bytes",
         "sizeInBytes",
         "SizeInBytes",
+        "byteSize",
+        "contentSize",
     ):
         value = resource.get(key)
         if value in ("", None):
@@ -2607,7 +2622,15 @@ def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:
 
 
 def source_format_for_resource(resource: dict[str, object], url: str, fallback: str = "unknown") -> str:
-    hinted = normalize_resource_format(first_text(resource.get("format"), resource.get("mimetype"), resource.get("media_type"), resource.get("type")))
+    hinted = normalize_resource_format(
+        first_text(
+            resource.get("format"),
+            resource.get("mimetype"),
+            resource.get("media_type"),
+            resource.get("encodingFormat"),
+            resource.get("type"),
+        )
+    )
     inferred = source_format_from_url(url)
     if inferred in {"csv.gz", "csv.zst", "tar.gz", "zip", "zst", "gz", "xz", "bz2"}:
         return inferred

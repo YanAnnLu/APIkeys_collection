@@ -88,6 +88,50 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("https://zenodo.example.test/api/records/1/files/sample.csv/content", entry["download_url"])
         self.assertEqual(2048, entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_dcat_download_url_promotes_direct_csv_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "DCAT CSV export",
+                "format": "text/csv",
+                "downloadURL": "https://data.example.test/exports/sample.csv",
+                "byteSize": 2048,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/exports/sample.csv", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual(2048, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
+    def test_schema_org_content_url_promotes_direct_json_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "Schema.org JSON sample",
+                "encodingFormat": "application/json",
+                "contentUrl": "https://data.example.test/exports/sample.json",
+                "contentSize": "4096",
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/exports/sample.json", resolved_entry["download_url"])
+        self.assertEqual("json", resolved_entry["source_format"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual(4096, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
     def test_datacite_doi_lookup_promotes_content_url_resource(self) -> None:
         entry = datacite_doi_review_entry()
 
