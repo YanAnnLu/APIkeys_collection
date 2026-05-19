@@ -279,7 +279,7 @@ state_file("APIkeys_collection.sqlite")
 
 Direct HTTP(S) 下載完成後會產生 sidecar manifest。健康 manifest 會被寫入 SQLite `dataset_asset_manifests`，並且可登錄成 install registry 裡的 managed `file` asset。這是目前 MVP 閉環的核心：下載檔案不只是落在 `downloads/`，還會有 manifest、checksum、provider/dataset/version/source metadata，以及本機 ownership 記錄。
 
-健康 manifest 也可以進一步匯入 curated SQLite table。CSV/CSV.GZ 走 `--import-csv-manifest`；JSON/JSONL/GeoJSON 走 `--import-json-manifest`。JSON 匯入目前支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列，以及基本 GeoJSON FeatureCollection；所有欄位先以 `TEXT` 存入 SQLite，欄名會正規化成安全 SQL identifier，並記錄 schema fingerprint。這仍是 MVP 級匯入，後續還需要 provider-specific 型別推論、欄位驗證、GIS/time-series 專用 importer。
+健康 manifest 也可以進一步匯入 curated SQLite table。CSV/CSV.GZ 走 `--import-csv-manifest`；JSON/JSONL/GeoJSON 走 `--import-json-manifest`。JSON 匯入目前支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列、NASA CMR 常見的 `feed.entry` 巢狀陣列，以及基本 GeoJSON FeatureCollection；所有欄位先以 `TEXT` 存入 SQLite，欄名會正規化成安全 SQL identifier，並記錄 schema fingerprint。這仍是 MVP 級匯入，後續還需要 provider-specific 型別推論、欄位驗證、GIS/time-series 專用 importer。
 
 下載政策可以在 `launcher_integrations.local.json` 覆寫，範例來源在 `config/launcher_integrations.example.json`：
 

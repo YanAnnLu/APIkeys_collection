@@ -19,6 +19,11 @@ from api_launcher.repository import ApiCatalogRepository
 from api_launcher.sql_assets import validate_sql_identifier
 
 
+NESTED_OBJECT_ARRAY_PATHS: tuple[tuple[str, ...], ...] = (
+    ("feed", "entry"),
+)
+
+
 @dataclass(frozen=True)
 class JsonImportResult:
     provider_id: str
@@ -229,8 +234,23 @@ def rows_from_json_value(value: object) -> tuple[list[dict[str, object]], str]:
             items = value.get(key)
             if isinstance(items, list):
                 return [normalize_json_row(item) for item in items], f"object_{key}_array"
+        for path in NESTED_OBJECT_ARRAY_PATHS:
+            items = nested_array_at_path(value, path)
+            if items is not None:
+                return [normalize_json_row(item) for item in items], f"object_{'_'.join(path)}_array"
         return [normalize_json_row(value)], "object"
     return [normalize_json_row(value)], "scalar"
+
+
+def nested_array_at_path(value: dict[str, object], path: tuple[str, ...]) -> list[object] | None:
+    current: object = value
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    if isinstance(current, list):
+        return current
+    return None
 
 
 def read_json_lines(path: Path) -> Iterable[dict[str, object]]:

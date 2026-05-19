@@ -175,6 +175,80 @@ class JsonImporterTests(unittest.TestCase):
             rows,
         )
 
+    def test_imports_cmr_feed_entry_array(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cmr_path = Path(tmpdir) / "cmr_granules.json"
+            cmr_path.write_text(
+                json.dumps(
+                    {
+                        "feed": {
+                            "title": "CMR Search Results",
+                            "entry": [
+                                {
+                                    "id": "G1000-LARC_CLOUD",
+                                    "title": "Granule one",
+                                    "updated": "2026-05-19T00:00:00Z",
+                                    "links": [
+                                        {
+                                            "rel": "http://esipfed.org/ns/fedsearch/1.1/data#",
+                                            "href": "https://example.test/granule-one.nc",
+                                        }
+                                    ],
+                                },
+                                {
+                                    "id": "G1001-LARC_CLOUD",
+                                    "title": "Granule two",
+                                    "updated": "2026-05-19T01:00:00Z",
+                                    "polygons": [["10 20 10 21 11 21 11 20 10 20"]],
+                                },
+                            ],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_path = write_manifest(
+                build_asset_manifest(cmr_path, json_plan_entry(dataset_id="cmr_granules")),
+                cmr_path.with_suffix(".json.manifest.json"),
+            )
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                result = import_json_manifest_to_sqlite(manifest_path, curated_db, repo)
+            finally:
+                conn.close()
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute(
+                    'SELECT id, title, updated, links, polygons FROM "cmr_granules_1_0" ORDER BY id'
+                ).fetchall()
+
+        self.assertEqual("object_feed_entry_array", result.source_shape)
+        self.assertEqual(2, result.rows_imported)
+        self.assertEqual(
+            [
+                (
+                    "G1000-LARC_CLOUD",
+                    "Granule one",
+                    "2026-05-19T00:00:00Z",
+                    '[{"href": "https://example.test/granule-one.nc", "rel": "http://esipfed.org/ns/fedsearch/1.1/data#"}]',
+                    "",
+                ),
+                (
+                    "G1001-LARC_CLOUD",
+                    "Granule two",
+                    "2026-05-19T01:00:00Z",
+                    "",
+                    '[["10 20 10 21 11 21 11 20 10 20"]]',
+                ),
+            ],
+            rows,
+        )
+
 
 def json_plan_entry(dataset_id: str = "hyg_sample") -> dict[str, object]:
     return {
