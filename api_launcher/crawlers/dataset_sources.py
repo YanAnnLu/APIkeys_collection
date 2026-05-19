@@ -47,6 +47,12 @@ from api_launcher.crawlers.ncei import (
     ncei_search_url,
     paginated_ncei_candidates,
 )
+from api_launcher.crawlers.ogc_records import (
+    ogc_records_candidates_for_source,
+    ogc_records_candidates_from_payload,
+    ogc_records_search_url,
+    paginated_ogc_records_candidates,
+)
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.stac import (
     paginated_stac_candidates,
@@ -110,6 +116,7 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
     "zenodo_records_search": zenodo_candidates_for_source,
     "ckan_package_search": ckan_candidates_for_source,
     "datacite_dois": datacite_candidates_for_source,
+    "ogc_api_records": ogc_records_candidates_for_source,
 }
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 

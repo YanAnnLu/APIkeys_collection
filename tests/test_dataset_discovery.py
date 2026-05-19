@@ -20,6 +20,8 @@ from api_launcher.dataset_discovery import (
     load_dataset_discovery_sources,
     ncei_candidates_from_payload,
     ncei_search_url,
+    ogc_records_candidates_from_payload,
+    ogc_records_search_url,
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
@@ -378,6 +380,58 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("netcdf", dataset.native_format)
         self.assertEqual("https://api.datacite.example.test/dois/10.1234%2Fexample.dataset", dataset.api_url)
         self.assertEqual("example.repo", dataset.metadata["client_id"])
+
+    def test_ogc_api_records_payload_becomes_reviewable_catalog_candidate(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="ogc_records_search",
+            provider_id="sample_geospatial_catalog",
+            name="Sample OGC API Records",
+            source_type="ogc_api_records",
+            endpoint_url="https://records.example.test/collections/metadata/items",
+            categories=("ogc", "records", "geospatial"),
+            geographic_scope="global",
+        )
+        payload = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "id": "cloud-raster-record",
+                    "geometry": {"type": "Polygon", "coordinates": []},
+                    "properties": {
+                        "title": "Global satellite cloud raster archive",
+                        "description": "Cloud imagery grids distributed as GeoTIFF and NetCDF.",
+                        "keywords": ["cloud", "satellite"],
+                        "themes": [{"title": "Earth observation"}],
+                        "formats": ["GeoTIFF", "NetCDF"],
+                        "updated": "2026-05-01T00:00:00Z",
+                        "time": {"interval": [["2020-01-01T00:00:00Z", "2026-01-01T00:00:00Z"]]},
+                        "license": "https://creativecommons.org/licenses/by/4.0/",
+                    },
+                    "links": [
+                        {"rel": "self", "href": "https://records.example.test/items/cloud-raster-record", "type": "application/geo+json"},
+                        {"rel": "alternate", "href": "https://records.example.test/catalog/cloud-raster-record", "type": "text/html"},
+                    ],
+                }
+            ],
+        }
+
+        candidates = ogc_records_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("sample_geospatial_catalog", dataset.provider_id)
+        self.assertEqual("cloud-raster-record", dataset.dataset_id)
+        self.assertEqual("raster_or_grid", dataset.metadata["data_family"])
+        self.assertEqual("netcdf", dataset.native_format)
+        self.assertEqual("Polygon", dataset.metadata["geometry_type"])
+        self.assertEqual("https://records.example.test/items/cloud-raster-record", dataset.api_url)
+
+    def test_ogc_api_records_search_url_uses_q_and_limit(self) -> None:
+        url = ogc_records_search_url("https://records.example.test/items?f=json", "cloud imagery", 25)
+
+        self.assertIn("f=json", url)
+        self.assertIn("limit=25", url)
+        self.assertIn("q=cloud+imagery", url)
 
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:
         source = DatasetDiscoverySource(
