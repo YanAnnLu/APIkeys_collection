@@ -1013,6 +1013,26 @@
     "notes": "Humanitarian CKAN catalog. License, sensitivity, and update cadence must be reviewed before installation."
   },
   {
+    "provider_id": "openalex",
+    "name": "OpenAlex Works API",
+    "owner": "OurResearch",
+    "categories": [
+      "research_metadata",
+      "open_catalog",
+      "datasets",
+      "doi"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://docs.openalex.org/api-entities/works",
+    "api_base_url": "https://api.openalex.org/works",
+    "signup_url": "",
+    "auth_type": "no_key_for_public_metadata",
+    "key_env_var": "",
+    "license_url": "https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication",
+    "terms_url": "https://openalex.org/about",
+    "notes": "OpenAlex Works metadata source filtered to type:dataset. Use it to discover research dataset candidates, then review DOI/landing-page resources before download."
+  },
+  {
     "provider_id": "world_bank_indicators",
     "name": "World Bank Indicators API",
     "owner": "World Bank",

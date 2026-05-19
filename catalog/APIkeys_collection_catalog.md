@@ -43,6 +43,7 @@
 | NYC Open Data Socrata Catalog (`nyc_open_data_socrata`) | open_data, government, socrata, city, metadata | no_key_for_public_metadata | [docs](https://dev.socrata.com/docs/) |  |
 | OECD Data API (`oecd_sdmx`) | economics, statistics, development | no_key | [docs](https://data-explorer.oecd.org/) |  |
 | Open-Meteo (`open_meteo`) | weather, climate, air_quality, marine | no_key_for_public_tier | [docs](https://open-meteo.com/en/docs) |  |
+| OpenAlex Works API (`openalex`) | research_metadata, open_catalog, datasets, doi | no_key_for_public_metadata | [docs](https://docs.openalex.org/api-entities/works) |  |
 | OpenAQ API (`openaq`) | air_quality, environment | api_key_may_be_required | [docs](https://docs.openaq.org/) | [signup](https://explore.openaq.org/) |
 | OpenSky Network API (`opensky_network`) | aviation, ads-b, traffic | account_optional_or_required_for_limits | [docs](https://openskynetwork.github.io/opensky-api/rest.html) | [signup](https://opensky-network.org/index.php?option=com_users&view=registration) |
 | OpenWeather (`openweathermap`) | weather, forecast, air_pollution | api_key_required | [docs](https://openweathermap.org/api) | [signup](https://home.openweathermap.org/users/sign_up) |

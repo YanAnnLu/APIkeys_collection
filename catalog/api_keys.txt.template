@@ -163,6 +163,7 @@ noaa_pmel_erddap | no_key_for_public_data | https://data.pmel.noaa.gov/pmel/erdd
 nyc_open_data_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
 oecd_sdmx | no_key | https://data-explorer.oecd.org/
 open_meteo | no_key_for_public_tier | https://open-meteo.com/en/docs
+openalex | no_key_for_public_metadata | https://docs.openalex.org/api-entities/works
 osm_overpass | no_key_but_rate_limited | https://dev.overpass-api.de/overpass-doc/en/
 sf_open_data_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
 uk_data_gov_ckan | no_key_for_public_metadata | https://docs.ckan.org/en/latest/api/

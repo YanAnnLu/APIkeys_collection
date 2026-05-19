@@ -503,6 +503,30 @@
       "geographic_scope": "global",
       "max_results": 8,
       "notes": "Humanitarian metadata source. Some datasets may be sensitive or frequently revised; review license and update cadence before install."
+    },
+    {
+      "source_id": "openalex_dataset_works_search",
+      "provider_id": "openalex",
+      "name": "OpenAlex Works dataset search",
+      "source_type": "openalex_works_search",
+      "endpoint_url": "https://api.openalex.org/works",
+      "docs_url": "https://docs.openalex.org/api-entities/works",
+      "search_terms": [
+        "climate",
+        "marine",
+        "satellite imagery",
+        "biodiversity",
+        "cultural heritage"
+      ],
+      "categories": [
+        "research_metadata",
+        "openalex",
+        "datasets",
+        "doi"
+      ],
+      "geographic_scope": "global",
+      "max_results": 8,
+      "notes": "OpenAlex Works metadata filtered to type:dataset. Records are candidates only; DOI landing pages and repository resources still require review before download."
     }
   ]
 }

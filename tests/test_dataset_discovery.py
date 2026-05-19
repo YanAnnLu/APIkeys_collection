@@ -22,6 +22,8 @@ from api_launcher.dataset_discovery import (
     ncei_search_url,
     ogc_records_candidates_from_payload,
     ogc_records_search_url,
+    openalex_candidates_from_payload,
+    openalex_works_search_url,
     socrata_catalog_candidates_from_payload,
     socrata_catalog_search_url,
     stac_candidates_from_payload,
@@ -113,6 +115,58 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("spatiotemporal_trajectory", dataset.metadata["data_family"])
         self.assertEqual("csv", dataset.native_format)
         self.assertEqual("needs_review", dataset.metadata["candidate_status"])
+
+    def test_openalex_payload_becomes_reviewable_dataset_candidate(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="openalex_dataset_works_search",
+            provider_id="openalex",
+            name="OpenAlex dataset works",
+            source_type="openalex_works_search",
+            endpoint_url="https://api.openalex.org/works",
+            categories=("research_metadata", "openalex"),
+            geographic_scope="global",
+        )
+        payload = {
+            "meta": {"count": 1, "next_cursor": "abc"},
+            "results": [
+                {
+                    "id": "https://openalex.org/W1650569836",
+                    "doi": "https://doi.org/10.1163/example",
+                    "display_name": "Climate Change Synthesis Report Dataset",
+                    "type": "dataset",
+                    "publication_year": 2024,
+                    "publication_date": "2024-01-01",
+                    "updated_date": "2024-05-01T00:00:00.000Z",
+                    "primary_location": {
+                        "landing_page_url": "https://doi.org/10.1163/example",
+                        "source": {"display_name": "Example Repository"},
+                    },
+                    "open_access": {"is_oa": True, "oa_status": "gold"},
+                    "cited_by_count": 12,
+                    "authorships": [
+                        {
+                            "author": {"display_name": "Ada Researcher"},
+                            "institutions": [{"display_name": "Example University"}],
+                        }
+                    ],
+                    "concepts": [{"display_name": "Climate change"}, {"display_name": "Satellite imagery"}],
+                    "keywords": [{"keyword": "raster"}, {"keyword": "climate"}],
+                }
+            ],
+        }
+
+        candidates = openalex_candidates_from_payload(source, payload, "https://api.openalex.org/works?filter=type:dataset", 5)
+
+        self.assertEqual(1, len(candidates))
+        dataset = candidates[0].dataset
+        self.assertEqual("openalex", dataset.provider_id)
+        self.assertEqual("10.1163_example", dataset.dataset_id)
+        self.assertEqual("raster_or_grid", dataset.metadata["data_family"])
+        self.assertEqual("openalex_work", dataset.native_format)
+        self.assertEqual("needs_review", dataset.metadata["candidate_status"])
+        self.assertEqual("https://api.openalex.org/works/W1650569836", dataset.api_url)
+        self.assertEqual(("Ada Researcher",), dataset.metadata["authors"])
+        self.assertEqual(("Example University",), dataset.metadata["institutions"])
 
     def test_erddap_all_datasets_payload_can_be_filtered_by_terms(self) -> None:
         source = DatasetDiscoverySource(
@@ -667,6 +721,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
     def test_search_url_and_family_inference_are_stable(self) -> None:
         self.assertIn("text=cloud+moisture", ncei_search_url("https://example.test/search", "cloud moisture", 3))
         self.assertIn("offset=100", ncei_search_url("https://example.test/search", "cloud moisture", 100, offset=100))
+        self.assertIn("filter=type%3Adataset", openalex_works_search_url("https://api.openalex.org/works", "climate", 3))
+        self.assertIn("per-page=3", openalex_works_search_url("https://api.openalex.org/works", "climate", 3))
         self.assertIn("query=cloud+moisture", datacite_dois_search_url("https://example.test/dois", "cloud moisture", 3))
         self.assertIn("resource-type-id=dataset", datacite_dois_search_url("https://example.test/dois", "cloud moisture", 3))
         self.assertEqual("raster_or_grid", infer_data_family("GOES cloud moisture imagery ABI raster"))

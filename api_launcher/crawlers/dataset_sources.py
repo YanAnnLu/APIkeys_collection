@@ -53,6 +53,13 @@ from api_launcher.crawlers.ogc_records import (
     ogc_records_search_url,
     paginated_ogc_records_candidates,
 )
+from api_launcher.crawlers.openalex import (
+    openalex_candidates_for_source,
+    openalex_candidates_from_payload,
+    openalex_payload_items,
+    openalex_works_search_url,
+    paginated_openalex_candidates,
+)
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.socrata import (
     paginated_socrata_catalog_candidates,
@@ -124,6 +131,7 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
     "datacite_dois": datacite_candidates_for_source,
     "ogc_api_records": ogc_records_candidates_for_source,
     "socrata_catalog_search": socrata_catalog_candidates_for_source,
+    "openalex_works_search": openalex_candidates_for_source,
 }
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 
