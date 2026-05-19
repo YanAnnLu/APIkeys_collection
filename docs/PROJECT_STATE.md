@@ -136,8 +136,9 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
   provider plans, adapter-discovered dataset-version plans, and crawler-candidate plans with direct/review eligibility
   plus conservative `import_plan` hints for SQLite MVP importers.
 - `api_launcher/adapter_review.py` and `adapter_plan_resolver.py`: adapter handoff queues plus a bounded resolver that
-  turns CKAN-like direct file resources into executable plan entries and can do one bounded CKAN `package_show`
-  metadata lookup when the plan only has a package API URL.
+  turns CKAN-like direct file resources into executable plan entries, can do one bounded CKAN `package_show`
+  metadata lookup when the plan only has a package API URL, and can turn ERDDAP/STAC/Socrata API entries into small
+  sample download plans.
 - `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
@@ -197,8 +198,11 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   metadata lookup when the plan has only a package API URL. It also scans NCEI/CMR/STAC-like `links` metadata for direct
   file URLs. ERDDAP metadata with `erddap_protocols` can be turned into a small CSV sample by reading the official
   `info/{dataset}/index.json`, using a 25-row limit or minimum grid slice so the MVP can download/import a sample
-  without pretending to bulk install the whole dataset. HTML/API/unknown resources remain in review. Tk UI exposes the
-  same flow through `解析 Adapter 計畫` and the Adapter review panel.
+  without pretending to bulk install the whole dataset. STAC collections become `limit=1` item-search GeoJSON samples.
+  Socrata/SODA v2-style `/resource/{id}.json` or `/api/views/{id}` URLs become `$limit=25` JSON/CSV/GeoJSON samples,
+  and Socrata resource metadata is skipped by the generic direct-file resolver so it cannot accidentally become an
+  unbounded full-table download. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
+  `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
   into the existing SQLite import path. This keeps the MVP conservative while making simple archives actionable.

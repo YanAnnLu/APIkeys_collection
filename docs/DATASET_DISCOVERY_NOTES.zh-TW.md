@@ -161,6 +161,8 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 若 `adapter_required` 來自 CKAN/Data.gov 類平台，且 plan 只拿到 `package_show` URL，或只有 `package_search` URL 加 dataset id，`--resolve-adapter-plan` 現在可以只查一次單一 package metadata，再從 resources 裡挑安全的 direct file。這仍然是 bounded adapter：它不掃整個 CKAN catalog，也不下載 HTML 頁或大型未知資源。
 
+若候選來自 Socrata/SODA，resolver 目前只處理已能辨認的 v2-style resource 入口，例如 `/resource/abcd-1234.json`、`/resource/abcd-1234.csv`，或 metadata URL `/api/views/abcd-1234`。它會保留既有 `$select` 等查詢條件，再加上 `$limit=25`，產生一個小樣本 direct plan entry；泛用 direct-file resolver 會跳過這類 resource URL，避免把 `.json` API 當成完整檔案直接下載。SODA v3 token/query POST 形狀目前仍留在 adapter review，等 credential 與 query contract 明確後再做。
+
 `import_plan` 不是自動匯入，而是下一步提示：CSV/CSV.GZ 與 JSON/JSONL/GeoJSON 可在下載驗證後進入現有 SQLite MVP importer；CSV.ZST、ZIP、TAR 等壓縮包可下載但需要解壓或 adapter；API/入口頁仍需 adapter review。
 
 若計畫裡已有 direct entry，可用 CLI 執行：

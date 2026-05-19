@@ -196,6 +196,59 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertTrue(entry["target_path"].endswith(".geojson"))
         self.assertNotIn("adapter_review", entry)
 
+    def test_socrata_resource_url_promotes_bounded_json_sample_entry(self) -> None:
+        plan = {"providers": [socrata_review_entry("https://data.example.test/resource/abcd-1234.json?$select=name")]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("socrata_bounded_sample_query_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("https://data.example.test/resource/abcd-1234.json?$select=name&$limit=25", entry["download_url"])
+        self.assertEqual("json", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", entry["import_plan"]["importer"])
+        self.assertTrue(entry["target_path"].endswith(".json"))
+        self.assertNotIn("adapter_review", entry)
+
+    def test_socrata_api_view_url_promotes_resource_json_sample(self) -> None:
+        plan = {"providers": [socrata_review_entry("https://data.example.test/api/views/abcd-1234")]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/resource/abcd-1234.json?$limit=25", entry["download_url"])
+        self.assertEqual("abcd-1234", entry["adapter_resolution"]["socrata_dataset_id"])
+        self.assertEqual(25, entry["adapter_resolution"]["sample_limit"])
+
+    def test_socrata_domain_metadata_promotes_resource_json_sample(self) -> None:
+        plan = {"providers": [socrata_review_entry("")]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/resource/abcd-1234.json?$limit=25", entry["download_url"])
+        self.assertEqual("socrata_bounded_sample_query_resolver", entry["adapter_resolution"]["resolver_id"])
+
+    def test_socrata_resource_metadata_is_bounded_before_direct_download(self) -> None:
+        entry = socrata_review_entry("")
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {"name": "SODA JSON API", "format": "JSON", "url": "https://data.example.test/resource/abcd-1234.json"}
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("socrata_bounded_sample_query_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("https://data.example.test/resource/abcd-1234.json?$limit=25", resolved_entry["download_url"])
+
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
 
@@ -349,6 +402,40 @@ def stac_review_entry() -> dict[str, object]:
         "adapter_review": {
             "adapter_id": "earth_search_stac_adapter",
             "source_url": "https://stac.example.test/collections/sentinel-2-l2a/items",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def socrata_review_entry(source_url: str) -> dict[str, object]:
+    return {
+        "provider_id": "socrata_demo",
+        "name": "Socrata Demo",
+        "dataset_uid": "socrata_demo:abcd-1234",
+        "dataset_id": "abcd-1234",
+        "dataset_title": "Socrata sample permits",
+        "categories": ["open_data", "socrata"],
+        "geographic_scope": "city",
+        "download_eligibility": {"status": "adapter_required", "reason": "SODA query must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "socrata_demo_abcd_1234"},
+        "dataset_version": {
+            "dataset_uid": "socrata_demo:abcd-1234",
+            "dataset_id": "abcd-1234",
+            "label": "discovered",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": source_url,
+            "landing_url": "https://data.example.test/d/GHIJ-5678",
+            "metadata": {
+                "native_format": "socrata",
+                "data_family": "table",
+                "socrata_dataset_id": "abcd-1234",
+                "socrata_domain": "data.example.test",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "socrata_demo_adapter",
+            "source_url": source_url,
             "required_action": "resolve_source_to_direct_download_entries",
         },
     }
