@@ -9,6 +9,7 @@ from pathlib import Path
 
 from api_launcher.adapters.gebco import GEBCOTopographyAdapter
 from api_launcher.adapters.hyg import HYGStarCatalogAdapter
+from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.core import main
 from api_launcher.db import connect_db
@@ -280,6 +281,79 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual("noaa_marinecadastre_ais", payload["providers"][0]["provider_id"])
         self.assertIsNotNone(planned)
         self.assertEqual("planned", planned.metadata["candidate_status"])
+
+    def test_socrata_candidate_plan_resolves_to_bounded_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "socrata_candidate_plan.json"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="nyc_open_data_socrata:t29m-gskq",
+                        provider_id="nyc_open_data_socrata",
+                        dataset_id="t29m-gskq",
+                        title="2018 Yellow Taxi Trip Data",
+                        categories=("open_data", "socrata", "taxi"),
+                        data_type="timeseries",
+                        native_format="socrata_resource",
+                        geographic_scope="nyc/us",
+                        landing_url="https://data.cityofnewyork.us/d/t29m-gskq",
+                        api_url="https://data.cityofnewyork.us/api/views/t29m-gskq",
+                        version="2019-04-05T15:42:41.000Z",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "nyc_open_data_socrata_catalog",
+                            "discovery_source_type": "socrata_catalog_search",
+                            "source_url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofnewyork.us&q=taxi",
+                            "data_family": "timeseries",
+                            "socrata_dataset_id": "t29m-gskq",
+                            "socrata_domain": "data.cityofnewyork.us",
+                            "socrata_api_view_url": "https://data.cityofnewyork.us/api/views/t29m-gskq",
+                            "socrata_resource_url": "https://data.cityofnewyork.us/resource/t29m-gskq.json",
+                        },
+                    )
+                )
+            finally:
+                conn.close()
+
+            with redirect_stdout(io.StringIO()):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--export-candidate-plan",
+                        str(plan_path),
+                        "--candidate-plan-status",
+                        "needs_review",
+                        "--candidate-plan-limit",
+                        "1",
+                    ]
+                )
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+            resolved_payload, resolution = resolve_adapter_review_plan_payload(
+                payload,
+                downloads_root=Path(tmpdir) / "downloads",
+            )
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["summary"]["review_required_count"])
+        self.assertEqual("adapter_required", payload["providers"][0]["download_eligibility"]["status"])
+        self.assertEqual("socrata_catalog_search", payload["providers"][0]["candidate_review"]["discovery_source_type"])
+        self.assertEqual(1, resolution.resolved_review_entries)
+        self.assertEqual(1, resolution.direct_entries_added)
+        resolved_entry = resolved_payload["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual(
+            "socrata_bounded_sample_query_resolver",
+            resolved_entry["adapter_resolution"]["resolver_id"],
+        )
+        self.assertIn("/resource/t29m-gskq.json", resolved_entry["download_url"])
+        self.assertIn("$limit=25", resolved_entry["download_url"])
 
 
 if __name__ == "__main__":
