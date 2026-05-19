@@ -175,7 +175,7 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 若 plan 已經進到 NOAA/NCEI Access Data Service 的 `/access/services/data/v1`，resolver 現在只會在查詢同時具備 dataset、startDate、endDate、站點/框選/位置等空間條件，且日期跨度不超過 7 天時，才把它提升成 CSV/JSON 小樣本 direct entry。沒有時間或空間邊界的 Access Data 查詢會留在 adapter review，避免把看似 API URL 的大範圍資料誤當成安全下載。
 
-若候選來自 NASA CMR collection search，`api_launcher/adapter_plan_resolver.py` 現在可以把 `cmr_concept_id` / `collection_concept_id` 轉成 `/search/granules.json?collection_concept_id=...&page_size=1` 的 JSON metadata sample。這只下載一筆 granule metadata，用來打通 `candidate -> plan -> resolver -> JSON manifest/import` 的 MVP 小閉環；它不下載 HDF/NetCDF/COG 等真正衛星資料資產。CMR 的 `granules.json` 雖然網址以 `.json` 結尾，也仍被視為 API endpoint，必須先經 bounded resolver，不可直接當成任意檔案下載。JSON importer 也已能把 CMR 回應裡的 `feed.entry` 攤成 SQLite 資料列。
+若候選來自 NASA CMR collection search，`api_launcher/adapter_plan_resolver.py` 現在可以把 `cmr_concept_id` / `collection_concept_id` 轉成 `/search/granules.json?collection_concept_id=...&page_size=1` 的 JSON metadata sample。這只下載一筆 granule metadata，用來打通 `candidate -> plan -> resolver -> JSON manifest/import` 的 MVP 小閉環；它不直接下載整批 HDF/NetCDF/COG 等衛星科學資料資產。若 plan 已經是單筆 CMR granule metadata，resolver 也可以只查一次 CMR concept/granules JSON，從 `links` 裡挑明確 `data` / `download` / `enclosure` rel、格式可辨識、未宣告超過 100MB 的檔案連結。CMR 的 `granules.json` 雖然網址以 `.json` 結尾，也仍被視為 API endpoint，必須先經 bounded resolver，不可直接當成任意檔案下載。JSON importer 也已能把 CMR 回應裡的 `feed.entry` 攤成 SQLite 資料列。
 
 若候選來自 OGC API Records，例如 WMO WIS2 catalog，resolver 會保守處理 record links：`self`、`alternate`、`canonical`、`describedby`、`items`、`related` 等 rel 代表 metadata/navigation/broker 入口，不會因為 URL 或 media type 看起來像 GeoJSON 就被提升成 direct download；只有 `data` / `download` 這類明確資料連結才可進入 generic direct-resource resolver。
 

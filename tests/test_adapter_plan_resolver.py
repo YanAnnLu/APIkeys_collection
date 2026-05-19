@@ -42,7 +42,8 @@ class AdapterPlanResolverTests(unittest.TestCase):
         metadata["resources"] = [{"name": "HTML landing", "format": "HTML", "url": "https://example.test/page"}]
         metadata.pop("links", None)
 
-        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", side_effect=AssertionError("unexpected fetch")):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
 
         self.assertEqual(0, result.resolved_review_entries)
         self.assertEqual(1, result.unresolved_review_entries)
@@ -59,7 +60,8 @@ class AdapterPlanResolverTests(unittest.TestCase):
         ]
         metadata.pop("links", None)
 
-        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", side_effect=AssertionError("unexpected fetch")):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
 
         self.assertEqual(0, result.direct_entries_added)
         self.assertEqual(1, result.unresolved_review_entries)
@@ -338,7 +340,8 @@ class AdapterPlanResolverTests(unittest.TestCase):
             },
         ]
 
-        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", side_effect=AssertionError("unexpected fetch")):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
 
         self.assertEqual(0, result.direct_entries_added)
         self.assertEqual(1, result.unresolved_review_entries)
@@ -377,6 +380,36 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
         self.assertEqual("generic_resource_direct_download_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
         self.assertNotIn("adapter_review", resolved_entry)
+
+    def test_cmr_granule_concept_lookup_promotes_explicit_data_asset(self) -> None:
+        entry = cmr_granule_review_entry()
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=cmr_granule_concept_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        fetch.assert_called_once_with("https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json")
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("cmr_granule_asset_link_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("explicit_cmr_granule_data_links_under_size_limit", resolved_entry["adapter_resolution"]["policy"])
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("https://data.example.test/granules/S6A_P4_2__LR_STD__sample", resolved_entry["download_url"])
+        self.assertEqual("netcdf", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertNotIn("adapter_review", resolved_entry)
+
+    def test_cmr_granule_concept_lookup_skips_oversized_data_asset(self) -> None:
+        entry = cmr_granule_review_entry()
+        payload = cmr_granule_concept_payload(size_bytes=250_000_000)
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=payload):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertIn("adapter_review", resolved["providers"][0])
 
     def test_socrata_resource_url_promotes_bounded_json_sample_entry(self) -> None:
         plan = {"providers": [socrata_review_entry("https://data.example.test/resource/abcd-1234.json?$select=name")]}
@@ -817,6 +850,26 @@ def cmr_granule_review_entry() -> dict[str, object]:
             "source_url": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
             "required_action": "resolve_source_to_direct_download_entries",
         },
+    }
+
+
+def cmr_granule_concept_payload(size_bytes: int = 4096) -> dict[str, object]:
+    return {
+        "concept-id": "G1234567890-POCLOUD",
+        "links": [
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/metadata#",
+                "type": "application/json",
+                "href": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
+            },
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/data#",
+                "title": "Sentinel-6 sample NetCDF",
+                "type": "application/x-netcdf",
+                "href": "https://data.example.test/granules/S6A_P4_2__LR_STD__sample",
+                "sizeInBytes": size_bytes,
+            },
+        ],
     }
 
 
