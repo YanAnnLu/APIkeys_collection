@@ -105,6 +105,54 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("geojson", resolved_entry["source_format"])
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
 
+    def test_ogc_records_metadata_links_stay_in_adapter_review(self) -> None:
+        entry = ogc_records_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["links"] = [
+            {
+                "rel": "self",
+                "type": "application/geo+json",
+                "href": "https://records.example.test/items/cloud-raster-record.geojson",
+            },
+            {
+                "rel": "alternate",
+                "type": "text/html",
+                "href": "https://records.example.test/catalog/cloud-raster-record",
+            },
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertEqual(1, resolved["summary"]["review_required_count"])
+        self.assertIn("adapter_review", resolved["providers"][0])
+        self.assertIn("resources=2", result.warnings[0])
+
+    def test_ogc_records_data_link_can_promote_direct_geojson_entry(self) -> None:
+        entry = ogc_records_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["links"] = [
+            {
+                "rel": "self",
+                "type": "application/geo+json",
+                "href": "https://records.example.test/items/cloud-raster-record.geojson",
+            },
+            {
+                "rel": "data",
+                "type": "application/geo+json",
+                "href": "https://data.example.test/cloud-raster-sample.geojson",
+            },
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/cloud-raster-sample.geojson", resolved_entry["download_url"])
+        self.assertEqual("geojson", resolved_entry["source_format"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+
     def test_ckan_package_show_api_promotes_direct_resource_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
@@ -490,6 +538,41 @@ def ckan_review_entry() -> dict[str, object]:
         "adapter_review": {
             "adapter_id": "data_gov_adapter",
             "source_url": "https://api.example.test/action/package_show?id=ocean-buoy-observations",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def ogc_records_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "wmo_wis2_gdc",
+        "name": "WMO WIS2 Global Discovery Catalogue",
+        "dataset_uid": "wmo_wis2_gdc:cloud-raster-record",
+        "dataset_id": "cloud-raster-record",
+        "dataset_title": "Global satellite cloud raster archive",
+        "categories": ["wmo", "wis2", "ogc_api_records", "weather"],
+        "geographic_scope": "global",
+        "source_format": "ogc_record",
+        "download_eligibility": {"status": "adapter_required", "reason": "OGC record links must be reviewed first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "wmo_wis2_cloud_raster_record"},
+        "dataset_version": {
+            "dataset_uid": "wmo_wis2_gdc:cloud-raster-record",
+            "dataset_id": "cloud-raster-record",
+            "label": "discovered",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": "https://records.example.test/collections/wis2-discovery-metadata/items?limit=1&q=cloud",
+            "landing_url": "https://records.example.test/catalog/cloud-raster-record",
+            "metadata": {
+                "native_format": "ogc_record",
+                "data_family": "raster_or_grid",
+                "discovery_source_type": "ogc_api_records",
+                "source_url": "https://records.example.test/collections/wis2-discovery-metadata/items?limit=1&q=cloud",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "wmo_wis2_gdc_adapter",
+            "source_url": "https://records.example.test/collections/wis2-discovery-metadata/items?limit=1&q=cloud",
             "required_action": "resolve_source_to_direct_download_entries",
         },
     }

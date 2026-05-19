@@ -187,6 +187,8 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 若候選來自 NASA CMR collection search，`api_launcher/adapter_plan_resolver.py` 現在可以把 `cmr_concept_id` / `collection_concept_id` 轉成 `/search/granules.json?collection_concept_id=...&page_size=1` 的 JSON metadata sample。這只下載一筆 granule metadata，用來打通 `candidate -> plan -> resolver -> JSON manifest/import` 的 MVP 小閉環；它不下載 HDF/NetCDF/COG 等真正衛星資料資產。CMR 的 `granules.json` 雖然網址以 `.json` 結尾，也仍被視為 API endpoint，必須先經 bounded resolver，不可直接當成任意檔案下載。JSON importer 也已能把 CMR 回應裡的 `feed.entry` 攤成 SQLite 資料列。
 
+若候選來自 OGC API Records，例如 WMO WIS2 catalog，resolver 會保守處理 record links：`self`、`alternate`、`canonical`、`describedby`、`items`、`related` 等 rel 代表 metadata/navigation/broker 入口，不會因為 URL 或 media type 看起來像 GeoJSON 就被提升成 direct download；只有 `data` / `download` 這類明確資料連結才可進入 generic direct-resource resolver。
+
 `import_plan` 不是自動匯入，而是下一步提示：CSV/CSV.GZ 與 JSON/JSONL/GeoJSON 可在下載驗證後進入現有 SQLite MVP importer；CSV.ZST、ZIP、TAR 等壓縮包可下載但需要解壓或 adapter；API/入口頁仍需 adapter review。
 
 若計畫裡已有 direct entry，可用 CLI 執行：

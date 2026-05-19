@@ -157,6 +157,8 @@ def direct_resource_entries_for_plan_entry(
             continue
         if entry_is_stac_collection(entry) and resource_is_stac_items_link(resource, url):
             continue
+        if resource_is_ogc_records_metadata_link(entry, resource):
+            continue
         if resource_is_socrata_api_url(url):
             continue
         if resource_is_ncei_access_data_url(url):
@@ -1808,6 +1810,38 @@ def resource_is_stac_items_link(resource: dict[str, object], url: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     path = parsed.path.rstrip("/").lower()
     return path.endswith("/items") or "/items/" in path
+
+
+def resource_is_ogc_records_metadata_link(entry: dict[str, object], resource: dict[str, object]) -> bool:
+    if not entry_is_ogc_records_candidate(entry):
+        return False
+    rel = str(resource.get("rel") or "").strip().lower()
+    return rel in {
+        "alternate",
+        "canonical",
+        "collection",
+        "describedby",
+        "items",
+        "parent",
+        "related",
+        "root",
+        "self",
+        "service-desc",
+        "service-doc",
+    }
+
+
+def entry_is_ogc_records_candidate(entry: dict[str, object]) -> bool:
+    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+    option_metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
+    markers = {
+        str(entry.get("source_format") or "").strip().lower(),
+        str(option_metadata.get("native_format") or "").strip().lower(),
+        str(option_metadata.get("source_format") or "").strip().lower(),
+        str(option_metadata.get("discovery_source_type") or "").strip().lower(),
+        str(option_metadata.get("source_type") or "").strip().lower(),
+    }
+    return "ogc_api_records" in markers or "ogc_record" in markers
 
 
 def erddap_info_url(protocol_url: str, dataset_id: str) -> str:
