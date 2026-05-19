@@ -54,6 +54,10 @@ gh run list --repo YanAnnLu/APIkeys_collection --limit 5
 gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
 ```
 
+The CI workflow should stay on Node 24-ready official actions. As of 2026-05-20, `.github/workflows/ci.yml` uses
+`actions/checkout@v6` and `actions/setup-python@v6`; if GitHub reports a Node.js action deprecation warning, check
+those `uses:` versions before changing Python test logic.
+
 If another agent owns git for the session, do not commit, push, repair refs, remove lock files, or stage changes unless the user explicitly hands that responsibility back.
 
 ## Documentation Routing
