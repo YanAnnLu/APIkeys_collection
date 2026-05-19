@@ -29,6 +29,7 @@ STAC_RESOLVER_ID = "stac_bounded_item_search_resolver"
 CMR_GRANULE_RESOLVER_ID = "cmr_bounded_granule_search_resolver"
 CMR_GRANULE_ASSET_RESOLVER_ID = "cmr_granule_asset_link_resolver"
 SOCRATA_RESOLVER_ID = "socrata_bounded_sample_query_resolver"
+NCEI_SEARCH_DATA_FILE_RESOLVER_ID = "ncei_search_data_file_resolver"
 NCEI_SEARCH_RESOLVER_ID = "ncei_bounded_search_query_resolver"
 NCEI_ACCESS_DATA_RESOLVER_ID = "ncei_bounded_access_data_query_resolver"
 DATAVERSE_FILE_RESOLVER_ID = "dataverse_latest_version_file_resolver"
@@ -37,6 +38,7 @@ STAC_ITEM_SAMPLE_LIMIT = 1
 CMR_GRANULE_SAMPLE_LIMIT = 1
 CMR_GRANULE_ASSET_MAX_LINKS = 5
 SOCRATA_SAMPLE_LIMIT = 25
+NCEI_DATA_FILE_LOOKUP_LIMIT = 1
 NCEI_SEARCH_SAMPLE_LIMIT = 25
 NCEI_ACCESS_DATA_MAX_DAYS = 7
 DATAVERSE_MAX_FILES = 5
@@ -183,6 +185,8 @@ def direct_resource_entries_for_plan_entry(
         socrata_entry = socrata_bounded_sample_entry(entry, plan_index, downloads_root)
         if socrata_entry:
             resolved_entries.append(socrata_entry)
+    if not resolved_entries and not resources:
+        resolved_entries.extend(ncei_search_data_file_entries(entry, plan_index, downloads_root))
     if not resolved_entries:
         ncei_entry = ncei_bounded_search_entry(entry, plan_index, downloads_root)
         if ncei_entry:
@@ -849,6 +853,175 @@ def strip_socrata_output_suffix(value: str) -> str:
         if lowered.endswith(suffix):
             return value[: -len(suffix)]
     return value
+
+
+def ncei_search_data_file_entries(
+    entry: dict[str, object],
+    plan_index: int,
+    downloads_root: str | Path,
+) -> list[dict[str, object]]:
+    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+    option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
+    lookup_url = ncei_search_data_file_lookup_url(entry, version_meta, option_metadata)
+    if not lookup_url:
+        return []
+    try:
+        payload = fetch_json(lookup_url)
+    except Exception:
+        return []
+
+    resolved_entries: list[dict[str, object]] = []
+    resources = ncei_search_data_file_resources(payload, lookup_url)
+    for resource_index, resource in enumerate(resources[:NCEI_DATA_FILE_LOOKUP_LIMIT], start=1):
+        url = resource_url(resource)
+        if not url or not resource_looks_downloadable(resource, url):
+            continue
+        if resource_exceeds_size_bound(resource):
+            continue
+        resolved = direct_resource_entry(
+            entry,
+            resource,
+            plan_index,
+            resource_index,
+            url,
+            downloads_root,
+            resolver_id=NCEI_SEARCH_DATA_FILE_RESOLVER_ID,
+            resolver_source_url=lookup_url,
+        )
+        if resolved:
+            resolved["adapter_resolution"] = {
+                **resolved["adapter_resolution"],
+                "policy": "single_bounded_ncei_search_data_file_under_size_limit",
+                "lookup_url": lookup_url,
+                "lookup_limit": NCEI_DATA_FILE_LOOKUP_LIMIT,
+            }
+            resolved_entries.append(resolved)
+    return resolved_entries
+
+
+def ncei_search_data_file_lookup_url(
+    entry: dict[str, object],
+    version_meta: dict[str, object],
+    option_metadata: dict[str, object],
+) -> str:
+    if not entry_is_ncei_search_candidate(entry, option_metadata):
+        return ""
+    ncei_dataset_id = first_text(
+        option_metadata.get("ncei_result_id"),
+        option_metadata.get("ncei_dataset_id"),
+        entry.get("dataset_id"),
+        version_meta.get("dataset_id"),
+    )
+    for raw_url in ncei_candidate_urls(entry, version_meta, option_metadata):
+        lookup_url = bounded_ncei_search_data_file_lookup_url(raw_url, ncei_dataset_id)
+        if lookup_url:
+            return lookup_url
+    return ""
+
+
+def bounded_ncei_search_data_file_lookup_url(raw_url: str, ncei_dataset_id: str) -> str:
+    parsed = urllib.parse.urlparse(raw_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    path = parsed.path.rstrip("/").lower()
+    if "/access/services/search/v1/" not in path or not path.endswith("/data"):
+        return ""
+    query = ncei_data_file_lookup_query(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True), ncei_dataset_id)
+    if not query:
+        return ""
+    return urllib.parse.urlunparse(parsed._replace(query=query, fragment=""))
+
+
+def ncei_data_file_lookup_query(query: list[tuple[str, str]], ncei_dataset_id: str) -> str:
+    allowed_keys = {
+        "bbox": "bbox",
+        "datatypes": "dataTypes",
+        "dataset": "dataset",
+        "enddate": "endDate",
+        "locationids": "locationIds",
+        "startdate": "startDate",
+        "stations": "stations",
+    }
+    filtered = [
+        (allowed_keys[key.lower()], value)
+        for key, value in query
+        if key.lower() in allowed_keys and value != ""
+    ]
+    keys = {key.lower() for key, _value in filtered}
+    if ncei_dataset_id and "dataset" not in keys:
+        filtered.insert(0, ("dataset", ncei_dataset_id))
+    bounds = ncei_search_data_file_bounds(filtered)
+    if not ncei_search_data_file_lookup_is_bounded(bounds):
+        return ""
+    filtered = [(key, value) for key, value in filtered if key.lower() not in {"limit", "offset"}]
+    filtered.append(("limit", str(NCEI_DATA_FILE_LOOKUP_LIMIT)))
+    filtered.append(("offset", "0"))
+    return urllib.parse.urlencode(filtered, doseq=True, safe=",:")
+
+
+def ncei_search_data_file_bounds(query: list[tuple[str, str]]) -> dict[str, object]:
+    spatial_keys = [key for key in ("stations", "bbox", "locationIds") if first_query_value(query, key)]
+    return {
+        "dataset": first_query_value(query, "dataset"),
+        "spatial_keys": spatial_keys,
+        "startDate": first_query_value(query, "startDate"),
+        "endDate": first_query_value(query, "endDate"),
+        "dataTypes": first_query_value(query, "dataTypes"),
+    }
+
+
+def ncei_search_data_file_lookup_is_bounded(bounds: dict[str, object]) -> bool:
+    return bool(bounds.get("dataset") and bounds.get("spatial_keys"))
+
+
+def ncei_search_data_file_resources(payload: dict[str, object], lookup_url: str) -> list[dict[str, object]]:
+    results = payload.get("results") if isinstance(payload.get("results"), list) else []
+    resources: list[dict[str, object]] = []
+    for item in results[:NCEI_DATA_FILE_LOOKUP_LIMIT]:
+        if not isinstance(item, dict):
+            continue
+        resource = ncei_search_data_file_resource(item, lookup_url)
+        if resource:
+            resources.append(resource)
+    return resources
+
+
+def ncei_search_data_file_resource(item: dict[str, object], lookup_url: str) -> dict[str, object]:
+    file_path = first_text(item.get("filePath"), item.get("filepath"), item.get("path"))
+    url = ncei_search_data_file_url(file_path, lookup_url)
+    if not url:
+        return {}
+    return {
+        "id": first_text(item.get("id")),
+        "name": first_text(item.get("name"), Path(urllib.parse.urlparse(url).path).name, item.get("id")),
+        "format": source_format_from_url(url),
+        "download_url": url,
+        "fileSize": first_text(item.get("fileSize"), item.get("size"), item.get("bytes")),
+        "tar": first_text(item.get("tar")),
+        "source": "ncei_search_data_file",
+        "search_file_path": file_path,
+    }
+
+
+def ncei_search_data_file_url(file_path: str, lookup_url: str) -> str:
+    if not file_path:
+        return ""
+    parsed_file = urllib.parse.urlparse(file_path)
+    if parsed_file.scheme in {"http", "https"}:
+        if ncei_noaa_host(parsed_file.netloc) and parsed_file.path.startswith("/data/"):
+            return file_path
+        return ""
+    if not file_path.startswith("/data/"):
+        return ""
+    parsed_lookup = urllib.parse.urlparse(lookup_url)
+    if parsed_lookup.scheme not in {"http", "https"} or not ncei_noaa_host(parsed_lookup.netloc):
+        return ""
+    return urllib.parse.urlunparse(parsed_lookup._replace(path=file_path, query="", fragment=""))
+
+
+def ncei_noaa_host(netloc: str) -> bool:
+    host = netloc.split("@")[-1].split(":")[0].lower()
+    return host == "ncei.noaa.gov" or host.endswith(".ncei.noaa.gov")
 
 
 def ncei_bounded_search_entry(
@@ -2222,7 +2395,18 @@ def resource_looks_downloadable(resource: dict[str, object], url: str) -> bool:
 
 
 def resource_size_bytes(resource: dict[str, object]) -> int | None:
-    for key in ("size", "bytes", "content_length", "contentLength", "file_size", "size_bytes", "sizeInBytes", "SizeInBytes"):
+    for key in (
+        "size",
+        "bytes",
+        "content_length",
+        "contentLength",
+        "file_size",
+        "fileSize",
+        "FileSize",
+        "size_bytes",
+        "sizeInBytes",
+        "SizeInBytes",
+    ):
         value = resource.get(key)
         if value in ("", None):
             continue

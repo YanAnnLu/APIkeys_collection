@@ -168,8 +168,10 @@ API-query paths for ERDDAP: candidates with
 into a small CSV sample URL using `.limit=25` for tabledap or a minimum grid slice for griddap. STAC collections become
 `limit=1` item-search GeoJSON samples, and Socrata/SODA v2-style `/resource/{id}.json` or `/api/views/{id}` URLs become
 `$limit=25` JSON/CSV/GeoJSON samples. NOAA/NCEI Common Access Search candidates can become Search API JSON metadata
-samples by bounding `/search/v1/datasets` or `/search/v1/data` requests to `limit=25&offset=0`; these samples download
-search-result metadata only, not the NOAA data files referenced by the results. It leaves HTML pages, login pages,
+samples by bounding `/search/v1/datasets` or `/search/v1/data` requests to `limit=25&offset=0`; if an explicit
+`/search/v1/data` query already has dataset plus station/bbox/location bounds, the resolver can do one `limit=1`
+metadata lookup and promote a `/data/...` direct file only when its format is supported and `fileSize` is under 100 MB.
+Other Search samples download search-result metadata only, not the NOAA data files referenced by the results. It leaves HTML pages, login pages,
 broad API selectors, token-only SODA v3 query paths, and unknown resources in adapter review, so this is a bounded plan
 rewrite rather than a hidden scraper or full-dataset download.
 

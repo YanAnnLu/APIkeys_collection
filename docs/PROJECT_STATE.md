@@ -203,8 +203,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   and Socrata resource metadata is skipped by the generic direct-file resolver so it cannot accidentally become an
   unbounded full-table download. NOAA/NCEI Common Access Search candidates can now become bounded JSON metadata samples:
   `/search/v1/datasets` entries with an NCEI dataset id are rewritten to `/search/v1/data?dataset=...&limit=25&offset=0`,
-  while existing `/search/v1/data` requests are clamped to the same small limit. This records search metadata only and
-  does not download NOAA data files. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
+  while existing `/search/v1/data` requests are clamped to the same small limit. If an explicit `/search/v1/data` request
+  already has dataset plus station/bbox/location bounds, the resolver may do one `limit=1` metadata lookup and promote
+  a `/data/...` direct file only when the file format is supported and `fileSize` is under 100 MB. Otherwise this records
+  search metadata only and does not download NOAA data files. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
   `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue

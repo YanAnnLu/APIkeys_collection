@@ -432,7 +432,8 @@ class AdapterPlanResolverTests(unittest.TestCase):
     def test_socrata_api_view_url_promotes_resource_json_sample(self) -> None:
         plan = {"providers": [socrata_review_entry("https://data.example.test/api/views/abcd-1234")]}
 
-        resolved, result = resolve_adapter_review_plan_payload(plan)
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", side_effect=AssertionError("unexpected fetch")):
+            resolved, result = resolve_adapter_review_plan_payload(plan)
 
         self.assertEqual(1, result.direct_entries_added)
         entry = resolved["providers"][0]
@@ -504,6 +505,63 @@ class AdapterPlanResolverTests(unittest.TestCase):
         )
         self.assertEqual("data", entry["adapter_resolution"]["endpoint_kind"])
         self.assertEqual(25, entry["adapter_resolution"]["sample_limit"])
+
+    def test_ncei_data_search_lookup_promotes_small_direct_file(self) -> None:
+        plan = {
+            "providers": [
+                ncei_review_entry(
+                    "https://www.ncei.noaa.gov/access/services/search/v1/data"
+                    "?dataset=daily-summaries&stations=USW00013880&startDate=2024-01-01"
+                    "&endDate=2024-01-03&dataTypes=TMAX&limit=999"
+                )
+            ]
+        }
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=ncei_search_data_file_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        fetch.assert_called_once_with(
+            "https://www.ncei.noaa.gov/access/services/search/v1/data"
+            "?dataset=daily-summaries&stations=USW00013880&startDate=2024-01-01"
+            "&endDate=2024-01-03&dataTypes=TMAX&limit=1&offset=0"
+        )
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("ncei_search_data_file_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("single_bounded_ncei_search_data_file_under_size_limit", entry["adapter_resolution"]["policy"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("https://www.ncei.noaa.gov/data/daily-summaries/access/USW00013880.csv", entry["download_url"])
+        self.assertEqual("csv", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual(13_912_122, entry["adapter_resolution"]["resource_size_bytes"])
+        self.assertTrue(entry["target_path"].endswith(".csv"))
+        self.assertNotIn("adapter_review", entry)
+
+    def test_ncei_data_search_lookup_skips_oversized_direct_file(self) -> None:
+        plan = {
+            "providers": [
+                ncei_review_entry(
+                    "https://www.ncei.noaa.gov/access/services/search/v1/data"
+                    "?dataset=daily-summaries&stations=USW00013880&startDate=2024-01-01"
+                    "&endDate=2024-01-03&dataTypes=TMAX"
+                )
+            ]
+        }
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=ncei_search_data_file_payload(file_size=250_000_000)):
+            resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("ncei_bounded_search_query_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual(
+            "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=daily-summaries&stations=USW00013880&startDate=2024-01-01&endDate=2024-01-03&dataTypes=TMAX&limit=25&offset=0",
+            entry["download_url"],
+        )
+        self.assertEqual("json", entry["source_format"])
 
     def test_ncei_access_data_query_promotes_bounded_sample_entry(self) -> None:
         plan = {
@@ -973,6 +1031,24 @@ def ncei_access_data_review_entry(source_url: str) -> dict[str, object]:
             "source_url": source_url,
             "required_action": "resolve_source_to_direct_download_entries",
         },
+    }
+
+
+def ncei_search_data_file_payload(file_size: int = 13_912_122) -> dict[str, object]:
+    return {
+        "count": 1,
+        "totalFileSize": file_size,
+        "results": [
+            {
+                "id": "daily-summaries-latest.tar.gz:USW00013880.csv",
+                "name": "USW00013880.csv",
+                "filePath": "/data/daily-summaries/access/USW00013880.csv",
+                "fileSize": file_size,
+                "tar": "daily-summaries-latest.tar.gz",
+                "startDate": "1937-03-01T00:00:00",
+                "endDate": "2026-05-16T23:59:59",
+            }
+        ],
     }
 
 

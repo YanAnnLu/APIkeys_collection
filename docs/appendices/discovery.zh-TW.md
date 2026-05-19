@@ -171,7 +171,7 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 若候選來自 Socrata/SODA，`socrata_catalog_search` crawler 會刻意把候選的主要 API URL 設為 `/api/views/abcd-1234` 這種 metadata URL，而不是直接把 `/resource/abcd-1234.json` 交給下載器。resolver 目前只處理已能辨認的 v2-style resource 入口，例如 `/resource/abcd-1234.json`、`/resource/abcd-1234.csv`，或 metadata URL `/api/views/abcd-1234`。它會保留既有 `$select` 等查詢條件，再加上 `$limit=25`，產生一個小樣本 direct plan entry；泛用 direct-file resolver 會跳過這類 resource URL，避免把 `.json` API 當成完整檔案直接下載。SODA v3 token/query POST 形狀目前仍留在 adapter review，等 credential 與 query contract 明確後再做。
 
-若候選來自 NOAA/NCEI Common Access Search，resolver 現在可以把 crawler 留下的 `/search/v1/datasets` 或 `/search/v1/data` URL 變成 `limit=25&offset=0` 的 JSON metadata sample。白話說，這是在下載「搜尋結果清單」的小樣本，不是在下載 NOAA 真正的資料檔；後者仍需要依 dataset、時間、空間、格式、授權與檔案大小再做下一層 adapter。
+若候選來自 NOAA/NCEI Common Access Search，resolver 現在可以把 crawler 留下的 `/search/v1/datasets` 或 `/search/v1/data` URL 變成 `limit=25&offset=0` 的 JSON metadata sample。白話說，這是在下載「搜尋結果清單」的小樣本，不是在下載 NOAA 真正的資料檔；後者仍需要依 dataset、時間、空間、格式、授權與檔案大小再做下一層 adapter。若 plan 已經是 `/search/v1/data`，且 query 有 dataset 加站點/框選/位置條件，resolver 會先做一次 `limit=1&offset=0` metadata lookup；只有第一筆結果提供 `/data/...` direct file path、格式可辨識、且 `fileSize` 未超過 100MB 時，才會把那個 CSV/JSON 等檔案排進 direct download。沒有站點/空間條件，或檔案太大時，仍只保留 bounded JSON metadata sample。
 
 若 plan 已經進到 NOAA/NCEI Access Data Service 的 `/access/services/data/v1`，resolver 現在只會在查詢同時具備 dataset、startDate、endDate、站點/框選/位置等空間條件，且日期跨度不超過 7 天時，才把它提升成 CSV/JSON 小樣本 direct entry。沒有時間或空間邊界的 Access Data 查詢會留在 adapter review，避免把看似 API URL 的大範圍資料誤當成安全下載。
 
