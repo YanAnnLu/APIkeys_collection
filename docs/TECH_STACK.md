@@ -157,8 +157,8 @@ py APIkeys_collection.py --resolve-adapter-plan state\candidate_plan.json --writ
 ```
 
 `api_launcher/adapter_plan_resolver.py` currently handles common catalog/resource shapes used by CKAN-like,
-Zenodo-like, NOAA/NCEI Search, Socrata/SODA, and metadata-link sources. If a review entry carries `dataset_version.metadata.resources` or
-`dataset_version.metadata.links`, the resolver promotes only bounded resources that already look like direct files,
+Zenodo-like, NOAA/NCEI Search, Socrata/SODA, and metadata-link sources. If a review entry carries `dataset_version.metadata.resources`,
+`dataset_version.metadata.distribution` / `distributions`, or `dataset_version.metadata.links`, the resolver promotes only bounded resources that already look like direct files,
 or whose resource metadata declares a supported file format, into new direct plan entries with fresh `target_path`,
 `download_eligibility`, and `import_plan` fields. The generic resource reader recognizes common direct-link keys such
 as `download_url`, `downloadURL`, `contentUrl`, `fileUrl`, `url`, and `href`; values may be strings, lists, or JSON-LD

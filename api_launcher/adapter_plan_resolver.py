@@ -227,8 +227,12 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
     candidates.extend(
         (
             nested_meta.get("resources"),
+            nested_meta.get("distribution"),
+            nested_meta.get("distributions"),
             nested_meta.get("links"),
             entry.get("resources"),
+            entry.get("distribution"),
+            entry.get("distributions"),
             entry.get("resource_summaries"),
             entry.get("links"),
         )

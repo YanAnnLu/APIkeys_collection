@@ -177,6 +177,27 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
         self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
 
+    def test_dcat_distribution_object_promotes_direct_json_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata.pop("links", None)
+        metadata["distribution"] = {
+            "name": "DCAT distribution JSON",
+            "encodingFormat": "application/json",
+            "downloadURL": {"@id": "https://data.example.test/distribution/sample.json"},
+            "byteSize": {"@value": "4096"},
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/distribution/sample.json", resolved_entry["download_url"])
+        self.assertEqual("json", resolved_entry["source_format"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual(4096, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
     def test_direct_link_object_without_url_stays_in_review(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
