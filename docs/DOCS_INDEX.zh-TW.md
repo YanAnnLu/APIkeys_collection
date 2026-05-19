@@ -18,6 +18,7 @@
 | --- | --- | --- |
 | 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、怎麼安全換平台、下一步在哪、文件怎麼找。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
+| 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `appendices/discovery.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first。 |
 | 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |
 | 要整理檔案或重構 | `WORKSPACE_LAYOUT.zh-TW.md` -> `ARCHITECTURE.md` | 先看檔案分類、路徑規則與拆分優先順序。 |
@@ -32,6 +33,7 @@
 | `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
 | `PRODUCT_POSITIONING.zh-TW.md` | 產品定位：科學資料集 launcher、資料工程版 Steam、虛擬孿生資料管線。 | 產品語言或中長期方向改變時更新。 |
+| `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` | 中長期概念總綱，整理資料資產、Discovery Tool、標準化策略、湖倉/K8S、Render Studio、ML、Notion/TradingView connector 與 local-first 桌面形態。 | 重大產品概念討論、平台接口方向、商業化定位或中期 roadmap 改變時更新；不要把它當成當前 MVP 實作清單。 |
 | `ARCHITECTURE.md` | 架構圖、pipeline、模組邊界、Hadoop/K8S/renderer/mobile/P2P 邊界；目前偏英文。 | 模組責任或資料流改變時更新，並同步補繁中摘要或對應文件。 |
 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，白話說明資料、下載、SQL、AI、renderer 等主線。 | 新功能進入 MVP 或 skeleton 邊界改變時更新。 |
 | `DATASET_TYPE_MAP.zh-TW.md` | 資料類型地圖，說明 table、GIS、time-series、array、media、RAG 等資料該怎麼想。 | 新增資料類型、storage hint、viewer hint 時更新。 |
