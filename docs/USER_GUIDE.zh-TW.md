@@ -247,5 +247,5 @@ K:\UnrealProjects\...
 
 - provider-specific adapters 還沒有全部完成。
 - API endpoint 轉資料檔的流程還需要更多 adapter。
-- SQL/資料庫修復目前以診斷與安全建議為主，不會自動 destructive drop。
+- SQL/資料庫修復目前以診斷與安全建議為主；Repair / verify assets 的資料庫分頁可以調整單一資產的 data-store profile/schema 並重新自檢，但不會自動 destructive drop 或重建資料表。
 - AI OAuth refresh token 與過期刷新還需要強化；目前 access token 過期時通常要重新掃 QR。

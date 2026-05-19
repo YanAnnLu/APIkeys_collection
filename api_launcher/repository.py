@@ -16,7 +16,7 @@ from api_launcher.models import Dataset, DatasetAssetManifestRecord, Provider, P
 from api_launcher.paths import catalog_file
 from api_launcher.provenance import normalize_source_format
 from api_launcher.registry import PROVIDER_CATALOG_NAME, load_provider_catalog
-from api_launcher.sql_assets import database_uninstall_command
+from api_launcher.sql_assets import database_uninstall_command, validate_sql_identifier
 
 
 PROVIDERS: tuple[Provider, ...] = load_provider_catalog(catalog_file(PROVIDER_CATALOG_NAME))
@@ -940,6 +940,39 @@ class ApiCatalogRepository:
                 )
         self.conn.commit()
         return summary
+
+    def update_database_asset_connection_metadata(
+        self,
+        asset_id: str,
+        data_store_profile_id: str = "",
+        schema_name: str = "",
+    ) -> bool:
+        asset_id = asset_id.strip()
+        data_store_profile_id = data_store_profile_id.strip()
+        schema_name = schema_name.strip()
+        if not asset_id:
+            raise ValueError("asset_id is required")
+        if any(char.isspace() for char in data_store_profile_id):
+            raise ValueError(f"Unsafe data_store_profile_id: {data_store_profile_id!r}")
+        if schema_name:
+            schema_name = validate_sql_identifier(schema_name)
+        now = utc_now_iso()
+        cursor = self.conn.execute(
+            """
+            UPDATE provider_installation_assets
+            SET data_store_profile_id = ?,
+                schema_name = ?,
+                status = 'managed',
+                last_verified_at = '',
+                last_verify_error = '',
+                updated_at = ?
+            WHERE asset_id = ?
+              AND asset_kind IN ('database', 'table')
+            """,
+            (data_store_profile_id, schema_name, now, asset_id),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def register_provider_database_asset(
         self,

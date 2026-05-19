@@ -4606,9 +4606,97 @@ class ApiCollectionUi:
                 f"{selected.provider_id} / {selected.asset_name}\n\n{self.localized_database_repair_label(suggestion)}\n{next_step}",
             )
 
+        def edit_selected_database_connection() -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo(self.tr("資料庫連線設定", "Database connection settings"), self.tr("請先選取一列資料庫問題。", "Select a database row first."))
+                return
+            profiles = data_store_profiles_from_config(core.load_integration_config())
+            engine = selected.engine.strip().lower()
+
+            def profile_matches_asset(profile: object) -> bool:
+                profile_engine = str(getattr(profile, "engine", "")).strip().lower()
+                if not engine:
+                    return True
+                if engine in {"postgres", "postgresql"}:
+                    return profile_engine in {"postgres", "postgresql"}
+                if engine in {"mysql", "mariadb"}:
+                    return profile_engine in {"mysql", "mariadb"}
+                return profile_engine == engine
+
+            profile_ids = [profile.profile_id for profile in profiles if profile_matches_asset(profile)]
+            if selected.data_store_profile_id and selected.data_store_profile_id not in profile_ids:
+                profile_ids.insert(0, selected.data_store_profile_id)
+            if not profile_ids:
+                profile_ids = [profile.profile_id for profile in profiles]
+
+            editor = Toplevel(dialog)
+            editor.title(self.tr("資料庫資產連線設定", "Database asset connection"))
+            editor.configure(bg=COLORS["panel"])
+            editor.transient(dialog)
+            editor.grab_set()
+            editor.minsize(560, 320)
+            frame = ttk.Frame(editor, style="Panel.TFrame")
+            frame.pack(fill=BOTH, expand=True, padx=22, pady=22)
+            ttk.Label(frame, text=self.tr("資料庫資產連線設定", "Database asset connection"), style="DetailTitle.TLabel").pack(anchor="w")
+            ttk.Label(
+                frame,
+                text=self.tr(
+                    (
+                        "這只會更新 launcher registry 裡的 profile/schema 指向，"
+                        "不會刪除、建立或改寫任何資料庫物件。儲存後會重新跑一次自檢。"
+                    ),
+                    "This only updates the registry profile/schema pointer. It will not delete, create, or rewrite database objects. A self-check runs again after saving.",
+                ),
+                style="DetailMuted.TLabel",
+                wraplength=500,
+            ).pack(anchor="w", fill=X, pady=(8, 16))
+            ttk.Label(frame, text=f"{selected.provider_id} / {selected.asset_kind} / {selected.asset_name}", style="DetailSection.TLabel").pack(anchor="w", pady=(0, 8))
+
+            profile_var = StringVar(value=selected.data_store_profile_id or profile_ids[0])
+            schema_var = StringVar(value=selected.schema_name)
+            ttk.Label(frame, text=self.tr("Data-store profile", "Data-store profile"), style="DetailSection.TLabel").pack(anchor="w", pady=(8, 4))
+            ttk.Combobox(frame, values=profile_ids, textvariable=profile_var, state="readonly", font=("Helvetica", 12)).pack(fill=X)
+            ttk.Label(frame, text=self.tr("Schema 名稱（SQLite 可留白）", "Schema name (leave blank for SQLite)"), style="DetailSection.TLabel").pack(anchor="w", pady=(14, 4))
+            ttk.Entry(frame, textvariable=schema_var, font=("Helvetica", 12)).pack(fill=X)
+
+            def save_connection_metadata() -> None:
+                try:
+                    conn = self._connect()
+                    try:
+                        repository = core.ApiCatalogRepository(conn)
+                        changed = repository.update_database_asset_connection_metadata(
+                            selected.asset_id,
+                            data_store_profile_id=profile_var.get().strip(),
+                            schema_name=schema_var.get().strip(),
+                        )
+                    finally:
+                        conn.close()
+                except ValueError as exc:
+                    messagebox.showerror(self.tr("資料庫連線設定", "Database connection settings"), str(exc), parent=editor)
+                    return
+                if not changed:
+                    messagebox.showerror(
+                        self.tr("資料庫連線設定", "Database connection settings"),
+                        self.tr("找不到這筆資料庫資產，可能已被其他流程更新。", "The database asset was not found; it may have been updated elsewhere."),
+                        parent=editor,
+                    )
+                    return
+                editor.destroy()
+                dialog.destroy()
+                self.status_var.set(self.tr("已更新資料庫資產連線設定，正在重新自檢。", "Database asset connection updated; rerunning self-check."))
+                self.open_repair_panel()
+
+            buttons = ttk.Frame(frame, style="Panel.TFrame")
+            buttons.pack(fill=X, pady=(18, 0))
+            ttk.Button(buttons, text=self.tr("儲存並重新自檢", "Save and recheck"), style="Action.TButton", command=save_connection_metadata).pack(side=RIGHT)
+            ttk.Button(buttons, text=self.tr("取消", "Cancel"), style="Action.TButton", command=editor.destroy).pack(side=RIGHT, padx=(0, 10))
+
         ttk.Button(actions, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("重新排下載", "Requeue selected download"), style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示資料庫建議", "Show database suggestion"), style="Action.TButton", command=show_selected_database_suggestion).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("調整資料庫連線", "Edit database connection"), style="Action.TButton", command=edit_selected_database_connection).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("資料儲存設定", "Data-store settings"), style="Action.TButton", command=self.open_data_store_connection_settings).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開啟下載資料夾", "Open downloads folder"), style="Action.TButton", command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)

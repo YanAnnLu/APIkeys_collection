@@ -268,7 +268,9 @@ the install record location; PostgreSQL table assets may use `schema.table` in `
 When database self-check finds a missing/error asset, `api_launcher/database_self_check.py` maps the error into a stable
 repair suggestion such as `configure_data_store_env`, `install_optional_driver_in_project_env`,
 `restore_or_reimport_table`, or `review_schema_drift`. Use `--self-check-databases-json` for pure JSON output that UI
-code or a future agent can consume without parsing human text.
+code or a future agent can consume without parsing human text. The Tk repair panel can update a selected
+database/table asset's `data_store_profile_id` and `schema_name`; this is a registry metadata repair only, followed by
+a fresh self-check, and must not execute destructive SQL.
 
 Tk UI localization is intentionally lightweight for now. `launcher_integrations.local.json` may contain
 `"ui_language": "zh-TW"` or `"en-US"`; the UI reads it at startup, `Settings > Interface language` can update it, and

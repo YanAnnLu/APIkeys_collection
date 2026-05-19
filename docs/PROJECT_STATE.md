@@ -78,8 +78,10 @@ The project is not a secret harvester. Credential files are templates for user-o
   `--self-check-databases-json` for UI or agent handoff workflows.
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
-- Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese without
-  executing destructive SQL. UI language is configurable through `ui_language` in local integration config.
+- Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also
+  update a selected database/table asset's `data_store_profile_id` and `schema_name`, then rerun self-check. This only
+  changes launcher registry metadata and does not execute destructive SQL. UI language is configurable through
+  `ui_language` in local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
   `state/favicons/`. The main table can optionally show crawler-imported dataset rows under each provider, so dataset
   discovery results are visible without opening the review dialog first.
@@ -258,16 +260,15 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Expose per-asset SQL profile/schema editing in the UI instead of requiring direct registry/API calls.
-2. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
-3. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
-4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
-5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
-6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-7. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
-8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
-9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-11. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-12. After the backend MVP loop is closed, revisit Google account login as a mid-term goal with an official OAuth app or
+1. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
+2. Turn database repair suggestions into guarded adapter-owned repair actions, then expand download repair suggestions to adapter-specific datasets.
+3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
+4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
+5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
+6. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
+7. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
+8. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+9. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+10. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+11. After the backend MVP loop is closed, revisit Google account login as a mid-term goal with an official OAuth app or
     backend broker, then migrate the desktop UI toward PySide6/Qt rather than expanding Tk indefinitely.

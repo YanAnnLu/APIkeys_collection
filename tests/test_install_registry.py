@@ -182,6 +182,59 @@ class InstallRegistryTests(unittest.TestCase):
         self.assertEqual("analytics_postgres", asset.data_store_profile_id)
         self.assertEqual("archive", asset.schema_name)
 
+    def test_update_database_asset_connection_metadata_resets_self_check_error(self) -> None:
+        asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="postgresql",
+            database_name="weather",
+            table_name="station",
+            data_store_profile_id="old_postgres",
+            schema_name="archive",
+        )
+        self.conn.execute(
+            """
+            UPDATE provider_installation_assets
+            SET status = 'error',
+                last_verified_at = '2026-05-20T00:00:00Z',
+                last_verify_error = 'Unknown data-store profile for asset: old_postgres.'
+            WHERE asset_id = ?
+            """,
+            (asset_id,),
+        )
+        self.conn.commit()
+
+        changed = self.repo.update_database_asset_connection_metadata(
+            asset_id,
+            data_store_profile_id="postgres_default",
+            schema_name="public",
+        )
+        row = self.conn.execute(
+            """
+            SELECT data_store_profile_id, schema_name, status, last_verified_at, last_verify_error
+            FROM provider_installation_assets
+            WHERE asset_id = ?
+            """,
+            (asset_id,),
+        ).fetchone()
+
+        self.assertTrue(changed)
+        self.assertEqual("postgres_default", row["data_store_profile_id"])
+        self.assertEqual("public", row["schema_name"])
+        self.assertEqual("managed", row["status"])
+        self.assertEqual("", row["last_verified_at"])
+        self.assertEqual("", row["last_verify_error"])
+
+    def test_update_database_asset_connection_metadata_rejects_unsafe_schema(self) -> None:
+        asset_id = self.repo.register_provider_table_asset(
+            "sample_provider",
+            engine="postgresql",
+            database_name="weather",
+            table_name="station",
+        )
+
+        with self.assertRaises(ValueError):
+            self.repo.update_database_asset_connection_metadata(asset_id, schema_name="public;drop")
+
     def test_verify_assets_marks_missing_database(self) -> None:
         self.repo.register_provider_database_asset(
             "sample_provider",
