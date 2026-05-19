@@ -205,9 +205,12 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   already contains direct file URLs into direct plan entries, and can now perform one bounded CKAN `package_show`
   metadata lookup when the plan has only a package API URL. It also scans NCEI/CMR/STAC-like `links` metadata for direct
   file URLs. The generic resource reader recognizes common direct-link fields such as `downloadURL`, `contentUrl`,
-  and `fileUrl`, plus size hints such as `byteSize` and `contentSize`, so DCAT/schema.org-style metadata can still
-  become a safe direct plan entry when the file format and size are bounded. ERDDAP metadata with `erddap_protocols`
-  can be turned into a small CSV sample by reading the official
+  and `fileUrl`, including string, list, and JSON-LD object values such as `{"@id": "..."}`. It also recognizes format
+  hints such as `mediaType`, `contentType`, and `encodingFormat`, plus size hints such as `byteSize`, `contentSize`,
+  and `{"@value": "..."}` wrappers, so DCAT/schema.org-style metadata can still become a safe direct plan entry when
+  the file URL, format, and size are bounded. Label-only objects such as `{"label": "CSV download"}` do not count as
+  direct URLs and stay in adapter review. ERDDAP metadata with
+  `erddap_protocols` can be turned into a small CSV sample by reading the official
   `info/{dataset}/index.json`, using a 25-row limit or minimum grid slice so the MVP can download/import a sample
   without pretending to bulk install the whole dataset. STAC collections become `limit=1` item-search GeoJSON samples.
   Socrata/SODA v2-style `/resource/{id}.json` or `/api/views/{id}` URLs become `$limit=25` JSON/CSV/GeoJSON samples,

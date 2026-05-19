@@ -269,7 +269,7 @@ def resource_mappings_from_candidate(candidate: object, group: str = "") -> list
 
 
 def resource_url(resource: dict[str, object]) -> str:
-    return first_text(
+    return first_resource_url_text(
         resource.get("download_url"),
         resource.get("downloadURL"),
         resource.get("downloadUrl"),
@@ -283,6 +283,58 @@ def resource_url(resource: dict[str, object]) -> str:
         resource.get("url"),
         resource.get("href"),
     )
+
+
+def first_resource_url_text(*values: object) -> str:
+    for value in values:
+        text = resource_url_text(value)
+        if text:
+            return text
+    return ""
+
+
+def resource_url_text(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple)):
+        return first_resource_url_text(*value)
+    if isinstance(value, dict):
+        return first_resource_url_text(
+            value.get("@id"),
+            value.get("id"),
+            value.get("@value"),
+            value.get("value"),
+            value.get("url"),
+            value.get("href"),
+        )
+    return str(value or "").strip()
+
+
+def first_resource_text(*values: object) -> str:
+    for value in values:
+        text = resource_text(value)
+        if text:
+            return text
+    return ""
+
+
+def resource_text(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple)):
+        return first_resource_text(*value)
+    if isinstance(value, dict):
+        return first_resource_text(
+            value.get("@id"),
+            value.get("id"),
+            value.get("@value"),
+            value.get("value"),
+            value.get("url"),
+            value.get("href"),
+            value.get("name"),
+            value.get("label"),
+        )
+    return str(value or "").strip()
 
 
 def direct_resource_entry(
@@ -367,7 +419,17 @@ def direct_resource_entry(
                 "original_plan_index": plan_index,
                 "resource_index": resource_index,
                 "resource_name": resource_name,
-                "resource_format": first_text(resource.get("format"), resource.get("mimetype"), resource.get("type")),
+                "resource_format": first_resource_text(
+                    resource.get("format"),
+                    resource.get("mimetype"),
+                    resource.get("mimeType"),
+                    resource.get("media_type"),
+                    resource.get("mediaType"),
+                    resource.get("content_type"),
+                    resource.get("contentType"),
+                    resource.get("encodingFormat"),
+                    resource.get("type"),
+                ),
                 "resource_size_bytes": resource_size_bytes(resource),
                 "max_resource_size_bytes": DIRECT_RESOURCE_MAX_BYTES,
                 "source_url": first_text(
@@ -2600,10 +2662,29 @@ def resource_size_bytes(resource: dict[str, object]) -> int | None:
         value = resource.get(key)
         if value in ("", None):
             continue
-        size = positive_int_or_none(value)
+        size = positive_int_from_resource_value(value)
         if size is not None:
             return size
     return None
+
+
+def positive_int_from_resource_value(value: object) -> int | None:
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            size = positive_int_from_resource_value(item)
+            if size is not None:
+                return size
+        return None
+    if isinstance(value, dict):
+        return positive_int_from_resource_value(
+            first_resource_text(
+                value.get("@value"),
+                value.get("value"),
+                value.get("bytes"),
+                value.get("size"),
+            )
+        )
+    return positive_int_or_none(value)
 
 
 def positive_int_or_none(value: object) -> int | None:
@@ -2623,10 +2704,14 @@ def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:
 
 def source_format_for_resource(resource: dict[str, object], url: str, fallback: str = "unknown") -> str:
     hinted = normalize_resource_format(
-        first_text(
+        first_resource_text(
             resource.get("format"),
             resource.get("mimetype"),
+            resource.get("mimeType"),
             resource.get("media_type"),
+            resource.get("mediaType"),
+            resource.get("content_type"),
+            resource.get("contentType"),
             resource.get("encodingFormat"),
             resource.get("type"),
         )

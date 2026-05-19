@@ -161,8 +161,10 @@ Zenodo-like, NOAA/NCEI Search, Socrata/SODA, and metadata-link sources. If a rev
 `dataset_version.metadata.links`, the resolver promotes only bounded resources that already look like direct files,
 or whose resource metadata declares a supported file format, into new direct plan entries with fresh `target_path`,
 `download_eligibility`, and `import_plan` fields. The generic resource reader recognizes common direct-link keys such
-as `download_url`, `downloadURL`, `contentUrl`, `fileUrl`, `url`, and `href`, plus common size hints such as `byteSize`
-and `contentSize`. Declared resources larger than 100 MB remain in adapter review.
+as `download_url`, `downloadURL`, `contentUrl`, `fileUrl`, `url`, and `href`; values may be strings, lists, or JSON-LD
+objects such as `{"@id": "..."}`, but label-only objects are not treated as URLs. It recognizes format hints such as
+`format`, `mediaType`, `contentType`, and `encodingFormat`, plus common size hints such as `byteSize`, `contentSize`,
+and `{"@value": "..."}` wrappers. Declared resources larger than 100 MB remain in adapter review.
 For CKAN/Data.gov entries that only expose a `package_show` URL, or a `package_search` URL plus dataset id, it performs
 one bounded `package_show` metadata lookup and then applies the same direct-resource rules. It also handles bounded
 API-query paths for ERDDAP: candidates with

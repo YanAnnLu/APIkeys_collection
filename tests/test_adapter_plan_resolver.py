@@ -132,6 +132,70 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
         self.assertEqual(4096, resolved_entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_dcat_download_url_list_object_promotes_direct_csv_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "DCAT object-valued CSV export",
+                "format": ["text/csv"],
+                "downloadURL": [{"@id": "https://data.example.test/exports/object-sample.csv"}],
+                "byteSize": {"@value": "2048"},
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/exports/object-sample.csv", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual(2048, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
+    def test_dcat_media_type_promotes_extensionless_csv_url(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "DCAT API CSV export",
+                "mediaType": {"@value": "text/csv"},
+                "downloadURL": "https://data.example.test/api/download?id=sample",
+                "byteSize": 2048,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/api/download?id=sample", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
+
+    def test_direct_link_object_without_url_stays_in_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "Catalog distribution",
+                "format": "text/csv",
+                "downloadURL": {"label": "CSV download"},
+                "byteSize": 2048,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertIn("adapter_review", resolved["providers"][0])
+
     def test_datacite_doi_lookup_promotes_content_url_resource(self) -> None:
         entry = datacite_doi_review_entry()
 
