@@ -52,7 +52,7 @@ provider / source platform
 - `html_file_index`：讀簡單 HTML 檔案索引，用 regex 找出版本/檔案 shard，例如 MarineCadastre AIS daily CSV.ZST。
 - `cmr_collections`：查 NASA Earthdata CMR collection search，適合從 NASA/Earthdata 目錄找到可再審核的衛星、海洋、氣候資料集。
 - `stac_collections`：讀 STAC `/collections`，適合 Microsoft Planetary Computer、Earth Search 這類雲端地球觀測 catalog。
-- `ogc_api_records`：讀 OGC API Records `items` / FeatureCollection，適合從地理空間 metadata catalog 產生可審核資料集候選；只保留 record metadata，不直接下載背後的大型資料。
+- `ogc_api_records`：讀 OGC API Records `items` / FeatureCollection，適合從地理空間 metadata catalog 產生可審核資料集候選；只保留 record metadata，不直接下載背後的大型資料。若 record 連到 `mqtts://` 這類 broker/notification stream，crawler 會把它留在 metadata links，但不把它當成主要 `api_url` 或 direct download。
 - `gbif_dataset_search`：查 GBIF registry dataset search，適合先發現生物多樣性資料集與 record count，再決定是否進入 GBIF download workflow。
 - `dataverse_search`：查 Dataverse search API，適合 Harvard Dataverse 這類研究資料平台，先取得可審核的 dataset metadata。
 - `zenodo_records_search`：查 Zenodo records API，適合先發現研究資料記錄與檔案摘要，再決定是否能進入 direct download 或 adapter review。
@@ -94,7 +94,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/dataverse.py`：放 Dataverse search query URL builder、payload parser、source-level fetch/parse flow 與 Dataverse pagination flow，保留 global id、版本、dataverse alias 與 file count metadata。
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records query URL builder、payload parser、source-level fetch/parse flow、Zenodo pagination flow、檔案摘要 helper 與簡單 markup 清理 helper。
 - `api_launcher/crawlers/datacite.py`：放 DataCite `/dois` query URL builder、payload parser、source-level fetch/parse flow 與 DataCite pagination flow；保留 DOI、publisher、client id、subjects、formats、rights 與 usage count metadata。
-- `api_launcher/crawlers/ogc_records.py`：放 OGC API Records query URL builder、FeatureCollection payload parser、source-level fetch/parse flow 與 `next` link pagination flow；保留 record id、keywords/themes、formats、geometry type、links 與 temporal coverage metadata。
+- `api_launcher/crawlers/ogc_records.py`：放 OGC API Records query URL builder、FeatureCollection payload parser、source-level fetch/parse flow 與 `next` link pagination flow；保留 record id、keywords/themes、formats、geometry type、links 與 temporal coverage metadata。primary `api_url` 只會選 HTTP(S) data/download/items/self links；非 HTTP broker links 只留 metadata，等待未來 WIS2/stream adapter。
 - `api_launcher/crawlers/socrata.py`：放 Socrata catalog query URL builder、payload parser、source-level fetch/parse flow 與 offset pagination flow；保留 Socrata domain、resource id、`api/views` metadata URL、bounded resolver 可用的 `/resource/{id}.json`、欄位摘要與 attribution/license metadata。
 - `api_launcher/crawlers/openalex.py`：放 OpenAlex Works search URL builder、payload parser、source-level fetch/parse flow 與 cursor pagination flow；保留 OpenAlex work id、DOI、primary location、open access metadata、作者/機構/concepts/keywords。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index source-level fetch/parse flow，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。

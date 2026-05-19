@@ -482,6 +482,54 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("Polygon", dataset.metadata["geometry_type"])
         self.assertEqual("https://records.example.test/items/cloud-raster-record", dataset.api_url)
 
+    def test_ogc_api_records_keeps_non_http_broker_links_out_of_primary_api_url(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="wmo_wis2_gdc_records",
+            provider_id="wmo_wis2_gdc",
+            name="WMO WIS2 Global Discovery Catalogue records",
+            source_type="ogc_api_records",
+            endpoint_url="https://wis2-gdc.example.test/collections/wis2-discovery-metadata/items",
+            docs_url="https://wis2-gdc.example.test/docs",
+            categories=("wmo", "wis2", "ogc_api_records", "weather"),
+            geographic_scope="global",
+        )
+        payload = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "id": "urn:wmo:md:example:forecast.global",
+                    "properties": {
+                        "title": "Global model forecast notifications",
+                        "description": "Forecast metadata delivered through WIS2 broker notifications.",
+                        "formats": ["GRIB2"],
+                    },
+                    "links": [
+                        {
+                            "rel": "items",
+                            "href": "mqtts://everyone:everyone@example-broker.test:8883",
+                            "title": "WIS2 broker notifications",
+                            "type": "application/geo+json",
+                        },
+                        {
+                            "rel": "related",
+                            "href": "https://example.test/model-docs",
+                            "title": "Documentation",
+                            "type": "text/html",
+                        },
+                    ],
+                }
+            ],
+        }
+
+        candidates = ogc_records_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("urn_wmo_md_example_forecast.global", dataset.dataset_id)
+        self.assertEqual("grib2", dataset.native_format)
+        self.assertEqual(source.endpoint_url, dataset.api_url)
+        self.assertEqual("mqtts://everyone:everyone@example-broker.test:8883", dataset.metadata["links"][0]["href"])
+
     def test_ogc_api_records_search_url_uses_q_and_limit(self) -> None:
         url = ogc_records_search_url("https://records.example.test/items?f=json", "cloud imagery", 25)
 

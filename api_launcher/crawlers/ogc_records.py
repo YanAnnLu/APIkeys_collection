@@ -67,8 +67,8 @@ def ogc_records_candidates_from_payload(
             )
         )
         data_family = infer_data_family(searchable)
-        landing_url = first_link_href(links, ("canonical", "alternate", "describedby", "self")) or source.docs_url or source_url
-        api_url = first_link_href(links, ("self", "items", "data", "download")) or source_url
+        landing_url = first_http_link_href(links, ("canonical", "alternate", "describedby", "self")) or source.docs_url or source_url
+        api_url = first_http_link_href(links, ("data", "download", "items", "self")) or source_url
         license_url = first_link_href(links, ("license",)) or urlish_text(properties.get("license") or properties.get("rights"))
         dataset = Dataset(
             dataset_uid=dataset_uid(source.provider_id, dataset_id),
@@ -239,6 +239,16 @@ def first_link_href(links: list[dict[str, object]], rels: tuple[str, ...]) -> st
         for link in links:
             if str(link.get("rel") or "").lower() == rel and link.get("href"):
                 return str(link["href"])
+    return ""
+
+
+def first_http_link_href(links: list[dict[str, object]], rels: tuple[str, ...]) -> str:
+    for rel in rels:
+        for link in links:
+            href = str(link.get("href") or "")
+            parsed = urllib.parse.urlparse(href)
+            if str(link.get("rel") or "").lower() == rel and parsed.scheme in {"http", "https"} and parsed.netloc:
+                return href
     return ""
 
 
