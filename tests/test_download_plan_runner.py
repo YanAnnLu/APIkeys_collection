@@ -161,6 +161,51 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
         self.assertIn("imported=1", stdout.getvalue())
 
+    def test_import_supported_plan_results_skips_existing_table_on_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.csv"
+            sqlite_path = Path(tmpdir) / "curated.sqlite"
+            conn = connect_db(Path(tmpdir) / "launcher.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                plan = sample_plan(url, output_path, native_format="csv")
+
+                first = run_download_plan_payload(
+                    plan,
+                    repo,
+                    policy=PoliteDownloadPolicy(max_parallel_jobs=1, min_delay_per_host_seconds=0),
+                    timeout=5,
+                    import_supported_results=True,
+                    import_sqlite_path=sqlite_path,
+                )
+                second = run_download_plan_payload(
+                    plan,
+                    repo,
+                    policy=PoliteDownloadPolicy(max_parallel_jobs=1, min_delay_per_host_seconds=0),
+                    timeout=5,
+                    import_supported_results=True,
+                    import_sqlite_path=sqlite_path,
+                )
+            finally:
+                conn.close()
+
+            db = sqlite3.connect(sqlite_path)
+            try:
+                rows = db.execute("SELECT name, value FROM hyg_sample ORDER BY name").fetchall()
+            finally:
+                db.close()
+
+        self.assertEqual(1, first.imported)
+        self.assertEqual(0, first.import_skipped)
+        self.assertEqual(0, first.import_failed)
+        self.assertEqual(0, second.imported)
+        self.assertEqual(1, second.import_skipped)
+        self.assertEqual(0, second.import_failed)
+        self.assertEqual(0, second.failed)
+        self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
+
     def test_cli_can_unpack_zip_plan_result_before_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(zip_csv_bytes()) as url:
             output_path = Path(tmpdir) / "downloads" / "sample.zip"

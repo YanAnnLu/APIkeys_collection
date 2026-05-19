@@ -1,6 +1,6 @@
 # APIkeys_collection Project State
 
-Last local review: 2026-05-19
+Last local review: 2026-05-20
 
 ## Product Intent
 
@@ -42,7 +42,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Crawler-discovered dataset candidates can now be exported with `--export-candidate-plan`; this uses the same
   dataset-version plan schema as adapters and adds candidate review metadata plus conservative import hints.
 - `--run-download-plan` can optionally add `--import-supported-plan-results`, which imports supported CSV/JSON plan
-  results into curated SQLite after manifest verification while tracking import skipped/failed counts separately.
+  results into curated SQLite after manifest verification while tracking import skipped/failed counts separately. If the
+  same plan is run again and the target table already exists, the runner records `skipped_existing_table` instead of
+  treating the item as a failed import.
 - Verified CSV/CSV.GZ manifests can now be imported into curated SQLite tables through `--import-csv-manifest`; columns
   are normalized as safe SQL identifiers, table schema fingerprints are recorded, and the result is registered as a
   managed curated table asset.
@@ -192,7 +194,8 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `state/curated_imports.sqlite` after sidecar manifest verification. The cart and download job table expose import
   readiness/status and target table hints so users can see whether an item is waiting for download, ready to import,
   imported, blocked by adapter review, or blocked by unpack/adapter work. If the target table already exists, the UI
-  now safely auto-renames the new import to the next available table name instead of replacing existing data.
+  now safely auto-renames the new import to the next available table name instead of replacing existing data; shared
+  helper skip states such as `skipped_existing_table` are shown as skipped, not failed.
 - Dataset-version plan entries that are not directly downloadable, or that need post-download unpack/transform work, now
   include an `adapter_review` handoff block. It records the adapter id, source URL, required action, expected output,
   and reason so future non-direct adapters have a concrete contract instead of a vague "adapter required" label. CLI

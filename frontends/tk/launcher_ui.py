@@ -2360,10 +2360,10 @@ class ApiCollectionUi:
                     imported += 1
                     detail = table_hint or self.tr("已寫入 SQLite", "Written to SQLite")
                     item_statuses.append((plan_key, self.tr("已匯入", "Imported"), detail))
-                elif result == "skipped":
+                elif result.startswith("skipped"):
                     skipped += 1
-                    item_statuses.append((plan_key, self.tr("略過", "Skipped"), "import_plan skipped"))
-                    messages.append(f"{label}: import_plan skipped")
+                    item_statuses.append((plan_key, self.tr("略過", "Skipped"), result))
+                    messages.append(f"{label}: {result}")
                 else:
                     failed += 1
                     item_statuses.append((plan_key, self.tr("失敗", "Failed"), result))

@@ -1,6 +1,6 @@
 # 使用者操作指南
 
-最後更新：2026-05-17
+最後更新：2026-05-20
 
 這份文件寫給第一次打開 launcher 的人。它用操作角度說明目前 UI 可以做什麼，以及哪些功能還是骨架。
 
@@ -195,9 +195,9 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite
 ```
 
-這會先下載 direct entries、驗證 manifest，然後只把支援的 CSV/JSON 類結果匯入 SQLite；不支援的格式會跳過，不會硬塞進資料庫。
+這會先下載 direct entries、驗證 manifest，然後只把支援的 CSV/JSON 類結果匯入 SQLite；不支援的格式會跳過，不會硬塞進資料庫。如果你重跑同一份 plan，而目標 table 已經存在，CLI 會把它記成 `skipped_existing_table`，意思是「這張表已經在了，所以先不覆蓋」，不是壞掉。只有你很確定要重建資料表時，才加 `--import-replace-table`。
 
-在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`需 adapter` 或 `需解壓/adapter`。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料。
+在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`略過`、`需 adapter` 或 `需解壓/adapter`。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料；如果共用匯入流程回報已存在 table，UI 會把它顯示成「略過」，不是「失敗」。
 
 如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
 

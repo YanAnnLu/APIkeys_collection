@@ -1,6 +1,6 @@
 # Agent 接力卡
 
-最後更新：2026-05-19
+最後更新：2026-05-20
 
 這份文件是跨 Windows、macOS、不同 Agent 接力時的固定入口。每次切換機器或切換 Agent 前，請優先更新這份文件；下一位 Agent 應該先讀這份，再讀 `PROJECT_GTD.md`。
 
@@ -131,10 +131,10 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | 欄位 | 值 |
 | --- | --- |
 | Branch | `main` |
-| 最新已推送 commit | 接力前請以 `git log -1 --oneline` 為準；不要把本欄位當成長期有效 SHA。本輪最近功能 checkpoint 是 database repair UI registry-only actions；push 後請用 `gh run list --branch main --limit 5` 與 `gh run watch ... --exit-status` 確認 CI。 |
-| 上次本機驗證 | 2026-05-20 Windows/CloudMounter：manifest-backed database reimport repair checkpoint 使用 `.\.venv\Scripts\python.exe -B -m py_compile frontends\tk\launcher_ui.py api_launcher\database_repair.py api_launcher\importers\csv_importer.py api_launcher\importers\json_importer.py api_launcher\repository.py` OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_database_repair.py -v`，4 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_csv_importer.py -v`，5 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_json_importer.py -v`，5 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_database_self_check.py -v`，33 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`，322 tests OK、skipped=1；`git diff --check` OK。注意：本機 `python` 指到 WindowsApps 佔位程式，請用 `.venv\Scripts\python.exe`；雲端磁碟寫 `__pycache__` 可能卡住，測試時可用 `-B`、設 `PYTHONDONTWRITEBYTECODE=1`，或把 pycache 指到本機暫存。前一個 DOI/DataCite checkpoint：`datacite_doi_content_url_resolver` 只查一次 DataCite DOI API，從 `contentUrl` 挑支援格式、未宣告超過 100MB 的 direct file。 |
-| 最近新增重點 | Database repair UI 現在多了第一個 guarded restore/reimport action：在 Repair / verify assets 的「資料庫」分頁選到 manifest-backed missing SQLite table 時，可按「重新匯入資料表」從先前記錄的健康 CSV/JSON sidecar manifest 重建缺失 table；若 table 已存在會拒絕，且不會 DROP/覆蓋。CSV/JSON 匯入器也改用 database self-check 相同的 SQLite table fingerprint，避免匯入後立刻被誤判 schema drift。前一個重點：資料庫分頁也可調整單一 asset 的 `data_store_profile_id` / `schema_name`，或把單一 database/table asset 標成 `unmanaged`；這些 registry 動作不會改動資料庫物件。 |
-| MVP 剩餘估算 | 約 16-18%；bounded adapter 的 DOI/DataCite、NOAA/NCEI data-file 與 CMR granule data-link 風險各收掉一塊，database self-check UI 已有 profile/schema 修正、停止追蹤單一壞資產，以及 manifest-backed missing SQLite table reimport；剩下主要是擴大 guarded repair 範圍、crawler source 類型收束、import policy 與少量 UI polish |
+| 最新已推送 commit | 接力前請以 `git log -1 --oneline` 為準；不要把本欄位當成長期有效 SHA。本輪最近功能 checkpoint 是 plan-driven import rerun safety；push 後請用 `gh run list --branch main --limit 5` 與 `gh run watch ... --exit-status` 確認 CI。 |
+| 上次本機驗證 | 2026-05-20 Windows/CloudMounter：plan-driven import rerun safety checkpoint 使用 `.\.venv\Scripts\python.exe -B -m py_compile api_launcher\downloads\plan_runner.py frontends\tk\launcher_ui.py` OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_download_plan_runner.py -v`，5 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_csv_importer.py -v`，5 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -p test_json_importer.py -v`，5 tests OK；`.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`，323 tests OK、skipped=1；`git diff --check` OK。注意：本機 `python` 指到 WindowsApps 佔位程式，請用 `.venv\Scripts\python.exe`；雲端磁碟寫 `__pycache__` 可能卡住，測試時可用 `-B`、設 `PYTHONDONTWRITEBYTECODE=1`，或把 pycache 指到本機暫存。前一個 checkpoint：manifest-backed database reimport repair 已進 Repair UI，且 CSV/JSON 匯入器使用 database self-check 相同的 SQLite table fingerprint。 |
+| 最近新增重點 | `--run-download-plan ... --import-supported-plan-results` 現在預設可以安全重跑：如果同一份 plan 的目標 SQLite table 已存在，runner 會把該項記為 `skipped_existing_table`，統計到 skipped，而不是當成 import failed。這是保守、不覆蓋資料的 MVP 匯入策略；若真的要重建 table，仍必須明確加 `--import-replace-table`。Tk UI 共用的匯入 helper 也把 `skipped_*` 視為略過狀態，不會在 UI 上顯示成失敗。前一個重點：Database repair UI 可對 manifest-backed missing SQLite table 做 guarded reimport，且不會 DROP/覆蓋既有 table。 |
+| MVP 剩餘估算 | 約 15-17%；bounded adapter 的 DOI/DataCite、NOAA/NCEI data-file 與 CMR granule data-link 風險各收掉一塊，database self-check UI 已有 profile/schema 修正、停止追蹤單一壞資產與 manifest-backed missing SQLite table reimport，plan-driven import 重跑也不再把已存在 table 誤判為失敗；剩下主要是擴大 guarded repair 範圍、crawler source 類型收束、少量 import policy / UI polish |
 | UI 入口 | `python3 APIkeys_collection_ui.py` 或 `py APIkeys_collection_ui.py` |
 | Tk UI 實作 | `frontends/tk/launcher_ui.py` |
 | 使用者指南 | `docs/USER_GUIDE.zh-TW.md` |
@@ -180,8 +180,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - CLI `--import-verified-csv-manifests --import-sqlite-db PATH` 可批次匯入 registry 裡的健康 CSV/CSV.GZ manifests；預設跳過非 CSV、不健康 manifest、已存在 table。可搭配 `--provider ID` 限定資料商。
 - CLI `--import-json-manifest MANIFEST --import-sqlite-db PATH --import-table TABLE` 現在可把健康 JSON/JSONL/GeoJSON manifest payload 匯入 curated SQLite table。支援物件陣列、JSON Lines、`records/items/results/data` 包起來的陣列、NASA CMR 常見的 `feed.entry` 巢狀陣列，以及基本 GeoJSON FeatureCollection；欄位先以 `TEXT` 存入並登錄 `asset_role=curated`、`source_format=json` 與 schema fingerprint。
 - CLI `--import-verified-json-manifests --import-sqlite-db PATH` 可批次匯入 registry 裡的健康 JSON/JSONL/GeoJSON manifests；預設跳過非 JSON、不健康 manifest、已存在 table。這是 CSV 後的第二條 raw -> curated MVP 路徑。
-- CLI `--run-download-plan PATH --import-supported-plan-results --import-sqlite-db PATH` 現在可在 direct entries 下載並驗證 manifest 後，依 plan entry 的 `import_plan` 自動匯入支援的 CSV/JSON 類 payload。匯入成功、跳過、不支援、匯入失敗會和 download/manifest 結果分開統計。
-- Tk UI 已把 plan-driven import 接成 guided action：下載計畫區有 `匯入` 按鈕，`資料庫 > 匯入可支援下載結果` 與「更多」選單也有入口。它會取目前 plan item / 實際下載 plan entry，先驗 sidecar manifest，再對 `import_plan.status=supported_after_download` 的 CSV/JSON 項目呼叫現有 importer，目標 SQLite 是 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示匯入狀態/table hint，例如待下載/驗證、可匯入、已匯入、需 adapter、需解壓/adapter。目前不做 destructive replace；若 table 已存在，UI 會自動改名成下一個可用 table，例如 `table_2`，避免覆蓋使用者資料。
+- CLI `--run-download-plan PATH --import-supported-plan-results --import-sqlite-db PATH` 現在可在 direct entries 下載並驗證 manifest 後，依 plan entry 的 `import_plan` 自動匯入支援的 CSV/JSON 類 payload。匯入成功、跳過、不支援、匯入失敗會和 download/manifest 結果分開統計；同一份 plan 重跑時，如果目標 table 已存在，預設會記為 `skipped_existing_table`，不當成失敗，也不覆蓋資料。
+- Tk UI 已把 plan-driven import 接成 guided action：下載計畫區有 `匯入` 按鈕，`資料庫 > 匯入可支援下載結果` 與「更多」選單也有入口。它會取目前 plan item / 實際下載 plan entry，先驗 sidecar manifest，再對 `import_plan.status=supported_after_download` 的 CSV/JSON 項目呼叫現有 importer，目標 SQLite 是 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示匯入狀態/table hint，例如待下載/驗證、可匯入、已匯入、需 adapter、需解壓/adapter。目前不做 destructive replace；若 table 已存在，UI 會自動改名成下一個可用 table，例如 `table_2`，避免覆蓋使用者資料；若共用 helper 回傳 `skipped_existing_table` 這類狀態，UI 會顯示為「略過」，不顯示成失敗。
 - `--verify-downloads-json` 已提供下載檔驗證的 agent-readable JSON：包含 summary、issues、repair suggestion、以及 HTTP(S) manifest 可安全重排下載的 plan entry。若要指定掃描資料夾，可搭配 `--downloads-root PATH`。
 - Tk UI 新增 `設定 > 介面語言`，語言存在 `launcher_integrations.local.json` 的 `ui_language`。預設是 `zh-TW`；新開啟 dialog 會套用，主畫面完整套用需重新啟動。後續碰 UI 時應優先補齊繁中顯示與 `tr(...)` 英文 fallback。
 - Tk UI 的登入/串接入口已集中到上方 `整合` 選單：`AI / Gemini 串接中心`、`保存 Gemini API key`、`AI 輔助模型選擇`、`Google OAuth（中期 / 開發者）`、資料儲存連線與資料庫工具都在這裡。主工具列和右側抽屜不要再新增登入/API key/資料庫工具設定入口；抽屜只保留目前資料源的動作。
@@ -231,12 +231,12 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 ## 下一步優先事項
 
-1. 收束 bounded API-query adapters 到 MVP 主線：CKAN package metadata lookup、Dataverse latest-version file lookup、ERDDAP sample resolver、STAC `limit=1` item metadata GeoJSON sample、NASA CMR `page_size=1` granule metadata sample、CMR granule explicit data-link selector、Socrata/SODA `$limit=25` sample、NOAA/NCEI Search `limit=25&offset=0` metadata sample、NOAA/NCEI Search data-file selector、NOAA/NCEI Access Data 有界小查詢、DataCite DOI `contentUrl` lookup 已先打通；DOI/OpenAlex landing/API record 若沒有 `contentUrl` 仍明確留在 adapter review。下一步優先做 import policy polish、少量 crawler source 類型，或把 guarded database repair 從 CSV/JSON manifest-backed SQLite table 擴到更多明確擁有權案例，但每次都先通過「服務哪段 MVP、入口在哪、移除是否影響 MVP」三問。
+1. 收束 bounded API-query adapters 到 MVP 主線：CKAN package metadata lookup、Dataverse latest-version file lookup、ERDDAP sample resolver、STAC `limit=1` item metadata GeoJSON sample、NASA CMR `page_size=1` granule metadata sample、CMR granule explicit data-link selector、Socrata/SODA `$limit=25` sample、NOAA/NCEI Search `limit=25&offset=0` metadata sample、NOAA/NCEI Search data-file selector、NOAA/NCEI Access Data 有界小查詢、DataCite DOI `contentUrl` lookup 已先打通；DOI/OpenAlex landing/API record 若沒有 `contentUrl` 仍明確留在 adapter review。plan-driven import 重跑已先採「既有 table 預設略過、明確 replace 才覆蓋」策略；下一步優先做少量 crawler source 類型、擴大 guarded database repair 到更多明確擁有權案例，或補 power-user import policy UI，但每次都先通過「服務哪段 MVP、入口在哪、移除是否影響 MVP」三問。
 2. 擴充 SQL/database self-check：per-asset SQL profile/schema 選擇、registry-only stop-tracking、以及 manifest-backed missing SQLite table reimport 已進 UI；下一步加入真實 driver smoke 覆蓋，並擴大 guarded repair suggestion 的適用範圍。
 3. 繼續擴充 crawler source 類型，但要維持設定檔驅動；Dataverse/Zenodo/DataCite/OGC API Records/Socrata/OpenAlex 已有 metadata parser 與 pagination flow，下一批可評估更細的 NOAA/NCEI file/asset selector 或 DOI/repository resource resolver。
 4. 新增 financial/time-series adapter contract，處理 live market data、append windows、revision/backfill、retention policy。
 5. 新增 Marine Regions/VLIZ maritime boundaries adapter，支援領海、EEZ、爭議區、公海圖層。
-6. 中期再補 advanced import policy：讓 power user 在保留既有 / rename 新 table / 明確 replace 之間選擇；預設仍應保持不覆蓋。
+6. 中期再補 advanced import policy：讓 power user 在保留既有 / rename 新 table / 明確 replace 之間選擇；目前 CLI 重跑預設略過既有 table、Tk UI guided import 預設安全改名，整體預設仍應保持不覆蓋。
 7. 用 SQLite `dataset_asset_manifests` 做更廣義的 update/dedupe 決策；目前只完成同一 target 檔案的 manifest 重用。
 8. 維護 `docs/AGENT_HANDOFF.zh-TW.md` 作為開發接力主入口；未來若要做 `.codex/skills/apikeys-collection-launcher`，應等 MVP 閉環穩定後再產品化成消費端/操作端技能。
 9. 繼續減少 Tk UI 內的業務邏輯，讓 UI 主要負責呈現與觸發。

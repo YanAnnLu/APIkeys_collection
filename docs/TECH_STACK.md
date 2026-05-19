@@ -198,8 +198,10 @@ immediately after manifest verification:
 py APIkeys_collection.py --run-download-plan state\candidate_plan.json --import-supported-plan-results --import-sqlite-db state\curated_imports.sqlite
 ```
 
-This is intentionally opt-in. The runner skips unsupported formats, and import failures are reported separately from
-download/manifest failures.
+This is intentionally opt-in. The runner skips unsupported formats, reports import failures separately from
+download/manifest failures, and treats an existing target table as `skipped_existing_table` unless
+`--import-replace-table` was explicitly requested. Chinese user-facing guidance for this behavior is in
+`docs/USER_GUIDE.zh-TW.md`.
 
 Verified CSV or CSV.GZ payloads can now be imported into a curated SQLite table:
 

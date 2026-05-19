@@ -9,7 +9,7 @@ from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.importers.archive_importer import extract_first_supported_member_manifest
-from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, table_exists, table_name_for_manifest
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
@@ -144,7 +144,7 @@ def run_download_plan_payload(
                     )
                     if import_result == "imported":
                         imported += 1
-                    elif import_result == "skipped":
+                    elif import_result.startswith("skipped"):
                         import_skipped += 1
                     else:
                         import_failed += 1
@@ -212,6 +212,11 @@ def import_completed_plan_entry(
     importer = str(import_plan.get("importer") or "").strip()
     table_name = str(import_plan.get("table_hint") or "").strip()
     try:
+        if not replace:
+            manifest = read_manifest(manifest_path)
+            resolved_table_name = table_name or table_name_for_manifest(manifest)
+            if table_exists(sqlite_path, resolved_table_name):
+                return "skipped_existing_table"
         if importer == "csv_to_sqlite":
             import_csv_manifest_to_sqlite(
                 manifest_path,
