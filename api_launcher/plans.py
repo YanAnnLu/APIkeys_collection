@@ -213,6 +213,16 @@ def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEli
             reason="This dataset version does not expose a download URL yet.",
             requires_adapter=True,
         )
+    metadata = option.metadata or {}
+    native_format = str(metadata.get("native_format") or metadata.get("source_format") or "").strip().lower()
+    source_type = str(metadata.get("discovery_source_type") or metadata.get("source_type") or "").strip().lower()
+    if native_format == "cmr_collection" or source_type == "cmr_collections":
+        return DownloadEligibility(
+            status="adapter_required",
+            label="Adapter",
+            reason="NASA CMR collection/granule API URLs must be turned into bounded metadata or asset requests before download.",
+            requires_adapter=True,
+        )
     if looks_like_direct_download(url):
         return DownloadEligibility(
             status="direct_download",

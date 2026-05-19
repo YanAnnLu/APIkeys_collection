@@ -428,6 +428,76 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertIn("dataset=automatic-identification-system-ais", resolved_entry["download_url"])
         self.assertIn("limit=25", resolved_entry["download_url"])
 
+    def test_cmr_candidate_plan_resolves_to_bounded_granule_metadata_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "cmr_candidate_plan.json"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="nasa_earthdata:sentinel_6_jason_cs_s6a",
+                        provider_id="nasa_earthdata",
+                        dataset_id="sentinel_6_jason_cs_s6a",
+                        title="Sentinel-6 Jason-CS L2 Sea Surface Height",
+                        categories=("nasa", "cmr", "satellite", "earth_observation"),
+                        data_type="raster_or_grid",
+                        native_format="cmr_collection",
+                        geographic_scope="global",
+                        landing_url="https://cmr.earthdata.nasa.gov/search/concepts/C1234567890-POCLOUD.html",
+                        api_url="https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD",
+                        version="discovered",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "nasa_earthdata_cmr_collections",
+                            "discovery_source_type": "cmr_collections",
+                            "source_url": "https://cmr.earthdata.nasa.gov/search/collections.json?keyword=altimetry&page_size=10",
+                            "data_family": "raster_or_grid",
+                            "cmr_concept_id": "C1234567890-POCLOUD",
+                        },
+                    )
+                )
+            finally:
+                conn.close()
+
+            with redirect_stdout(io.StringIO()):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--export-candidate-plan",
+                        str(plan_path),
+                        "--candidate-plan-status",
+                        "needs_review",
+                        "--candidate-plan-limit",
+                        "1",
+                    ]
+                )
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+            resolved_payload, resolution = resolve_adapter_review_plan_payload(
+                payload,
+                downloads_root=Path(tmpdir) / "downloads",
+            )
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["summary"]["review_required_count"])
+        self.assertEqual("cmr_collections", payload["providers"][0]["candidate_review"]["discovery_source_type"])
+        self.assertEqual(1, resolution.resolved_review_entries)
+        self.assertEqual(1, resolution.direct_entries_added)
+        resolved_entry = resolved_payload["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual(
+            "cmr_bounded_granule_search_resolver",
+            resolved_entry["adapter_resolution"]["resolver_id"],
+        )
+        self.assertIn("/search/granules.json", resolved_entry["download_url"])
+        self.assertIn("collection_concept_id=C1234567890-POCLOUD", resolved_entry["download_url"])
+        self.assertIn("page_size=1", resolved_entry["download_url"])
+
     def test_dataverse_candidate_plan_resolves_to_latest_version_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "launcher.sqlite"

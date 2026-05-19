@@ -251,6 +251,29 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertTrue(entry["target_path"].endswith(".geojson"))
         self.assertNotIn("adapter_review", entry)
 
+    def test_cmr_collection_metadata_promotes_bounded_granule_metadata_sample_entry(self) -> None:
+        plan = {"providers": [cmr_review_entry()]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("cmr_bounded_granule_search_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual(
+            "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD&page_size=1",
+            entry["download_url"],
+        )
+        self.assertEqual("json", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual("C1234567890-POCLOUD", entry["adapter_resolution"]["cmr_concept_id"])
+        self.assertEqual(1, entry["adapter_resolution"]["sample_limit"])
+        self.assertTrue(entry["target_path"].endswith(".json"))
+        self.assertNotIn("adapter_review", entry)
+
     def test_socrata_resource_url_promotes_bounded_json_sample_entry(self) -> None:
         plan = {"providers": [socrata_review_entry("https://data.example.test/resource/abcd-1234.json?$select=name")]}
 
@@ -582,6 +605,41 @@ def stac_review_entry() -> dict[str, object]:
         "adapter_review": {
             "adapter_id": "earth_search_stac_adapter",
             "source_url": "https://stac.example.test/collections/sentinel-2-l2a/items",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def cmr_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "nasa_earthdata",
+        "name": "NASA Earthdata",
+        "dataset_uid": "nasa_earthdata:sentinel_6_jason_cs_s6a",
+        "dataset_id": "sentinel_6_jason_cs_s6a",
+        "dataset_title": "Sentinel-6 Jason-CS L2 Sea Surface Height",
+        "categories": ["nasa", "cmr", "satellite", "earth_observation"],
+        "geographic_scope": "global",
+        "download_eligibility": {"status": "adapter_required", "reason": "CMR granule search must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "nasa_earthdata_sentinel_6"},
+        "dataset_version": {
+            "dataset_uid": "nasa_earthdata:sentinel_6_jason_cs_s6a",
+            "dataset_id": "sentinel_6_jason_cs_s6a",
+            "label": "discovered",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD",
+            "landing_url": "https://cmr.earthdata.nasa.gov/search/concepts/C1234567890-POCLOUD.html",
+            "metadata": {
+                "native_format": "cmr_collection",
+                "data_family": "raster_or_grid",
+                "discovery_source_type": "cmr_collections",
+                "source_url": "https://cmr.earthdata.nasa.gov/search/collections.json?keyword=altimetry&page_size=10",
+                "cmr_concept_id": "C1234567890-POCLOUD",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "nasa_earthdata_cmr_adapter",
+            "source_url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD",
             "required_action": "resolve_source_to_direct_download_entries",
         },
     }
