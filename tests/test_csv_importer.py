@@ -8,6 +8,7 @@ from contextlib import closing, redirect_stdout
 from pathlib import Path
 
 from api_launcher.core import main
+from api_launcher.database_self_check import DatabaseAssetVerifier
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
@@ -30,6 +31,11 @@ class CsvImporterTests(unittest.TestCase):
 
                 result = import_csv_manifest_to_sqlite(manifest_path, curated_db, repo, replace=False)
                 assets = repo.managed_asset_records("hyg_database")
+                repo.verify_provider_assets(verifier=DatabaseAssetVerifier(), asset_kinds=("database", "table"))
+                asset_status = conn.execute(
+                    "SELECT status FROM provider_installation_assets WHERE asset_id = ?",
+                    (result.table_asset_id,),
+                ).fetchone()["status"]
             finally:
                 conn.close()
 
@@ -48,6 +54,7 @@ class CsvImporterTests(unittest.TestCase):
         self.assertEqual("csv", table_assets[0].source_format)
         self.assertEqual(str(curated_db), table_assets[0].source_uri)
         self.assertEqual(result.schema_fingerprint, table_assets[0].schema_fingerprint)
+        self.assertEqual("present", asset_status)
 
     def test_cli_imports_csv_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

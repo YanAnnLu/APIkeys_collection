@@ -19,7 +19,7 @@
 | 網路中斷 | 下載失敗或檔案不完整 | `.part` 檔與 Range resume | per-provider retry policy 與 manifest 驗證 |
 | 使用者重複點 Start | 同一 provider 重複排 job | `prepare_provider_for_download()` 阻擋活躍 job | 以 dataset version 為 key 支援多版本但避免重複同版本 |
 | 使用者手動刪下載檔 | registry 指向不存在資產 | asset verifier 可標記 missing | UI 一鍵修復或重新下載缺失資產 |
-| 使用者手動刪 SQL database/table | launcher registry 變成死紀錄 | SQL self-check 會標記 missing/error，並輸出 `suggestion=...` 或 JSON repair suggestion；UI 可調整單一 asset 的 profile/schema metadata，或把單一 database/table asset 標成 `unmanaged` 後重新自檢 | 將 restore/reimport 這類 database repair suggestions 接成 adapter-owned guarded action |
+| 使用者手動刪 SQL database/table | launcher registry 變成死紀錄 | SQL self-check 會標記 missing/error，並輸出 `suggestion=...` 或 JSON repair suggestion；UI 可調整單一 asset 的 profile/schema metadata、把單一 database/table asset 標成 `unmanaged` 後重新自檢，或對 manifest-backed missing SQLite table 從健康 CSV/JSON sidecar manifest 重新匯入；reimport 不會 DROP 或覆蓋既有 table | 擴大 guarded repair 到更多 adapter 明確擁有的資料庫輸出，並保留無法證明擁有權時的人工指引 |
 | SQLite 被同步碟鎖住 | 寫入失敗或 permission denied | startup checks 與 error log | 建議本機 state path 或 lock retry |
 | SQLite connection 未明確 close | Windows 刪除 temp SQLite 時 `WinError 32`，CI 只在 windows-latest 失敗 | 2026-05-17 已將短生命週期 `sqlite3.connect()` 改用 `contextlib.closing(...)` | 對 SQLite helper/測試避免裸用 `with sqlite3.connect(...)`，必要時加靜態檢查 |
 | Windows 絕對路徑在 Mac 啟動 | Tk startup checks 把 `K:\...` 當成 Mac 相對路徑並跳錯誤 | `environment.py` 會辨識 foreign platform path，Mac 上只列 warning 不阻擋 UI | config 支援 per-platform project/content paths，UI path repair wizard |

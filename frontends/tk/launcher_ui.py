@@ -35,6 +35,7 @@ from api_launcher.downloads.plan_runner import import_completed_plan_entry
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
+from api_launcher.database_repair import reimport_missing_sqlite_table_asset
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
@@ -4606,6 +4607,63 @@ class ApiCollectionUi:
                 f"{selected.provider_id} / {selected.asset_name}\n\n{self.localized_database_repair_label(suggestion)}\n{next_step}",
             )
 
+        def reimport_selected_database_asset() -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo(self.tr("資料庫修復", "Database repair"), self.tr("請先選取一列資料庫問題。", "Select a database row first."))
+                return
+            suggestion = selected.repair_suggestion()
+            if suggestion.action_id != "restore_or_reimport_table":
+                messagebox.showinfo(
+                    self.tr("資料庫修復", "Database repair"),
+                    self.tr(
+                        "這個動作目前只支援從已記錄 manifest 重新匯入缺失的 SQLite table。",
+                        "This action currently only reimports a missing SQLite table from a recorded manifest.",
+                    ),
+                    parent=dialog,
+                )
+                return
+            if not messagebox.askyesno(
+                self.tr("重新匯入資料表", "Reimport table"),
+                self.tr(
+                    (
+                        f"要從既有 manifest 重新匯入這張缺失的資料表嗎？\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        "這個動作只會在 table 不存在時建立它；不會 DROP 或覆蓋既有 table。"
+                    ),
+                    (
+                        f"Reimport this missing table from its recorded manifest?\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        "This only creates the table when it is missing. It will not DROP or replace an existing table.",
+                    ),
+                ),
+                parent=dialog,
+            ):
+                return
+            conn = self._connect()
+            try:
+                repository = core.ApiCatalogRepository(conn)
+                result = reimport_missing_sqlite_table_asset(repository, selected.asset_id)
+            except Exception as exc:
+                log_exception(
+                    "database_table_reimport_failed",
+                    exc,
+                    component="ui.repair",
+                    context={"asset_id": selected.asset_id, "provider_id": selected.provider_id},
+                )
+                messagebox.showerror(self.tr("重新匯入資料表", "Reimport table"), str(exc), parent=dialog)
+                return
+            finally:
+                conn.close()
+            dialog.destroy()
+            self.reload_data()
+            self.status_var.set(self.tr(
+                f"已重新匯入 {result.table_name}，列數 {result.rows_imported}，正在重新自檢。",
+                f"Reimported {result.table_name} with {result.rows_imported} rows; rerunning self-check.",
+            ))
+            self.open_repair_panel()
+
         def edit_selected_database_connection() -> None:
             selection = database_table.selection()
             selected = database_issue_by_iid.get(str(selection[0])) if selection else None
@@ -4738,6 +4796,7 @@ class ApiCollectionUi:
         ttk.Button(actions, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=lambda: (dialog.destroy(), self.open_repair_panel())).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("重新排下載", "Requeue selected download"), style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示資料庫建議", "Show database suggestion"), style="Action.TButton", command=show_selected_database_suggestion).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("重新匯入資料表", "Reimport table"), style="Action.TButton", command=reimport_selected_database_asset).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("調整資料庫連線", "Edit database connection"), style="Action.TButton", command=edit_selected_database_connection).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("停止追蹤", "Stop tracking"), style="Action.TButton", command=unmanage_selected_database_asset).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("資料儲存設定", "Data-store settings"), style="Action.TButton", command=self.open_data_store_connection_settings).pack(side=LEFT, padx=(0, 10))

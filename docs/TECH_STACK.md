@@ -270,8 +270,11 @@ repair suggestion such as `configure_data_store_env`, `install_optional_driver_i
 `restore_or_reimport_table`, or `review_schema_drift`. Use `--self-check-databases-json` for pure JSON output that UI
 code or a future agent can consume without parsing human text. The Tk repair panel can update a selected
 database/table asset's `data_store_profile_id` and `schema_name`, or mark one selected database/table asset
-`unmanaged` so it exits later self-checks. These are registry metadata repairs only, followed by a fresh self-check,
-and must not execute destructive SQL.
+`unmanaged` so it exits later self-checks. It can also call `api_launcher/database_repair.py` to reimport a
+manifest-backed missing SQLite table from a recorded healthy CSV/JSON sidecar manifest. Registry metadata repairs are
+followed by a fresh self-check; reimport refuses to DROP or replace an existing table. CSV/JSON importers should keep
+using the same SQLite table fingerprint logic as database self-check so fresh imports do not immediately report schema
+drift.
 
 Tk UI localization is intentionally lightweight for now. `launcher_integrations.local.json` may contain
 `"ui_language": "zh-TW"` or `"en-US"`; the UI reads it at startup, `Settings > Interface language` can update it, and

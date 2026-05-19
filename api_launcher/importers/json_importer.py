@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from api_launcher.database_self_check import sqlite_table_schema_summary
 from api_launcher.importers.csv_importer import (
     import_rows_to_sqlite,
     normalized_column_names,
@@ -13,7 +14,6 @@ from api_launcher.importers.csv_importer import (
     table_name_for_manifest,
 )
 from api_launcher.manifests import AssetManifest, read_manifest
-from api_launcher.provenance import schema_fingerprint
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.sql_assets import validate_sql_identifier
@@ -116,7 +116,7 @@ def import_json_manifest_to_sqlite(
         row_limit=0,
     )
 
-    fingerprint = schema_fingerprint(columns)
+    fingerprint = sqlite_table_schema_summary(target_db, clean_table).schema_fingerprint
     table_asset_id = repository.register_provider_table_asset(
         manifest.provider_id,
         engine="sqlite",
