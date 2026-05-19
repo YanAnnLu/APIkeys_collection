@@ -223,6 +223,13 @@ def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEli
             reason="NASA CMR collection/granule API URLs must be turned into bounded metadata or asset requests before download.",
             requires_adapter=True,
         )
+    if dataset_version_is_research_metadata_landing(url, native_format, source_type):
+        return DownloadEligibility(
+            status="adapter_required",
+            label="Adapter",
+            reason="DOI/OpenAlex research metadata points at a repository landing page or API record; an adapter must discover explicit files or bounded contentUrl resources before download.",
+            requires_adapter=True,
+        )
     if looks_like_direct_download(url):
         return DownloadEligibility(
             status="direct_download",
@@ -236,6 +243,15 @@ def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEli
         reason="The dataset version URL is a landing page, API endpoint, or selector rather than a direct file.",
         requires_adapter=True,
     )
+
+
+def dataset_version_is_research_metadata_landing(url: str, native_format: str, source_type: str) -> bool:
+    if native_format in {"datacite_doi", "openalex_work"}:
+        return True
+    if source_type in {"datacite_dois", "openalex_works_search"}:
+        return True
+    parsed = urllib.parse.urlparse(url)
+    return parsed.netloc.lower() in {"doi.org", "dx.doi.org", "openalex.org"} and bool(parsed.path.strip("/"))
 
 
 def dataset_download_target_path(

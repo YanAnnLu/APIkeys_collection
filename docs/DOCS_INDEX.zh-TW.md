@@ -6,6 +6,12 @@
 
 核心原則：目前 `docs/` 裡的每份文件都可能保存重要決策。不要因為兩份文件看起來重複，就直接刪除、覆蓋或忽略；先確認它們各自承載的是接力、產品定位、使用說明、技術總覽、子系統細節，還是歷史狀態。
 
+## 雙語文件規則
+
+未來如果新增英文文件，必須同時準備繁中版本，或至少在同一輪提交裡提供清楚的繁中入口摘要與連結。若大幅更新既有英文文件，例如 `ARCHITECTURE.md`、`TECH_STACK.md`、`PROJECT_STATE.md`、`GIT_HANDOFF.md`，也要同步更新對應的繁中文件或在 `DOCS_INDEX.zh-TW.md` 標出繁中閱讀路線。
+
+白話說：英文可以保留給工程細節與工具慣例，但接力、產品判斷、使用者會讀的流程，必須有繁中版本讓下一位人類或 Agent 不用猜。
+
 ## 快速閱讀路線
 
 | 情境 | 建議先讀 | 目的 |
@@ -26,7 +32,7 @@
 | `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
 | `PRODUCT_POSITIONING.zh-TW.md` | 產品定位：科學資料集 launcher、資料工程版 Steam、虛擬孿生資料管線。 | 產品語言或中長期方向改變時更新。 |
-| `ARCHITECTURE.md` | 架構圖、pipeline、模組邊界、Hadoop/K8S/renderer/mobile/P2P 邊界。 | 模組責任或資料流改變時更新。 |
+| `ARCHITECTURE.md` | 架構圖、pipeline、模組邊界、Hadoop/K8S/renderer/mobile/P2P 邊界；目前偏英文。 | 模組責任或資料流改變時更新，並同步補繁中摘要或對應文件。 |
 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，白話說明資料、下載、SQL、AI、renderer 等主線。 | 新功能進入 MVP 或 skeleton 邊界改變時更新。 |
 | `DATASET_TYPE_MAP.zh-TW.md` | 資料類型地圖，說明 table、GIS、time-series、array、media、RAG 等資料該怎麼想。 | 新增資料類型、storage hint、viewer hint 時更新。 |
 | `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 補充說明，聚焦 crawler-first、candidate review、adapter 邊界與版本計畫。 | 改 crawler、candidate、adapter resolver、download plan 時更新。 |
@@ -35,9 +41,9 @@
 | `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序與路徑規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime 目錄時更新。 |
 | `USER_GUIDE.zh-TW.md` | 使用者操作指南，面向初學者。 | UI/CLI 操作、選單名稱、使用流程改變時更新。 |
 | `SETUP.zh-TW.md` | 安裝與啟動說明。 | Python/Conda/Docker/GitHub CLI/跨平台設定改變時更新。 |
-| `TECH_STACK.md` | 技術棧與依賴邊界，偏工程/英文或雙語。 | 依賴、CI、Docker、optional renderer stack 改變時更新。 |
-| `PROJECT_STATE.md` | 較完整的狀態快照與歷史脈絡。 | 大型里程碑或需要保留歷史狀態時更新；平常優先更新 GTD/handoff。 |
-| `GIT_HANDOFF.md` | Git/接力相關補充。 | Git 流程、雲端同步碟風險、CI 追蹤方式改變時更新。 |
+| `TECH_STACK.md` | 技術棧與依賴邊界，目前偏工程英文。 | 依賴、CI、Docker、optional renderer stack 改變時更新，並同步補繁中摘要或對應文件。 |
+| `PROJECT_STATE.md` | 較完整的狀態快照與歷史脈絡，目前偏英文。 | 大型里程碑或需要保留歷史狀態時更新；平常優先更新 GTD/handoff，若大改要補繁中入口。 |
+| `GIT_HANDOFF.md` | Git/接力相關補充，目前偏英文。 | Git 流程、雲端同步碟風險、CI 追蹤方式改變時更新，並同步補繁中摘要或對應文件。 |
 
 ## 附錄地圖
 
@@ -50,13 +56,14 @@
 
 ## 每次改動後的文件回頭檢查
 
-改完程式後，請至少問自己這五件事：
+改完程式後，請至少問自己這六件事：
 
 1. 這個改動有沒有改變「目前進度」？有的話更新 `PROJECT_GTD.md`。
 2. 這個改動會不會影響下一位 Agent 接力？有的話更新 `AGENT_HANDOFF.zh-TW.md`。
 3. 這個改動是否新增/改變一條使用流程？有的話更新 `USER_GUIDE.zh-TW.md` 或 `SETUP.zh-TW.md`。
 4. 這個改動是否改變資料流、模組邊界或長期架構？有的話更新 `ARCHITECTURE.md` 或 `TECHNICAL_OVERVIEW.zh-TW.md`。
 5. 這個改動是否屬於某個子系統細節？有的話更新對應附錄或補充文件，例如 discovery、failure modes、Unreal bridge。
+6. 這次是否新增英文文件，或大幅更新英文文件？有的話同步準備繁中版本、繁中摘要或清楚的繁中閱讀路線。
 
 白話說：程式讓機器知道怎麼跑，文件讓下一個人知道為什麼這樣跑。兩邊都要保留。
 

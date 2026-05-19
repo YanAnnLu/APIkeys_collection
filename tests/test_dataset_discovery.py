@@ -416,6 +416,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                         "types": {"resourceTypeGeneral": "Dataset", "schemaOrg": "Dataset"},
                         "descriptions": [{"description": "<p>Satellite cloud raster grids for research.</p>"}],
                         "url": "https://example.test/datasets/cloud",
+                        "contentUrl": "https://data.example.test/cloud/cloud_sample.nc",
                         "rightsList": [{"rightsUri": "https://creativecommons.org/licenses/by/4.0/"}],
                         "updated": "2026-05-01T00:00:00Z",
                         "state": "findable",
@@ -436,6 +437,9 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("netcdf", dataset.native_format)
         self.assertEqual("https://api.datacite.example.test/dois/10.1234%2Fexample.dataset", dataset.api_url)
         self.assertEqual("example.repo", dataset.metadata["client_id"])
+        self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", dataset.metadata["content_url"])
+        self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", dataset.metadata["resources"][0]["download_url"])
+        self.assertEqual("nc", dataset.metadata["resources"][0]["format"])
 
     def test_ogc_api_records_payload_becomes_reviewable_catalog_candidate(self) -> None:
         source = DatasetDiscoverySource(

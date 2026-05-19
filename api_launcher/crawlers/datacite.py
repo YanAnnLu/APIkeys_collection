@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import re
 import urllib.parse
+from pathlib import Path
 from typing import Any
 
 from api_launcher.adapters.base import dataset_uid
@@ -63,6 +64,7 @@ def datacite_candidates_from_payload(
         description = datacite_description(attributes)
         subjects = datacite_subjects(attributes.get("subjects"))
         formats = tuple(str(value).strip() for value in attributes.get("formats") or [] if str(value).strip())
+        content_urls = datacite_content_urls(attributes.get("contentUrl"))
         types = attributes.get("types") if isinstance(attributes.get("types"), dict) else {}
         resource_type = str(types.get("resourceTypeGeneral") or "").strip()
         publisher = str(attributes.get("publisher") or "").strip()
@@ -113,7 +115,9 @@ def datacite_candidates_from_payload(
                 "contributors": datacite_names(attributes.get("contributors"))[:12],
                 "dates": attributes.get("dates") or [],
                 "rights": attributes.get("rightsList") or [],
-                "content_url": attributes.get("contentUrl") or "",
+                "content_url": content_urls[0] if content_urls else "",
+                "content_urls": content_urls,
+                "resources": datacite_content_url_resources(content_urls, formats),
                 "state": attributes.get("state") or "",
                 "client_id": datacite_client_id(item),
                 "view_count": attributes.get("viewCount") or 0,
@@ -230,6 +234,59 @@ def datacite_rights_uri(value: object) -> str:
         if isinstance(item, dict) and item.get("rightsUri"):
             return str(item["rightsUri"])
     return ""
+
+
+def datacite_content_urls(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        text = value.strip()
+        return (text,) if text else ()
+    if isinstance(value, dict):
+        text = str(value.get("url") or value.get("contentUrl") or value.get("@id") or "").strip()
+        return (text,) if text else ()
+    if not isinstance(value, list):
+        return ()
+    urls: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if isinstance(item, dict):
+            text = str(item.get("url") or item.get("contentUrl") or item.get("@id") or "").strip()
+        else:
+            text = str(item or "").strip()
+        if text and text not in seen:
+            urls.append(text)
+            seen.add(text)
+    return tuple(urls)
+
+
+def datacite_content_url_resources(urls: tuple[str, ...], formats: tuple[str, ...]) -> list[dict[str, object]]:
+    resources: list[dict[str, object]] = []
+    for index, url in enumerate(urls[:12], start=1):
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
+        name = Path(urllib.parse.unquote(parsed.path)).name or f"content_url_{index}"
+        resources.append(
+            {
+                "name": name,
+                "format": datacite_resource_format(url, formats),
+                "download_url": url,
+                "rel": "contentUrl",
+                "source": "datacite_content_url",
+            }
+        )
+    return resources
+
+
+def datacite_resource_format(url: str, formats: tuple[str, ...]) -> str:
+    path = Path(urllib.parse.unquote(urllib.parse.urlparse(url).path))
+    suffixes = [suffix.lower().lstrip(".") for suffix in path.suffixes]
+    if len(suffixes) >= 2 and suffixes[-2:] == ["tar", "gz"]:
+        return "tar.gz"
+    if len(suffixes) >= 2 and suffixes[-2:] == ["csv", "gz"]:
+        return "csv.gz"
+    if suffixes:
+        return suffixes[-1]
+    return choose_native_format(formats) if formats else "unknown"
 
 
 def datacite_client_id(item: dict[str, Any]) -> str:

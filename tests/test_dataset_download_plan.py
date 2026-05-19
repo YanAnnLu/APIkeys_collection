@@ -103,6 +103,94 @@ class DatasetDownloadPlanTests(unittest.TestCase):
 
         self.assertEqual("zenodo_10_5281_zenodo_123", entry["import_plan"]["table_hint"])
 
+    def test_datacite_content_url_resource_can_resolve_to_direct_asset(self) -> None:
+        provider = Provider(
+            provider_id="datacite",
+            name="DataCite",
+            owner="DataCite",
+            categories=("doi", "research_data", "metadata"),
+            geographic_scope="global",
+            docs_url="https://datacite.org/",
+            auth_type="no_key",
+        )
+        dataset = Dataset(
+            dataset_uid="datacite:10.1234_example.dataset",
+            provider_id="datacite",
+            dataset_id="10.1234_example.dataset",
+            title="Global cloud imagery training dataset",
+            categories=("doi", "research_data", "metadata"),
+            data_type="raster_or_grid",
+            native_format="datacite_doi",
+            landing_url="https://doi.org/10.1234/example.dataset",
+            api_url="https://api.datacite.example.test/dois/10.1234%2Fexample.dataset",
+            version="2026",
+            metadata={
+                "discovery_source_type": "datacite_dois",
+                "doi": "10.1234/example.dataset",
+                "data_family": "raster_or_grid",
+                "resources": [
+                    {
+                        "name": "cloud_sample.nc",
+                        "format": "nc",
+                        "download_url": "https://data.example.test/cloud/cloud_sample.nc",
+                        "rel": "contentUrl",
+                        "source": "datacite_content_url",
+                    }
+                ],
+            },
+        )
+        option = version_options_for_dataset(dataset)[0]
+        review_entry = provider_dataset_version_plan_entry(provider, dataset, option)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [review_entry]})
+
+        self.assertEqual("adapter_required", review_entry["download_eligibility"]["status"])
+        self.assertIn("DOI/OpenAlex research metadata", review_entry["download_eligibility"]["reason"])
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", resolved_entry["download_url"])
+        self.assertEqual("netcdf", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("generic_resource_direct_download_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+
+    def test_openalex_work_landing_page_requires_repository_adapter_review(self) -> None:
+        provider = Provider(
+            provider_id="openalex",
+            name="OpenAlex",
+            owner="OurResearch",
+            categories=("research_metadata", "openalex"),
+            geographic_scope="global",
+            docs_url="https://docs.openalex.org/",
+            auth_type="no_key",
+        )
+        dataset = Dataset(
+            dataset_uid="openalex:10.1163_example",
+            provider_id="openalex",
+            dataset_id="10.1163_example",
+            title="OpenAlex dataset work",
+            categories=("research_metadata", "openalex"),
+            data_type="document_or_metadata",
+            native_format="openalex_work",
+            landing_url="https://doi.org/10.1163/example",
+            api_url="https://api.openalex.org/works/W1650569836",
+            version="2026-05-01",
+            metadata={
+                "discovery_source_type": "openalex_works_search",
+                "doi": "https://doi.org/10.1163/example",
+                "openalex_id": "https://openalex.org/W1650569836",
+            },
+        )
+        option = version_options_for_dataset(dataset)[0]
+
+        entry = provider_dataset_version_plan_entry(provider, dataset, option)
+
+        self.assertEqual("adapter_required", entry["download_eligibility"]["status"])
+        self.assertIn("DOI/OpenAlex research metadata", entry["download_eligibility"]["reason"])
+        self.assertEqual("adapter_review_required", entry["import_plan"]["status"])
+        self.assertEqual("needs_adapter_review", entry["adapter_review"]["status"])
+        self.assertEqual("resolve_source_to_direct_download_entries", entry["adapter_review"]["required_action"])
+
     def test_adapter_review_payload_collects_non_direct_entries(self) -> None:
         entry = {
             "provider_id": "example_provider",
