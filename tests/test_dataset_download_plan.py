@@ -355,6 +355,78 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertIn("/resource/t29m-gskq.json", resolved_entry["download_url"])
         self.assertIn("$limit=25", resolved_entry["download_url"])
 
+    def test_ncei_candidate_plan_resolves_to_bounded_search_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "ncei_candidate_plan.json"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="noaa_ncei_access_data:automatic-identification-system-ais",
+                        provider_id="noaa_ncei_access_data",
+                        dataset_id="automatic-identification-system-ais",
+                        title="Automatic Identification System (AIS) Vessel Traffic Data",
+                        categories=("noaa", "catalog", "ais"),
+                        data_type="spatiotemporal_trajectory",
+                        native_format="ncei_search",
+                        geographic_scope="global/us",
+                        landing_url="https://www.ncei.noaa.gov/metadata/geoportal/rest/metadata/item/gov.noaa.ncdc:C01591/html",
+                        api_url="https://www.ncei.noaa.gov/access/services/search/v1/datasets?limit=5&available=true&text=ais",
+                        version="discovered",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "noaa_ncei_dataset_search",
+                            "discovery_source_type": "ncei_search",
+                            "source_url": "https://www.ncei.noaa.gov/access/services/search/v1/datasets?limit=5&available=true&text=ais",
+                            "data_family": "spatiotemporal_trajectory",
+                            "ncei_result_id": "automatic-identification-system-ais",
+                            "ncei_file_id": "gov.noaa.ncdc:C01591",
+                        },
+                    )
+                )
+            finally:
+                conn.close()
+
+            with redirect_stdout(io.StringIO()):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--export-candidate-plan",
+                        str(plan_path),
+                        "--candidate-plan-status",
+                        "needs_review",
+                        "--candidate-plan-limit",
+                        "1",
+                    ]
+                )
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+            resolved_payload, resolution = resolve_adapter_review_plan_payload(
+                payload,
+                downloads_root=Path(tmpdir) / "downloads",
+            )
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["summary"]["review_required_count"])
+        self.assertEqual("adapter_required", payload["providers"][0]["download_eligibility"]["status"])
+        self.assertEqual("ncei_search", payload["providers"][0]["candidate_review"]["discovery_source_type"])
+        self.assertEqual(1, resolution.resolved_review_entries)
+        self.assertEqual(1, resolution.direct_entries_added)
+        resolved_entry = resolved_payload["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual(
+            "ncei_bounded_search_query_resolver",
+            resolved_entry["adapter_resolution"]["resolver_id"],
+        )
+        self.assertIn("/access/services/search/v1/data", resolved_entry["download_url"])
+        self.assertIn("dataset=automatic-identification-system-ais", resolved_entry["download_url"])
+        self.assertIn("limit=25", resolved_entry["download_url"])
+
 
 if __name__ == "__main__":
     unittest.main()

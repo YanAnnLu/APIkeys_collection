@@ -290,6 +290,54 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("data", entry["adapter_resolution"]["endpoint_kind"])
         self.assertEqual(25, entry["adapter_resolution"]["sample_limit"])
 
+    def test_ncei_access_data_query_promotes_bounded_sample_entry(self) -> None:
+        plan = {
+            "providers": [
+                ncei_access_data_review_entry(
+                    "https://www.ncei.noaa.gov/access/services/data/v1"
+                    "?dataset=daily-summaries&stations=USW00094728&startDate=2024-01-01"
+                    "&endDate=2024-01-03&dataTypes=TMAX&format=csv&limit=999&unexpected=yes"
+                )
+            ]
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("ncei_bounded_access_data_query_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual(
+            "https://www.ncei.noaa.gov/access/services/data/v1?dataset=daily-summaries&stations=USW00094728&startDate=2024-01-01&endDate=2024-01-03&dataTypes=TMAX&format=csv",
+            entry["download_url"],
+        )
+        self.assertEqual("csv", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual(["stations"], entry["adapter_resolution"]["bounds"]["spatial_keys"])
+        self.assertEqual(2, entry["adapter_resolution"]["bounds"]["days"])
+        self.assertTrue(entry["target_path"].endswith(".csv"))
+        self.assertNotIn("adapter_review", entry)
+
+    def test_unbounded_ncei_access_data_query_stays_in_adapter_review(self) -> None:
+        plan = {
+            "providers": [
+                ncei_access_data_review_entry(
+                    "https://www.ncei.noaa.gov/access/services/data/v1"
+                    "?dataset=daily-summaries&startDate=2024-01-01&endDate=2024-02-01&format=json"
+                )
+            ]
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertEqual(1, resolved["summary"]["review_required_count"])
+        self.assertIn("adapter_review", resolved["providers"][0])
+
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
 
@@ -512,6 +560,39 @@ def ncei_review_entry(source_url: str) -> dict[str, object]:
         },
         "adapter_review": {
             "adapter_id": "noaa_ncei_search_adapter",
+            "source_url": source_url,
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def ncei_access_data_review_entry(source_url: str) -> dict[str, object]:
+    return {
+        "provider_id": "noaa_ncei_access_data",
+        "name": "NOAA NCEI Access Data Service",
+        "dataset_uid": "noaa_ncei_access_data:daily-summaries",
+        "dataset_id": "daily-summaries",
+        "dataset_title": "Daily Summaries",
+        "categories": ["noaa", "weather", "observations"],
+        "geographic_scope": "global/us",
+        "download_eligibility": {"status": "adapter_required", "reason": "NCEI data query must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "noaa_ncei_daily_summaries"},
+        "dataset_version": {
+            "dataset_uid": "noaa_ncei_access_data:daily-summaries",
+            "dataset_id": "daily-summaries",
+            "label": "bounded station sample",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": source_url,
+            "landing_url": "https://www.ncei.noaa.gov/access/search/data-search/daily-summaries",
+            "metadata": {
+                "native_format": "ncei_access_data",
+                "data_family": "timeseries",
+                "ncei_dataset_id": "daily-summaries",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "noaa_ncei_access_data_adapter",
             "source_url": source_url,
             "required_action": "resolve_source_to_direct_download_entries",
         },
