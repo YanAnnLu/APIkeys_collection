@@ -129,7 +129,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | 欄位 | 值 |
 | --- | --- |
 | Branch | `main` |
-| 最新已推送 commit | `d0b3ca8 Add NCEI bounded search resolver`；GitHub Actions CI run `26068790700` Windows/Ubuntu success |
+| 最新已推送 commit | 接力前請以 `git log -1 --oneline` 為準；最近功能 checkpoint 是 `d0b3ca8 Add NCEI bounded search resolver`，GitHub Actions CI run `26068790700` Windows/Ubuntu success |
 | 上次本機驗證 | 2026-05-19：Windows `py -m unittest discover -s tests`，284 tests OK；`py -m unittest tests.test_adapter_plan_resolver`，19 tests OK；`py -m py_compile api_launcher\adapter_plan_resolver.py tests\test_adapter_plan_resolver.py` OK；`git diff --check` OK；CI 同款 `py APIkeys_collection.py --init-db --seed --manifest-health --db state\ci_ncei_resolver.sqlite --summary` OK；DataCite live discovery smoke OK，10 candidates、0 errors、0 warnings |
 | 本次接力前新增重點 | workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分、crawler shared types/metadata/STAC/CKAN/ERDDAP/CMR/GBIF/Dataverse/Zenodo/DataCite/HTML index/NCEI 小拆分，source-level fetch/parse flow 已搬回各 source 模組；crawler source type dispatcher 已集中成 `SOURCE_CRAWLER_HANDLERS` mapping，portal intake 共用同一份 `SUPPORTED_DATASET_SOURCE_TYPES`；跨平台接力檢查已併入本文件 |
 | MVP 剩餘估算 | 約 25-30%；剩下主要是 bounded API/query adapter 擴充、database self-check UI/repair action、crawler source 類型擴充、import policy 與少量 UI polish |
