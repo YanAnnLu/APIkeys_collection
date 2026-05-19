@@ -198,6 +198,28 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
         self.assertEqual(4096, resolved_entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_namespaced_dcat_distribution_promotes_extensionless_csv_entry(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata.pop("links", None)
+        metadata["dcat:distribution"] = {
+            "name": "Namespaced DCAT distribution",
+            "dct:format": {"@value": "text/csv"},
+            "dcat:downloadURL": {"@id": "https://data.example.test/download?id=namespaced"},
+            "dcat:byteSize": {"@value": "2048"},
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/download?id=namespaced", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
+        self.assertEqual(2048, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
     def test_direct_link_object_without_url_stays_in_review(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]

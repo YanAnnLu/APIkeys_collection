@@ -202,11 +202,12 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
 - The first plan-level non-direct resolver exists in `api_launcher/adapter_plan_resolver.py`. CLI
   `--resolve-adapter-plan INPUT --write-resolved-adapter-plan OUTPUT` can promote CKAN/DCAT-like `resources`,
-  `distribution`, or `distributions` metadata that already contains direct file URLs into direct plan entries, and can now perform one bounded CKAN `package_show`
+  `distribution`, `distributions`, or `dcat:distribution` metadata that already contains direct file URLs into direct plan entries, and can now perform one bounded CKAN `package_show`
   metadata lookup when the plan has only a package API URL. It also scans NCEI/CMR/STAC-like `links` metadata for direct
   file URLs. The generic resource reader recognizes common direct-link fields such as `downloadURL`, `contentUrl`,
-  and `fileUrl`, including string, list, and JSON-LD object values such as `{"@id": "..."}`. It also recognizes format
-  hints such as `mediaType`, `contentType`, and `encodingFormat`, plus size hints such as `byteSize`, `contentSize`,
+  and `fileUrl`, including namespaced DCAT/schema.org keys such as `dcat:downloadURL` and `schema:contentUrl`, plus
+  string, list, and JSON-LD object values such as `{"@id": "..."}`. It also recognizes format hints such as
+  `mediaType`, `contentType`, `encodingFormat`, `dct:format`, and `dcat:mediaType`, plus size hints such as `byteSize`, `contentSize`, `dcat:byteSize`,
   and `{"@value": "..."}` wrappers, so DCAT/schema.org-style metadata can still become a safe direct plan entry when
   the file URL, format, and size are bounded. Label-only objects such as `{"label": "CSV download"}` do not count as
   direct URLs and stay in adapter review. ERDDAP metadata with
