@@ -322,6 +322,62 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertTrue(entry["target_path"].endswith(".json"))
         self.assertNotIn("adapter_review", entry)
 
+    def test_cmr_metadata_links_stay_in_adapter_review(self) -> None:
+        entry = cmr_granule_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["links"] = [
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/metadata#",
+                "type": "application/json",
+                "href": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
+            },
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/documentation#",
+                "type": "text/html",
+                "href": "https://earthdata.example.test/granules/G1234567890-POCLOUD",
+            },
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertEqual(1, resolved["summary"]["review_required_count"])
+        self.assertIn("adapter_review", resolved["providers"][0])
+        self.assertIn("resources=2", result.warnings[0])
+
+    def test_cmr_data_link_can_promote_direct_asset_entry(self) -> None:
+        entry = cmr_granule_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["links"] = [
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/metadata#",
+                "type": "application/json",
+                "href": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
+            },
+            {
+                "rel": "http://esipfed.org/ns/fedsearch/1.1/data#",
+                "title": "NetCDF granule asset",
+                "type": "application/x-netcdf",
+                "href": "https://data.example.test/granules/S6A_P4_2__LR_STD__sample.nc",
+                "size": 4096,
+            },
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("direct_download", resolved_entry["download_eligibility"]["status"])
+        self.assertEqual(
+            "https://data.example.test/granules/S6A_P4_2__LR_STD__sample.nc",
+            resolved_entry["download_url"],
+        )
+        self.assertEqual("netcdf", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("generic_resource_direct_download_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertNotIn("adapter_review", resolved_entry)
+
     def test_socrata_resource_url_promotes_bounded_json_sample_entry(self) -> None:
         plan = {"providers": [socrata_review_entry("https://data.example.test/resource/abcd-1234.json?$select=name")]}
 
@@ -723,6 +779,42 @@ def cmr_review_entry() -> dict[str, object]:
         "adapter_review": {
             "adapter_id": "nasa_earthdata_cmr_adapter",
             "source_url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def cmr_granule_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "nasa_earthdata",
+        "name": "NASA Earthdata",
+        "dataset_uid": "nasa_earthdata:s6a_granule_sample",
+        "dataset_id": "s6a_granule_sample",
+        "dataset_title": "Sentinel-6 Jason-CS sample granule",
+        "categories": ["nasa", "cmr", "satellite", "earth_observation"],
+        "geographic_scope": "global",
+        "source_format": "cmr_granule",
+        "download_eligibility": {"status": "adapter_required", "reason": "CMR granule links must be selected first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "nasa_earthdata_s6a_granule"},
+        "dataset_version": {
+            "dataset_uid": "nasa_earthdata:s6a_granule_sample",
+            "dataset_id": "s6a_granule_sample",
+            "label": "discovered granule",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
+            "landing_url": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.html",
+            "metadata": {
+                "native_format": "cmr_granule",
+                "data_family": "raster_or_grid",
+                "discovery_source_type": "cmr_granules",
+                "source_url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C1234567890-POCLOUD&page_size=1",
+                "granule_concept_id": "G1234567890-POCLOUD",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "nasa_earthdata_cmr_adapter",
+            "source_url": "https://cmr.earthdata.nasa.gov/search/concepts/G1234567890-POCLOUD.json",
             "required_action": "resolve_source_to_direct_download_entries",
         },
     }
