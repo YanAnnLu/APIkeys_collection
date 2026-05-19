@@ -22,6 +22,8 @@ from api_launcher.dataset_discovery import (
     ncei_search_url,
     ogc_records_candidates_from_payload,
     ogc_records_search_url,
+    socrata_catalog_candidates_from_payload,
+    socrata_catalog_search_url,
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
@@ -432,6 +434,73 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertIn("f=json", url)
         self.assertIn("limit=25", url)
         self.assertIn("q=cloud+imagery", url)
+
+    def test_socrata_catalog_payload_becomes_reviewable_dataset_candidate(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="nyc_open_data_socrata_catalog",
+            provider_id="nyc_open_data_socrata",
+            name="NYC Open Data Socrata catalog",
+            source_type="socrata_catalog_search",
+            endpoint_url="https://api.us.socrata.com/api/catalog/v1?domains=data.cityofnewyork.us",
+            categories=("open_data", "socrata", "city"),
+            geographic_scope="nyc/us",
+        )
+        payload = {
+            "results": [
+                {
+                    "resource": {
+                        "id": "t29m-gskq",
+                        "name": "2018 Yellow Taxi Trip Data",
+                        "description": "Each row is a taxi trip with pickup time, dropoff time, trip distance, fares, and locations.",
+                        "type": "dataset",
+                        "updatedAt": "2023-12-14T20:46:24.000Z",
+                        "data_updated_at": "2019-04-05T15:42:41.000Z",
+                        "attribution": "Taxi and Limousine Commission",
+                        "columns_name": ["tpep_pickup_datetime", "trip_distance", "PULocationID", "DOLocationID"],
+                        "columns_field_name": ["tpep_pickup_datetime", "trip_distance", "pulocationid", "dolocationid"],
+                        "columns_datatype": ["Calendar date", "Number", "Number", "Number"],
+                    },
+                    "metadata": {
+                        "domain": "data.cityofnewyork.us",
+                        "license": "Public Domain",
+                    },
+                    "classification": {
+                        "domain_category": "Transportation",
+                        "domain_tags": ["taxi", "trip", "time series"],
+                    },
+                    "permalink": "https://data.cityofnewyork.us/d/t29m-gskq",
+                    "link": "https://data.cityofnewyork.us/Transportation/2018-Yellow-Taxi-Trip-Data/t29m-gskq",
+                }
+            ],
+            "resultSetSize": 1,
+        }
+
+        candidates = socrata_catalog_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("nyc_open_data_socrata", dataset.provider_id)
+        self.assertEqual("t29m-gskq", dataset.dataset_id)
+        self.assertEqual("timeseries", dataset.metadata["data_family"])
+        self.assertEqual("socrata_resource", dataset.native_format)
+        self.assertEqual("https://data.cityofnewyork.us/api/views/t29m-gskq", dataset.api_url)
+        self.assertFalse(looks_like_direct_download(dataset.api_url))
+        self.assertEqual("https://data.cityofnewyork.us/resource/t29m-gskq.json", dataset.metadata["socrata_resource_url"])
+        self.assertEqual(4, dataset.metadata["column_count"])
+
+    def test_socrata_catalog_search_url_overrides_limit_and_adds_offset(self) -> None:
+        url = socrata_catalog_search_url(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofnewyork.us&limit=999",
+            "taxi trips",
+            25,
+            offset=50,
+        )
+
+        self.assertIn("domains=data.cityofnewyork.us", url)
+        self.assertIn("limit=25", url)
+        self.assertIn("offset=50", url)
+        self.assertIn("only=dataset", url)
+        self.assertIn("q=taxi+trips", url)
+        self.assertNotIn("limit=999", url)
 
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:
         source = DatasetDiscoverySource(

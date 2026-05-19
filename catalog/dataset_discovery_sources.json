@@ -190,6 +190,81 @@
       "notes": "Data.gov is metadata-first CKAN. Resource URLs must be reviewed because they can point to landing pages, APIs, direct files, or external systems."
     },
     {
+      "source_id": "nyc_open_data_socrata_catalog",
+      "provider_id": "nyc_open_data_socrata",
+      "name": "NYC Open Data Socrata catalog",
+      "source_type": "socrata_catalog_search",
+      "endpoint_url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofnewyork.us",
+      "docs_url": "https://dev.socrata.com/docs/",
+      "search_terms": [
+        "taxi",
+        "building",
+        "311",
+        "transportation",
+        "water"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "socrata",
+        "nyc"
+      ],
+      "geographic_scope": "nyc/us",
+      "max_results": 8,
+      "min_expected_candidates": 2,
+      "notes": "Socrata catalog crawler source. It discovers NYC Open Data resources and keeps downloads behind bounded SODA sample review."
+    },
+    {
+      "source_id": "sf_open_data_socrata_catalog",
+      "provider_id": "sf_open_data_socrata",
+      "name": "DataSF Socrata catalog",
+      "source_type": "socrata_catalog_search",
+      "endpoint_url": "https://api.us.socrata.com/api/catalog/v1?domains=data.sfgov.org",
+      "docs_url": "https://dev.socrata.com/docs/",
+      "search_terms": [
+        "building",
+        "transportation",
+        "trees",
+        "housing",
+        "gis"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "socrata",
+        "san_francisco"
+      ],
+      "geographic_scope": "san_francisco/us",
+      "max_results": 8,
+      "min_expected_candidates": 2,
+      "notes": "Socrata catalog crawler source. It discovers DataSF resources and records Socrata domain/resource metadata for bounded sample adapters."
+    },
+    {
+      "source_id": "chicago_data_portal_socrata_catalog",
+      "provider_id": "chicago_data_portal_socrata",
+      "name": "Chicago Data Portal Socrata catalog",
+      "source_type": "socrata_catalog_search",
+      "endpoint_url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org",
+      "docs_url": "https://dev.socrata.com/docs/",
+      "search_terms": [
+        "transportation",
+        "building",
+        "crime",
+        "environment",
+        "permits"
+      ],
+      "categories": [
+        "open_data",
+        "government",
+        "socrata",
+        "chicago"
+      ],
+      "geographic_scope": "chicago/us",
+      "max_results": 8,
+      "min_expected_candidates": 2,
+      "notes": "Socrata catalog crawler source. Candidates are metadata-first and should resolve into bounded SODA samples before local import."
+    },
+    {
       "source_id": "noaa_pmel_erddap_all_datasets",
       "provider_id": "noaa_pmel_erddap",
       "name": "NOAA PMEL ERDDAP allDatasets",

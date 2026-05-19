@@ -14,6 +14,12 @@ CDSAPI_KEY = your_cdsapi_key
   docs: https://cds.climate.copernicus.eu/how-to-api
   signup: https://cds.climate.copernicus.eu/
 
+CENSUS_API_KEY = your_census_api_key
+  provider: U.S. Census TIGERweb GeoServices (us_census_tigerweb)
+  auth: api_key_may_be_required
+  docs: https://www.census.gov/data/developers/guidance/api-user-guide.html
+  signup: https://api.census.gov/data/key_signup.html
+
 COPERNICUS_DATASPACE_TOKEN = your_copernicus_dataspace_token
   provider: Copernicus Data Space Ecosystem (copernicus_dataspace)
   auth: oauth2_or_account
@@ -32,6 +38,12 @@ COPERNICUS_MARINE_USERNAME = your_copernicus_marine_username
   docs: https://help.marine.copernicus.eu/en/articles/4794731-which-apis-are-provided
   signup: https://data.marine.copernicus.eu/register
 
+DATA_GOV_API_KEY = your_data_gov_api_key
+  provider: Data.gov CKAN Catalog (data_gov)
+  auth: api_key_optional_or_demo_key_for_metadata
+  docs: https://open.gsa.gov/api/datadotgov/
+  signup: https://api.data.gov/signup/
+
 EIA_API_KEY = your_eia_api_key
   provider: EIA Open Data API (eia_open_data)
   auth: api_key_required
@@ -43,6 +55,12 @@ FRED_API_KEY = your_fred_api_key
   auth: api_key_required
   docs: https://fred.stlouisfed.org/docs/api/fred/
   signup: https://fred.stlouisfed.org/docs/api/api_key.html
+
+GBIF_USERNAME = your_gbif_username
+  provider: GBIF API (gbif)
+  auth: no_key_for_public_metadata_account_for_downloads
+  docs: https://techdocs.gbif.org/en/openapi/
+  signup: https://www.gbif.org/user/profile
 
 GEONAMES_USERNAME = your_geonames_username
   provider: GeoNames Web Services (geonames)
@@ -117,16 +135,37 @@ USGS_M2M_API_KEY = your_usgs_m2m_api_key
   signup: https://ers.cr.usgs.gov/register/
 
 [NO_KEY_OR_PUBLIC_METADATA]
+australia_data_gov_ckan | no_key_for_public_metadata | https://data.gov.au/data/api/3
 binance_public | no_key_for_public_market_data | https://developers.binance.com/docs/binance-spot-api-docs/rest-api
+canada_open_data | no_key_for_public_metadata | https://open.canada.ca/data/en/developers
+chicago_data_portal_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
+datacite | no_key_for_public_metadata | https://support.datacite.org/docs/api
+earth_search_stac | no_key_for_public_metadata | https://earth-search.aws.element84.com/v1
 ecmwf_open_data | no_key_for_open_data | https://www.ecmwf.int/en/forecasts/datasets/open-data
+emodnet_erddap | no_key_for_public_metadata | https://emodnet.ec.europa.eu/
+gadm_boundaries | license_restricted_noncommercial | https://gadm.org/download_world.html
 gebco | no_key_for_download_pages | https://www.gebco.net/data_and_products/gridded_bathymetry_data/
+harvard_dataverse | no_key_for_public_metadata | https://guides.dataverse.org/en/latest/api/search.html
+hdx_ckan | no_key_for_public_metadata | https://data.humdata.org/api
+hyg_database | no_key_for_public_data | https://codeberg.org/astronexus/hyg
 imf_data | no_key_or_mixed | https://data.imf.org/en/Resource-Pages/IMF-API
+ioos_erddap | no_key_for_public_data | https://erddap.ioos.us/erddap/rest.html
+marine_regions | no_key_or_account_for_bulk | https://www.marineregions.org/downloads.php
+microsoft_planetary_computer | no_key_for_public_metadata | https://learn.microsoft.com/en-us/rest/api/planetarycomputer/
 natural_earth | no_key | https://www.naturalearthdata.com/downloads/
-noaa_coops | no_key | https://api.tidesandcurrents.noaa.gov/api/prod/
 noaa_coastwatch_erddap | no_key_for_public_data | https://coastwatch.pfeg.noaa.gov/erddap/rest.html
+noaa_coops | no_key | https://api.tidesandcurrents.noaa.gov/api/prod/
+noaa_goes_aws | no_key_for_public_s3 | https://registry.opendata.aws/noaa-goes/
 noaa_marinecadastre_ais | no_key_for_public_data | https://www.coast.noaa.gov/digitalcoast/data/vesseltraffic.html
 noaa_ncei_access_data | no_key | https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation
+noaa_nomads | no_key_for_public_data | https://nomads.ncep.noaa.gov/info.php?page=gribfilter
+noaa_pmel_erddap | no_key_for_public_data | https://data.pmel.noaa.gov/pmel/erddap/rest.html
+nyc_open_data_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
 oecd_sdmx | no_key | https://data-explorer.oecd.org/
 open_meteo | no_key_for_public_tier | https://open-meteo.com/en/docs
+osm_overpass | no_key_but_rate_limited | https://dev.overpass-api.de/overpass-doc/en/
+sf_open_data_socrata | no_key_for_public_metadata | https://dev.socrata.com/docs/
+uk_data_gov_ckan | no_key_for_public_metadata | https://docs.ckan.org/en/latest/api/
 usgs_earthquake | no_key | https://earthquake.usgs.gov/fdsnws/event/1/
 world_bank_indicators | no_key | https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation
+zenodo | no_key_for_public_metadata | https://developers.zenodo.org/

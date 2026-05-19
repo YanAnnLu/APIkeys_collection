@@ -54,6 +54,12 @@ from api_launcher.crawlers.ogc_records import (
     paginated_ogc_records_candidates,
 )
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.socrata import (
+    paginated_socrata_catalog_candidates,
+    socrata_catalog_candidates_for_source,
+    socrata_catalog_candidates_from_payload,
+    socrata_catalog_search_url,
+)
 from api_launcher.crawlers.stac import (
     paginated_stac_candidates,
     stac_candidates_for_source,
@@ -117,6 +123,7 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
     "ckan_package_search": ckan_candidates_for_source,
     "datacite_dois": datacite_candidates_for_source,
     "ogc_api_records": ogc_records_candidates_for_source,
+    "socrata_catalog_search": socrata_catalog_candidates_for_source,
 }
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 
