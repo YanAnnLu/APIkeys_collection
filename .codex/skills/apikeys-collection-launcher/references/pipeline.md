@@ -17,6 +17,23 @@
 - `api_launcher/importers/curation.py`: record-cleaning primitives.
 - `api_launcher/sql_assets.py`: safe SQL uninstall metadata generation.
 
+## Documentation Map
+
+Use repo docs as the source of truth; this file is only a compact route map.
+
+- `docs/AGENT_HANDOFF.zh-TW.md`: live handoff, current checkpoint, user preferences, safety incidents.
+- `docs/PROJECT_GTD.md`: MVP progress table and next work areas.
+- `docs/DOCS_INDEX.zh-TW.md`: doc ownership and reading routes.
+- `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`: roadmap concepts for Data Assets, Discovery Tools, lakehouse/K8S, Render Studio, ML, connectors, and local-first desktop shape.
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` plus `docs/appendices/discovery.zh-TW.md`: crawler-first and adapter-review design.
+- `docs/DATASET_TYPE_MAP.zh-TW.md`: data-family/storage/viewer concept map.
+- `docs/TECHNICAL_OVERVIEW.zh-TW.md` and `docs/ARCHITECTURE.md`: pipeline and runtime architecture.
+- `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` and `openspec/specs/development-workflow/spec.md`: spec-driven workflow.
+- `docs/USER_GUIDE.zh-TW.md` and `docs/SETUP.zh-TW.md`: user operations and environment setup.
+- `docs/WORKSPACE_LAYOUT.zh-TW.md`: file ownership, module split, runtime path rules.
+- `docs/appendices/failure_modes.zh-TW.md`: failure recovery and repair design.
+- `docs/appendices/render_frontends.zh-TW.md`, `docs/appendices/unreal_bridge.zh-TW.md`, `frontends/unreal/README.zh-TW.md`: renderer and Unreal boundary.
+
 ## Product Model
 
 ```text
@@ -28,6 +45,32 @@ Install ID = launcher-owned identity for a managed local install
 Asset = concrete local database/table/file/bridge output owned by an install
 Renderer contract = stable bridge between launcher-managed data and a visualization engine
 ```
+
+## MVP Loop Definition
+
+The backend MVP is not "many providers listed". It is a narrow but real closed loop:
+
+```text
+provider/source seed
+-> crawler/discovery candidate
+-> human or policy review
+-> download/import plan
+-> bounded resolver or adapter handoff
+-> direct download with manifest
+-> curated CSV/JSON/archive import
+-> registry/self-check/UI status
+```
+
+Roadmap ideas should not bypass this loop. A feature can be valuable but still remain documentation-only until it has a safe entrypoint in the loop.
+
+## Current Frontier
+
+As of the 2026-05-20 docs, the strongest next slices are:
+
+- More bounded adapter/crawler handoffs, especially NOAA/NCEI file selectors, CMR granule asset links, OGC Records, DOI/DataCite/OpenAlex, Socrata, Dataverse, and STAC-like metadata.
+- Guarded repair and database self-check expansion only where install ownership and manifest provenance are explicit.
+- UI polish that exposes existing backend flows in Traditional Chinese without scattering integration buttons.
+- OpenSpec proposals for medium cross-module work; small fixes may stay lightweight but still update GTD/handoff when state changes.
 
 ## Safety Model
 

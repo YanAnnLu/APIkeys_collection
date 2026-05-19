@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Dev Safety"
+  short_description: "Safe handoff and repository hygiene for coding agents."
+  default_prompt: "Safely take over this repository, inspect status, protect user changes, and verify before committing."
