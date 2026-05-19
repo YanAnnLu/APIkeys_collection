@@ -201,7 +201,10 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   without pretending to bulk install the whole dataset. STAC collections become `limit=1` item-search GeoJSON samples.
   Socrata/SODA v2-style `/resource/{id}.json` or `/api/views/{id}` URLs become `$limit=25` JSON/CSV/GeoJSON samples,
   and Socrata resource metadata is skipped by the generic direct-file resolver so it cannot accidentally become an
-  unbounded full-table download. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
+  unbounded full-table download. NOAA/NCEI Common Access Search candidates can now become bounded JSON metadata samples:
+  `/search/v1/datasets` entries with an NCEI dataset id are rewritten to `/search/v1/data?dataset=...&limit=25&offset=0`,
+  while existing `/search/v1/data` requests are clamped to the same small limit. This records search metadata only and
+  does not download NOAA data files. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
   `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue

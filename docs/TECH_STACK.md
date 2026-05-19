@@ -157,7 +157,7 @@ py APIkeys_collection.py --resolve-adapter-plan state\candidate_plan.json --writ
 ```
 
 `api_launcher/adapter_plan_resolver.py` currently handles common catalog/resource shapes used by CKAN-like,
-Zenodo-like, Socrata/SODA, and metadata-link sources. If a review entry carries `dataset_version.metadata.resources` or
+Zenodo-like, NOAA/NCEI Search, Socrata/SODA, and metadata-link sources. If a review entry carries `dataset_version.metadata.resources` or
 `dataset_version.metadata.links`, the resolver promotes only bounded resources that already look like direct files,
 or whose resource metadata declares a supported file format, into new direct plan entries with fresh `target_path`,
 `download_eligibility`, and `import_plan` fields. Declared resources larger than 100 MB remain in adapter review.
@@ -167,9 +167,11 @@ API-query paths for ERDDAP: candidates with
 `dataset_version.metadata.erddap_protocols` are checked against the official `info/{dataset}/index.json`, then turned
 into a small CSV sample URL using `.limit=25` for tabledap or a minimum grid slice for griddap. STAC collections become
 `limit=1` item-search GeoJSON samples, and Socrata/SODA v2-style `/resource/{id}.json` or `/api/views/{id}` URLs become
-`$limit=25` JSON/CSV/GeoJSON samples. It leaves HTML pages, login pages, broad API selectors, token-only SODA v3 query
-paths, and unknown resources in adapter review, so this is a bounded plan rewrite rather than a hidden scraper or
-full-dataset download.
+`$limit=25` JSON/CSV/GeoJSON samples. NOAA/NCEI Common Access Search candidates can become Search API JSON metadata
+samples by bounding `/search/v1/datasets` or `/search/v1/data` requests to `limit=25&offset=0`; these samples download
+search-result metadata only, not the NOAA data files referenced by the results. It leaves HTML pages, login pages,
+broad API selectors, token-only SODA v3 query paths, and unknown resources in adapter review, so this is a bounded plan
+rewrite rather than a hidden scraper or full-dataset download.
 
 The Tk UI exposes this through `資料庫 > 解析 Adapter 計畫`, `更多 > 解析 Adapter 計畫`, and the Adapter review panel's
 `解析可下載 resources` button. When it finds direct resources, it adds them back into the bottom download plan so the

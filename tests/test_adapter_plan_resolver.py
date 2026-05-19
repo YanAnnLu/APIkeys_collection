@@ -249,6 +249,47 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("socrata_bounded_sample_query_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
         self.assertEqual("https://data.example.test/resource/abcd-1234.json?$limit=25", resolved_entry["download_url"])
 
+    def test_ncei_dataset_search_promotes_bounded_data_search_sample(self) -> None:
+        plan = {"providers": [ncei_review_entry("https://www.ncei.noaa.gov/access/services/search/v1/datasets?limit=5&available=true&text=ais")]}
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual("ncei_bounded_search_query_resolver", entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual(
+            "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=automatic-identification-system-ais&limit=25&offset=0",
+            entry["download_url"],
+        )
+        self.assertEqual("json", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", entry["import_plan"]["importer"])
+        self.assertTrue(entry["target_path"].endswith(".json"))
+        self.assertNotIn("adapter_review", entry)
+
+    def test_ncei_data_search_url_is_limited_to_small_json_sample(self) -> None:
+        plan = {
+            "providers": [
+                ncei_review_entry(
+                    "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=global-hourly&datatypes=TMP&limit=500&offset=90"
+                )
+            ]
+        }
+
+        resolved, result = resolve_adapter_review_plan_payload(plan)
+
+        self.assertEqual(1, result.direct_entries_added)
+        entry = resolved["providers"][0]
+        self.assertEqual(
+            "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=global-hourly&dataTypes=TMP&limit=25&offset=0",
+            entry["download_url"],
+        )
+        self.assertEqual("data", entry["adapter_resolution"]["endpoint_kind"])
+        self.assertEqual(25, entry["adapter_resolution"]["sample_limit"])
+
     def test_direct_resource_entries_can_keep_original_review_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
 
@@ -435,6 +476,42 @@ def socrata_review_entry(source_url: str) -> dict[str, object]:
         },
         "adapter_review": {
             "adapter_id": "socrata_demo_adapter",
+            "source_url": source_url,
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def ncei_review_entry(source_url: str) -> dict[str, object]:
+    return {
+        "provider_id": "noaa_ncei_access_data",
+        "name": "NOAA NCEI Common Access Search Service",
+        "dataset_uid": "noaa_ncei_access_data:automatic-identification-system-ais",
+        "dataset_id": "automatic-identification-system-ais",
+        "dataset_title": "Automatic Identification System (AIS) Vessel Traffic Data",
+        "categories": ["noaa", "catalog", "metadata"],
+        "geographic_scope": "global/us",
+        "download_eligibility": {"status": "adapter_required", "reason": "NCEI search query must be bounded first"},
+        "import_plan": {"status": "adapter_review_required", "table_hint": "noaa_ncei_access_data_ais"},
+        "dataset_version": {
+            "dataset_uid": "noaa_ncei_access_data:automatic-identification-system-ais",
+            "dataset_id": "automatic-identification-system-ais",
+            "label": "discovered",
+            "version": "discovered",
+            "version_status": "unknown",
+            "download_url": source_url,
+            "landing_url": "https://www.ncei.noaa.gov/metadata/geoportal/rest/metadata/item/gov.noaa.ncdc:C01591/html",
+            "metadata": {
+                "native_format": "ncei_search",
+                "data_family": "spatiotemporal_trajectory",
+                "discovery_source_type": "ncei_search",
+                "source_url": source_url,
+                "ncei_result_id": "automatic-identification-system-ais",
+                "ncei_file_id": "gov.noaa.ncdc:C01591",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "noaa_ncei_search_adapter",
             "source_url": source_url,
             "required_action": "resolve_source_to_direct_download_entries",
         },
