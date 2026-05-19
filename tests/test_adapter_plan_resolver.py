@@ -88,6 +88,46 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("https://zenodo.example.test/api/records/1/files/sample.csv/content", entry["download_url"])
         self.assertEqual(2048, entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_datacite_doi_lookup_promotes_content_url_resource(self) -> None:
+        entry = datacite_doi_review_entry()
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=datacite_doi_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        fetch.assert_called_once_with("https://api.datacite.example.test/dois/10.1234%2Fexample.dataset")
+        self.assertEqual(1, result.resolved_review_entries)
+        self.assertEqual(0, result.unresolved_review_entries)
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("datacite_doi_content_url_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("single_datacite_doi_metadata_content_url_lookup", resolved_entry["adapter_resolution"]["policy"])
+        self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", resolved_entry["download_url"])
+        self.assertEqual("netcdf", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertNotIn("adapter_review", resolved_entry)
+
+    def test_openalex_doi_lookup_uses_datacite_metadata_content_url(self) -> None:
+        entry = openalex_work_review_entry()
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=datacite_doi_payload()) as fetch:
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        fetch.assert_called_once_with("https://api.datacite.org/dois/10.1163%2Fexample")
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("datacite_doi_content_url_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
+        self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", resolved_entry["download_url"])
+
+    def test_datacite_doi_lookup_without_content_url_stays_in_review(self) -> None:
+        entry = datacite_doi_review_entry()
+
+        with patch("api_launcher.adapter_plan_resolver.fetch_json", return_value=datacite_doi_payload(content_url="")):
+            resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(0, result.direct_entries_added)
+        self.assertEqual(1, result.unresolved_review_entries)
+        self.assertIn("adapter_review", resolved["providers"][0])
+
     def test_link_metadata_promotes_direct_geojson_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
@@ -1050,6 +1090,92 @@ def ncei_search_data_file_payload(file_size: int = 13_912_122) -> dict[str, obje
             }
         ],
     }
+
+
+def datacite_doi_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "datacite",
+        "name": "DataCite DOI Search",
+        "dataset_uid": "datacite:10.1234_example.dataset",
+        "dataset_id": "10.1234_example.dataset",
+        "dataset_title": "Global cloud imagery training dataset",
+        "categories": ["doi", "research_data", "metadata"],
+        "geographic_scope": "global",
+        "download_eligibility": {
+            "status": "adapter_required",
+            "reason": "DOI/OpenAlex research metadata points at a repository landing page or API record",
+        },
+        "import_plan": {"status": "adapter_review_required", "table_hint": "datacite_10_1234_example_dataset"},
+        "dataset_version": {
+            "dataset_uid": "datacite:10.1234_example.dataset",
+            "dataset_id": "10.1234_example.dataset",
+            "label": "discovered",
+            "version": "2026",
+            "version_status": "unknown",
+            "download_url": "https://api.datacite.example.test/dois/10.1234%2Fexample.dataset",
+            "landing_url": "https://doi.org/10.1234/example.dataset",
+            "metadata": {
+                "native_format": "datacite_doi",
+                "data_family": "raster_or_grid",
+                "discovery_source_type": "datacite_dois",
+                "doi": "10.1234/example.dataset",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "datacite_adapter",
+            "source_url": "https://api.datacite.example.test/dois/10.1234%2Fexample.dataset",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def openalex_work_review_entry() -> dict[str, object]:
+    return {
+        "provider_id": "openalex",
+        "name": "OpenAlex",
+        "dataset_uid": "openalex:10.1163_example",
+        "dataset_id": "10.1163_example",
+        "dataset_title": "OpenAlex dataset work",
+        "categories": ["research_metadata", "openalex"],
+        "geographic_scope": "global",
+        "download_eligibility": {
+            "status": "adapter_required",
+            "reason": "DOI/OpenAlex research metadata points at a repository landing page or API record",
+        },
+        "import_plan": {"status": "adapter_review_required", "table_hint": "openalex_10_1163_example"},
+        "dataset_version": {
+            "dataset_uid": "openalex:10.1163_example",
+            "dataset_id": "10.1163_example",
+            "label": "discovered",
+            "version": "2026-05-01",
+            "version_status": "unknown",
+            "download_url": "https://api.openalex.org/works/W1650569836",
+            "landing_url": "https://doi.org/10.1163/example",
+            "metadata": {
+                "native_format": "openalex_work",
+                "data_family": "document_or_metadata",
+                "discovery_source_type": "openalex_works_search",
+                "doi": "https://doi.org/10.1163/example",
+                "openalex_id": "https://openalex.org/W1650569836",
+            },
+        },
+        "adapter_review": {
+            "adapter_id": "openalex_adapter",
+            "source_url": "https://api.openalex.org/works/W1650569836",
+            "required_action": "resolve_source_to_direct_download_entries",
+        },
+    }
+
+
+def datacite_doi_payload(content_url: str = "https://data.example.test/cloud/cloud_sample.nc") -> dict[str, object]:
+    attributes: dict[str, object] = {
+        "doi": "10.1234/example.dataset",
+        "titles": [{"title": "Global cloud imagery training dataset"}],
+        "formats": ["NetCDF"],
+    }
+    if content_url:
+        attributes["contentUrl"] = content_url
+    return {"data": {"id": "10.1234/example.dataset", "type": "dois", "attributes": attributes}}
 
 
 def ckan_package_show_payload() -> dict[str, object]:

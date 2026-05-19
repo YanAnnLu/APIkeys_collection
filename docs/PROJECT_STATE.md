@@ -25,7 +25,7 @@ The project is not a secret harvester. Credential files are templates for user-o
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
-- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 21 metadata-only
+- Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 23 metadata-only
   sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
   search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search,
   Dataverse search, Zenodo records search, DataCite DOI search, OGC API Records, Socrata catalog search, and CKAN `package_search`, producing reviewable dataset candidates without bulk downloads. The orchestrator now reports
@@ -137,8 +137,9 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
   plus conservative `import_plan` hints for SQLite MVP importers.
 - `api_launcher/adapter_review.py` and `adapter_plan_resolver.py`: adapter handoff queues plus a bounded resolver that
   turns CKAN-like direct file resources into executable plan entries, can do one bounded CKAN `package_show`
-  metadata lookup when the plan only has a package API URL, and can turn ERDDAP/STAC/Socrata API entries into small
-  sample download plans.
+  metadata lookup when the plan only has a package API URL, can turn ERDDAP/STAC/Socrata API entries into small
+  sample download plans, and can do one DataCite DOI metadata lookup for DataCite/OpenAlex DOI entries that have no
+  resources yet but may expose explicit `contentUrl` files.
 - `api_launcher/renderer_contracts.py`: shared renderer IDs and bridge-asset contracts for `taichi_global_bathymetry.py`.
 - `api_launcher/adapters/`: dataset adapter interface and stable dataset UID helper.
 - `api_launcher/asset_verifier.py`, `asset_roles.py`, and `provenance.py`: local asset verification and provenance helpers for SQL/API/CSV/JSON/manual imports.
@@ -206,7 +207,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   while existing `/search/v1/data` requests are clamped to the same small limit. If an explicit `/search/v1/data` request
   already has dataset plus station/bbox/location bounds, the resolver may do one `limit=1` metadata lookup and promote
   a `/data/...` direct file only when the file format is supported and `fileSize` is under 100 MB. Otherwise this records
-  search metadata only and does not download NOAA data files. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
+  search metadata only and does not download NOAA data files. DataCite DOI and OpenAlex DOI entries can now do one
+  DataCite DOI API metadata lookup and promote only explicit `contentUrl` direct files that are supported and have no
+  declared size above 100 MB; DOI landing pages and repository HTML pages still stay in review. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
   `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
   extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
@@ -261,7 +264,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 4. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 5. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 6. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-7. Expand bounded API-query adapters beyond the first ERDDAP sample resolver, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
+7. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
 8. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
 9. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
 10. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.

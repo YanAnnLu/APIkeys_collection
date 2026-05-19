@@ -74,7 +74,7 @@ Provider/source discovery currently uses only the Python standard library:
 - `provider_discovery_seeds.local.json`: ignored local seeds for regional platforms and user projects.
 - `dataset_discovery_sources.local.json`: ignored local dataset-crawler sources promoted from team portal intake.
 - `api_launcher/discovery.py`: polite metadata crawler for docs/API/signup/auth hints.
-- `api_launcher/crawlers/`: metadata-only dataset candidate crawlers. The orchestrator runs source crawlers concurrently, dedupes results, and reports both errors and audit warnings; source-specific parsers handle searchable APIs, ERDDAP JSON tables, HTML file indexes, CMR, STAC, GBIF, Dataverse, Zenodo, and CKAN.
+- `api_launcher/crawlers/`: metadata-only dataset candidate crawlers. The orchestrator runs source crawlers concurrently, dedupes results, and reports both errors and audit warnings; source-specific parsers handle searchable APIs, ERDDAP JSON tables, HTML file indexes, CMR, STAC, GBIF, Dataverse, Zenodo, DataCite, OpenAlex, OGC API Records, Socrata, NCEI, and CKAN.
 - `api_launcher/discovery_promotion.py`: guarded promotion from ignored local source config into official catalog files after crawler audit passes without errors or warnings.
 
 Discovery searches metadata and documentation only. It must not collect real API keys, tokens, passwords, cookies, or
@@ -171,7 +171,9 @@ into a small CSV sample URL using `.limit=25` for tabledap or a minimum grid sli
 samples by bounding `/search/v1/datasets` or `/search/v1/data` requests to `limit=25&offset=0`; if an explicit
 `/search/v1/data` query already has dataset plus station/bbox/location bounds, the resolver can do one `limit=1`
 metadata lookup and promote a `/data/...` direct file only when its format is supported and `fileSize` is under 100 MB.
-Other Search samples download search-result metadata only, not the NOAA data files referenced by the results. It leaves HTML pages, login pages,
+Other Search samples download search-result metadata only, not the NOAA data files referenced by the results. DataCite DOI
+and OpenAlex DOI entries can do one DataCite DOI API metadata lookup and promote only explicit `contentUrl` direct files
+that are supported and have no declared size above 100 MB; DOI landing pages and repository HTML pages stay in review. It leaves HTML pages, login pages,
 broad API selectors, token-only SODA v3 query paths, and unknown resources in adapter review, so this is a bounded plan
 rewrite rather than a hidden scraper or full-dataset download.
 
