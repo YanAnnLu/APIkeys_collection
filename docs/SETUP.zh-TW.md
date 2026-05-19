@@ -1,6 +1,6 @@
 # APIkeys_collection 跨平台開發設定
 
-更新日期：2026-05-17
+更新日期：2026-05-19
 
 ## 專案定位
 
@@ -115,3 +115,44 @@ python3 APIkeys_collection.py --verify-downloads-json
 | `整合 > 資料儲存連線` | 檢查 MySQL/PostgreSQL/SQLite/NoSQL/object store 等連線設定，不保存密碼。 |
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |
+
+## OpenSpec / Spectra / Qt Designer
+
+這三個工具是給「開發流程」用的，不是一般使用者每天操作資料庫的入口。
+
+OpenSpec CLI 已可透過 `npx` 使用，不需要全域安裝：
+
+```bash
+npx -y @fission-ai/openspec@latest list --specs
+npx -y @fission-ai/openspec@latest validate --all --no-interactive
+```
+
+本 repo 已初始化 OpenSpec 工作區：
+
+```text
+openspec/specs/
+openspec/changes/
+openspec/changes/archive/
+```
+
+Spectra GUI 已安裝在使用者自己的 Applications 目錄：
+
+```bash
+open "$HOME/Applications/Spectra.app"
+```
+
+打開後選本 repo 根目錄。Spectra 是 OpenSpec 的可視化輔助工具；真正要接力與提交的狀態仍在 Git 裡的 `openspec/` 與文件。
+
+Qt Designer 已在 `metal_trade_312` 裡可用：
+
+```bash
+conda run -n metal_trade_312 pyside6-designer
+```
+
+也可直接打開：
+
+```bash
+open "/opt/homebrew/anaconda3/envs/metal_trade_312/lib/qt6/bin/Designer.app"
+```
+
+目前 PySide6/Qt 是中期 UI 路線，不要在 backend MVP 尚未閉環前重寫整個 Tk UI。若未來新增 `frontends/qt/`，應重用 `api_launcher/` 的 crawler、download、import、event log 與 integration contracts。

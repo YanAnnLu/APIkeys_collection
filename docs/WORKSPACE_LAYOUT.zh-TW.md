@@ -33,6 +33,8 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `catalog/` | 正式可提交 catalog/reference | 只有通過 review/audit 的 seed/source 才進這裡。 |
 | `config/` | example config 與 ignored local config | `*.local.json` 放本機設定，不提交 token/key。 |
 | `docs/` | 主文件與附錄 | `AGENT_HANDOFF.zh-TW.md` 是接力入口，裡面也包含跨平台檢查表；`PROJECT_GTD.md` 是進度主索引。 |
+| `openspec/` | OpenSpec 規格工作區 | 中大型變更的 specs/changes/archive 放這裡；Spectra 只是 GUI，Git 裡的文件才是權威來源。 |
+| `.codex/skills/`, `.gemini/`, `.github/prompts/`, `.github/skills/` | AI/Agent OpenSpec workflow glue | 由 OpenSpec init 生成，用來讓 Codex/Gemini/Copilot 採用同一套 propose/apply/archive 習慣。 |
 | `scripts/` | 開發/維護腳本 | 不要把一次性 shell hack 寫進核心。 |
 | `tests/` | 單元測試 | 新拆出的模組要補小測試，避免核心瘦身後行為漂移。 |
 | `state/` | 本機 runtime 狀態 | ignored；放 logs、SQLite、private keys、staging、audit JSON。 |
@@ -47,6 +49,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | 前端入口 | `frontends/tk/launcher_ui.py`, `frontends/unreal/` | Tk UI 與未來 Unreal/Qt/mobile 前端邊界。 | UI 只呈現與觸發，複雜規則往 `api_launcher/` 移。 |
 | 正式 catalog/config | `catalog/*.json`, `config/*.example.json` | 可提交的 provider/source/reference/example 設定。 | 只有通過 review/audit 的資料進正式 catalog。 |
 | 文件 | `docs/*.md`, `docs/appendices/*.md` | 保存產品定位、接力狀態、架構、操作、子系統細節。 | 每份都視為重要；先更新索引，不直接刪除。 |
+| 規格工作區 | `openspec/specs/*/spec.md`, `openspec/changes/*` | 保存中大型變更的規格、任務、驗收標準與 archive。 | 不用來取代 GTD/handoff；用來降低跨模組改動的接力成本。 |
 | 測試 | `tests/test_*.py` | 保護既有行為，尤其下載、匯入、crawler、repair。 | 新拆模組或新功能要補小測試。 |
 | 腳本 | `scripts/*` | 開發、啟動、環境設定。 | 不把一次性操作散進核心；跨平台腳本分開維護。 |
 | renderer prototype | `renderers/taichi_global_bathymetry.py` | 下游渲染參考，不是資料治理 owner。 | 不讓重型 renderer 依賴影響基本 launcher 測試。 |

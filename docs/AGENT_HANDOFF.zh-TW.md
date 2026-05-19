@@ -22,6 +22,7 @@
    docs/TECHNICAL_OVERVIEW.zh-TW.md
    docs/DATASET_TYPE_MAP.zh-TW.md
    docs/DATASET_DISCOVERY_NOTES.zh-TW.md
+   docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md
    docs/WORKSPACE_LAYOUT.zh-TW.md
    ```
 
@@ -130,8 +131,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 | --- | --- |
 | Branch | `main` |
 | 最新已推送 commit | 接力前請以 `git log -1 --oneline` 為準；不要把本欄位當成長期有效 SHA。本輪最近功能 checkpoint 是 Dataverse latest-version file resolver；push 後請用 `gh run list --branch main --limit 5` 與 `gh run watch ... --exit-status` 確認 CI。 |
-| 上次本機驗證 | 2026-05-19 macOS：`PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest tests.test_adapter_plan_resolver tests.test_dataset_download_plan`，34 tests OK；`py_compile` Dataverse resolver / adapter plan tests / dataset download plan tests OK。上一輪完整驗證：`PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest discover -s tests`，293 tests OK；OpenAlex live smoke `--discover-dataset-candidates --dataset-discovery-source openalex_dataset_works_search --dataset-discovery-limit 2 --upsert-dataset-candidates --db state/ci_openalex_catalog.sqlite --summary` 抓到 10 candidates、0 errors、0 warnings；NOAA/NCEI live smoke 以 `daily-summaries` + station + 1 日 JSON 查詢取回 1 筆；CLI Socrata smoke 抓到 10 candidates、0 errors、0 warnings；另一次 end-to-end Socrata smoke 走完 discover candidates -> export candidate plan -> resolve `$limit=25` plan -> run download plan -> verify manifests -> import SQLite，結果 completed=1、failed=0、imported=1 |
-| 最近新增重點 | workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分、crawler shared types/metadata/STAC/CKAN/ERDDAP/CMR/GBIF/Dataverse/Zenodo/DataCite/OGC Records/Socrata/OpenAlex/HTML index/NCEI 小拆分，source-level fetch/parse flow 已搬回各 source 模組；crawler source type dispatcher 已集中成 `SOURCE_CRAWLER_HANDLERS` mapping，portal intake 共用同一份 `SUPPORTED_DATASET_SOURCE_TYPES`；跨平台接力檢查已併入本文件 |
+| 上次本機驗證 | 2026-05-19 macOS：OpenSpec tooling checkpoint 驗證 `npx -y @fission-ai/openspec@latest validate --all --no-interactive`、`conda run -n metal_trade_312 pyside6-designer` 路徑存在、Spectra 安裝於 `~/Applications/Spectra.app`；功能測試仍以本輪 Dataverse checkpoint 為準：`PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest tests.test_adapter_plan_resolver tests.test_dataset_download_plan`，34 tests OK；`py_compile` Dataverse resolver / adapter plan tests / dataset download plan tests OK。上一輪完整驗證：`PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache conda run -n metal_trade_312 python -m unittest discover -s tests`，293 tests OK；OpenAlex live smoke `--discover-dataset-candidates --dataset-discovery-source openalex_dataset_works_search --dataset-discovery-limit 2 --upsert-dataset-candidates --db state/ci_openalex_catalog.sqlite --summary` 抓到 10 candidates、0 errors、0 warnings；NOAA/NCEI live smoke 以 `daily-summaries` + station + 1 日 JSON 查詢取回 1 筆；CLI Socrata smoke 抓到 10 candidates、0 errors、0 warnings；另一次 end-to-end Socrata smoke 走完 discover candidates -> export candidate plan -> resolve `$limit=25` plan -> run download plan -> verify manifests -> import SQLite，結果 completed=1、failed=0、imported=1 |
+| 最近新增重點 | OpenSpec CLI 已初始化 `openspec/`，Spectra GUI 已安裝到 `~/Applications/Spectra.app`，Qt Designer 已確認在 `metal_trade_312`；新增 `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` 與 `openspec/specs/development-workflow/spec.md`。既有重點：workspace inventory CLI、`docs/WORKSPACE_LAYOUT.zh-TW.md`、handoff portal/local discovery summary、`core.py` command-detection 小拆分、crawler shared types/metadata/STAC/CKAN/ERDDAP/CMR/GBIF/Dataverse/Zenodo/DataCite/OGC Records/Socrata/OpenAlex/HTML index/NCEI 小拆分，source-level fetch/parse flow 已搬回各 source 模組；crawler source type dispatcher 已集中成 `SOURCE_CRAWLER_HANDLERS` mapping，portal intake 共用同一份 `SUPPORTED_DATASET_SOURCE_TYPES`；跨平台接力檢查已併入本文件 |
 | MVP 剩餘估算 | 約 21-25%；剩下主要是 bounded API/query adapter 擴充、database self-check UI/repair action、crawler source 類型擴充、import policy 與少量 UI polish |
 | UI 入口 | `python3 APIkeys_collection_ui.py` 或 `py APIkeys_collection_ui.py` |
 | Tk UI 實作 | `frontends/tk/launcher_ui.py` |
@@ -141,7 +142,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 這一段是給下一位 Agent 的人類協作提示，不是產品規格。使用者很願意討論概念層，也能接受快速推進，但對「看起來做了、其實沒有閉環」很敏感。
 
-- 開發策略已開始往 OpenSpec-aligned workflow 過渡。下一位 Agent 不要只把 OpenSpec 當成可選工具，而要把它視為新的協作規範方向：凡是中大型、跨模組、會影響架構/資料模型/UI/外部整合的改動，先寫清楚「變更目的、範圍、任務、驗收標準、風險」再實作；小修、測試補強、窄範圍 bugfix 可以維持快速小步，但完成後要回補 GTD / handoff / 相關設計文件。正式 `openspec/` 目錄與 GUI 工具尚在配置階段，配置完成前先用本文件與 `docs/PROJECT_GTD.md` 充當過渡規格入口。
+- 開發策略已正式往 OpenSpec-aligned workflow 過渡。下一位 Agent 不要只把 OpenSpec 當成可選工具，而要把它視為新的協作規範方向：凡是中大型、跨模組、會影響架構/資料模型/UI/外部整合的改動，先寫清楚「變更目的、範圍、任務、驗收標準、風險」再實作；小修、測試補強、窄範圍 bugfix 可以維持快速小步，但完成後要回補 GTD / handoff / 相關設計文件。正式 `openspec/` 目錄已建立，第一個 capability 是 `openspec/specs/development-workflow/spec.md`；Spectra GUI 已裝在 `~/Applications/Spectra.app`；Qt Designer 以 `conda run -n metal_trade_312 pyside6-designer` 啟動。
 - 匯報要面向初學者：少用抽象工程術語，多用白話說明「這一步解決什麼、還差什麼、為什麼重要」。每次中途或最後匯報，順手說明距離 MVP 還剩哪些大塊。
 - 做到一個穩定節點就要 commit/push，並用 `gh run watch` 或 `gh run list` 確認 CI。使用者手機會收到 GitHub Actions 通知，所以不要只說 push 成功。
 - 不要在 base/system Python 裝套件；目前 macOS 主要使用 `conda run -n metal_trade_312 ...`。
@@ -151,7 +152,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 未提交檔案或大改動不要擅自刪除、覆蓋、`git restore`。2026-05-17 曾發生誤還原事故，讓使用者很不安；任何看似奇怪的檔案都先備份/看 diff/產生 patch。
 - UI 預設要繁中；如果新增 UI，放到合適的選單或設定，不要到處新增零散入口。使用者覺得 Tk UI 目前只是過渡，PySide/Qt 是中期路線，MVP 前不要重寫。
 - 使用者喜歡產品概念層被記錄下來，例如 Steam-like library/install/workspace、renderer bridge、Hadoop/K8S、GIS/時間序列/多媒體資料類型。但實作時仍要先收束 MVP。
-- 使用者老師提到 OpenSpec；使用者希望未來開發模式逐步往 spec-driven/changes/tasks/spec delta 靠攏。短期先把它當成「中大型變更要有迷你規格與驗收標準」的流程方向，不要讓規格流程阻塞 backend MVP。若之後真的安裝 OpenSpec CLI / GUI，先檢查 Node/npm/桌面工具位置；不要把任何 Python 套件裝進 base/system Python，Python 相關工具優先放 `metal_trade_312`。
+- 使用者老師提到 OpenSpec；使用者希望未來開發模式逐步往 spec-driven/changes/tasks/spec delta 靠攏。短期把它當成「中大型變更要有迷你規格與驗收標準」的流程方向，不要讓規格流程阻塞 backend MVP。OpenSpec CLI 透過 `npx -y @fission-ai/openspec@latest ...` 使用；Spectra 是 GUI 輔助，Git 裡的 `openspec/` 才是權威來源；不要把任何 Python 套件裝進 base/system Python，Python/Qt 相關工具優先放 `metal_trade_312`。
 - 使用者認為所有文件都重要；不要把任何 `.md` 當成可忽略雜檔。每次功能改動後，至少回頭檢查 `PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`；跨平台或接力流程改變時，直接更新本文件的「跨平台接力檢查」段落，必要時再更新 `DOCS_INDEX.zh-TW.md`、`WORKSPACE_LAYOUT.zh-TW.md`、使用者指南或相關附錄，讓下一位 Agent 容易接力。
 - 使用者會提出發散想法；可以記錄到文檔/中期目標，但當前開發要常提醒「這次實際推進的是哪個 MVP 環節」。
 - 使用者說「繼續推進」或暫離時，通常期待 Agent 自主完成下一個合理小階段：實作、驗證、更新文檔、git commit/push、查 CI。不要每個小選擇都停下來問，但遇到會破壞資料、刪檔、改秘密資訊、或安裝環境不明時要先保守處理。
@@ -235,6 +236,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 8. 維護 `docs/AGENT_HANDOFF.zh-TW.md` 作為開發接力主入口；未來若要做 `.codex/skills/apikeys-collection-launcher`，應等 MVP 閉環穩定後再產品化成消費端/操作端技能。
 9. 繼續減少 Tk UI 內的業務邏輯，讓 UI 主要負責呈現與觸發。
 10. 繼續依 `docs/WORKSPACE_LAYOUT.zh-TW.md` 拆分大型 `.py`：短期 `dataset_sources.py` 已接近純 dispatcher；下一批可繼續拆 `core.py` 或在 crawler 端新增明確 dispatcher mapping，Tk UI 等 backend MVP 更穩後再重構。
+11. 下一個中大型 crawler/adapter/UI/Hadoop/K8S 改動請開始走 OpenSpec change 流程，或至少在 `openspec/changes/` 留 proposal/tasks/acceptance criteria；小修不必硬開厚規格，但要保持 GTD/handoff 同步。
 
 ## 開發守則
 
