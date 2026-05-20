@@ -9,6 +9,19 @@ from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.repository import ApiCatalogRepository
 
 
+CSV_REIMPORT_FORMATS = {"csv", "csv.gz"}
+JSON_REIMPORT_FORMATS = {
+    "json",
+    "json.gz",
+    "jsonl",
+    "jsonl.gz",
+    "ndjson",
+    "ndjson.gz",
+    "geojson",
+    "geojson.gz",
+}
+
+
 @dataclass(frozen=True)
 class DatabaseRepairResult:
     provider_id: str
@@ -64,7 +77,7 @@ def reimport_missing_sqlite_table_asset(repository: ApiCatalogRepository, asset_
         raise ValueError(f"SQLite table already exists: {table_name}. Rerun self-check instead.")
 
     source_format = row["source_format"].strip().lower()
-    if source_format == "csv":
+    if source_format in CSV_REIMPORT_FORMATS:
         result = import_csv_manifest_to_sqlite(
             manifest_path,
             Path(sqlite_path),
@@ -73,7 +86,7 @@ def reimport_missing_sqlite_table_asset(repository: ApiCatalogRepository, asset_
             replace=False,
         )
         rows_imported = result.rows_imported
-    elif source_format == "json":
+    elif source_format in JSON_REIMPORT_FORMATS:
         result = import_json_manifest_to_sqlite(
             manifest_path,
             Path(sqlite_path),

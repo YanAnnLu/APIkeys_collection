@@ -10,6 +10,7 @@ from api_launcher.database_repair import manifest_path_from_notes, reimport_miss
 from api_launcher.database_self_check import DatabaseAssetVerifier
 from api_launcher.db import connect_db
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite
+from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
 
@@ -58,6 +59,64 @@ class DatabaseRepairTests(unittest.TestCase):
         self.assertEqual(2, repair.rows_imported)
         self.assertEqual([("Sirius", "-1.46"), ("Vega", "0.03")], rows)
         self.assertEqual("present", asset_status)
+
+    def test_reimport_missing_sqlite_table_accepts_geojson_source_format(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            geojson_path = root / "stations.geojson"
+            geojson_path.write_text(
+                """
+                {
+                  "type": "FeatureCollection",
+                  "features": [
+                    {
+                      "type": "Feature",
+                      "properties": {"name": "Harbor"},
+                      "geometry": {"type": "Point", "coordinates": [121.5, 25.0]}
+                    }
+                  ]
+                }
+                """,
+                encoding="utf-8",
+            )
+            manifest_path = write_manifest(
+                build_asset_manifest(geojson_path, geojson_plan_entry()),
+                geojson_path.with_suffix(".geojson.manifest.json"),
+            )
+            launcher_db = root / "launcher.sqlite"
+            curated_db = root / "curated.sqlite"
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                imported = import_json_manifest_to_sqlite(
+                    manifest_path,
+                    curated_db,
+                    repo,
+                    table_name="stations_curated",
+                )
+                conn.execute(
+                    "UPDATE provider_installation_assets SET source_format = 'geojson' WHERE asset_id = ?",
+                    (imported.table_asset_id,),
+                )
+                conn.commit()
+                with closing(sqlite3.connect(curated_db)) as curated:
+                    curated.execute('DROP TABLE "stations_curated"')
+                    curated.commit()
+                repo.verify_provider_assets(verifier=DatabaseAssetVerifier(), asset_kinds=("database", "table"))
+
+                repair = reimport_missing_sqlite_table_asset(repo, imported.table_asset_id)
+            finally:
+                conn.close()
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name, geometry_json FROM "stations_curated"').fetchall()
+
+        self.assertEqual("reimport_missing_sqlite_table", repair.action_id)
+        self.assertEqual(1, repair.rows_imported)
+        self.assertEqual("Harbor", rows[0][0])
+        self.assertIn('"Point"', rows[0][1])
 
     def test_reimport_missing_sqlite_table_does_not_replace_existing_table(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -135,6 +194,18 @@ def csv_plan_entry() -> dict[str, object]:
         "download_url": "https://example.test/stars.csv",
         "native_format": "csv",
         "import_plan": {"status": "supported_after_download", "importer": "csv_to_sqlite"},
+    }
+
+
+def geojson_plan_entry() -> dict[str, object]:
+    return {
+        "provider_id": "hyg_database",
+        "dataset_uid": "hyg_geojson_sample",
+        "dataset_id": "hyg_geojson_sample",
+        "dataset_version": {"version": "1.0"},
+        "download_url": "https://example.test/stations.geojson",
+        "native_format": "geojson",
+        "import_plan": {"status": "supported_after_download", "importer": "json_to_sqlite"},
     }
 
 
