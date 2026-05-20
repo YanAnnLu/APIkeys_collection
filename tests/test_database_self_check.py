@@ -72,6 +72,22 @@ class DatabaseSelfCheckTests(unittest.TestCase):
 
         self.assertEqual("fix_data_store_profile_mapping", suggestion.action_id)
 
+    def test_database_repair_suggestion_marks_supported_sqlite_table_auto_repairable(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="table",
+            engine="sqlite",
+            asset_name="station",
+            status="missing",
+            error="SQLite table is missing: station",
+            source_format="geojson.gz",
+            has_recorded_manifest=True,
+        )
+
+        self.assertEqual("restore_or_reimport_table", suggestion.action_id)
+        self.assertTrue(suggestion.can_auto_repair)
+        self.assertEqual("geojson.gz", suggestion.details["source_format"])
+        self.assertTrue(suggestion.details["has_recorded_manifest"])
+
     def test_sqlite_asset_uses_source_uri_as_check_target(self) -> None:
         asset = AssetRecord(
             asset_id="asset_1",
@@ -846,6 +862,50 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(1, payload["issue_count"])
         self.assertEqual("restore_or_reimport_table", payload["issues"][0]["repair_suggestion"]["action_id"])
+        self.assertFalse(payload["issues"][0]["repair_suggestion"]["can_auto_repair"])
+
+    def test_database_self_check_issues_marks_manifest_backed_sqlite_table_auto_repairable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            launcher_db = root / "launcher.sqlite"
+            asset_db = root / "asset.sqlite"
+            manifest_path = root / "stations.geojson.gz.manifest.json"
+            with closing(sqlite3.connect(asset_db)) as conn:
+                conn.execute("CREATE TABLE station (id INTEGER PRIMARY KEY)")
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="sample_provider",
+                        name="Sample",
+                        owner="Sample",
+                        categories=("test",),
+                        geographic_scope="local",
+                        docs_url="https://example.test",
+                    )
+                )
+                repo.register_provider_table_asset(
+                    "sample_provider",
+                    engine="sqlite",
+                    database_name="asset.sqlite",
+                    table_name="missing_station",
+                    source_format="geojson.gz",
+                    source_uri=str(asset_db),
+                    notes=f"manifest={manifest_path} payload={root / 'stations.geojson.gz'}",
+                )
+                repo.verify_provider_assets(verifier=DatabaseAssetVerifier())
+
+                issues = database_self_check_issues(conn, ["sample_provider"])
+            finally:
+                conn.close()
+
+        self.assertEqual(1, len(issues))
+        self.assertEqual("geojson.gz", issues[0].source_format)
+        self.assertTrue(issues[0].has_recorded_manifest)
+        self.assertTrue(issues[0].repair_suggestion().can_auto_repair)
+        self.assertTrue(issues[0].as_dict()["repair_suggestion"]["can_auto_repair"])
 
     def test_database_self_check_issues_reads_registry_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -883,6 +943,7 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual("sample_provider", issues[0].provider_id)
         self.assertEqual("restore_or_reimport_table", issues[0].repair_suggestion().action_id)
+        self.assertFalse(issues[0].repair_suggestion().can_auto_repair)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from api_launcher.asset_verifier import AssetRecord, AssetVerificationResult
 from api_launcher.data_store_connections import DEFAULT_DATA_STORE_PROFILES, DataStoreConnectionProfile, test_data_store_connection
+from api_launcher.database_repair_contracts import is_supported_reimport_source_format, manifest_path_from_notes
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,8 @@ class DatabaseSelfCheckIssue:
     schema_fingerprint: str = ""
     data_store_profile_id: str = ""
     schema_name: str = ""
+    source_format: str = ""
+    has_recorded_manifest: bool = False
 
     def repair_suggestion(self) -> DatabaseRepairSuggestion:
         return database_repair_suggestion(
@@ -84,6 +87,8 @@ class DatabaseSelfCheckIssue:
             schema_fingerprint=self.schema_fingerprint,
             data_store_profile_id=self.data_store_profile_id,
             schema_name=self.schema_name,
+            source_format=self.source_format,
+            has_recorded_manifest=self.has_recorded_manifest,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -101,6 +106,8 @@ class DatabaseSelfCheckIssue:
             "has_schema_fingerprint": bool(self.schema_fingerprint),
             "data_store_profile_id": self.data_store_profile_id,
             "schema_name": self.schema_name,
+            "source_format": self.source_format,
+            "has_recorded_manifest": self.has_recorded_manifest,
             "repair_suggestion": self.repair_suggestion().as_dict(),
         }
 
@@ -140,9 +147,11 @@ def database_self_check_issues(
             pia.status,
             COALESCE(pi.location, '') AS install_location,
             COALESCE(pia.source_uri, '') AS source_uri,
+            COALESCE(pia.source_format, '') AS source_format,
             COALESCE(pia.schema_fingerprint, '') AS schema_fingerprint,
             COALESCE(pia.data_store_profile_id, '') AS data_store_profile_id,
             COALESCE(pia.schema_name, '') AS schema_name,
+            COALESCE(pia.notes, '') AS notes,
             COALESCE(pia.last_verify_error, '') AS last_verify_error
         FROM provider_installation_assets pia
         JOIN provider_installations pi ON pi.install_id = pia.install_id
@@ -168,6 +177,8 @@ def database_self_check_issues(
             schema_fingerprint=row["schema_fingerprint"] or "",
             data_store_profile_id=row["data_store_profile_id"] or "",
             schema_name=row["schema_name"] or "",
+            source_format=row["source_format"] or "",
+            has_recorded_manifest=bool(manifest_path_from_notes(row["notes"] or "")),
         )
         for row in rows
     ]
@@ -186,10 +197,13 @@ def database_repair_suggestion(
     schema_fingerprint: str = "",
     data_store_profile_id: str = "",
     schema_name: str = "",
+    source_format: str = "",
+    has_recorded_manifest: bool = False,
 ) -> DatabaseRepairSuggestion:
     normalized_engine = engine.strip().lower()
     normalized_kind = asset_kind.strip().lower()
     normalized_status = status.strip().lower()
+    normalized_source_format = source_format.strip().lower()
     message = error.strip()
     lowered = message.lower()
     details = {
@@ -204,6 +218,8 @@ def database_repair_suggestion(
         "has_schema_fingerprint": bool(schema_fingerprint),
         "data_store_profile_id": data_store_profile_id,
         "schema_name": schema_name,
+        "source_format": normalized_source_format,
+        "has_recorded_manifest": has_recorded_manifest,
     }
     missing_env_vars = _missing_env_vars(message)
     if missing_env_vars:
@@ -247,11 +263,24 @@ def database_repair_suggestion(
             details=details,
         )
     if "table is missing" in lowered or (normalized_kind == "table" and normalized_status == "missing"):
+        can_auto_repair = (
+            normalized_engine == "sqlite"
+            and has_recorded_manifest
+            and is_supported_reimport_source_format(normalized_source_format)
+            and normalized_status in {"missing", "error"}
+        )
+        description = (
+            "The managed SQLite table is missing and has a recorded supported manifest; "
+            "it can be reimported without dropping or replacing an existing table."
+            if can_auto_repair
+            else "The managed table is missing; restore it from backup or rerun the provider import path that owns this table."
+        )
         return DatabaseRepairSuggestion(
             "restore_or_reimport_table",
             "Restore or reimport table",
-            "The managed table is missing; restore it from backup or rerun the provider import path that owns this table.",
+            description,
             severity="error",
+            can_auto_repair=can_auto_repair,
             details=details,
         )
     if normalized_status == "missing" and normalized_engine == "sqlite":

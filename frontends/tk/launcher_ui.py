@@ -4748,6 +4748,22 @@ class ApiCollectionUi:
                     parent=dialog,
                 )
                 return
+            if not suggestion.can_auto_repair:
+                messagebox.showinfo(
+                    self.tr("資料庫修復", "Database repair"),
+                    self.tr(
+                        (
+                            "這列目前沒有可自動重新匯入的安全條件。\n\n"
+                            "只有缺失的 SQLite table，且 registry 裡記錄了健康 manifest 與支援格式時，才會啟用此動作。"
+                        ),
+                        (
+                            "This row does not currently meet the safe auto-reimport conditions.\n\n"
+                            "This action is enabled only for a missing SQLite table with a recorded manifest and supported source format."
+                        ),
+                    ),
+                    parent=dialog,
+                )
+                return
             if not messagebox.askyesno(
                 self.tr("重新匯入資料表", "Reimport table"),
                 self.tr(

@@ -84,7 +84,9 @@ The project is not a secret harvester. Credential files are templates for user-o
   update a selected database/table asset's `data_store_profile_id` and `schema_name`, stop tracking a selected
   database/table asset by marking only that registry asset `unmanaged`, or reimport a manifest-backed missing SQLite
   table from its recorded healthy CSV/CSV.GZ/JSON/JSONL/NDJSON/GeoJSON sidecar manifest. Registry edits do not execute SQL; reimport only creates a
-  missing table and refuses to DROP or replace an existing table. UI language is configurable through `ui_language` in
+  missing table and refuses to DROP or replace an existing table. Agent-readable database issue payloads now set
+  `can_auto_repair=true` only for missing SQLite tables that have both a recorded manifest and a supported source
+  format, and the UI avoids running the reimport action for rows that do not meet those guarded conditions. UI language is configurable through `ui_language` in
   local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
   `state/favicons/`. The main table can optionally show crawler-imported dataset rows under each provider, so dataset

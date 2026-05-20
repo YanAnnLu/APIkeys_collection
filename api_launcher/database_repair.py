@@ -1,30 +1,17 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from api_launcher.database_repair_contracts import (
+    CSV_REIMPORT_FORMATS,
+    JSON_REIMPORT_FORMATS,
+    manifest_path_from_notes,
+    supported_reimport_source_formats_label,
+)
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, table_exists
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.repository import ApiCatalogRepository
-
-
-CSV_REIMPORT_FORMATS = ("csv", "csv.gz")
-JSON_REIMPORT_FORMATS = (
-    "json",
-    "json.gz",
-    "jsonl",
-    "jsonl.gz",
-    "ndjson",
-    "ndjson.gz",
-    "geojson",
-    "geojson.gz",
-)
-SUPPORTED_REIMPORT_SOURCE_FORMATS = CSV_REIMPORT_FORMATS + JSON_REIMPORT_FORMATS
-
-
-def supported_reimport_source_formats_label() -> str:
-    return ", ".join(SUPPORTED_REIMPORT_SOURCE_FORMATS)
 
 
 @dataclass(frozen=True)
@@ -116,10 +103,3 @@ def reimport_missing_sqlite_table_asset(repository: ApiCatalogRepository, asset_
         rows_imported=rows_imported,
         message=f"Reimported {rows_imported} rows into {table_name}.",
     )
-
-
-def manifest_path_from_notes(notes: str) -> str:
-    match = re.search(r"(?:^|\s)manifest=(?P<path>.+?)(?:\s+payload=|\s+source_url=|$)", notes.strip())
-    if not match:
-        return ""
-    return match.group("path").strip().strip("'\"")
