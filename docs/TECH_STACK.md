@@ -208,6 +208,7 @@ py APIkeys_collection.py --run-download-plan state\candidate_plan.json --import-
 
 This is intentionally opt-in. The runner skips unsupported formats, reports import failures separately from
 download/manifest failures, and treats an existing target table as `skipped_existing_table` unless
+`--plan-import-existing-table-policy rename`, `--plan-import-existing-table-policy replace`, or
 `--import-replace-table` was explicitly requested. Chinese user-facing guidance for this behavior is in
 `docs/USER_GUIDE.zh-TW.md`.
 

@@ -4,6 +4,7 @@ import csv
 import gzip
 import re
 import sqlite3
+import time
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
@@ -235,6 +236,20 @@ def table_exists(sqlite_path: str | Path, table_name: str) -> bool:
             (validate_sql_identifier(table_name),),
         ).fetchone()
     return row is not None
+
+
+def unique_table_name(sqlite_path: str | Path, table_name: str, fallback: str = "imported_dataset") -> str:
+    base = validate_sql_identifier(table_name.strip() or fallback)
+    if not table_exists(sqlite_path, base):
+        return base
+    for index in range(2, 1000):
+        suffix = f"_{index}"
+        candidate = f"{base[:63 - len(suffix)]}{suffix}"
+        if not table_exists(sqlite_path, candidate):
+            return validate_sql_identifier(candidate)
+    timestamp = time.strftime("%Y%m%d%H%M%S")
+    suffix = f"_{timestamp}"
+    return validate_sql_identifier(f"{base[:63 - len(suffix)]}{suffix}")
 
 
 def normalized_row_values(row: list[str], width: int) -> tuple[str, ...]:

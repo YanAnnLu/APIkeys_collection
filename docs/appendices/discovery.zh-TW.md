@@ -203,7 +203,7 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 python3 APIkeys_collection.py --init-db --seed --import-csv-manifest downloads/sample.csv.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated
 ```
 
-目前這是 MVP 級匯入：所有欄位先以 `TEXT` 存放，欄位名稱會轉成安全 SQL identifier，table 會帶 schema fingerprint 登錄回 install registry。要覆蓋既有 table 時必須明確加 `--import-replace-table`。
+目前這是 MVP 級匯入：所有欄位先以 `TEXT` 存放，欄位名稱會轉成安全 SQL identifier，table 會帶 schema fingerprint 登錄回 install registry。重跑 plan 時若目標 table 已存在，預設會略過而不覆蓋；想保留舊表並匯入新表，可用 `--plan-import-existing-table-policy rename` 產生 `table_2` 這類安全新名稱。要覆蓋既有 table 時必須明確加 `--import-replace-table` 或 `--plan-import-existing-table-policy replace`。
 
 若 registry 裡已經有多個健康 CSV/CSV.GZ manifest，可批次匯入：
 

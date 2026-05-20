@@ -9,7 +9,7 @@ from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.importers.archive_importer import extract_first_supported_member_manifest
-from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, table_exists, table_name_for_manifest
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, table_exists, table_name_for_manifest, unique_table_name
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
@@ -87,6 +87,7 @@ def run_download_plan_payload(
     import_sqlite_path: str | Path = "state/curated_imports.sqlite",
     import_row_limit: int = 0,
     import_replace: bool = False,
+    import_existing_table_policy: str = "skip",
 ) -> DownloadPlanRunResult:
     entries = plan_entries(plan_payload)
     selected = direct_download_entries(entries, limit=limit)
@@ -141,6 +142,7 @@ def run_download_plan_payload(
                         sqlite_path=import_sqlite_path,
                         row_limit=import_row_limit,
                         replace=import_replace,
+                        existing_table_policy=import_existing_table_policy,
                     )
                     if import_result == "imported":
                         imported += 1
@@ -188,6 +190,7 @@ def import_completed_plan_entry(
     sqlite_path: str | Path,
     row_limit: int = 0,
     replace: bool = False,
+    existing_table_policy: str = "skip",
 ) -> str:
     import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
     if import_plan.get("status") == "requires_unpack_or_adapter":
@@ -212,18 +215,21 @@ def import_completed_plan_entry(
     importer = str(import_plan.get("importer") or "").strip()
     table_name = str(import_plan.get("table_hint") or "").strip()
     try:
-        if not replace:
-            manifest = read_manifest(manifest_path)
-            resolved_table_name = table_name or table_name_for_manifest(manifest)
-            if table_exists(sqlite_path, resolved_table_name):
-                return "skipped_existing_table"
+        policy = normalized_existing_table_policy(existing_table_policy, replace=replace)
+        manifest = read_manifest(manifest_path)
+        resolved_table_name = table_name or table_name_for_manifest(manifest)
+        if policy == "skip" and table_exists(sqlite_path, resolved_table_name):
+            return "skipped_existing_table"
+        if policy == "rename":
+            table_name = unique_table_name(sqlite_path, resolved_table_name)
+        replace_table = policy == "replace"
         if importer == "csv_to_sqlite":
             import_csv_manifest_to_sqlite(
                 manifest_path,
                 sqlite_path,
                 repository,
                 table_name=table_name,
-                replace=replace,
+                replace=replace_table,
                 row_limit=row_limit,
             )
             return "imported"
@@ -233,10 +239,19 @@ def import_completed_plan_entry(
                 sqlite_path,
                 repository,
                 table_name=table_name,
-                replace=replace,
+                replace=replace_table,
                 row_limit=row_limit,
             )
             return "imported"
     except Exception as exc:
         return f"{type(exc).__name__}: {exc}"
     return "skipped"
+
+
+def normalized_existing_table_policy(policy: str, replace: bool = False) -> str:
+    if replace:
+        return "replace"
+    normalized = str(policy or "skip").strip().lower()
+    if normalized not in {"skip", "rename", "replace"}:
+        raise ValueError(f"Unsupported existing-table import policy: {policy}")
+    return normalized

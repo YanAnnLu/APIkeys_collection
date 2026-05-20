@@ -595,6 +595,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--import-table", default="", help="target table name for single-manifest import; defaults to dataset/version")
     parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV/JSON; 0 means all rows")
     parser.add_argument("--import-replace-table", action="store_true", help="drop and recreate the target table before manifest import")
+    parser.add_argument(
+        "--plan-import-existing-table-policy",
+        choices=("skip", "rename", "replace"),
+        default="skip",
+        help="when importing --run-download-plan results, skip existing tables, rename new tables, or replace existing tables",
+    )
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
@@ -801,6 +807,7 @@ class CatalogLauncherCli:
             import_sqlite_path=resolve_project_path(self.args.import_sqlite_db),
             import_row_limit=self.args.import_row_limit,
             import_replace=self.args.import_replace_table,
+            import_existing_table_policy=self.args.plan_import_existing_table_policy,
         )
         print(
             "[download-plan] "
