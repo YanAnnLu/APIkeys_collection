@@ -291,9 +291,10 @@ def select_next_heartbeat_task(
             "reason": "No suitable open MVP task was found in PROJECT_GTD.md.",
             "stop_conditions": ["no_suitable_open_gtd_task"],
             "verification_commands": default_verification_commands(),
-            "candidate_preview": candidates[:8],
+            "candidate_preview": serialize_candidates(candidates),
         }
-    selected.update(
+    selected_payload = serialize_candidate(selected)
+    selected_payload.update(
         {
             "safe_to_progress": True,
             "stop_required": False,
@@ -301,11 +302,10 @@ def select_next_heartbeat_task(
             "reason": "Tracked worktree is clean and latest CI is acceptable; choose the highest-priority MVP lane.",
             "stop_conditions": [],
             "verification_commands": default_verification_commands(),
-            "candidate_preview": candidates[:8],
+            "candidate_preview": serialize_candidates(candidates),
         }
     )
-    selected.pop("sort_key", None)
-    return selected
+    return selected_payload
 
 
 def candidate_for_item(item: dict[str, str]) -> dict[str, object]:
@@ -354,10 +354,15 @@ def is_deferred_roadmap_lane(text: str) -> bool:
 
 
 def candidate_preview(open_items: list[dict[str, str]], limit: int = 8) -> list[dict[str, object]]:
-    return [
-        {key: value for key, value in candidate_for_item(item).items() if key != "sort_key"}
-        for item in open_items[:limit]
-    ]
+    return serialize_candidates([candidate_for_item(item) for item in open_items[:limit]], limit=limit)
+
+
+def serialize_candidate(candidate: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in candidate.items() if key != "sort_key"}
+
+
+def serialize_candidates(candidates: list[dict[str, object]], limit: int = 8) -> list[dict[str, object]]:
+    return [serialize_candidate(candidate) for candidate in candidates[:limit]]
 
 
 def latest_github_actions_run() -> dict[str, object]:

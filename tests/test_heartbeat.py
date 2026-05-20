@@ -66,6 +66,24 @@ class HeartbeatTests(unittest.TestCase):
         self.assertEqual("repair_observability", plan["priority_lane"])
         self.assertEqual("Download repair scanner", plan["area"])
 
+    def test_clean_planner_payload_is_json_serializable(self) -> None:
+        plan = select_next_heartbeat_task(
+            [
+                {
+                    "area": "Download repair scanner",
+                    "status": "MVP",
+                    "next_step": "Expand repair suggestions.",
+                }
+            ],
+            repo_state=repo_state_from_status("## main...origin/main\n"),
+            latest_ci={"status": "completed", "conclusion": "success"},
+        )
+
+        self.assertTrue(plan["safe_to_progress"])
+        json.dumps(plan)
+        self.assertNotIn("sort_key", plan)
+        self.assertNotIn("sort_key", plan["candidate_preview"][0])
+
     def test_catalog_text_does_not_match_log_lane(self) -> None:
         lane, _rank = classify_priority_lane("source catalog planning")
 
