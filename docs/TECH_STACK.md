@@ -35,6 +35,14 @@ For short-lived SQLite reads/writes, do not rely on `with sqlite3.connect(...)` 
 manager commits or rolls back transactions, but it does not close the connection; Windows CI can keep temp `.sqlite`
 files locked. Use `contextlib.closing(sqlite3.connect(...))` or an explicit `finally: conn.close()`.
 
+## Automation / Handoff Stack
+
+Heartbeat automation uses only the launcher core stack plus local Git and GitHub CLI metadata. The repo-owned entrypoints
+are `--heartbeat-report`, `--heartbeat-plan-json`, `--write-heartbeat-plan-json`, `--heartbeat-agent-prompt`,
+`scripts/heartbeat_check.ps1`, and `scripts/heartbeat_agent.ps1`. The scripts are intended for Windows Task Scheduler or
+another external scheduler; this repository does not assume that a chat thread can wake itself without an external
+runner. Runtime heartbeat outputs live under ignored `state/heartbeat/`.
+
 ## Database Smoke Stack
 
 Optional real-driver smoke dependencies live in `requirements-db-smoke.txt`:

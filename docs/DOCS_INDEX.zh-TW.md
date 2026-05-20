@@ -1,6 +1,6 @@
 # 文件索引與整理規則
 
-最後更新：2026-05-19
+最後更新：2026-05-20
 
 這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
@@ -31,6 +31,7 @@
 | --- | --- | --- |
 | `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力卡，記錄最新狀態、雷點與下一步。 | 每次穩定節點、commit/push 前後、跨 Agent 前更新。 |
 | `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
+| `HEARTBEAT_AUTOMATION.zh-TW.md` | heartbeat automation 的安全規則、CLI/script 入口、外部排程與 agent runner 邊界。 | 更改 heartbeat CLI、scheduler、停止條件或自動推進規則時更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
 | `PRODUCT_POSITIONING.zh-TW.md` | 產品定位：科學資料集 launcher、資料工程版 Steam、虛擬孿生資料管線。 | 產品語言或中長期方向改變時更新。 |
 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` | 中長期概念總綱，整理資料資產、Discovery Tool、標準化策略、湖倉/K8S、Render Studio、ML、Notion/TradingView connector 與 local-first 桌面形態。 | 重大產品概念討論、平台接口方向、商業化定位或中期 roadmap 改變時更新；不要把它當成當前 MVP 實作清單。 |
@@ -79,3 +80,7 @@
 4. 只有在 Git 狀態乾淨、測試通過、使用者知道風險時，才搬移或刪除文件。
 
 目前文件結構的目標不是「文件越少越好」，而是「每份文件有清楚任務」。接力文件、GTD、架構、技術總覽、使用者指南、工作區規則與各附錄都可以共存，只要索引清楚即可。
+
+## Heartbeat Automation 補充入口
+
+`docs/HEARTBEAT_AUTOMATION.zh-TW.md` 記錄 heartbeat automation 的安全規則、CLI/script 入口、外部排程與後續 agent runner 邊界。更改 heartbeat CLI、scheduler、停止條件或自動推進規則時，請同步更新該文件、`PROJECT_GTD.md` 與 `AGENT_HANDOFF.zh-TW.md`。

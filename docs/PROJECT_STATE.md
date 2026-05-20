@@ -62,6 +62,11 @@ The project is not a secret harvester. Credential files are templates for user-o
   `--manifest-health`, `--show-logs`, and `--handoff-report`. Handoff reports now include generated time,
   latest manifest/asset/verification-event timestamps, latest download requeue outcome, and a compact open-GTD focus list parsed from
   `docs/PROJECT_GTD.md`, so another agent can resume without reconstructing progress from chat history.
+- Heartbeat automation now exists as a repo-owned handoff/checkpoint layer. `api_launcher/heartbeat.py` reads the fixed
+  handoff/GTD inputs, Git status, latest commit, and optionally the latest GitHub Actions run, then emits
+  `--heartbeat-report`, `--heartbeat-plan-json`, `--write-heartbeat-plan-json`, and `--heartbeat-agent-prompt` outputs.
+  `scripts/heartbeat_check.ps1` is the Windows scheduler check entrypoint, while `scripts/heartbeat_agent.ps1` can
+  generate a dry-run prompt or call an explicitly configured external agent runner only when the plan is safe.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
   `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
 - Data-store profiles now support an `env_var_map` for connection roles such as host, database, user, password, port,
@@ -180,7 +185,8 @@ The root `APIkeys_collection.py` is now a thin compatibility entry point. The ol
 - `api_launcher/manifests.py`, `api_launcher/downloads/staging.py`, and `api_launcher/downloads/repair.py`: staged downloads, sidecar manifest creation, and manifest verification.
 - `api_launcher/data_store_connections.py` and `database_self_check.py`: configured data-store probes, SQL
   `information_schema` helpers, plus registry-backed database/table asset self-checks.
-- `api_launcher/event_log.py` and `handoff.py`: structured logs and agent/human handoff report generation.
+- `api_launcher/event_log.py`, `handoff.py`, and `heartbeat.py`: structured logs, agent/human handoff report generation,
+  and external-scheduler heartbeat readiness planning.
 - `api_launcher/unreal_bridge.py`: maps registered renderer bridge assets to future Unreal Content targets.
 - `scripts/export_unreal_preview.py`: creates lightweight Unreal preview assets from Taichi cache data and records
   camera-mode streaming hints for the future virtual twin frontend.

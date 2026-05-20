@@ -73,6 +73,12 @@ from api_launcher.downloads.plan_runner import load_download_plan_file, run_down
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
+from api_launcher.heartbeat import (
+    build_heartbeat_payload,
+    write_heartbeat_agent_prompt,
+    write_heartbeat_json,
+    write_heartbeat_report,
+)
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.integrations import (
     active_ai_profile,
@@ -611,6 +617,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
+    parser.add_argument("--heartbeat-report", help="write a heartbeat readiness Markdown report")
+    parser.add_argument("--heartbeat-plan-json", action="store_true", help="emit heartbeat readiness and next-task plan as JSON")
+    parser.add_argument("--write-heartbeat-plan-json", default="", help="write heartbeat readiness and next-task plan JSON")
+    parser.add_argument("--heartbeat-agent-prompt", default="", help="write a bounded-task prompt for an external Codex/agent runner")
+    parser.add_argument("--heartbeat-skip-ci", action="store_true", help="skip GitHub Actions lookup for offline heartbeat checks")
     parser.add_argument("--workspace-inventory", action="store_true", help="print workspace classification and split suggestions")
     parser.add_argument(
         "--write-workspace-inventory-json",
@@ -709,6 +720,7 @@ class CatalogLauncherCli:
             self.list_manifests()
             self.show_logs()
             self.write_handoff_report()
+            self.run_heartbeat_report()
             self.show_workspace_inventory()
             portal_intake_cli(self.args)
             self.show_unreal_bridge_plan()
@@ -1017,6 +1029,27 @@ class CatalogLauncherCli:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(render_handoff_markdown(snapshot), encoding="utf-8")
             print(f"[handoff] wrote {output_path}")
+
+    def run_heartbeat_report(self) -> None:
+        if not (
+            self.args.heartbeat_report
+            or self.args.heartbeat_plan_json
+            or self.args.write_heartbeat_plan_json
+            or self.args.heartbeat_agent_prompt
+        ):
+            return
+        payload = build_heartbeat_payload(include_ci=not self.args.heartbeat_skip_ci)
+        if self.args.heartbeat_report:
+            output_path = write_heartbeat_report(payload, self.args.heartbeat_report)
+            print(f"[heartbeat] wrote {output_path}")
+        if self.args.write_heartbeat_plan_json:
+            output_path = write_heartbeat_json(payload, self.args.write_heartbeat_plan_json)
+            print(f"[heartbeat] wrote {output_path}")
+        if self.args.heartbeat_agent_prompt:
+            output_path = write_heartbeat_agent_prompt(payload, self.args.heartbeat_agent_prompt)
+            print(f"[heartbeat] wrote {output_path}")
+        if self.args.heartbeat_plan_json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
 
     def show_workspace_inventory(self) -> None:
         if not (self.args.workspace_inventory or self.args.write_workspace_inventory_json):
