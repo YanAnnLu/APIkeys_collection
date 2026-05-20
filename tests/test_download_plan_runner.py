@@ -4,6 +4,7 @@ import io
 import gzip
 import json
 import sqlite3
+import tarfile
 import tempfile
 import threading
 import unittest
@@ -35,6 +36,23 @@ def zip_ndjson_gz_bytes() -> bytes:
     handle = io.BytesIO()
     with zipfile.ZipFile(handle, "w") as archive:
         archive.writestr("nested/sample.ndjson.gz", payload)
+    return handle.getvalue()
+
+
+def tar_geojson_gz_bytes() -> bytes:
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "properties": {"name": "alpha", "value": 1}, "geometry": None},
+            {"type": "Feature", "properties": {"name": "beta", "value": 2}, "geometry": None},
+        ],
+    }
+    payload = gzip.compress(json.dumps(geojson).encode("utf-8"))
+    handle = io.BytesIO()
+    with tarfile.open(fileobj=handle, mode="w:gz") as archive:
+        member = tarfile.TarInfo("nested/sample.geojson.gz")
+        member.size = len(payload)
+        archive.addfile(member, io.BytesIO(payload))
     return handle.getvalue()
 
 
@@ -377,6 +395,46 @@ class DownloadPlanRunnerTests(unittest.TestCase):
             conn = sqlite3.connect(sqlite_path)
             try:
                 rows = conn.execute("SELECT name, value FROM hyg_sample_json ORDER BY name").fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(0, rc)
+        self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
+        self.assertIn("imported=1", stdout.getvalue())
+
+    def test_cli_can_unpack_geojson_gz_tar_member_before_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(tar_geojson_gz_bytes()) as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.tar.gz"
+            plan_path = Path(tmpdir) / "plan.json"
+            sqlite_path = Path(tmpdir) / "curated.sqlite"
+            plan = sample_plan(url, output_path, native_format="tar.gz")
+            plan["providers"][0]["import_plan"] = {
+                "status": "requires_unpack_or_adapter",
+                "table_hint": "hyg_sample_geojson",
+                "source_format": "tar.gz",
+            }
+            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--run-download-plan",
+                        str(plan_path),
+                        "--download-timeout",
+                        "5",
+                        "--import-supported-plan-results",
+                        "--import-sqlite-db",
+                        str(sqlite_path),
+                    ]
+                )
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                rows = conn.execute("SELECT name, value FROM hyg_sample_geojson ORDER BY name").fetchall()
             finally:
                 conn.close()
 

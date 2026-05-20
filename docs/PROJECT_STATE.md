@@ -41,7 +41,7 @@ The project is not a secret harvester. Credential files are templates for user-o
   asset ownership is updated.
 - Crawler-discovered dataset candidates can now be exported with `--export-candidate-plan`; this uses the same
   dataset-version plan schema as adapters and adds candidate review metadata plus conservative import hints.
-- `--run-download-plan` can optionally add `--import-supported-plan-results`, which imports supported CSV/JSON plan
+- `--run-download-plan` can optionally add `--import-supported-plan-results`, which imports supported CSV/JSON/GeoJSON plan
   results into curated SQLite after manifest verification while tracking import skipped/failed counts separately. If the
   same plan is run again and the target table already exists, the runner records `skipped_existing_table` instead of
   treating the item as a failed import.
@@ -83,7 +83,7 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also
   update a selected database/table asset's `data_store_profile_id` and `schema_name`, stop tracking a selected
   database/table asset by marking only that registry asset `unmanaged`, or reimport a manifest-backed missing SQLite
-  table from its recorded healthy CSV/JSON sidecar manifest. Registry edits do not execute SQL; reimport only creates a
+  table from its recorded healthy CSV/CSV.GZ/JSON/JSONL/NDJSON/GeoJSON sidecar manifest. Registry edits do not execute SQL; reimport only creates a
   missing table and refuses to DROP or replace an existing table. UI language is configurable through `ui_language` in
   local integration config.
 - Tk source browsing now supports category/provider sidebar modes. Provider mode can show cached website favicons from
@@ -226,8 +226,9 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   declared size above 100 MB; DOI landing pages and repository HTML pages still stay in review. HTML/API/unknown resources remain in review. Tk UI exposes the same flow through
   `解析 Adapter 計畫` and the Adapter review panel.
 - Archive extraction is the first bounded transform adapter: ZIP/TAR payloads marked `requires_unpack_or_adapter` can
-  extract the first supported CSV/JSON member, write a derived sidecar manifest under `state/extracted/`, and continue
-  into the existing SQLite import path. This keeps the MVP conservative while making simple archives actionable.
+  extract the first supported CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON member, write a derived sidecar manifest
+  under `state/extracted/`, and continue into the existing SQLite import path. Regression coverage now includes ZIP
+  with NDJSON.GZ and TAR.GZ with GeoJSON.GZ members. This keeps the MVP conservative while making simple archives actionable.
 - Provider-level install identity is now represented by `provider_installations.install_id` plus a fingerprint.
   Installation assets can be registered in `provider_installation_assets`, including future SQL uninstall commands.
   UI removal currently marks registry state as removed and does not execute destructive SQL until database adapters exist.
@@ -273,7 +274,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 ## Next Build Target
 
 1. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
-2. Expand guarded database repair beyond CSV/JSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
+2. Expand guarded database repair beyond CSV/JSON/GeoJSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
 3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
