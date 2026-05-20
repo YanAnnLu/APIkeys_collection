@@ -16,3 +16,6 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+.spectra.yaml
+.spectra/
+openspec/.vector-search.db*
