@@ -406,7 +406,9 @@ Runtime logs live under ignored `state/logs/`:
 - `launcher_errors.log`: compact text summary with tracebacks for warnings/errors.
 
 Use `api_launcher/event_log.py` instead of ad hoc `print()` or silent exception swallowing when an error affects user
-state, downloads, adapters, database tools, AI summaries, or startup environment checks. Failure scenarios and recovery
+state, downloads, adapters, database tools, AI summaries, or startup environment checks. Successful database repair CLI
+actions also emit a `database_repair_completed` event with the repair action, result count, and per-asset result payload
+so `--show-logs` and handoff reports can reconstruct what changed without parsing stdout. Failure scenarios and recovery
 rules are tracked in `docs/appendices/failure_modes.zh-TW.md`.
 
 ## Validation

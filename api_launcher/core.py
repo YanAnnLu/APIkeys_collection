@@ -1180,7 +1180,26 @@ class CatalogLauncherCli:
                 "result_count": len(result_payloads),
                 "results": result_payloads,
             }
+            self.log_database_repair_completed(payload["action"], result_payloads)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            self.log_database_repair_completed(actions[0] if len(actions) == 1 else "database_repair", result_payloads)
+
+    def log_database_repair_completed(self, action: str, results: list[dict[str, object]]) -> None:
+        if not results:
+            return
+        with contextlib.suppress(Exception):
+            log_event(
+                "database_repair_completed",
+                f"Database repair completed: {action}",
+                component="database_repair",
+                context={
+                    "db_path": str(self.db_path),
+                    "action": action,
+                    "result_count": len(results),
+                    "results": results,
+                },
+            )
 
     def generate_ai_summary(self) -> None:
         if not self.args.generate_ai_summary:

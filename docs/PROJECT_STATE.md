@@ -96,6 +96,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Registry-only stop-tracking is also available to CLI/agent workflows through
   `--unmanage-database-asset ASSET_ID --database-repair-json`; it marks the selected database/table asset `unmanaged`
   without executing SQL, deleting files, or modifying the data store.
+- Successful database repair CLI actions now write a structured `database_repair_completed` event, so `--show-logs` and
+  handoff reports can show which guarded repair action ran and which asset results it produced.
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also
@@ -296,7 +298,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 1. Expand guarded database repair beyond CSV/JSON/GeoJSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
 2. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 3. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
-4. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
+4. Connect the remaining download/UI repair paths to richer event logs and guided retry flows.
 5. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
 6. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
 7. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.

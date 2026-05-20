@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from contextlib import closing, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.database_repair import (
@@ -99,7 +100,7 @@ class DatabaseRepairTests(unittest.TestCase):
                 conn.close()
 
             output = io.StringIO()
-            with redirect_stdout(output):
+            with redirect_stdout(output), patch("api_launcher.core.log_event") as log_event_mock:
                 rc = main(
                     [
                         "--db",
@@ -110,6 +111,7 @@ class DatabaseRepairTests(unittest.TestCase):
                     ]
                 )
             payload = json.loads(output.getvalue())
+            event_context = log_event_mock.call_args.kwargs["context"]
 
             with closing(sqlite3.connect(curated_db)) as curated:
                 rows = curated.execute('SELECT name, mag FROM "stars_curated" ORDER BY name').fetchall()
@@ -120,6 +122,10 @@ class DatabaseRepairTests(unittest.TestCase):
         self.assertEqual(imported.table_asset_id, payload["results"][0]["asset_id"])
         self.assertEqual(2, payload["results"][0]["rows_imported"])
         self.assertEqual([("Sirius", "-1.46"), ("Vega", "0.03")], rows)
+        log_event_mock.assert_called_once()
+        self.assertEqual("reimport_missing_sqlite_table", event_context["action"])
+        self.assertEqual(1, event_context["result_count"])
+        self.assertEqual(imported.table_asset_id, event_context["results"][0]["asset_id"])
 
     def test_stop_tracking_database_asset_marks_registry_only_unmanaged(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -173,7 +179,7 @@ class DatabaseRepairTests(unittest.TestCase):
                 conn.close()
 
             output = io.StringIO()
-            with redirect_stdout(output):
+            with redirect_stdout(output), patch("api_launcher.core.log_event") as log_event_mock:
                 rc = main(
                     [
                         "--db",
@@ -184,6 +190,7 @@ class DatabaseRepairTests(unittest.TestCase):
                     ]
                 )
             payload = json.loads(output.getvalue())
+            event_context = log_event_mock.call_args.kwargs["context"]
 
             conn = connect_db(launcher_db)
             try:
@@ -202,6 +209,12 @@ class DatabaseRepairTests(unittest.TestCase):
         self.assertTrue(payload["results"][0]["registry_only"])
         self.assertFalse(payload["results"][0]["database_modified"])
         self.assertEqual("unmanaged", row["status"])
+        log_event_mock.assert_called_once()
+        self.assertEqual("database_repair_completed", log_event_mock.call_args.args[0])
+        self.assertEqual("database_repair", log_event_mock.call_args.kwargs["component"])
+        self.assertEqual("unmanage_database_asset", event_context["action"])
+        self.assertEqual(1, event_context["result_count"])
+        self.assertFalse(event_context["results"][0]["database_modified"])
 
     def test_reimport_missing_sqlite_table_accepts_geojson_source_format(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
