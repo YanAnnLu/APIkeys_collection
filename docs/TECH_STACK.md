@@ -2,12 +2,14 @@
 
 ## Dependency Boundary
 
-The project has two intentionally separate dependency layers:
+The project has three intentionally separate dependency layers:
 
 - **Launcher core:** standard-library Python, SQLite, Tkinter UI, Docker CLI checks.
+- **Database smoke stack:** optional MySQL/PostgreSQL Python drivers used only for controlled real-driver tests.
 - **Renderer stack:** optional heavy scientific/visualization packages for `renderers/taichi_global_bathymetry.py`.
 
-Do not move renderer dependencies into `requirements.txt` unless the Docker launcher image is meant to become a rendering image.
+Do not move database smoke drivers or renderer dependencies into `requirements.txt` unless they become required for the
+normal launcher runtime.
 
 ## Launcher Core
 
@@ -32,6 +34,18 @@ installs. Do not install into base/system Python unless the user explicitly appr
 For short-lived SQLite reads/writes, do not rely on `with sqlite3.connect(...)` to close the file handle. That context
 manager commits or rolls back transactions, but it does not close the connection; Windows CI can keep temp `.sqlite`
 files locked. Use `contextlib.closing(sqlite3.connect(...))` or an explicit `finally: conn.close()`.
+
+## Database Smoke Stack
+
+Optional real-driver smoke dependencies live in `requirements-db-smoke.txt`:
+
+- `mysql-connector-python`: MySQL connection and `information_schema` introspection smoke.
+- `psycopg[binary]`: PostgreSQL connection and `information_schema` introspection smoke.
+
+The main CI still runs the standard test matrix on Ubuntu and Windows without forcing these drivers into launcher core.
+The separate `real-db-smoke` GitHub Actions job runs on Ubuntu with MySQL and PostgreSQL service containers, sets
+`APIKEYS_RUN_REAL_DB_SMOKE=1`, and executes only `tests.test_data_store_real_drivers`. Local developers should install
+these dependencies only in a project env and point the env vars at a disposable test database.
 
 ## Renderer Stack
 

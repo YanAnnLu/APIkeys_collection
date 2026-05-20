@@ -1,0 +1,4 @@
+# Optional dependencies for CI/local real database smoke tests only.
+# Keep these out of the launcher core runtime dependency set.
+mysql-connector-python>=9.0
+psycopg[binary]>=3.2

@@ -77,6 +77,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - `tests/test_data_store_real_drivers.py` now provides opt-in real MySQL/PostgreSQL smoke coverage. It is skipped by
   default and only runs when `APIKEYS_RUN_REAL_DB_SMOKE=1`, the matching DB env vars, and optional Python drivers are
   present; the smoke path performs read-only connection/schema introspection and does not create, drop, or modify tables.
+- GitHub Actions has a separate `real-db-smoke` job that installs `requirements-db-smoke.txt`, starts disposable
+  MySQL/PostgreSQL service containers on Ubuntu, and runs only the opt-in real-driver smoke tests against those services.
+  The normal Windows/Ubuntu test matrix still uses `requirements-dev.txt` and does not require database drivers.
 - MySQL/PostgreSQL table assets now carry install ownership through `AssetRecord.install_location`; self-check can parse
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
@@ -278,7 +281,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 
 ## Next Build Target
 
-1. Add real-driver integration smoke coverage for optional MySQL/PostgreSQL paths when test services are available.
+1. Extend real-driver coverage from connection/schema smoke to registry-backed database/table self-check using disposable service tables.
 2. Expand guarded database repair beyond CSV/JSON/GeoJSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
 3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.

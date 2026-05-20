@@ -37,3 +37,66 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python APIkeys_collection.py --init-db --seed --manifest-health --db state/ci.sqlite --summary
+
+  real-db-smoke:
+    name: Real DB driver smoke on ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: apikeys_ci
+          MYSQL_USER: apikeys_ci
+          MYSQL_PASSWORD: apikeys_ci
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: apikeys_ci
+          POSTGRES_USER: apikeys_ci
+          POSTGRES_PASSWORD: apikeys_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd="pg_isready -U apikeys_ci -d apikeys_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install DB smoke dependencies
+        run: python -m pip install -r requirements-dev.txt -r requirements-db-smoke.txt
+
+      - name: Run real database smoke tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          APIKEYS_RUN_REAL_DB_SMOKE: "1"
+          APIKEYS_MYSQL_HOST: 127.0.0.1
+          APIKEYS_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+          APIKEYS_MYSQL_DATABASE: apikeys_ci
+          APIKEYS_MYSQL_USER: apikeys_ci
+          APIKEYS_MYSQL_PASSWORD: apikeys_ci
+          APIKEYS_POSTGRES_HOST: 127.0.0.1
+          APIKEYS_POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+          APIKEYS_POSTGRES_DATABASE: apikeys_ci
+          APIKEYS_POSTGRES_USER: apikeys_ci
+          APIKEYS_POSTGRES_PASSWORD: apikeys_ci
+          APIKEYS_POSTGRES_SCHEMA: public
+        run: python -m unittest tests.test_data_store_real_drivers -v

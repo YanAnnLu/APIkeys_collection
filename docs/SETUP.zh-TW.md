@@ -47,7 +47,7 @@ conda run -n metal_trade_312 python -m unittest discover -s tests
 conda run -n metal_trade_312 python APIkeys_collection_ui.py
 ```
 
-不要把套件裝進 `base` 或 system Python。若之後需要新增套件，優先安裝到 `metal_trade_312`，並同步更新 `requirements.txt` 或 `requirements-dev.txt`。
+不要把套件裝進 `base` 或 system Python。若之後需要新增套件，優先安裝到 `metal_trade_312`，並同步更新 `requirements.txt`、`requirements-dev.txt`，或明確的 optional requirements 檔。
 
 一般 macOS/Linux 也可用專案 venv：
 
@@ -67,6 +67,22 @@ python3 APIkeys_collection_ui.py
 ```
 
 如果使用同步碟或 CloudMounter，請確認目前工作目錄真的在 `APIkeys_collection/` 專案資料夾內，不要在上一層雲端根目錄執行會寫檔的命令。
+
+## 選用：真實資料庫 smoke test
+
+一般測試不需要安裝 MySQL/PostgreSQL driver，也不會連線到真實資料庫。若要在一次性測試資料庫上跑真實 driver smoke，才安裝：
+
+```bash
+python3 -m pip install -r requirements-db-smoke.txt
+```
+
+接著設定 `APIKEYS_RUN_REAL_DB_SMOKE=1`、`APIKEYS_MYSQL_*`、`APIKEYS_POSTGRES_*`，再跑：
+
+```bash
+python3 -m unittest tests.test_data_store_real_drivers -v
+```
+
+GitHub Actions 的 `real-db-smoke` job 會自動啟動 MySQL/PostgreSQL service containers 並跑這條測試。它只做 read-only connection/schema introspection，不建立、刪除或修改資料表。
 
 ## 接力前檢查
 
@@ -99,7 +115,7 @@ python3 APIkeys_collection.py --verify-downloads-json
 - SQLite 在同步碟上可能被鎖住；大量寫入時最好改成本機 state path。
 - Windows 有時會鎖 `.pyc`，建議設定 `PYTHONDONTWRITEBYTECODE=1`。
 - macOS 若專案放在 CloudMounter / 雲端同步碟，Python 讀寫 `__pycache__` 可能卡住；跑測試可加 `PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache`，把 bytecode 快取放到本機暫存。
-- `requirements-dev.txt` 會安裝 `numpy`，讓 Unreal preview export 測試不被跳過；完整 renderer dependencies 仍放在 `requirements-renderer.txt`，不要混進 launcher core。
+- `requirements-dev.txt` 會安裝 `numpy`，讓 Unreal preview export 測試不被跳過；`requirements-db-smoke.txt` 只給真實 MySQL/PostgreSQL smoke test；完整 renderer dependencies 仍放在 `requirements-renderer.txt`，不要混進 launcher core。
 - 如果 UI 中文顯示異常，先不要批次轉碼，避免破壞既有檔案；應該另開一次 encoding cleanup。
 - macOS 若看到 Windows `K:\...` 路徑，通常代表本機整合設定尚未分平台配置；應改用 `*_by_platform` 或在 Mac 的 local config 指向 macOS 實際路徑。
 
