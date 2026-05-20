@@ -46,6 +46,7 @@ from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
+from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -474,6 +475,8 @@ class ApiCollectionUi:
         self.status_var = StringVar(value="準備就緒")
         self.plan_name_var = StringVar(value=self.tr("未命名下載計畫", "Untitled download plan"))
         self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個資料源", "Download Plan: 0 sources"))
+        self.preferred_import_existing_table_policy = self.load_import_existing_table_policy_preference()
+        self.plan_import_policy_var = StringVar(value=self.import_existing_table_policy_status_label(self.preferred_import_existing_table_policy))
         active_ai = core.active_ai_profile()
         self.selected_ai_profile_id = active_ai.id if active_ai else ""
         self.selected: dict[str, BooleanVar] = {}
@@ -565,6 +568,18 @@ class ApiCollectionUi:
             config["ui_table_column_widths"] = dict(sorted(self.column_width_overrides.items()))
         else:
             config.pop("ui_table_column_widths", None)
+        save_integration_config(config)
+
+    def load_import_existing_table_policy_preference(self) -> str:
+        return normalized_ui_import_policy(core.load_integration_config().get(UI_IMPORT_POLICY_CONFIG_KEY))
+
+    def save_import_existing_table_policy_preference(self, policy: str) -> None:
+        normalized = normalized_ui_import_policy(policy)
+        self.preferred_import_existing_table_policy = normalized
+        if hasattr(self, "plan_import_policy_var"):
+            self.plan_import_policy_var.set(self.import_existing_table_policy_status_label(normalized))
+        config = core.ensure_local_integration_config()
+        config[UI_IMPORT_POLICY_CONFIG_KEY] = normalized
         save_integration_config(config)
 
     def normalized_column_width(self, name: str, width: int) -> int:
@@ -1152,6 +1167,7 @@ class ApiCollectionUi:
         ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
+        ttk.Label(plan, textvariable=self.plan_import_policy_var, style="DetailMuted.TLabel").pack(anchor="w", padx=14, pady=(0, 8))
 
         columns = ("name", "auth", "scope", "status", "import")
         self.cart_tree = ttk.Treeview(plan, columns=columns, show="headings", height=4, selectmode="browse")
@@ -1987,7 +2003,13 @@ class ApiCollectionUi:
             "skip": self.tr("保留舊表，略過同名項目", "Keep old table and skip same-name items"),
             "replace": self.tr("覆蓋同名表", "Replace same-name table"),
         }
-        return labels.get(policy, labels["rename"])
+        return labels.get(normalized_ui_import_policy(policy), labels["rename"])
+
+    def import_existing_table_policy_status_label(self, policy: str) -> str:
+        return self.tr(
+            f"匯入策略：{self.import_existing_table_policy_label(policy)}",
+            f"Import policy: {self.import_existing_table_policy_label(policy)}",
+        )
 
     def ask_import_existing_table_policy(self) -> str | None:
         dialog = Toplevel(self.root)
@@ -1997,7 +2019,7 @@ class ApiCollectionUi:
         dialog.geometry("620x340")
         dialog.configure(bg=COLORS["panel"])
 
-        policy_var = StringVar(value="rename")
+        policy_var = StringVar(value=self.preferred_import_existing_table_policy)
         result: dict[str, str | None] = {"policy": None}
 
         frame = ttk.Frame(dialog, padding=18)
@@ -2042,7 +2064,7 @@ class ApiCollectionUi:
             dialog.destroy()
 
         def accept() -> None:
-            policy = policy_var.get()
+            policy = normalized_ui_import_policy(policy_var.get())
             if policy == "replace":
                 confirmed = messagebox.askyesno(
                     self.tr("確認覆蓋", "Confirm replace"),
@@ -2054,6 +2076,7 @@ class ApiCollectionUi:
                 )
                 if not confirmed:
                     return
+            self.save_import_existing_table_policy_preference(policy)
             result["policy"] = policy
             dialog.destroy()
 
@@ -2814,6 +2837,8 @@ class ApiCollectionUi:
             config["ui_language"] = selected_code
             save_integration_config(config)
             self.ui_language = selected_code
+            if hasattr(self, "plan_import_policy_var"):
+                self.plan_import_policy_var.set(self.import_existing_table_policy_status_label(self.preferred_import_existing_table_policy))
             self._build_menu_bar()
             self.status_var.set(self.tr("介面語言已更新。主畫面完整套用需要重新啟動。", "Interface language updated. Restart for the full main window."))
             messagebox.showinfo(
