@@ -15,7 +15,7 @@ from api_launcher.importers.csv_importer import (
 )
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
-from api_launcher.repository import ApiCatalogRepository
+from api_launcher.repository import ApiCatalogRepository, source_format_from_path
 from api_launcher.sql_assets import validate_sql_identifier
 
 
@@ -124,7 +124,7 @@ def import_json_manifest_to_sqlite(
         table_name=clean_table,
         location=str(target_db),
         asset_role="curated",
-        source_format="json",
+        source_format=source_format_from_path(payload_path),
         source_uri=str(target_db),
         schema_fingerprint=fingerprint,
         notes=(

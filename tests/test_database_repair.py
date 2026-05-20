@@ -6,7 +6,11 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 
-from api_launcher.database_repair import manifest_path_from_notes, reimport_missing_sqlite_table_asset
+from api_launcher.database_repair import (
+    manifest_path_from_notes,
+    reimport_missing_sqlite_table_asset,
+    supported_reimport_source_formats_label,
+)
 from api_launcher.database_self_check import DatabaseAssetVerifier
 from api_launcher.db import connect_db
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite
@@ -96,11 +100,6 @@ class DatabaseRepairTests(unittest.TestCase):
                     repo,
                     table_name="stations_curated",
                 )
-                conn.execute(
-                    "UPDATE provider_installation_assets SET source_format = 'geojson' WHERE asset_id = ?",
-                    (imported.table_asset_id,),
-                )
-                conn.commit()
                 with closing(sqlite3.connect(curated_db)) as curated:
                     curated.execute('DROP TABLE "stations_curated"')
                     curated.commit()
@@ -175,6 +174,37 @@ class DatabaseRepairTests(unittest.TestCase):
                     reimport_missing_sqlite_table_asset(repo, asset_id)
             finally:
                 conn.close()
+
+    def test_reimport_missing_sqlite_table_reports_supported_formats(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            conn = connect_db(root / "launcher.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                asset_id = repo.register_provider_table_asset(
+                    "hyg_database",
+                    engine="sqlite",
+                    database_name="curated.sqlite",
+                    table_name="unsupported_table",
+                    source_format="api",
+                    source_uri=str(root / "curated.sqlite"),
+                    notes=f"manifest={root / 'unsupported.api.manifest.json'} payload={root / 'unsupported.api'}",
+                )
+                conn.execute(
+                    "UPDATE provider_installation_assets SET status = 'missing' WHERE asset_id = ?",
+                    (asset_id,),
+                )
+                conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "Supported formats: .*geojson\\.gz"):
+                    reimport_missing_sqlite_table_asset(repo, asset_id)
+            finally:
+                conn.close()
+
+        self.assertIn("csv.gz", supported_reimport_source_formats_label())
+        self.assertIn("geojson.gz", supported_reimport_source_formats_label())
 
     def test_manifest_path_from_notes_allows_spaces_before_payload_marker(self) -> None:
         self.assertEqual(

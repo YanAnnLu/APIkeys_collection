@@ -1306,11 +1306,28 @@ def provider_asset_id(install_id: str, asset_kind: str, engine: str, asset_name:
 
 
 def source_format_from_path(path: str | Path) -> str:
-    suffix = Path(path).suffix.lower().lstrip(".")
-    if suffix in {"csv"}:
-        return "csv"
-    if suffix in {"json", "geojson"}:
-        return "json"
-    if suffix in {"sqlite", "sqlite3", "db"}:
-        return "sqlite"
+    name = Path(path).name.lower()
+    for suffix, source_format in (
+        (".tar.bz2", "tar.bz2"),
+        (".tar.gz", "tar.gz"),
+        (".tar.xz", "tar.xz"),
+        (".csv.gz", "csv.gz"),
+        (".geojson.gz", "geojson.gz"),
+        (".jsonl.gz", "jsonl.gz"),
+        (".ndjson.gz", "ndjson.gz"),
+        (".json.gz", "json.gz"),
+        (".sqlite3", "sqlite"),
+        (".geojson", "geojson"),
+        (".jsonl", "jsonl"),
+        (".ndjson", "ndjson"),
+        (".sqlite", "sqlite"),
+        (".csv", "csv"),
+        (".json", "json"),
+        (".db", "sqlite"),
+        (".zip", "zip"),
+        (".tar", "tar"),
+        (".tgz", "tgz"),
+    ):
+        if name.endswith(suffix):
+            return source_format
     return "unknown"

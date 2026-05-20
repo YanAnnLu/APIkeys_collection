@@ -4,7 +4,7 @@ Tk control panel for APIkeys_collection.
 
 This UI is a lightweight data source manager: it lists provider/database entries,
 lets you select sources, runs metadata crawls, writes download plans, runs direct
-downloads, and can import supported CSV/JSON results into the local MVP SQLite store.
+downloads, and can import supported CSV/JSON/GeoJSON results into the local MVP SQLite store.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from api_launcher.downloads.plan_runner import import_completed_plan_entry
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
-from api_launcher.database_repair import reimport_missing_sqlite_table_asset
+from api_launcher.database_repair import reimport_missing_sqlite_table_asset, supported_reimport_source_formats_label
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
@@ -2376,7 +2376,7 @@ class ApiCollectionUi:
                 entry = built_entry
             import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
             if import_plan.get("status") != "supported_after_download":
-                reason = str(import_plan.get("reason") or import_plan.get("status") or self.tr("目前不是 CSV/JSON 可自動匯入項目", "This item is not an auto-importable CSV/JSON item"))
+                reason = str(import_plan.get("reason") or import_plan.get("status") or self.tr("目前不是 CSV/JSON/GeoJSON 可自動匯入項目", "This item is not an auto-importable CSV/JSON/GeoJSON item"))
                 skipped.append(f"{label}: {reason}")
                 continue
             supported.append((plan_key, entry, label))
@@ -2385,7 +2385,7 @@ class ApiCollectionUi:
             detail = "\n".join(skipped[:6])
             messagebox.showinfo(
                 self.tr("沒有可匯入項目", "No importable items"),
-                self.tr("目前下載計畫中沒有已支援的 CSV/JSON 匯入項目。", "The current plan has no supported CSV/JSON import items.")
+                self.tr("目前下載計畫中沒有已支援的 CSV/JSON/GeoJSON 匯入項目。", "The current plan has no supported CSV/JSON/GeoJSON import items.")
                 + (f"\n\n{detail}" if detail else ""),
             )
             return
@@ -4742,8 +4742,8 @@ class ApiCollectionUi:
                 messagebox.showinfo(
                     self.tr("資料庫修復", "Database repair"),
                     self.tr(
-                        "這個動作目前只支援從已記錄 manifest 重新匯入缺失的 SQLite table。",
-                        "This action currently only reimports a missing SQLite table from a recorded manifest.",
+                        f"這個動作目前只支援從已記錄 manifest 重新匯入缺失的 SQLite table。\n支援格式：{supported_reimport_source_formats_label()}",
+                        f"This action currently only reimports a missing SQLite table from a recorded manifest.\nSupported formats: {supported_reimport_source_formats_label()}",
                     ),
                     parent=dialog,
                 )
@@ -4754,11 +4754,13 @@ class ApiCollectionUi:
                     (
                         f"要從既有 manifest 重新匯入這張缺失的資料表嗎？\n\n"
                         f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"支援格式：{supported_reimport_source_formats_label()}\n\n"
                         "這個動作只會在 table 不存在時建立它；不會 DROP 或覆蓋既有 table。"
                     ),
                     (
                         f"Reimport this missing table from its recorded manifest?\n\n"
                         f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"Supported formats: {supported_reimport_source_formats_label()}\n\n"
                         "This only creates the table when it is missing. It will not DROP or replace an existing table.",
                     ),
                 ),

@@ -5,7 +5,28 @@ import json
 from typing import Iterable
 
 
-SUPPORTED_SOURCE_FORMATS = {"api", "csv", "json", "sqlite", "manual", "unknown"}
+SUPPORTED_SOURCE_FORMATS = {
+    "api",
+    "csv",
+    "csv.gz",
+    "geojson",
+    "geojson.gz",
+    "json",
+    "json.gz",
+    "jsonl",
+    "jsonl.gz",
+    "manual",
+    "ndjson",
+    "ndjson.gz",
+    "sqlite",
+    "tar",
+    "tar.bz2",
+    "tar.gz",
+    "tar.xz",
+    "tgz",
+    "unknown",
+    "zip",
+}
 
 
 def normalize_source_format(value: str) -> str:

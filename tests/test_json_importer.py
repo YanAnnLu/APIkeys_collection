@@ -170,6 +170,10 @@ class JsonImporterTests(unittest.TestCase):
                 repo.init_schema()
                 repo.seed_builtin_providers()
                 result = import_json_manifest_to_sqlite(manifest_path, curated_db, repo)
+                source_format = conn.execute(
+                    "SELECT source_format FROM provider_installation_assets WHERE asset_id = ?",
+                    (result.table_asset_id,),
+                ).fetchone()["source_format"]
             finally:
                 conn.close()
 
@@ -177,6 +181,7 @@ class JsonImporterTests(unittest.TestCase):
                 rows = curated.execute('SELECT name, depth, feature_id, geometry_json FROM "places_1_0"').fetchall()
 
         self.assertEqual("geojson_feature_collection", result.source_shape)
+        self.assertEqual("geojson", source_format)
         self.assertEqual(
             [("Port", "12", "alpha", '{"coordinates": [120.0, 23.0], "type": "Point"}')],
             rows,

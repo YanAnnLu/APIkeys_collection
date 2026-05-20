@@ -69,6 +69,32 @@ class ManifestRegistryTests(unittest.TestCase):
         self.assertEqual("csv", asset.source_format)
         self.assertEqual("https://example.test/sample.csv", asset.source_uri)
 
+    def test_downloaded_file_asset_records_compound_source_format(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            payload = Path(tmpdir) / "sample.geojson.gz"
+            payload.write_bytes(b"{}")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                manifest = build_asset_manifest(
+                    payload,
+                    {
+                        "provider_id": "gebco",
+                        "download_url": "https://example.test/sample.geojson.gz",
+                        "dataset_version": {"dataset_uid": "gebco:sample", "dataset_id": "sample", "version": "2025"},
+                    },
+                )
+                manifest_path = write_manifest(manifest, payload.with_suffix(".geojson.gz.manifest.json"))
+
+                repo.register_downloaded_manifest_asset(manifest, manifest_path)
+                asset = repo.managed_asset_records("gebco")[0]
+            finally:
+                conn.close()
+
+        self.assertEqual("geojson.gz", asset.source_format)
+
     def test_manifest_health_summary_counts_statuses(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             conn = connect_db(Path(tmpdir) / "test.sqlite")

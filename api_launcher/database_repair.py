@@ -9,8 +9,8 @@ from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.repository import ApiCatalogRepository
 
 
-CSV_REIMPORT_FORMATS = {"csv", "csv.gz"}
-JSON_REIMPORT_FORMATS = {
+CSV_REIMPORT_FORMATS = ("csv", "csv.gz")
+JSON_REIMPORT_FORMATS = (
     "json",
     "json.gz",
     "jsonl",
@@ -19,7 +19,12 @@ JSON_REIMPORT_FORMATS = {
     "ndjson.gz",
     "geojson",
     "geojson.gz",
-}
+)
+SUPPORTED_REIMPORT_SOURCE_FORMATS = CSV_REIMPORT_FORMATS + JSON_REIMPORT_FORMATS
+
+
+def supported_reimport_source_formats_label() -> str:
+    return ", ".join(SUPPORTED_REIMPORT_SOURCE_FORMATS)
 
 
 @dataclass(frozen=True)
@@ -96,7 +101,10 @@ def reimport_missing_sqlite_table_asset(repository: ApiCatalogRepository, asset_
         )
         rows_imported = result.rows_imported
     else:
-        raise ValueError(f"Unsupported source format for table reimport: {source_format or 'unknown'}")
+        raise ValueError(
+            f"Unsupported source format for table reimport: {source_format or 'unknown'}. "
+            f"Supported formats: {supported_reimport_source_formats_label()}"
+        )
 
     return DatabaseRepairResult(
         provider_id=row["provider_id"],
