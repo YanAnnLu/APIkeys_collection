@@ -90,6 +90,12 @@ The project is not a secret harvester. Credential files are templates for user-o
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
   `--self-check-databases-json` for UI or agent handoff workflows.
+- Guarded SQLite table reimport is now available to CLI/agent workflows through
+  `--reimport-missing-sqlite-table ASSET_ID --database-repair-json`; it uses the same manifest-backed safety checks as
+  the Tk repair panel and still refuses to DROP or replace an existing table.
+- Registry-only stop-tracking is also available to CLI/agent workflows through
+  `--unmanage-database-asset ASSET_ID --database-repair-json`; it marks the selected database/table asset `unmanaged`
+  without executing SQL, deleting files, or modifying the data store.
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also
@@ -288,14 +294,13 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 ## Next Build Target
 
 1. Expand guarded database repair beyond CSV/JSON/GeoJSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
-2. Add local dev profile guidance for disposable real DB smoke, now that CI covers present/missing/schema-drift table states.
-3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
-4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
-5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
-6. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
-7. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
-8. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
-9. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
-10. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
-11. After the backend MVP loop is closed, revisit Google account login as a mid-term goal with an official OAuth app or
+2. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
+3. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
+4. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.
+5. Continue bounded adapter closure where crawler output already reaches the MVP path, then expand crawler-first dataset discovery: use provider/source crawlers to produce NOAA/NCEI, MarineCadastre AIS, GOES-R/cloud imagery, Earth Engine, STAC, and CKAN candidates before writing provider-specific adapters.
+6. Add a Marine Regions/VLIZ maritime boundaries adapter for territorial seas, EEZs, disputed zones, and high seas.
+7. Evaluate GEBCO 2026 migration without breaking existing renderer cache IDs.
+8. Create or configure the first Unreal `.uproject` and decide the import format for terrain/star assets.
+9. Add AI-ready catalog metadata: license, attribution, redistribution, commercial-use, and training/RAG suitability.
+10. After the backend MVP loop is closed, revisit Google account login as a mid-term goal with an official OAuth app or
     backend broker, then migrate the desktop UI toward PySide6/Qt rather than expanding Tk indefinitely.

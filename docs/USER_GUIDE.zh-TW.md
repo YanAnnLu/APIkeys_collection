@@ -247,5 +247,5 @@ K:\UnrealProjects\...
 
 - provider-specific adapters 還沒有全部完成。
 - API endpoint 轉資料檔的流程還需要更多 adapter。
-- SQL/資料庫修復目前以診斷與安全建議為主；Repair / verify assets 的資料庫分頁可以調整單一資產的 data-store profile/schema，也可以把單一 database/table asset 停止追蹤並重新自檢。若缺失的是先前由健康 CSV/JSON/GeoJSON 類 manifest 匯入的 SQLite table，也可以用「重新匯入資料表」從記錄的 sidecar manifest 重建它；這個動作只會在 JSON 建議標成 `can_auto_repair=true` 的安全條件下啟用，不會 DROP 或覆蓋既有 table。
+- SQL/資料庫修復目前以診斷與安全建議為主；Repair / verify assets 的資料庫分頁可以調整單一資產的 data-store profile/schema，也可以把單一 database/table asset 停止追蹤並重新自檢。CLI/agent 流程可用 `--unmanage-database-asset ASSET_ID --database-repair-json` 做同一個 registry-only 停止追蹤動作，不會修改資料庫物件。若缺失的是先前由健康 CSV/JSON/GeoJSON 類 manifest 匯入的 SQLite table，也可以用「重新匯入資料表」從記錄的 sidecar manifest 重建它；CLI/agent 流程可用 `--reimport-missing-sqlite-table ASSET_ID --database-repair-json` 跑同一個 guard。重新匯入只會在 JSON 建議標成 `can_auto_repair=true` 的安全條件下啟用，不會 DROP 或覆蓋既有 table。
 - AI OAuth refresh token 與過期刷新還需要強化；目前 access token 過期時通常要重新掃 QR。

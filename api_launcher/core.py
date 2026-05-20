@@ -58,6 +58,7 @@ from api_launcher.dataset_discovery import (
 )
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
+from api_launcher.database_repair import reimport_missing_sqlite_table_asset, stop_tracking_database_asset
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
     database_self_check_agent_payload,
@@ -628,6 +629,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--test-data-store", action="append", default=[], help="test data-store connection profile id; use 'all' for every configured profile")
     parser.add_argument("--self-check-databases", action="store_true", help="verify managed database assets against configured data-store checks")
     parser.add_argument("--self-check-databases-json", action="store_true", help="verify managed database assets and emit issues as agent-readable JSON")
+    parser.add_argument(
+        "--reimport-missing-sqlite-table",
+        action="append",
+        default=[],
+        metavar="ASSET_ID",
+        help="guarded repair: reimport one missing SQLite table asset from its recorded healthy CSV/JSON manifest",
+    )
+    parser.add_argument(
+        "--unmanage-database-asset",
+        action="append",
+        default=[],
+        metavar="ASSET_ID",
+        help="guarded registry repair: stop tracking one database/table asset without modifying the database",
+    )
+    parser.add_argument("--database-repair-json", action="store_true", help="emit database repair command results as JSON")
     parser.add_argument("--generate-ai-summary", help="generate an AI description for a provider_id")
     parser.add_argument("--ai-profile", help="AI summary profile id, e.g. gemini_flash or local_ollama")
     parser.add_argument("--write-ai-summary", action="store_true", help="save generated AI summary back into provider notes when empty")
@@ -697,6 +713,7 @@ class CatalogLauncherCli:
             self.show_library_actions()
             self.test_data_store_connections()
             self.self_check_databases()
+            self.run_database_repairs()
             self.generate_ai_summary()
             self.write_tile_manifest()
             self.export_catalogs()
@@ -1119,6 +1136,51 @@ class CatalogLauncherCli:
                 f"{issue.provider_id} {issue.asset_kind} {issue.engine or '-'}:{issue.asset_name} "
                 f"status={issue.status} suggestion={suggestion.action_id} error={issue.error or '-'}"
             )
+
+    def run_database_repairs(self) -> None:
+        reimport_asset_ids = tuple(asset_id.strip() for asset_id in self.args.reimport_missing_sqlite_table if asset_id.strip())
+        unmanage_asset_ids = tuple(asset_id.strip() for asset_id in self.args.unmanage_database_asset if asset_id.strip())
+        if not reimport_asset_ids and not unmanage_asset_ids:
+            return
+        result_payloads = []
+        actions = []
+
+        def remember_action(action_id: str) -> None:
+            if action_id not in actions:
+                actions.append(action_id)
+
+        for asset_id in reimport_asset_ids:
+            result = reimport_missing_sqlite_table_asset(self.repository, asset_id)
+            result_payloads.append(result.to_dict())
+            remember_action(result.action_id)
+            if not self.args.database_repair_json:
+                print(
+                    "[database-repair] "
+                    f"action={result.action_id} asset_id={result.asset_id} "
+                    f"provider={result.provider_id} table={result.table_name} "
+                    f"rows={result.rows_imported} sqlite={result.sqlite_path}"
+                )
+
+        for asset_id in unmanage_asset_ids:
+            result = stop_tracking_database_asset(self.repository, asset_id)
+            result_payloads.append(result.to_dict())
+            remember_action(result.action_id)
+            if not self.args.database_repair_json:
+                print(
+                    "[database-repair] "
+                    f"action={result.action_id} asset_id={result.asset_id} "
+                    f"provider={result.provider_id} asset={result.asset_kind}:{result.engine}:{result.asset_name} "
+                    f"status={result.status} database_modified={str(result.database_modified).lower()}"
+                )
+
+        if self.args.database_repair_json:
+            payload = {
+                "schema_version": 1,
+                "action": actions[0] if len(actions) == 1 else "database_repair",
+                "result_count": len(result_payloads),
+                "results": result_payloads,
+            }
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
 
     def generate_ai_summary(self) -> None:
         if not self.args.generate_ai_summary:

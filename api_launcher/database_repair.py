@@ -25,6 +25,89 @@ class DatabaseRepairResult:
     rows_imported: int
     message: str = ""
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "provider_id": self.provider_id,
+            "asset_id": self.asset_id,
+            "action_id": self.action_id,
+            "manifest_path": self.manifest_path,
+            "sqlite_path": self.sqlite_path,
+            "table_name": self.table_name,
+            "rows_imported": self.rows_imported,
+            "message": self.message,
+        }
+
+
+@dataclass(frozen=True)
+class DatabaseRegistryRepairResult:
+    provider_id: str
+    asset_id: str
+    action_id: str
+    asset_kind: str
+    engine: str
+    asset_name: str
+    previous_status: str
+    status: str
+    message: str = ""
+    registry_only: bool = True
+    database_modified: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "provider_id": self.provider_id,
+            "asset_id": self.asset_id,
+            "action_id": self.action_id,
+            "asset_kind": self.asset_kind,
+            "engine": self.engine,
+            "asset_name": self.asset_name,
+            "previous_status": self.previous_status,
+            "status": self.status,
+            "message": self.message,
+            "registry_only": self.registry_only,
+            "database_modified": self.database_modified,
+        }
+
+
+def stop_tracking_database_asset(repository: ApiCatalogRepository, asset_id: str) -> DatabaseRegistryRepairResult:
+    asset_id = asset_id.strip()
+    if not asset_id:
+        raise ValueError("asset_id is required")
+    row = repository.conn.execute(
+        """
+        SELECT
+            pi.provider_id,
+            pia.asset_id,
+            pia.asset_kind,
+            COALESCE(pia.engine, '') AS engine,
+            pia.asset_name,
+            pia.status
+        FROM provider_installation_assets pia
+        JOIN provider_installations pi ON pi.install_id = pia.install_id
+        WHERE pia.asset_id = ?
+          AND pia.asset_kind IN ('database', 'table')
+        """,
+        (asset_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"Database asset was not found: {asset_id}")
+    changed = repository.unmanage_database_asset(
+        asset_id,
+        notes="Unmanaged from CLI database repair workflow; no database object was modified.",
+    )
+    if not changed:
+        raise ValueError(f"Database asset was not updated: {asset_id}")
+    return DatabaseRegistryRepairResult(
+        provider_id=row["provider_id"],
+        asset_id=asset_id,
+        action_id="unmanage_database_asset",
+        asset_kind=row["asset_kind"],
+        engine=row["engine"],
+        asset_name=row["asset_name"],
+        previous_status=row["status"],
+        status="unmanaged",
+        message="Marked database asset unmanaged; no database object was modified.",
+    )
+
 
 def reimport_missing_sqlite_table_asset(repository: ApiCatalogRepository, asset_id: str) -> DatabaseRepairResult:
     asset_id = asset_id.strip()

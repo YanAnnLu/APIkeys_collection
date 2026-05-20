@@ -298,9 +298,12 @@ repair suggestion such as `configure_data_store_env`, `install_optional_driver_i
 `restore_or_reimport_table`, or `review_schema_drift`. Use `--self-check-databases-json` for pure JSON output that UI
 code or a future agent can consume without parsing human text. The Tk repair panel can update a selected
 database/table asset's `data_store_profile_id` and `schema_name`, or mark one selected database/table asset
-`unmanaged` so it exits later self-checks. It can also call `api_launcher/database_repair.py` to reimport a
-manifest-backed missing SQLite table from a recorded healthy CSV/JSON sidecar manifest. Registry metadata repairs are
-followed by a fresh self-check; reimport refuses to DROP or replace an existing table. CSV/JSON importers should keep
+`unmanaged` so it exits later self-checks. CLI/agent workflows can run the same registry-only repair with
+`--unmanage-database-asset ASSET_ID --database-repair-json`; this only changes launcher registry metadata. The repair
+module can also reimport a manifest-backed missing SQLite table from a recorded healthy CSV/JSON sidecar manifest.
+CLI/agent workflows can run that guarded path with
+`--reimport-missing-sqlite-table ASSET_ID --database-repair-json`. Registry metadata repairs are followed by a fresh
+self-check; reimport refuses to DROP or replace an existing table. CSV/JSON importers should keep
 using the same SQLite table fingerprint logic as database self-check so fresh imports do not immediately report schema
 drift.
 

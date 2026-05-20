@@ -1,6 +1,6 @@
 # APIkeys_collection 跨平台開發設定
 
-更新日期：2026-05-19
+更新日期：2026-05-20
 
 ## 專案定位
 
@@ -73,13 +73,74 @@ python3 APIkeys_collection_ui.py
 一般測試不需要安裝 MySQL/PostgreSQL driver，也不會連線到真實資料庫。若要在一次性測試資料庫上跑真實 driver smoke，才安裝：
 
 ```bash
-python3 -m pip install -r requirements-db-smoke.txt
+python3 -m pip install -r requirements-dev.txt -r requirements-db-smoke.txt
 ```
 
-接著設定 `APIKEYS_RUN_REAL_DB_SMOKE=1`、`APIKEYS_MYSQL_*`、`APIKEYS_POSTGRES_*`，再跑：
+本機建議只指向一次性 database 或 disposable container。不要把 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1` 指到共用、正式、或不可重建的資料庫。
+
+如果要用 Docker 建一次性資料庫，可以先開兩個容器：
 
 ```bash
+docker run --rm --name apikeys-mysql-smoke \
+  -e MYSQL_ROOT_PASSWORD=rootpass \
+  -e MYSQL_DATABASE=apikeys_ci \
+  -e MYSQL_USER=apikeys_ci \
+  -e MYSQL_PASSWORD=apikeys_ci \
+  -p 3307:3306 -d mysql:8.4
+
+docker run --rm --name apikeys-postgres-smoke \
+  -e POSTGRES_DB=apikeys_ci \
+  -e POSTGRES_USER=apikeys_ci \
+  -e POSTGRES_PASSWORD=apikeys_ci \
+  -p 5433:5432 -d postgres:17
+```
+
+等容器 ready 後，在 bash/zsh 設定：
+
+```bash
+export APIKEYS_RUN_REAL_DB_SMOKE=1
+export APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1
+export APIKEYS_MYSQL_HOST=127.0.0.1
+export APIKEYS_MYSQL_PORT=3307
+export APIKEYS_MYSQL_DATABASE=apikeys_ci
+export APIKEYS_MYSQL_USER=apikeys_ci
+export APIKEYS_MYSQL_PASSWORD=apikeys_ci
+export APIKEYS_POSTGRES_HOST=127.0.0.1
+export APIKEYS_POSTGRES_PORT=5433
+export APIKEYS_POSTGRES_DATABASE=apikeys_ci
+export APIKEYS_POSTGRES_USER=apikeys_ci
+export APIKEYS_POSTGRES_PASSWORD=apikeys_ci
+export APIKEYS_POSTGRES_SCHEMA=public
+
 python3 -m unittest tests.test_data_store_real_drivers -v
+```
+
+Windows PowerShell 對應設定：
+
+```powershell
+$env:APIKEYS_RUN_REAL_DB_SMOKE='1'
+$env:APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE='1'
+$env:APIKEYS_MYSQL_HOST='127.0.0.1'
+$env:APIKEYS_MYSQL_PORT='3307'
+$env:APIKEYS_MYSQL_DATABASE='apikeys_ci'
+$env:APIKEYS_MYSQL_USER='apikeys_ci'
+$env:APIKEYS_MYSQL_PASSWORD='apikeys_ci'
+$env:APIKEYS_POSTGRES_HOST='127.0.0.1'
+$env:APIKEYS_POSTGRES_PORT='5433'
+$env:APIKEYS_POSTGRES_DATABASE='apikeys_ci'
+$env:APIKEYS_POSTGRES_USER='apikeys_ci'
+$env:APIKEYS_POSTGRES_PASSWORD='apikeys_ci'
+$env:APIKEYS_POSTGRES_SCHEMA='public'
+
+py -m unittest tests.test_data_store_real_drivers -v
+```
+
+如果只想做 read-only driver/introspection smoke，不要設定 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE`。只設定 `APIKEYS_RUN_REAL_DB_SMOKE=1` 與對應 `APIKEYS_MYSQL_*`、`APIKEYS_POSTGRES_*` 即可。
+
+測完後停止 disposable containers：
+
+```bash
+docker stop apikeys-mysql-smoke apikeys-postgres-smoke
 ```
 
 預設只做 read-only connection/schema introspection。若要連同 registry-backed database/table self-check 一起測，必須額外設定 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1`，而且只應指向一次性測試資料庫；這會建立、ALTER、清掉 `apikeys_ci_registry_smoke_*` 測試表，用來驗 present、missing、schema drift 三種狀態。
