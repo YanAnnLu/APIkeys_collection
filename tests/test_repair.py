@@ -13,7 +13,9 @@ from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.downloads.repair import (
+    download_manifest_verification_event_context,
     download_repair_agent_payload,
+    log_download_requeue_requested,
     repair_summary,
     repair_suggestion_for_result,
     scan_download_manifests,
@@ -103,6 +105,77 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(1, agent_payload["requeue_count"])
         self.assertEqual("requeue_download", agent_payload["issues"][0]["repair_suggestion"]["action_id"])
         self.assertEqual("sample", agent_payload["issues"][0]["repair_suggestion"]["plan_entry"]["provider_id"])
+
+    def test_manifest_verification_event_context_bounds_issue_preview(self) -> None:
+        agent_payload = {
+            "summary": {"missing": 25},
+            "checked_count": 25,
+            "issue_count": 25,
+            "requeue_count": 25,
+            "issues": [
+                {
+                    "status": "missing",
+                    "provider_id": f"provider-{index}",
+                    "dataset_id": "sample",
+                    "version": "1",
+                    "manifest_path": f"downloads/{index}.manifest.json",
+                    "payload_path": f"downloads/{index}.bin",
+                    "repair_suggestion": {"action_id": "requeue_download", "can_requeue": True},
+                }
+                for index in range(25)
+            ],
+        }
+
+        context = download_manifest_verification_event_context(
+            agent_payload,
+            db_path="state/test.sqlite",
+            downloads_root="downloads",
+        )
+
+        self.assertEqual("state/test.sqlite", context["db_path"])
+        self.assertEqual("downloads", context["downloads_root"])
+        self.assertEqual(20, context["issue_preview_count"])
+        self.assertEqual(20, len(context["issues"]))
+        self.assertEqual("provider-0", context["issues"][0]["provider_id"])
+        self.assertEqual("provider-19", context["issues"][-1]["provider_id"])
+
+    def test_log_download_requeue_requested_includes_outcome_and_job(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            payload = root / "sample.bin"
+            payload.write_bytes(b"abc")
+            manifest_path = write_manifest(
+                build_asset_manifest(payload, {"provider_id": "sample", "download_url": "https://example.test/sample.bin"}),
+                payload.with_suffix(".bin.manifest.json"),
+            )
+            payload.unlink()
+            result = verify_manifest_file(manifest_path)
+            suggestion = repair_suggestion_for_result(result)
+            calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+            def fake_logger(*args: object, **kwargs: object) -> None:
+                calls.append((args, kwargs))
+
+            log_download_requeue_requested(
+                result,
+                suggestion,
+                outcome="queued",
+                job_id="job-1",
+                db_path="state/test.sqlite",
+                downloads_root=root,
+                logger=fake_logger,
+            )
+
+        self.assertEqual("download_repair_requeue_requested", calls[0][0][0])
+        self.assertEqual("download_repair", calls[0][1]["component"])
+        self.assertEqual("info", calls[0][1]["level"])
+        context = calls[0][1]["context"]
+        self.assertEqual("queued", context["outcome"])
+        self.assertEqual("sample", context["provider_id"])
+        self.assertEqual("missing", context["status"])
+        self.assertEqual("requeue_download", context["repair_action_id"])
+        self.assertEqual("job-1", context["job_id"])
+        self.assertEqual("state/test.sqlite", context["db_path"])
 
     def test_cli_verify_downloads_json_uses_selected_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

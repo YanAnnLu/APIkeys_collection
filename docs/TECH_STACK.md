@@ -368,12 +368,12 @@ project tree, because Windows cannot atomically replace across drives. The sidec
 the first repair/update primitive. Future update workers should compare these manifests against remote manifests before
 downloading full replacements.
 
-Sidecar manifests are also registered in SQLite table `dataset_asset_manifests`. CLI `--verify-downloads` scans the
-manifest files, verifies payload presence/size/SHA-256, and syncs the health status back into SQLite for future UI and
-agent repair workflows. `--verify-downloads-json` emits the same scan as agent-readable JSON with issues, repair
-suggestions, and safe HTTP(S) requeue plan entries. Both verify commands write a
+Sidecar manifests are also registered in SQLite table `dataset_asset_manifests`. CLI `--verify-downloads` and Tk Repair /
+verify assets scan the manifest files, verify payload presence/size/SHA-256, and sync the health status back into SQLite
+for future UI and agent repair workflows. `--verify-downloads-json` emits the same scan as agent-readable JSON with
+issues, repair suggestions, and safe HTTP(S) requeue plan entries. The CLI and Tk verification paths both write a
 `download_manifest_verification_completed` structured event with checked/issue/requeue counts and a bounded issue
-preview.
+preview. Tk requeue actions write `download_repair_requeue_requested` with queued/blocked/failed outcome context.
 
 `APIkeys_collection_ui.py` can now submit download-plan rows into the
 nonblocking queue, display job progress, and pause/resume/cancel selected jobs.
@@ -410,9 +410,10 @@ Runtime logs live under ignored `state/logs/`:
 Use `api_launcher/event_log.py` instead of ad hoc `print()` or silent exception swallowing when an error affects user
 state, downloads, adapters, database tools, AI summaries, or startup environment checks. Successful database repair CLI
 actions emit a `database_repair_completed` event with the repair action, result count, and per-asset result payload;
-download manifest verification emits `download_manifest_verification_completed` with summary counts and a bounded issue
-preview. This lets `--show-logs` and handoff reports reconstruct what changed without parsing stdout. Failure scenarios
-and recovery rules are tracked in `docs/appendices/failure_modes.zh-TW.md`.
+download manifest verification emits `download_manifest_verification_completed`; and Tk repair requeue attempts emit
+`download_repair_requeue_requested` with outcome/job/error context. This lets `--show-logs` and handoff reports
+reconstruct what changed without parsing stdout. Failure scenarios and recovery rules are tracked in
+`docs/appendices/failure_modes.zh-TW.md`.
 
 ## Validation
 

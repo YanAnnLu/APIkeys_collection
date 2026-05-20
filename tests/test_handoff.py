@@ -25,6 +25,8 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("# APIkeys_collection Handoff", report)
         self.assertIn("providers:", report)
         self.assertIn("Verification Timestamps", report)
+        self.assertIn("latest_download_requeue_event_at:", report)
+        self.assertIn("latest_download_requeue_outcome:", report)
         self.assertIn("Open GTD Focus", report)
         self.assertIn("open_gtd_total:", report)
         self.assertIn("Portal Intake / Local Discovery", report)

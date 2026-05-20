@@ -60,7 +60,7 @@ The project is not a secret harvester. Credential files are templates for user-o
   `maintain_realtime_stream` decisions instead of being skipped.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--verify-downloads-json`,
   `--manifest-health`, `--show-logs`, and `--handoff-report`. Handoff reports now include generated time,
-  latest manifest/asset/verification-event timestamps, and a compact open-GTD focus list parsed from
+  latest manifest/asset/verification-event timestamps, latest download requeue outcome, and a compact open-GTD focus list parsed from
   `docs/PROJECT_GTD.md`, so another agent can resume without reconstructing progress from chat history.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
   `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
@@ -98,9 +98,10 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Registry-only stop-tracking is also available to CLI/agent workflows through
   `--unmanage-database-asset ASSET_ID --database-repair-json`; it marks the selected database/table asset `unmanaged`
   without executing SQL, deleting files, or modifying the data store.
-- Successful database repair CLI actions now write a structured `database_repair_completed` event, and download
+- Successful database repair CLI actions now write a structured `database_repair_completed` event, and CLI/Tk download
   manifest verification writes `download_manifest_verification_completed` with checked/issue/requeue counts plus a
-  bounded issue preview, so `--show-logs` and handoff reports can show which guarded repair or file-health scan ran.
+  bounded issue preview. Tk requeue attempts write `download_repair_requeue_requested` with outcome/job/error context,
+  so `--show-logs` and handoff reports can show which guarded repair, requeue, or file-health scan ran.
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also

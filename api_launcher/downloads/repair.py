@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import urllib.parse
+from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from api_launcher.event_log import log_event
 from api_launcher.manifests import AssetManifest, read_manifest, sha256_file
 from api_launcher.paths import DOWNLOADS_DIR
 
@@ -117,6 +121,139 @@ def download_repair_agent_payload(results: list[ManifestVerification]) -> dict[s
         "issues": issue_payloads,
         "results": result_payloads,
     }
+
+
+def download_manifest_verification_event_context(
+    payload: dict[str, object],
+    *,
+    db_path: str | Path = "",
+    downloads_root: str | Path = DOWNLOADS_DIR,
+    issue_preview_limit: int = 20,
+) -> dict[str, object]:
+    checked_count = int(payload.get("checked_count") or 0)
+    issue_count = int(payload.get("issue_count") or 0)
+    requeue_count = int(payload.get("requeue_count") or 0)
+    issues = payload.get("issues") if isinstance(payload.get("issues"), list) else []
+    issue_preview = []
+    for issue in issues[:issue_preview_limit]:
+        if not isinstance(issue, dict):
+            continue
+        suggestion = issue.get("repair_suggestion") if isinstance(issue.get("repair_suggestion"), dict) else {}
+        issue_preview.append(
+            {
+                "status": issue.get("status", ""),
+                "provider_id": issue.get("provider_id", ""),
+                "dataset_id": issue.get("dataset_id", ""),
+                "version": issue.get("version", ""),
+                "manifest_path": issue.get("manifest_path", ""),
+                "payload_path": issue.get("payload_path", ""),
+                "repair_action_id": suggestion.get("action_id", ""),
+                "can_requeue": bool(suggestion.get("can_requeue")),
+            }
+        )
+    return {
+        "db_path": str(db_path) if db_path else "",
+        "downloads_root": str(downloads_root) if downloads_root else "",
+        "checked_count": checked_count,
+        "issue_count": issue_count,
+        "requeue_count": requeue_count,
+        "summary": payload.get("summary", {}),
+        "issue_preview_count": len(issue_preview),
+        "issue_preview_limit": issue_preview_limit,
+        "issues": issue_preview,
+    }
+
+
+def log_download_manifest_verification_completed(
+    payload: dict[str, object],
+    *,
+    db_path: str | Path = "",
+    downloads_root: str | Path = DOWNLOADS_DIR,
+    logger: Callable[..., Any] = log_event,
+) -> None:
+    context = download_manifest_verification_event_context(
+        payload,
+        db_path=db_path,
+        downloads_root=downloads_root,
+    )
+    checked_count = int(context.get("checked_count") or 0)
+    issue_count = int(context.get("issue_count") or 0)
+    requeue_count = int(context.get("requeue_count") or 0)
+    with suppress(Exception):
+        logger(
+            "download_manifest_verification_completed",
+            f"Download manifest verification completed: checked={checked_count} issues={issue_count} requeue={requeue_count}",
+            level="warning" if issue_count else "info",
+            component="download_repair",
+            context=context,
+        )
+
+
+def download_requeue_event_context(
+    result: ManifestVerification,
+    suggestion: RepairSuggestion,
+    *,
+    outcome: str,
+    job_id: str = "",
+    error_type: str = "",
+    error_message: str = "",
+    db_path: str | Path = "",
+    downloads_root: str | Path = DOWNLOADS_DIR,
+) -> dict[str, object]:
+    plan_entry = suggestion.plan_entry if isinstance(suggestion.plan_entry, dict) else {}
+    return {
+        "outcome": outcome,
+        "db_path": str(db_path) if db_path else "",
+        "downloads_root": str(downloads_root) if downloads_root else "",
+        "provider_id": result.provider_id,
+        "dataset_uid": result.dataset_uid,
+        "dataset_id": result.dataset_id,
+        "version": result.version,
+        "status": result.status,
+        "source_url": result.source_url,
+        "manifest_path": str(result.manifest_path),
+        "payload_path": str(result.payload_path) if str(result.payload_path) != "." else "",
+        "target_path": str(plan_entry.get("target_path") or result.payload_path or ""),
+        "repair_action_id": suggestion.action_id,
+        "can_requeue": suggestion.can_requeue,
+        "job_id": job_id,
+        "error_type": error_type,
+        "error_message": error_message,
+    }
+
+
+def log_download_requeue_requested(
+    result: ManifestVerification,
+    suggestion: RepairSuggestion,
+    *,
+    outcome: str,
+    job_id: str = "",
+    error_type: str = "",
+    error_message: str = "",
+    db_path: str | Path = "",
+    downloads_root: str | Path = DOWNLOADS_DIR,
+    logger: Callable[..., Any] = log_event,
+) -> None:
+    level = "info" if outcome == "queued" else "error" if outcome == "failed" else "warning"
+    context = download_requeue_event_context(
+        result,
+        suggestion,
+        outcome=outcome,
+        job_id=job_id,
+        error_type=error_type,
+        error_message=error_message,
+        db_path=db_path,
+        downloads_root=downloads_root,
+    )
+    provider_id = result.provider_id or str(suggestion.plan_entry.get("provider_id") or "-")
+    with suppress(Exception):
+        logger(
+            "download_repair_requeue_requested",
+            f"Download repair requeue {outcome}: {provider_id}",
+            level=level,
+            component="download_repair",
+            context=context,
+        )
 
 
 def repair_suggestion_for_result(result: ManifestVerification) -> RepairSuggestion:

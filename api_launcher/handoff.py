@@ -78,6 +78,8 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- latest_asset_verified_at: {snapshot.verification_summary.get('latest_asset_verified_at', '') or 'none'}",
         f"- latest_verification_event_at: {snapshot.verification_summary.get('latest_verification_event_at', '') or 'none'}",
         f"- latest_verification_event: {snapshot.verification_summary.get('latest_verification_event', '') or 'none'}",
+        f"- latest_download_requeue_event_at: {snapshot.verification_summary.get('latest_download_requeue_event_at', '') or 'none'}",
+        f"- latest_download_requeue_outcome: {snapshot.verification_summary.get('latest_download_requeue_outcome', '') or 'none'}",
         "",
         "## Open GTD Focus",
         "",
@@ -204,6 +206,8 @@ def markdown_table_cells(line: str) -> list[str]:
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:
     latest_event = latest_verification_event(events)
+    latest_requeue_event = latest_event_by_name(events, "download_repair_requeue_requested")
+    latest_requeue_context = latest_requeue_event.get("context") if isinstance(latest_requeue_event.get("context"), dict) else {}
     return {
         "latest_manifest_verified_at": latest_table_timestamp(
             repository.conn,
@@ -217,6 +221,8 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
         ),
         "latest_verification_event_at": str(latest_event.get("timestamp") or "") if latest_event else "",
         "latest_verification_event": str(latest_event.get("event") or "") if latest_event else "",
+        "latest_download_requeue_event_at": str(latest_requeue_event.get("timestamp") or "") if latest_requeue_event else "",
+        "latest_download_requeue_outcome": str(latest_requeue_context.get("outcome") or "") if latest_requeue_context else "",
     }
 
 
@@ -238,6 +244,14 @@ def latest_verification_event(events: list[dict[str, object]]) -> dict[str, obje
         component = str(event.get("component") or "").lower()
         haystack = f"{component} {event_name}"
         if any(token in haystack for token in ("verify", "verification", "self_check", "repair", "manifest")):
+            return event
+    return {}
+
+
+def latest_event_by_name(events: list[dict[str, object]], event_name: str) -> dict[str, object]:
+    target = event_name.lower()
+    for event in reversed(events):
+        if str(event.get("event") or "").lower() == target:
             return event
     return {}
 

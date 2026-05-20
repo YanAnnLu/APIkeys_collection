@@ -108,7 +108,12 @@ from api_launcher.renderer_contracts import (
     TAICHI_GLOBAL_BATHYMETRY_CONTRACTS,
     TAICHI_GLOBAL_BATHYMETRY_RENDERER_ID,
 )
-from api_launcher.downloads.repair import download_repair_agent_payload, repair_summary, scan_download_manifests
+from api_launcher.downloads.repair import (
+    download_repair_agent_payload,
+    log_download_manifest_verification_completed as log_download_manifest_verification_event,
+    repair_summary,
+    scan_download_manifests,
+)
 from api_launcher.repository import (
     ApiCatalogRepository,
     PROVIDERS,
@@ -813,45 +818,12 @@ class CatalogLauncherCli:
                     print(f"[verify-downloads] {result.status}: {result.payload_path} ({result.message})")
 
     def log_download_manifest_verification_completed(self, payload: dict[str, object]) -> None:
-        checked_count = int(payload.get("checked_count") or 0)
-        issue_count = int(payload.get("issue_count") or 0)
-        requeue_count = int(payload.get("requeue_count") or 0)
-        issues = payload.get("issues") if isinstance(payload.get("issues"), list) else []
-        issue_preview = []
-        for issue in issues[:20]:
-            if not isinstance(issue, dict):
-                continue
-            suggestion = issue.get("repair_suggestion") if isinstance(issue.get("repair_suggestion"), dict) else {}
-            issue_preview.append(
-                {
-                    "status": issue.get("status", ""),
-                    "provider_id": issue.get("provider_id", ""),
-                    "dataset_id": issue.get("dataset_id", ""),
-                    "version": issue.get("version", ""),
-                    "manifest_path": issue.get("manifest_path", ""),
-                    "payload_path": issue.get("payload_path", ""),
-                    "repair_action_id": suggestion.get("action_id", ""),
-                    "can_requeue": bool(suggestion.get("can_requeue")),
-                }
-            )
-        with contextlib.suppress(Exception):
-            log_event(
-                "download_manifest_verification_completed",
-                f"Download manifest verification completed: checked={checked_count} issues={issue_count} requeue={requeue_count}",
-                level="warning" if issue_count else "info",
-                component="download_repair",
-                context={
-                    "db_path": str(self.db_path),
-                    "downloads_root": str(resolve_project_path(self.args.downloads_root)),
-                    "checked_count": checked_count,
-                    "issue_count": issue_count,
-                    "requeue_count": requeue_count,
-                    "summary": payload.get("summary", {}),
-                    "issue_preview_count": len(issue_preview),
-                    "issue_preview_limit": 20,
-                    "issues": issue_preview,
-                },
-            )
+        log_download_manifest_verification_event(
+            payload,
+            db_path=self.db_path,
+            downloads_root=resolve_project_path(self.args.downloads_root),
+            logger=log_event,
+        )
 
     def run_download_plan(self) -> None:
         if not self.args.run_download_plan:

@@ -34,7 +34,17 @@ from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_fro
 from api_launcher.downloads.plan_runner import import_completed_plan_entry
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.manifests import read_manifest
-from api_launcher.downloads.repair import repair_summary, repair_suggestion_for_result, scan_download_manifests, verify_manifest_file
+from api_launcher.downloads.repair import (
+    ManifestVerification,
+    RepairSuggestion,
+    download_repair_agent_payload,
+    log_download_manifest_verification_completed as log_download_manifest_verification_event,
+    log_download_requeue_requested as log_download_requeue_event,
+    repair_summary,
+    repair_suggestion_for_result,
+    scan_download_manifests,
+    verify_manifest_file,
+)
 from api_launcher.database_repair import reimport_missing_sqlite_table_asset, supported_reimport_source_formats_label
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
@@ -4454,6 +4464,7 @@ class ApiCollectionUi:
     def sync_manifest_verification(self) -> tuple[list[object], dict[str, int]]:
         results = scan_download_manifests()
         summary = repair_summary(results)
+        agent_payload = download_repair_agent_payload(results)
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -4469,7 +4480,37 @@ class ApiCollectionUi:
                 )
         finally:
             conn.close()
+        self.log_download_manifest_verification_completed(agent_payload)
         return results, summary
+
+    def log_download_manifest_verification_completed(self, payload: dict[str, object]) -> None:
+        log_download_manifest_verification_event(
+            payload,
+            db_path=DB_PATH,
+            downloads_root=DOWNLOADS_DIR,
+            logger=log_event,
+        )
+
+    def log_download_requeue_requested(
+        self,
+        result: ManifestVerification,
+        suggestion: RepairSuggestion,
+        *,
+        outcome: str,
+        job_id: str = "",
+        error: BaseException | None = None,
+    ) -> None:
+        log_download_requeue_event(
+            result,
+            suggestion,
+            outcome=outcome,
+            job_id=job_id,
+            error_type=type(error).__name__ if error is not None else "",
+            error_message=str(error) if error is not None else "",
+            db_path=DB_PATH,
+            downloads_root=DOWNLOADS_DIR,
+            logger=log_event,
+        )
 
     def sync_database_asset_verification(
         self,
@@ -4690,16 +4731,19 @@ class ApiCollectionUi:
                 return
             suggestion = repair_suggestion_for_result(selected)
             if not suggestion.can_requeue:
+                self.log_download_requeue_requested(selected, suggestion, outcome="not_requeueable")
                 messagebox.showinfo(self.tr("修復", "Repair"), suggestion.description)
                 return
             plan_entry = dict(suggestion.plan_entry)
             provider_id = str(plan_entry.get("provider_id") or "")
             if not self.prepare_provider_for_download(provider_id):
+                self.log_download_requeue_requested(selected, suggestion, outcome="already_active")
                 self.status_var.set(self.tr(f"{provider_id} 的修復下載已經在執行。", f"Repair download is already active for {provider_id}."))
                 return
             try:
                 job = self.download_queue.submit(plan_entry)
             except Exception as exc:
+                self.log_download_requeue_requested(selected, suggestion, outcome="failed", error=exc)
                 messagebox.showerror(self.tr("修復", "Repair"), self.tr(f"無法重新排修復下載：{type(exc).__name__}: {exc}", f"Could not requeue repair download: {type(exc).__name__}: {exc}"))
                 return
             self.download_jobs_by_provider[provider_id] = job.job_id
@@ -4708,6 +4752,7 @@ class ApiCollectionUi:
             self.plan_provider_by_key[provider_id] = provider_id
             self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
             self.update_download_jobs_panel()
+            self.log_download_requeue_requested(selected, suggestion, outcome="queued", job_id=job.job_id)
             self.status_var.set(self.tr(f"已重新排修復下載：{provider_id}", f"Repair download queued: {provider_id}"))
 
         def show_selected_database_suggestion() -> None:
