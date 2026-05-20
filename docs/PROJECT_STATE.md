@@ -98,8 +98,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - Registry-only stop-tracking is also available to CLI/agent workflows through
   `--unmanage-database-asset ASSET_ID --database-repair-json`; it marks the selected database/table asset `unmanaged`
   without executing SQL, deleting files, or modifying the data store.
-- Successful database repair CLI actions now write a structured `database_repair_completed` event, so `--show-logs` and
-  handoff reports can show which guarded repair action ran and which asset results it produced.
+- Successful database repair CLI actions now write a structured `database_repair_completed` event, and download
+  manifest verification writes `download_manifest_verification_completed` with checked/issue/requeue counts plus a
+  bounded issue preview, so `--show-logs` and handoff reports can show which guarded repair or file-health scan ran.
 - Download manifest verification can now emit agent-readable JSON through `--verify-downloads-json`, including
   summary counts, issues, repair suggestions, and safe requeue plan entries for HTTP(S) manifests.
 - Tk Repair / verify assets now has a Databases tab that surfaces those suggestions in Traditional Chinese. It can also

@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.db import connect_db
@@ -124,7 +125,7 @@ class RepairTests(unittest.TestCase):
                 conn.close()
             output = io.StringIO()
 
-            with redirect_stdout(output):
+            with redirect_stdout(output), patch("api_launcher.core.log_event") as log_event_mock:
                 rc = main(
                     [
                         "--db",
@@ -139,6 +140,16 @@ class RepairTests(unittest.TestCase):
         agent_payload = json.loads(output.getvalue())
         self.assertEqual(1, agent_payload["checked_count"])
         self.assertEqual("missing", agent_payload["issues"][0]["status"])
+        log_event_mock.assert_called_once()
+        self.assertEqual("download_manifest_verification_completed", log_event_mock.call_args.args[0])
+        self.assertEqual("download_repair", log_event_mock.call_args.kwargs["component"])
+        self.assertEqual("warning", log_event_mock.call_args.kwargs["level"])
+        event_context = log_event_mock.call_args.kwargs["context"]
+        self.assertEqual(1, event_context["checked_count"])
+        self.assertEqual(1, event_context["issue_count"])
+        self.assertEqual(1, event_context["requeue_count"])
+        self.assertEqual("missing", event_context["issues"][0]["status"])
+        self.assertEqual("requeue_download", event_context["issues"][0]["repair_action_id"])
 
 
 if __name__ == "__main__":
