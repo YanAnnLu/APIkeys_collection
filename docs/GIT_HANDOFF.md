@@ -79,7 +79,7 @@ Generate a handoff report for humans or another agent:
 py APIkeys_collection.py --handoff-report state\handoff.md --manifest-health --show-logs 10
 ```
 
-The report includes Git status, current HEAD, catalog counts, manifest health, recent structured logs, and suggested resume checks.
+The report includes Git status, current HEAD, catalog counts, manifest health, last verification timestamps, open GTD focus items, recent structured logs, portal/local-discovery summaries, and suggested resume checks.
 
 For cross-Agent handoff, update and read `docs/AGENT_HANDOFF.zh-TW.md` first. It is the short, fixed handoff card; this file remains the longer Git workflow guide.
 

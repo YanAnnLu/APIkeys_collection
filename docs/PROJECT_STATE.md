@@ -59,7 +59,9 @@ The project is not a secret harvester. Credential files are templates for user-o
   time-series data. Same-version financial/live sources can produce `append_incremental` or
   `maintain_realtime_stream` decisions instead of being skipped.
 - CLI handoff and observability commands now exist: `--verify-downloads`, `--verify-downloads-json`,
-  `--manifest-health`, `--show-logs`, and `--handoff-report`.
+  `--manifest-health`, `--show-logs`, and `--handoff-report`. Handoff reports now include generated time,
+  latest manifest/asset/verification-event timestamps, and a compact open-GTD focus list parsed from
+  `docs/PROJECT_GTD.md`, so another agent can resume without reconstructing progress from chat history.
 - Data-store checks now use `api_launcher/data_store_connections.py` as the single profile contract. CLI
   `--test-data-store PROFILE_ID|all` can test configured profiles without storing secrets.
 - Data-store profiles now support an `env_var_map` for connection roles such as host, database, user, password, port,
