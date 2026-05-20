@@ -220,6 +220,37 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
         self.assertEqual(2048, resolved_entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_jsonld_graph_promotes_downloadable_distribution_node(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata.pop("resources", None)
+        metadata.pop("links", None)
+        metadata["@graph"] = [
+            {
+                "@id": "https://data.example.test/dataset/sample",
+                "@type": "dcat:Dataset",
+                "accessURL": "https://data.example.test/catalog/sample",
+            },
+            {
+                "@id": "https://data.example.test/dataset/sample#csv",
+                "@type": "dcat:Distribution",
+                "name": "Graph CSV distribution",
+                "dcat:downloadURL": {"@id": "https://data.example.test/download?id=graph-csv"},
+                "dct:format": {"@value": "text/csv"},
+                "dcat:byteSize": {"@value": "2048"},
+            },
+        ]
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/download?id=graph-csv", resolved_entry["download_url"])
+        self.assertEqual("csv", resolved_entry["source_format"])
+        self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
+        self.assertEqual(2048, resolved_entry["adapter_resolution"]["resource_size_bytes"])
+
     def test_direct_link_object_without_url_stays_in_review(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]

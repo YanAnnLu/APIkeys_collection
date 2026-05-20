@@ -202,7 +202,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
   `--adapter-review-plan PATH` and the Tk `Adapter 待辦` panel can list these handoff items as an adapter work queue.
 - The first plan-level non-direct resolver exists in `api_launcher/adapter_plan_resolver.py`. CLI
   `--resolve-adapter-plan INPUT --write-resolved-adapter-plan OUTPUT` can promote CKAN/DCAT-like `resources`,
-  `distribution`, `distributions`, or `dcat:distribution` metadata that already contains direct file URLs into direct plan entries, and can now perform one bounded CKAN `package_show`
+  `distribution`, `distributions`, `dcat:distribution`, or JSON-LD `@graph` metadata that already contains direct file URLs into direct plan entries, and can now perform one bounded CKAN `package_show`
   metadata lookup when the plan has only a package API URL. It also scans NCEI/CMR/STAC-like `links` metadata for direct
   file URLs. The generic resource reader recognizes common direct-link fields such as `downloadURL`, `contentUrl`,
   and `fileUrl`, including namespaced DCAT/schema.org keys such as `dcat:downloadURL` and `schema:contentUrl`, plus

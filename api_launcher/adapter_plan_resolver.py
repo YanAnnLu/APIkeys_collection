@@ -232,6 +232,7 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
             nested_meta.get("dcat:distribution"),
             nested_meta.get("http://www.w3.org/ns/dcat#distribution"),
             nested_meta.get("https://www.w3.org/ns/dcat#distribution"),
+            nested_meta.get("@graph"),
             nested_meta.get("links"),
             entry.get("resources"),
             entry.get("distribution"),
@@ -239,6 +240,7 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
             entry.get("dcat:distribution"),
             entry.get("http://www.w3.org/ns/dcat#distribution"),
             entry.get("https://www.w3.org/ns/dcat#distribution"),
+            entry.get("@graph"),
             entry.get("resource_summaries"),
             entry.get("links"),
         )
