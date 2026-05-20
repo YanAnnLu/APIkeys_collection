@@ -74,6 +74,9 @@ The project is not a secret harvester. Credential files are templates for user-o
 - MySQL/PostgreSQL connection probes now have reusable `information_schema` helpers for table counts, table names,
   table existence, column signatures, and schema fingerprints. Database assets with registered fingerprints can request
   deep schema summaries when the optional DB driver and env vars are available.
+- `tests/test_data_store_real_drivers.py` now provides opt-in real MySQL/PostgreSQL smoke coverage. It is skipped by
+  default and only runs when `APIKEYS_RUN_REAL_DB_SMOKE=1`, the matching DB env vars, and optional Python drivers are
+  present; the smoke path performs read-only connection/schema introspection and does not create, drop, or modify tables.
 - MySQL/PostgreSQL table assets now carry install ownership through `AssetRecord.install_location`; self-check can parse
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
