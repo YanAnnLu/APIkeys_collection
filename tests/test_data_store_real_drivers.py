@@ -80,6 +80,15 @@ class RealDataStoreDriverSmokeTests(unittest.TestCase):
                 table_name=table_name,
                 missing_table_name=missing_table_name,
             )
+            _mysql_add_smoke_column(env, table_name)
+            drift_summary, drift_rows = _run_registry_self_check(
+                database_name=env["APIKEYS_MYSQL_DATABASE"],
+                engine="mysql",
+                schema_fingerprint=str(schema_result.details["schema_fingerprint"]),
+                schema_name="",
+                table_name=table_name,
+                missing_table_name=missing_table_name,
+            )
         finally:
             _mysql_drop_table(env, table_name)
             _mysql_drop_table(env, missing_table_name)
@@ -88,6 +97,9 @@ class RealDataStoreDriverSmokeTests(unittest.TestCase):
         self.assertEqual("present", rows[table_name]["status"])
         self.assertEqual("missing", rows[missing_table_name]["status"])
         self.assertIn("MySQL table is missing", rows[missing_table_name]["last_verify_error"])
+        self.assertEqual({"present": 0, "missing": 1, "error": 1, "checked": 2}, drift_summary)
+        self.assertEqual("error", drift_rows[table_name]["status"])
+        self.assertIn("MySQL schema fingerprint drift", drift_rows[table_name]["last_verify_error"])
 
     def test_postgresql_real_driver_smoke_when_enabled(self) -> None:
         env = _real_db_env_or_skip(
@@ -160,6 +172,15 @@ class RealDataStoreDriverSmokeTests(unittest.TestCase):
                 table_name=table_name,
                 missing_table_name=missing_table_name,
             )
+            _postgresql_add_smoke_column(env, schema_name, table_name)
+            drift_summary, drift_rows = _run_registry_self_check(
+                database_name=env["APIKEYS_POSTGRES_DATABASE"],
+                engine="postgresql",
+                schema_fingerprint=str(schema_result.details["schema_fingerprint"]),
+                schema_name=schema_name,
+                table_name=table_name,
+                missing_table_name=missing_table_name,
+            )
         finally:
             _postgresql_drop_table(env, schema_name, table_name)
             _postgresql_drop_table(env, schema_name, missing_table_name)
@@ -168,6 +189,9 @@ class RealDataStoreDriverSmokeTests(unittest.TestCase):
         self.assertEqual("present", rows[table_name]["status"])
         self.assertEqual("missing", rows[missing_table_name]["status"])
         self.assertIn("PostgreSQL table is missing", rows[missing_table_name]["last_verify_error"])
+        self.assertEqual({"present": 0, "missing": 1, "error": 1, "checked": 2}, drift_summary)
+        self.assertEqual("error", drift_rows[table_name]["status"])
+        self.assertIn("PostgreSQL schema fingerprint drift", drift_rows[table_name]["last_verify_error"])
 
 
 def _real_db_env_or_skip(test_case: unittest.TestCase, required_names: tuple[str, ...]) -> dict[str, str]:
@@ -270,6 +294,17 @@ def _mysql_create_smoke_table(env: dict[str, str], table_name: str) -> None:
             cursor.close()
 
 
+def _mysql_add_smoke_column(env: dict[str, str], table_name: str) -> None:
+    table = _validate_sql_identifier(table_name)
+    with closing(_mysql_connection(env)) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN drift_marker VARCHAR(20) NULL")
+            conn.commit()
+        finally:
+            cursor.close()
+
+
 def _mysql_drop_table(env: dict[str, str], table_name: str) -> None:
     table = _validate_sql_identifier(table_name)
     with closing(_mysql_connection(env)) as conn:
@@ -304,6 +339,14 @@ def _postgresql_create_smoke_table(env: dict[str, str], schema_name: str, table_
             cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
             cursor.execute(f"CREATE TABLE {schema}.{table} (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
             cursor.execute(f"INSERT INTO {schema}.{table} (id, name) VALUES (1, 'sample')")
+
+
+def _postgresql_add_smoke_column(env: dict[str, str], schema_name: str, table_name: str) -> None:
+    schema = _validate_sql_identifier(schema_name)
+    table = _validate_sql_identifier(table_name)
+    with _postgresql_connection(env) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"ALTER TABLE {schema}.{table} ADD COLUMN drift_marker TEXT")
 
 
 def _postgresql_drop_table(env: dict[str, str], schema_name: str, table_name: str) -> None:

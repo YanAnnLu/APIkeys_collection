@@ -82,7 +82,7 @@ python3 -m pip install -r requirements-db-smoke.txt
 python3 -m unittest tests.test_data_store_real_drivers -v
 ```
 
-預設只做 read-only connection/schema introspection。若要連同 registry-backed database/table self-check 一起測，必須額外設定 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1`，而且只應指向一次性測試資料庫；這會建立並清掉 `apikeys_ci_registry_smoke_*` 測試表。
+預設只做 read-only connection/schema introspection。若要連同 registry-backed database/table self-check 一起測，必須額外設定 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1`，而且只應指向一次性測試資料庫；這會建立、ALTER、清掉 `apikeys_ci_registry_smoke_*` 測試表，用來驗 present、missing、schema drift 三種狀態。
 
 GitHub Actions 的 `real-db-smoke` job 會自動啟動 MySQL/PostgreSQL service containers，並在 disposable 資料庫裡設定 `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1` 跑完整 real DB smoke。
 

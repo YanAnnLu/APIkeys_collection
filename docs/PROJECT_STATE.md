@@ -76,14 +76,16 @@ The project is not a secret harvester. Credential files are templates for user-o
   deep schema summaries when the optional DB driver and env vars are available.
 - `tests/test_data_store_real_drivers.py` now provides opt-in real MySQL/PostgreSQL smoke coverage. It is skipped by
   default and only runs when `APIKEYS_RUN_REAL_DB_SMOKE=1`, the matching DB env vars, and optional Python drivers are
-  present; the smoke path performs read-only connection/schema introspection and does not create, drop, or modify tables.
+  present; the default smoke path performs read-only connection/schema introspection and does not create, drop, or modify
+  tables.
 - GitHub Actions has a separate `real-db-smoke` job that installs `requirements-db-smoke.txt`, starts disposable
   MySQL/PostgreSQL service containers on Ubuntu, and runs only the opt-in real-driver smoke tests against those services.
   The normal Windows/Ubuntu test matrix still uses `requirements-dev.txt` and does not require database drivers.
 - The real-driver smoke tests now also cover registry-backed table self-check for both engines: a generated smoke table
   is registered as a managed table asset, a generated missing-table asset is registered beside it, and the real
-  `DatabaseAssetVerifier` must mark the live table `present` and the absent table `missing`. This write-enabled path is
-  guarded by `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1` and is intended for disposable service databases only.
+  `DatabaseAssetVerifier` must mark the live table `present`, the absent table `missing`, and the altered generated table
+  as a schema fingerprint drift `error`. This write-enabled path is guarded by `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1` and
+  is intended for disposable service databases only.
 - MySQL/PostgreSQL table assets now carry install ownership through `AssetRecord.install_location`; self-check can parse
   the target database, check table existence, and compare table-level fingerprints when drivers/env vars are available.
 - Database self-check failures now map to stable repair suggestions and can be emitted as pure JSON through
@@ -286,7 +288,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 ## Next Build Target
 
 1. Expand guarded database repair beyond CSV/JSON/GeoJSON manifest-backed missing SQLite tables only when adapter ownership is explicit, then expand download repair suggestions to adapter-specific datasets.
-2. Add local dev profile guidance for disposable real DB smoke and extend coverage to schema-drift cases when it remains safe.
+2. Add local dev profile guidance for disposable real DB smoke, now that CI covers present/missing/schema-drift table states.
 3. Use the SQLite manifest registry for broader update/dedupe decisions beyond exact target reuse.
 4. Add financial/time-series adapter contracts for live market data, append windows, revisions, and retention policy.
 5. Connect download/database JSON repair payloads to richer event logs and UI guided repair flows.

@@ -46,7 +46,8 @@ The main CI still runs the standard test matrix on Ubuntu and Windows without fo
 The separate `real-db-smoke` GitHub Actions job runs on Ubuntu with MySQL and PostgreSQL service containers, sets
 `APIKEYS_RUN_REAL_DB_SMOKE=1` and `APIKEYS_REAL_DB_SMOKE_ALLOW_WRITE=1`, and executes only
 `tests.test_data_store_real_drivers`. The write flag is required for the registry-backed self-check smoke tests because
-they create and clean up generated `apikeys_ci_registry_smoke_*` tables. Local developers should install these
+they create, alter, and clean up generated `apikeys_ci_registry_smoke_*` tables to verify present, missing, and schema
+drift states. Local developers should install these
 dependencies only in a project env and point write-enabled smoke env vars at a disposable test database.
 
 ## Renderer Stack
