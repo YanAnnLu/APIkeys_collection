@@ -1981,6 +1981,88 @@ class ApiCollectionUi:
         suffix = f"_{timestamp}"
         return f"{base[:63 - len(suffix)]}{suffix}"
 
+    def import_existing_table_policy_label(self, policy: str) -> str:
+        labels = {
+            "rename": self.tr("保留舊表，匯入成新表", "Keep old table and import as a new table"),
+            "skip": self.tr("保留舊表，略過同名項目", "Keep old table and skip same-name items"),
+            "replace": self.tr("覆蓋同名表", "Replace same-name table"),
+        }
+        return labels.get(policy, labels["rename"])
+
+    def ask_import_existing_table_policy(self) -> str | None:
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("既有資料表處理方式", "Existing table policy"))
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.geometry("620x340")
+        dialog.configure(bg=COLORS["panel"])
+
+        policy_var = StringVar(value="rename")
+        result: dict[str, str | None] = {"policy": None}
+
+        frame = ttk.Frame(dialog, padding=18)
+        frame.pack(fill=BOTH, expand=True)
+        ttk.Label(
+            frame,
+            text=self.tr(
+                "如果 SQLite 裡已經有同名資料表，要怎麼處理？",
+                "What should happen if SQLite already has a table with the same name?",
+            ),
+            font=("Helvetica", 14, "bold"),
+        ).pack(anchor="w", pady=(0, 12))
+
+        options = (
+            (
+                "rename",
+                self.tr("保留舊表，匯入成新表（建議）", "Keep old table and import as a new table (recommended)"),
+                self.tr("例如 table 會變成 table_2，不覆蓋既有資料。", "For example, table becomes table_2 without overwriting existing data."),
+            ),
+            (
+                "skip",
+                self.tr("保留舊表，略過同名項目", "Keep old table and skip same-name items"),
+                self.tr("適合只想補匯尚未存在的資料。", "Use this when you only want to import missing tables."),
+            ),
+            (
+                "replace",
+                self.tr("覆蓋同名表", "Replace same-name table"),
+                self.tr("會重建同名資料表；只有確定要刷新資料時才使用。", "This recreates the same-name table; use only when you mean to refresh it."),
+            ),
+        )
+        for value, title, description in options:
+            row = ttk.Frame(frame)
+            row.pack(fill=X, anchor="w", pady=5)
+            ttk.Radiobutton(row, text=title, value=value, variable=policy_var).pack(anchor="w")
+            ttk.Label(row, text=description, foreground=COLORS["muted"], wraplength=540).pack(anchor="w", padx=(24, 0), pady=(2, 0))
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill=X, pady=(14, 0))
+
+        def cancel() -> None:
+            result["policy"] = None
+            dialog.destroy()
+
+        def accept() -> None:
+            policy = policy_var.get()
+            if policy == "replace":
+                confirmed = messagebox.askyesno(
+                    self.tr("確認覆蓋", "Confirm replace"),
+                    self.tr(
+                        "覆蓋會重建同名資料表。請確認這是你想要的行為。",
+                        "Replace recreates the same-name table. Please confirm this is what you want.",
+                    ),
+                    parent=dialog,
+                )
+                if not confirmed:
+                    return
+            result["policy"] = policy
+            dialog.destroy()
+
+        ttk.Button(buttons, text=self.tr("取消", "Cancel"), command=cancel).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(buttons, text=self.tr("繼續", "Continue"), command=accept).pack(side=RIGHT)
+        dialog.protocol("WM_DELETE_WINDOW", cancel)
+        dialog.wait_window()
+        return result["policy"]
+
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         conn = self._connect()
         try:
@@ -2286,6 +2368,13 @@ class ApiCollectionUi:
             return
 
         sqlite_path = state_file(CURATED_IMPORTS_NAME)
+        existing_table_policy = self.ask_import_existing_table_policy()
+        if existing_table_policy is None:
+            return
+        policy_hint = self.tr(
+            f"\n\n同名資料表策略：{self.import_existing_table_policy_label(existing_table_policy)}",
+            f"\n\nExisting table policy: {self.import_existing_table_policy_label(existing_table_policy)}",
+        )
         skipped_hint = self.tr(f"\n\n會略過：{len(skipped)} 個不支援或未準備好的項目。", f"\n\nWill skip {len(skipped)} unsupported or unready items.") if skipped else ""
         confirmed = messagebox.askyesno(
             self.tr("匯入下載結果", "Import downloaded results"),
@@ -2293,6 +2382,7 @@ class ApiCollectionUi:
                 f"將把 {len(supported)} 個已支援項目匯入 SQLite：\n{sqlite_path}\n\n匯入前會先檢查 sidecar manifest 是否健康。",
                 f"Import {len(supported)} supported items into SQLite:\n{sqlite_path}\n\nSidecar manifests will be verified before import.",
             )
+            + policy_hint
             + skipped_hint,
         )
         if not confirmed:
@@ -2301,7 +2391,7 @@ class ApiCollectionUi:
         self.status_var.set(self.tr(f"正在匯入 {len(supported)} 個下載結果到 SQLite...", f"Importing {len(supported)} downloaded results into SQLite..."))
         threading.Thread(
             target=self.import_supported_plan_results_worker,
-            args=(supported, sqlite_path),
+            args=(supported, sqlite_path, existing_table_policy),
             daemon=True,
         ).start()
 
@@ -2309,6 +2399,7 @@ class ApiCollectionUi:
         self,
         entries: list[tuple[str, dict[str, object], str]],
         sqlite_path: Path,
+        existing_table_policy: str,
     ) -> None:
         imported = 0
         skipped = 0
@@ -2334,7 +2425,7 @@ class ApiCollectionUi:
                     manifest = read_manifest(manifest_path)
                     repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
                     repository.register_downloaded_manifest_asset(manifest, manifest_path)
-                    if table_hint:
+                    if existing_table_policy == "rename" and table_hint:
                         unique_table = self.unique_import_table_name(sqlite_path, table_hint)
                         if unique_table != table_hint:
                             entry = dict(entry)
@@ -2348,7 +2439,8 @@ class ApiCollectionUi:
                         manifest_path,
                         sqlite_path=sqlite_path,
                         row_limit=0,
-                        replace=False,
+                        replace=existing_table_policy == "replace",
+                        existing_table_policy=existing_table_policy,
                     )
                 except Exception as exc:
                     failed += 1
@@ -2373,7 +2465,7 @@ class ApiCollectionUi:
 
         self.root.after(
             0,
-            lambda: self.finish_import_supported_plan_results(imported, skipped, failed, tuple(messages), tuple(item_statuses), sqlite_path),
+            lambda: self.finish_import_supported_plan_results(imported, skipped, failed, tuple(messages), tuple(item_statuses), sqlite_path, existing_table_policy),
         )
 
     def finish_import_supported_plan_results(
@@ -2384,6 +2476,7 @@ class ApiCollectionUi:
         messages: tuple[str, ...],
         item_statuses: tuple[tuple[str, str, str], ...],
         sqlite_path: Path,
+        existing_table_policy: str,
     ) -> None:
         for plan_key, status, detail in item_statuses:
             self.import_status_by_plan_key[plan_key] = (status, detail)
@@ -2399,10 +2492,16 @@ class ApiCollectionUi:
             summary,
             level="error" if failed else "info",
             component="ui.import",
-            context={"imported": imported, "skipped": skipped, "failed": failed, "sqlite_path": str(sqlite_path)},
+            context={
+                "imported": imported,
+                "skipped": skipped,
+                "failed": failed,
+                "sqlite_path": str(sqlite_path),
+                "existing_table_policy": existing_table_policy,
+            },
         )
         detail = "\n".join(messages[:8])
-        body = f"{summary}\n\nSQLite: {sqlite_path}"
+        body = f"{summary}\n\nSQLite: {sqlite_path}\n{self.tr('同名資料表策略', 'Existing table policy')}: {self.import_existing_table_policy_label(existing_table_policy)}"
         if detail:
             body += f"\n\n{detail}"
         if failed:

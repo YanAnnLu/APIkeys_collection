@@ -247,6 +247,54 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual([("alpha", "1"), ("beta", "2")], renamed_rows)
         self.assertIn("imported=1", second_stdout.getvalue())
 
+    def test_cli_can_replace_existing_table_when_importing_plan_results(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.csv"
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            plan_path = Path(tmpdir) / "plan.json"
+            sqlite_path = Path(tmpdir) / "curated.sqlite"
+            plan_path.write_text(json.dumps(sample_plan(url, output_path, native_format="csv"), ensure_ascii=False), encoding="utf-8")
+            first_stdout = io.StringIO()
+            second_stdout = io.StringIO()
+            base_args = [
+                "--db",
+                str(db_path),
+                "--init-db",
+                "--seed",
+                "--run-download-plan",
+                str(plan_path),
+                "--download-timeout",
+                "5",
+                "--import-supported-plan-results",
+                "--import-sqlite-db",
+                str(sqlite_path),
+            ]
+
+            with redirect_stdout(first_stdout):
+                first_rc = main(base_args)
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                conn.execute("INSERT INTO hyg_sample (name, value) VALUES (?, ?)", ("stale", "999"))
+                conn.commit()
+            finally:
+                conn.close()
+
+            with redirect_stdout(second_stdout):
+                second_rc = main([*base_args, "--plan-import-existing-table-policy", "replace"])
+
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                rows = conn.execute("SELECT name, value FROM hyg_sample ORDER BY name").fetchall()
+                renamed_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'hyg_sample_2'").fetchone()
+            finally:
+                conn.close()
+
+        self.assertEqual(0, first_rc)
+        self.assertEqual(0, second_rc)
+        self.assertEqual([("alpha", "1"), ("beta", "2")], rows)
+        self.assertIsNone(renamed_exists)
+        self.assertIn("imported=1", second_stdout.getvalue())
+
     def test_cli_can_unpack_zip_plan_result_before_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(zip_csv_bytes()) as url:
             output_path = Path(tmpdir) / "downloads" / "sample.zip"
