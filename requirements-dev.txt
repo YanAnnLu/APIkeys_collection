@@ -1,1 +1,5 @@
 -r requirements.txt
+
+# Test fixture dependency for scripts/export_unreal_preview.py.
+# Heavier renderer packages stay in requirements-renderer.txt.
+numpy

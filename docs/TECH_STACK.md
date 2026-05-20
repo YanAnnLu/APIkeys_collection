@@ -23,7 +23,9 @@ Install with:
 python -m pip install -r requirements-dev.txt
 ```
 
-The current launcher runtime intentionally uses only the Python standard library.
+The current launcher runtime intentionally uses only the Python standard library. The dev requirements also install
+`numpy` so the Unreal preview export regression test can run instead of being skipped; the heavier renderer packages
+remain optional.
 On the current macOS Codex handoff machine, use Conda env `metal_trade_312` for validation and any optional package
 installs. Do not install into base/system Python unless the user explicitly approves.
 
@@ -33,7 +35,8 @@ files locked. Use `contextlib.closing(sqlite3.connect(...))` or an explicit `fin
 
 ## Renderer Stack
 
-Optional dependencies live in `requirements-renderer.txt`.
+Optional dependencies live in `requirements-renderer.txt`. `numpy` also appears in `requirements-dev.txt` because the
+test suite uses small `.npy` fixtures for the Unreal preview exporter.
 
 - `taichi`: GPU/CPU compute and GUI rendering engine.
 - `numpy`: array representation for bridge assets such as `.npy` terrain grids and star catalogs.

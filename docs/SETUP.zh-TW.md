@@ -99,7 +99,7 @@ python3 APIkeys_collection.py --verify-downloads-json
 - SQLite 在同步碟上可能被鎖住；大量寫入時最好改成本機 state path。
 - Windows 有時會鎖 `.pyc`，建議設定 `PYTHONDONTWRITEBYTECODE=1`。
 - macOS 若專案放在 CloudMounter / 雲端同步碟，Python 讀寫 `__pycache__` 可能卡住；跑測試可加 `PYTHONPYCACHEPREFIX=/tmp/apikeys_collection_pycache`，把 bytecode 快取放到本機暫存。
-- Renderer dependencies 放在 `requirements-renderer.txt`，不要混進 launcher core。
+- `requirements-dev.txt` 會安裝 `numpy`，讓 Unreal preview export 測試不被跳過；完整 renderer dependencies 仍放在 `requirements-renderer.txt`，不要混進 launcher core。
 - 如果 UI 中文顯示異常，先不要批次轉碼，避免破壞既有檔案；應該另開一次 encoding cleanup。
 - macOS 若看到 Windows `K:\...` 路徑，通常代表本機整合設定尚未分平台配置；應改用 `*_by_platform` 或在 Mac 的 local config 指向 macOS 實際路徑。
 
