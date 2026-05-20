@@ -13,7 +13,18 @@ from api_launcher.paths import STATE_DIR
 
 
 SUPPORTED_ARCHIVE_SUFFIXES = {".zip", ".tar", ".tgz", ".tar.gz", ".tar.bz2", ".tar.xz"}
-SUPPORTED_MEMBER_SUFFIXES = {".csv", ".csv.gz", ".json", ".jsonl", ".geojson"}
+CSV_MEMBER_SOURCE_FORMATS = ("csv", "csv.gz")
+JSON_MEMBER_SOURCE_FORMATS = (
+    "json",
+    "json.gz",
+    "jsonl",
+    "jsonl.gz",
+    "ndjson",
+    "ndjson.gz",
+    "geojson",
+    "geojson.gz",
+)
+SUPPORTED_MEMBER_SUFFIXES = tuple(f".{source_format}" for source_format in CSV_MEMBER_SOURCE_FORMATS + JSON_MEMBER_SOURCE_FORMATS)
 
 
 @dataclass(frozen=True)
@@ -76,7 +87,7 @@ def extract_from_zip(
     with zipfile.ZipFile(archive_path) as archive:
         names = sorted(name for name in archive.namelist() if not name.endswith("/") and is_supported_member(name))
         if not names:
-            raise ValueError(f"Archive has no supported CSV/JSON member: {archive_path}")
+            raise ValueError(f"Archive has no supported CSV/JSON/GeoJSON member: {archive_path}")
         member_name = names[0]
         output_path = output_dir / safe_path_part(Path(member_name).name)
         with archive.open(member_name) as source, output_path.open("wb") as target:
@@ -96,7 +107,7 @@ def extract_from_tar(
             key=lambda member: member.name,
         )
         if not members:
-            raise ValueError(f"Archive has no supported CSV/JSON member: {archive_path}")
+            raise ValueError(f"Archive has no supported CSV/JSON/GeoJSON member: {archive_path}")
         member = members[0]
         extracted = archive.extractfile(member)
         if extracted is None:
