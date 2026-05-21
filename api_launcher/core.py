@@ -59,6 +59,7 @@ from api_launcher.dataset_discovery import (
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
 from api_launcher.database_repair import (
+    database_repair_sql_path_for_asset,
     reimport_missing_sqlite_table_asset,
     stop_tracking_database_asset,
     write_missing_sql_table_repair_dry_run,
@@ -1350,10 +1351,9 @@ class CatalogLauncherCli:
             self.log_database_repair_completed(actions[0] if len(actions) == 1 else "database_repair", result_payloads)
 
     def database_repair_sql_path(self, asset_id: str) -> Path:
-        # asset_id 來自 registry，但仍正規化成檔名，避免 SQL dry-run 寫出目錄穿越路徑。
+        # 路徑正規化交給 database_repair 共用 helper，讓 CLI 與 UI 產生完全相同的 dry-run 檔名。
         output_dir = resolve_project_path(self.args.database_repair_sql_dir)
-        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", asset_id.strip()).strip("._") or "database_asset"
-        return output_dir / f"{safe_name}.dry_run.sql"
+        return database_repair_sql_path_for_asset(asset_id, output_dir)
 
     def log_database_repair_completed(self, action: str, results: list[dict[str, object]]) -> None:
         if not results:

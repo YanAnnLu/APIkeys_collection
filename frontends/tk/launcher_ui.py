@@ -49,7 +49,12 @@ from api_launcher.downloads.repair import (
     scan_download_manifests,
     verify_manifest_file,
 )
-from api_launcher.database_repair import reimport_missing_sqlite_table_asset, supported_reimport_source_formats_label
+from api_launcher.database_repair import (
+    database_repair_sql_path_for_asset,
+    reimport_missing_sqlite_table_asset,
+    supported_reimport_source_formats_label,
+    write_missing_sql_table_repair_dry_run,
+)
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
@@ -88,6 +93,12 @@ COLORS = {
     "border": "#4a5362",
 }
 DOWNLOAD_REPAIR_ACTION_STATUSES = {"missing", "size_mismatch", "checksum_mismatch", "manifest_error"}
+
+
+def database_sql_dry_run_available(suggestion: object) -> bool:
+    # database_self_check 已經集中判斷安全條件；UI 只讀旗標，避免在視窗層重寫資料庫 ownership 規則。
+    details = getattr(suggestion, "details", {})
+    return isinstance(details, dict) and bool(details.get("sql_dry_run_available"))
 
 
 TABLE_COLUMNS = (
@@ -710,6 +721,11 @@ class ApiCollectionUi:
         return labels.get(str(getattr(suggestion, "action_id", "")), str(getattr(suggestion, "label", "")))
 
     def localized_database_repair_description(self, suggestion: object) -> str:
+        if database_sql_dry_run_available(suggestion):
+            return self.tr(
+                "這個 MySQL/PostgreSQL 資料表不存在，但 registry 有健康 manifest；可先產生 dry-run SQL 交給人類或 DBA 審核。",
+                "This MySQL/PostgreSQL table is missing and has a healthy manifest; write dry-run SQL for human/DBA review first.",
+            )
         if self.ui_language == "en-US":
             return str(getattr(suggestion, "description", ""))
         descriptions = {
@@ -4806,6 +4822,7 @@ class ApiCollectionUi:
                 database_detail.insert(END, self.tr("尚未選取資料庫問題。", "No database issue selected.") if database_issues else self.tr("沒有找到資料庫問題。", "No database issues found."))
             else:
                 suggestion = selected.repair_suggestion()
+                dry_run_path = database_repair_sql_path_for_asset(selected.asset_id, state_file("database_repair")) if database_sql_dry_run_available(suggestion) else "-"
                 database_detail.insert(
                     END,
                     "\n".join(
@@ -4822,6 +4839,8 @@ class ApiCollectionUi:
                             f"suggestion_action: {suggestion.action_id}",
                             f"suggestion_detail: {self.localized_database_repair_description(suggestion)}",
                             f"can_auto_repair: {suggestion.can_auto_repair}",
+                            f"sql_dry_run_available: {database_sql_dry_run_available(suggestion)}",
+                            f"sql_dry_run_path: {dry_run_path}",
                             f"install_location: {suggestion.details.get('install_location') or '-'}",
                             f"source_uri: {suggestion.details.get('source_uri') or '-'}",
                         ]
@@ -4883,6 +4902,8 @@ class ApiCollectionUi:
                 next_step += self.tr("\n\n請把 driver 安裝在專案 Python 環境，不要安裝到 base。", "\n\nInstall the driver in the project Python environment, not the base environment.")
             elif suggestion.action_id == "review_schema_drift":
                 next_step += self.tr("\n\n這可能是真實資料或 schema 變動；刷新 registry fingerprint 前請先確認。", "\n\nThis can be a real data/schema change; review before refreshing the registered fingerprint.")
+            elif database_sql_dry_run_available(suggestion):
+                next_step += self.tr("\n\n可按「產生 dry-run SQL」輸出審核用 SQL 檔；這不會連線或修改遠端資料庫。", "\n\nUse Write dry-run SQL to write a reviewable SQL file; this will not connect to or modify the remote database.")
             elif suggestion.action_id.startswith("restore_or_reimport"):
                 next_step += self.tr("\n\n在 adapter 能證明 ownership 之前，這個 UI 不會自動刪除或重建 SQL 物件。", "\n\nThis UI will not delete or recreate SQL objects automatically until an adapter proves ownership.")
             messagebox.showinfo(
@@ -4964,6 +4985,98 @@ class ApiCollectionUi:
                 f"Reimported {result.table_name} with {result.rows_imported} rows; rerunning self-check.",
             ))
             self.open_repair_panel()
+
+        def write_selected_database_repair_sql() -> None:
+            selection = database_table.selection()
+            selected = database_issue_by_iid.get(str(selection[0])) if selection else None
+            if selected is None:
+                messagebox.showinfo(self.tr("資料庫修復", "Database repair"), self.tr("請先選取一列資料庫問題。", "Select a database row first."))
+                return
+            suggestion = selected.repair_suggestion()
+            if not database_sql_dry_run_available(suggestion):
+                messagebox.showinfo(
+                    self.tr("產生 dry-run SQL", "Write dry-run SQL"),
+                    self.tr(
+                        (
+                            "這列目前不符合產生 SQL 草稿的條件。\n\n"
+                            "只有 MySQL/PostgreSQL 缺失資料表，且 registry 記錄了健康 CSV/JSON/GeoJSON 類 manifest 時，"
+                            "才會啟用此動作。"
+                        ),
+                        (
+                            "This row cannot currently write a SQL draft.\n\n"
+                            "The action is available only for missing MySQL/PostgreSQL table assets with a healthy recorded CSV/JSON/GeoJSON manifest."
+                        ),
+                    ),
+                    parent=dialog,
+                )
+                return
+            output_path = database_repair_sql_path_for_asset(selected.asset_id, state_file("database_repair"))
+            if not messagebox.askyesno(
+                self.tr("產生 dry-run SQL", "Write dry-run SQL"),
+                self.tr(
+                    (
+                        f"要為這筆缺失資料表產生 dry-run SQL 嗎？\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"輸出位置：{output_path}\n\n"
+                        "這個動作只會寫出 SQL 檔案供審核；不會連線、不會執行 SQL，也不會修改遠端資料庫。"
+                    ),
+                    (
+                        f"Write dry-run SQL for this missing table?\n\n"
+                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"Output: {output_path}\n\n"
+                        "This only writes a SQL file for review. It will not connect, execute SQL, or modify the remote database."
+                    ),
+                ),
+                parent=dialog,
+            ):
+                return
+            try:
+                conn = self._connect()
+                try:
+                    repository = core.ApiCatalogRepository(conn)
+                    result = write_missing_sql_table_repair_dry_run(repository, selected.asset_id, output_path)
+                finally:
+                    conn.close()
+            except Exception as exc:
+                log_exception(
+                    "database_sql_dry_run_failed",
+                    exc,
+                    component="ui.repair",
+                    context={"asset_id": selected.asset_id, "provider_id": selected.provider_id},
+                )
+                messagebox.showerror(self.tr("產生 dry-run SQL", "Write dry-run SQL"), str(exc), parent=dialog)
+                return
+            result_payload = result.to_dict()
+            log_event(
+                "database_repair_completed",
+                f"Database repair dry-run SQL written: {selected.asset_id}",
+                component="ui.repair",
+                context={
+                    "action": result.action_id,
+                    "result_count": 1,
+                    "results": [result_payload],
+                },
+            )
+            self.status_var.set(self.tr(
+                f"已產生 dry-run SQL：{result.sql_path}",
+                f"Dry-run SQL written: {result.sql_path}",
+            ))
+            messagebox.showinfo(
+                self.tr("已產生 dry-run SQL", "Dry-run SQL written"),
+                self.tr(
+                    (
+                        f"已寫出 SQL 草稿：\n{result.sql_path}\n\n"
+                        f"預計列數：{result.rows_planned}\n"
+                        "請先人工審核後，再決定是否在目標資料庫執行。"
+                    ),
+                    (
+                        f"Wrote SQL draft:\n{result.sql_path}\n\n"
+                        f"Planned rows: {result.rows_planned}\n"
+                        "Review it manually before running it against the target database."
+                    ),
+                ),
+                parent=dialog,
+            )
 
         def edit_selected_database_connection() -> None:
             selection = database_table.selection()
@@ -5098,6 +5211,7 @@ class ApiCollectionUi:
         ttk.Button(actions, text=self.tr("重新排下載", "Requeue selected download"), style="Action.TButton", command=requeue_selected_result).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示資料庫建議", "Show database suggestion"), style="Action.TButton", command=show_selected_database_suggestion).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("重新匯入資料表", "Reimport table"), style="Action.TButton", command=reimport_selected_database_asset).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("產生 dry-run SQL", "Write dry-run SQL"), style="Action.TButton", command=write_selected_database_repair_sql).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("調整資料庫連線", "Edit database connection"), style="Action.TButton", command=edit_selected_database_connection).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("停止追蹤", "Stop tracking"), style="Action.TButton", command=unmanage_selected_database_asset).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("資料儲存設定", "Data-store settings"), style="Action.TButton", command=self.open_data_store_connection_settings).pack(side=LEFT, padx=(0, 10))

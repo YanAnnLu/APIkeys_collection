@@ -186,13 +186,13 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID` to test one configured data-store profile, or `--test-data-store all` for every profile.
 - Use `python APIkeys_collection.py --self-check-databases` to verify managed database/table assets recorded in the install registry.
 - Use `python APIkeys_collection.py --self-check-databases-json` when another tool or agent needs a pure JSON issue list with stable repair suggestion IDs.
-- Tk `工具 > 修復 / 驗證資產` shows database issues in a dedicated tab using `database_self_check_issues()`; keep it diagnostic until an adapter can prove asset ownership.
+- Tk `工具 > 修復 / 驗證資產` shows database issues in a dedicated tab using `database_self_check_issues()`; it can edit registry profile/schema, stop tracking one asset, reimport safe missing SQLite tables, and write MySQL/PostgreSQL dry-run SQL. Keep any real SQL execution disabled until ownership and DBA review boundaries are explicit.
 - SQLite checks are read-only and should not create a missing database file.
 - SQLite managed database assets with `schema_fingerprint` are checked for database-level table/column drift and will be marked `error` when the actual fingerprint changes.
 - SQLite managed table assets use `source_uri` as the database path and `asset_name` as the table name; missing tables are marked `missing`, and table-level fingerprint drift is marked `error`.
 - MySQL/PostgreSQL checks first report missing env vars or optional Python drivers; do not add driver packages to base/system environments without user approval.
 - MySQL/PostgreSQL connection probes can use `information_schema` helpers for table counts, table existence, column signatures, and schema fingerprints when drivers/env vars are available. SQL table asset database ownership comes from `install_location`; PostgreSQL table assets may use `schema.table` in `asset_name`.
-- For manifest-backed missing MySQL/PostgreSQL table assets, use `python APIkeys_collection.py --write-database-repair-sql ASSET_ID --database-repair-json` to write a reviewable dry-run SQL file under `state/database_repair/`. This action must not connect to or mutate the remote database, and it must not be treated as automatic repair.
+- For manifest-backed missing MySQL/PostgreSQL table assets, use Tk `產生 dry-run SQL` or `python APIkeys_collection.py --write-database-repair-sql ASSET_ID --database-repair-json` to write a reviewable dry-run SQL file under `state/database_repair/`. This action must not connect to or mutate the remote database, and it must not be treated as automatic repair.
 - Database self-check repair suggestions are diagnostic only. They may say to configure env vars, install an optional driver in the project env, restore/reimport a table/database, review schema drift, or fix a profile mapping; do not execute destructive SQL from a suggestion alone.
 
 ## References

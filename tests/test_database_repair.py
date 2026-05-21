@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.database_repair import (
+    database_repair_sql_path_for_asset,
     manifest_path_from_notes,
     reimport_missing_sqlite_table_asset,
     stop_tracking_database_asset,
@@ -27,6 +28,13 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 class DatabaseRepairTests(unittest.TestCase):
+    def test_database_repair_sql_path_for_asset_sanitizes_asset_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = database_repair_sql_path_for_asset(" ../unsafe asset:01/table ", Path(tmpdir) / "sql")
+
+        self.assertEqual("unsafe_asset_01_table.dry_run.sql", path.name)
+        self.assertEqual("sql", path.parent.name)
+
     def test_reimport_missing_sqlite_table_asset_from_recorded_csv_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

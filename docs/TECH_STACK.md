@@ -321,6 +321,11 @@ self-check; reimport refuses to DROP or replace an existing table. CSV/JSON impo
 using the same SQLite table fingerprint logic as database self-check so fresh imports do not immediately report schema
 drift.
 
+For manifest-backed missing MySQL/PostgreSQL table assets, the repair module can write a reviewable SQL dry-run file
+under `state/database_repair/`. Tk exposes this as `產生 dry-run SQL`, while CLI/agent workflows use
+`--write-database-repair-sql ASSET_ID --database-repair-json`. This path must remain file-generation only: no remote
+connection, no DDL/DML execution, and no registry mutation.
+
 Tk UI localization is intentionally lightweight for now. `launcher_integrations.local.json` may contain
 `"ui_language": "zh-TW"` or `"en-US"`; the UI reads it at startup, `Settings > Interface language` can update it, and
 new dialogs use the latest value immediately. The default user-facing path should stay Traditional Chinese, with English

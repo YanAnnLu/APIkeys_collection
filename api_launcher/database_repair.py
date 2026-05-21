@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -116,6 +117,12 @@ class DatabaseSqlRepairDryRunResult:
             "dry_run": self.dry_run,
             "database_modified": self.database_modified,
         }
+
+
+def database_repair_sql_path_for_asset(asset_id: str, output_dir: str | Path = "state/database_repair") -> Path:
+    # dry-run SQL 檔名由 registry asset_id 產生；這裡集中處理，避免 CLI/UI 各自實作時漏掉路徑穿越防護。
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", asset_id.strip()).strip("._") or "database_asset"
+    return Path(output_dir) / f"{safe_name}.dry_run.sql"
 
 
 def stop_tracking_database_asset(repository: ApiCatalogRepository, asset_id: str) -> DatabaseRegistryRepairResult:
