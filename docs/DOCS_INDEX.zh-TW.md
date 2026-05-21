@@ -67,7 +67,7 @@
 | `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 主入口，聚焦 crawler-first、candidate review、adapter 邊界、bounded resolver、download/import plan 與版本計畫。 | 改 crawler、candidate、adapter resolver、download plan 時更新。 |
 | `DATABASE_PORTAL_INTAKE.zh-TW.md` | 組員收集資料入口網站的表格與規則。 | intake 欄位、promotion 流程、Notion 同步規則改變時更新。 |
 | `DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` | OpenSpec / Spectra / Qt Designer 開發流程，定義中大型改動的規格化習慣。 | 開發流程、OpenSpec 工具、Spectra GUI、Qt/PySide6 工具位置或規格門檻改變時更新。 |
-| `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序與路徑規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime 目錄時更新。 |
+| `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序、路徑規則，以及 `tem/` 本機暫存區的使用規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime/暫存目錄時更新。 |
 | `USER_GUIDE.zh-TW.md` | 使用者操作指南，保留較完整背景、操作說明與開發者 CLI 指令索引。 | UI/CLI 操作、選單名稱、使用流程改變時更新；Demo 快速手冊同步看 `USER_MANUAL.zh-TW.md`。 |
 | `SETUP.zh-TW.md` | 安裝與啟動說明。 | Python/Conda/Docker/GitHub CLI/跨平台設定改變時更新。 |
 | `TECH_STACK.md` | 技術棧與依賴邊界，目前偏工程英文。 | 依賴、CI、Docker、optional renderer stack 改變時更新，並同步補繁中摘要或對應文件。 |

@@ -41,6 +41,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `tests/` | 單元測試 | 新拆出的模組要補小測試，避免核心瘦身後行為漂移。 |
 | `state/` | 本機 runtime 狀態 | ignored；放 logs、SQLite、private keys、staging、audit JSON。 |
 | `downloads/` | 本機下載成果 | ignored；放資料 payload，不放 Python 原始碼。 |
+| `tem/` | 本機暫存與外部產物緩衝 | ignored；放外部 agent 交接包、概念 prototype、截圖、logs 與待評估素材。團隊協作者從 Git clone 看不到這個資料夾，不要讓正式流程依賴 `tem/` 路徑。 |
 
 ## 檔案責任地圖
 
@@ -57,6 +58,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | renderer prototype | `renderers/taichi_global_bathymetry.py` | 下游渲染參考，不是資料治理 owner。 | 不讓重型 renderer 依賴影響基本 launcher 測試。 |
 | runtime state | `state/`, root `*.sqlite`, `provider_candidates.discovered.json` | 本機資料庫、logs、staging、audit、暫存候選。 | 預設 ignored；能搬進 `state/` 的新輸出就不要留根目錄。 |
 | downloaded payload | `downloads/` | 真正下載的資料檔。 | 預設 ignored；用 manifest/registry 管理，不手動提交。 |
+| local temporary staging | `tem/` | 外部 agent 產物、概念原型、臨時 handoff bundle、截圖與 logs。 | 預設 ignored；只作本機評估與轉存，若內容變成正式資產，必須搬到 canonical docs/source 後再提交。 |
 
 ## 目前已知的根目錄 runtime 檔
 
@@ -68,6 +70,16 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 - `provider_candidates.discovered.json`
 
 它們不是原始碼，也不應提交。短期保留是為了相容舊路徑與目前使用者環境；新增功能產生的新狀態檔，預設應放進 `state/`。
+
+## 本機暫存資料夾 `tem/`
+
+`tem/` 是本機暫存資料夾，主要用來暫放外部 agent 產出的 prototype、handoff bundle、截圖、logs 或其他還在評估中的素材。它已列入 `.gitignore`，所以不會出現在 GitHub，也不會出現在其他團隊協作者 clone 下來的工作區。
+
+使用 `tem/` 時請遵守三個規則：
+
+1. 不要 `git add`、commit 或 push `tem/` 內容。
+2. 不要讓正式文件、程式、測試或自動化流程依賴 `tem/` 裡的路徑。
+3. 若某個暫存素材確認有價值，請把重點摘要或必要檔案提升到正式 docs/source，再透過正常 review、測試與 commit 流程納入版本。
 
 ## 文件整理規則
 
