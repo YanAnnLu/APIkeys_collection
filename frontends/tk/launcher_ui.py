@@ -519,6 +519,7 @@ class ApiCollectionUi:
         self.download_status_by_provider: dict[str, tuple[str, str, str]] = {}
         self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
         self.import_status_by_plan_key: dict[str, tuple[str, str]] = {}
+        self.ui_ready_announced = False
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.plan_provider_by_key: dict[str, str] = {}
         self.registered_completed_downloads: set[str] = set()
@@ -537,6 +538,7 @@ class ApiCollectionUi:
         self.reload_data()
         self.run_startup_environment_checks()
         self.load_saved_ai_api_keys_for_startup()
+        self.root.after(120, self.present_main_window)
 
     def tr(self, zh_tw: str, en_us: str = "") -> str:
         if self.ui_language == "en-US" and en_us:
@@ -557,6 +559,37 @@ class ApiCollectionUi:
         except TclError:
             pass
         return original or "arrow"
+
+    def present_main_window(self) -> None:
+        """Make the launcher window visible when started from an IDE/background shell."""
+        with contextlib_suppress_tcl_error():
+            self.root.update_idletasks()
+        with contextlib_suppress_tcl_error():
+            self.root.deiconify()
+        with contextlib_suppress_tcl_error():
+            self.root.lift()
+        with contextlib_suppress_tcl_error():
+            self.root.attributes("-topmost", True)
+            self.root.after(700, self.release_topmost)
+        with contextlib_suppress_tcl_error():
+            self.root.focus_force()
+        with contextlib_suppress_tcl_error():
+            self.root.update_idletasks()
+        self.announce_ui_ready()
+
+    def release_topmost(self) -> None:
+        with contextlib_suppress_tcl_error():
+            self.root.attributes("-topmost", False)
+
+    def announce_ui_ready(self) -> None:
+        if self.ui_ready_announced:
+            return
+        self.ui_ready_announced = True
+        print(
+            f"APIkeys_collection UI ready "
+            f"(pid={os.getpid()}, window={self.root.winfo_width()}x{self.root.winfo_height()}).",
+            flush=True,
+        )
 
     def load_column_width_overrides(self) -> dict[str, int]:
         raw_widths = core.load_integration_config().get("ui_table_column_widths")
@@ -5330,7 +5363,7 @@ class contextlib_suppress_tcl_error:
         return None
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
-        return exc_type is not None
+        return isinstance(exc, TclError)
 
 
 def main() -> int:

@@ -25,6 +25,8 @@ Windows 可以用：
 py APIkeys_collection_ui.py
 ```
 
+從 IDE 或背景 shell 啟動時，主視窗會在初始化後自動浮出並在終端機印出 `APIkeys_collection UI ready ...`，方便確認 UI 已經完成啟動。
+
 若要先確認後端狀態：
 
 ```bash
