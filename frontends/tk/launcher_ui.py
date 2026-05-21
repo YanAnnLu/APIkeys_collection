@@ -31,7 +31,10 @@ from api_launcher.favicons import download_favicon_png, favicon_cache_path, favi
 from api_launcher.downloads.jobs import DownloadProgress, JobStatus, NonBlockingDownloadQueue
 from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
-from api_launcher.downloads.plan_runner import import_completed_plan_entry
+from api_launcher.downloads.plan_runner import (
+    download_entry_skip_bucket,
+    import_completed_plan_entry,
+)
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import (
@@ -2272,16 +2275,29 @@ class ApiCollectionUi:
     def start_download_rows(self, rows: list[ProviderRow]) -> None:
         self.start_download_plan_items([(row.provider_id, row, self.plan_version_by_provider.get(row.provider_id)) for row in rows])
 
+    def localized_download_skip_summary(self, skip_summary: dict[str, int]) -> str:
+        labels = {
+            "adapter_required": self.tr("需 Adapter", "adapter required"),
+            "metadata_only": self.tr("僅 metadata", "metadata only"),
+            "unavailable": self.tr("不可下載", "unavailable"),
+            "missing_download_url": self.tr("缺下載 URL", "missing download URL"),
+            "not_direct": self.tr("非直接檔案", "not direct"),
+        }
+        parts = [f"{labels.get(bucket, bucket)}={count}" for bucket, count in skip_summary.items() if count]
+        return "；".join(parts)
+
     def start_download_plan_items(self, items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]) -> None:
         # 這裡只啟動 direct_download；需要 adapter 的項目保留在審核/解析流程，不硬猜 URL。
         started = 0
         skipped = 0
+        skip_summary: dict[str, int] = {}
         for plan_key, row, version in items:
             if not self.prepare_provider_for_download(plan_key):
                 continue
             plan_entry, build_error = self.plan_entry_for_item(row, version, plan_key=plan_key)
             if plan_entry is None:
                 skipped += 1
+                skip_summary["not_direct"] = skip_summary.get("not_direct", 0) + 1
                 self.download_status_by_provider[plan_key] = ("skipped", "0%", build_error)
                 continue
             eligibility = plan_entry.get("download_eligibility", {})
@@ -2290,6 +2306,8 @@ class ApiCollectionUi:
             if status != "direct_download" or not url:
                 reason = str(eligibility.get("reason") if isinstance(eligibility, dict) else "") or self.tr("需要 adapter 審核後才能下載", "Adapter review is required before download")
                 skipped += 1
+                bucket = download_entry_skip_bucket(plan_entry) or "not_direct"
+                skip_summary[bucket] = skip_summary.get(bucket, 0) + 1
                 self.download_status_by_provider[plan_key] = ("skipped", "0%", reason)
                 continue
             target_path = Path(str(plan_entry.get("target_path") or self.download_target_for_row(row, url)))
@@ -2302,7 +2320,22 @@ class ApiCollectionUi:
             self.download_status_by_provider[plan_key] = ("queued", "0%", str(target_path))
             started += 1
         self.update_download_jobs_panel()
-        self.status_var.set(self.tr(f"下載工作已開始：{started}；略過：{skipped}", f"Download jobs started: {started}; skipped: {skipped}"))
+        skip_detail = self.localized_download_skip_summary(skip_summary)
+        summary = self.tr(f"下載工作已開始：{started}；略過：{skipped}", f"Download jobs started: {started}; skipped: {skipped}")
+        if skip_detail:
+            summary = f"{summary} ({skip_detail})"
+        self.status_var.set(summary)
+        if started == 0 and skipped:
+            # 這個提示把「沒有直接下載」改成可行的下一步，避免 Demo 時看起來像按鈕沒接上。
+            messagebox.showinfo(
+                self.tr("沒有可直接下載項目", "No direct downloads"),
+                summary
+                + "\n\n"
+                + self.tr(
+                    "這些項目目前還是 API、入口頁、selector 或 metadata。請先開 Adapter 待辦，或按「解析 Adapter 計畫」把可安全界定的小樣本轉成 direct download。",
+                    "These items are still APIs, landing pages, selectors, or metadata. Open the adapter review queue or resolve the adapter plan before downloading.",
+                ),
+            )
 
     def prepare_provider_for_download(self, plan_key: str) -> bool:
         # 完成/失敗/取消的工作可重排；running/paused 工作不能被同一 plan_key 重複提交。

@@ -69,7 +69,11 @@ from api_launcher.dataset_updates import DatasetUpdatePlan, plan_dataset_update
 from api_launcher.dataset_versions import DatasetVersionOption, version_options_for_dataset, version_options_for_datasets
 from api_launcher.db import SCRIPT_DIR, connect_db, init_db, resolve_project_path, utc_now_iso
 from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
-from api_launcher.downloads.plan_runner import load_download_plan_file, run_download_plan_payload
+from api_launcher.downloads.plan_runner import (
+    format_download_skip_summary,
+    load_download_plan_file,
+    run_download_plan_payload,
+)
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
@@ -870,6 +874,14 @@ class CatalogLauncherCli:
             f"skipped={result.skipped} registered_assets={result.registered_assets} "
             f"imported={result.imported} import_skipped={result.import_skipped} import_failed={result.import_failed}"
         )
+        skip_detail = format_download_skip_summary(result.skip_summary)
+        if skip_detail:
+            print(f"[download-plan] skip_summary {skip_detail}")
+        if result.submitted == 0 and result.skipped:
+            print(
+                "[download-plan] next_action="
+                "run_adapter_review_or_resolve_adapter_plan_before_downloading"
+            )
         for error in result.errors:
             print(f"[download-plan] error {error}")
 

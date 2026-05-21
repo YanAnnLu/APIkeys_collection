@@ -123,6 +123,7 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual(1, result.completed)
         self.assertEqual(0, result.failed)
         self.assertEqual(1, result.skipped)
+        self.assertEqual({"adapter_required": 1}, result.skip_summary)
         self.assertEqual(1, result.registered_assets)
         self.assertEqual(1, len(manifests))
         self.assertEqual("ok", manifests[0].status)
@@ -154,6 +155,31 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertEqual(PLAN_BYTES, payload_bytes)
         self.assertIn("submitted=1 completed=1 failed=0 skipped=1 registered_assets=1", stdout.getvalue())
+        self.assertIn("skip_summary adapter_required=1", stdout.getvalue())
+
+    def test_cli_guides_adapter_only_plan_to_review_before_download(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "adapter_only_plan.json"
+            plan_path.write_text(json.dumps(adapter_only_plan(), ensure_ascii=False), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--run-download-plan",
+                        str(plan_path),
+                    ]
+                )
+
+        self.assertEqual(0, rc)
+        output = stdout.getvalue()
+        self.assertIn("entries=1 submitted=0 completed=0 failed=0 skipped=1", output)
+        self.assertIn("skip_summary adapter_required=1", output)
+        self.assertIn("next_action=run_adapter_review_or_resolve_adapter_plan_before_downloading", output)
 
     def test_cli_can_import_supported_plan_results_after_download(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
@@ -479,6 +505,12 @@ def sample_plan(url: str, output_path: Path, native_format: str = "bin") -> dict
             },
         ],
     }
+
+
+def adapter_only_plan() -> dict[str, object]:
+    plan = sample_plan("https://example.test/not-used.csv", Path("downloads") / "not-used.csv")
+    plan["providers"] = [plan["providers"][1]]
+    return plan
 
 
 if __name__ == "__main__":

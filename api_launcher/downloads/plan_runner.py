@@ -32,6 +32,7 @@ class DownloadPlanRunResult:
     imported: int = 0
     import_skipped: int = 0
     import_failed: int = 0
+    skip_summary: dict[str, int] = field(default_factory=dict)
     errors: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
@@ -45,6 +46,7 @@ class DownloadPlanRunResult:
             "imported": self.imported,
             "import_skipped": self.import_skipped,
             "import_failed": self.import_failed,
+            "skip_summary": dict(self.skip_summary),
             "errors": list(self.errors),
         }
 
@@ -83,6 +85,48 @@ def direct_download_entries(entries: Iterable[dict[str, object]], limit: int = 0
     return selected
 
 
+SKIP_BUCKET_ORDER = (
+    "adapter_required",
+    "metadata_only",
+    "unavailable",
+    "missing_download_url",
+    "not_direct",
+)
+
+
+def download_entry_skip_bucket(entry: dict[str, object]) -> str:
+    if is_direct_download_entry(entry):
+        return ""
+    eligibility = entry.get("download_eligibility")
+    status = str(eligibility.get("status") if isinstance(eligibility, dict) else "").strip()
+    url = str(entry.get("download_url") or "").strip()
+    if status == "adapter_required" or isinstance(entry.get("adapter_review"), dict):
+        # 這類 skipped 不是失敗，而是尚未被 resolver/adapter 轉成可界定的小下載。
+        return "adapter_required"
+    if status == "metadata_only":
+        return "metadata_only"
+    if status == "unavailable":
+        return "unavailable"
+    if not url:
+        return "missing_download_url"
+    return "not_direct"
+
+
+def download_skip_summary(entries: Iterable[dict[str, object]]) -> dict[str, int]:
+    # skipped 必須說明原因；否則 UI/CLI 會讓使用者誤以為下載按鈕沒有實作。
+    summary: dict[str, int] = {}
+    for entry in entries:
+        bucket = download_entry_skip_bucket(entry)
+        if not bucket:
+            continue
+        summary[bucket] = summary.get(bucket, 0) + 1
+    return {bucket: summary[bucket] for bucket in SKIP_BUCKET_ORDER if summary.get(bucket)}
+
+
+def format_download_skip_summary(summary: dict[str, int]) -> str:
+    return " ".join(f"{bucket}={summary[bucket]}" for bucket in SKIP_BUCKET_ORDER if summary.get(bucket))
+
+
 def run_download_plan_payload(
     plan_payload: dict[str, Any],
     repository: ApiCatalogRepository,
@@ -98,7 +142,8 @@ def run_download_plan_payload(
     # runner 只處理 direct download entries；adapter review 項目必須先由 resolver 轉成可下載項。
     entries = plan_entries(plan_payload)
     selected = direct_download_entries(entries, limit=limit)
-    skipped = len(entries) - len(selected)
+    skip_summary = download_skip_summary(entries)
+    skipped = sum(skip_summary.values())
     if not selected:
         return DownloadPlanRunResult(
             entry_count=len(entries),
@@ -107,6 +152,7 @@ def run_download_plan_payload(
             failed=0,
             skipped=skipped,
             registered_assets=0,
+            skip_summary=skip_summary,
         )
 
     active_policy = policy or PoliteDownloadPolicy()
@@ -174,6 +220,7 @@ def run_download_plan_payload(
         imported=imported,
         import_skipped=import_skipped,
         import_failed=import_failed,
+        skip_summary=skip_summary,
         errors=tuple(errors),
     )
 

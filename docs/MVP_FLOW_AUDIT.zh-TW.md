@@ -1,6 +1,6 @@
 # MVP 閉環稽核
 
-最後更新：2026-05-21
+最後更新：2026-05-22
 
 這份文件用來回答 Demo 時最重要的問題：哪些流程真的可以從 UI/CLI 走完，哪些只是有按鈕或骨架，卡住時該看哪裡。
 
@@ -34,7 +34,7 @@ flowchart TD
 | Candidate review | MVP | UI `資料庫 > 審核資料集候選`, `--export-candidate-plan` | metadata-only，加入 plan 不代表已可下載 |
 | Adapter review | MVP | `--adapter-review-plan`, UI `Adapter 待辦` | HTML/API selector 仍要 adapter，不應假裝下載完成 |
 | Adapter resolver | MVP | `--resolve-adapter-plan` | 只做 bounded lookup，不掃整站；過大或未知格式會留在 review |
-| Download queue | MVP | `--run-download-plan`, UI 下載計畫 `開始` | 只有 direct entries 會下載；若 plan 全是 adapter_required，按鈕看起來像沒動 |
+| Download queue | MVP | `--run-download-plan`, UI 下載計畫 `開始` | 只有 direct entries 會下載；若 plan 全是 adapter/API/metadata 項目，CLI 會輸出 `skip_summary` 與 `next_action`，UI 會跳出引導，要求先開 Adapter 待辦或解析 Adapter 計畫 |
 | Manifest verification | MVP | `--verify-downloads`, Repair panel | 需要 sidecar manifest；沒有 manifest 的舊檔不能自動修復 |
 | CSV/JSON/GeoJSON import | MVP | `--import-supported-plan-results`, UI `匯入` | NetCDF/HDF/GeoTIFF/大型壓縮包仍需 adapter |
 | Database self-check | MVP | `--self-check-databases-json`, Repair panel | 自動修復只限 ownership 明確的安全案例 |
