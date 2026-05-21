@@ -1,6 +1,6 @@
 # 程式關聯地圖
 
-最後更新：2026-05-21
+最後更新：2026-05-22
 
 這份文件回答「程式彼此怎麼調度」與「資料夾為什麼這樣分」。它不是完整 API 文件，而是讓下一位維護者能快速知道入口、核心模組、UI、測試與文件之間的關係。
 
@@ -40,7 +40,8 @@ flowchart TD
     plans --> review["轉接器待辦佇列<br/>api_launcher/adapter_review.py"]
     review --> resolver["有界解析器<br/>api_launcher/adapter_plan_resolver.py"]
     resolver --> direct["可直接下載項目"]
-    direct --> downloads["下載子系統<br/>api_launcher/downloads/*"]
+    direct --> pipeline["下載 / 匯入流程切片<br/>api_launcher/ingestion_pipeline.py"]
+    pipeline --> downloads["下載子系統<br/>api_launcher/downloads/*"]
     downloads --> manifests["旁車驗證清單<br/>api_launcher/manifests.py"]
     manifests --> importers["匯入子系統<br/>api_launcher/importers/*"]
     importers --> registry["安裝與資產登錄<br/>api_launcher/registry.py"]
@@ -65,6 +66,7 @@ flowchart TD
 | catalog / repository | `models.py`, `repository.py`, `registry.py` | provider、dataset、install、asset 狀態 | `tests/test_dataset_catalog.py`, `tests/test_install_registry.py` |
 | crawler | `api_launcher/crawlers/*` | source metadata 抓取、pagination、candidate 正規化 | `tests/test_dataset_discovery.py`, `tests/test_dataset_download_plan.py` |
 | adapter / plan | `plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | non-direct plan handoff 與 bounded resolver | `tests/test_adapter_plan_resolver.py`, `tests/test_download_plan.py` |
+| ingestion pipeline | `api_launcher/ingestion_pipeline.py` | 將 direct plan 執行、manifest 登錄、支援格式匯入與 blocked next action 包成可重用 service | `tests/test_ingestion_pipeline.py`, `tests/test_download_plan_runner.py` |
 | download | `api_launcher/downloads/*` | queue、HTTP、staging、manifest、repair | `tests/test_http_downloader.py`, `tests/test_download_jobs.py`, `tests/test_repair.py` |
 | import | `api_launcher/importers/*` | CSV/JSON/archive raw -> curated SQLite | `tests/test_csv_importer.py`, `tests/test_json_importer.py`, `tests/test_download_plan_runner.py` |
 | data store | `data_store_connections.py`, `database_self_check.py`, `database_repair.py` | SQLite/MySQL/PostgreSQL profile、self-check、repair guard | `tests/test_data_store_connections.py`, `tests/test_database_self_check.py` |

@@ -8,6 +8,7 @@
 - `api_launcher/db.py`: SQLite schema and migrations.
 - `api_launcher/repository.py`: repository API for providers, datasets, installs, assets, verification.
 - `api_launcher/plans.py`: shared Download Plan JSON schema.
+- `api_launcher/ingestion_pipeline.py`: reusable direct-plan download/import slice for CLI, UI, and future subcommands.
 - `api_launcher/renderer_contracts.py`: stable IDs and bridge-asset contracts for visualization engines.
 - `api_launcher/discovery.py`: source-site seed loading, metadata crawling, candidate dedupe.
 - `api_launcher/adapters/`: dataset discovery adapter interface.

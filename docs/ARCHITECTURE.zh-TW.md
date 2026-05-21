@@ -105,6 +105,7 @@ flowchart TD
     Core --> Catalog["目錄 / repository / 登錄<br/>models.py / repository.py / registry.py"]
     Core --> Crawler["資料集爬蟲<br/>crawlers/*"]
     Core --> Plans["計畫與轉接器待辦<br/>plans.py / adapter_review.py / adapter_plan_resolver.py"]
+    Core --> Pipeline["下載 / 匯入流程切片<br/>ingestion_pipeline.py"]
     Core --> Downloads["下載子系統<br/>downloads/*"]
     Core --> Importers["匯入子系統<br/>importers/*"]
     Core --> DataStore["資料儲存與自檢<br/>data_store_connections.py / database_self_check.py"]
@@ -117,6 +118,8 @@ flowchart TD
     TkUI --> Importers
     TkUI --> DataStore
 
+    Pipeline --> Downloads
+    Pipeline --> Importers
     Downloads --> Manifests["驗證清單<br/>manifests.py"]
     Manifests --> Registry["安裝登錄<br/>registry.py"]
     Importers --> Registry
@@ -141,6 +144,7 @@ flowchart TD
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py`, `api_launcher/registry.py` | SQLite schema、catalog state、crawl results、install registry、asset state。 |
 | Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery、dataset candidate discovery，以及中期 crawler asset / Aseat 的治理邊界。 |
 | Planning | `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Download/import plan、adapter handoff、bounded resolver。 |
+| Pipeline slice | `api_launcher/ingestion_pipeline.py` | direct plan 的下載、manifest 登錄、支援格式匯入、blocked next_action 與 CLI/UI 共用 stage。 |
 | Downloading | `api_launcher/downloads/*` | job queue、HTTP adapter、staging、manifest repair、transfer tools。 |
 | Import / curation | `api_launcher/importers/*` | CSV/JSON/archive raw -> curated SQLite。 |
 | Data store | `api_launcher/data_store_connections.py`, `database_self_check.py`, `database_repair.py` | SQLite/MySQL/PostgreSQL profile、self-check、repair guard。 |
