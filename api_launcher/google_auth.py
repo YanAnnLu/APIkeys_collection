@@ -18,11 +18,13 @@ DEFAULT_GOOGLE_OAUTH_SCOPES = (
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/generative-language.retriever",
 )
+# token 必須留在被 Git 忽略的 private state；不要把預設路徑移進 tracked config。
 DEFAULT_GOOGLE_TOKEN_STORE = "state/private/google_oauth_tokens.json"
 
 
 @dataclass(frozen=True)
 class GoogleDeviceLoginRequest:
+    # UI/CLI 只讀這個資料物件來顯示 QR/device code 狀態，不直接依賴 Google 原始 payload。
     provider: str
     client_id_env: str
     client_id_available: bool
@@ -40,6 +42,7 @@ class GoogleDeviceLoginRequest:
 
 @dataclass(frozen=True)
 class GoogleDeviceTokenResult:
+    # token poll 的結果分成狀態與 credential；呼叫端可依 status 決定是否重試或保存。
     status: str
     message: str
     access_token: str = ""
@@ -51,6 +54,7 @@ class GoogleDeviceTokenResult:
 
 
 def google_oauth_config() -> dict[str, object]:
+    # Google OAuth 是可選整合；缺設定時回傳空 dict，避免一般啟動流程報錯。
     config = load_integration_config().get("google_oauth")
     return config if isinstance(config, dict) else {}
 
@@ -58,6 +62,7 @@ def google_oauth_config() -> dict[str, object]:
 def google_oauth_scopes(config: dict[str, object] | None = None) -> tuple[str, ...]:
     oauth_config = config if config is not None else google_oauth_config()
     raw_scopes = oauth_config.get("scopes")
+    # 同時接受 JSON 陣列與空白分隔字串，讓本機 config 容易手動編輯。
     if isinstance(raw_scopes, str):
         scopes = tuple(scope.strip() for scope in raw_scopes.split() if scope.strip())
     elif isinstance(raw_scopes, list):
@@ -72,6 +77,7 @@ def google_token_store_path(config: dict[str, object] | None = None) -> Path:
     raw_path = str(oauth_config.get("token_store") or DEFAULT_GOOGLE_TOKEN_STORE).strip()
     path = Path(raw_path).expanduser()
     if not path.is_absolute():
+        # 相對路徑固定落在 repo 底下，避免 Windows/macOS 從不同 cwd 啟動時把 token 寫到別處。
         path = PROJECT_ROOT / path
     return path
 
@@ -88,6 +94,7 @@ def build_google_device_login_request(
     client_id = os.environ.get(env_name, "").strip()
     scopes = google_oauth_scopes(oauth_config)
     if not client_id:
+        # device login 仍屬開發者/中期路徑；缺 OAuth client 時不能阻擋一般 launcher 啟動。
         return GoogleDeviceLoginRequest(
             provider="google",
             client_id_env=env_name,
@@ -114,6 +121,7 @@ def build_google_device_login_request(
             timeout=timeout,
         )
     except Exception as exc:
+        # device-code request 失敗時仍回傳可顯示狀態，讓 UI 顯示錯誤而不是整個視窗崩潰。
         return GoogleDeviceLoginRequest(
             provider="google",
             client_id_env=env_name,
@@ -157,6 +165,7 @@ def poll_google_device_token(login_request: GoogleDeviceLoginRequest, timeout: f
     if not login_request.device_code:
         return GoogleDeviceTokenResult("missing_device_code", "Missing Google device_code; start QR login again.")
     try:
+        # 這個函式只 poll 一次；重試節奏由呼叫端控制，才能遵守 Google 回傳的 interval。
         payload = {
             "client_id": client_id,
             "device_code": login_request.device_code,
@@ -189,6 +198,7 @@ def poll_google_device_token(login_request: GoogleDeviceLoginRequest, timeout: f
 
 
 def save_google_oauth_token(result: GoogleDeviceTokenResult, config: dict[str, object] | None = None) -> Path:
+    # 這是開發者/中期 OAuth token 儲存路徑；一般 AI summary MVP 不依賴它。
     path = google_token_store_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -202,6 +212,7 @@ def save_google_oauth_token(result: GoogleDeviceTokenResult, config: dict[str, o
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     try:
+        # POSIX 權限是 best effort；Windows 可能忽略 chmod，所以真正邊界仍是 ignored private 目錄。
         path.chmod(0o600)
     except OSError:
         pass
@@ -209,6 +220,7 @@ def save_google_oauth_token(result: GoogleDeviceTokenResult, config: dict[str, o
 
 
 def load_google_oauth_token(config: dict[str, object] | None = None) -> dict[str, object]:
+    # 讀取 token 時容忍缺檔與壞 JSON，避免 private state 損壞時阻斷 launcher。
     path = google_token_store_path(config)
     if not path.exists():
         return {}
@@ -220,6 +232,7 @@ def load_google_oauth_token(config: dict[str, object] | None = None) -> dict[str
 
 
 def google_oauth_token_status(config: dict[str, object] | None = None) -> tuple[str, str]:
+    # 狀態檢查只看本機 access token 是否可用；目前沒有自動 refresh token 流程。
     token = load_google_oauth_token(config)
     if not token:
         return "missing", "No saved Google OAuth token."
@@ -238,11 +251,13 @@ def activate_saved_google_oauth_token(config: dict[str, object] | None = None) -
     if status != "ready":
         return status, message
     token = load_google_oauth_token(config)
+    # 啟用只作用於目前 process；不修改 shell profile，也不碰全域 Google credential。
     os.environ["GOOGLE_OAUTH_ACCESS_TOKEN"] = str(token.get("access_token") or "")
     return status, message
 
 
 class GoogleOAuthPending(RuntimeError):
+    # 用例外承載 OAuth pending 狀態，讓 _post_form 仍能對真正 HTTP 錯誤使用 RuntimeError。
     def __init__(self, error_code: str, message: str) -> None:
         super().__init__(message)
         self.error_code = error_code
@@ -267,6 +282,7 @@ def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, o
             data = {}
         error_code = str(data.get("error") or "")
         message = str(data.get("error_description") or data.get("error_message") or exc)
+        # 這些是 device flow 的正常狀態，不是傳輸失敗；用結構化狀態交回呼叫端。
         if error_code in {"authorization_pending", "slow_down", "access_denied", "expired_token"}:
             raise GoogleOAuthPending(error_code, message)
         raise RuntimeError(f"{error_code or exc.code}: {message}") from exc

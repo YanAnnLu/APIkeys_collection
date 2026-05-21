@@ -204,9 +204,9 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - Tk UI 的登入/串接入口已集中到上方 `整合` 選單：`AI / Gemini 串接中心`、`保存 Gemini API key`、`AI 輔助模型選擇`、`Google OAuth（中期 / 開發者）`、資料儲存連線與資料庫工具都在這裡。主工具列和右側抽屜不要再新增登入/API key/資料庫工具設定入口；抽屜只保留目前資料源的動作。
 - AI 生成描述目前以功能閉環為優先：Gemini API key 是 MVP 雲端路線，`api_launcher/ai_api_keys.py` 會把 key 存在 ignored `state/private/ai_api_keys.private.json`，UI 啟動時只會自動載入 saved API key；不要在啟動時 activate Google/OAuth token、打開瀏覽器、打開本機設定檔或叫出 OAuth 設定。`generate_provider_summary()` 也會嘗試載入 saved key。使用者只應在缺 credential 時被要求保存 key，不要每次重貼。
 - Google OAuth / QR 是中期正式目標，不是不做；只是現在 MVP 尚未閉環，先不要讓它阻塞 AI 描述生成。一般使用者不該被要求貼 Desktop OAuth Client ID；若沒有專案官方 OAuth App，就顯示尚未開通。開發者仍可透過 `整合 > Google OAuth（中期 / 開發者） > 開發者 OAuth 設定` 測試，格式不像 `*.apps.googleusercontent.com` 的值會被拒絕保存，避免重複觸發 Google `invalid_client`。
-- PySide6 / Qt 已列為中期 UI 升級路線：不要現在重寫 UI；先完成 backend/MVP 閉環。後續若啟動 Qt，應新增 `frontends/qt/` 並重用 `api_launcher`、library actions、event logs、download queue、integration contracts，不要把業務邏輯複製進 UI。
+- PySide6 / Qt 已列為中期 UI 升級路線：不要現在重寫 UI；先完成 backend/MVP 閉環。後續若啟動 Qt，應新增 `frontends/qt/` 並重用 `api_launcher`、library actions、event logs、download queue、integration contracts，不要把業務邏輯複製進 UI。Provider icon/favicons 的中期方向是 SVG/vector-first；Tk 可保留可重建 bitmap cache 作顯示相容層，但不要把 PNG 當成 canonical icon asset。
 - Tk UI 資料源詳情改為右側比例抽屜：抽屜寬度依主內容區比例計算，保留表格基本空間，開關時有短距離寬度動畫；標題列與關閉按鈕固定在上方、動作按鈕固定在底部，中間內容才捲動，避免關閉按鈕被捲軸遮住或按鈕隨長文字漂移。描述/狀態/連結文字會依抽屜寬度換行；抽屜內另有 AI 生成描述 textbox。
-- Tk UI 左側欄可在「依類型」與「依提供商」間切換；提供商模式會依目前 catalog owner 動態產生篩選按鈕，並在背景抓取/快取官網 favicon 到 `state/favicons/` 當小圖示。
+- Tk UI 左側欄可在「依類型」與「依提供商」間切換；提供商模式會依目前 catalog owner 動態產生篩選按鈕，並在背景抓取/快取官網 favicon 到 `state/favicons/` 當小圖示。現階段 Tk 顯示可能需要 raster cache；未來要改成 SVG/vector canonical asset，再由 Tk 或 Qt 顯示層產生必要的衍生快取。
 - Tk UI 新增 `工具 > 開發者 CLI`，提供專案工作目錄下的單次命令輸入/輸出面板，供開發者快速呼叫 CLI。
 - Tk UI 主表格支援類 Excel 欄寬調整：拖拉欄位分隔線後，欄寬會寫入 `launcher_integrations.local.json` 的 `ui_table_column_widths`；「更多 > 重設表格欄寬」可清除回預設比例。
 - Tk UI 的下載資格與詳情狀態文字已補上繁中顯示，UI 語言切到 `en-US` 時仍保留英文 fallback。
@@ -267,7 +267,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 每次跨機器或跨 Agent 接力，要更新這份 `docs/AGENT_HANDOFF.zh-TW.md`。
 - 每次完成並推送一個實質 checkpoint，要追加 `docs/DEVELOPMENT_LOG.zh-TW.md`，記錄 commit、變更範圍、驗證、CI 與剩餘風險；但如果某個 commit 唯一目的只是同步開發日誌，不要再為該 log-sync commit 追加下一筆日誌，避免「更新日誌 -> push -> 再更新日誌」的遞迴。
 - 新增、移動或重新定位文件時，要更新 `docs/DOCS_INDEX.zh-TW.md`；整理工作區或調整檔案責任時，要更新 `docs/WORKSPACE_LAYOUT.zh-TW.md`。
-- 新增或修改非直覺程式邏輯時，要在相鄰位置留下簡短維護註解，尤其是調度流程、安全 guard、schema/provenance 不變量、adapter 假設、外部 API 特例、跨模組 ownership 與資料轉換；註解要說明「為什麼」與「邊界」，不要只是重述程式碼。
+- 新增或修改非直覺程式邏輯時，要在相鄰位置留下維護註解，且本專案註解密度可以比一般專案略高，因為團隊成員不一定熟悉整個 codebase。維護註解預設使用繁體中文；檔名、CLI flag、API 名稱、標準與產品名可保留原文以免失準。註解尤其要補在函式目的、調度流程、安全 guard、schema/provenance 不變量、adapter 假設、外部 API 特例、跨模組 ownership 與資料轉換；註解要說明「為什麼」與「邊界」，不要只是重述程式碼。
 - 新增英文文件或大幅更新英文文件時，要同步準備繁中版本、繁中摘要或繁中閱讀路線。
 - 不要提交 `config/launcher_integrations.local.json`、`state/`、`downloads/`、真實 token、真實 API key。
 - 不要把本機絕對路徑寫死在程式碼；路徑要走 `api_launcher/paths.py` 或 config。

@@ -17,6 +17,7 @@ from api_launcher.repository import ApiCatalogRepository
 
 @dataclass(frozen=True)
 class HandoffSnapshot:
+    # 這份 snapshot 是 CLI 輸出的中介資料；保持純資料結構，方便測試與未來 UI 重用。
     generated_at: str
     git_status: str
     git_head: str
@@ -32,9 +33,11 @@ class HandoffSnapshot:
 
 
 def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5) -> HandoffSnapshot:
+    # Handoff 報告故意只做讀取與彙整，不修改 registry 或任何本機設定。
     provider_count = repository.conn.execute("SELECT COUNT(*) AS n FROM providers").fetchone()["n"]
     dataset_count = repository.conn.execute("SELECT COUNT(*) AS n FROM datasets").fetchone()["n"]
     display_log_limit = max(0, log_limit)
+    # 讀取比顯示更多的事件，讓時間摘要仍能找到最近的修復或驗證事件。
     recent_logs = latest_events(max(display_log_limit, 50))
     open_gtd_items = parse_open_gtd_items(project_path("docs/PROJECT_GTD.md"))
     return HandoffSnapshot(
@@ -54,6 +57,7 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
 
 
 def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
+    # Markdown 是給人與下一位 agent 共讀的格式；不要在這裡塞 UI 專用結構。
     lines = [
         "# APIkeys_collection Handoff",
         "",
@@ -90,6 +94,7 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
     if not snapshot.open_gtd_items:
         lines.append("- no open GTD items found")
     for item in snapshot.open_gtd_items:
+        # 只列 Next Step，避免把 GTD 的長篇 Current Progress 整段灌進 handoff。
         lines.append(f"- {item.get('area', '')} [{item.get('status', '')}]: {item.get('next_step', '')}")
     lines.extend(
         [
@@ -120,6 +125,7 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
     if not snapshot.recent_logs:
         lines.append("- no recent structured log events")
     for event in snapshot.recent_logs:
+        # recent_logs 保持一行一事件，讓終端機與 GitHub comment 都容易掃讀。
         lines.append(
             "- "
             f"{event.get('timestamp', '')} "
@@ -146,6 +152,7 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
 
 
 def parse_open_gtd_items(path: Path) -> list[dict[str, str]]:
+    # 這裡直接解析 Markdown 表格，避免 handoff 依賴額外產物或手動同步的 JSON。
     try:
         text = path.read_text(encoding="utf-8")
     except Exception as exc:
@@ -168,12 +175,14 @@ def parse_open_gtd_items(path: Path) -> list[dict[str, str]]:
         if area.lower() == "area" or set(status) <= {"-", " "}:
             continue
         if not next_step or normalized_status == "done":
+            # Done 或沒有下一步的項目不該進入 resume focus，避免干擾下一輪開發。
             continue
         items.append({"area": area, "status": status, "next_step": next_step})
     return sorted(items, key=_gtd_sort_key)
 
 
 def gtd_status_summary(items: list[dict[str, str]]) -> dict[str, Any]:
+    # summary 保留狀態分布，讓 heartbeat 或外部 agent 能快速判斷待辦壓力。
     by_status: dict[str, int] = {}
     for item in items:
         status = item.get("status", "unknown") or "unknown"
@@ -190,6 +199,7 @@ def markdown_table_cells(line: str) -> list[str]:
     cells: list[str] = []
     current: list[str] = []
     in_code = False
+    # GTD 表格會放模組路徑與 CLI 片段；反引號內的 | 是內容，不是欄位分隔。
     for char in text:
         if char == "`":
             in_code = not in_code
@@ -205,6 +215,7 @@ def markdown_table_cells(line: str) -> list[str]:
 
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:
+    # timestamp 來源同時看資料庫與 event log，因為有些驗證流程只更新其中一邊。
     latest_event = latest_verification_event(events)
     latest_requeue_event = latest_event_by_name(events, "download_repair_requeue_requested")
     latest_requeue_context = latest_requeue_event.get("context") if isinstance(latest_requeue_event.get("context"), dict) else {}
@@ -227,6 +238,7 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
 
 
 def latest_table_timestamp(conn: sqlite3.Connection, table: str, column: str) -> str:
+    # 這裡只應接收內部表名/欄名；保留動態 SQL guard，避免日後誤傳外部字串。
     if not table.replace("_", "").isalnum() or not column.replace("_", "").isalnum():
         return ""
     try:
@@ -243,12 +255,14 @@ def latest_verification_event(events: list[dict[str, object]]) -> dict[str, obje
         event_name = str(event.get("event") or "").lower()
         component = str(event.get("component") or "").lower()
         haystack = f"{component} {event_name}"
+        # Handoff 需要最近的健康訊號，不只 manifest 掃描，所以關鍵字刻意放寬。
         if any(token in haystack for token in ("verify", "verification", "self_check", "repair", "manifest")):
             return event
     return {}
 
 
 def latest_event_by_name(events: list[dict[str, object]], event_name: str) -> dict[str, object]:
+    # events 已按時間排序；倒著找可以拿到最近一次同名事件。
     target = event_name.lower()
     for event in reversed(events):
         if str(event.get("event") or "").lower() == target:
@@ -257,6 +271,7 @@ def latest_event_by_name(events: list[dict[str, object]], event_name: str) -> di
 
 
 def _gtd_sort_key(item: dict[str, str]) -> tuple[int, str]:
+    # 排序把較不穩定的 Skeleton/Planned 放前面，MVP 項目通常是擴充而非立即修補。
     order = {
         "in progress": 0,
         "skeleton": 1,
@@ -270,6 +285,7 @@ def portal_intake_summary(path: Path) -> dict[str, Any]:
     try:
         payload = build_portal_intake_payload(path)
     except Exception as exc:
+        # intake 表可能正在被人編輯；handoff 仍要能產出，錯誤留在摘要裡。
         return {
             "row_count": 0,
             "actionable_count": 0,
@@ -287,6 +303,7 @@ def portal_intake_summary(path: Path) -> dict[str, Any]:
 
 
 def local_discovery_summary() -> dict[str, Any]:
+    # local discovery 是 ignored staging；handoff 只報數量與路徑，不把草稿內容寫進報告。
     provider_seed_path = local_config_file(LOCAL_SEEDS_NAME)
     dataset_source_path = local_config_file(LOCAL_DATASET_DISCOVERY_SOURCES_NAME)
     provider_seed_count = safe_count_provider_seeds(provider_seed_path)
@@ -305,6 +322,7 @@ def safe_count_provider_seeds(path: Path) -> int:
     try:
         return len(load_discovery_seeds(path))
     except Exception:
+        # 本機草稿 config 只是 staging；壞掉時應在別處回報，不阻斷 handoff。
         return 0
 
 
@@ -314,6 +332,7 @@ def safe_count_dataset_sources(path: Path) -> int:
     try:
         return len(load_dataset_discovery_sources(path))
     except Exception:
+        # 本機草稿 config 只是 staging；壞掉時應在別處回報，不阻斷 handoff。
         return 0
 
 
@@ -321,5 +340,6 @@ def _git_output(*args: str) -> str:
     try:
         result = subprocess.run(args, check=False, capture_output=True, text=True, timeout=10)
     except Exception as exc:
+        # 雲端或遠端檔案系統曾破壞 Git metadata；回傳診斷字串，不中斷報告。
         return f"{type(exc).__name__}: {exc}"
     return (result.stdout or result.stderr).strip()

@@ -17,6 +17,7 @@ ERROR_LOG_NAME = "launcher_errors.log"
 
 @dataclass(frozen=True)
 class LauncherEvent:
+    # 事件紀錄是給 UI、CLI、handoff 與 agent 共用的穩定格式，不只給人讀。
     level: str
     event: str
     message: str
@@ -27,6 +28,7 @@ class LauncherEvent:
     timestamp: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, Any]:
+        # 每筆事件都帶平台資訊，方便跨 Windows/macOS/Linux 追查同一類錯誤。
         return {
             "timestamp": self.timestamp,
             "level": self.level,
@@ -53,6 +55,8 @@ def log_event(
     context: dict[str, Any] | None = None,
     log_path: Path | None = None,
 ) -> LauncherEvent:
+    # 一般事件只寫 JSONL；warning/error 另寫文字摘要，方便不用 JSON 工具也能快速看錯誤。
+    # context 應放可序列化的小型摘要，不要塞完整 payload 或秘密資訊。
     record = LauncherEvent(
         level=level,
         event=event,
@@ -74,6 +78,7 @@ def log_exception(
     context: dict[str, Any] | None = None,
     log_path: Path | None = None,
 ) -> LauncherEvent:
+    # 例外事件保留完整 traceback，讓 handoff 不只看到錯誤訊息，也能回到發生位置。
     record = LauncherEvent(
         level="error",
         event=event,
@@ -89,8 +94,10 @@ def log_exception(
 
 
 def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict[str, Any]]:
+    # 只讀尾端 N 行，避免 UI 或 handoff 因長期累積的大型 log 變慢。
     path = log_path or log_file(EVENT_LOG_NAME)
     if not path.exists():
+        # 沒有 log 是乾淨新環境的正常狀態，呼叫端不需要另外處理例外。
         return []
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     events: list[dict[str, Any]] = []
@@ -98,6 +105,7 @@ def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
+            # JSONL 可能因中斷寫入留下壞行；略過壞行，保留其他可用事件。
             continue
     return events
 
@@ -105,10 +113,13 @@ def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict
 def _append_jsonl(path: Path, record: LauncherEvent) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as handle:
+        # sort_keys 讓 diff/agent 讀取更穩定；ensure_ascii=False 保留中文訊息。
+        # JSONL 每行一筆事件，方便 tail、grep 與之後的 agent parser 處理。
         handle.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def _append_text_summary(path: Path, record: LauncherEvent) -> None:
+    # 文字摘要是輔助檔；JSONL 仍是機器可讀的主要來源。
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(f"[{record.timestamp}] {record.level.upper()} {record.component}:{record.event} {record.message}\n")

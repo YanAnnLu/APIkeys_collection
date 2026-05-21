@@ -7,6 +7,7 @@ from api_launcher.downloads.plan_runner import plan_entries
 
 
 REVIEW_IMPORT_STATUSES = {
+    # 這些 import 狀態代表「不能直接下載後就當完成」，需要 adapter 或人工規則接手。
     "adapter_review_required",
     "requires_unpack_or_adapter",
     "manual_review_required",
@@ -15,6 +16,7 @@ REVIEW_IMPORT_STATUSES = {
 
 @dataclass(frozen=True)
 class AdapterReviewItem:
+    # Adapter 待辦是給 UI/CLI/agent 共用的穩定摘要，不直接引用原始 plan entry。
     plan_index: int
     provider_id: str
     dataset_uid: str
@@ -34,6 +36,7 @@ class AdapterReviewItem:
     plan_status: str
 
     def to_dict(self) -> dict[str, object]:
+        # 輸出欄位維持扁平結構，讓 CLI JSON、Tk table 與 agent prompt 都容易消費。
         return {
             "plan_index": self.plan_index,
             "provider_id": self.provider_id,
@@ -56,6 +59,7 @@ class AdapterReviewItem:
 
 
 def adapter_review_items(plan_payload: dict[str, Any]) -> list[AdapterReviewItem]:
+    # plan_entries() 是共用入口，避免這裡重新猜測 download plan 的 providers/items 形狀。
     items: list[AdapterReviewItem] = []
     for index, entry in enumerate(plan_entries(plan_payload), start=1):
         item = adapter_review_item_from_entry(index, entry)
@@ -65,6 +69,7 @@ def adapter_review_items(plan_payload: dict[str, Any]) -> list[AdapterReviewItem
 
 
 def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> AdapterReviewItem | None:
+    # 舊版 plan 可能沒有 adapter_review 區塊，所以也要從 download/import status 推導。
     eligibility = entry.get("download_eligibility") if isinstance(entry.get("download_eligibility"), dict) else {}
     import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
     review = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
@@ -72,12 +77,14 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
     import_status = str(import_plan.get("status") or "")
     needs_review = bool(review) or download_status == "adapter_required" or import_status in REVIEW_IMPORT_STATUSES
     if not needs_review:
+        # direct 且已支援匯入的項目不用進 Adapter 待辦，避免隊列被可執行項目污染。
         return None
 
     version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
     provider_id = str(entry.get("provider_id") or "")
     dataset_id = str(entry.get("dataset_id") or version_meta.get("dataset_id") or "")
     adapter_id = str(review.get("adapter_id") or "").strip() or f"{provider_id}_adapter"
+    # source_url 依序找最具體的 review URL，再退回 plan/download/docs URL，讓接手者有入口可查。
     source_url = first_text(
         review.get("source_url"),
         entry.get("adapter_review_url"),
@@ -88,6 +95,7 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
     )
     landing_url = first_text(review.get("landing_url"), entry.get("landing_url"), version_meta.get("landing_url"), entry.get("docs_url"))
     required_action = first_text(review.get("required_action")) or infer_required_action(download_status, import_status)
+    # source_kind 用來區分「要找 direct files」與「已下載但需轉換」，兩者後續 adapter 工作不同。
     source_kind = first_text(review.get("source_kind")) or ("direct_file_needs_transform" if download_status == "direct_download" else "api_landing_or_selector")
     reason = first_text(review.get("reason"), import_plan.get("reason"), eligibility.get("reason"))
     return AdapterReviewItem(
@@ -112,12 +120,14 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
 
 
 def infer_required_action(download_status: str, import_status: str) -> str:
+    # direct_download 仍可能需要解壓或格式轉換；不要把它誤派成 source resolver。
     if download_status == "direct_download" and import_status in {"requires_unpack_or_adapter", "manual_review_required"}:
         return "unpack_or_transform_downloaded_payload"
     return "resolve_source_to_direct_download_entries"
 
 
 def first_text(*values: object) -> str:
+    # Adapter 待辦只需要可讀文字；複雜物件應留在原始 plan metadata 裡。
     for value in values:
         text = str(value or "").strip()
         if text:
@@ -126,10 +136,12 @@ def first_text(*values: object) -> str:
 
 
 def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, object]:
+    # by_adapter/by_action 讓 agent 可以先挑同類工作批次處理，而不是逐筆掃完整 items。
     items = adapter_review_items(plan_payload)
     by_adapter: dict[str, int] = {}
     by_action: dict[str, int] = {}
     for item in items:
+        # 同時統計 adapter 與 action，可以看出是同一來源缺 resolver，還是多種轉換工作混在一起。
         by_adapter[item.adapter_id] = by_adapter.get(item.adapter_id, 0) + 1
         by_action[item.required_action] = by_action.get(item.required_action, 0) + 1
     return {

@@ -99,6 +99,8 @@ def resolve_adapter_review_plan_payload(
     downloads_root: str | Path = "downloads",
     keep_original_review_entries: bool = False,
 ) -> tuple[dict[str, Any], AdapterPlanResolution]:
+    # 這個入口把「需要 adapter review 的 plan」轉成可下載的小型 direct entries。
+    # 它不直接執行下載，目的只是產生下一階段 download/import runner 能理解的 plan。
     entries = plan_entries(plan_payload)
     output_entries: list[dict[str, object]] = []
     resolved_review_entries = 0
@@ -107,17 +109,20 @@ def resolve_adapter_review_plan_payload(
     warnings: list[str] = []
 
     for index, entry in enumerate(entries, start=1):
+        # index 使用原 plan 的人類可見順序，方便 warning 回頭對照使用者匯出的 JSON。
         resolved_entries = direct_resource_entries_for_plan_entry(entry, index, downloads_root)
         if resolved_entries:
             resolved_review_entries += 1
             direct_entries_added += len(resolved_entries)
             if keep_original_review_entries:
                 output_entries.append(entry)
+            # 預設用 resolved entries 取代 review entry，避免同一資料集同時留在待辦與可執行隊列。
             output_entries.extend(resolved_entries)
             continue
 
         output_entries.append(entry)
         if wants_source_resolution(entry):
+            # 無法解析時保留原 entry，讓人類或後續 adapter 繼續接手，而不是靜默丟失。
             unresolved_review_entries += 1
             resources = resource_mappings_from_entry(entry)
             resource_count = len(resources)
@@ -161,8 +166,10 @@ def direct_resource_entries_for_plan_entry(
     downloads_root: str | Path = "downloads",
 ) -> list[dict[str, object]]:
     if not wants_source_resolution(entry):
+        # 已經是 direct download 或一般 plan entry 的資料，不在這裡重新判斷。
         return []
     resolved_entries: list[dict[str, object]] = []
+    # 先跑需要明確邊界的 API resolver，再看泛用 resources，避免未加 limit 的 API 被誤當檔案。
     stac_entry = stac_bounded_item_search_entry(entry, plan_index, downloads_root)
     if stac_entry:
         resolved_entries.append(stac_entry)
@@ -174,6 +181,7 @@ def direct_resource_entries_for_plan_entry(
         url = resource_url(resource)
         if not url or not resource_looks_downloadable(resource, url):
             continue
+        # 下列 API/metadata 連結看起來可能像 JSON，但語意不是可直接下載的資料檔。
         if entry_is_stac_collection(entry) and resource_is_stac_items_link(resource, url):
             continue
         if resource_is_ogc_records_metadata_link(entry, resource):
@@ -185,27 +193,34 @@ def direct_resource_entries_for_plan_entry(
         if resource_is_ncei_access_data_url(url):
             continue
         if resource_exceeds_size_bound(resource):
+            # 超過上限的資源必須留在 review，避免 resolver 產生大型或昂貴的下載工作。
             continue
         resolved = direct_resource_entry(entry, resource, plan_index, resource_index, url, downloads_root)
         if resolved:
             resolved_entries.append(resolved)
     if not resolved_entries:
+        # Socrata resource URL 要改寫成 `$limit=25` 小樣本，不能直接下載整張表。
         socrata_entry = socrata_bounded_sample_entry(entry, plan_index, downloads_root)
         if socrata_entry:
             resolved_entries.append(socrata_entry)
     if not resolved_entries and not resources:
+        # 沒有 resource 摘要時才做 metadata lookup，避免重複查詢已經足夠明確的 plan。
         resolved_entries.extend(ncei_search_data_file_entries(entry, plan_index, downloads_root))
     if not resolved_entries:
+        # NCEI Search metadata 可以產出 bounded sample；仍失敗才保留原 review entry。
         ncei_entry = ncei_bounded_search_entry(entry, plan_index, downloads_root)
         if ncei_entry:
             resolved_entries.append(ncei_entry)
     if not resolved_entries:
+        # NCEI Access Data 必須有日期/空間等約束，不能把整個資料集直接排進下載。
         ncei_access_entry = ncei_bounded_access_data_entry(entry, plan_index, downloads_root)
         if ncei_access_entry:
             resolved_entries.append(ncei_access_entry)
     if not resolved_entries and not resources:
+        # CMR granule lookup 只處理已經指到單一 granule metadata 的項目。
         resolved_entries.extend(cmr_granule_asset_link_entries(entry, plan_index, downloads_root))
     if not resolved_entries and not resources:
+        # CKAN/DataCite/Dataverse lookup 都是二階段 metadata 查詢；有 resources 時先尊重原摘要。
         resolved_entries.extend(ckan_package_show_resource_entries(entry, plan_index, downloads_root))
     if not resolved_entries and not resources:
         resolved_entries.extend(datacite_doi_content_url_entries(entry, plan_index, downloads_root))
@@ -213,11 +228,13 @@ def direct_resource_entries_for_plan_entry(
         resolved_entries.extend(dataverse_latest_version_file_entries(entry, plan_index, downloads_root))
     erddap_entry = erddap_bounded_sample_entry(entry, plan_index, downloads_root)
     if erddap_entry:
+        # ERDDAP sample 是 bounded query，不依賴 resources 清單；能產生樣本時可與其他解析結果並存。
         resolved_entries.append(erddap_entry)
     return resolved_entries
 
 
 def wants_source_resolution(entry: dict[str, object]) -> bool:
+    # 舊 plan 可能只標 download_eligibility，較新的 plan 會有 adapter_review.required_action。
     eligibility = entry.get("download_eligibility") if isinstance(entry.get("download_eligibility"), dict) else {}
     review = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
     action = str(review.get("required_action") or "").strip()
@@ -226,6 +243,7 @@ def wants_source_resolution(entry: dict[str, object]) -> bool:
 
 
 def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, object]]:
+    # 同時讀 entry 與 dataset_version.metadata，因 crawler/adapter 交接時兩種位置都可能出現。
     candidates: list[object] = []
     version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
     nested_meta = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
@@ -258,6 +276,7 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
             if url in seen_urls:
                 continue
             if url:
+                # 同一 resource 可能同時出現在 DCAT distribution、links 與 @graph；用 URL 去重。
                 seen_urls.add(url)
             resources.append(dict(item))
     return resources
@@ -265,6 +284,7 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
 
 def resource_mappings_from_candidate(candidate: object, group: str = "") -> list[dict[str, object]]:
     if isinstance(candidate, list):
+        # catalog metadata 常把 resources 包成多層陣列，遞迴攤平後才方便共用判斷。
         resources: list[dict[str, object]] = []
         for item in candidate:
             resources.extend(resource_mappings_from_candidate(item, group=group))
@@ -274,6 +294,7 @@ def resource_mappings_from_candidate(candidate: object, group: str = "") -> list
     if resource_url(candidate):
         resource = dict(candidate)
         if group and not resource.get("group"):
+            # group 保存外層欄位名稱，讓後續 warning 或 target path 還看得出來源脈絡。
             resource["group"] = group
         if group and not resource.get("name") and not resource.get("title"):
             resource["name"] = group
@@ -281,11 +302,13 @@ def resource_mappings_from_candidate(candidate: object, group: str = "") -> list
     resources = []
     for key, value in candidate.items():
         if isinstance(value, (list, dict)):
+            # 沒有 URL 的 dict 仍可能是 JSON-LD/Schema.org 外殼，往內層找真正 distribution。
             resources.extend(resource_mappings_from_candidate(value, group=str(key)))
     return resources
 
 
 def resource_url(resource: dict[str, object]) -> str:
+    # 欄位順序偏好明確 download/content URL，最後才退回泛用 url/href。
     return first_resource_url_text(
         resource.get("download_url"),
         resource.get("downloadURL"),
@@ -325,6 +348,7 @@ def resource_url_text(value: object) -> str:
     if isinstance(value, (list, tuple)):
         return first_resource_url_text(*value)
     if isinstance(value, dict):
+        # JSON-LD 或 Schema.org 常把 URL 包在 @id/@value/value 裡，這裡集中拆解。
         return first_resource_url_text(
             value.get("@id"),
             value.get("id"),
@@ -373,16 +397,19 @@ def direct_resource_entry(
     resolver_id: str = RESOURCE_RESOLVER_ID,
     resolver_source_url: str = "",
 ) -> dict[str, object]:
+    # 這裡把「一個可下載 resource」包成完整 plan entry，後續 runner 才能沿用既有下載/匯入邏輯。
     version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
     option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
     source_format = source_format_for_resource(resource, url, str(entry.get("source_format") or "unknown"))
     resource_name = first_text(resource.get("name"), resource.get("id"), resource.get("title"), resource.get("rel"), resource.get("group"), Path(urllib.parse.urlparse(url).path).name)
     base_version = first_text(version_meta.get("version"), entry.get("version"), "resolved")
     resource_part = safe_path_part(resource_name or f"resource_{resource_index}")
+    # version 需要混入 resource 名稱，避免同一 dataset 的多個檔案撞到同一個 target path。
     version = f"{base_version}-{resource_part}" if base_version and resource_part else base_version or resource_part
     dataset_uid = first_text(entry.get("dataset_uid"), version_meta.get("dataset_uid"))
     dataset_id = first_text(entry.get("dataset_id"), version_meta.get("dataset_id"), "dataset")
     provider_id = first_text(entry.get("provider_id"), "unknown_provider")
+    # Dataset/DatasetVersionOption 是臨時物件，用來重用既有 target path、eligibility 與 import policy。
     dataset = Dataset(
         dataset_uid=dataset_uid,
         provider_id=provider_id,
@@ -419,6 +446,7 @@ def direct_resource_entry(
     if eligibility.status != "direct_download":
         if not resource_looks_downloadable(resource, url):
             return {}
+        # 有些 API 回傳無副檔名 URL，但 metadata 已宣告可匯入格式；這裡補成 direct_download。
         eligibility = DownloadEligibility(
             status="direct_download",
             label="Direct",
@@ -441,6 +469,7 @@ def direct_resource_entry(
             "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
             "plan_status": "planned",
             "adapter_resolution": {
+                # adapter_resolution 保留解析來源，讓日後出錯時能回查是哪個 resolver 做的判斷。
                 "resolver_id": resolver_id,
                 "original_plan_index": plan_index,
                 "resource_index": resource_index,
@@ -477,6 +506,7 @@ def direct_resource_entry(
             },
         }
     )
+    # 解析成功後移除 review 標記，避免 UI/agent 把它再次列為待辦。
     resolved.pop("adapter_review", None)
     resolved.pop("adapter_review_url", None)
     return resolved
@@ -2677,10 +2707,12 @@ def resource_looks_downloadable(resource: dict[str, object], url: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         return False
+    # 有些資料目錄的 URL 沒副檔名，只能靠 metadata 的 format/mediaType 判斷。
     return source_format_for_resource(resource, url, "unknown") in DIRECT_RESOURCE_FORMATS
 
 
 def resource_size_bytes(resource: dict[str, object]) -> int | None:
+    # 不同 catalog 對檔案大小欄位命名不一致；統一在這裡吸收差異。
     for key in (
         "size",
         "bytes",
@@ -2712,6 +2744,7 @@ def resource_size_bytes(resource: dict[str, object]) -> int | None:
 
 def positive_int_from_resource_value(value: object) -> int | None:
     if isinstance(value, (list, tuple)):
+        # JSON-LD 欄位可能是多值陣列；取第一個可解析的正整數。
         for item in value:
             size = positive_int_from_resource_value(item)
             if size is not None:
@@ -2745,6 +2778,7 @@ def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:
 
 
 def source_format_for_resource(resource: dict[str, object], url: str, fallback: str = "unknown") -> str:
+    # 格式判斷會影響 importer；先保留 URL 的 compound suffix，再退回 metadata hint。
     hinted = normalize_resource_format(
         first_resource_text(
             resource.get("format"),
@@ -2832,7 +2866,7 @@ def source_format_from_url(url: str) -> str:
     suffixes = [suffix.lower().lstrip(".") for suffix in Path(urllib.parse.unquote(urllib.parse.urlparse(url).path)).suffixes]
     if not suffixes:
         return "unknown"
-    # Compound suffixes carry importer policy, so preserve them before falling back to the last suffix.
+    # compound suffix 會影響 importer policy，所以要先保留，再退回最後一個副檔名。
     compound_suffixes = (
         (("geojson", "gz"), "geojson.gz"),
         (("jsonl", "gz"), "jsonl.gz"),
