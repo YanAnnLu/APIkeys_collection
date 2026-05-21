@@ -73,6 +73,8 @@ py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.
 
 這會在本機寫出 live CSV 與可匯入 plan；之後仍要用 `--run-download-plan ... --import-supported-plan-results` 明確執行。它只適合作為非官方、personal/research 用途資料源，不應視為商用或可再散布資料來源，也不會在 CI 或 crawler 裡自動執行。
 
+在 Tk UI 中，對應入口在 `工具` 選單。`產生 yfinance 離線 Demo plan` 只建立本機 fixture-backed plan 並加入下載計畫；`建立 yfinance live plan（需確認）` 會要求填寫 symbol、period、interval，並勾選 unofficial/personal-research 確認框後才呼叫本機 `yfinance`。UI 仍然只把項目排進下載計畫，接下來要由使用者按「開始」與「匯入」，不會自動排程或背景抓取。
+
 ## 1. 開啟程式
 
 Windows：

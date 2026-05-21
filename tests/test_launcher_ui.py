@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from tkinter import TclError
 
-from frontends.tk.launcher_ui import contextlib_suppress_tcl_error, database_sql_dry_run_available
+from frontends.tk.launcher_ui import contextlib_suppress_tcl_error, database_sql_dry_run_available, yfinance_symbols_from_ui_text
 
 
 class TclErrorSuppressorTests(unittest.TestCase):
@@ -26,6 +26,16 @@ class DatabaseDryRunUiHelperTests(unittest.TestCase):
     def test_database_sql_dry_run_available_defaults_to_false(self) -> None:
         self.assertFalse(database_sql_dry_run_available(SimpleNamespace(details={})))
         self.assertFalse(database_sql_dry_run_available(SimpleNamespace(details="not-a-dict")))
+
+
+class YFinanceUiHelperTests(unittest.TestCase):
+    def test_yfinance_symbols_from_ui_text_accepts_comma_and_space(self) -> None:
+        # UI 允許一般人常用的逗號/空白輸入，並把重複 symbol 收斂成 adapter 使用的穩定 tuple。
+        self.assertEqual(("AAPL", "MSFT"), yfinance_symbols_from_ui_text("aapl, MSFT AAPL"))
+
+    def test_yfinance_symbols_from_ui_text_rejects_shell_like_input(self) -> None:
+        with self.assertRaises(ValueError):
+            yfinance_symbols_from_ui_text("AAPL;rm -rf")
 
 
 if __name__ == "__main__":

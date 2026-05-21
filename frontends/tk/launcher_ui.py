@@ -37,6 +37,12 @@ from api_launcher.downloads.plan_runner import (
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
+from api_launcher.adapters.yfinance import (
+    YFINANCE_LIVE_WARNING,
+    normalize_yfinance_symbols,
+    write_yfinance_demo_plan as write_yfinance_demo_plan_files,
+    write_yfinance_live_plan as write_yfinance_live_plan_files,
+)
 from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
 from api_launcher.downloads.repair import (
     ManifestVerification,
@@ -73,6 +79,8 @@ DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
 RESOLVED_DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.resolved.json"
 MVP_DEMO_FLOW_NAME = "mvp_demo/flow.json"
+YFINANCE_DEMO_PLAN_NAME = "yfinance_demo/plan.json"
+YFINANCE_LIVE_PLAN_NAME = "yfinance_live/plan.json"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
@@ -141,6 +149,11 @@ def clamp(value: int, minimum: int, maximum: int) -> int:
 def configured_ui_language() -> str:
     value = str(core.load_integration_config().get("ui_language") or DEFAULT_UI_LANGUAGE)
     return value if value in UI_LANGUAGES else DEFAULT_UI_LANGUAGE
+
+
+def yfinance_symbols_from_ui_text(text: str) -> tuple[str, ...]:
+    # UI 只支援逗號或空白分隔，刻意不把分號當分隔符，避免把 shell-like 字串誤切成合法 symbol。
+    return normalize_yfinance_symbols(str(text or "").replace(",", " ").split())
 
 
 class ProviderRow:
@@ -871,6 +884,8 @@ class ApiCollectionUi:
         tools_menu.add_command(label=self.tr("最近事件紀錄", "Recent event logs"), command=self.show_event_logs)
         tools_menu.add_command(label=self.tr("修復 / 驗證資產", "Repair / verify assets"), command=self.open_repair_panel)
         tools_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
+        tools_menu.add_command(label=self.tr("產生 yfinance 離線 Demo plan", "Create yfinance offline demo plan"), command=self.write_yfinance_demo_plan_from_ui)
+        tools_menu.add_command(label=self.tr("建立 yfinance live plan（需確認）", "Create yfinance live plan (requires acknowledgement)"), command=self.open_yfinance_live_plan_dialog)
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
         tools_menu.add_separator()
@@ -5397,6 +5412,153 @@ class ApiCollectionUi:
                 f"{summary}\n\nFlow: {result.flow_path}\nReview plan: {result.review_plan_path}\nOffline plan: {result.offline_plan_path}\n\nNext: click Start in the download plan, then click Import after download finishes. UI import writes to the normal curated imports SQLite; the flow JSON also keeps isolated CLI acceptance commands.",
             ),
         )
+
+    def write_yfinance_demo_plan_from_ui(self) -> None:
+        # yfinance 離線 demo 是金融時間序列的安全驗收入口：只產生 fixture-backed plan，不安裝套件、不打 Yahoo。
+        plan_path = state_file(YFINANCE_DEMO_PLAN_NAME)
+        try:
+            result = write_yfinance_demo_plan_files(plan_path)
+            added = self.add_download_plan_entries_from_file(result.plan_path)
+        except Exception as exc:  # pragma: no cover - UI handoff records the concrete failure for users/agents.
+            log_exception("ui_yfinance_demo_plan_failed", exc, component="ui.yfinance")
+            messagebox.showerror(self.tr("yfinance Demo plan 失敗", "yfinance demo plan failed"), str(exc))
+            return
+
+        summary = self.tr(
+            f"yfinance 離線 Demo plan 已建立，已加入 {added} 個下載項目。",
+            f"yfinance offline demo plan created; added {added} download item(s).",
+        )
+        self.status_var.set(summary)
+        log_event(
+            "ui_yfinance_demo_plan_created",
+            summary,
+            component="ui.yfinance",
+            context={
+                "plan_path": str(result.plan_path),
+                "fixture_path": str(result.fixture_path),
+                "symbols": list(result.symbols),
+                "added_to_plan": added,
+            },
+        )
+        messagebox.showinfo(
+            self.tr("yfinance Demo plan 已建立", "yfinance demo plan created"),
+            self.tr(
+                f"{summary}\n\nPlan：{result.plan_path}\nFixture CSV：{result.fixture_path}\n\n下一步：在下載計畫按「開始」，完成後再按「匯入」。這條路徑只使用本機 fixture，不會連到 Yahoo。",
+                f"{summary}\n\nPlan: {result.plan_path}\nFixture CSV: {result.fixture_path}\n\nNext: click Start in the download plan, then Import after download finishes. This path only uses a local fixture and does not contact Yahoo.",
+            ),
+        )
+
+    def open_yfinance_live_plan_dialog(self) -> None:
+        # live yfinance 是明確 opt-in 的窄入口；UI 先建立 CSV-backed plan，不在背景排程或 crawler 自動抓取。
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("建立 yfinance live plan", "Create yfinance live plan"))
+        dialog.geometry("820x470")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.transient(self.root)
+
+        symbols_var = StringVar(value="AAPL")
+        period_var = StringVar(value="5d")
+        interval_var = StringVar(value="1d")
+        acknowledge_var = BooleanVar(value=False)
+
+        ttk.Label(dialog, text=self.tr("建立 yfinance live plan", "Create yfinance live plan"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "這會呼叫本機 Python 環境中的選用 yfinance 套件，先寫成本機 CSV，再把 file-backed plan 加入下載計畫。它不是官方商用資料授權，也不會自動匯入或背景持續抓取。",
+                "This calls the optional yfinance package in the local Python environment, writes a local CSV first, then adds a file-backed plan to the download plan. It is not an official commercial data license and will not auto-import or run in the background.",
+            ),
+            style="DetailMuted.TLabel",
+            wraplength=760,
+        ).pack(anchor="w", padx=24, pady=(0, 14))
+
+        form = ttk.Frame(dialog, style="Panel.TFrame")
+        form.pack(fill=X, padx=24, pady=(0, 12))
+        for label, variable, hint in [
+            (self.tr("股票代號", "Symbols"), symbols_var, self.tr("例：AAPL, MSFT；逗號或空白分隔", "Example: AAPL, MSFT; comma or space separated")),
+            (self.tr("查詢期間", "Period"), period_var, self.tr("例：5d、1mo、1y、ytd、max", "Example: 5d, 1mo, 1y, ytd, max")),
+            (self.tr("時間間隔", "Interval"), interval_var, self.tr("例：1d、1h、5m", "Example: 1d, 1h, 5m")),
+        ]:
+            row = ttk.Frame(form, style="Panel.TFrame")
+            row.pack(fill=X, pady=5)
+            ttk.Label(row, text=label, style="DetailMuted.TLabel", width=12).pack(side=LEFT)
+            ttk.Entry(row, textvariable=variable).pack(side=LEFT, fill=X, expand=True, padx=(8, 10))
+            ttk.Label(row, text=hint, style="DetailMuted.TLabel").pack(side=LEFT)
+
+        ttk.Checkbutton(
+            dialog,
+            text=self.tr(
+                "我已理解 Yahoo/yfinance 是非官方 personal/research-only 路徑，並會自行確認使用條款。",
+                "I understand Yahoo/yfinance is an unofficial personal/research-only path and will review the terms myself.",
+            ),
+            variable=acknowledge_var,
+        ).pack(anchor="w", padx=24, pady=(0, 10))
+        ttk.Label(dialog, text=YFINANCE_LIVE_WARNING, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 14))
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+
+        def create_live_plan() -> None:
+            if not acknowledge_var.get():
+                messagebox.showwarning(
+                    self.tr("需要明確確認", "Acknowledgement required"),
+                    self.tr("請先勾選確認框，表示你理解這是非官方、personal/research-only 的 live fetch。", "Check the acknowledgement first; this is an unofficial personal/research-only live fetch."),
+                    parent=dialog,
+                )
+                return
+            try:
+                symbols = yfinance_symbols_from_ui_text(symbols_var.get())
+                result = write_yfinance_live_plan_files(
+                    state_file(YFINANCE_LIVE_PLAN_NAME),
+                    symbols=symbols,
+                    period=period_var.get(),
+                    interval=interval_var.get(),
+                    acknowledge_unofficial=True,
+                )
+                added = self.add_download_plan_entries_from_file(result.plan_path)
+            except Exception as exc:  # pragma: no cover - depends on optional yfinance/runtime/network and is surfaced to the UI.
+                log_exception("ui_yfinance_live_plan_failed", exc, component="ui.yfinance")
+                messagebox.showerror(self.tr("yfinance live plan 失敗", "yfinance live plan failed"), str(exc), parent=dialog)
+                return
+
+            summary = self.tr(
+                f"yfinance live CSV plan 已建立，已加入 {added} 個下載項目。",
+                f"yfinance live CSV plan created; added {added} download item(s).",
+            )
+            self.status_var.set(summary)
+            log_event(
+                "ui_yfinance_live_plan_created",
+                summary,
+                component="ui.yfinance",
+                context={
+                    "plan_path": str(result.plan_path),
+                    "csv_path": str(result.csv_path),
+                    "symbols": list(result.symbols),
+                    "period": result.period,
+                    "interval": result.interval,
+                    "added_to_plan": added,
+                },
+            )
+            messagebox.showinfo(
+                self.tr("yfinance live plan 已建立", "yfinance live plan created"),
+                self.tr(
+                    f"{summary}\n\nPlan：{result.plan_path}\nCSV：{result.csv_path}\n\n下一步：在下載計畫按「開始」，完成後再按「匯入」。UI 不會自動重複抓取或背景排程。",
+                    f"{summary}\n\nPlan: {result.plan_path}\nCSV: {result.csv_path}\n\nNext: click Start in the download plan, then Import after download finishes. The UI will not repeat the fetch automatically or schedule background runs.",
+                ),
+                parent=dialog,
+            )
+            dialog.destroy()
+
+        ttk.Button(actions, text=self.tr("建立 plan", "Create plan"), style="Action.TButton", command=create_live_plan).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def add_download_plan_entries_from_file(self, plan_path: Path) -> int:
+        # 將 adapter 產生的 JSON plan 接回現有下載計畫模型，避免 UI 和 CLI 各自維護一套 plan schema。
+        payload = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+        added = self.add_download_plan_entries_from_payload(payload)
+        self.render_table()
+        self.update_download_plan_panel()
+        return added
 
     def add_download_plan_entries_from_payload(self, payload: dict[str, object]) -> int:
         # 從既有 plan JSON 還原 UI 下載計畫時，只接受可對應到 catalog provider 的 direct entries。

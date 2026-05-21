@@ -236,6 +236,8 @@ python -m unittest discover -s tests
 
 `--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
 
+Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo plan` 只建立 fixture-backed plan 並加入下載計畫；`工具 > 建立 yfinance live plan（需確認）` 會先要求使用者填寫 symbol、period、interval 並勾選 unofficial/personal-research 確認框，才會呼叫本機選用 `yfinance` 產生 CSV-backed plan。兩個 UI 入口都不會自動下載、匯入、背景重複抓取或接到 crawler。
+
 ### Database / repair
 
 | 目的 | 指令 |
