@@ -119,7 +119,11 @@ from api_launcher.plans import (
     provider_dataset_version_plan_entry,
     provider_plan_entry,
 )
-from api_launcher.adapters.yfinance import write_yfinance_demo_plan as write_yfinance_demo_plan_files
+from api_launcher.adapters.yfinance import (
+    YFINANCE_LIVE_WARNING,
+    write_yfinance_demo_plan as write_yfinance_demo_plan_files,
+    write_yfinance_live_plan as write_yfinance_live_plan_files,
+)
 from api_launcher.renderer_contracts import (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
     HYG_V38_STAR_CONTRACT,
@@ -616,7 +620,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
     parser.add_argument("--write-yfinance-demo-plan", help="write a fixture-backed Yahoo Finance/yfinance OHLCV demo plan")
-    parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for --write-yfinance-demo-plan; can be repeated")
+    parser.add_argument("--write-yfinance-live-plan", help="explicit opt-in: fetch Yahoo Finance/yfinance live OHLCV data into a local CSV-backed plan")
+    parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for yfinance demo/live plans; can be repeated")
+    parser.add_argument("--yfinance-period", default="1mo", help="period for --write-yfinance-live-plan, for example 5d, 1mo, 1y, ytd, or max")
+    parser.add_argument("--yfinance-interval", default="1d", help="interval for --write-yfinance-live-plan, for example 1d, 1h, or 5m")
+    parser.add_argument("--yfinance-acknowledge-unofficial", action="store_true", help="required for --write-yfinance-live-plan after reviewing unofficial personal/research-only warning")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
@@ -753,6 +761,7 @@ class CatalogLauncherCli:
             self.refresh_state()
             self.write_mvp_demo_flow()
             self.write_yfinance_demo_plan()
+            self.write_yfinance_live_plan()
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
@@ -932,6 +941,31 @@ class CatalogLauncherCli:
         )
         print(
             "[yfinance-demo] "
+            "next="
+            f"--run-download-plan {result.plan_path} --downloads-root {self.args.downloads_root} "
+            "--import-supported-plan-results --plan-import-existing-table-policy rename"
+        )
+
+    def write_yfinance_live_plan(self) -> None:
+        if not self.args.write_yfinance_live_plan:
+            return
+        # live yfinance 必須由使用者明確加 acknowledgement；這裡只產生本機 CSV + file:// plan，不接背景 crawler。
+        result = write_yfinance_live_plan_files(
+            resolve_project_path(self.args.write_yfinance_live_plan),
+            symbols=self.args.yfinance_symbol,
+            period=self.args.yfinance_period,
+            interval=self.args.yfinance_interval,
+            downloads_root=self.args.downloads_root,
+            acknowledge_unofficial=self.args.yfinance_acknowledge_unofficial,
+        )
+        print(f"[yfinance-live] warning={YFINANCE_LIVE_WARNING}")
+        print(
+            "[yfinance-live] "
+            f"wrote {result.plan_path} csv={result.csv_path} symbols={','.join(result.symbols)} "
+            f"rows={result.rows_written} period={result.period} interval={result.interval}"
+        )
+        print(
+            "[yfinance-live] "
             "next="
             f"--run-download-plan {result.plan_path} --downloads-root {self.args.downloads_root} "
             "--import-supported-plan-results --plan-import-existing-table-policy rename"

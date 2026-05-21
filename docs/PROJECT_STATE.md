@@ -30,8 +30,8 @@ The project is not a secret harvester. Credential files are templates for user-o
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
   the HYG v3.8 star catalog, `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid, and
-  `YFinanceMarketDataAdapter` for an optional/unofficial yfinance market-data query template plus fixture-backed
-  OHLCV demo plan.
+  `YFinanceMarketDataAdapter` for an optional/unofficial yfinance market-data query template, fixture-backed
+  OHLCV demo plan, and explicit opt-in live CSV plan path.
 - Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 23 metadata-only
   sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
   search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search,

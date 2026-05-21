@@ -7,14 +7,19 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing, redirect_stdout
+from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from api_launcher.adapters.yfinance import (
     YFINANCE_PROVIDER_ID,
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
+    build_yfinance_live_plan,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
+    write_yfinance_live_plan,
     yfinance_provider,
 )
 from api_launcher.core import main
@@ -67,6 +72,74 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual(["AAPL"], payload["source"]["symbols"])
         self.assertEqual(1, payload["summary"]["direct_download_count"])
 
+    def test_live_plan_requires_explicit_unofficial_acknowledgement(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(ValueError, "unofficial"):
+                write_yfinance_live_plan(
+                    Path(tmpdir) / "live_plan.json",
+                    symbols=("AAPL",),
+                    fetcher=lambda _symbols, _period, _interval: FakeYFinanceFrame(),
+                )
+
+    def test_live_plan_writes_csv_backed_direct_plan_with_fake_fetcher(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "live_plan.json"
+            result = write_yfinance_live_plan(
+                plan_path,
+                symbols=("aapl", "MSFT"),
+                period="5d",
+                interval="1d",
+                fetcher=lambda _symbols, _period, _interval: FakeYFinanceFrame(),
+                acknowledge_unofficial=True,
+                received_at="2026-05-22T00:00:00Z",
+                ingest_run_id="test_yfinance_live",
+            )
+            payload = json.loads(result.plan_path.read_text(encoding="utf-8"))
+            csv_text = result.csv_path.read_text(encoding="utf-8")
+
+        self.assertEqual(("AAPL", "MSFT"), result.symbols)
+        self.assertEqual(4, result.rows_written)
+        self.assertEqual("yfinance_live_csv", payload["source"]["kind"])
+        self.assertEqual("direct_download", payload["providers"][0]["download_eligibility"]["status"])
+        self.assertEqual("supported_after_download", payload["providers"][0]["import_plan"]["status"])
+        self.assertIn("unofficial", payload["source"]["warning"])
+        self.assertIn("2026-05-21T00:00:00Z,AAPL,100,103,99,102,102,1000000", csv_text)
+        self.assertIn("test_yfinance_live", csv_text)
+
+    def test_cli_writes_yfinance_live_plan_through_opt_in_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "live_plan.json"
+            output = io.StringIO()
+            fake_result = SimpleNamespace(
+                plan_path=plan_path,
+                csv_path=Path(tmpdir) / "live_plan.live.csv",
+                symbols=("AAPL",),
+                rows_written=2,
+                period="5d",
+                interval="1d",
+            )
+
+            with patch("api_launcher.core.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
+                with redirect_stdout(output):
+                    rc = main(
+                        [
+                            "--write-yfinance-live-plan",
+                            str(plan_path),
+                            "--yfinance-symbol",
+                            "AAPL",
+                            "--yfinance-period",
+                            "5d",
+                            "--yfinance-interval",
+                            "1d",
+                            "--yfinance-acknowledge-unofficial",
+                        ]
+                    )
+
+        self.assertEqual(0, rc)
+        self.assertIn("[yfinance-live] warning=", output.getvalue())
+        live_mock.assert_called_once()
+        self.assertTrue(live_mock.call_args.kwargs["acknowledge_unofficial"])
+
     def test_demo_plan_can_download_and_import_without_yfinance_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             plan_path = Path(tmpdir) / "yfinance_plan.json"
@@ -117,6 +190,70 @@ class YFinanceAdapterTests(unittest.TestCase):
             payload = build_yfinance_demo_plan(fixture, symbols=())
 
         self.assertEqual(["AAPL", "MSFT"], payload["source"]["symbols"])
+
+    def test_build_live_plan_uses_direct_csv_import_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "live.csv"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                period="1mo",
+                interval="1d",
+                received_at="2026-05-22T00:00:00Z",
+                ingest_run_id="test_run",
+            )
+
+        entry = payload["providers"][0]
+        self.assertEqual("yfinance_live_csv", payload["source"]["kind"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual("append_only_or_revisable_market_data", entry["time_series_contract"]["kind"])
+
+
+class FakeYFinanceFrame:
+    empty = False
+
+    def iterrows(self):
+        yield date(2026, 5, 21), FakeYFinanceRow(
+            {
+                ("AAPL", "Open"): 100.0,
+                ("AAPL", "High"): 103.0,
+                ("AAPL", "Low"): 99.0,
+                ("AAPL", "Close"): 102.0,
+                ("AAPL", "Adj Close"): 102.0,
+                ("AAPL", "Volume"): 1_000_000.0,
+                ("MSFT", "Open"): 210.0,
+                ("MSFT", "High"): 212.0,
+                ("MSFT", "Low"): 208.0,
+                ("MSFT", "Close"): 211.0,
+                ("MSFT", "Adj Close"): 211.0,
+                ("MSFT", "Volume"): 2_000_000.0,
+            }
+        )
+        yield date(2026, 5, 22), FakeYFinanceRow(
+            {
+                ("AAPL", "Open"): 101.0,
+                ("AAPL", "High"): 104.0,
+                ("AAPL", "Low"): 100.0,
+                ("AAPL", "Close"): 103.0,
+                ("AAPL", "Adj Close"): 103.0,
+                ("AAPL", "Volume"): 1_100_000.0,
+                ("MSFT", "Open"): 211.0,
+                ("MSFT", "High"): 213.0,
+                ("MSFT", "Low"): 209.0,
+                ("MSFT", "Close"): 212.0,
+                ("MSFT", "Adj Close"): 212.0,
+                ("MSFT", "Volume"): 2_100_000.0,
+            }
+        )
+
+
+class FakeYFinanceRow:
+    def __init__(self, values: dict[object, object]) -> None:
+        self.values = values
+
+    def get(self, key: object, default: object = None) -> object:
+        return self.values.get(key, default)
 
 
 if __name__ == "__main__":

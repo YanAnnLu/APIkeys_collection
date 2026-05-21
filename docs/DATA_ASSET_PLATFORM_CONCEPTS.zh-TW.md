@@ -58,6 +58,7 @@ CSV / JSON / Parquet / GeoJSON / NetCDF / GeoTIFF
 pandas DataFrame 或 DuckDB query result
 爬蟲 raw result，例如 HTML、API response、PDF、圖片、壓縮檔
 爬蟲資產，例如可版本化、可審核、可排程、可修復的 crawler / parser / resolver 能力包
+語言 API client-backed source，例如 Python 的 yfinance、fredapi、astroquery，或 R 的 WDI、fredr、tidycensus 這類背後連到遠端資料庫 / Web API 的套件
 標準化後的 curated dataset
 湖倉 table
 GIS layer
@@ -160,6 +161,42 @@ parser 版本
 
 這能避免每新增一個入口網站，就多出一支孤立腳本。新增資料入口時，應優先新增或配置 Discovery Tool，讓它接進既有 orchestrator、candidate review、adapter handoff、download plan 流程。
 
+## 語言 API client-backed source
+
+使用者從 `yfinance` 延伸出的觀察很重要：許多 Python / R 套件本質上不是普通工具函式，而是遠端資料庫或 Web API 的 client。這類套件也應被視為可追蹤的資料取得入口，只是它們的入口不是 URL catalog，而是「語言套件 + provider API」的組合。
+
+代表類型包含：
+
+```text
+Python 金融 / 經濟：yfinance、fredapi、wbgapi、pandas-datareader
+Python 研究文獻：arxiv、pyalex、habanero、semanticscholar、pybliometrics
+Python 天文：astroquery
+Python 生物資訊：Bio.Entrez、mygene、bioservices、ensemblrest
+Python 化學 / 藥物 / 材料：pubchempy、chembl_webresource_client、mp-api
+Python 地球科學 / 氣候：earthaccess、cdsapi、meteostat、pystac-client
+Python 地理 / 地震 / 生態：osmnx、obspy.clients.fdsn、pygbif、pyinaturalist
+Python 機器學習資料集：openml、kaggle、ucimlrepo
+R 官方統計 / 經濟：WDI、wbstats、fredr、eurostat、tidycensus、ipumsr
+R 生物資訊 / 臨床：biomaRt、GEOquery、TCGAbiolinks
+R 生物多樣性 / 化學 / 文獻：rgbif、webchem、rcdk、rcrossref、rorcid
+```
+
+這些 source 的治理重點和一般 crawler 類似，但還要多記：
+
+```text
+runtime 語言與執行方式，例如 Python package、R package、Rscript 或未來 renv profile
+package 名稱與版本
+背後 API / database 名稱
+是否需要 API key 或帳號
+terms / license / redistribution 風險
+可查詢的 dataset/record 類型
+查詢參數邊界，例如 symbol、country、DOI、gene id、bbox、date range
+是否允許 CI/排程 live call
+是否只能 fixture 測試或必須使用 mock
+```
+
+短期做法不是一次新增所有 adapter，也不是立刻引入 R runtime，而是把這類套件納入 source taxonomy。`yfinance` 是第一個具體樣板：預設只提供 query template 與 fixture plan；live fetch 必須由使用者明確 opt-in，並寫成本機 CSV + file-backed plan，再走既有下載 / manifest / SQLite 匯入閉環。未來每新增一個 Python / R client-backed source，都應先判斷能否用現有 crawler/API resolver；只有在需要套件專屬 auth、query builder、format conversion、rate-limit guard 或跨語言執行邊界時，才新增 adapter。
+
 ```mermaid
 flowchart TB
     T[發現工具登錄] --> C1[CKAN 搜尋器]
@@ -167,11 +204,13 @@ flowchart TB
     T --> C3[OGC Records 讀取器]
     T --> C4[Socrata 搜尋器]
     T --> C5[Notion 入口同步]
+    T --> C6[Python / R API client<br/>套件 + 遠端資料庫]
     C1 --> O[發現流程調度器]
     C2 --> O
     C3 --> O
     C4 --> O
     C5 --> O
+    C6 --> O
     O --> D[資料集候選]
     D --> R[轉接器待辦]
     R --> P[下載 / 匯入計畫]

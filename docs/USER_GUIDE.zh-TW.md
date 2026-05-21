@@ -220,6 +220,7 @@ python -m unittest discover -s tests
 | --- | --- |
 | 產生可重複 MVP Demo Flow | `python3 APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json` |
 | 產生 yfinance 離線金融時間序列 Demo plan | `python3 APIkeys_collection.py --write-yfinance-demo-plan state/yfinance_demo/plan.json --yfinance-symbol AAPL --yfinance-symbol MSFT` |
+| 明確 opt-in 抓取 yfinance live CSV 並產生匯入 plan | `python3 APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-period 5d --yfinance-interval 1d --yfinance-acknowledge-unofficial` |
 | 列出 plan 裡需要轉接器處理的項目 | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json` |
 | 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
 | 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
@@ -231,7 +232,9 @@ python -m unittest discover -s tests
 
 `--write-mvp-demo-flow` 會寫出 `state/mvp_demo/flow.json`、一份 Socrata adapter review plan、一份離線 JSON fixture plan，以及對應的下一步指令。離線 fixture 可以在沒有網路時驗證 `download -> manifest -> SQLite import`；Socrata `$limit=25` plan 則用來驗證真實 adapter resolver 會把 API view 轉成 bounded sample。
 
-`--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。正式 live yfinance 抓取之後必須是明確 opt-in，並顯示非官方、personal/research-only 的使用警告。
+`--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。
+
+`--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
 
 ### Database / repair
 

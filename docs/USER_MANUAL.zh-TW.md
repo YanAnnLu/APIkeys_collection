@@ -65,7 +65,13 @@ py -B APIkeys_collection.py --write-yfinance-demo-plan state/yfinance_demo/plan.
 py -B APIkeys_collection.py --db state/yfinance_demo/launcher.sqlite --init-db --seed --run-download-plan state/yfinance_demo/plan.json --downloads-root state/yfinance_demo/downloads --import-supported-plan-results --import-sqlite-db state/yfinance_demo/curated.sqlite --plan-import-existing-table-policy rename
 ```
 
-圖說：這只使用本機產生的 CSV fixture，不會安裝 `yfinance`，也不會連到 Yahoo。正式 live yfinance 之後必須由使用者明確 opt-in，且只能作為非官方、personal/research 用途資料源。
+圖說：這只使用本機產生的 CSV fixture，不會安裝 `yfinance`，也不會連到 Yahoo。若要真的抓取 live yfinance，必須由使用者明確 opt-in：
+
+```powershell
+py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-period 5d --yfinance-interval 1d --yfinance-acknowledge-unofficial
+```
+
+這會在本機寫出 live CSV 與可匯入 plan；之後仍要用 `--run-download-plan ... --import-supported-plan-results` 明確執行。它只適合作為非官方、personal/research 用途資料源，不應視為商用或可再散布資料來源，也不會在 CI 或 crawler 裡自動執行。
 
 ## 1. 開啟程式
 

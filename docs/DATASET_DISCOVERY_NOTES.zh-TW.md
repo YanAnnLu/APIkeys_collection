@@ -25,6 +25,10 @@ flowchart TD
 
 白話說：Alpha Vantage、NOAA、Google Earth Engine、MarineCadastre、ERDDAP 這些首先是供應商或資料平台；背後可能有很多資料集。第 1 階段應該優先把「發現資料集」的 crawler 做好，再挑代表資料集進入下載閉環。
 
+套件型 client 也要套同一條規則。像 Python 的 `yfinance`、`fredapi`、`wbgapi`、`arxiv`、`pyalex`、`astroquery`、`Bio.Entrez`、`pubchempy`、`earthaccess`、`cdsapi`、`pystac-client`、`osmnx`、`pygbif`、`openml`、`kaggle`，以及 R 的 `WDI`、`wbstats`、`fredr`、`eurostat`、`tidycensus`、`ipumsr`、`biomaRt`、`GEOquery`、`TCGAbiolinks`、`rgbif`、`webchem`、`rcrossref`，背後通常是一個遠端資料庫或 Web API；它們可以被 catalog 追蹤，但不代表要在背景自動 live call。短期應先把它們當成 `language API client-backed source`：記錄 runtime 語言、package、背後 API、credential 需求、terms/license 風險、可查詢資料型態、查詢邊界與 fixture/mock 測試策略。只有當某個 client 需要專屬 auth、query builder、format conversion、rate-limit guard 或跨語言執行邊界時，才新增 adapter。
+
+`yfinance` 是目前第一個樣板：預設只有 query template 與 fixture-backed plan；live path 必須明確加 `--yfinance-acknowledge-unofficial`，並只寫本機 CSV + file-backed download/import plan，不接 crawler 或 CI live call。
+
 ## 爬蟲資產的定位
 
 「爬蟲資產」是目前 crawler-first 路線的概念擴充。它不是把每個資料集硬寫成一支爬蟲，而是把「能穩定取得某類資料候選或有界樣本的能力」當成可治理資產。
