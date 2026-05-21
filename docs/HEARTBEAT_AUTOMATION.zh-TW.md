@@ -1,6 +1,6 @@
 # Heartbeat Automation 設計
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 本文件定義 `APIkeys_collection` 的 heartbeat automation。第一階段做「喚醒後檢查、產生報告、推薦下一個 bounded task、產生可餵給外部 Codex/agent runner 的 prompt」。預設不自動改程式碼、不自動推送、不碰 secrets；只有外部排程明確傳入 agent executable 並加上 `-RunAgent` 時，才會呼叫外部 agent。
 
@@ -23,22 +23,22 @@ py -B APIkeys_collection.py --write-heartbeat-plan-json state\heartbeat\heartbea
 py -B APIkeys_collection.py --heartbeat-agent-prompt state\heartbeat\agent_prompt.md
 ```
 
-Windows 可直接執行檢查：
+Windows 可直接執行檢查。若 PowerShell 顯示「已停用指令碼執行」，請用 `.cmd` wrapper；它只對這次呼叫使用 `-ExecutionPolicy Bypass`，不會改系統設定：
 
 ```powershell
-.\scripts\heartbeat_check.ps1
+.\scripts\heartbeat_check.cmd
 ```
 
 若要產生 agent prompt，但先不真的啟動外部 agent：
 
 ```powershell
-.\scripts\heartbeat_agent.ps1
+.\scripts\heartbeat_agent.cmd
 ```
 
 若要在 `safe_to_progress=true` 時呼叫外部 agent runner：
 
 ```powershell
-.\scripts\heartbeat_agent.ps1 -RunAgent -AgentExecutable "YOUR_AGENT_EXE" -AgentArguments @("ARG1", "ARG2")
+.\scripts\heartbeat_agent.cmd -RunAgent -AgentExecutable "YOUR_AGENT_EXE" -AgentArguments "ARG1" "ARG2"
 ```
 
 輸出位置預設為：
@@ -98,16 +98,20 @@ Heartbeat 自動化不得：
 先用檢查模式：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File K:\APIkeys_collection\scripts\heartbeat_check.ps1
+K:\APIkeys_collection\scripts\heartbeat_check.cmd
 ```
 
 準備接外部 agent 時，改用 dry-run agent 模式：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File K:\APIkeys_collection\scripts\heartbeat_agent.ps1
+K:\APIkeys_collection\scripts\heartbeat_agent.cmd
 ```
 
-確認外部 agent command 穩定後，才加上 `-RunAgent -AgentExecutable ...`。
+確認外部 agent command 穩定後，才加上 `-RunAgent -AgentExecutable ...`。若需要 PowerShell array 或更複雜的 quoting，可直接使用：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File K:\APIkeys_collection\scripts\heartbeat_agent.ps1 -RunAgent -AgentExecutable "YOUR_AGENT_EXE" -AgentArguments @("ARG1", "ARG2")
+```
 
 ## 後續階段
 

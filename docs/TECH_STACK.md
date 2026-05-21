@@ -39,9 +39,11 @@ files locked. Use `contextlib.closing(sqlite3.connect(...))` or an explicit `fin
 
 Heartbeat automation uses only the launcher core stack plus local Git and GitHub CLI metadata. The repo-owned entrypoints
 are `--heartbeat-report`, `--heartbeat-plan-json`, `--write-heartbeat-plan-json`, `--heartbeat-agent-prompt`,
-`scripts/heartbeat_check.ps1`, and `scripts/heartbeat_agent.ps1`. The scripts are intended for Windows Task Scheduler or
-another external scheduler; this repository does not assume that a chat thread can wake itself without an external
-runner. Runtime heartbeat outputs live under ignored `state/heartbeat/`.
+`scripts/heartbeat_check.ps1`, `scripts/heartbeat_agent.ps1`, `scripts/heartbeat_check.cmd`, and
+`scripts/heartbeat_agent.cmd`. The `.cmd` wrappers call PowerShell with process-local `-ExecutionPolicy Bypass` for
+machines that block direct `.ps1` execution. The scripts are intended for Windows Task Scheduler or another external
+scheduler; this repository does not assume that a chat thread can wake itself without an external runner. Runtime
+heartbeat outputs live under ignored `state/heartbeat/`.
 
 ## Database Smoke Stack
 
