@@ -21,7 +21,7 @@ Classify the request before editing:
 - **Repair**: fix a broken MVP path or CI/test failure. Keep the patch narrow and verify the affected path.
 - **Extend MVP**: add a bounded crawler/resolver/import/repair slice that advances `seed -> crawler -> candidate -> plan -> download -> import -> UI`.
 - **Concept / roadmap**: record or route ideas such as Hadoop, K8S, Render Studio, ML registry, P2P, mobile, Qt, OAuth, or Notion sync. Do not implement a large stub unless it has a current MVP entrypoint.
-- **Docs/skill only**: if the user says documentation is read-only, read and extract rules without editing docs. It is still okay to edit the explicitly requested skill files.
+- **Docs/skill only**: if the user says documentation is read-only, read and extract rules without editing docs. If the user asks to organize/refactor `.md` files, use the documentation refactor workflow below and update repo skill references after the docs are reorganized.
 
 ## Workflow
 
@@ -69,12 +69,12 @@ Do not load every document into context by default. Use this route map after che
 - Long-term data asset platform concepts: `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`.
 - Product positioning: `docs/PRODUCT_POSITIONING.zh-TW.md`.
 - Architecture or runtime layers: `docs/ARCHITECTURE.md`, then `docs/TECHNICAL_OVERVIEW.zh-TW.md`.
-- Crawler, Discovery Tool, candidate, adapter review, dataset plan: `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` and `docs/appendices/discovery.zh-TW.md`.
+- Crawler, Discovery Tool, candidate, adapter review, dataset plan: `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`. `docs/appendices/discovery.zh-TW.md` is only a retained redirect for older references.
 - New data types or storage/viewer hints: `docs/DATASET_TYPE_MAP.zh-TW.md`.
 - Portal intake, team source collection, Notion-like intake: `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`.
 - OpenSpec, Spectra, Qt Designer process: `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` and `openspec/specs/development-workflow/spec.md`.
 - Workspace cleanup, module split, path rules: `docs/WORKSPACE_LAYOUT.zh-TW.md`.
-- User-facing UI behavior: `docs/USER_GUIDE.zh-TW.md`.
+- User-facing UI behavior and developer CLI command index: `docs/USER_GUIDE.zh-TW.md`.
 - Setup, env, cross-platform commands: `docs/SETUP.zh-TW.md`, `docs/TECH_STACK.md`.
 - Git handoff details: `docs/GIT_HANDOFF.md`.
 - Failure and repair context: `docs/appendices/failure_modes.zh-TW.md`.
@@ -84,6 +84,20 @@ Do not load every document into context by default. Use this route map after che
 If a code change affects documentation, update the relevant zh-TW route. Do not add English-only docs without a Traditional Chinese version, summary, or clear entrypoint.
 
 When the user asks to reread all docs, first scan all Markdown file names and headings, then load only the documents that affect the current task. Treat `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, and `docs/DOCS_INDEX.zh-TW.md` as the live routing layer; treat the large concept document as roadmap context, not proof that a feature is in MVP.
+
+## Documentation Refactor Workflow
+
+Use this when the user asks to整理文件, 重構 `.md`, 收攏 docs, or make documentation easier to maintain.
+
+1. Start with `git status --short --branch`; preserve unrelated user changes.
+2. Read `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, and `docs/PROJECT_GTD.md`.
+3. Inventory Markdown files and headings with `rg`/PowerShell; do not load every large concept doc unless needed.
+4. Search references in `.codex/skills/`, `.gemini/`, `.github/skills/`, `.github/prompts/`, `openspec/`, `scripts/`, and `README.md` before renaming, deleting, or merging.
+5. Pick one document group per commit. Decide the canonical source of truth by role, not by old skill paths.
+6. Keep old paths as redirect/summary files when references may exist; do not delete duplicated-looking `.md` files abruptly.
+7. Update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, and `docs/PROJECT_GTD.md`; then update repo skills/prompts/scripts that reference moved docs.
+8. In Traditional Chinese docs, Mermaid node labels and edge labels should be Traditional Chinese. Keep exact file names, CLI flags, module paths, product names, and standards in their original spelling only when precision matters.
+9. Verify with `git diff --check`; for docs-only changes, tests are optional unless examples, scripts, or generated docs behavior changed.
 
 ## MVP Acceptance Checklist
 

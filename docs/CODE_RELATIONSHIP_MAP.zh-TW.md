@@ -10,16 +10,16 @@
 
 ```mermaid
 flowchart LR
-    user["使用者 / Agent"] --> cli_root["APIkeys_collection.py"]
-    user --> ui_root["APIkeys_collection_ui.py"]
-    user --> scripts["scripts/*.cmd / *.ps1 / *.sh"]
+    user["使用者 / 代理工作者"] --> cli_root["CLI 相容入口<br/>APIkeys_collection.py"]
+    user --> ui_root["UI 相容入口<br/>APIkeys_collection_ui.py"]
+    user --> scripts["啟動與排程腳本<br/>scripts/*.cmd / *.ps1 / *.sh"]
 
-    cli_root --> core["api_launcher/core.py"]
-    ui_root --> tkui["frontends/tk/launcher_ui.py"]
+    cli_root --> core["核心調度<br/>api_launcher/core.py"]
+    ui_root --> tkui["Tk 控制台<br/>frontends/tk/launcher_ui.py"]
     scripts --> cli_root
     scripts --> ui_root
 
-    core --> backend["api_launcher/* 子系統"]
+    core --> backend["後端子系統<br/>api_launcher/*"]
     tkui --> backend
 ```
 
@@ -34,18 +34,18 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    seeds["catalog/provider_discovery_seeds.json<br/>catalog/dataset_discovery_sources.json"] --> crawler["api_launcher/crawlers/*"]
-    crawler --> candidates["DatasetCandidate<br/>candidate repository"]
-    candidates --> plans["api_launcher/plans.py<br/>candidate/download plan"]
-    plans --> review["api_launcher/adapter_review.py<br/>adapter queue"]
-    review --> resolver["api_launcher/adapter_plan_resolver.py"]
-    resolver --> direct["direct download entries"]
-    direct --> downloads["api_launcher/downloads/*"]
-    downloads --> manifests["api_launcher/manifests.py<br/>sidecar manifest"]
-    manifests --> importers["api_launcher/importers/*"]
-    importers --> registry["api_launcher/registry.py<br/>install/assets"]
-    registry --> repair["api_launcher/downloads/repair.py<br/>database_self_check.py"]
-    repair --> ui["frontends/tk/launcher_ui.py"]
+    seeds["供應商與資料目錄種子<br/>catalog/provider_discovery_seeds.json<br/>catalog/dataset_discovery_sources.json"] --> crawler["資料集爬蟲<br/>api_launcher/crawlers/*"]
+    crawler --> candidates["資料集候選<br/>DatasetCandidate / 候選儲存層"]
+    candidates --> plans["候選與下載計畫<br/>api_launcher/plans.py"]
+    plans --> review["轉接器待辦佇列<br/>api_launcher/adapter_review.py"]
+    review --> resolver["有界解析器<br/>api_launcher/adapter_plan_resolver.py"]
+    resolver --> direct["可直接下載項目"]
+    direct --> downloads["下載子系統<br/>api_launcher/downloads/*"]
+    downloads --> manifests["旁車驗證清單<br/>api_launcher/manifests.py"]
+    manifests --> importers["匯入子系統<br/>api_launcher/importers/*"]
+    importers --> registry["安裝與資產登錄<br/>api_launcher/registry.py"]
+    registry --> repair["修復與資料庫自檢<br/>api_launcher/downloads/repair.py<br/>database_self_check.py"]
+    repair --> ui["Tk 控制台<br/>frontends/tk/launcher_ui.py"]
     ui --> plans
 ```
 
@@ -75,12 +75,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    docs["docs/*.md"]
-    handoff["AGENT_HANDOFF / PROJECT_GTD"]
-    skills[".codex / .gemini / .github skills"]
-    prompts[".github/prompts / openspec"]
-    scripts["scripts/heartbeat_*"]
-    agents["Codex / Gemini / Copilot / external agent"]
+    docs["專案文件<br/>docs/*.md"]
+    handoff["接力與進度<br/>AGENT_HANDOFF / PROJECT_GTD"]
+    skills["技能設定<br/>.codex / .gemini / .github skills"]
+    prompts["提示與規格<br/>.github/prompts / openspec"]
+    scripts["自動化腳本<br/>scripts/heartbeat_*"]
+    agents["代理工具<br/>Codex / Gemini / Copilot / 外部代理"]
 
     docs --> handoff
     docs --> skills

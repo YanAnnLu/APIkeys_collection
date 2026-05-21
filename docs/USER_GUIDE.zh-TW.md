@@ -1,6 +1,6 @@
 # 使用者操作指南
 
-最後更新：2026-05-20
+最後更新：2026-05-21
 
 這份文件寫給第一次打開 launcher 的人。它用操作角度說明目前 UI 可以做什麼，以及哪些功能還是骨架。
 
@@ -166,6 +166,87 @@ python -m unittest discover -s tests
 ```
 
 它不是完整終端機，也不適合長時間互動程式；比較像 UI 裡的單次命令快捷入口。
+
+如果是在 Windows PowerShell，下面範例可把 `python3` 換成 `py -B`。`-B` 會避免在同步碟工作區寫入 `__pycache__`。
+
+### 常用閉環指令
+
+| 目的 | 指令 |
+| --- | --- |
+| 初始化 catalog / SQLite schema | `python3 APIkeys_collection.py --init-db --seed --summary` |
+| 看 provider 清單 | `python3 APIkeys_collection.py --list-providers` |
+| 看分類清單 | `python3 APIkeys_collection.py --list-categories` |
+| 產生範本 | `python3 APIkeys_collection.py --generate-templates --output-dir .` |
+| 檢查下載 manifest 與 catalog 摘要 | `python3 APIkeys_collection.py --verify-downloads --manifest-health --summary` |
+| 看最近事件紀錄 | `python3 APIkeys_collection.py --show-logs 20` |
+
+### Provider / portal intake
+
+| 目的 | 指令 |
+| --- | --- |
+| 從官方來源頁抓 provider 候選 | `python3 APIkeys_collection.py --discover-provider-candidates --write-provider-candidates state/provider_candidates.review.json` |
+| 新增本機 provider discovery seed | `python3 APIkeys_collection.py --add-discovery-seed --seed-provider-id ID --seed-name "名稱" --seed-homepage-url URL` |
+| 解析團隊入口表 | `python3 APIkeys_collection.py --portal-intake-report --write-portal-intake-json state/portal_intake.review.json` |
+| 把乾淨入口草稿提升到本機 ignored config | `python3 APIkeys_collection.py --promote-portal-intake-local` |
+| 審核本機 discovery config 是否可提升正式 catalog | `python3 APIkeys_collection.py --promote-local-discovery-catalog --promote-local-discovery-dry-run --write-local-discovery-audit-json state/local_discovery_audit.json` |
+
+### Dataset discovery / candidate review
+
+| 目的 | 指令 |
+| --- | --- |
+| 跑資料集候選爬蟲 | `python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --write-dataset-candidates state/dataset_candidates.review.json --upsert-dataset-candidates` |
+| 只跑單一 source | `python3 APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-source SOURCE_ID --dataset-discovery-limit 10` |
+| full-crawl 到沒有下一頁或安全 cap | `python3 APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-full-crawl --dataset-discovery-max-pages 10 --dataset-discovery-strict-audit` |
+| 列出候選 | `python3 APIkeys_collection.py --list-dataset-candidates --dataset-candidate-status all` |
+| 以 JSON 列出候選 | `python3 APIkeys_collection.py --list-dataset-candidates --dataset-candidates-json` |
+| 標記候選可用 | `python3 APIkeys_collection.py --review-dataset-candidate DATASET_UID --dataset-candidate-decision approved` |
+| 匯出候選下載 / 匯入計畫 | `python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json --candidate-plan-status approved` |
+
+### Adapter review / download / import
+
+| 目的 | 指令 |
+| --- | --- |
+| 列出 plan 裡需要轉接器處理的項目 | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json` |
+| 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
+| 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
+| 下載後匯入支援格式 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite` |
+| 匯入單一 CSV manifest | `python3 APIkeys_collection.py --import-csv-manifest downloads/sample.csv.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
+| 匯入單一 JSON / JSONL / GeoJSON manifest | `python3 APIkeys_collection.py --import-json-manifest downloads/sample.json.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
+| 批次匯入健康 CSV manifests | `python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite` |
+| 批次匯入健康 JSON manifests | `python3 APIkeys_collection.py --import-verified-json-manifests --import-sqlite-db state/curated_imports.sqlite` |
+
+### Database / repair
+
+| 目的 | 指令 |
+| --- | --- |
+| 測單一 data-store profile | `python3 APIkeys_collection.py --test-data-store mysql_default` |
+| 測所有 data-store profiles | `python3 APIkeys_collection.py --test-data-store all` |
+| 檢查 managed database/table assets | `python3 APIkeys_collection.py --self-check-databases` |
+| 產生 agent-readable database issue JSON | `python3 APIkeys_collection.py --self-check-databases-json` |
+| 停止追蹤單一 database/table asset | `python3 APIkeys_collection.py --unmanage-database-asset ASSET_ID --database-repair-json` |
+| 從健康 manifest 重建 missing SQLite table | `python3 APIkeys_collection.py --reimport-missing-sqlite-table ASSET_ID --database-repair-json` |
+
+### Handoff / automation / workspace
+
+| 目的 | 指令 |
+| --- | --- |
+| 產生接力報告 | `python3 APIkeys_collection.py --handoff-report state/handoff.md --manifest-health --show-logs 20` |
+| 產生 heartbeat 報告 | `python3 APIkeys_collection.py --heartbeat-report state/heartbeat.md --heartbeat-skip-ci` |
+| 產生 heartbeat plan JSON | `python3 APIkeys_collection.py --heartbeat-plan-json --heartbeat-skip-ci` |
+| 寫出外部 agent prompt | `python3 APIkeys_collection.py --heartbeat-agent-prompt state/heartbeat_prompt.md --heartbeat-skip-ci` |
+| 盤點工作區檔案分類 | `python3 APIkeys_collection.py --workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json` |
+
+### AI / renderer / export
+
+| 目的 | 指令 |
+| --- | --- |
+| 產生 provider AI 描述 | `python3 APIkeys_collection.py --generate-ai-summary PROVIDER_ID --ai-profile gemini_flash` |
+| 儲存 provider AI 描述 | `python3 APIkeys_collection.py --generate-ai-summary PROVIDER_ID --ai-profile gemini_flash --write-ai-summary` |
+| 寫出 tile manifest 骨架 | `python3 APIkeys_collection.py --write-tile-manifest state/tile_manifest.json --tile-dataset-uid gebco:2025` |
+| 查看 library action JSON | `python3 APIkeys_collection.py --show-library-actions PROVIDER_ID --library-actions-json` |
+| 匯出 catalog JSON/CSV/Markdown | `python3 APIkeys_collection.py --export-json state/catalog.json --export-csv state/catalog.csv --export-markdown state/catalog.md` |
+
+CLI 的原則和 UI 一樣：能直接下載的才下載；入口頁、登入頁、未界定 API、過大或未知格式會留在 adapter review。需要寫入、覆蓋、DROP 或刪除資料的動作，必須有明確 ownership 與額外參數，不會默默執行。
 
 ## 資料集候選審核
 

@@ -19,15 +19,15 @@ APIkeys Collection 是一個類 Steam 的科學資料集與本機資料庫 launc
 
 ```mermaid
 flowchart LR
-    Provider["Provider / 官方來源"]
-    Catalog["Provider + dataset catalog"]
-    Plan["Download plan"]
-    Download["Direct downloader"]
-    Manifest["Sidecar manifest + checksum"]
-    Registry["Install registry"]
-    Curated["Curated SQLite table"]
-    Repair["Repair / self-check"]
-    Renderer["Tile/cache or renderer bridge"]
+    Provider["供應商 / 官方來源"]
+    Catalog["供應商與資料集目錄"]
+    Plan["下載計畫"]
+    Download["直接下載器"]
+    Manifest["旁車驗證清單與 checksum"]
+    Registry["本機安裝登錄"]
+    Curated["整理後 SQLite 資料表"]
+    Repair["修復與自檢"]
+    Renderer["圖磚 / 快取 / 渲染橋接"]
 
     Provider --> Catalog
     Catalog --> Plan
@@ -52,15 +52,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Launcher["APIkeys launcher governance"]
-    Manifest["Dataset IDs / manifests / checksums / license"]
-    LocalWorker["Local downloader/importer worker"]
-    Hadoop["Hadoop / HDFS / Hive / Spark data lake"]
-    K8S["Kubernetes orchestration"]
-    Jobs["Downloader / importer / repair / ETL jobs"]
-    Results["Output manifests / job status / lineage"]
-    Registry["Launcher install registry"]
-    Consumers["UI / mobile remote / agent / Taichi / Unreal"]
+    Launcher["APIkeys launcher 資料治理"]
+    Manifest["資料集 ID / 驗證清單 / checksum / 授權"]
+    LocalWorker["本機下載與匯入工作程序"]
+    Hadoop["Hadoop / HDFS / Hive / Spark 資料湖"]
+    K8S["Kubernetes 調度層"]
+    Jobs["下載 / 匯入 / 修復 / ETL 工作"]
+    Results["輸出驗證清單 / 工作狀態 / lineage"]
+    Registry["launcher 本機安裝登錄"]
+    Consumers["UI / 手機遙控 / 代理工作者 / Taichi / Unreal"]
 
     Launcher --> Manifest
     Manifest --> LocalWorker
@@ -94,16 +94,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    RootCLI["APIkeys_collection.py"] --> Core["api_launcher/core.py"]
-    RootUI["APIkeys_collection_ui.py"] --> TkUI["frontends/tk/launcher_ui.py"]
+    RootCLI["CLI 相容入口<br/>APIkeys_collection.py"] --> Core["核心調度<br/>api_launcher/core.py"]
+    RootUI["UI 相容入口<br/>APIkeys_collection_ui.py"] --> TkUI["Tk 控制台<br/>frontends/tk/launcher_ui.py"]
 
-    Core --> Catalog["models.py / repository.py / registry.py"]
-    Core --> Crawler["crawlers/*"]
-    Core --> Plans["plans.py / adapter_review.py / adapter_plan_resolver.py"]
-    Core --> Downloads["downloads/*"]
-    Core --> Importers["importers/*"]
-    Core --> DataStore["data_store_connections.py / database_self_check.py"]
-    Core --> Renderer["renderer_contracts.py / tile_manifests.py / unreal_bridge.py"]
+    Core --> Catalog["目錄 / repository / 登錄<br/>models.py / repository.py / registry.py"]
+    Core --> Crawler["資料集爬蟲<br/>crawlers/*"]
+    Core --> Plans["計畫與轉接器待辦<br/>plans.py / adapter_review.py / adapter_plan_resolver.py"]
+    Core --> Downloads["下載子系統<br/>downloads/*"]
+    Core --> Importers["匯入子系統<br/>importers/*"]
+    Core --> DataStore["資料儲存與自檢<br/>data_store_connections.py / database_self_check.py"]
+    Core --> Renderer["渲染橋接<br/>renderer_contracts.py / tile_manifests.py / unreal_bridge.py"]
 
     TkUI --> Catalog
     TkUI --> Crawler
@@ -112,8 +112,8 @@ flowchart TD
     TkUI --> Importers
     TkUI --> DataStore
 
-    Downloads --> Manifests["manifests.py"]
-    Manifests --> Registry["registry.py"]
+    Downloads --> Manifests["驗證清單<br/>manifests.py"]
+    Manifests --> Registry["安裝登錄<br/>registry.py"]
     Importers --> Registry
     DataStore --> Registry
     Registry --> Renderer

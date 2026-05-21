@@ -8,20 +8,20 @@
 
 ```mermaid
 flowchart TD
-    A["資料源 / provider"] --> B["crawler metadata"]
-    B --> C["candidate review"]
-    C --> D["download/import plan"]
-    D --> E{"direct file 或 bounded query?"}
-    E -- yes --> F["download queue"]
-    E -- no --> G["adapter review"]
-    G --> H["resolver / transform adapter"]
+    A["資料源 / 供應商"] --> B["爬蟲詮釋資料"]
+    B --> C["候選審核"]
+    C --> D["下載 / 匯入計畫"]
+    D --> E{"直接檔案或有界查詢？"}
+    E -- 是 --> F["下載佇列"]
+    E -- 否 --> G["轉接器待辦"]
+    G --> H["解析器 / 轉換轉接器"]
     H --> F
-    F --> I["manifest verification"]
-    I --> J{"CSV/JSON/GeoJSON 類?"}
-    J -- yes --> K["SQLite curated import"]
-    J -- no --> L["manual / adapter work"]
-    K --> M["install registry / self-check"]
-    M --> N["UI status / repair panel"]
+    F --> I["驗證清單檢查"]
+    I --> J{"CSV / JSON / GeoJSON 類？"}
+    J -- 是 --> K["SQLite 整理後匯入"]
+    J -- 否 --> L["人工審核 / 轉接器工作"]
+    K --> M["安裝登錄 / 自檢"]
+    M --> N["UI 狀態 / 修復面板"]
 ```
 
 ## 閉環狀態表

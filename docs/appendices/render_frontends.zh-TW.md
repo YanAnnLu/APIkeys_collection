@@ -21,12 +21,12 @@ Unreal 只是最終 UI 與渲染器，不是資料庫本身。它負責互動、
 
 ```mermaid
 flowchart LR
-    A[Dataset source] --> B[Launcher download/registry]
-    B --> C[Raw archive or API payload]
-    C --> D[Curated normalized data]
-    D --> E[Renderer-ready cache]
-    E --> F[Taichi preview]
-    E --> G[Unreal tile streamer]
+    A[資料集來源] --> B[Launcher 下載與登錄]
+    B --> C[原始壓縮包或 API payload]
+    C --> D[整理後標準化資料]
+    D --> E[渲染就緒快取]
+    E --> F[Taichi 預覽]
+    E --> G[Unreal 圖磚串流器]
 ```
 
 ## Camera-driven LOD

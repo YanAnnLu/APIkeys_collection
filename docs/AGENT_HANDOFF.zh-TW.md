@@ -172,6 +172,10 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 新增 `docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/MVP_FLOW_AUDIT.zh-TW.md`、`docs/USER_MANUAL.zh-TW.md`：分別補上程式關聯地圖、Demo 閉環稽核、帶圖說的使用者操作手冊。之後整理資料夾或新增功能時，先同步這三份文件，避免調度關係只留在聊天紀錄。
 - 文件與 skill 的優先順序已明確：`.md` 是 source of truth，skill/prompt/script 是消費層。整理好 `.md` 後要回頭改 skill 引用，而不是讓舊 skill 路徑反過來決定文件不能整理。
 - 調度流程文件應優先用 Mermaid。新增跨模組流程、Demo route、資料流或調度關係時，先更新 `ARCHITECTURE.zh-TW.md`、`CODE_RELATIONSHIP_MAP.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md` 或 `USER_MANUAL.zh-TW.md` 的 Mermaid 圖，再補文字。
+- 文件整理規則已固化：使用者要求整理或重構 `.md` 時，先盤點檔名/heading 與引用路徑，每次只整理一組文件，保留舊路徑 redirect/summary，再同步 `DOCS_INDEX.zh-TW.md`、本 handoff、`PROJECT_GTD.md` 與 repo skill。繁中 `.md` 的 Mermaid 可見文字要優先使用繁體中文，只有檔名、CLI flag、模組路徑、產品名或標準名保留原文。
+- Discovery 文件已收攏：`docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 現在是 crawler / candidate review / bounded resolver / adapter handoff 的主入口；`docs/appendices/discovery.zh-TW.md` 只保留為舊引用 redirect，不再新增新規格。repo 內 `.codex/skills/apikeys-collection-launcher` 的路由也已跟著改。
+- 開發者 CLI 指令索引先收攏在 `docs/USER_GUIDE.zh-TW.md` 的「開發者 CLI」章節，不新增獨立 CLI 文件；等指令規模真的讓使用指南過長，再拆成獨立文件並保留入口連結。
+- 根目錄新增 `README.zh-TW.md` 作為繁中 README 入口；英文 `README.md` 只補連結，避免新使用者第一入口只有英文。
 - 新增 `docs/ARCHITECTURE.zh-TW.md` 作為中文架構入口；英文 `docs/ARCHITECTURE.md` 保留，但未來架構大改要同步更新中文版本。
 - Heartbeat automation 第一階段已加入 CLI 與 Windows entrypoints：`--heartbeat-report`、`--heartbeat-plan-json`、`--write-heartbeat-plan-json`、`--heartbeat-agent-prompt`、`scripts/heartbeat_check.ps1`、`scripts/heartbeat_agent.ps1`、`scripts/heartbeat_check.cmd`、`scripts/heartbeat_agent.cmd`、`scripts/heartbeat_codex.ps1`、`scripts/heartbeat_codex.cmd`。
 - 根目錄 `APIkeys_collection_ui.py` 保留相容入口，不要刪。
@@ -216,7 +220,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - macOS 目前已安裝並登入 GitHub CLI (`gh`) 為 `YanAnnLu`，可直接查 CI run/log。
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 團隊開始共同尋找資料庫入口網站時，請先寫入 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`。這是組員用的入口收集表，不要貼 API key/token/cookie；只記網站、API 文件、授權、入口類型、主題、地理範圍與是否需要登入。CLI 已有 `--portal-intake-report --write-portal-intake-json state/portal_intake.review.json`，會把表格整理成 provider seed 草稿、dataset discovery source 草稿、crawler mapping 待辦、adapter/integration backlog 或 incomplete warning；`--promote-portal-intake-local` 只會把乾淨草稿寫進被 Git 忽略的 `config/provider_discovery_seeds.local.json` 與 `config/dataset_discovery_sources.local.json`，不直接改正式 catalog。草稿要進正式 catalog 時，用 `--promote-local-discovery-catalog --write-local-discovery-audit-json state/local_discovery_audit.json`；這會先跑 crawler audit，只有 error=0/warning=0 的 local dataset source 才會寫入正式 catalog。
-- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 補充文件，不是暫存雜檔；它和 `docs/appendices/discovery.zh-TW.md` 一起保存 crawler-first、candidate review、adapter handoff、dataset-version plan 的設計脈絡。
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 主入口，不是暫存雜檔；crawler-first、candidate review、bounded resolver、adapter handoff、dataset-version plan 的新規格都應寫在這裡。`docs/appendices/discovery.zh-TW.md` 只保留 redirect/摘要，避免舊 handoff、skill 或 prompt 引用失效。
 - 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
 - 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
 - Crawler 共用資料結構已從 `api_launcher/crawlers/dataset_sources.py` 拆到 `api_launcher/crawlers/types.py`。舊的 `dataset_sources.py` 匯入路徑仍可用，這是為了相容既有 CLI/UI/測試；新程式若只需要 `DatasetDiscoverySource` 或 `DatasetCandidate`，優先從 `api_launcher.crawlers.types` 匯入。

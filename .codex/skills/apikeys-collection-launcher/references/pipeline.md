@@ -25,14 +25,18 @@ Use repo docs as the source of truth; this file is only a compact route map.
 - `docs/PROJECT_GTD.md`: MVP progress table and next work areas.
 - `docs/DOCS_INDEX.zh-TW.md`: doc ownership and reading routes.
 - `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`: roadmap concepts for Data Assets, Discovery Tools, lakehouse/K8S, Render Studio, ML, connectors, and local-first desktop shape.
-- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` plus `docs/appendices/discovery.zh-TW.md`: crawler-first and adapter-review design.
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`: crawler-first, candidate review, bounded resolver, and adapter-review design. `docs/appendices/discovery.zh-TW.md` is retained only as a redirect for older references.
 - `docs/DATASET_TYPE_MAP.zh-TW.md`: data-family/storage/viewer concept map.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md` and `docs/ARCHITECTURE.md`: pipeline and runtime architecture.
 - `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` and `openspec/specs/development-workflow/spec.md`: spec-driven workflow.
-- `docs/USER_GUIDE.zh-TW.md` and `docs/SETUP.zh-TW.md`: user operations and environment setup.
+- `docs/USER_GUIDE.zh-TW.md` and `docs/SETUP.zh-TW.md`: user operations, developer CLI command index, and environment setup.
 - `docs/WORKSPACE_LAYOUT.zh-TW.md`: file ownership, module split, runtime path rules.
 - `docs/appendices/failure_modes.zh-TW.md`: failure recovery and repair design.
 - `docs/appendices/render_frontends.zh-TW.md`, `docs/appendices/unreal_bridge.zh-TW.md`, `frontends/unreal/README.zh-TW.md`: renderer and Unreal boundary.
+
+## Documentation Refactor Rule
+
+When organizing docs, pick one document group per commit, choose the canonical source by document role, preserve old paths as redirect/summary files when references may exist, then update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, and skill/prompt/script references. In Traditional Chinese docs, Mermaid labels should be Traditional Chinese except precise file names, CLI flags, module paths, product names, and standards.
 
 ## Product Model
 

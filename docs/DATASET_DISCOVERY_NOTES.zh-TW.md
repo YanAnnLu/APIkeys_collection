@@ -1,6 +1,10 @@
 # Dataset Discovery 補充說明
 
-更新日期：2026-05-19
+更新日期：2026-05-21
+
+## 文件角色
+
+這份文件是 discovery / crawler / adapter review 的主要維護入口。舊路徑 `docs/appendices/discovery.zh-TW.md` 只保留 redirect 與短摘要，避免既有 handoff、skill 或外部 prompt 失效；新增 crawler type、候選審核規則、bounded resolver、download/import plan 規則時，請優先更新本文件。
 
 ## 定位
 
@@ -10,12 +14,13 @@
 
 因此不要把每一個資料集都寫成一段 Python 硬編碼。比較健康的模型是：
 
-```text
-provider / source platform
--> searchable catalog / index / API / HTML listing
--> dataset candidates
--> reviewed dataset versions / file shards / query templates
--> download plan / import plan / renderer bridge
+```mermaid
+flowchart TD
+    A[供應商 / 來源平台] --> B[可搜尋目錄 / 索引 / API / HTML 清單]
+    B --> C[資料集候選]
+    C --> D[已審核版本 / 檔案分片 / 查詢範本]
+    D --> E[下載 / 匯入計畫]
+    E --> F[驗證清單 / 整理後匯入 / 渲染橋接]
 ```
 
 白話說：Alpha Vantage、NOAA、Google Earth Engine、MarineCadastre、ERDDAP 這些首先是供應商或資料平台；背後可能有很多資料集。第 1 階段應該優先把「發現資料集」的 crawler 做好，再挑代表資料集進入下載閉環。

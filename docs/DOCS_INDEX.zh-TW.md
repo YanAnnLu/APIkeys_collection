@@ -1,6 +1,6 @@
 # 文件索引與整理規則
 
-最後更新：2026-05-20
+最後更新：2026-05-21
 
 這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
@@ -14,6 +14,8 @@
 
 白話說：英文可以保留給工程細節與工具慣例，但接力、產品判斷、使用者會讀的流程，必須有繁中版本讓下一位人類或 Agent 不用猜。
 
+根目錄 `README.md` 已有繁中對應入口 `README.zh-TW.md`。README 類型的根入口允許成對存在，因為它們是新使用者最先看到的語言入口，不視為不必要的文件碎片。
+
 ## Mermaid 圖說規則
 
 凡是描述調度流程、資料流、跨模組依賴、Demo 操作路線或中長期平台邊界，優先用 Mermaid 補圖說，再搭配文字表格。尤其是這幾類文件：
@@ -26,6 +28,8 @@
 
 小型規則或單一 CLI 指令不用硬畫圖；但只要牽涉「誰調誰」或「按下按鈕後資料怎麼走」，就應該有 Mermaid。
 
+繁中 `.md` 裡的 Mermaid 圖，人類可見的節點名稱與箭頭文字要優先使用繁體中文。模組路徑、CLI 參數、檔名、產品名、標準名可以保留英文或原文，但不要讓整張流程圖以英文術語為主要閱讀語言。
+
 ## 快速閱讀路線
 
 | 情境 | 建議先讀 | 目的 |
@@ -33,12 +37,13 @@
 | 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、怎麼安全換平台、下一步在哪、文件怎麼找。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
-| 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `appendices/discovery.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first。 |
+| 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `MVP_FLOW_AUDIT.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first，並確認候選、resolver、下載與匯入是否真的閉環。 |
 | 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |
 | 要整理檔案或重構 | `CODE_RELATIONSHIP_MAP.zh-TW.md` -> `WORKSPACE_LAYOUT.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先看程式調度關係、檔案分類、路徑規則與拆分優先順序。 |
 | 要檢查 Demo 閉環 | `MVP_FLOW_AUDIT.zh-TW.md` -> `USER_MANUAL.zh-TW.md` -> `PROJECT_GTD.md` | 先確認按鈕、CLI、下載、匯入、repair、MySQL 哪些真的閉環，哪些仍是骨架。 |
 | 要改開發策略 / OpenSpec | `DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` | 先確認哪些改動要走 spec-driven 流程、Spectra/Qt Designer 怎麼用、不能阻塞 MVP 的界線。 |
 | 要給使用者操作 | `USER_GUIDE.zh-TW.md` -> `SETUP.zh-TW.md` | 先確認 UI、設定、啟動與日常操作說法。 |
+| 要查 CLI 指令 | `USER_GUIDE.zh-TW.md` 的「開發者 CLI」章節 -> `CODE_RELATIONSHIP_MAP.zh-TW.md` | 先查常用指令與閉環 recipe，再看背後由哪些模組調度。 |
 
 ## 主文件地圖
 
@@ -57,11 +62,11 @@
 | `ARCHITECTURE.md` | 英文架構原文與跨語系參考。 | 大幅更新時同步更新 `ARCHITECTURE.zh-TW.md` 或至少補中文摘要。 |
 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，白話說明資料、下載、SQL、AI、renderer 等主線。 | 新功能進入 MVP 或 skeleton 邊界改變時更新。 |
 | `DATASET_TYPE_MAP.zh-TW.md` | 資料類型地圖，說明 table、GIS、time-series、array、media、RAG 等資料該怎麼想。 | 新增資料類型、storage hint、viewer hint 時更新。 |
-| `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 補充說明，聚焦 crawler-first、candidate review、adapter 邊界與版本計畫。 | 改 crawler、candidate、adapter resolver、download plan 時更新。 |
+| `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 主入口，聚焦 crawler-first、candidate review、adapter 邊界、bounded resolver、download/import plan 與版本計畫。 | 改 crawler、candidate、adapter resolver、download plan 時更新。 |
 | `DATABASE_PORTAL_INTAKE.zh-TW.md` | 組員收集資料入口網站的表格與規則。 | intake 欄位、promotion 流程、Notion 同步規則改變時更新。 |
 | `DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` | OpenSpec / Spectra / Qt Designer 開發流程，定義中大型改動的規格化習慣。 | 開發流程、OpenSpec 工具、Spectra GUI、Qt/PySide6 工具位置或規格門檻改變時更新。 |
 | `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序與路徑規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime 目錄時更新。 |
-| `USER_GUIDE.zh-TW.md` | 使用者操作指南，保留較完整背景與操作說明。 | UI/CLI 操作、選單名稱、使用流程改變時更新；Demo 快速手冊同步看 `USER_MANUAL.zh-TW.md`。 |
+| `USER_GUIDE.zh-TW.md` | 使用者操作指南，保留較完整背景、操作說明與開發者 CLI 指令索引。 | UI/CLI 操作、選單名稱、使用流程改變時更新；Demo 快速手冊同步看 `USER_MANUAL.zh-TW.md`。 |
 | `SETUP.zh-TW.md` | 安裝與啟動說明。 | Python/Conda/Docker/GitHub CLI/跨平台設定改變時更新。 |
 | `TECH_STACK.md` | 技術棧與依賴邊界，目前偏工程英文。 | 依賴、CI、Docker、optional renderer stack 改變時更新，並同步補繁中摘要或對應文件。 |
 | `PROJECT_STATE.md` | 較完整的狀態快照與歷史脈絡，目前偏英文。 | 大型里程碑或需要保留歷史狀態時更新；平常優先更新 GTD/handoff，若大改要補繁中入口。 |
@@ -71,7 +76,7 @@
 
 | 文件 | 角色 | 何時更新 |
 | --- | --- | --- |
-| `appendices/discovery.zh-TW.md` | discovery 子系統完整補充，與 `DATASET_DISCOVERY_NOTES.zh-TW.md` 互相對照。 | crawler source type、adapter handoff、candidate plan 流程改變時更新。 |
+| `appendices/discovery.zh-TW.md` | 舊 discovery 附錄路徑，現在保留為 redirect/摘要，避免舊 handoff、skill 或 prompt 失效。 | 不新增新規格；新 discovery 內容改寫到 `DATASET_DISCOVERY_NOTES.zh-TW.md`。 |
 | `appendices/failure_modes.zh-TW.md` | 失敗模式與修復思路。 | 新增 repair scanner、database self-check、path repair、download recovery 時更新。 |
 | `appendices/render_frontends.zh-TW.md` | renderer / frontend 方向補充。 | Taichi、Unreal、Cesium、chart frontend 邊界改變時更新。 |
 | `appendices/unreal_bridge.zh-TW.md` | Unreal bridge 設計補充。 | Unreal exporter、tile manifest、UE 專案邊界改變時更新。 |
@@ -100,6 +105,21 @@
 
 目前文件結構的目標不是「文件越少越好」，而是「每份文件有清楚任務」。接力文件、GTD、架構、技術總覽、使用者指南、工作區規則與各附錄都可以共存，只要索引清楚即可。
 
+## 固定整理流程
+
+當使用者要求「整理文件」、「重構 .md」、「收攏文件」或類似任務時，請依這套順序執行，避免每次重新討論規則：
+
+1. 先跑 `git status --short --branch`，保護未提交或不屬於本輪的變更。
+2. 先讀本文件、`AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md`，再依任務讀相關文件。
+3. 用檔名與 heading 盤點，不要一次把所有大型概念文件塞進上下文。
+4. 合併、改名、刪除前，搜尋 `.codex/skills/`、`.gemini/`、`.github/skills/`、`.github/prompts/`、`openspec/`、`scripts/`、`README.md` 的路徑引用。
+5. 每次只整理一組文件，先判斷哪一份是 canonical source of truth，再決定其他文件要保留、改 redirect、或變成進階補充。
+6. 舊路徑可能被 skill、prompt 或外部自動化使用時，先保留 redirect/summary，不直接刪檔。
+7. `.md` 先整理好，再回頭更新 skill/prompt/script；不要讓舊 skill 路徑決定文件不能重構。
+8. 繁中 `.md` 的 Mermaid 節點與箭頭文字要以繁體中文為主；檔名、CLI flag、模組路徑、產品名與標準名可保留原文。
+9. 更新 `DOCS_INDEX.zh-TW.md`、`AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md`，並同步 repo 內 `.codex/skills/apikeys-collection-launcher`。
+10. 跑 `git diff --check`；若文件範例、腳本或生成流程有改，再跑對應測試。
+
 ## 近期收攏評估
 
 這一段是文件重構候選，不代表立刻刪檔。原則是先保留入口、補 redirect/summary，再觀察下一輪 Agent 是否還依賴舊文件。
@@ -107,7 +127,7 @@
 | 群組 | 現況 | 建議 |
 | --- | --- | --- |
 | 使用者操作 | `USER_GUIDE.zh-TW.md` 與 `USER_MANUAL.zh-TW.md` 有重疊 | 短期保留兩份：`USER_MANUAL` 做 Demo/圖說快速路線，`USER_GUIDE` 做完整背景。穩定後可把 `USER_GUIDE` 改成進階章節，手冊成為主入口。 |
-| Discovery 說明 | `DATASET_DISCOVERY_NOTES.zh-TW.md` 與 `appendices/discovery.zh-TW.md` 標題相同且內容接近 | 近期應比對差異，把重複段落收進主文件；附錄改成歷史補充或 redirect。不要直接刪，因為舊 handoff 可能引用附錄。 |
+| Discovery 說明 | `DATASET_DISCOVERY_NOTES.zh-TW.md` 已成為主入口；`appendices/discovery.zh-TW.md` 已改成 redirect | 保留 appendix 路徑給舊引用，但不要再把新 crawler/adapter 規格寫進 appendix。下一步可整理使用者手冊與使用者指南的重疊。 |
 | 架構/技術棧/技術總覽 | `ARCHITECTURE.md`, `TECH_STACK.md`, `TECHNICAL_OVERVIEW.zh-TW.md`, `CODE_RELATIONSHIP_MAP.zh-TW.md` 互相重疊 | `CODE_RELATIONSHIP_MAP` 負責「誰調誰」，`TECHNICAL_OVERVIEW` 負責中文白話，`ARCHITECTURE` 負責圖與架構契約，`TECH_STACK` 負責依賴。未來若合併，先補繁中摘要，不要讓重要資訊只剩英文。 |
 | 狀態/接力 | `PROJECT_STATE.md`, `PROJECT_GTD.md`, `AGENT_HANDOFF.zh-TW.md` 都描述狀態 | `AGENT_HANDOFF` 保持最新接力卡，`PROJECT_GTD` 保持進度表，`PROJECT_STATE` 逐步降級為歷史快照。未來大里程碑後可把舊 state 摘要化。 |
 | Git/Setup/Heartbeat | `GIT_HANDOFF.md`, `SETUP.zh-TW.md`, `HEARTBEAT_AUTOMATION.zh-TW.md` 有跨平台與接力重疊 | 保留分工：`SETUP` 給安裝環境，`GIT_HANDOFF` 給 Git 事故與 CI，`HEARTBEAT` 給排程自動化。若重複，優先在 `AGENT_HANDOFF` 留短摘要和連結。 |
@@ -115,9 +135,9 @@
 
 近期文件整理任務：
 
-1. 對 `DATASET_DISCOVERY_NOTES.zh-TW.md` 與 `appendices/discovery.zh-TW.md` 做逐節 diff，收斂重複內容。
-2. 將 `USER_MANUAL.zh-TW.md` 作為 Demo 主入口，再把 `USER_GUIDE.zh-TW.md` 中重複的 step-by-step 段落改成連結。
-3. 把 `PROJECT_STATE.md` 中仍是現況的段落搬到 GTD/handoff 或對應技術文件，剩下保留歷史快照。
+1. 將 `USER_MANUAL.zh-TW.md` 作為 Demo 主入口，再把 `USER_GUIDE.zh-TW.md` 中重複的 step-by-step 段落改成連結。
+2. 把 `PROJECT_STATE.md` 中仍是現況的段落搬到 GTD/handoff 或對應技術文件，剩下保留歷史快照。
+3. 視 `TECHNICAL_OVERVIEW.zh-TW.md` 與 `ARCHITECTURE.zh-TW.md` 的重疊程度，補出更清楚的「白話總覽」與「架構契約」分工。
 4. 每次合併都只做一組文件；先依 `.md` 的職責決定新結構，再搜尋並更新 skill/prompt/script 依賴，必要時保留 redirect/summary，跑 `git diff --check`，並在 `AGENT_HANDOFF` 記錄新的閱讀入口。
 
 ## Heartbeat Automation 補充入口

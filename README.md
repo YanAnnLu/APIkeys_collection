@@ -1,5 +1,7 @@
 # APIkeys_collection
 
+繁體中文入口請看 [README.zh-TW.md](README.zh-TW.md)。
+
 `APIkeys_collection.py` builds a local, extensible Steam-like launcher for public scientific data-provider metadata.
 
 It is designed as a data-engineering platform that makes the annoying parts of scientific data work more like Steam:
@@ -50,7 +52,7 @@ reference file, templates, and exports.
 - `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`: crawler-first dataset discovery notes, candidate review rules, and adapter handoff guidance.
 - `docs/DATASET_TYPE_MAP.zh-TW.md`: beginner-friendly taxonomy for dataset families, storage choices, analysis tools, and rendering targets.
 - `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`: team intake sheet/rules for collecting new database portal URLs.
-- `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI and daily-use guide.
+- `docs/USER_GUIDE.zh-TW.md`: beginner-friendly UI, daily-use guide, and developer CLI command index.
 - `docs/WORKSPACE_LAYOUT.zh-TW.md`: workspace/file responsibility map, split priorities, and cleanup rules.
 - `docs/PRODUCT_POSITIONING.zh-TW.md`: Chinese product positioning note for the evolved Steam-like dataset launcher and virtual twin data pipeline.
 - `docs/SETUP.zh-TW.md`: setup and launch notes for Windows/macOS/Linux.

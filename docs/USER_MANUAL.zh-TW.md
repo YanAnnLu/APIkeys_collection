@@ -12,7 +12,7 @@ flowchart LR
     browse --> discover["發現資料集候選"]
     discover --> review["審核候選"]
     review --> plan["加入下載計畫"]
-    plan --> resolve["必要時解析 Adapter 計畫"]
+    plan --> resolve["必要時解析轉接器計畫"]
     resolve --> download["開始下載"]
     download --> import["匯入支援結果"]
     import --> repair["驗證 / 修復資產"]
