@@ -18,10 +18,11 @@
 
 ### 2026-05-22
 
-主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，同步 GTD 狀態，定義 `tem/` 本機暫存區的 Git 與交接規則，補上可重複 MVP Demo Flow，並抽出下載/匯入 pipeline slice。
+主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，同步 GTD 狀態，定義 `tem/` 本機暫存區的 Git 與交接規則，補上可重複 MVP Demo Flow，並抽出下載/匯入 pipeline slice 與 UI 匯入共用邊界。
 
 | 時間 | 標記 | SHA | Run | 原始標題 | 中文說明 |
 | --- | --- | --- | --- | --- | --- |
+| 02:22 | **CHECKPOINT** | `da0f4d8` | `26244973496` | Route UI plan imports through pipeline slice | 讓 Tk UI 的 `匯入可支援下載結果` 改走 `api_launcher/ingestion_pipeline.py` 的 `run_existing_download_import_slice()`，把已下載 manifest 驗證、downloaded asset 登錄、SQLite 匯入、逐項狀態與 rename table 規則收進共用 service，不再在 `launcher_ui.py` 內重寫一套匯入 loop；本機驗證包含 15 個針對性測試、375 個 unittest、`py_compile` 與 `git diff --check`，CI 的 Ubuntu、Windows 與 real DB smoke 全數成功。 |
 | 01:55 | **CHECKPOINT** | `ffa9f87` | `26243591715` | Add download import pipeline slice | 新增 `api_launcher/ingestion_pipeline.py` 作為 direct plan 的下載/匯入流程切片，讓 `core.py --run-download-plan` 透過同一個 service 執行下載、manifest 登錄、支援格式匯入、blocked next_action、stage 分類與 CLI 摘要渲染；本機驗證包含 15 個針對性測試、374 個 unittest、`py_compile` 與 `git diff --check`，CI 的 Ubuntu、Windows 與 real DB smoke 全數成功。 |
 | 01:36 | **CHECKPOINT** | `73c2220` | `26242596720` | Add canonical MVP demo flow | 新增 `--write-mvp-demo-flow` 與 `api_launcher/mvp_demo.py`，可產生固定 flow manifest、Socrata adapter review plan、離線 JSON fixture 與離線 direct plan；本機驗證包含 adapter 解析、離線下載、manifest 驗證、SQLite 匯入、372 個 unittest、`py_compile` 與 `git diff --check`，CI 的 Windows、Ubuntu 與 real DB smoke 全數成功。 |
 | 01:05 | **CHECKPOINT** | `7e7387f` | `26240992737` | Guide blocked download plans | 收束下載計畫的失敗閉環：`--run-download-plan` 現在會輸出 `skip_summary` 與 `next_action`，Tk UI 在沒有可直接下載項目時會引導使用者前往 Adapter 待辦或解析 Adapter 計畫。 |
