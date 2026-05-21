@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-21
 
-本文件定義 `APIkeys_collection` 的 heartbeat automation。第一階段做「喚醒後檢查、產生報告、推薦下一個 bounded task、產生可餵給外部 Codex/agent runner 的 prompt」。預設不自動改程式碼、不自動推送、不碰 secrets；只有外部排程明確傳入 agent executable 並加上 `-RunAgent` 時，才會呼叫外部 agent。
+本文件定義 `APIkeys_collection` 的 heartbeat automation。第一階段做「喚醒後檢查、產生報告、推薦下一個 bounded task、產生可餵給外部 Codex/agent runner 的 prompt」。若要真的讓 agent 定時推進，使用 `scripts/heartbeat_codex.cmd`；它會先跑同一套安全檢查，只有 `safe_to_progress=true` 時才把 prompt 交給 `codex exec`。
 
 ## 目標
 
@@ -35,6 +35,18 @@ Windows 可直接執行檢查。若 PowerShell 顯示「已停用指令碼執行
 .\scripts\heartbeat_agent.cmd
 ```
 
+若要真的呼叫本機 Codex CLI 非互動推進：
+
+```powershell
+.\scripts\heartbeat_codex.cmd
+```
+
+首次接排程前建議先 dry-run：
+
+```powershell
+.\scripts\heartbeat_codex.cmd -DryRun
+```
+
 若要在 `safe_to_progress=true` 時呼叫外部 agent runner：
 
 ```powershell
@@ -47,6 +59,8 @@ Windows 可直接執行檢查。若 PowerShell 顯示「已停用指令碼執行
 state/heartbeat/heartbeat.md
 state/heartbeat/heartbeat_plan.json
 state/heartbeat/agent_prompt.md
+state/heartbeat/codex_run.log
+state/heartbeat/codex_last_message.md
 ```
 
 `state/` 是 runtime/ignored 區域，適合讓外部排程反覆寫入。
@@ -106,6 +120,16 @@ K:\APIkeys_collection\scripts\heartbeat_check.cmd
 ```powershell
 K:\APIkeys_collection\scripts\heartbeat_agent.cmd
 ```
+
+要讓本機 Codex CLI 定時推進，Task Scheduler 建議設定：
+
+```text
+Program/script: cmd.exe
+Arguments: /c K:\APIkeys_collection\scripts\heartbeat_codex.cmd
+Start in: K:\APIkeys_collection
+```
+
+Trigger 設成每 45 分鐘重複一次，Settings 建議啟用「如果工作執行超過 30 分鐘則停止」。
 
 確認外部 agent command 穩定後，才加上 `-RunAgent -AgentExecutable ...`。若需要 PowerShell array 或更複雜的 quoting，可直接使用：
 

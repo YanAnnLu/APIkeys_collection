@@ -45,6 +45,10 @@ machines that block direct `.ps1` execution. The scripts are intended for Window
 scheduler; this repository does not assume that a chat thread can wake itself without an external runner. Runtime
 heartbeat outputs live under ignored `state/heartbeat/`.
 
+For actual unattended local progress, `scripts/heartbeat_codex.cmd` calls `scripts/heartbeat_codex.ps1`, which generates
+the heartbeat plan/prompt and invokes `codex exec` only when `safe_to_progress=true`. It writes scheduler-friendly logs
+to `state/heartbeat/codex_run.log` and the final agent response to `state/heartbeat/codex_last_message.md`.
+
 ## Database Smoke Stack
 
 Optional real-driver smoke dependencies live in `requirements-db-smoke.txt`:
