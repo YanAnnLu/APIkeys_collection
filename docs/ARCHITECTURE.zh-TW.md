@@ -143,7 +143,7 @@ flowchart TD
 | Core orchestration | `api_launcher/core.py`, `api_launcher/cli_*.py` | CLI routing 與共用輸出。 |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py`, `api_launcher/registry.py` | SQLite schema、catalog state、crawl results、install registry、asset state。 |
 | Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery、dataset candidate discovery，以及中期 crawler asset / Aseat 的治理邊界。 |
-| Planning | `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Download/import plan、adapter handoff、bounded resolver。 |
+| Planning | `api_launcher/adapters/*`, `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Download/import plan、provider-specific dataset/query contract、adapter handoff、bounded resolver；非官方 yfinance 這類來源先以 opt-in/fixture contract 進入，不默默 live fetch。 |
 | Pipeline slice | `api_launcher/ingestion_pipeline.py` | direct plan 的下載、manifest 登錄、支援格式匯入、blocked next_action 與 CLI/UI 共用 stage。 |
 | Downloading | `api_launcher/downloads/*` | job queue、HTTP adapter、staging、manifest repair、transfer tools。 |
 | Import / curation | `api_launcher/importers/*` | CSV/JSON/archive raw -> curated SQLite。 |

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from api_launcher.adapters import DatasetAdapter, GEBCOTopographyAdapter, HYGStarCatalogAdapter
+from api_launcher.adapters import (
+    DatasetAdapter,
+    GEBCOTopographyAdapter,
+    HYGStarCatalogAdapter,
+    YFinanceMarketDataAdapter,
+)
 from api_launcher.models import Provider
 
 
 DATASET_ADAPTERS: tuple[DatasetAdapter, ...] = (
     GEBCOTopographyAdapter(),
     HYGStarCatalogAdapter(),
+    YFinanceMarketDataAdapter(),
 )
 
 

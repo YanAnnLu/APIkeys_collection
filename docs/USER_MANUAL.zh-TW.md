@@ -51,6 +51,22 @@ py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed
 
 圖說：這是穩定 smoke test，不取代真正 crawler discovery；它只是先證明核心下載/匯入管線沒有斷。
 
+## 0-1. 金融時間序列 Demo
+
+如果要確認金融/市場資料的 append-only 時間序列欄位可以進入同一條下載與匯入閉環，可以先產生 yfinance 離線 demo plan：
+
+```powershell
+py -B APIkeys_collection.py --write-yfinance-demo-plan state/yfinance_demo/plan.json --yfinance-symbol AAPL --yfinance-symbol MSFT
+```
+
+接著跑：
+
+```powershell
+py -B APIkeys_collection.py --db state/yfinance_demo/launcher.sqlite --init-db --seed --run-download-plan state/yfinance_demo/plan.json --downloads-root state/yfinance_demo/downloads --import-supported-plan-results --import-sqlite-db state/yfinance_demo/curated.sqlite --plan-import-existing-table-policy rename
+```
+
+圖說：這只使用本機產生的 CSV fixture，不會安裝 `yfinance`，也不會連到 Yahoo。正式 live yfinance 之後必須由使用者明確 opt-in，且只能作為非官方、personal/research 用途資料源。
+
 ## 1. 開啟程式
 
 Windows：

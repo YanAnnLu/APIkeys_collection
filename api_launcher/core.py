@@ -114,6 +114,7 @@ from api_launcher.plans import (
     provider_dataset_version_plan_entry,
     provider_plan_entry,
 )
+from api_launcher.adapters.yfinance import write_yfinance_demo_plan as write_yfinance_demo_plan_files
 from api_launcher.renderer_contracts import (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
     HYG_V38_STAR_CONTRACT,
@@ -609,6 +610,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
+    parser.add_argument("--write-yfinance-demo-plan", help="write a fixture-backed Yahoo Finance/yfinance OHLCV demo plan")
+    parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for --write-yfinance-demo-plan; can be repeated")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
@@ -726,6 +729,7 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.write_mvp_demo_flow()
+            self.write_yfinance_demo_plan()
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
@@ -889,6 +893,26 @@ class CatalogLauncherCli:
             if not isinstance(command, dict) or command.get("step") in {1, "1"}:
                 continue
             print(f"[mvp-demo] step{command.get('step')} {command.get('command')}")
+
+    def write_yfinance_demo_plan(self) -> None:
+        if not self.args.write_yfinance_demo_plan:
+            return
+        # yfinance demo plan 只寫離線 fixture，讓 CI/新手驗證時間序列 schema，不隱性打 Yahoo。
+        result = write_yfinance_demo_plan_files(
+            resolve_project_path(self.args.write_yfinance_demo_plan),
+            symbols=self.args.yfinance_symbol,
+            downloads_root=self.args.downloads_root,
+        )
+        print(
+            "[yfinance-demo] "
+            f"wrote {result.plan_path} fixture={result.fixture_path} symbols={','.join(result.symbols)}"
+        )
+        print(
+            "[yfinance-demo] "
+            "next="
+            f"--run-download-plan {result.plan_path} --downloads-root {self.args.downloads_root} "
+            "--import-supported-plan-results --plan-import-existing-table-policy rename"
+        )
 
     def show_adapter_review_plan(self) -> None:
         if not self.args.adapter_review_plan:

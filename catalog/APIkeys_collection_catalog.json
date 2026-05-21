@@ -1071,5 +1071,25 @@
     "license_url": "",
     "terms_url": "",
     "notes": ""
+  },
+  {
+    "provider_id": "yahoo_finance_yfinance",
+    "name": "Yahoo Finance via yfinance",
+    "owner": "Yahoo Finance / yfinance open-source client",
+    "categories": [
+      "finance",
+      "stocks",
+      "market_data",
+      "timeseries"
+    ],
+    "geographic_scope": "global",
+    "docs_url": "https://ericpien.github.io/yfinance/index.html",
+    "api_base_url": "yfinance://download",
+    "signup_url": "",
+    "auth_type": "optional_unofficial_personal_research_client",
+    "key_env_var": "",
+    "license_url": "",
+    "terms_url": "https://ericpien.github.io/yfinance/index.html",
+    "notes": "Unofficial yfinance adapter candidate for personal/research workflows only. Do not treat Yahoo Finance data as redistribution-safe or commercial-source data; live fetch must be explicit opt-in and tests should use fixtures."
   }
 ]

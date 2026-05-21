@@ -24,12 +24,14 @@ The project is not a secret harvester. Credential files are templates for user-o
 ## Current Implementation
 
 - `APIkeys_collection.py` is now a thin compatibility wrapper that re-exports `api_launcher.core`.
-- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 54 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, DataCite, OpenAlex, WMO WIS2 Global Discovery Catalogue, Canada/UK/Australia/HDX CKAN portals, and NYC/DataSF/Chicago Socrata portals.
+- Built-in providers are now loaded from `catalog/APIkeys_collection_catalog.json` with a small Python overlay for fields that should not clutter the catalog, such as extra credential env vars. The current built-in catalog has 55 providers, including newer seeds for NOAA GOES-R on AWS, NOAA NOMADS, Marine Regions, GADM, OpenStreetMap Overpass, U.S. Census TIGERweb, EMODnet ERDDAP, Harvard Dataverse, Zenodo, DataCite, OpenAlex, WMO WIS2 Global Discovery Catalogue, Canada/UK/Australia/HDX CKAN portals, NYC/DataSF/Chicago Socrata portals, and optional/unofficial Yahoo Finance via yfinance.
 - `APIkeys_collection_ui.py` is now a compatibility wrapper for the Tk launcher implementation in
   `frontends/tk/launcher_ui.py`.
 - `APIkeys_collection.sqlite` currently contains provider-level catalog state.
 - Dataset-level adapter interfaces now exist. Concrete provider-specific adapters include `HYGStarCatalogAdapter` for
-  the HYG v3.8 star catalog and `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid.
+  the HYG v3.8 star catalog, `GEBCOTopographyAdapter` for the GEBCO 2025 global elevation grid, and
+  `YFinanceMarketDataAdapter` for an optional/unofficial yfinance market-data query template plus fixture-backed
+  OHLCV demo plan.
 - Dataset candidate discovery is now crawler-first. `catalog/dataset_discovery_sources.json` has 23 metadata-only
   sources, and `api_launcher/crawlers/` provides a concurrent orchestrator plus source-type crawlers for NOAA/NCEI
   search, ERDDAP `allDatasets`, HTML file indexes, NASA CMR collections, STAC collections, GBIF dataset search,
@@ -156,10 +158,10 @@ The project is not a secret harvester. Credential files are templates for user-o
 
 Current SQLite counts observed on this machine:
 
-Observed on 2026-05-21 with `py -B APIkeys_collection.py --summary`. These are smoke-check
+Observed on 2026-05-22 with `py -B APIkeys_collection.py --summary` against a temporary seeded DB. These are smoke-check
 values for the current local/default state, not a persistent product contract.
 
-- `providers`: 54 after current built-in seed
+- `providers`: 55 after current built-in seed
 - `template_keys` / `key_placeholders`: 22 after current built-in seed
 - `provider_download_state`: follows `providers`
 - `crawl_results`: 8
