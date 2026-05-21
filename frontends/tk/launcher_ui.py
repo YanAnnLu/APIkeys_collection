@@ -33,9 +33,9 @@ from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.downloads.plan_runner import (
     download_entry_skip_bucket,
-    import_completed_plan_entry,
 )
 from api_launcher.importers.csv_importer import table_exists
+from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import (
     ManifestVerification,
@@ -2568,67 +2568,41 @@ class ApiCollectionUi:
         sqlite_path: Path,
         existing_table_policy: str,
     ) -> None:
-        # 匯入跑背景 thread，但所有 repository 寫入仍集中在這個 worker 內完成。
-        imported = 0
-        skipped = 0
-        failed = 0
+        # UI worker 只負責 thread 與訊息映射；manifest/register/import 規則統一交給 ingestion_pipeline。
         messages: list[str] = []
         item_statuses: list[tuple[str, str, str]] = []
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
-            for plan_key, entry, label in entries:
-                import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
-                table_hint = str(import_plan.get("table_hint") or "").strip()
-                try:
-                    target = download_target_from_plan_entry(entry)
-                    manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
-                    verification = verify_manifest_file(manifest_path)
-                    if verification.status != "ok":
-                        # manifest 不健康時不匯入，避免半下載檔或被改動檔進 curated SQLite。
-                        skipped += 1
-                        detail = f"manifest {verification.status} {verification.message}".strip()
-                        item_statuses.append((plan_key, self.tr("略過", "Skipped"), detail))
-                        messages.append(f"{label}: {detail}")
-                        continue
-                    manifest = read_manifest(manifest_path)
-                    repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
-                    repository.register_downloaded_manifest_asset(manifest, manifest_path)
-                    if existing_table_policy == "rename" and table_hint:
-                        unique_table = self.unique_import_table_name(sqlite_path, table_hint)
-                        if unique_table != table_hint:
-                            entry = dict(entry)
-                            import_plan = dict(import_plan)
-                            import_plan["table_hint"] = unique_table
-                            entry["import_plan"] = import_plan
-                            table_hint = unique_table
-                    result = import_completed_plan_entry(
-                        repository,
-                        entry,
-                        manifest_path,
-                        sqlite_path=sqlite_path,
-                        row_limit=0,
-                        replace=existing_table_policy == "replace",
-                        existing_table_policy=existing_table_policy,
-                    )
-                except Exception as exc:
-                    failed += 1
-                    detail = f"{type(exc).__name__}: {exc}"
-                    item_statuses.append((plan_key, self.tr("失敗", "Failed"), detail))
-                    messages.append(f"{label}: {detail}")
-                    continue
-                if result == "imported":
-                    imported += 1
-                    detail = table_hint or self.tr("已寫入 SQLite", "Written to SQLite")
+            index_to_item = {index: (plan_key, label) for index, (plan_key, _entry, label) in enumerate(entries, start=1)}
+            run = run_existing_download_import_slice(
+                {"providers": [entry for _plan_key, entry, _label in entries]},
+                repository,
+                DownloadImportPipelineOptions(
+                    import_supported_results=True,
+                    import_sqlite_path=sqlite_path,
+                    import_row_limit=0,
+                    import_replace=existing_table_policy == "replace",
+                    import_existing_table_policy=existing_table_policy,
+                ),
+            )
+            imported = run.result.imported
+            skipped = run.result.import_skipped
+            failed = run.result.import_failed
+            for item_status in run.item_statuses:
+                plan_key, label = index_to_item.get(item_status.index, ("", item_status.provider_id))
+                if item_status.status == "imported":
+                    detail = item_status.detail or self.tr("已寫入 SQLite", "Written to SQLite")
                     item_statuses.append((plan_key, self.tr("已匯入", "Imported"), detail))
-                elif result.startswith("skipped"):
-                    skipped += 1
-                    item_statuses.append((plan_key, self.tr("略過", "Skipped"), result))
-                    messages.append(f"{label}: {result}")
+                elif item_status.status == "skipped":
+                    item_statuses.append((plan_key, self.tr("略過", "Skipped"), item_status.detail))
+                    messages.append(f"{label}: {item_status.detail}")
                 else:
-                    failed += 1
-                    item_statuses.append((plan_key, self.tr("失敗", "Failed"), result))
-                    messages.append(f"{label}: {result}")
+                    item_statuses.append((plan_key, self.tr("失敗", "Failed"), item_status.detail))
+                    messages.append(f"{label}: {item_status.detail}")
+            for error in run.result.errors:
+                if error not in messages:
+                    messages.append(error)
         finally:
             conn.close()
 

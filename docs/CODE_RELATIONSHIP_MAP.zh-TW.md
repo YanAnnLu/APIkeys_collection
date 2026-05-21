@@ -66,7 +66,7 @@ flowchart TD
 | catalog / repository | `models.py`, `repository.py`, `registry.py` | provider、dataset、install、asset 狀態 | `tests/test_dataset_catalog.py`, `tests/test_install_registry.py` |
 | crawler | `api_launcher/crawlers/*` | source metadata 抓取、pagination、candidate 正規化 | `tests/test_dataset_discovery.py`, `tests/test_dataset_download_plan.py` |
 | adapter / plan | `plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | non-direct plan handoff 與 bounded resolver | `tests/test_adapter_plan_resolver.py`, `tests/test_download_plan.py` |
-| ingestion pipeline | `api_launcher/ingestion_pipeline.py` | 將 direct plan 執行、manifest 登錄、支援格式匯入與 blocked next action 包成可重用 service | `tests/test_ingestion_pipeline.py`, `tests/test_download_plan_runner.py` |
+| ingestion pipeline | `api_launcher/ingestion_pipeline.py` | 將 direct plan 執行、已下載 manifest 匯入、manifest 登錄、支援格式匯入、逐項狀態與 blocked next action 包成可重用 service | `tests/test_ingestion_pipeline.py`, `tests/test_download_plan_runner.py` |
 | download | `api_launcher/downloads/*` | queue、HTTP、staging、manifest、repair | `tests/test_http_downloader.py`, `tests/test_download_jobs.py`, `tests/test_repair.py` |
 | import | `api_launcher/importers/*` | CSV/JSON/archive raw -> curated SQLite | `tests/test_csv_importer.py`, `tests/test_json_importer.py`, `tests/test_download_plan_runner.py` |
 | data store | `data_store_connections.py`, `database_self_check.py`, `database_repair.py` | SQLite/MySQL/PostgreSQL profile、self-check、repair guard | `tests/test_data_store_connections.py`, `tests/test_database_self_check.py` |
