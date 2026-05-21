@@ -50,8 +50,13 @@ DIRECT_RESOURCE_FORMATS = {
     "csv",
     "csv.gz",
     "geojson",
+    "geojson.gz",
     "json",
+    "json.gz",
     "jsonl",
+    "jsonl.gz",
+    "ndjson",
+    "ndjson.gz",
     "grb",
     "grib",
     "hdf",
@@ -2764,7 +2769,20 @@ def source_format_for_resource(resource: dict[str, object], url: str, fallback: 
         )
     )
     inferred = source_format_from_url(url)
-    if inferred in {"csv.gz", "csv.zst", "tar.gz", "zip", "zst", "gz", "xz", "bz2"}:
+    if inferred in {
+        "csv.gz",
+        "csv.zst",
+        "geojson.gz",
+        "json.gz",
+        "jsonl.gz",
+        "ndjson.gz",
+        "tar.gz",
+        "zip",
+        "zst",
+        "gz",
+        "xz",
+        "bz2",
+    }:
         return inferred
     if hinted != "unknown":
         return hinted
@@ -2783,10 +2801,18 @@ def normalize_resource_format(value: str) -> str:
         return "csv.zst"
     if "csv" in normalized and "gz" in normalized:
         return "csv.gz"
+    if ("geojson" in normalized or "geo+json" in normalized) and "gz" in normalized:
+        return "geojson.gz"
+    if ("jsonl" in normalized or "ndjson" in normalized) and "gz" in normalized:
+        return "jsonl.gz" if "jsonl" in normalized else "ndjson.gz"
+    if "json" in normalized and "gz" in normalized:
+        return "json.gz"
     if "geojson" in normalized or "geo+json" in normalized:
         return "geojson"
-    if "jsonl" in normalized or "ndjson" in normalized:
+    if "jsonl" in normalized:
         return "jsonl"
+    if "ndjson" in normalized:
+        return "ndjson"
     if "json" in normalized:
         return "json"
     if "parquet" in normalized:
@@ -2806,12 +2832,19 @@ def source_format_from_url(url: str) -> str:
     suffixes = [suffix.lower().lstrip(".") for suffix in Path(urllib.parse.unquote(urllib.parse.urlparse(url).path)).suffixes]
     if not suffixes:
         return "unknown"
-    if len(suffixes) >= 2 and suffixes[-2:] == ["csv", "gz"]:
-        return "csv.gz"
-    if len(suffixes) >= 2 and suffixes[-2:] == ["csv", "zst"]:
-        return "csv.zst"
-    if len(suffixes) >= 2 and suffixes[-2:] == ["tar", "gz"]:
-        return "tar.gz"
+    # Compound suffixes carry importer policy, so preserve them before falling back to the last suffix.
+    compound_suffixes = (
+        (("geojson", "gz"), "geojson.gz"),
+        (("jsonl", "gz"), "jsonl.gz"),
+        (("ndjson", "gz"), "ndjson.gz"),
+        (("json", "gz"), "json.gz"),
+        (("csv", "gz"), "csv.gz"),
+        (("csv", "zst"), "csv.zst"),
+        (("tar", "gz"), "tar.gz"),
+    )
+    for parts, source_format in compound_suffixes:
+        if len(suffixes) >= len(parts) and tuple(suffixes[-len(parts) :]) == parts:
+            return source_format
     return suffixes[-1]
 
 

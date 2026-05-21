@@ -184,12 +184,12 @@ def dataset_import_plan_entry(
             "importer": "csv_to_sqlite",
             "reason": "CSV/CSV.GZ manifests can be imported by the current SQLite MVP importer after download verification.",
         }
-    if source_format in {"json", "jsonl", "geojson"}:
+    if source_format in {"json", "json.gz", "jsonl", "jsonl.gz", "ndjson", "ndjson.gz", "geojson", "geojson.gz"}:
         return {
             **base,
             "status": "supported_after_download",
             "importer": "json_to_sqlite",
-            "reason": "JSON/JSONL/GeoJSON manifests can be imported by the current SQLite MVP importer after download verification.",
+            "reason": "JSON/JSONL/NDJSON/GeoJSON manifests, including gzip variants, can be imported by the current SQLite MVP importer after download verification.",
         }
     if source_format in {"csv.zst", "zst", "zip", "tar", "tar.gz", "7z", "bz2", "xz"}:
         return {
@@ -297,7 +297,13 @@ def extension_for_native_format(native_format: str) -> str:
         "csv.gz": ".csv.gz",
         "csv.zst": ".csv.zst",
         "geojson": ".geojson",
+        "geojson.gz": ".geojson.gz",
         "json": ".json",
+        "json.gz": ".json.gz",
+        "jsonl": ".jsonl",
+        "jsonl.gz": ".jsonl.gz",
+        "ndjson": ".ndjson",
+        "ndjson.gz": ".ndjson.gz",
         "netcdf": ".nc",
         "sqlite": ".sqlite",
         "sqlite3": ".sqlite",

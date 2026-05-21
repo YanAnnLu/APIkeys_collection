@@ -280,10 +280,18 @@ def datacite_content_url_resources(urls: tuple[str, ...], formats: tuple[str, ..
 def datacite_resource_format(url: str, formats: tuple[str, ...]) -> str:
     path = Path(urllib.parse.unquote(urllib.parse.urlparse(url).path))
     suffixes = [suffix.lower().lstrip(".") for suffix in path.suffixes]
-    if len(suffixes) >= 2 and suffixes[-2:] == ["tar", "gz"]:
-        return "tar.gz"
-    if len(suffixes) >= 2 and suffixes[-2:] == ["csv", "gz"]:
-        return "csv.gz"
+    # Preserve compound suffixes because downstream import plans distinguish these from plain gzip.
+    compound_suffixes = (
+        (("geojson", "gz"), "geojson.gz"),
+        (("jsonl", "gz"), "jsonl.gz"),
+        (("ndjson", "gz"), "ndjson.gz"),
+        (("json", "gz"), "json.gz"),
+        (("csv", "gz"), "csv.gz"),
+        (("tar", "gz"), "tar.gz"),
+    )
+    for parts, source_format in compound_suffixes:
+        if len(suffixes) >= len(parts) and tuple(suffixes[-len(parts) :]) == parts:
+            return source_format
     if suffixes:
         return suffixes[-1]
     return choose_native_format(formats) if formats else "unknown"

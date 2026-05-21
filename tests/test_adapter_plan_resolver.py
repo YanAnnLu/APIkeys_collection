@@ -132,6 +132,52 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
         self.assertEqual(4096, resolved_entry["adapter_resolution"]["resource_size_bytes"])
 
+    def test_compound_geojson_gz_resource_keeps_supported_import_plan(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "Compressed GeoJSON export",
+                "encodingFormat": "application/gzip",
+                "contentUrl": "https://data.example.test/exports/boundaries.geojson.gz",
+                "contentSize": "4096",
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/exports/boundaries.geojson.gz", resolved_entry["download_url"])
+        self.assertEqual("geojson.gz", resolved_entry["source_format"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".geojson.gz"))
+
+    def test_extensionless_ndjson_resource_uses_declared_format(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "NDJSON API export",
+                "format": "application/x-ndjson",
+                "downloadURL": "https://data.example.test/api/download?id=events",
+                "byteSize": "2048",
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/api/download?id=events", resolved_entry["download_url"])
+        self.assertEqual("ndjson", resolved_entry["source_format"])
+        self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
+        self.assertEqual("json_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".ndjson"))
+
     def test_dcat_download_url_list_object_promotes_direct_csv_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
