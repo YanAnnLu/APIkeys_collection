@@ -18,10 +18,12 @@
 
 ### 2026-05-22
 
-主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，並同步 GTD 狀態。
+主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，同步 GTD 狀態，並定義 `tem/` 本機暫存區的 Git 與交接規則。
 
 | 時間 | 標記 | SHA | Run | 原始標題 | 中文說明 |
 | --- | --- | --- | --- | --- | --- |
+| 00:37 | **CHECKPOINT** | `04a4644` | `26239536548` | Document local tem staging folder | 將 `tem/` 的用途寫入 `WORKSPACE_LAYOUT`、`AGENT_HANDOFF` 與 `DOCS_INDEX`：它是本機暫存區、已被 Git 忽略，團隊協作者與 CI 看不到內容；若暫存素材要變成正式資產，必須提升到 canonical docs/source 後再提交。 |
+| 00:34 | **CHECKPOINT** | `8b61c2c` | `26239356382` | Ignore local tem staging folder | 將 `/tem/` 加入 `.gitignore`，並同步 repo/local Codex skill，明確禁止未經使用者要求就 `git add`、commit 或 push `tem/` 內容，也禁止讓正式流程依賴 `tem/` 路徑。 |
 | 00:07 | **CHECKPOINT** | `1b8f8db` | `26237944941` | Add repo-wide Chinese maintainer comments | 完成全 repo Python 註解工程：正式模組、Tk UI、scripts、renderer helper 與 tests 都補上繁中維護/測試意圖註解；本機驗證包含註解覆蓋檢查、AST 語法解析、`git diff --check` 與 368 個 unittest，CI 的 Ubuntu、Windows 與 real DB smoke 也成功。 |
 
 ### 2026-05-21
