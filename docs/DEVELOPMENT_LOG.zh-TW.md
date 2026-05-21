@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-21
+最後更新：2026-05-22
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,7 +14,15 @@
 - 每筆使用表格欄位：`時間`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
 
-## 2026-05-17 至 2026-05-21 回補流水帳
+## 2026-05-17 至 2026-05-22 回補流水帳
+
+### 2026-05-22
+
+主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，並同步 GTD 狀態。
+
+| 時間 | 標記 | SHA | Run | 原始標題 | 中文說明 |
+| --- | --- | --- | --- | --- | --- |
+| 00:07 | **CHECKPOINT** | `1b8f8db` | `26237944941` | Add repo-wide Chinese maintainer comments | 完成全 repo Python 註解工程：正式模組、Tk UI、scripts、renderer helper 與 tests 都補上繁中維護/測試意圖註解；本機驗證包含註解覆蓋檢查、AST 語法解析、`git diff --check` 與 368 個 unittest，CI 的 Ubuntu、Windows 與 real DB smoke 也成功。 |
 
 ### 2026-05-21
 
