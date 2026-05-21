@@ -17,6 +17,7 @@ from api_launcher.library_actions import (
     library_action_menu_label,
     ordered_library_actions,
 )
+from api_launcher.manifests import build_asset_manifest, write_manifest
 
 
 class LibraryActionTests(unittest.TestCase):
@@ -43,12 +44,31 @@ class LibraryActionTests(unittest.TestCase):
     def test_manifest_problem_enables_repair(self) -> None:
         context = LibraryContext(
             provider_id="sample",
-            local_status="downloaded",
+            local_status="imported",
             install_id="inst_123",
             manifest_health="checksum_mismatch",
         )
 
         self.assertIn("repair", enabled_action_ids(context))
+
+    def test_repair_action_carries_download_requeue_suggestion(self) -> None:
+        context = LibraryContext(
+            provider_id="sample",
+            local_status="imported",
+            install_id="inst_123",
+            manifest_health="missing",
+            repair_suggestion={
+                "action_id": "requeue_download",
+                "can_requeue": True,
+                "plan_entry": {"provider_id": "sample", "download_url": "https://example.test/sample.bin"},
+            },
+        )
+
+        action = library_action_map(context)["repair"]
+
+        self.assertTrue(action.enabled)
+        self.assertEqual("requeue_download", action.related_repair_suggestion["action_id"])
+        self.assertIn("safe requeue", action.reason)
 
     def test_uninstall_is_marked_destructive(self) -> None:
         context = LibraryContext(provider_id="sample", local_status="managed", install_id="inst_123")
@@ -122,6 +142,47 @@ class LibraryActionTests(unittest.TestCase):
         self.assertEqual("sample", payload["provider_id"])
         self.assertIn("open_database", payload["enabled_action_ids"])
         self.assertEqual("managed", payload["context"]["local_status"])
+
+    def test_cli_library_actions_json_can_attach_repair_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload_file = root / "sample.bin"
+            payload_file.write_bytes(b"abc")
+            manifest_path = write_manifest(
+                build_asset_manifest(
+                    payload_file,
+                    {"provider_id": "sample", "download_url": "https://example.test/sample.bin"},
+                ),
+                payload_file.with_suffix(".bin.manifest.json"),
+            )
+            payload_file.unlink()
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(root / "test.sqlite"),
+                        "--show-library-actions",
+                        "sample",
+                        "--library-local-status",
+                        "imported",
+                        "--library-install-id",
+                        "inst_123",
+                        "--library-actions-json",
+                        "--library-repair-manifest",
+                        str(manifest_path),
+                    ]
+                )
+
+        self.assertEqual(0, rc)
+        payload = json.loads(output.getvalue())
+        self.assertEqual("missing", payload["context"]["manifest_health"])
+        self.assertEqual(str(manifest_path), payload["context"]["manifest_path"])
+        self.assertIn("repair", payload["enabled_action_ids"])
+        repair = next(action for action in payload["actions"] if action["action_id"] == "repair")
+        self.assertEqual("requeue_download", repair["related_repair_suggestion"]["action_id"])
+        self.assertTrue(repair["related_repair_suggestion"]["can_requeue"])
 
 
 if __name__ == "__main__":

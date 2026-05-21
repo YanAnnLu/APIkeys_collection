@@ -82,6 +82,7 @@ COLORS = {
     "accent_dark": "#1d5d8d",
     "border": "#4a5362",
 }
+DOWNLOAD_REPAIR_ACTION_STATUSES = {"missing", "size_mismatch", "checksum_mismatch", "manifest_error"}
 
 
 TABLE_COLUMNS = (
@@ -1741,7 +1742,7 @@ class ApiCollectionUi:
         self.add_action_menu_item(menu, actions, "add_to_plan", lambda provider_id=self.active_provider_id: self.add_provider_to_plan(provider_id))
         self.add_action_menu_item(menu, actions, "install", self.manage_active_provider)
         self.add_action_menu_item(menu, actions, "update", lambda provider_id=self.active_provider_id: self.add_provider_to_plan(provider_id))
-        self.add_action_menu_item(menu, actions, "repair", self.verify_active_assets)
+        self.add_action_menu_item(menu, actions, "repair", self.open_repair_panel)
         version_options = self.version_options_for_provider(self.active_provider_id)
         if version_options:
             version_menu = Menu(menu, tearoff=0)
@@ -1775,17 +1776,38 @@ class ApiCollectionUi:
     def library_context_for_row(self, row: ProviderRow | None) -> LibraryContext | None:
         if row is None:
             return None
+        manifest_health, manifest_path, repair_suggestion = self.download_repair_context_for_provider(row.provider_id)
         return LibraryContext(
             provider_id=row.provider_id,
             local_status=row.local_status,
             remote_status=row.remote_status,
             update_status=row.update_status,
             install_id=row.install_id,
-            manifest_health="unknown",
+            manifest_health=manifest_health,
+            manifest_path=manifest_path,
+            repair_suggestion=repair_suggestion,
             has_direct_download=row.download_eligibility.status == "direct_download",
             has_adapter=row.download_eligibility.status == "adapter_required",
             has_render_assets=bool(row.install_id),
         )
+
+    def download_repair_context_for_provider(self, provider_id: str) -> tuple[str, str, dict[str, object]]:
+        if not provider_id:
+            return "unknown", "", {}
+        conn = self._connect()
+        try:
+            records = core.ApiCatalogRepository(conn).list_dataset_asset_manifests(provider_id)
+        finally:
+            conn.close()
+        for record in records:
+            if record.status not in DOWNLOAD_REPAIR_ACTION_STATUSES:
+                continue
+            result = verify_manifest_file(record.manifest_path)
+            if result.status not in DOWNLOAD_REPAIR_ACTION_STATUSES:
+                continue
+            suggestion = repair_suggestion_for_result(result)
+            return result.status, str(result.manifest_path), suggestion.as_dict()
+        return "unknown", "", {}
 
     def library_action_map_for_row(self, row: ProviderRow | None) -> dict[str, LibraryAction]:
         context = self.library_context_for_row(row)

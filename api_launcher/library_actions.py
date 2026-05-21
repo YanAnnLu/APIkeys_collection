@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
+from dataclasses import field
 from typing import Literal
 
 
 ActionRisk = Literal["safe", "state_change", "destructive"]
+REPAIRABLE_MANIFEST_HEALTH = {"missing", "checksum_mismatch", "size_mismatch", "manifest_error", "error"}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -15,13 +17,15 @@ class LibraryContext:
     update_status: str = "unknown"
     install_id: str = ""
     manifest_health: str = "unknown"
+    manifest_path: str = ""
+    repair_suggestion: dict[str, object] = field(default_factory=dict)
     has_direct_download: bool = False
     has_adapter: bool = False
     has_render_assets: bool = False
 
     @property
     def is_installed(self) -> bool:
-        return bool(self.install_id) and self.local_status in {"downloaded", "managed", "installed", "present"}
+        return bool(self.install_id) and self.local_status in {"downloaded", "imported", "managed", "installed", "present"}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,6 +35,7 @@ class LibraryAction:
     enabled: bool
     reason: str
     risk: ActionRisk = "safe"
+    related_repair_suggestion: dict[str, object] = field(default_factory=dict)
 
 
 DEFAULT_LIBRARY_ACTION_ORDER = (
@@ -47,8 +52,19 @@ DEFAULT_LIBRARY_ACTION_ORDER = (
 def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
     downloadable = context.has_direct_download or context.has_adapter
     installed = context.is_installed
-    needs_repair = context.manifest_health in {"missing", "checksum_mismatch", "size_mismatch", "error"}
+    needs_repair = context.manifest_health in REPAIRABLE_MANIFEST_HEALTH
     update_available = context.update_status in {"available", "stale", "upgrade_available", "newer_remote"}
+    repair_suggestion = dict(context.repair_suggestion or {})
+    repair_action_id = str(repair_suggestion.get("action_id") or "")
+    repair_can_requeue = bool(repair_suggestion.get("can_requeue"))
+    if needs_repair and repair_can_requeue:
+        repair_reason = "Manifest repair stream has a safe requeue plan."
+    elif needs_repair and repair_action_id:
+        repair_reason = f"Manifest repair stream suggests {repair_action_id}."
+    elif needs_repair:
+        repair_reason = "Manifest health indicates missing or corrupted assets."
+    else:
+        repair_reason = "No repair issue is known."
 
     return (
         LibraryAction(
@@ -75,8 +91,9 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             "repair",
             "Repair / verify",
             installed and needs_repair,
-            "Manifest health indicates missing or corrupted assets." if installed and needs_repair else "No repair issue is known.",
+            repair_reason if installed and needs_repair else "No repair issue is known.",
             risk="state_change",
+            related_repair_suggestion=repair_suggestion,
         ),
         LibraryAction(
             "open_database",

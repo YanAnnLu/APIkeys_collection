@@ -47,6 +47,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.list_simulation_contracts,
         bool(args.show_library_actions),
         args.library_actions_json,
+        bool(args.library_repair_manifest),
         bool(args.test_data_store),
         args.self_check_databases,
         args.self_check_databases_json,

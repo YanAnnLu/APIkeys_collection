@@ -117,8 +117,10 @@ from api_launcher.renderer_contracts import (
 from api_launcher.downloads.repair import (
     download_repair_agent_payload,
     log_download_manifest_verification_completed as log_download_manifest_verification_event,
+    repair_suggestion_for_result,
     repair_summary,
     scan_download_manifests,
+    verify_manifest_file,
 )
 from api_launcher.repository import (
     ApiCatalogRepository,
@@ -639,6 +641,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-update-status", default="unknown", help="update status for --show-library-actions")
     parser.add_argument("--library-install-id", default="", help="install_id for --show-library-actions")
     parser.add_argument("--library-manifest-health", default="unknown", help="manifest health for --show-library-actions")
+    parser.add_argument("--library-repair-manifest", default="", help="sidecar manifest path used to attach a download repair suggestion to --show-library-actions")
     parser.add_argument("--library-direct-download", action="store_true", help="mark context as having a direct download")
     parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
@@ -1118,15 +1121,31 @@ class CatalogLauncherCli:
     def show_library_actions(self) -> None:
         if self.args.library_actions_json and not self.args.show_library_actions:
             raise RuntimeError("--library-actions-json requires --show-library-actions PROVIDER_ID")
+        if self.args.library_repair_manifest and not self.args.show_library_actions:
+            raise RuntimeError("--library-repair-manifest requires --show-library-actions PROVIDER_ID")
         if not self.args.show_library_actions:
             return
+        manifest_health = self.args.library_manifest_health
+        manifest_path = self.args.library_repair_manifest
+        repair_suggestion: dict[str, object] = {}
+        if manifest_path:
+            result = verify_manifest_file(manifest_path)
+            if result.provider_id and result.provider_id != self.args.show_library_actions:
+                raise RuntimeError(
+                    "--library-repair-manifest provider_id does not match --show-library-actions "
+                    f"({result.provider_id} != {self.args.show_library_actions})"
+                )
+            manifest_health = result.status
+            repair_suggestion = repair_suggestion_for_result(result).as_dict()
         context = LibraryContext(
             provider_id=self.args.show_library_actions,
             local_status=self.args.library_local_status,
             remote_status=self.args.library_remote_status,
             update_status=self.args.library_update_status,
             install_id=self.args.library_install_id,
-            manifest_health=self.args.library_manifest_health,
+            manifest_health=manifest_health,
+            manifest_path=manifest_path,
+            repair_suggestion=repair_suggestion,
             has_direct_download=self.args.library_direct_download,
             has_adapter=self.args.library_adapter,
             has_render_assets=self.args.library_render_assets,
@@ -1136,9 +1155,16 @@ class CatalogLauncherCli:
             return
         for action in build_library_actions(context):
             status = "enabled" if action.enabled else "disabled"
+            repair_suffix = ""
+            if action.related_repair_suggestion:
+                repair_suffix = (
+                    f" repair_suggestion={action.related_repair_suggestion.get('action_id')}"
+                    f" can_requeue={bool(action.related_repair_suggestion.get('can_requeue'))}"
+                )
             print(
                 "[library-action] "
                 f"{action.action_id} {status} risk={action.risk} label={action.label} reason={action.reason}"
+                f"{repair_suffix}"
             )
 
     def test_data_store_connections(self) -> None:
