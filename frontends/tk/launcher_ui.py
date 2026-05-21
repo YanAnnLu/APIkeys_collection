@@ -37,6 +37,7 @@ from api_launcher.downloads.plan_runner import (
 from api_launcher.importers.csv_importer import table_exists
 from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
+from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
 from api_launcher.downloads.repair import (
     ManifestVerification,
     RepairSuggestion,
@@ -66,6 +67,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DB_PATH = state_file(core.DB_NAME)
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
 RESOLVED_DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.resolved.json"
+MVP_DEMO_FLOW_NAME = "mvp_demo/flow.json"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
@@ -852,6 +854,7 @@ class ApiCollectionUi:
         tools_menu.add_command(label=self.tr("啟動環境檢查", "Startup environment checks"), command=self.show_environment_checks)
         tools_menu.add_command(label=self.tr("最近事件紀錄", "Recent event logs"), command=self.show_event_logs)
         tools_menu.add_command(label=self.tr("修復 / 驗證資產", "Repair / verify assets"), command=self.open_repair_panel)
+        tools_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
         tools_menu.add_separator()
@@ -930,6 +933,7 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         more_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
+        more_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -5241,6 +5245,67 @@ class ApiCollectionUi:
             if detail:
                 message += f"\n\n{detail}"
             messagebox.showinfo(self.tr("沒有可自動解析項目", "No automatic resolution"), message)
+
+    def write_mvp_demo_flow_from_ui(self) -> None:
+        # Demo Flow 是可重複驗收用入口；UI 只建立檔案並排入離線 plan，不替使用者自動下載或寫資料庫。
+        flow_path = state_file(MVP_DEMO_FLOW_NAME)
+        try:
+            result = write_mvp_demo_flow_files(flow_path)
+            offline_payload = json.loads(result.offline_plan_path.read_text(encoding="utf-8"))
+            added = self.add_download_plan_entries_from_payload(offline_payload)
+        except Exception as exc:
+            log_exception("ui_mvp_demo_flow_failed", exc, component="ui.mvp_demo")
+            messagebox.showerror(self.tr("MVP Demo Flow 失敗", "MVP demo flow failed"), str(exc))
+            return
+
+        self.render_table()
+        summary = self.tr(
+            f"MVP Demo Flow 已建立，已加入 {added} 個離線下載項目。",
+            f"MVP demo flow created; added {added} offline download item(s).",
+        )
+        self.status_var.set(summary)
+        log_event(
+            "ui_mvp_demo_flow_created",
+            summary,
+            component="ui.mvp_demo",
+            context={
+                "flow_path": str(result.flow_path),
+                "review_plan_path": str(result.review_plan_path),
+                "offline_plan_path": str(result.offline_plan_path),
+                "offline_sample_path": str(result.offline_sample_path),
+                "added_to_plan": added,
+            },
+        )
+        messagebox.showinfo(
+            self.tr("MVP Demo Flow 已建立", "MVP demo flow created"),
+            self.tr(
+                f"{summary}\n\nFlow：{result.flow_path}\nReview plan：{result.review_plan_path}\n離線 plan：{result.offline_plan_path}\n\n下一步：在下方下載計畫按「開始」，完成後按「匯入」。UI 匯入會寫入一般 curated imports SQLite；flow JSON 另保留隔離 CLI 驗收指令。",
+                f"{summary}\n\nFlow: {result.flow_path}\nReview plan: {result.review_plan_path}\nOffline plan: {result.offline_plan_path}\n\nNext: click Start in the download plan, then click Import after download finishes. UI import writes to the normal curated imports SQLite; the flow JSON also keeps isolated CLI acceptance commands.",
+            ),
+        )
+
+    def add_download_plan_entries_from_payload(self, payload: dict[str, object]) -> int:
+        # 從既有 plan JSON 還原 UI 下載計畫時，只接受可對應到 catalog provider 的 direct entries。
+        added = 0
+        raw_entries = payload.get("providers") if isinstance(payload.get("providers"), list) else []
+        for entry in raw_entries:
+            if not isinstance(entry, dict):
+                continue
+            provider_id = str(entry.get("provider_id") or "").strip()
+            if not provider_id or self.row_by_provider_id(provider_id) is None:
+                continue
+            option = self.version_option_from_plan_entry(entry)
+            if option is None:
+                continue
+            plan_key = self.plan_key_for_resolved_entry(entry)
+            self.plan_version_by_provider[plan_key] = option
+            self.plan_provider_by_key[plan_key] = provider_id
+            self.download_plan_entries_by_provider[plan_key] = dict(entry)
+            self.import_status_by_plan_key.pop(plan_key, None)
+            self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
+            self.active_provider_id = provider_id
+            added += 1
+        return added
 
     def version_option_from_plan_entry(self, entry: dict[str, object]) -> core.DatasetVersionOption | None:
         version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}

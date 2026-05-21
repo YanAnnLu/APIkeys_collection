@@ -1,6 +1,6 @@
 # 使用者操作手冊
 
-最後更新：2026-05-21
+最後更新：2026-05-22
 
 這份手冊是面向第一次操作 Demo 的使用者。更細的背景說明仍保留在 `docs/USER_GUIDE.zh-TW.md`；本文件聚焦「照著做」。
 
@@ -20,9 +20,24 @@ flowchart LR
 
 圖說：這條線才是目前 MVP Demo 的主要路線。只按「下載」但沒有 direct download entry 時，下載器不會硬抓網頁。
 
-## 0. CLI 快速 Demo
+## 0. 快速 Demo
 
-如果只是要先確認後端閉環，不必先打開 UI。可以產生一條固定的 MVP Demo Flow：
+如果想先確認整條 Demo 閉環，UI 裡可以直接用：
+
+```text
+工具 > 產生 MVP Demo Flow
+```
+
+這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、離線 JSON fixture plan，並把離線 direct plan 加到下方下載計畫。接著按：
+
+```text
+下載計畫 > 開始
+下載計畫 > 匯入
+```
+
+圖說：UI 入口只幫你建立 demo 檔案並排入下載計畫，不會自動下載或自動寫資料庫；下載與匯入仍要由使用者確認。
+
+如果只是要先確認後端閉環，不必打開 UI，也可以用 CLI 產生同一條固定的 MVP Demo Flow：
 
 ```powershell
 py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json
