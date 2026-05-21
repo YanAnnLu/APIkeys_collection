@@ -58,7 +58,7 @@ CSV / JSON / Parquet / GeoJSON / NetCDF / GeoTIFF
 pandas DataFrame 或 DuckDB query result
 爬蟲 raw result，例如 HTML、API response、PDF、圖片、壓縮檔
 爬蟲資產，例如可版本化、可審核、可排程、可修復的 crawler / parser / resolver 能力包
-語言 API client-backed source，例如 Python 的 yfinance、fredapi、astroquery，或 R 的 WDI、fredr、tidycensus 這類背後連到遠端資料庫 / Web API 的套件
+語言 / 工具 API client-backed source，例如 Python 的 yfinance、fredapi、astroquery，R 的 WDI、fredr、tidycensus，或 MATLAB 透過 Datafeed Toolbox / REST 接到遠端資料庫與 Web API 的入口
 標準化後的 curated dataset
 湖倉 table
 GIS layer
@@ -163,7 +163,88 @@ parser 版本
 
 ## 語言 API client-backed source
 
-使用者從 `yfinance` 延伸出的觀察很重要：許多 Python / R 套件本質上不是普通工具函式，而是遠端資料庫或 Web API 的 client。這類套件也應被視為可追蹤的資料取得入口，只是它們的入口不是 URL catalog，而是「語言套件 + provider API」的組合。
+使用者從 `yfinance` 延伸出的觀察很重要：許多 Python / R 套件，甚至 MATLAB toolbox / REST workflow，本質上不是普通工具函式，而是遠端資料庫或 Web API 的 client。這類入口也應被視為可追蹤的資料取得來源，只是它們的入口不是 URL catalog，而是「runtime / 語言套件 / 工具箱 + provider API」的組合。
+
+這個概念可以再推廣成：
+
+```text
+Data source access surface matrix
+```
+
+也就是說，同一個遠端資料資產不只是一個「URL」或「Python package」，而是可能同時有多個可接入表面：
+
+```text
+官方 REST / GraphQL / OData / SDMX / SPARQL endpoint
+官方或社群 Python package
+官方或社群 R package
+MATLAB toolbox 或 MATLAB REST workflow
+CLI 工具，例如 Kaggle CLI、cloud CLI、官方 downloader
+資料庫 driver，例如 PostgreSQL、MySQL、ODBC、JDBC
+雲端 catalog，例如 STAC、CKAN、Socrata、CMR、DataCite、OpenAlex
+檔案索引，例如 HTML directory、bucket listing、manifest、checksum list
+瀏覽器 / 表單入口，通常只能進入 adapter review，不應自動化大量抓取
+```
+
+catalog 的主體仍應是 canonical source，也就是背後真正的資料庫、API 或資料平台；語言 wrapper、toolbox、CLI、driver 只是該來源的 metadata。這能讓同一個資料庫/API 同時保留多條候選接入路徑：MVP 可先選 REST 或 Python fixture path，未來再視需求加 R、MATLAB、CLI 或 database driver。選擇入口時，優先順序應是可授權、可測試、可限流、可重現、可匯入，而不是語言偏好。
+
+這也表示語言生態本身可以成為一種 discovery source。未來若需要擴充資料來源，可以爬或讀取套件生態的 metadata，而不是只從入口網站出發：
+
+```text
+PyPI / conda package metadata
+CRAN / Bioconductor package metadata
+MATLAB Add-On / toolbox 文件
+Julia General registry
+npm / Node.js package metadata
+Maven / Gradle artifact metadata
+NuGet package metadata
+Go modules
+Rust crates.io
+官方 SDK 清單或 API 文件索引
+```
+
+這類「套件生態 crawler」的主要產出不應直接變成可執行 adapter，甚至多數情況也不應新增 source；它應先產生 language-client metadata evidence。若它宣稱連到的背後資料庫/API 已存在，就把套件名稱、語言、官方程度、文件 URL、授權/terms 訊號與 credential 線索合併到該 canonical source 的 metadata。只有當背後資料庫/API 尚未被收錄，或 backend 身分無法確定時，才升成 source candidate 交給人工或規則審核。
+
+這裡必須做 canonical source union，而不是把每個 wrapper 都當成一個新 provider。多數語言 wrapper 背後會指向同一個資料庫/API，因此 catalog 應以遠端資料來源為主體，再把 Python/R/MATLAB/其他語言 wrapper 掛成 metadata：
+
+```text
+canonical_source_id = world_bank_api
+metadata.language_clients = [
+  {source: World Bank API, language: Python, package: wbgapi},
+  {source: World Bank API, language: Python, package: pandas-datareader},
+  {source: World Bank API, language: R, package: WDI},
+  {source: World Bank API, language: R, package: wbstats}
+]
+
+canonical_source_id = fred_api
+metadata.language_clients = [
+  {source: FRED API, language: Python, package: fredapi},
+  {source: FRED API, language: Python, package: pandas-datareader},
+  {source: FRED API, language: R, package: fredr},
+  {source: FRED API, language: MATLAB, package: Datafeed Toolbox}
+]
+```
+
+合併時應取聯集：多個套件提供的 endpoint、credential 線索、支援資料型態、查詢參數、文件 URL、license/terms 訊號都可以合併成同一個 source 的 metadata evidence；若兩個套件指向不同 backend 或條款差異很大，才拆成不同 canonical source。這樣可以避免 provider catalog 被重複 wrapper 灌爆，也能讓 UI 顯示「同一來源在不同語言中有哪些常見套件」。
+
+公開套件不等於公開 API key。套件通常只公開 client code、endpoint 形狀與參數；API key、OAuth token、cookie、機構授權或付費 quota 仍然是使用者或團隊的私密憑證。adapter 可以直接抓取的條件應限縮為：
+
+```text
+來源本身允許免 key public access，且有明確 rate limit / terms 邊界
+或使用者已在本機 credential profile / env var 明確配置自己的 key
+或只產生 fixture / mock / dry-run plan，不打 live API
+```
+
+若套件需要 key 但本機沒有 credential，UI/CLI 應提供設定引導或 adapter review，而不是偷用範例 key、把 key 寫進 repo、或在 CI/背景排程直接 live call。範例文件中的 demo key 也只能作為文件線索，不能視為產品可用憑證。
+
+這條路線的產品價值是簡化轉檔流程。對資料工作者來說，套件、REST API、CLI 或 toolbox 只是取得資料的前段；真正麻煩的是把不同 API 回傳的 JSON、CSV、SDMX、OData、DataFrame、壓縮包或 paging 結果轉成可治理的本機資料資產。adapter 的責任應是把這些 access surface 包成一致流程：
+
+```text
+呼叫來源 -> 取得 raw response / DataFrame / file -> 標準化欄位與型別
+-> 寫 manifest / checksum / provenance -> 匯入 SQLite/MySQL/未來湖倉
+-> 登錄 install registry / schema fingerprint / lineage
+```
+
+因此，記錄「來源、語言、套件名稱」不是為了展示套件清單，而是為了讓平台知道可以用哪條最穩定的 access surface 取得資料，然後把轉檔、驗證、匯入與修復收斂成同一個 launcher workflow。
 
 代表類型包含：
 
@@ -179,15 +260,72 @@ Python 機器學習資料集：openml、kaggle、ucimlrepo
 R 官方統計 / 經濟：WDI、wbstats、fredr、eurostat、tidycensus、ipumsr
 R 生物資訊 / 臨床：biomaRt、GEOquery、TCGAbiolinks
 R 生物多樣性 / 化學 / 文獻：rgbif、webchem、rcdk、rcrossref、rorcid
+MATLAB 工具箱 / REST：Datafeed Toolbox 可覆蓋部分金融資料；多數官方統計、文獻、生物、地理與氣候 API 可透過 REST 連接，但通常不是本專案 MVP 的主要 runtime
+其他語言生態：Julia、Node.js、Java、.NET、Go、Rust 等也可能有對應資料 API client；它們先作為 source candidate 線索，不代表 MVP 要立即支援該 runtime
 ```
 
-這些 source 的治理重點和一般 crawler 類似，但還要多記：
+跨 runtime 觀察應整理成關聯表，而不是只在 source 旁邊列語言名稱。這張表不是支援清單，而是概念層的對照表，用來提醒未來 agent：同一個資料庫/API 可能有 Python、R、MATLAB 或純 REST 入口，UI/metadata 應呈現「來源、語言、套件/工具」的關係。
+
+| 遠端資料庫 / API | 語言 / runtime | 套件 / 工具名稱 | access surface | credential 備註 |
+| --- | --- | --- | --- | --- |
+| World Bank | Python | `wbgapi` | SDK/wrapper | 多數查詢免 key |
+| World Bank | Python | `pandas-datareader` | SDK/wrapper | 多數查詢免 key |
+| World Bank | R | `WDI` | SDK/wrapper | 多數查詢免 key |
+| World Bank | R | `wbstats` | SDK/wrapper | 多數查詢免 key |
+| World Bank | REST | REST endpoint | REST | 多數查詢免 key |
+| FRED | Python | `fredapi` | SDK/wrapper | 通常需要 FRED API key |
+| FRED | Python | `pandas-datareader` | SDK/wrapper | 視 endpoint / 設定而定 |
+| FRED | R | `fredr` | SDK/wrapper | 通常需要 FRED API key |
+| FRED | MATLAB | Datafeed Toolbox | toolbox | 依 MATLAB toolbox / datafeed 設定 |
+| Eurostat | Python | `eurostat` | SDK/wrapper | 多數查詢免 key |
+| Eurostat | R | `eurostat` | SDK/wrapper | 多數查詢免 key |
+| OECD / SDMX | Python | `pandasdmx` | SDK/wrapper | 依 SDMX endpoint |
+| OECD / SDMX | R | `OECD`, `rsdmx` | SDK/wrapper | 依 SDMX endpoint |
+| IMF / SDMX | Python | `pandasdmx` | SDK/wrapper | 依 SDMX endpoint |
+| IMF / SDMX | R | `imfr`, `rsdmx` | SDK/wrapper | 依 SDMX endpoint |
+| US Census | Python | `census`, `cenpy` | SDK/wrapper | 部分 endpoint 需要 key |
+| US Census | R | `tidycensus`, `censusapi` | SDK/wrapper | 部分 endpoint 需要 key |
+| arXiv | Python | `arxiv` | SDK/wrapper | 多數查詢免 key，有 rate limit |
+| arXiv | R | `aRxiv` | SDK/wrapper | 多數查詢免 key，有 rate limit |
+| Crossref | Python | `habanero` | SDK/wrapper | 可免 key，建議 mailto/polite pool |
+| Crossref | R | `rcrossref` | SDK/wrapper | 可免 key，建議 mailto/polite pool |
+| OpenAlex | Python | `pyalex` | SDK/wrapper | 可免 key，建議 mailto/polite pool |
+| OpenAlex | R | `openalexR` | SDK/wrapper | 可免 key，建議 mailto/polite pool |
+| NCBI Entrez | Python | `Bio.Entrez` | SDK/wrapper | 可免 key，API key 提高限額 |
+| NCBI Entrez | R | `rentrez` | SDK/wrapper | 可免 key，API key 提高限額 |
+| Ensembl | Python | `ensemblrest`, `pybiomart` | SDK/wrapper | 多數查詢免 key |
+| Ensembl | R | `biomaRt`, `ensembldb` | SDK/wrapper | 多數查詢免 key |
+| PubChem | Python | `pubchempy` | SDK/wrapper | 多數查詢免 key |
+| PubChem | R | `webchem` | SDK/wrapper | 多數查詢免 key |
+| ChEMBL | Python | `chembl_webresource_client` | SDK/wrapper | 多數查詢免 key |
+| ChEMBL | R | `webchem` / ChEMBL 類工具 | SDK/wrapper | 多數查詢免 key |
+| GBIF | Python | `pygbif` | SDK/wrapper | metadata 可免 key，download workflow 可能需帳號 |
+| GBIF | R | `rgbif` | SDK/wrapper | metadata 可免 key，download workflow 可能需帳號 |
+| iNaturalist | Python | `pyinaturalist` | SDK/wrapper | 公開查詢可免 key，寫入/私人資料需 OAuth |
+| iNaturalist | R | `rinat` / REST | SDK/wrapper / REST | 公開查詢可免 key，寫入/私人資料需 OAuth |
+| OpenStreetMap / Overpass | Python | `osmnx`, `overpy` | SDK/wrapper | 免 key，但需遵守 Overpass rate/usage policy |
+| OpenStreetMap / Overpass | R | `osmdata` | SDK/wrapper | 免 key，但需遵守 Overpass rate/usage policy |
+| OpenML | Python | `openml` | SDK/wrapper | 查詢可免 key，部分操作需帳號/API key |
+| OpenML | R | `OpenML` | SDK/wrapper | 查詢可免 key，部分操作需帳號/API key |
+| Kaggle | Python | `kaggle` | CLI/SDK | 需要 Kaggle API token |
+| Kaggle | R | `kaggler` / 非官方工具 | wrapper | 通常需 Kaggle token，非官方程度需標記 |
+| NASA Earthdata | Python | `earthaccess` | SDK/wrapper | 通常需要 Earthdata Login |
+| NASA Earthdata | REST | Earthdata / CMR REST | REST/catalog | CMR metadata 可免 key，download 常需登入 |
+| Copernicus CDS | Python | `cdsapi` | SDK/wrapper | 需要 CDS API key / account |
+| Copernicus CDS | R | `ecmwfr` | SDK/wrapper | 需要 CDS/ECMWF credential |
+
+這些語言套件 metadata 的治理重點和一般 crawler 類似，但它們應掛在 canonical source 下面，而不是另建 source：
 
 ```text
-runtime 語言與執行方式，例如 Python package、R package、Rscript 或未來 renv profile
+canonical source id，例如 world_bank_api、fred_api、gbif_api
+runtime 語言與執行方式，例如 Python package、R package、Rscript、renv profile、MATLAB toolbox、REST-only path
+access surface 類型，例如 REST、SDK/wrapper、CLI、database driver、catalog、file index、browser form
+發現來源，例如 PyPI、CRAN、Bioconductor、MATLAB Add-On、npm、Maven、NuGet、Go modules、crates.io、官方 SDK 文件
 package 名稱與版本
 背後 API / database 名稱
+官方程度，例如 official、community、unofficial、deprecated、terms-sensitive
 是否需要 API key 或帳號
+credential 提供方式，例如 keyless、env var、credential profile、OAuth、manual login
 terms / license / redistribution 風險
 可查詢的 dataset/record 類型
 查詢參數邊界，例如 symbol、country、DOI、gene id、bbox、date range
@@ -195,7 +333,7 @@ terms / license / redistribution 風險
 是否只能 fixture 測試或必須使用 mock
 ```
 
-短期做法不是一次新增所有 adapter，也不是立刻引入 R runtime，而是把這類套件納入 source taxonomy。`yfinance` 是第一個具體樣板：預設只提供 query template 與 fixture plan；live fetch 必須由使用者明確 opt-in，並寫成本機 CSV + file-backed plan，再走既有下載 / manifest / SQLite 匯入閉環。未來每新增一個 Python / R client-backed source，都應先判斷能否用現有 crawler/API resolver；只有在需要套件專屬 auth、query builder、format conversion、rate-limit guard 或跨語言執行邊界時，才新增 adapter。
+短期做法不是一次新增所有 adapter，也不是立刻引入 R、MATLAB 或其他 runtime，而是把這類入口納入 canonical source metadata。`yfinance` 是第一個具體樣板：預設只提供 query template 與 fixture plan；live fetch 必須由使用者明確 opt-in，並寫成本機 CSV + file-backed plan，再走既有下載 / manifest / SQLite 匯入閉環。未來每新增一個 Python / R / MATLAB / 其他語言 client-backed 線索，都應先 canonicalize 到背後的資料庫/API，與既有 source metadata 取聯集；再判斷能否用現有 crawler/API resolver 或純 REST path。只有在需要套件專屬 auth、query builder、format conversion、rate-limit guard、商業工具箱授權或跨語言執行邊界時，才新增 adapter。
 
 ```mermaid
 flowchart TB
@@ -204,13 +342,15 @@ flowchart TB
     T --> C3[OGC Records 讀取器]
     T --> C4[Socrata 搜尋器]
     T --> C5[Notion 入口同步]
-    T --> C6[Python / R API client<br/>套件 + 遠端資料庫]
+    T --> C6[語言生態 client<br/>套件 / 工具箱 + 遠端資料庫]
+    T --> C7[套件生態索引<br/>PyPI / CRAN / npm / Maven]
     C1 --> O[發現流程調度器]
     C2 --> O
     C3 --> O
     C4 --> O
     C5 --> O
     C6 --> O
+    C7 --> O
     O --> D[資料集候選]
     D --> R[轉接器待辦]
     R --> P[下載 / 匯入計畫]
