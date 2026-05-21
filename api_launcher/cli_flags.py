@@ -57,6 +57,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.self_check_databases_json,
         bool(args.reimport_missing_sqlite_table),
         bool(args.unmanage_database_asset),
+        bool(args.write_database_repair_sql),
         args.database_repair_json,
         bool(args.generate_ai_summary),
         bool(args.write_tile_manifest),

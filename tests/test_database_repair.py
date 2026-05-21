@@ -16,6 +16,7 @@ from api_launcher.database_repair import (
     reimport_missing_sqlite_table_asset,
     stop_tracking_database_asset,
     supported_reimport_source_formats_label,
+    write_missing_sql_table_repair_dry_run,
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier
 from api_launcher.db import connect_db
@@ -216,6 +217,108 @@ class DatabaseRepairTests(unittest.TestCase):
         self.assertEqual("unmanage_database_asset", event_context["action"])
         self.assertEqual(1, event_context["result_count"])
         self.assertFalse(event_context["results"][0]["database_modified"])
+
+    def test_write_missing_mysql_table_repair_dry_run_uses_recorded_csv_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "stars.csv"
+            csv_path.write_text("name,mag\nSirius,-1.46\nVega,0.03\n", encoding="utf-8")
+            manifest_path = write_manifest(
+                build_asset_manifest(csv_path, csv_plan_entry()),
+                csv_path.with_suffix(".csv.manifest.json"),
+            )
+            conn = connect_db(root / "launcher.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                asset_id = repo.register_provider_table_asset(
+                    "hyg_database",
+                    engine="mysql",
+                    database_name="weather",
+                    table_name="stars_curated",
+                    source_format="csv",
+                    notes=f"manifest={manifest_path} payload={csv_path}",
+                )
+                conn.execute(
+                    "UPDATE provider_installation_assets SET status = 'missing' WHERE asset_id = ?",
+                    (asset_id,),
+                )
+                conn.commit()
+
+                result = write_missing_sql_table_repair_dry_run(repo, asset_id, root / "repair.sql", row_limit=1)
+            finally:
+                conn.close()
+
+            sql_text = Path(result.sql_path).read_text(encoding="utf-8")
+
+        self.assertEqual("write_missing_sql_table_repair_dry_run", result.action_id)
+        self.assertTrue(result.dry_run)
+        self.assertFalse(result.database_modified)
+        self.assertEqual(1, result.rows_planned)
+        self.assertIn("CREATE TABLE IF NOT EXISTS `stars_curated`", sql_text)
+        self.assertIn("INSERT INTO `stars_curated` (`name`, `mag`) VALUES ('Sirius', '-1.46');", sql_text)
+        self.assertNotIn("Vega", sql_text)
+        self.assertIn("只供人工審核", sql_text)
+
+    def test_cli_write_database_repair_sql_emits_json_and_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "stations.csv"
+            csv_path.write_text("name,city\nHarbor,Taipei\n", encoding="utf-8")
+            manifest_path = write_manifest(
+                build_asset_manifest(csv_path, csv_plan_entry()),
+                csv_path.with_suffix(".csv.manifest.json"),
+            )
+            launcher_db = root / "launcher.sqlite"
+            conn = connect_db(launcher_db)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                asset_id = repo.register_provider_table_asset(
+                    "hyg_database",
+                    engine="postgresql",
+                    database_name="weather",
+                    table_name="station_curated",
+                    source_format="csv",
+                    schema_name="archive",
+                    notes=f"manifest={manifest_path} payload={csv_path}",
+                )
+                conn.execute(
+                    "UPDATE provider_installation_assets SET status = 'missing' WHERE asset_id = ?",
+                    (asset_id,),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            output = io.StringIO()
+            with redirect_stdout(output), patch("api_launcher.core.log_event") as log_event_mock:
+                rc = main(
+                    [
+                        "--db",
+                        str(launcher_db),
+                        "--write-database-repair-sql",
+                        asset_id,
+                        "--database-repair-sql-dir",
+                        str(root / "sql"),
+                        "--database-repair-json",
+                    ]
+                )
+            payload = json.loads(output.getvalue())
+            result = payload["results"][0]
+            sql_text = Path(result["sql_path"]).read_text(encoding="utf-8")
+
+        self.assertEqual(0, rc)
+        self.assertEqual("write_missing_sql_table_repair_dry_run", payload["action"])
+        self.assertEqual(asset_id, result["asset_id"])
+        self.assertTrue(result["dry_run"])
+        self.assertFalse(result["database_modified"])
+        self.assertIn('CREATE TABLE IF NOT EXISTS "archive"."station_curated"', sql_text)
+        self.assertIn('INSERT INTO "archive"."station_curated" ("name", "city") VALUES', sql_text)
+        log_event_mock.assert_called_once()
+        self.assertEqual("write_missing_sql_table_repair_dry_run", log_event_mock.call_args.kwargs["context"]["action"])
 
     def test_reimport_missing_sqlite_table_accepts_geojson_source_format(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

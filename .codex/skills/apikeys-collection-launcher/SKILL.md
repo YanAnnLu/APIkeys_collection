@@ -192,6 +192,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 - SQLite managed table assets use `source_uri` as the database path and `asset_name` as the table name; missing tables are marked `missing`, and table-level fingerprint drift is marked `error`.
 - MySQL/PostgreSQL checks first report missing env vars or optional Python drivers; do not add driver packages to base/system environments without user approval.
 - MySQL/PostgreSQL connection probes can use `information_schema` helpers for table counts, table existence, column signatures, and schema fingerprints when drivers/env vars are available. SQL table asset database ownership comes from `install_location`; PostgreSQL table assets may use `schema.table` in `asset_name`.
+- For manifest-backed missing MySQL/PostgreSQL table assets, use `python APIkeys_collection.py --write-database-repair-sql ASSET_ID --database-repair-json` to write a reviewable dry-run SQL file under `state/database_repair/`. This action must not connect to or mutate the remote database, and it must not be treated as automatic repair.
 - Database self-check repair suggestions are diagnostic only. They may say to configure env vars, install an optional driver in the project env, restore/reimport a table/database, review schema drift, or fix a profile mapping; do not execute destructive SQL from a suggestion alone.
 
 ## References

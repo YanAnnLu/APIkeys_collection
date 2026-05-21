@@ -58,7 +58,11 @@ from api_launcher.dataset_discovery import (
 )
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
-from api_launcher.database_repair import reimport_missing_sqlite_table_asset, stop_tracking_database_asset
+from api_launcher.database_repair import (
+    reimport_missing_sqlite_table_asset,
+    stop_tracking_database_asset,
+    write_missing_sql_table_repair_dry_run,
+)
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
     database_self_check_agent_payload,
@@ -679,6 +683,24 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         metavar="ASSET_ID",
         help="guarded registry repair: stop tracking one database/table asset without modifying the database",
     )
+    parser.add_argument(
+        "--write-database-repair-sql",
+        action="append",
+        default=[],
+        metavar="ASSET_ID",
+        help="guarded dry-run repair: write SQL to recreate one missing MySQL/PostgreSQL table from its recorded manifest",
+    )
+    parser.add_argument(
+        "--database-repair-sql-dir",
+        default="state/database_repair",
+        help="directory for --write-database-repair-sql output files",
+    )
+    parser.add_argument(
+        "--database-repair-sql-row-limit",
+        type=int,
+        default=1000,
+        help="maximum INSERT rows to write into dry-run SQL; 0 writes all rows",
+    )
     parser.add_argument("--database-repair-json", action="store_true", help="emit database repair command results as JSON")
     parser.add_argument("--generate-ai-summary", help="generate an AI description for a provider_id")
     parser.add_argument("--ai-profile", help="AI summary profile id, e.g. gemini_flash or local_ollama")
@@ -1262,7 +1284,8 @@ class CatalogLauncherCli:
     def run_database_repairs(self) -> None:
         reimport_asset_ids = tuple(asset_id.strip() for asset_id in self.args.reimport_missing_sqlite_table if asset_id.strip())
         unmanage_asset_ids = tuple(asset_id.strip() for asset_id in self.args.unmanage_database_asset if asset_id.strip())
-        if not reimport_asset_ids and not unmanage_asset_ids:
+        sql_dry_run_asset_ids = tuple(asset_id.strip() for asset_id in self.args.write_database_repair_sql if asset_id.strip())
+        if not reimport_asset_ids and not unmanage_asset_ids and not sql_dry_run_asset_ids:
             return
         result_payloads = []
         actions = []
@@ -1295,6 +1318,25 @@ class CatalogLauncherCli:
                     f"status={result.status} database_modified={str(result.database_modified).lower()}"
                 )
 
+        for asset_id in sql_dry_run_asset_ids:
+            # 非 SQLite 修復只寫 SQL 草稿；實際執行必須由使用者/DBA 審核後手動進行。
+            output_path = self.database_repair_sql_path(asset_id)
+            result = write_missing_sql_table_repair_dry_run(
+                self.repository,
+                asset_id,
+                output_path,
+                row_limit=self.args.database_repair_sql_row_limit,
+            )
+            result_payloads.append(result.to_dict())
+            remember_action(result.action_id)
+            if not self.args.database_repair_json:
+                print(
+                    "[database-repair] "
+                    f"action={result.action_id} asset_id={result.asset_id} "
+                    f"provider={result.provider_id} table={result.table_name} "
+                    f"rows={result.rows_planned} sql={result.sql_path} dry_run=true"
+                )
+
         if self.args.database_repair_json:
             payload = {
                 "schema_version": 1,
@@ -1306,6 +1348,12 @@ class CatalogLauncherCli:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
             self.log_database_repair_completed(actions[0] if len(actions) == 1 else "database_repair", result_payloads)
+
+    def database_repair_sql_path(self, asset_id: str) -> Path:
+        # asset_id 來自 registry，但仍正規化成檔名，避免 SQL dry-run 寫出目錄穿越路徑。
+        output_dir = resolve_project_path(self.args.database_repair_sql_dir)
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", asset_id.strip()).strip("._") or "database_asset"
+        return output_dir / f"{safe_name}.dry_run.sql"
 
     def log_database_repair_completed(self, action: str, results: list[dict[str, object]]) -> None:
         if not results:

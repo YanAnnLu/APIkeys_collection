@@ -89,6 +89,22 @@ class DatabaseSelfCheckTests(unittest.TestCase):
         self.assertEqual("geojson.gz", suggestion.details["source_format"])
         self.assertTrue(suggestion.details["has_recorded_manifest"])
 
+    def test_database_repair_suggestion_marks_sql_table_dry_run_available(self) -> None:
+        suggestion = database_repair_suggestion(
+            asset_kind="table",
+            engine="mysql",
+            asset_name="station",
+            status="missing",
+            error="MySQL table is missing: station",
+            source_format="csv",
+            has_recorded_manifest=True,
+        )
+
+        self.assertEqual("restore_or_reimport_table", suggestion.action_id)
+        self.assertFalse(suggestion.can_auto_repair)
+        self.assertTrue(suggestion.details["sql_dry_run_available"])
+        self.assertEqual("--write-database-repair-sql", suggestion.details["sql_dry_run_command"])
+
     def test_sqlite_asset_uses_source_uri_as_check_target(self) -> None:
         asset = AssetRecord(
             asset_id="asset_1",

@@ -275,11 +275,22 @@ def database_repair_suggestion(
             and is_supported_reimport_source_format(normalized_source_format)
             and normalized_status in {"missing", "error"}
         )
+        sql_dry_run_available = (
+            normalized_engine in {"mysql", "mariadb", "postgres", "postgresql"}
+            and has_recorded_manifest
+            and is_supported_reimport_source_format(normalized_source_format)
+            and normalized_status in {"missing", "error"}
+        )
         description = (
             "The managed SQLite table is missing and has a recorded supported manifest; "
             "it can be reimported without dropping or replacing an existing table."
             if can_auto_repair
-            else "The managed table is missing; restore it from backup or rerun the provider import path that owns this table."
+            else (
+                "The managed SQL table is missing and has a recorded supported manifest; "
+                "write a dry-run repair SQL file for human review before any database execution."
+                if sql_dry_run_available
+                else "The managed table is missing; restore it from backup or rerun the provider import path that owns this table."
+            )
         )
         return DatabaseRepairSuggestion(
             "restore_or_reimport_table",
@@ -287,7 +298,11 @@ def database_repair_suggestion(
             description,
             severity="error",
             can_auto_repair=can_auto_repair,
-            details=details,
+            details={
+                **details,
+                "sql_dry_run_available": sql_dry_run_available,
+                "sql_dry_run_command": "--write-database-repair-sql" if sql_dry_run_available else "",
+            },
         )
     if normalized_status == "missing" and normalized_engine == "sqlite":
         return DatabaseRepairSuggestion(
