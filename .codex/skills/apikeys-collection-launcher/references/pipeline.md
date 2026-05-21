@@ -23,6 +23,7 @@ Use repo docs as the source of truth; this file is only a compact route map.
 
 - `docs/AGENT_HANDOFF.zh-TW.md`: live handoff, current checkpoint, user preferences, safety incidents.
 - `docs/PROJECT_GTD.md`: MVP progress table and next work areas.
+- `docs/DEVELOPMENT_LOG.zh-TW.md`: pushed checkpoint log with changes, verification, CI, and residual risks.
 - `docs/DOCS_INDEX.zh-TW.md`: doc ownership and reading routes.
 - `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`: roadmap concepts for Data Assets, Discovery Tools, lakehouse/K8S, Render Studio, ML, connectors, and local-first desktop shape.
 - `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`: crawler-first, candidate review, bounded resolver, and adapter-review design. `docs/appendices/discovery.zh-TW.md` is retained only as a redirect for older references.
@@ -36,7 +37,9 @@ Use repo docs as the source of truth; this file is only a compact route map.
 
 ## Documentation Refactor Rule
 
-When organizing docs, pick one document group per commit, choose the canonical source by document role, preserve old paths as redirect/summary files when references may exist, then update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, and skill/prompt/script references. In Traditional Chinese docs, Mermaid labels should be Traditional Chinese except precise file names, CLI flags, module paths, product names, and standards.
+When organizing docs, pick one document group per commit, choose the canonical source by document role, preserve old paths as redirect/summary files when references may exist, then update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, append `docs/DEVELOPMENT_LOG.zh-TW.md` for pushed checkpoints, and update skill/prompt/script references. In Traditional Chinese docs, Mermaid labels should be Traditional Chinese except precise file names, CLI flags, module paths, product names, and standards.
+
+`docs/DEVELOPMENT_LOG.zh-TW.md` should stay ledger-style. Use GitHub Actions push runs when needed, group by Asia/Taipei date in reverse chronological order with the newest date first, and list entries inside each date newest time first. Use a Markdown table with `時間`, `標記`, `SHA`, `Run`, `原始標題`, and `中文說明` columns. Keep the original English push title, add a Traditional Chinese explanation in the `中文說明` column for every row, mark successful runs as `**CHECKPOINT**`, and keep failed runs as `**CI 失敗**` to preserve the repair path.
 
 ## Product Model
 
@@ -66,6 +69,10 @@ provider/source seed
 ```
 
 Roadmap ideas should not bypass this loop. A feature can be valuable but still remain documentation-only until it has a safe entrypoint in the loop.
+
+## Code Comment Rule
+
+When changing non-trivial code, leave short maintainer comments near logic that protects a boundary or encodes a non-obvious decision. Prioritize orchestration, safety guards, schema/provenance invariants, adapter assumptions, external API quirks, cross-module ownership, and data transformations. Comments should explain why the rule exists or what invariant must hold, not restate obvious code.
 
 ## Current Frontier
 

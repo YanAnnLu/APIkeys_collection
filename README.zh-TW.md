@@ -59,6 +59,7 @@ python3 APIkeys_collection.py --verify-downloads --manifest-health --self-check-
 | [docs/DOCS_INDEX.zh-TW.md](docs/DOCS_INDEX.zh-TW.md) | 文件地圖、整理規則、Mermaid 與雙語規則。 |
 | [docs/AGENT_HANDOFF.zh-TW.md](docs/AGENT_HANDOFF.zh-TW.md) | 跨機器 / 跨 Agent 接力卡。 |
 | [docs/PROJECT_GTD.md](docs/PROJECT_GTD.md) | 目前進度、MVP 狀態、下一步。 |
+| [docs/DEVELOPMENT_LOG.zh-TW.md](docs/DEVELOPMENT_LOG.zh-TW.md) | 從 2026-05-21 起的開發日誌與 checkpoint 驗證紀錄。 |
 | [docs/USER_GUIDE.zh-TW.md](docs/USER_GUIDE.zh-TW.md) | UI 操作、CLI 指令索引、日常使用。 |
 | [docs/USER_MANUAL.zh-TW.md](docs/USER_MANUAL.zh-TW.md) | Demo / 第一次操作的圖說手冊。 |
 | [docs/ARCHITECTURE.zh-TW.md](docs/ARCHITECTURE.zh-TW.md) | 中文架構入口。 |

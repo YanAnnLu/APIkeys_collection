@@ -1,6 +1,11 @@
 # APIkeys_collection Project State
 
-Last local review: 2026-05-20
+Last local review: 2026-05-21
+
+Status note: this file is now a long-form project-state snapshot, not the fastest-moving
+handoff source. For the current checkpoint, read `docs/DEVELOPMENT_LOG.zh-TW.md`,
+`docs/PROJECT_GTD.md`, `docs/AGENT_HANDOFF.zh-TW.md`, then confirm with `git log -1`
+and the latest GitHub Actions run.
 
 ## Product Intent
 
@@ -151,10 +156,13 @@ The project is not a secret harvester. Credential files are templates for user-o
 
 Current SQLite counts observed on this machine:
 
-- `providers`: 35 after current built-in seed
-- `template_keys`: 21 after current built-in seed
+Observed on 2026-05-21 with `py -B APIkeys_collection.py --summary`. These are smoke-check
+values for the current local/default state, not a persistent product contract.
+
+- `providers`: 54 after current built-in seed
+- `template_keys` / `key_placeholders`: 22 after current built-in seed
 - `provider_download_state`: follows `providers`
-- `crawl_results`: 4
+- `crawl_results`: 8
 - `datasets`: depends on adapter/crawler discovery; HYG and GEBCO can be inserted by `--discover-datasets`, and crawler candidates can be inserted by `--discover-dataset-candidates --upsert-dataset-candidates`
 - `dataset_sync_state`: follows `datasets`
 - `render_bridge_assets`: populated when renderer bridge assets are registered

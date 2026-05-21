@@ -66,6 +66,7 @@ Do not load every document into context by default. Use this route map after che
 
 - Current handoff, user preferences, next step: `docs/AGENT_HANDOFF.zh-TW.md`.
 - Progress and MVP status: `docs/PROJECT_GTD.md`.
+- Pushed checkpoint history, verification, CI, and residual risk: `docs/DEVELOPMENT_LOG.zh-TW.md`.
 - Long-term data asset platform concepts: `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`.
 - Product positioning: `docs/PRODUCT_POSITIONING.zh-TW.md`.
 - Architecture or runtime layers: `docs/ARCHITECTURE.md`, then `docs/TECHNICAL_OVERVIEW.zh-TW.md`.
@@ -85,6 +86,23 @@ If a code change affects documentation, update the relevant zh-TW route. Do not 
 
 When the user asks to reread all docs, first scan all Markdown file names and headings, then load only the documents that affect the current task. Treat `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, and `docs/DOCS_INDEX.zh-TW.md` as the live routing layer; treat the large concept document as roadmap context, not proof that a feature is in MVP.
 
+## Development Log Workflow
+
+Use this when updating `docs/DEVELOPMENT_LOG.zh-TW.md`.
+
+1. Prefer GitHub Actions push history over local `git log` when local Git history is damaged or incomplete:
+
+```bash
+gh run list --repo YanAnnLu/APIkeys_collection --limit 200 --json databaseId,headSha,displayTitle,event,status,conclusion,createdAt
+```
+
+2. Keep the log ledger-style, not only summarized. Group entries by Asia/Taipei date in reverse chronological order, newest date first. Within each date, list entries newest time first. Add a one-line daily main theme, then list every relevant push run.
+3. Use a Markdown table for each date section with these columns:
+   `時間 | 標記 | SHA | Run | 原始標題 | 中文說明`.
+4. Keep the original English push title for lookup, but every row must also include a Traditional Chinese explanation in the `中文說明` column.
+5. Mark successful push runs as `**CHECKPOINT**`. Mark failed push runs as `**CI 失敗**` and keep them in the ledger so later agents can see the repair path.
+6. Add known risks when the history source is imperfect, such as missing local Git objects or a fallback to GitHub Actions as the source of truth.
+
 ## Documentation Refactor Workflow
 
 Use this when the user asks to整理文件, 重構 `.md`, 收攏 docs, or make documentation easier to maintain.
@@ -95,7 +113,7 @@ Use this when the user asks to整理文件, 重構 `.md`, 收攏 docs, or make d
 4. Search references in `.codex/skills/`, `.gemini/`, `.github/skills/`, `.github/prompts/`, `openspec/`, `scripts/`, and `README.md` before renaming, deleting, or merging.
 5. Pick one document group per commit. Decide the canonical source of truth by role, not by old skill paths.
 6. Keep old paths as redirect/summary files when references may exist; do not delete duplicated-looking `.md` files abruptly.
-7. Update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, and `docs/PROJECT_GTD.md`; then update repo skills/prompts/scripts that reference moved docs.
+7. Update `docs/DOCS_INDEX.zh-TW.md`, `docs/AGENT_HANDOFF.zh-TW.md`, `docs/PROJECT_GTD.md`, and append `docs/DEVELOPMENT_LOG.zh-TW.md` for pushed checkpoints; then update repo skills/prompts/scripts that reference moved docs.
 8. In Traditional Chinese docs, Mermaid node labels and edge labels should be Traditional Chinese. Keep exact file names, CLI flags, module paths, product names, and standards in their original spelling only when precision matters.
 9. Verify with `git diff --check`; for docs-only changes, tests are optional unless examples, scripts, or generated docs behavior changed.
 
@@ -128,6 +146,7 @@ For UI work, "done" means the visible text is Traditional Chinese by default, th
 - Crawler success is not just "no exception". Zero candidates, suspiciously low counts, duplicate-only output, missing evidence URLs, or unexpected payload shape should create warnings/errors.
 - Keep concept work as docs/contracts unless it directly serves the MVP. Hadoop, K8S, P2P, mobile, full Google OAuth, multi-AI profiles, Qt migration, Render Studio, ML registry, and connector ecosystems are roadmap unless the current task explicitly scopes a bounded slice.
 - Every significant code change should leave a beginner-friendly status: what changed, why it matters, what was tested, and roughly what MVP work remains.
+- Every non-trivial code change should also leave concise maintainer comments near the logic that would be hard for a human to infer quickly. Prioritize comments for orchestration, safety guards, schema or provenance invariants, adapter assumptions, external API quirks, cross-module ownership, and data transformations. Explain why and what boundary is being protected; do not add mechanical comments that merely restate obvious assignments.
 - Keep UI JSON formats shared through core modules such as `api_launcher/plans.py`.
 - Keep the default user-facing Tk UI in Traditional Chinese. When adding or touching visible UI text, prefer `ApiCollectionUi.tr("繁中", "English")` so `Settings > Interface language` can keep working.
 - UI integration/login/API key/data-store entries belong under the top `整合` menu. Do not scatter new account or database settings buttons into the drawer or toolbar.

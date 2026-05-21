@@ -46,6 +46,7 @@ reference file, templates, and exports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
 - `docs/AGENT_HANDOFF.zh-TW.md`: cross-agent handoff card; read this first when taking over work.
 - `docs/PROJECT_GTD.md`: current product status, progress table, and next steps.
+- `docs/DEVELOPMENT_LOG.zh-TW.md`: Traditional Chinese development log for pushed checkpoints, verification, and residual risks.
 - `docs/DOCS_INDEX.zh-TW.md`: documentation map; explains every important doc and when to update it.
 - `docs/ARCHITECTURE.md`: pipeline, module ownership, and folder-hygiene notes.
 - `docs/TECHNICAL_OVERVIEW.zh-TW.md`: Chinese technical overview for the team.
