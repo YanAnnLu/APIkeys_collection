@@ -18,10 +18,11 @@
 
 ### 2026-05-21
 
-主線：補 heartbeat automation 與 Codex runner，串 library repair actions，收斂 Tk 啟動可見性，補程式關聯圖、Demo/使用者手冊、Mermaid 繁中規則、README.zh-TW 與文件整理規則。
+主線：補 heartbeat automation 與 Codex runner，串 library repair actions，收斂 Tk 啟動可見性，補程式關聯圖、Demo/使用者手冊、Mermaid 繁中規則、README.zh-TW、文件整理規則，並修正 resolver 對壓縮 JSON/GeoJSON 類資源格式的交接。
 
 | 時間 | 標記 | SHA | Run | 原始標題 | 中文說明 |
 | --- | --- | --- | --- | --- | --- |
+| 22:40 | **CHECKPOINT** | `1c6e2b0` | `26233013484` | Preserve compressed JSON resource formats | 保留壓縮 JSON/GeoJSON/NDJSON 類 resource format，讓 `json.gz`、`jsonl.gz`、`ndjson.gz`、`geojson.gz` 等既有 importer 支援格式能正確進入下載與匯入計畫。 |
 | 21:57 | **CHECKPOINT** | `da35451` | `26230599073` | Consolidate docs refactor workflow | 收攏文件整理流程與繁中入口，並同步 repo/local Codex skill 的文件重構規則。 |
 | 21:30 | **CHECKPOINT** | `98c1ba0` | `26229130535` | Document Mermaid flow conventions | 把繁中 Mermaid 圖說規則文件化，要求繁中 `.md` 的可見節點與箭頭以中文為主。 |
 | 21:27 | **CHECKPOINT** | `a525a33` | `26228924048` | Map program flows and demo documentation | 補上程式關聯圖與 Demo/操作文件，讓模組調度、Demo 閉環與使用路徑更容易接手。 |
