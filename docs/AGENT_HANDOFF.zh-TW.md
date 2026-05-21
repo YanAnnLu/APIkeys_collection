@@ -169,6 +169,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 - Tk UI 實作檔已從 `frontends/tk/APIkeys_collection_ui.py` 改名為 `frontends/tk/launcher_ui.py`。
 - Tk UI 從 IDE 或背景 shell 啟動後會自動浮出、短暫置前並印出 `APIkeys_collection UI ready ...`；相關 TclError suppressor 已收窄成只吞 Tk/Tcl 視窗生命週期錯誤，不再靜默吞掉非預期例外。
+- 新增 `docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/MVP_FLOW_AUDIT.zh-TW.md`、`docs/USER_MANUAL.zh-TW.md`：分別補上程式關聯地圖、Demo 閉環稽核、帶圖說的使用者操作手冊。之後整理資料夾或新增功能時，先同步這三份文件，避免調度關係只留在聊天紀錄。
+- 新增 `docs/ARCHITECTURE.zh-TW.md` 作為中文架構入口；英文 `docs/ARCHITECTURE.md` 保留，但未來架構大改要同步更新中文版本。
 - Heartbeat automation 第一階段已加入 CLI 與 Windows entrypoints：`--heartbeat-report`、`--heartbeat-plan-json`、`--write-heartbeat-plan-json`、`--heartbeat-agent-prompt`、`scripts/heartbeat_check.ps1`、`scripts/heartbeat_agent.ps1`、`scripts/heartbeat_check.cmd`、`scripts/heartbeat_agent.cmd`、`scripts/heartbeat_codex.ps1`、`scripts/heartbeat_codex.cmd`。
 - 根目錄 `APIkeys_collection_ui.py` 保留相容入口，不要刪。
 - SQL-only 連線模組已合併進泛用 data store contract。
