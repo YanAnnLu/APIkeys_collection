@@ -1,6 +1,6 @@
 # Dataset Discovery 補充說明
 
-更新日期：2026-05-21
+更新日期：2026-05-22
 
 ## 文件角色
 
@@ -24,6 +24,47 @@ flowchart TD
 ```
 
 白話說：Alpha Vantage、NOAA、Google Earth Engine、MarineCadastre、ERDDAP 這些首先是供應商或資料平台；背後可能有很多資料集。第 1 階段應該優先把「發現資料集」的 crawler 做好，再挑代表資料集進入下載閉環。
+
+## 爬蟲資產的定位
+
+「爬蟲資產」是目前 crawler-first 路線的概念擴充。它不是把每個資料集硬寫成一支爬蟲，而是把「能穩定取得某類資料候選或有界樣本的能力」當成可治理資產。
+
+在目前架構中，它對應到這些組件的組合：
+
+```text
+catalog/dataset_discovery_sources.json
+api_launcher/crawlers/*
+api_launcher/crawlers/orchestrator.py
+api_launcher/adapter_plan_resolver.py
+api_launcher/plans.py
+state/logs/launcher_events.jsonl
+```
+
+一個健康的爬蟲資產至少應該回答：
+
+```text
+它服務哪個 provider/source scope？
+它使用哪個 crawler type 或 parser？
+它需要哪些 credential、rate limit、查詢參數與安全上限？
+它產出 candidate、adapter review item，還是 bounded download/import plan？
+它上次執行是否成功，候選數是否合理，是否有 suspicious zero/low output？
+它的輸出是否能追到後續 manifest、curated table、repair event 與 lineage？
+```
+
+這也是 Aseat 概念可以落地的位置：Aseat 不是取代 Provider、Dataset 或 Adapter，而是包住一個可維護的資料取得能力，讓 UI 以「資產護照、任務隊列、健康狀態、修復流程」呈現它。短期仍以現有 crawler/source/resolver 檔案推進；中期才把它提升成獨立 registry 或操作艙。
+
+```mermaid
+flowchart LR
+    Source[資料發現來源] --> Asset[爬蟲資產 / Aseat]
+    Asset --> Candidate[資料集候選]
+    Candidate --> Review[Adapter 待辦 / 人工審核]
+    Candidate --> Resolver[有界解析器]
+    Resolver --> Plan[下載 / 匯入計畫]
+    Plan --> Manifest[驗證清單]
+    Manifest --> DataAsset[資料資產]
+    Asset --> Health[健康狀態 / 警告 / 修復任務]
+    Health --> Review
+```
 
 ## Discovery seeds
 

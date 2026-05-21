@@ -1,8 +1,8 @@
 # APIkeys Collection 架構
 
-最後更新：2026-05-21
+最後更新：2026-05-22
 
-APIkeys Collection 是一個類 Steam 的科學資料集與本機資料庫 launcher。它負責整理 provider/catalog、產生下載計畫、下載與匯入資料、追蹤已安裝資產，並把整理後的資料交給 Taichi、Unreal 或其他下游 renderer / 分析工具。
+APIkeys Collection 是一個類 Steam 的科學資料集、爬蟲資產與本機資料庫 launcher。它負責整理 provider/catalog、治理資料取得能力、產生下載計畫、下載與匯入資料、追蹤已安裝資產，並把整理後的資料交給 Taichi、Unreal 或其他下游 renderer / 分析工具。
 
 英文原文仍保留在 `docs/ARCHITECTURE.md`；本文件是繁中架構入口，補足接力與中文討論需要。
 
@@ -21,6 +21,8 @@ APIkeys Collection 是一個類 Steam 的科學資料集與本機資料庫 launc
 flowchart LR
     Provider["供應商 / 官方來源"]
     Catalog["供應商與資料集目錄"]
+    CrawlerAsset["爬蟲資產 / Aseat<br/>可治理的資料取得能力"]
+    Candidate["資料集候選"]
     Plan["下載計畫"]
     Download["直接下載器"]
     Manifest["旁車驗證清單與 checksum"]
@@ -30,7 +32,9 @@ flowchart LR
     Renderer["圖磚 / 快取 / 渲染橋接"]
 
     Provider --> Catalog
-    Catalog --> Plan
+    Catalog --> CrawlerAsset
+    CrawlerAsset --> Candidate
+    Candidate --> Plan
     Plan --> Download
     Download --> Manifest
     Manifest --> Registry
@@ -43,6 +47,7 @@ flowchart LR
 重點：
 
 - Catalog 不等於已下載資料，只代表 launcher 知道資料源或資料集候選。
+- 爬蟲資產不等於資料本體；它是能產生候選、adapter review item 或有界 plan 的可治理能力。
 - Download plan 必須分清楚 direct file、adapter_required、requires_unpack_or_adapter。
 - Manifest 是下載結果可驗證、可修復、可登錄的核心。
 - Curated table 是從 raw payload 派生出來的可重建資產，不應混同原始資料。
@@ -134,7 +139,7 @@ flowchart TD
 | Frontends | `frontends/tk/launcher_ui.py`, `frontends/unreal/`, future Qt/mobile | UI、renderer-facing code、remote-control client。 |
 | Core orchestration | `api_launcher/core.py`, `api_launcher/cli_*.py` | CLI routing 與共用輸出。 |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py`, `api_launcher/registry.py` | SQLite schema、catalog state、crawl results、install registry、asset state。 |
-| Discovery | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery 與 dataset candidate discovery。 |
+| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery、dataset candidate discovery，以及中期 crawler asset / Aseat 的治理邊界。 |
 | Planning | `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Download/import plan、adapter handoff、bounded resolver。 |
 | Downloading | `api_launcher/downloads/*` | job queue、HTTP adapter、staging、manifest repair、transfer tools。 |
 | Import / curation | `api_launcher/importers/*` | CSV/JSON/archive raw -> curated SQLite。 |

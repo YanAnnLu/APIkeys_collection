@@ -1,6 +1,6 @@
 # 資料資產平台概念總綱
 
-最後更新：2026-05-20
+最後更新：2026-05-22
 
 這份文件整理 2026-05-20 的產品概念討論。它不是當前 MVP 的實作清單，而是中期到長期的架構方向，幫下一位開發者理解：本專案不只是資料庫下載器，而是在形成一個 local-first 的資料資產平台。
 
@@ -57,6 +57,7 @@ Data Asset / Dataset Artifact
 CSV / JSON / Parquet / GeoJSON / NetCDF / GeoTIFF
 pandas DataFrame 或 DuckDB query result
 爬蟲 raw result，例如 HTML、API response、PDF、圖片、壓縮檔
+爬蟲資產，例如可版本化、可審核、可排程、可修復的 crawler / parser / resolver 能力包
 標準化後的 curated dataset
 湖倉 table
 GIS layer
@@ -176,6 +177,50 @@ flowchart TB
     R --> P[下載 / 匯入計畫]
     P --> M[驗證清單 + 標準化資產]
 ```
+
+## 爬蟲資產 / Crawler Asset
+
+使用者提出的「爬蟲資產」可以視為 Discovery Tool 的產品化擴充：平台不只管理資料本體，也管理「取得資料的能力」。這個能力不應被理解成單一 Python function，而是一個可被安裝、審核、版本化、執行、監控、修復，並能產生資料資產的能力包。
+
+爬蟲資產可以用 Aseat 作為中期產品語彙：一個 Aseat 代表一個可治理的資料取得膠囊。它應包含：
+
+```text
+身份：asset_id、名稱、版本、維護者、適用 provider / source scope
+來源：入口 URL、API endpoint、portal 類型、授權與 terms/robots 風險
+能力：crawler type、parser、bounded resolver、可支援輸出格式
+執行設定：查詢參數、rate limit、pagination、timeout、credential profile
+安全邊界：大小上限、時間/空間邊界、不可自動下載的 URL 類型
+產出：candidate datasets、adapter review items、download/import plan、manifest
+治理：last run、health、warnings、trust score、cost、risk、repair workflow
+lineage：哪個 crawler asset 在什麼版本下產生哪批資料資產
+```
+
+這個概念不取代既有模型，而是把既有模型包成更容易理解的產品層：
+
+```text
+Provider = 誰提供資料或入口
+DatasetDiscoverySource = 去哪裡找資料
+Crawler Asset / Aseat = 用什麼可治理能力取得資料候選或小樣本
+DatasetCandidate = 這次找到的資料候選
+Adapter / Resolver = 如何把候選轉成安全有界的下載 / 匯入計畫
+Mission = 某次執行、修復、診斷、下載或匯入任務
+Data Asset = 最後被下載、匯入、標準化、渲染或登錄的資料資產
+```
+
+```mermaid
+flowchart LR
+    Provider[資料提供者] --> Source[資料發現來源]
+    Source --> CrawlerAsset[爬蟲資產 / Aseat<br/>可治理的資料取得能力]
+    CrawlerAsset --> Candidate[資料集候選]
+    Candidate --> Resolver[轉接器 / 有界解析器]
+    Resolver --> Plan[下載 / 匯入計畫]
+    Plan --> DataAsset[資料資產]
+    CrawlerAsset --> Mission[執行任務 / 健康檢查 / 修復]
+    Mission --> Lineage[Lineage / Trust / Risk]
+    DataAsset --> Lineage
+```
+
+短期不需要立刻新增一張龐大的 crawler asset table；目前可先讓 `catalog/dataset_discovery_sources.json`、`api_launcher/crawlers/*`、`adapter_plan_resolver.py`、event log 與 handoff 文件共同承擔這個概念。等 UI 進入 Aseat Arsenal / crawler asset cockpit 階段，再把它提升成明確 registry、健康面板與 repair mission。
 
 ## 標準化策略
 

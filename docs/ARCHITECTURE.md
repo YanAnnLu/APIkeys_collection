@@ -1,17 +1,17 @@
 # APIkeys Collection Architecture
 
-Last updated: 2026-05-18
+Last updated: 2026-05-22
 
-APIkeys Collection is a Steam-like launcher for data sources and local databases.
-It catalogs providers, builds download plans, downloads/imports datasets, tracks
-installed assets, and prepares data for downstream renderers such as
-`taichi_global_bathymetry.py`.
+APIkeys Collection is a Steam-like launcher for data sources, crawler assets, and
+local databases. It catalogs providers, governs data-acquisition capabilities,
+builds download plans, downloads/imports datasets, tracks installed assets, and
+prepares data for downstream renderers such as `taichi_global_bathymetry.py`.
 
 ## Pipeline
 
 The product has two linked halves:
 
-- Steam-like data launcher: catalog, cart/download plan, install/update/uninstall safety, SQL/file/API integration.
+- Steam-like data launcher: catalog, crawler assets, cart/download plan, install/update/uninstall safety, SQL/file/API integration.
 - Renderer data pipeline: curated datasets become tile/cache manifests that Taichi and Unreal can consume with different
   performance budgets.
 
@@ -24,6 +24,8 @@ mid-term distributed loop where Hadoop and Kubernetes may be owned by other team
 flowchart LR
     Provider[Provider / official source]
     Catalog[Provider + dataset catalog]
+    CrawlerAsset[Crawler asset / Aseat]
+    Candidate[Dataset candidate]
     Plan[Download plan]
     Download[Direct downloader]
     Manifest[Sidecar manifest + checksum]
@@ -33,7 +35,9 @@ flowchart LR
     Renderer[Tile/cache or renderer bridge]
 
     Provider --> Catalog
-    Catalog --> Plan
+    Catalog --> CrawlerAsset
+    CrawlerAsset --> Candidate
+    Candidate --> Plan
     Plan --> Download
     Download --> Manifest
     Manifest --> Registry
@@ -71,6 +75,11 @@ flowchart TD
 
 Hadoop is the future distributed storage/compute layer. Kubernetes is the future runtime orchestration layer. The
 launcher should not own either cluster; it should prepare contracts, submit or describe jobs, and read back status.
+
+Crawler assets are the governed capability layer between catalog sources and dataset candidates. A crawler asset may
+package a crawler type, parser, bounded resolver, credentials/rate-limit boundaries, safety guards, health status,
+repair workflow, and lineage. It does not replace Provider, Dataset, DiscoverySource, Adapter, or Mission; it makes the
+existing crawler/source/resolver path product-readable for a future Aseat-style cockpit.
 
 ### Library / Install / Workspace Model
 
@@ -239,7 +248,7 @@ network policy, and operational health.
 | Core orchestration | `api_launcher/core.py` | CLI commands and shared exports used by the UI. |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py` | SQLite schema, catalog state, crawl results, install registry, local asset state. |
 | Catalog model | `api_launcher/models.py`, `api_launcher/registry.py`, catalog JSON/CSV/MD files | Provider and dataset definitions. |
-| Discovery | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `catalog/provider_discovery_seeds.json` | Polite metadata/source discovery without collecting secrets. |
+| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | Polite metadata/source discovery, dataset candidate discovery, and the future crawler asset / Aseat governance boundary. |
 | Planning | `api_launcher/plans.py` | Builds download-plan JSON and declares nonblocking download policy. |
 | Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
 | Downloading | `api_launcher/downloads/` | Nonblocking job queue, resumable HTTP adapter, staging, manifest repair, and optional external transfer tools. |
