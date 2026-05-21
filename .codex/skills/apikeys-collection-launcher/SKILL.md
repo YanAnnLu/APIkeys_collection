@@ -156,6 +156,7 @@ For UI work, "done" means the visible text is Traditional Chinese by default, th
 - Be careful with cross-platform local paths. Windows paths such as `K:\...` in ignored local config must not become blocking macOS startup errors; choose `*_by_platform` first and ignore/warn on foreign generic paths before `pathlib.Path` resolves them.
 - CloudMounter has previously damaged Git metadata (`index` renamed to `index 1`, refs renamed to `main 1`, stale lock files). Diagnose Git metadata non-destructively before any restore/reset.
 - Treat every `.md` as intentional handoff context. Future English docs need a Traditional Chinese version, summary, or clear Chinese entrypoint.
+- `tem/` 是本機暫存資料夾，用來暫放外部 agent 產物、概念原型、截圖、logs 與待評估素材。它預設不進 Git；除非使用者明確要求把某個素材提升成正式文件或原始碼，否則不要 `git add`、commit 或 push `tem/` 內容。從 `tem/` 取用內容時，應把通過評估的重點收斂到 canonical docs/source，不要讓正式流程依賴 `tem/` 路徑。
 - Reuse `api_launcher.library_actions` for install/update/repair/open/render/uninstall decisions. For agent-readable output, call the CLI instead of rebuilding policy:
 
 ```bash

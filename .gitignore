@@ -8,6 +8,7 @@ dataset_discovery_sources.local.json
 provider_candidates.discovered.json
 /state/
 /downloads/
+/tem/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
