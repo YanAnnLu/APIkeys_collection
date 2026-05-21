@@ -165,6 +165,10 @@ parser 版本
 
 使用者從 `yfinance` 延伸出的觀察很重要：許多 Python / R 套件，甚至 MATLAB toolbox / REST workflow，本質上不是普通工具函式，而是遠端資料庫或 Web API 的 client。這類入口也應被視為可追蹤的資料取得來源，只是它們的入口不是 URL catalog，而是「runtime / 語言套件 / 工具箱 + provider API」的組合。
 
+概念上，這一層最後應收斂成「來源護照」模型。使用者面對的是資料來源，例如 World Bank、FRED、GBIF、NASA Earthdata、Copernicus CDS；平台內部才記錄這個來源有哪些 access surfaces，例如 REST、Python package、R package、MATLAB toolbox、CLI、database driver、file index。UI 不應要求資料工作者先決定要用 Python 套件還是 R 套件，而應讓他先選 canonical source，再由 launcher 根據授權、credential、格式、大小、穩定性與匯入目標，挑出可執行或待審核的 access surface。
+
+這也表示 adapter 不是「wrapper 呼叫器」。adapter 是治理與轉檔邊界：它負責把某個 access surface 的輸出轉成平台可理解、可驗證、可匯入、可修復的資產。是否呼叫 Python/R/MATLAB/REST 是實作細節；產品上更重要的是是否留下 manifest、checksum、schema fingerprint、credential boundary、terms 訊號、lineage 與 repair path。
+
 這個概念可以再推廣成：
 
 ```text
