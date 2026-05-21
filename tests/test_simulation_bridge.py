@@ -1,3 +1,4 @@
+# 這份測試鎖定 simulation bridge contract，避免未實作物理流程被誤當可用。
 from __future__ import annotations
 
 import unittest

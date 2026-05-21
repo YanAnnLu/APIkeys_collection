@@ -1,3 +1,4 @@
+# 這份測試鎖定 manifest 與 registry 的連動，避免下載資產無法被追蹤/修復。
 from __future__ import annotations
 
 import tempfile

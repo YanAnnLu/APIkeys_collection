@@ -1,3 +1,4 @@
+# 這份測試鎖定 Markdown portal intake 流程，避免團隊蒐集資料直接污染 catalog。
 from __future__ import annotations
 
 import json

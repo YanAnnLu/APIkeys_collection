@@ -35,6 +35,7 @@ DIRECT_DOWNLOAD_EXTENSIONS = {
 
 @dataclass(frozen=True)
 class DownloadEligibility:
+    # eligibility 是 plan 階段判斷，真正下載前仍要走 staging、manifest 與 repair policy。
     status: str
     label: str
     reason: str
@@ -54,11 +55,13 @@ class DownloadEligibility:
 
 
 def assess_provider_download(provider: Provider) -> DownloadEligibility:
+    # eligibility 是保守分類：無法證明 direct file URL 時，就交給 adapter/review 流程。
     api_url = provider.api_base_url.strip()
     docs_url = provider.docs_url.strip()
     requires_key = bool(provider.key_env_var.strip())
 
     if api_url and looks_like_direct_download(api_url):
+        # 只有副檔名明確像資料檔，才允許走通用 HTTP downloader。
         return DownloadEligibility(
             status="direct_download",
             label="Direct",
@@ -68,6 +71,7 @@ def assess_provider_download(provider: Provider) -> DownloadEligibility:
         )
 
     if api_url:
+        # 有 API endpoint 但不是檔案 URL，通常需要 adapter 產生 bounded query 或轉換格式。
         return DownloadEligibility(
             status="adapter_required",
             label="Adapter",
@@ -95,6 +99,7 @@ def assess_provider_download(provider: Provider) -> DownloadEligibility:
 
 
 def looks_like_direct_download(url: str) -> bool:
+    # 副檔名判斷不是安全保證，只是把明顯檔案 URL 分流到直接下載。
     parsed = urllib.parse.urlparse(url.strip())
     suffixes = [suffix.lower() for suffix in Path(urllib.parse.unquote(parsed.path)).suffixes]
     if not suffixes:

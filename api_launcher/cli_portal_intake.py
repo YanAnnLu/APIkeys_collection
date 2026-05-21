@@ -16,6 +16,7 @@ from api_launcher.portal_intake import (
 
 
 def add_portal_intake_args(parser: argparse.ArgumentParser) -> None:
+    # portal intake CLI 是 Markdown 表格到 review/local staging 的橋，不直接改官方 catalog。
     parser.add_argument("--portal-intake-report", action="store_true", help="parse the team database-portal intake Markdown and print an engineering summary")
     parser.add_argument("--portal-intake-path", default=DEFAULT_PORTAL_INTAKE_PATH, help="Markdown file containing the team database-portal intake table")
     parser.add_argument("--write-portal-intake-json", default="", help="write the parsed portal-intake review payload to JSON")
@@ -26,12 +27,14 @@ def add_portal_intake_args(parser: argparse.ArgumentParser) -> None:
 
 
 def portal_intake_command_active(args: argparse.Namespace) -> bool:
+    # portal intake 相關 flag 只要有一個啟用，就應走 CLI 模式而不是開 UI。
     return bool(args.portal_intake_report or args.write_portal_intake_json or args.promote_portal_intake_local)
 
 
 def portal_intake_cli(args: argparse.Namespace) -> None:
     if not portal_intake_command_active(args):
         return
+    # Markdown intake 是團隊蒐集層；payload 先輸出審核摘要，再決定是否 promote 到 local config。
     intake_path = resolve_project_path(args.portal_intake_path)
     payload = build_portal_intake_payload(intake_path)
     summary = payload["summary"]
@@ -54,6 +57,7 @@ def portal_intake_cli(args: argparse.Namespace) -> None:
     if args.portal_intake_strict and summary["warning_count"]:
         raise SystemExit("[portal-intake] strict audit failed")
     if args.promote_portal_intake_local:
+        # promote 只寫 ignored local JSON，官方 catalog 仍需 crawler audit 後人工納入。
         provider_seed_path = local_config_file(args.portal_intake_provider_seeds)
         dataset_source_path = local_config_file(args.portal_intake_dataset_sources_local)
         result = promote_portal_intake_payload(payload, provider_seed_path, dataset_source_path)
@@ -68,5 +72,6 @@ def portal_intake_cli(args: argparse.Namespace) -> None:
 
 
 def write_portal_intake_json(path: Path, payload: dict[str, object]) -> None:
+    # 寫 JSON 方便 agent/CI 檢閱 intake 結果，格式由 portal_intake_payload_to_json 統一控制。
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(portal_intake_payload_to_json(payload), encoding="utf-8")

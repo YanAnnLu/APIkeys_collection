@@ -7,6 +7,7 @@ VALID_SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
 
 def validate_sql_identifier(name: str) -> str:
+    # SQL identifier 不能用參數化 query 綁定，所以必須白名單驗證後才可放進 SQL 字串。
     value = name.strip()
     if not VALID_SQL_IDENTIFIER.fullmatch(value):
         raise ValueError(f"Unsafe SQL identifier: {name!r}")
@@ -14,6 +15,7 @@ def validate_sql_identifier(name: str) -> str:
 
 
 def database_uninstall_command(engine: str, database_name: str) -> str:
+    # 這裡只生成文字命令供審核/顯示；真正執行 DROP 必須另外通過 ownership guard。
     engine = engine.strip().lower()
     if engine == "sqlite":
         return ""

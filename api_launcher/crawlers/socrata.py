@@ -25,6 +25,7 @@ def socrata_catalog_search_url(
     limit: int,
     offset: int | None = None,
 ) -> str:
+    # Socrata catalog search 只找資料集 metadata；實際資料表下載必須加 `$limit` 邊界。
     params = {"limit": str(max(1, limit)), "only": "dataset"}
     if offset is not None:
         params["offset"] = str(max(0, offset))
@@ -46,6 +47,7 @@ def socrata_catalog_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # Socrata resource id 會在 resolver 轉成 bounded API URL，crawler 階段只保留 metadata。
     results = socrata_catalog_results(payload)
     candidates: list[DatasetCandidate] = []
     for item in results[:limit]:

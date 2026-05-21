@@ -1,3 +1,4 @@
+# 這份測試鎖定 polite download policy，避免 retry/backoff/rate-limit 行為過於激進。
 from __future__ import annotations
 
 import unittest

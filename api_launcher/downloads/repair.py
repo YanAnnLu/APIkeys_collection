@@ -14,6 +14,7 @@ from api_launcher.paths import DOWNLOADS_DIR
 
 @dataclass(frozen=True)
 class ManifestVerification:
+    # 驗證結果要能同時給 CLI、UI repair panel 與 agent 使用，所以保留 manifest 與 payload 脈絡。
     manifest_path: Path
     payload_path: Path
     status: str
@@ -45,6 +46,7 @@ class ManifestVerification:
 
 @dataclass(frozen=True)
 class RepairSuggestion:
+    # repair suggestion 只描述安全候選動作；真正 requeue 仍要由 UI/CLI 明確執行。
     action_id: str
     label: str
     description: str
@@ -62,6 +64,7 @@ class RepairSuggestion:
 
 
 def verify_manifest_file(path: str | Path) -> ManifestVerification:
+    # manifest 是下載完整性的權威來源；payload 缺失、大小、checksum 都在這裡統一判斷。
     manifest_path = Path(path)
     try:
         manifest = read_manifest(manifest_path)
@@ -99,6 +102,7 @@ def repair_summary(results: list[ManifestVerification]) -> dict[str, int]:
 
 
 def download_repair_agent_payload(results: list[ManifestVerification]) -> dict[str, object]:
+    # agent payload 把全部結果與問題結果分開，讓自動化可以只處理可重排的項目。
     result_payloads = []
     issue_payloads = []
     requeue_count = 0

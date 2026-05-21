@@ -1,3 +1,4 @@
+# 這份測試鎖定非阻塞下載 queue，避免 pause/resume/cancel 狀態傳遞回歸。
 from __future__ import annotations
 
 import threading

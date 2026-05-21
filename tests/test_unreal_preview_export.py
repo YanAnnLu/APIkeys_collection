@@ -1,3 +1,4 @@
+# 這份測試鎖定 Unreal preview export，避免低解析橋接資產與 manifest 形狀漂移。
 from __future__ import annotations
 
 import importlib.util

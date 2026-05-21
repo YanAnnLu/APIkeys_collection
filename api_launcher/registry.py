@@ -9,6 +9,7 @@ from api_launcher.models import Provider
 PROVIDER_CATALOG_NAME = "APIkeys_collection_catalog.json"
 
 PROVIDER_OVERLAYS: dict[str, dict[str, object]] = {
+    # overlay 用來補舊 catalog 尚未表示的安全/secret 欄位，避免直接改歷史 JSON 結構。
     "noaa_ncei_cdo": {
         "terms_url": "https://www.ncei.noaa.gov/cdo-web/webservices/v2",
         "notes": "NOAA was written as NAOO in the request; this entry targets NOAA/NCEI CDO.",
@@ -26,6 +27,7 @@ PROVIDER_OVERLAYS: dict[str, dict[str, object]] = {
 
 
 def provider_from_dict(data: dict[str, object]) -> Provider:
+    # catalog JSON 轉 Provider 的唯一入口，避免欄位預設值在多處分歧。
     categories = data.get("categories") or ()
     secret_env_vars = data.get("secret_env_vars") or ()
     crawl_urls = data.get("crawl_urls") or ()
@@ -49,6 +51,7 @@ def provider_from_dict(data: dict[str, object]) -> Provider:
 
 
 def load_provider_catalog(path: Path) -> tuple[Provider, ...]:
+    # catalog 檔不存在時回空集合，讓測試/最小環境可以只初始化 schema。
     if not path.exists():
         return ()
     raw_items = json.loads(path.read_text(encoding="utf-8"))
@@ -58,5 +61,6 @@ def load_provider_catalog(path: Path) -> tuple[Provider, ...]:
         merged = {**item, **PROVIDER_OVERLAYS.get(provider_id, {})}
         provider = provider_from_dict(merged)
         if provider.provider_id and provider.name and provider.docs_url:
+            # 缺最小欄位的項目不進 catalog，避免 UI 顯示不可操作的空資料源。
             providers.append(provider)
     return tuple(providers)

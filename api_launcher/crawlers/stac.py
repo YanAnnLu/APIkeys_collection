@@ -28,6 +28,7 @@ def stac_candidates_from_payload(
     limit: int,
     search_terms: tuple[str, ...],
 ) -> list[DatasetCandidate]:
+    # STAC collection 代表可查詢的資料集合；真正 asset 下載要交給 bounded item resolver。
     collections = payload.get("collections")
     if not isinstance(collections, list):
         raise ValueError("STAC collections payload missing collections list")
@@ -40,6 +41,7 @@ def stac_candidates_from_payload(
         asset_map = item.get("assets") or item.get("item_assets") or {}
         if not isinstance(asset_map, dict):
             asset_map = {}
+        # STAC 搜尋文字混合 id/title/description/keywords/provider，避免只靠 title 漏掉資料集。
         searchable = " ".join(
             (
                 str(item.get("id") or ""),
@@ -59,6 +61,7 @@ def stac_candidates_from_payload(
         api_url = first_stac_link_url(links, ("items", "self")) or source_url
         temporal = stac_temporal_coverage(item.get("extent"))
         categories = merge_categories(source.categories, keywords[:6])
+        # STAC collection metadata 只進 candidate；items/assets 解析要由後續 resolver 決定範圍。
         dataset = Dataset(
             dataset_uid=dataset_uid(source.provider_id, dataset_id),
             provider_id=source.provider_id,
@@ -116,6 +119,7 @@ def paginated_stac_candidates(
     search_terms: tuple[str, ...],
     max_pages: int,
 ) -> list[DatasetCandidate]:
+    # STAC next link 可能是相對網址；stac_next_link 會用目前 URL 做 join。
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
     seen_page_urls: set[str] = set()
@@ -150,6 +154,7 @@ def stac_candidates_for_source(
 
 
 def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:
+    # rels 有優先順序；例如 landing 優先 self/root/parent，而 API 優先 items。
     for rel in rels:
         for link in links:
             if isinstance(link, dict) and str(link.get("rel") or "").lower() == rel and link.get("href"):
@@ -172,6 +177,7 @@ def stac_next_link(payload: dict[str, Any], current_url: str) -> str:
 
 
 def stac_temporal_coverage(extent: object) -> str:
+    # STAC temporal extent 通常是 [[start, end]]；缺 end 表示仍在更新。
     if not isinstance(extent, dict):
         return ""
     temporal = extent.get("temporal") if isinstance(extent.get("temporal"), dict) else {}

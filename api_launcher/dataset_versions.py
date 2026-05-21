@@ -7,6 +7,7 @@ from api_launcher.models import Dataset
 
 
 VERSION_STATUS_ORDER = {
+    # 數字越小越優先顯示；相容鎖定版本仍要排在一般 legacy 前面。
     "latest": 0,
     "latest_known": 0,
     "current": 1,
@@ -21,6 +22,7 @@ VERSION_STATUS_ORDER = {
 
 @dataclass(frozen=True)
 class DatasetVersionOption:
+    # version option 是 UI/plan 選擇單位，不能假設每個版本都有 direct download URL。
     dataset_uid: str
     dataset_id: str
     label: str
@@ -47,6 +49,7 @@ class DatasetVersionOption:
         return f"{self.label} ({version}, {status})"
 
     def to_plan_metadata(self) -> dict[str, Any]:
+        # plan metadata 是 UI 加入下載計畫後的穩定資料，避免重新查 dataset 時版本改變。
         return {
             "dataset_uid": self.dataset_uid,
             "dataset_id": self.dataset_id,
@@ -62,6 +65,7 @@ class DatasetVersionOption:
 
 
 def human_version_status(status: str) -> str:
+    # 目前顯示字串保持英文短詞，因為 status 也會出現在 JSON/agent payload 裡。
     labels = {
         "latest": "latest",
         "latest_known": "latest known",
@@ -77,6 +81,7 @@ def human_version_status(status: str) -> str:
 
 
 def sort_version_options(options: list[DatasetVersionOption]) -> list[DatasetVersionOption]:
+    # 先按狀態，再按版本號倒序排序，讓 latest/current 類選項固定靠前。
     return sorted(
         options,
         key=lambda option: (
@@ -90,6 +95,7 @@ def sort_version_options(options: list[DatasetVersionOption]) -> list[DatasetVer
 def version_options_for_dataset(dataset: Dataset) -> list[DatasetVersionOption]:
     raw_versions = dataset.metadata.get("available_versions")
     if isinstance(raw_versions, list):
+        # Adapter 可提供多版本清單；若有任何有效選項，就不再回退到單一 dataset 版本。
         options = [_version_option_from_mapping(dataset, item) for item in raw_versions if isinstance(item, dict)]
         if options:
             return sort_version_options(options)
@@ -138,6 +144,7 @@ def _version_option_from_mapping(dataset: Dataset, item: dict[str, Any]) -> Data
 
 
 def _version_sort_key(version: str) -> tuple[int, tuple[int, ...], str]:
+    # 純數字版本用倒序比較；非數字版本保留原字串，避免猜測語意。
     parts = []
     for chunk in version.replace("_", ".").replace("-", ".").split("."):
         if chunk.isdigit():

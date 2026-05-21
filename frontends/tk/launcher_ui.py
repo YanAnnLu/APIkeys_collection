@@ -86,6 +86,7 @@ DOWNLOAD_REPAIR_ACTION_STATUSES = {"missing", "size_mismatch", "checksum_mismatc
 
 
 TABLE_COLUMNS = (
+    # 欄位定義集中保存 label/比例/寬度上下限，避免 resize 邏輯散在 UI 程式各處。
     ("star", "*", 0.045, 44, 64, "center", False),
     ("install", "計畫", 0.06, 58, 82, "center", False),
     ("name", "資料集 / API 來源", 0.32, 220, 520, "w", True),
@@ -96,6 +97,7 @@ TABLE_COLUMNS = (
 )
 
 LAYOUT = {
+    # Tk 沒有 CSS layout；這裡集中存比例與動畫參數，讓螢幕尺寸調整時行為一致。
     "initial_width_ratio": 0.82,
     "initial_height_ratio": 0.78,
     "min_width_ratio": 0.58,
@@ -127,6 +129,7 @@ def configured_ui_language() -> str:
 
 class ProviderRow:
     def __init__(self, entry: core.ProviderCatalogEntry):
+        # ProviderRow 是 Tk 專用 view-model；後端資料仍以 core.ProviderCatalogEntry 為準。
         self.provider_id = entry.provider_id
         self.name = entry.name
         self.owner = entry.owner
@@ -223,6 +226,7 @@ class ProviderRow:
 
 class ProviderEditorDialog:
     def __init__(self, parent: Tk, row: ProviderRow | None = None):
+        # Dialog 只產生 core.Provider，真正寫入資料庫交給 ApiCollectionUi.save_provider。
         self.parent = parent
         self.row = row
         self.result: core.Provider | None = None
@@ -454,6 +458,7 @@ class DatabaseClientSettingsDialog:
 
 
 def reveal_path_in_file_manager(path: Path) -> None:
+    # 用平台原生命令定位檔案；失敗時不改檔，只讓使用者自己開設定檔。
     if sys.platform == "darwin":
         subprocess.Popen(["open", "-R", str(path)])
         return
@@ -467,6 +472,7 @@ class ApiCollectionUi:
     def __init__(self, root: Tk):
         self.root = root
         self.root.title("APIkeys_collection")
+        # 初始尺寸用螢幕比例推導，避免在筆電或外接螢幕上開成過小/過大的視窗。
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
         initial_w = clamp(int(screen_w * LAYOUT["initial_width_ratio"]), 1080, 1680)
@@ -477,6 +483,7 @@ class ApiCollectionUi:
         self.root.minsize(min_w, min_h)
         self.root.configure(bg=COLORS["bg"])
 
+        # 這一組是純 UI 狀態，會影響篩選、選取、抽屜與下載計畫的即時呈現。
         self.ui_language = configured_ui_language()
         self.search_var = StringVar()
         self.search_placeholder_text = self.tr("搜尋資料源、分類、API 或關鍵字", "Search sources, categories, APIs, or keywords")
@@ -502,11 +509,14 @@ class ApiCollectionUi:
         self.detail_current_width = 0
         self.column_width_overrides = self.load_column_width_overrides()
         self.resizing_column_name: str | None = None
+        # Tk 各平台支援的 cursor 名稱不同，啟動時先探測可用值。
         self.table_resize_cursor = self.supported_cursor(("sb_h_double_arrow", "resizeleft", "resizeright", "fleur"))
         self.tree_default_cursor = ""
+        # favicon 目前是 Tk 可顯示的 bitmap cache；未來 canonical icon 可改為 SVG/vector。
         self.default_provider_icon: PhotoImage | None = None
         self.provider_icon_images: dict[str, PhotoImage] = {}
         self.provider_icon_loading: set[str] = set()
+        # 下載 queue 在背景 thread 執行，所有 progress 都要透過 callback 切回 Tk 主執行緒。
         self.download_policy = core.active_download_policy()
         self.download_queue = NonBlockingDownloadQueue(
             HTTPDownloadAdapter(policy=self.download_policy),
@@ -520,6 +530,7 @@ class ApiCollectionUi:
         self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
         self.import_status_by_plan_key: dict[str, tuple[str, str]] = {}
         self.ui_ready_announced = False
+        # plan_key 讓同一 provider 可同時放多個 dataset/version，不再互相覆蓋購物車列。
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.plan_provider_by_key: dict[str, str] = {}
         self.registered_completed_downloads: set[str] = set()
@@ -535,6 +546,7 @@ class ApiCollectionUi:
         self._build_layout()
         self.root.bind("<Configure>", self.on_root_configure)
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
+        # 啟動順序：先建 schema/seed，再載入資料，最後才做環境檢查與視窗置前。
         self.reload_data()
         self.run_startup_environment_checks()
         self.load_saved_ai_api_keys_for_startup()
@@ -562,6 +574,7 @@ class ApiCollectionUi:
 
     def present_main_window(self) -> None:
         """Make the launcher window visible when started from an IDE/background shell."""
+        # 多個 Tk 呼叫可能在視窗關閉邊界拋 TclError；這裡只吞視窗生命週期錯誤。
         with contextlib_suppress_tcl_error():
             self.root.update_idletasks()
         with contextlib_suppress_tcl_error():
@@ -592,6 +605,7 @@ class ApiCollectionUi:
         )
 
     def load_column_width_overrides(self) -> dict[str, int]:
+        # 欄寬是使用者偏好；讀取時仍用 TABLE_COLUMNS 正規化，避免舊 config 撐破畫面。
         raw_widths = core.load_integration_config().get("ui_table_column_widths")
         if not isinstance(raw_widths, dict):
             return {}
@@ -618,6 +632,7 @@ class ApiCollectionUi:
         return normalized_ui_import_policy(core.load_integration_config().get(UI_IMPORT_POLICY_CONFIG_KEY))
 
     def save_import_existing_table_policy_preference(self, policy: str) -> None:
+        # 匯入同名表策略會影響資料安全，因此保存前一律走 normalized_ui_import_policy。
         normalized = normalized_ui_import_policy(policy)
         self.preferred_import_existing_table_policy = normalized
         if hasattr(self, "plan_import_policy_var"):
@@ -707,6 +722,7 @@ class ApiCollectionUi:
         return descriptions.get(str(getattr(suggestion, "action_id", "")), str(getattr(suggestion, "description", "")))
 
     def _init_database(self) -> None:
+        # UI 啟動時只初始化本機 catalog schema 與內建 seeds，不執行下載或 OAuth。
         conn = core.connect_db(DB_PATH)
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -726,11 +742,13 @@ class ApiCollectionUi:
             self.resize_after_id = None
         for job_id in list(self.download_providers_by_job):
             with contextlib_suppress_tcl_error():
+                # 視窗關閉時先要求 worker 取消，避免背景下載繼續寫入已關閉 UI 的 callback。
                 self.download_queue.cancel(job_id)
         self.download_queue.shutdown(wait=False, cancel_futures=True)
         self.root.destroy()
 
     def run_startup_environment_checks(self) -> None:
+        # 環境檢查只回報/記錄問題；不在 UI 啟動時自動修改使用者機器設定。
         checks = core.run_startup_checks(DB_PATH)
         problems = [check for check in checks if check.status in {"warning", "error"}]
         if problems:
@@ -780,6 +798,7 @@ class ApiCollectionUi:
         style.map("Treeview", background=[("selected", COLORS["accent_dark"])])
 
     def _build_menu_bar(self) -> None:
+        # 頂層 menu 反映產品區塊：檔案、資料庫、整合、工具、設定、說明。
         menu_bar = Menu(self.root)
 
         file_menu = Menu(menu_bar, tearoff=0)
@@ -849,6 +868,7 @@ class ApiCollectionUi:
         self.root.configure(menu=menu_bar)
 
     def _build_layout(self) -> None:
+        # 主 layout 固定為 sidebar + main + detail/download panels，方便之後 Qt 前端照同一資訊架構重建。
         sidebar_width = clamp(int(self.root.winfo_width() * LAYOUT["sidebar_ratio"]), LAYOUT["sidebar_min"], LAYOUT["sidebar_max"])
         outer_pad = self.scaled_pad()
 
@@ -961,6 +981,7 @@ class ApiCollectionUi:
         ttk.Label(bottom, textvariable=self.status_var, style="Muted.TLabel").pack(anchor="w")
 
     def _build_detail_panel(self, parent: ttk.Frame) -> None:
+        # Detail panel 是「商店頁」概念：顯示來源狀態、官方入口、AI 說明與可執行 action。
         self.detail_parent = parent
         self.detail = ttk.Frame(parent, style="Panel.TFrame", width=self.detail_width())
         self.detail.pack_propagate(False)
@@ -1099,6 +1120,7 @@ class ApiCollectionUi:
             child.destroy()
         items = self.provider_sidebar_items() if self.sidebar_mode_var.get() == "provider" else self.category_sidebar_items()
         for label, category, owner in items:
+            # owner 模式才顯示 favicon，分類模式維持純文字，避免過多遠端 icon fetch。
             image = self.provider_icon_for_owner(owner) if owner else ""
             button_options = {
                 "text": label,
@@ -1112,6 +1134,7 @@ class ApiCollectionUi:
             button.pack(fill=X, padx=18, pady=3)
 
     def provider_icon_for_owner(self, owner: str) -> PhotoImage | str:
+        # icon 先讀記憶體，再讀 cache，最後才背景下載，避免 sidebar 重繪時卡住 UI。
         if not owner:
             return ""
         if owner in self.provider_icon_images:
@@ -1162,6 +1185,7 @@ class ApiCollectionUi:
         self.provider_icon_loading.add(owner)
 
         def worker() -> None:
+            # 網路下載放背景 thread；Tk PhotoImage 必須回主執行緒建立。
             try:
                 path = download_favicon_png(favicon_url, favicon_cache_path(favicon_url))
             except Exception as exc:
@@ -1189,12 +1213,14 @@ class ApiCollectionUi:
         threading.Thread(target=worker, daemon=True).start()
 
     def after_on_root(self, callback: object) -> None:
+        # 背景 thread 更新 UI 的唯一入口；root 已關閉時忽略排程錯誤。
         try:
             self.root.after(0, callback)
         except (RuntimeError, TclError):
             return
 
     def _build_download_plan_panel(self, parent: ttk.Frame, outer_pad: int) -> None:
+        # Download plan panel 同時顯示購物車與背景工作列，避免下載狀態只藏在 log。
         plan = ttk.Frame(parent, style="Panel.TFrame")
         plan.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
 
@@ -1342,6 +1368,7 @@ class ApiCollectionUi:
         return self.detail_width()
 
     def animate_detail_drawer(self, opening: bool) -> None:
+        # 抽屜動畫只改寬度，不重建 widget，避免 Text/Treeview 狀態在開關時遺失。
         self.cancel_detail_animation()
         target_width = self.detail_width()
         start_width = self.current_detail_width() if self.detail.winfo_ismapped() else 1
@@ -1387,6 +1414,7 @@ class ApiCollectionUi:
             return
         if self.resize_after_id:
             self.root.after_cancel(self.resize_after_id)
+        # resize event 很密集，用 after debounce 避免每個像素都重算欄寬。
         self.resize_after_id = self.root.after(80, self.apply_responsive_layout)
 
     def apply_responsive_layout(self) -> None:
@@ -1399,6 +1427,7 @@ class ApiCollectionUi:
         self.resize_table_columns()
 
     def resize_table_columns(self) -> None:
+        # 手動欄寬優先，剩餘空間再依比例分配給自動欄位。
         table_width = max(self.tree.winfo_width(), 1)
         reserved = 24
         manual_widths = {
@@ -1504,6 +1533,7 @@ class ApiCollectionUi:
         self.apply_filter()
 
     def reload_data(self) -> None:
+        # reload 是 UI 的資料同步點：一次讀 provider、dataset，再重建篩選與下載計畫顯示。
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -1535,6 +1565,7 @@ class ApiCollectionUi:
     def apply_filter(self) -> None:
         if not hasattr(self, "tree"):
             return
+        # 搜尋會同時命中 provider 欄位與 crawler 發現的 dataset 欄位。
         query = "" if self.search_placeholder_active else self.search_var.get().strip().lower()
         category = self.category_var.get()
         self.current_filter_query = query
@@ -1577,6 +1608,7 @@ class ApiCollectionUi:
         self.render_table()
 
     def render_table(self) -> None:
+        # Treeview 不是 virtual list；資料量變大前先用完整重繪保持狀態簡單可預期。
         for item in self.tree.get_children():
             self.tree.delete(item)
         self.dataset_table_items = {}
@@ -1647,6 +1679,7 @@ class ApiCollectionUi:
         return str(item)
 
     def visible_datasets_for_provider(self, provider_id: str) -> list[core.Dataset]:
+        # rejected 候選不顯示在主列表，但仍可在候選審核面板查到歷史狀態。
         datasets = self.datasets_by_provider.get(provider_id, [])
         query = self.current_filter_query
         category = self.current_filter_category
@@ -1717,6 +1750,7 @@ class ApiCollectionUi:
         self.add_provider_version_to_plan(dataset.provider_id, options[0])
 
     def on_tree_click(self, event: object) -> None:
+        # 第一欄切 star、第二欄切下載計畫；dataset child row 的第二/動作欄則加入計畫。
         region = self.tree.identify("region", getattr(event, "x", 0), getattr(event, "y", 0))
         if region != "cell":
             return
@@ -1809,6 +1843,7 @@ class ApiCollectionUi:
     def library_context_for_row(self, row: ProviderRow | None) -> LibraryContext | None:
         if row is None:
             return None
+        # library_actions 是共用政策層；UI 只負責把當前 row 轉成 context。
         manifest_health, manifest_path, repair_suggestion = self.download_repair_context_for_provider(row.provider_id)
         return LibraryContext(
             provider_id=row.provider_id,
@@ -1833,6 +1868,7 @@ class ApiCollectionUi:
         finally:
             conn.close()
         for record in records:
+            # 只挑需要人類/agent 處理的 manifest 狀態，健康檔案不佔用 action menu。
             if record.status not in DOWNLOAD_REPAIR_ACTION_STATUSES:
                 continue
             result = verify_manifest_file(record.manifest_path)
@@ -1903,6 +1939,7 @@ class ApiCollectionUi:
         )
 
     def add_provider_version_to_plan(self, provider_id: str, option: core.DatasetVersionOption) -> None:
+        # dataset/version plan 使用獨立 plan_key，保留 provider 一對多資料集的購物車語意。
         row = self.row_by_provider_id(provider_id)
         if row is None:
             return
@@ -1938,6 +1975,7 @@ class ApiCollectionUi:
             self.plan_provider_by_key.pop(plan_key, None)
 
     def selected_plan_items(self) -> list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]:
+        # 先列具體 dataset/version，再補 provider-level 選取，避免同 provider 重複產生 plan entry。
         items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]] = []
         seen_keys: set[str] = set()
         for plan_key, option in self.plan_version_by_provider.items():
@@ -1973,6 +2011,7 @@ class ApiCollectionUi:
         plan_key: str = "",
     ) -> tuple[dict[str, object] | None, str]:
         if plan_key and plan_key in self.download_plan_entries_by_provider:
+            # 已排過下載的 entry 保留原 target/import_plan，避免 UI 重繪後改變下載目標。
             return dict(self.download_plan_entries_by_provider[plan_key]), ""
         if option:
             dataset = self.dataset_for_version_option(option)
@@ -2077,6 +2116,7 @@ class ApiCollectionUi:
         )
 
     def ask_import_existing_table_policy(self) -> str | None:
+        # 同名資料表策略是破壞性風險點；replace 需要二次確認，預設走 rename。
         dialog = Toplevel(self.root)
         dialog.title(self.tr("既有資料表處理方式", "Existing table policy"))
         dialog.transient(self.root)
@@ -2152,6 +2192,7 @@ class ApiCollectionUi:
         return result["policy"]
 
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
+        # 若 catalog 尚未有 adapter dataset，右鍵開版本選單時做一次 bounded discovery。
         conn = self._connect()
         try:
             repository = core.ApiCatalogRepository(conn)
@@ -2232,6 +2273,7 @@ class ApiCollectionUi:
         self.start_download_plan_items([(row.provider_id, row, self.plan_version_by_provider.get(row.provider_id)) for row in rows])
 
     def start_download_plan_items(self, items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]) -> None:
+        # 這裡只啟動 direct_download；需要 adapter 的項目保留在審核/解析流程，不硬猜 URL。
         started = 0
         skipped = 0
         for plan_key, row, version in items:
@@ -2263,6 +2305,7 @@ class ApiCollectionUi:
         self.status_var.set(self.tr(f"下載工作已開始：{started}；略過：{skipped}", f"Download jobs started: {started}; skipped: {skipped}"))
 
     def prepare_provider_for_download(self, plan_key: str) -> bool:
+        # 完成/失敗/取消的工作可重排；running/paused 工作不能被同一 plan_key 重複提交。
         job_id = self.download_jobs_by_provider.get(plan_key)
         if not job_id:
             return True
@@ -2338,6 +2381,7 @@ class ApiCollectionUi:
         return str(selection[0]) if selection else self.active_provider_id
 
     def on_download_progress_threadsafe(self, progress: DownloadProgress) -> None:
+        # DownloadQueue callback 可能來自 worker thread；Tk 更新必須排到主 thread。
         self.root.after(0, lambda update=progress: self.on_download_progress(update))
 
     def on_download_progress(self, progress: DownloadProgress) -> None:
@@ -2398,6 +2442,7 @@ class ApiCollectionUi:
         try:
             repository = core.ApiCatalogRepository(conn)
             if target:
+                # 健康 manifest 走正式 asset registration；沒有 manifest 的舊路徑只保守記 file asset。
                 manifest_path = Path(target).with_suffix(Path(target).suffix + ".manifest.json")
                 if manifest_path.exists():
                     manifest = read_manifest(manifest_path)
@@ -2431,6 +2476,7 @@ class ApiCollectionUi:
         supported: list[tuple[str, dict[str, object], str]] = []
         skipped: list[str] = []
         for plan_key, row, option in items:
+            # 匯入前先確認 plan entry 宣告可支援，避免 UI 直接把任意檔案塞進 SQLite。
             label = self.plan_item_label(plan_key, row, option)
             entry = dict(self.download_plan_entries_by_provider.get(plan_key) or {})
             if not entry:
@@ -2489,6 +2535,7 @@ class ApiCollectionUi:
         sqlite_path: Path,
         existing_table_policy: str,
     ) -> None:
+        # 匯入跑背景 thread，但所有 repository 寫入仍集中在這個 worker 內完成。
         imported = 0
         skipped = 0
         failed = 0
@@ -2505,6 +2552,7 @@ class ApiCollectionUi:
                     manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
                     verification = verify_manifest_file(manifest_path)
                     if verification.status != "ok":
+                        # manifest 不健康時不匯入，避免半下載檔或被改動檔進 curated SQLite。
                         skipped += 1
                         detail = f"manifest {verification.status} {verification.message}".strip()
                         item_statuses.append((plan_key, self.tr("略過", "Skipped"), detail))

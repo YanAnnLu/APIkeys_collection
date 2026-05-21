@@ -1,3 +1,4 @@
+# 這份測試鎖定 database self-check 與修復建議，避免誤判可自動修復。
 from __future__ import annotations
 
 import json

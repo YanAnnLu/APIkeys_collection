@@ -14,6 +14,7 @@ PYTHON_LINE_LIMIT = 600
 
 @dataclass(frozen=True)
 class WorkspaceInventory:
+    # workspace inventory 是整理/交接用快照，不應被當成強制刪檔清單。
     root: str
     category_counts: dict[str, int]
     large_python_files: tuple[dict[str, object], ...]
@@ -31,6 +32,7 @@ class WorkspaceInventory:
 
 
 def build_workspace_inventory(root: str | Path = PROJECT_ROOT) -> WorkspaceInventory:
+    # inventory 排除 runtime/venv/cache，專注在 repo 結構與可維護性風險。
     root = Path(root)
     files = sorted(iter_workspace_files(root), key=lambda path: relative_path(path, root))
     category_counts = Counter(category_for_path(path, root) for path in files)

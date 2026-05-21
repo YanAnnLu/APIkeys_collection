@@ -19,6 +19,7 @@ DEFAULT_AGENT_PROMPT_PATH = Path("state/heartbeat/agent_prompt.md")
 
 @dataclass(frozen=True)
 class CommandResult:
+    # heartbeat 需要保留 command stdout/stderr，讓自動 agent 判斷是否能安全續跑。
     ok: bool
     stdout: str
     stderr: str
@@ -39,6 +40,7 @@ def build_heartbeat_payload(
     handoff_path: str | Path = "docs/AGENT_HANDOFF.zh-TW.md",
     include_ci: bool = True,
 ) -> dict[str, object]:
+    # heartbeat 只產生報告、JSON plan 與 agent prompt；不直接修改 repo 或執行開發工作。
     gtd_file = project_path(gtd_path)
     handoff_file = project_path(handoff_path)
     handoff_text = read_optional_text(handoff_file)
@@ -82,6 +84,7 @@ def build_heartbeat_payload(
 
 
 def render_heartbeat_report(payload: dict[str, object]) -> str:
+    # 報告面向人類閱讀，保留決策、Git、CI 與建議 checkpoint 的最短摘要。
     plan = payload.get("recommended_plan") if isinstance(payload.get("recommended_plan"), dict) else {}
     repo = payload.get("git") if isinstance(payload.get("git"), dict) else {}
     repo_state = repo.get("repo_state") if isinstance(repo.get("repo_state"), dict) else {}
@@ -170,6 +173,7 @@ def write_heartbeat_json(payload: dict[str, object], path: str | Path) -> Path:
 
 
 def render_heartbeat_agent_prompt(payload: dict[str, object]) -> str:
+    # prompt 必須自足，因為外部 agent 可能沒有目前聊天上下文。
     plan = payload.get("recommended_plan") if isinstance(payload.get("recommended_plan"), dict) else {}
     safety = payload.get("safety_rules") if isinstance(payload.get("safety_rules"), list) else safety_rules()
     completion = payload.get("completion_rules") if isinstance(payload.get("completion_rules"), list) else completion_rules()

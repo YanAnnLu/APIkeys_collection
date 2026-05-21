@@ -1,3 +1,4 @@
+# 這份測試鎖定 AI summary 產生流程，避免 profile/key 邊界與輸出寫回回歸。
 from __future__ import annotations
 
 import io

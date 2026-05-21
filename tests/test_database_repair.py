@@ -1,3 +1,4 @@
+# 這份測試鎖定 database repair guard，避免 registry-only 與 reimport 行為越權。
 from __future__ import annotations
 
 import io

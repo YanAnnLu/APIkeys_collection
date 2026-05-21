@@ -1,3 +1,4 @@
+# 這份測試鎖定 Unreal bridge target 規劃，避免本機專案路徑被猜錯或覆蓋。
 from __future__ import annotations
 
 import unittest

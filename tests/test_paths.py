@@ -1,3 +1,4 @@
+# 這份測試鎖定專案路徑 resolver，避免 CLI/UI 從不同 cwd 啟動時寫錯位置。
 from __future__ import annotations
 
 import unittest

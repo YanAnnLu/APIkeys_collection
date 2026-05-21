@@ -1,3 +1,4 @@
+# 這份測試鎖定下載計畫 runner 的執行摘要，避免 direct plan 與匯入狀態失真。
 from __future__ import annotations
 
 import io

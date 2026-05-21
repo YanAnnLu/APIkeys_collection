@@ -1,3 +1,4 @@
+# 這份測試鎖定 dataset/version download plan 形狀，避免候選資料集無法進購物車。
 from __future__ import annotations
 
 import io

@@ -25,6 +25,7 @@ HYG_V38_URL = "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hy
 
 @dataclass(frozen=True)
 class RendererDatasetContract:
+    # contract 描述資料集如何交給 renderer，不直接載入或轉換大型 payload。
     renderer: str
     provider_id: str
     dataset_id: str
@@ -41,9 +42,11 @@ class RendererDatasetContract:
         return dataset_uid(self.provider_id, self.dataset_id)
 
     def cache_path(self, **values: object) -> str:
+        # cache path 只描述 renderer cache 位置；不代表檔案已存在或已納管。
         return str(TAICHI_EARTH_CACHE_DIR / self.cache_path_template.format(**values))
 
     def dataset(self) -> Dataset:
+        # contract 可轉成一般 Dataset，讓 renderer 需求也能進入 catalog/version/download 流程。
         return Dataset(
             dataset_uid=self.dataset_uid,
             provider_id=self.provider_id,
@@ -59,6 +62,7 @@ class RendererDatasetContract:
         )
 
     def bridge_asset(self, path: str, checksum: str = "") -> RenderBridgeAsset:
+        # bridge asset 是 derived/cache 類資產，必須保留 source_url 與 dataset_id 方便重建。
         return RenderBridgeAsset(
             asset_id=f"{self.renderer}:{self.dataset_id}:{self.bridge_asset_role}",
             dataset_uid=self.dataset_uid,
@@ -120,5 +124,6 @@ TAICHI_GLOBAL_BATHYMETRY_CONTRACTS = (
 
 
 def canonical_dataset_key(name: str, version: str = "", scope: str = "") -> str:
+    # canonical key 給 renderer/adapter 做穩定比對；空欄位不放入 key，降低無意義差異。
     parts = [name.strip().lower(), version.strip().lower(), scope.strip().lower()]
     return "::".join(part for part in parts if part)

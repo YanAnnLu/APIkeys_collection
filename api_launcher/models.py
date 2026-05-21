@@ -6,6 +6,7 @@ from typing import Any
 
 @dataclasses.dataclass(frozen=True)
 class Provider:
+    # Provider 是 catalog 的公開來源描述，不包含任何使用者 credential。
     provider_id: str
     name: str
     owner: str
@@ -72,6 +73,7 @@ class ProviderCatalogEntry:
 
 @dataclasses.dataclass(frozen=True)
 class Dataset:
+    # Dataset 是可被下載/匯入/渲染的資料單位，metadata 保存 crawler/adapter 附加脈絡。
     dataset_uid: str
     provider_id: str
     dataset_id: str

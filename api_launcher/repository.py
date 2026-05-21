@@ -24,6 +24,7 @@ DATASET_CANDIDATE_STATUSES = {"needs_review", "approved", "planned", "rejected"}
 
 
 def seed_providers(conn: sqlite3.Connection, providers: Iterable[Provider]) -> None:
+    # seed 是 idempotent 初始化：更新 catalog 欄位，但保留使用者偏好與既有本機狀態。
     now = utc_now_iso()
     for provider in providers:
         existing = conn.execute(
@@ -72,6 +73,7 @@ def seed_providers(conn: sqlite3.Connection, providers: Iterable[Provider]) -> N
             ),
         )
         for env_var in provider.template_env_vars():
+            # template_keys 只放 placeholder，避免把任何真實 credential 寫入 SQLite 或 Git。
             placeholder = f"your_{env_var.lower()}"
             if env_var == "NOAA_NCEI_CDO_TOKEN":
                 placeholder = "paste_your_own_noaa_ncei_cdo_token_here"
@@ -119,6 +121,7 @@ def seed_providers(conn: sqlite3.Connection, providers: Iterable[Provider]) -> N
 
 
 def provider_from_row(row: sqlite3.Row) -> Provider:
+    # SQLite row 轉回 domain model 時集中處理 JSON 欄位，避免 UI/CLI 各自解析。
     return Provider(
         provider_id=row["provider_id"],
         name=row["name"],
@@ -241,6 +244,7 @@ def dataset_manifest_id(provider_id: str, dataset_uid: str, dataset_id: str, ver
 
 
 class ApiCatalogRepository:
+    # Repository 是 catalog/install registry 的唯一資料庫邊界；UI 不應直接拼 SQL 改狀態。
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
 
@@ -1289,6 +1293,7 @@ class ApiCatalogRepository:
 
 
 def provider_install_fingerprint(provider_id: str, location: str = "") -> str:
+    # fingerprint 用 provider+location 推導穩定 install_id，讓重跑 seed 不會製造新安裝。
     normalized = f"{provider_id.strip().lower()}|{location.strip().replace('\\', '/').lower()}"
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
+    # 腳本可從 repo 外直接執行，因此先把專案根目錄放進 import path。
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
@@ -35,6 +36,7 @@ DEFAULT_BRIDGE_SUBDIR = "APIkeysCollection"
 
 
 MATERIALS = (
+    # 預覽材質只用高度分段；正式材質/貼圖應由 renderer bridge asset 另行管理。
     ("deep_ocean", (-11000, -3500), (0.02, 0.05, 0.18)),
     ("ocean", (-3500, 0), (0.02, 0.18, 0.45)),
     ("lowland", (0, 1200), (0.08, 0.32, 0.14)),
@@ -85,6 +87,7 @@ def main_from_args_for_test(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if np is None:
+        # renderer dependency 是選用套件；缺 numpy 時給安裝提示，不影響 launcher 主流程。
         raise SystemExit(
             "Missing optional renderer dependency: numpy. Install renderer dependencies with "
             "`py -m pip install -r requirements-renderer.txt`."
@@ -98,6 +101,7 @@ def main_from_args_for_test(argv: list[str] | None = None) -> int:
         raise SystemExit(f"Topography cache not found: {topo_path}")
 
     topo = np.load(topo_path)
+    # sample-step 只產生低解析 OBJ 預覽，避免把完整 GEBCO 網格塞進 Unreal 專案。
     sampled = topo[:: max(1, args.sample_step), :: max(1, args.sample_step)]
     obj_path = out_dir / "EarthPreview.obj"
     mtl_path = out_dir / "EarthPreview.mtl"
@@ -113,6 +117,7 @@ def main_from_args_for_test(argv: list[str] | None = None) -> int:
     write_mtl(mtl_path)
     tile_manifest_path = out_dir / "TileManifest.json"
     tile_manifest = build_global_grid_manifest(
+        # 目前只輸出 tile index contract；實際 tile 檔之後由正式 streaming pipeline 產生。
         dataset_uid="gebco:2025",
         version="2025",
         lod=args.tile_lod,
@@ -147,6 +152,7 @@ def main_from_args_for_test(argv: list[str] | None = None) -> int:
 
 
 def resolve_output_dir(out: str, project: str, bridge_subdir: str) -> Path:
+    # 明確 --out 優先；否則用 .uproject 推導 Content 目錄，符合 Unreal 專案慣例。
     if out:
         return Path(out)
     if not project:
@@ -170,6 +176,7 @@ def build_manifest(
     project_path: Path | None,
     bridge_subdir: str,
 ) -> dict[str, object]:
+    # bridge manifest 讓 Unreal 端知道這次匯出了哪些預覽檔，以及未來 streaming 契約長什麼樣。
     return {
         "schema_version": 1,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -209,6 +216,7 @@ def export_earth_obj(elevation: np.ndarray, path: Path, material_library: str) -
     height_scale = 0.0015
     vertices = []
     for i in range(rows):
+        # OBJ 預覽用球面座標快速轉換；這不是最終地球曲面精度模型。
         lat = math.radians(90.0 - 180.0 * i / max(1, rows - 1))
         cos_lat = math.cos(lat)
         sin_lat = math.sin(lat)
@@ -226,6 +234,7 @@ def export_earth_obj(elevation: np.ndarray, path: Path, material_library: str) -
         current_material = ""
         for i in range(rows - 1):
             for j in range(cols):
+                # 經度方向 wrap，讓 OBJ 在國際換日線處仍然閉合。
                 j2 = (j + 1) % cols
                 avg = float(
                     elevation[i, j].astype(np.float32)
@@ -245,6 +254,7 @@ def export_earth_obj(elevation: np.ndarray, path: Path, material_library: str) -
 
 
 def write_mtl(path: Path) -> None:
+    # MTL 保持極簡，方便 Unreal/Blender 匯入預覽時先看見地形分層。
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for name, _bounds, color in MATERIALS:
             handle.write(f"newmtl {name}\n")
@@ -261,6 +271,7 @@ def material_for_elevation(value: float) -> str:
 
 
 def export_stars_csv(stars: np.ndarray, path: Path, max_stars: int) -> None:
+    # 星表只輸出前 max_stars 筆，避免預覽資產過大；正式星表應走資料集/版本流程。
     subset = stars[:max_stars]
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("x,y,z,mag\n")

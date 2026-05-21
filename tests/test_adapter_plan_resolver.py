@@ -1,3 +1,4 @@
+# 這份測試鎖定 adapter-review plan resolver，避免未受限 API 被誤轉成下載工作。
 from __future__ import annotations
 
 import io

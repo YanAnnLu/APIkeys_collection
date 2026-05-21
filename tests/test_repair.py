@@ -1,3 +1,4 @@
+# 這份測試鎖定下載 manifest repair 掃描，避免 missing/checksum/size 狀態回歸。
 from __future__ import annotations
 
 import io

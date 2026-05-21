@@ -24,6 +24,7 @@ def erddap_candidates_from_payload(
     limit: int,
     search_terms: tuple[str, ...],
 ) -> list[DatasetCandidate]:
+    # ERDDAP allDatasets 回傳的是資料集目錄；bounded CSV sample 由 adapter resolver 產生。
     table = payload.get("table")
     if not isinstance(table, dict):
         raise ValueError("ERDDAP allDatasets payload missing table object")
@@ -38,6 +39,7 @@ def erddap_candidates_from_payload(
     for row in rows:
         if not isinstance(row, list):
             continue
+        # ERDDAP rows 是欄位陣列；先轉成 dict，後續欄位取值才不依賴順序。
         item = {columns[index]: row[index] for index in range(min(len(columns), len(row)))}
         searchable = " ".join(str(item.get(key) or "") for key in ("datasetID", "title", "summary", "institution")).lower()
         if search_terms and not any(term.lower() in searchable for term in search_terms):
@@ -46,6 +48,7 @@ def erddap_candidates_from_payload(
         title = str(item.get("title") or dataset_id)
         data_family = infer_data_family(searchable)
         api_url = str(item.get("griddap") or item.get("tabledap") or item.get("infoUrl") or source_url)
+        # griddap/tabledap 只代表可查 API，不代表可直接下載完整資料。
         dataset = Dataset(
             dataset_uid=dataset_uid(source.provider_id, dataset_id),
             provider_id=source.provider_id,
@@ -101,5 +104,6 @@ def erddap_candidates_for_source(
     limit: int,
     search_terms: tuple[str, ...],
 ) -> list[DatasetCandidate]:
+    # ERDDAP allDatasets JSON 已是目錄端點；這層只負責抓取後交給 parser。
     payload = fetch_json(source.endpoint_url, timeout=timeout)
     return erddap_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)

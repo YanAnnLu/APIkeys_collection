@@ -1,3 +1,4 @@
+# 這份測試鎖定 GEBCO adapter metadata，避免 renderer 相容鎖定版本被誤改。
 from __future__ import annotations
 
 import tempfile

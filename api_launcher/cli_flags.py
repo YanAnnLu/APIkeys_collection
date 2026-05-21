@@ -8,7 +8,9 @@ from api_launcher.cli_portal_intake import portal_intake_command_active
 
 
 def command_requested(args: argparse.Namespace) -> bool:
+    # 用集中判斷避免 core.py 每次新增 CLI flag 都忘記是否該進入命令模式。
     command_flags = (
+        # 這個 tuple 必須保持與 parser 新增的命令型 flag 同步；漏掉會導致意外開 UI。
         args.init_db,
         args.seed,
         bool(args.seed_json),

@@ -6,6 +6,7 @@ from typing import Any
 
 @dataclasses.dataclass(frozen=True)
 class RenderEffectLayer:
+    # render effect 是 renderer bridge 的提示資料，不代表 Tk/CLI 已經實作特效管線。
     layer_id: str
     domain: str
     purpose: str
@@ -111,6 +112,7 @@ CLOUD_WEATHER_LAYER = RenderEffectLayer(
 
 
 DEFAULT_RENDER_EFFECT_LAYERS = (
+    # 目前只列預設效果契約；真正 renderer 啟用哪些 layer 由前端或 bridge profile 決定。
     WATER_SURFACE_LAYER,
     ATMOSPHERE_QUALITY_LAYER,
     CLOUD_WEATHER_LAYER,
@@ -118,5 +120,6 @@ DEFAULT_RENDER_EFFECT_LAYERS = (
 
 
 def render_effect_layers_for_domain(domain: str) -> tuple[RenderEffectLayer, ...]:
+    # domain 查詢是給 renderer/文件產生器使用，不應在這裡做模糊推斷。
     wanted = domain.strip().lower()
     return tuple(layer for layer in DEFAULT_RENDER_EFFECT_LAYERS if layer.domain == wanted)

@@ -1,3 +1,4 @@
+# 這份測試鎖定 CSV 匯入與 SQLite table registration，避免 curated 資產漏記。
 from __future__ import annotations
 
 import io

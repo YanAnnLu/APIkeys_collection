@@ -7,6 +7,7 @@ from api_launcher.models import Dataset
 
 @dataclass(frozen=True)
 class DatasetDiscoverySource:
+    # source 是 crawler 的設定單位，不是單一 dataset；一個 source 可以產出多筆 candidate。
     source_id: str
     provider_id: str
     name: str
@@ -28,6 +29,7 @@ class DatasetDiscoverySource:
 
 @dataclass(frozen=True)
 class DatasetCandidate:
+    # candidate 保留 evidence 與 confidence，讓後續 plan/export 仍能追溯 crawler 判斷。
     dataset: Dataset
     source_id: str
     source_type: str
@@ -47,6 +49,7 @@ class DatasetCandidate:
 
 
 def dataset_with_candidate_metadata(candidate: DatasetCandidate) -> Dataset:
+    # 把 crawler 脈絡塞回 Dataset.metadata，讓 UI/adapter plan 不需要額外攜帶 candidate 物件。
     metadata = dict(candidate.dataset.metadata)
     metadata["confidence"] = candidate.confidence
     metadata["evidence"] = list(candidate.evidence)

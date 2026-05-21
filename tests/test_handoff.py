@@ -1,3 +1,4 @@
+# 這份測試鎖定 handoff report 欄位，避免接力時缺少 Git、manifest 或 GTD 脈絡。
 from __future__ import annotations
 
 import tempfile

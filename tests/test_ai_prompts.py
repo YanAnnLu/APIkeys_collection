@@ -1,3 +1,4 @@
+# 這份測試鎖定 AI prompt 契約，避免把秘密值或不穩定輸出要求送進模型。
 from __future__ import annotations
 
 import unittest

@@ -1,3 +1,4 @@
+# 這份測試鎖定 HTTP 下載、續傳、staging 與 manifest 重用邏輯。
 from __future__ import annotations
 
 import tempfile

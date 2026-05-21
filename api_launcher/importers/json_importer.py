@@ -26,6 +26,7 @@ NESTED_OBJECT_ARRAY_PATHS: tuple[tuple[str, ...], ...] = (
 
 @dataclass(frozen=True)
 class JsonImportResult:
+    # import result 要包含 table asset id，讓 registry/self-check 可以追蹤匯入後的資料表。
     provider_id: str
     manifest_path: str
     sqlite_path: str
@@ -87,6 +88,7 @@ def import_json_manifest_to_sqlite(
     replace: bool = False,
     row_limit: int = 0,
 ) -> JsonImportResult:
+    # JSON 匯入只接受健康 manifest，避免把半下載或 checksum 錯誤的 payload 寫進 SQLite。
     manifest_file = Path(manifest_path)
     verification = verify_manifest_file(manifest_file)
     if verification.status != "ok":
@@ -104,6 +106,7 @@ def import_json_manifest_to_sqlite(
     if not parsed.rows:
         raise ValueError(f"JSON payload has no object rows: {payload_path}")
 
+    # 欄位順序先依原始資料出現順序，再正規化成 SQL-safe 名稱，避免每次匯入 schema 漂移。
     raw_columns = ordered_keys(parsed.rows)
     columns = normalized_column_names(raw_columns)
     sql_rows = [row_values(row, raw_columns) for row in parsed.rows]

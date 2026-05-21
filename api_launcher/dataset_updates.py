@@ -40,6 +40,7 @@ TIMESERIES_UPDATE_STRATEGIES = {
 
 @dataclass(frozen=True)
 class DatasetUpdatePlan:
+    # update plan 是版本決策摘要，不直接執行下載或替換本機資料。
     dataset_uid: str
     current_version: str
     target_version: str
@@ -78,6 +79,7 @@ class DatasetUpdateContract:
 
 
 def plan_dataset_update(current: Dataset | None, target: DatasetVersionOption) -> DatasetUpdatePlan:
+    # 版本比較只產生保守建議；真正 install/update 還要經過 manifest 與 adapter policy。
     target_mode = update_mode_for_strategy(target.update_strategy)
     if current is None or not current.version:
         return DatasetUpdatePlan(

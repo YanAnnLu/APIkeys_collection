@@ -20,6 +20,7 @@ from api_launcher.models import Dataset
 
 
 def ckan_package_search_url(endpoint_url: str, search_term: str, limit: int, start: int | None = None) -> str:
+    # CKAN package_search 用 rows/start 分頁；limit 在這裡先做最小值保護。
     params = {"q": search_term, "rows": str(max(1, limit))}
     if start is not None:
         params["start"] = str(max(0, start))
@@ -32,6 +33,7 @@ def ckan_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # CKAN resources 常同時列多種格式，這裡只先建立 candidate，不直接判定下載。
     result = payload.get("result")
     if not isinstance(result, dict):
         raise ValueError("CKAN package_search payload missing result object")

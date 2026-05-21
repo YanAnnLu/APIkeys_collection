@@ -25,12 +25,14 @@ def html_file_index_candidates_from_text(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # HTML index crawler 只接受明確檔案連結；一般 landing page 不在這裡硬猜。
     if not source.file_url_regex:
         raise ValueError("HTML file index source missing file_url_regex")
     pattern = re.compile(source.file_url_regex)
     versions: list[dict[str, object]] = []
     seen: set[str] = set()
     for link in extract_links(text, source_url):
+        # regex 可比對檔名或完整 URL，支援把 shard/version 從命名規則抓出來。
         filename = Path(urllib.parse.urlparse(link).path).name
         match = pattern.search(filename) or pattern.search(link)
         if not match or link in seen:
@@ -52,6 +54,7 @@ def html_file_index_candidates_from_text(
             break
     if not versions:
         return []
+    # HTML index 通常代表「同一資料集的多個檔案 shard」，所以輸出單一 Dataset + available_versions。
     dataset_id = safe_dataset_id(source.dataset_id or source.source_id)
     data_family = infer_data_family(" ".join((source.dataset_title, source.data_type, " ".join(source.categories))))
     dataset = Dataset(
@@ -100,5 +103,6 @@ def html_file_index_candidates_for_source(
     limit: int,
     full_crawl: bool,
 ) -> list[DatasetCandidate]:
+    # full_crawl 時 limit=0 代表收集同頁所有匹配檔案，仍不追外部分頁。
     text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
     return html_file_index_candidates_from_text(source, text, final_url, 0 if full_crawl else limit)

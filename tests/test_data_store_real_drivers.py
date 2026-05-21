@@ -1,3 +1,4 @@
+# 這份測試鎖定 opt-in 真實 SQL driver smoke；沒有 env 時必須安全 skip。
 from __future__ import annotations
 
 import os

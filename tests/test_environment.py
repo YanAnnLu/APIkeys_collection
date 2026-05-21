@@ -1,3 +1,4 @@
+# 這份測試鎖定啟動環境檢查，避免跨平台路徑或本機狀態阻斷 launcher。
 from __future__ import annotations
 
 import tempfile

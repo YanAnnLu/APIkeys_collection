@@ -21,6 +21,7 @@ from api_launcher.repository import ApiCatalogRepository, load_providers
 
 
 def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
+    # dataset discovery CLI 是 crawler -> candidate -> plan 的主要開發入口。
     parser.add_argument("--discover-dataset-candidates", action="store_true", help="crawl configured source catalogs into reviewable dataset candidates")
     parser.add_argument("--dataset-discovery-sources", default=DEFAULT_DATASET_DISCOVERY_SOURCES_NAME, help="JSON source list for dataset discovery")
     parser.add_argument("--dataset-discovery-local-sources", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local JSON source list for user-added dataset discovery sources")
@@ -55,6 +56,7 @@ def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
 
 
 def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
+    # CLI 只把 crawler 結果寫成 candidate/review 資料，不直接下載或匯入。
     if args.discover_dataset_candidates:
         source_path = catalog_file(args.dataset_discovery_sources)
         local_source_path = local_config_file(args.dataset_discovery_local_sources)

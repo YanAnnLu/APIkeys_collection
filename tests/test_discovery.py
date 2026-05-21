@@ -1,3 +1,4 @@
+# 這份測試鎖定 provider discovery parser，避免來源候選與官方 provider 混淆。
 from __future__ import annotations
 
 import tempfile

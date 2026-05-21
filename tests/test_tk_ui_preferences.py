@@ -1,3 +1,4 @@
+# 這份測試鎖定 Tk UI 偏好設定，避免欄寬與匯入策略 config 回歸。
 from __future__ import annotations
 
 import unittest

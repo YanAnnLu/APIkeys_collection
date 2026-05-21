@@ -7,6 +7,7 @@ UI_IMPORT_POLICIES = {"rename", "skip", "replace"}
 
 
 def normalized_ui_import_policy(value: object, default: str = DEFAULT_UI_IMPORT_POLICY) -> str:
+    # UI 設定可能來自舊 config 或手動編輯；未知值回退到 rename，避免誤 replace 既有資料表。
     fallback = default if default in UI_IMPORT_POLICIES else DEFAULT_UI_IMPORT_POLICY
     normalized = str(value or "").strip().lower()
     return normalized if normalized in UI_IMPORT_POLICIES else fallback

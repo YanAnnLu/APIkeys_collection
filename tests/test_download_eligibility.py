@@ -1,3 +1,4 @@
+# 這份測試鎖定 direct-download 判斷，避免 API endpoint 被誤當可直接抓檔。
 from __future__ import annotations
 
 import unittest

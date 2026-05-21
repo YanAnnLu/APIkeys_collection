@@ -14,6 +14,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class DataStoreConnectionProfile:
+    # profile 只描述連線需求與 env 邊界，不保存密碼或連線秘密本身。
     profile_id: str
     label: str
     store_kind: str
@@ -27,6 +28,7 @@ class DataStoreConnectionProfile:
 
 @dataclass(frozen=True)
 class DataStoreConnectionTestResult:
+    # 測試結果要可被 CLI、Tk 與 agent 共用，所以 details 放結構化診斷資料。
     profile_id: str
     engine: str
     status: str
@@ -40,6 +42,7 @@ class DataStoreConnectionTestResult:
 
 @dataclass(frozen=True)
 class RelationalSchemaSummary:
+    # schema summary 是 registry schema_fingerprint 的來源，欄位順序必須穩定。
     engine: str
     database: str
     schema: str
@@ -50,6 +53,7 @@ class RelationalSchemaSummary:
 
 
 DEFAULT_DATA_STORE_PROFILES = (
+    # 內建 profile 只定義常見環境變數名稱；真實值永遠由 os.environ 或本機 config 提供。
     DataStoreConnectionProfile(
         profile_id="mysql_default",
         label="MySQL default",
@@ -144,6 +148,7 @@ DEFAULT_DATA_STORE_PROFILES = (
 
 
 def data_store_profile_from_mapping(item: Mapping[str, object]) -> DataStoreConnectionProfile:
+    # 本機設定可能來自手寫 JSON；這裡集中正規化欄位與 env_var_map。
     required = item.get("required_env_vars") or ()
     optional = item.get("optional_env_vars") or ()
     raw_env_var_map = item.get("env_var_map") or item.get("connection_env_vars") or {}
@@ -197,6 +202,7 @@ def test_data_store_connection(
     schema_summary_table: str = "",
     schema_name: str = "public",
 ) -> DataStoreConnectionTestResult:
+    # 所有連線測試先檢查 env，避免在缺 credential 時載入 driver 或打開網路連線。
     values = env if env is not None else os.environ
     missing = tuple(name for name in profile.required_env_vars if not str(values.get(name) or "").strip())
     if missing:
@@ -231,6 +237,7 @@ def _test_sqlite_connection(
     profile: DataStoreConnectionProfile,
     env: Mapping[str, str],
 ) -> DataStoreConnectionTestResult:
+    # SQLite 探測只做唯讀/輕量查詢；不要因 self-check 建立新的空資料庫。
     path_var = _connection_env_var(profile, "path", "APIKEYS_SQLITE_PATH")
     path_value = str(env.get(path_var) or "").strip()
     if path_value != ":memory:":

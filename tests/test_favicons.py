@@ -1,3 +1,4 @@
+# 這份測試鎖定 favicon cache 行為；未來 SVG-first 仍需保留 Tk bitmap 邊界。
 from __future__ import annotations
 
 import unittest

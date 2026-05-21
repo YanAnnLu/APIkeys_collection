@@ -19,6 +19,7 @@ from api_launcher.discovery import ProviderSeed, append_discovery_seed
 
 DEFAULT_PORTAL_INTAKE_PATH = "docs/DATABASE_PORTAL_INTAKE.zh-TW.md"
 
+# Portal intake 是團隊蒐集入口的 staging，不直接改 catalog，也不下載資料。
 PORTAL_TABLE_HEADING = "待整理入口"
 PORTAL_TABLE_COLUMNS = (
     "狀態",
@@ -54,6 +55,7 @@ ACTION_LABELS = {
 
 @dataclass(frozen=True)
 class PortalIntakeEntry:
+    # 每列 Markdown 表格先轉成固定欄位，後續推薦流程才不依賴欄位位置猜測。
     row_number: int
     status: str
     priority: str
@@ -87,6 +89,7 @@ class PortalIntakeEntry:
 
 
 def build_portal_intake_payload(path: str | Path = DEFAULT_PORTAL_INTAKE_PATH) -> dict[str, object]:
+    # payload 是 review JSON，不是正式 catalog；必須保留 warnings 讓人類審核。
     path = Path(path)
     entries, parse_warnings = load_portal_intake_entries(path)
     recommendations = [recommend_entry(entry) for entry in entries]
@@ -112,6 +115,7 @@ def build_portal_intake_payload(path: str | Path = DEFAULT_PORTAL_INTAKE_PATH) -
 
 
 def load_portal_intake_entries(path: str | Path) -> tuple[list[PortalIntakeEntry], list[str]]:
+    # 解析失敗回傳 warnings 而不是丟例外，讓 CLI/UI 能顯示哪一列需要修正。
     path = Path(path)
     lines = path.read_text(encoding="utf-8").splitlines()
     table_lines, warnings = extract_markdown_table(lines, PORTAL_TABLE_HEADING)
@@ -134,6 +138,7 @@ def load_portal_intake_entries(path: str | Path) -> tuple[list[PortalIntakeEntry
 
 
 def extract_markdown_table(lines: list[str], heading: str) -> tuple[list[str], list[str]]:
+    # 只讀指定 heading 底下第一張表，避免同文件其他範例表格被誤當 intake。
     warnings: list[str] = []
     in_section = False
     table: list[str] = []
@@ -194,6 +199,7 @@ def entry_from_cells(row_number: int, cells: list[str]) -> PortalIntakeEntry:
 
 
 def recommend_entry(entry: PortalIntakeEntry) -> dict[str, object]:
+    # 推薦結果仍是草稿分類；只有 promote 流程會寫入 ignored local config。
     if entry_is_empty_placeholder(entry) or entry_is_example(entry):
         warnings: list[str] = []
     else:
@@ -213,6 +219,7 @@ def recommend_entry(entry: PortalIntakeEntry) -> dict[str, object]:
 
 
 def recommended_action(entry: PortalIntakeEntry, warnings: list[str]) -> str:
+    # 先處理忽略/不完整狀態，再依入口類型決定 provider、source、candidate 或 integration backlog。
     if entry_is_empty_placeholder(entry):
         return "ignore_empty"
     if entry_is_example(entry):

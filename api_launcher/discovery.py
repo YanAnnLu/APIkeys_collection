@@ -19,6 +19,7 @@ LOCAL_SEEDS_NAME = "provider_discovery_seeds.local.json"
 
 @dataclass(frozen=True)
 class ProviderSeed:
+    # provider seed 是「入口線索」，不是已驗證 catalog provider。
     provider_id: str
     name: str
     owner: str
@@ -136,6 +137,7 @@ def discover_provider_candidates(
 
 
 def discover_provider_candidate(seed: ProviderSeed, timeout: float, max_bytes: int) -> ProviderCandidate:
+    # provider discovery 只讀小段 HTML/text 來找 metadata/link，不抓 API key 或登入頁內容。
     url = seed.docs_url or seed.homepage_url
     text, final_url = fetch_text(url, timeout=timeout, max_bytes=max_bytes)
     links = extract_links(text, final_url)

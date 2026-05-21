@@ -1,3 +1,4 @@
+# 這份測試鎖定 raw -> curated 清洗規則，避免必填、轉型與去重邏輯回歸。
 from __future__ import annotations
 
 import unittest

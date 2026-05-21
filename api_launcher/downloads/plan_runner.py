@@ -22,6 +22,7 @@ from api_launcher.repository import ApiCatalogRepository
 
 @dataclass(frozen=True)
 class DownloadPlanRunResult:
+    # runner result 要同時回報下載與匯入狀態，讓 CLI/UI 不必解析 log 才知道結果。
     entry_count: int
     submitted: int
     completed: int
@@ -56,6 +57,7 @@ def load_download_plan_file(path: str | Path) -> dict[str, Any]:
 
 
 def plan_entries(plan_payload: dict[str, Any]) -> list[dict[str, object]]:
+    # 舊 schema 把 entries 放在 providers 欄位；這裡集中相容，避免呼叫端重複判斷。
     raw_entries = plan_payload.get("providers") or []
     if not isinstance(raw_entries, list):
         raise ValueError("Download plan must contain a providers list.")
@@ -93,6 +95,7 @@ def run_download_plan_payload(
     import_replace: bool = False,
     import_existing_table_policy: str = "skip",
 ) -> DownloadPlanRunResult:
+    # runner 只處理 direct download entries；adapter review 項目必須先由 resolver 轉成可下載項。
     entries = plan_entries(plan_payload)
     selected = direct_download_entries(entries, limit=limit)
     skipped = len(entries) - len(selected)

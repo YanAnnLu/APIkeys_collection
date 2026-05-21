@@ -17,6 +17,7 @@ from api_launcher.database_repair_contracts import is_supported_reimport_source_
 
 @dataclass(frozen=True)
 class DatabaseSelfCheckTarget:
+    # target 是 asset record 轉成 verifier 可讀的形狀，避免每個 engine 自行猜欄位。
     engine: str
     asset_name: str
     path: str = ""
@@ -37,6 +38,7 @@ class DatabaseSchemaSummary:
 
 @dataclass(frozen=True)
 class DatabaseRepairSuggestion:
+    # repair suggestion 是診斷建議，不代表可以直接執行破壞性 SQL 或刪檔。
     action_id: str
     label: str
     description: str
@@ -57,6 +59,7 @@ class DatabaseRepairSuggestion:
 
 @dataclass(frozen=True)
 class DatabaseSelfCheckIssue:
+    # issue payload 需要足夠完整，讓 UI/agent 不必重新查 registry 才能顯示修復脈絡。
     provider_id: str
     asset_id: str
     asset_kind: str
@@ -116,6 +119,7 @@ def database_self_check_agent_payload(
     summary: dict[str, int],
     issues: list[DatabaseSelfCheckIssue],
 ) -> dict[str, object]:
+    # agent payload 保持扁平摘要加 issue 清單，方便自動化工具挑選下一個安全修復。
     issue_payloads = [issue.as_dict() for issue in issues]
     return {
         "summary": dict(summary),
@@ -128,6 +132,7 @@ def database_self_check_issues(
     conn: sqlite3.Connection,
     provider_ids: list[str] | tuple[str, ...] | None = None,
 ) -> list[DatabaseSelfCheckIssue]:
+    # 只挑 missing/error 的 database/table asset；健康資產不進 repair queue。
     requested = tuple(provider_id.strip() for provider_id in (provider_ids or ()) if provider_id.strip())
     provider_filter = ""
     params: tuple[str, ...] = ()
@@ -200,6 +205,7 @@ def database_repair_suggestion(
     source_format: str = "",
     has_recorded_manifest: bool = False,
 ) -> DatabaseRepairSuggestion:
+    # 建議先分辨缺設定、缺 driver、缺表、schema drift；每一類可自動化程度不同。
     normalized_engine = engine.strip().lower()
     normalized_kind = asset_kind.strip().lower()
     normalized_status = status.strip().lower()

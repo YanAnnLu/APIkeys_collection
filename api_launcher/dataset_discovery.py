@@ -3,6 +3,7 @@
 New crawler code should live under :mod:`api_launcher.crawlers`.
 """
 
+# 這個模組是舊 import path 的相容層；新邏輯請放在 api_launcher.crawlers 內。
 from api_launcher.crawlers.dataset_sources import *  # noqa: F401,F403
 from api_launcher.crawlers.metadata import (  # noqa: F401
     analysis_hint_for_family,

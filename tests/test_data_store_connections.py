@@ -1,3 +1,4 @@
+# 這份測試鎖定 data-store profile/env 檢查，避免缺 credential 時仍嘗試連線。
 from __future__ import annotations
 
 import sqlite3

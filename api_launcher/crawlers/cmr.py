@@ -21,6 +21,7 @@ from api_launcher.models import Dataset
 
 
 def cmr_collections_url(endpoint_url: str, search_term: str, limit: int, page_num: int = 0) -> str:
+    # CMR collection search 只拿 downloadable metadata；granule/sample 下載由 adapter resolver 接手。
     params = {"page_size": str(max(1, limit)), "downloadable": "true", "keyword": search_term}
     if page_num > 0:
         params["page_num"] = str(page_num)
@@ -31,6 +32,7 @@ def cmr_collections_url(endpoint_url: str, search_term: str, limit: int, page_nu
 
 
 def cmr_payload_entries(payload: dict[str, Any]) -> list[Any]:
+    # CMR JSON Feed 結構固定在 feed.entry；格式錯誤要明確丟出，方便 source audit。
     feed = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
     entries = feed.get("entry", [])
     if not isinstance(payload.get("feed"), dict):

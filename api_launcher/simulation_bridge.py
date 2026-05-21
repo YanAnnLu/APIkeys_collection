@@ -6,6 +6,7 @@ from typing import Any
 
 @dataclasses.dataclass(frozen=True)
 class SimulationInputContract:
+    # simulation bridge 目前只定義輸入契約，不假裝物理模擬已經實作。
     input_id: str
     domain: str
     description: str
@@ -17,6 +18,7 @@ class SimulationInputContract:
 
 @dataclasses.dataclass(frozen=True)
 class SimulationBackendContract:
+    # backend contract 描述未來模擬後端該吃什麼、吐什麼，不綁定任何實作框架。
     backend_id: str
     domain: str
     maturity: str
@@ -91,6 +93,7 @@ AIR_QUALITY_SIMULATION_BACKEND = SimulationBackendContract(
 
 
 DEFAULT_SIMULATION_INPUT_CONTRACTS = (
+    # 這些 contract 是資料角色清單，讓 adapter 知道哪些資料能餵給未來模擬。
     WATER_INPUT_CONTRACT,
     AIR_QUALITY_INPUT_CONTRACT,
 )
@@ -102,5 +105,6 @@ DEFAULT_SIMULATION_BACKENDS = (
 
 
 def simulation_backends_for_domain(domain: str) -> tuple[SimulationBackendContract, ...]:
+    # 僅做 domain 精準篩選；沒有後端時應由呼叫端顯示「尚未實作」而不是硬猜。
     wanted = domain.strip().lower()
     return tuple(backend for backend in DEFAULT_SIMULATION_BACKENDS if backend.domain == wanted)

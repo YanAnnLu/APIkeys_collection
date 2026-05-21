@@ -15,6 +15,7 @@ HASH_CHUNK_SIZE = 1024 * 1024
 
 @dataclass(frozen=True)
 class AssetManifest:
+    # sidecar manifest 是下載完整性與後續匯入 provenance 的主要契約。
     provider_id: str
     dataset_uid: str
     dataset_id: str
@@ -45,6 +46,7 @@ class AssetManifest:
 
 
 def sha256_file(path: str | Path) -> str:
+    # 大型資料檔分塊計算 hash，避免一次讀進記憶體。
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         while True:
@@ -56,6 +58,7 @@ def sha256_file(path: str | Path) -> str:
 
 
 def build_asset_manifest(path: str | Path, plan_entry: dict[str, object]) -> AssetManifest:
+    # manifest 從 plan_entry 抽 provider/dataset/version/source，確保下載後 repair 能追回來源。
     target = Path(path)
     dataset_version = plan_entry.get("dataset_version")
     version_data = dataset_version if isinstance(dataset_version, dict) else {}
@@ -75,6 +78,7 @@ def build_asset_manifest(path: str | Path, plan_entry: dict[str, object]) -> Ass
 
 
 def manifest_expectations_from_plan(plan_entry: dict[str, object], source_url: str = "") -> dict[str, str]:
+    # plan 與 manifest 比對只使用穩定識別欄位，不比對會隨本機變動的 metadata。
     dataset_version = plan_entry.get("dataset_version")
     version_data = dataset_version if isinstance(dataset_version, dict) else {}
     return {
@@ -98,6 +102,7 @@ def manifest_matches_plan_entry(
     source_url: str = "",
     target_path: str | Path | None = None,
 ) -> bool:
+    # 重用既有下載前必須確認 manifest 仍對應同一份計畫，不能只看檔案存在。
     expected = manifest_expectations_from_plan(plan_entry, source_url=source_url)
     for field_name in ("provider_id", "dataset_uid", "dataset_id", "version", "source_url"):
         value = expected[field_name].strip()
@@ -113,6 +118,7 @@ def same_manifest_path(left: str | Path, right: str | Path) -> bool:
 
 
 def _path_key(path: str | Path) -> str:
+    # path 比對走 normcase/resolve，降低 Windows 大小寫與相對路徑造成的誤判。
     value = Path(path).expanduser()
     try:
         value = value.resolve(strict=False)
@@ -122,6 +128,7 @@ def _path_key(path: str | Path) -> str:
 
 
 def write_manifest(manifest: AssetManifest, path: str | Path) -> Path:
+    # JSON sort_keys 讓 sidecar manifest diff 穩定，方便手動查修。
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -129,6 +136,7 @@ def write_manifest(manifest: AssetManifest, path: str | Path) -> Path:
 
 
 def read_manifest(path: str | Path) -> AssetManifest:
+    # 讀取時對缺欄位保守給空值，讓舊 manifest 仍可被 repair scanner 檢查。
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     return AssetManifest(
         provider_id=str(data.get("provider_id") or ""),

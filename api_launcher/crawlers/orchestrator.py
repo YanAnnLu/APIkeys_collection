@@ -9,6 +9,7 @@ from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 
 @dataclass(frozen=True)
 class DatasetCrawlOptions:
+    # options 控制抓取邊界；full_crawl 也必須受 max_pages/MAX_FULL_CRAWL_PAGES 約束。
     timeout: float = 12.0
     max_results_override: int = 0
     search_terms_override: tuple[str, ...] = ()
@@ -20,6 +21,7 @@ class DatasetCrawlOptions:
 
 @dataclass(frozen=True)
 class DatasetSourceCrawlResult:
+    # 每個 source 都有獨立 audit 結果，避免單一入口壞掉時掩蓋其他入口成果。
     source_id: str
     provider_id: str
     source_type: str

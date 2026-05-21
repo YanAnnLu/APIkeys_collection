@@ -1,3 +1,4 @@
+# 這份測試鎖定 JSON/JSONL/GeoJSON 匯入路徑，避免支援格式與 schema 推導回歸。
 from __future__ import annotations
 
 import io

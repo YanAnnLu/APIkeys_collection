@@ -8,6 +8,7 @@ from api_launcher.integrations import DownloadToolProfile, active_download_tool
 
 @dataclass(frozen=True)
 class TransferCommand:
+    # TransferCommand 只描述外部命令，不在這裡執行，方便 UI 先預覽或記錄。
     tool_id: str
     command: tuple[str, ...]
     supports_resume: bool
@@ -15,6 +16,7 @@ class TransferCommand:
 
 
 def selected_transfer_tool() -> DownloadToolProfile:
+    # 沒有外部工具設定時回退到內建 downloader，保證 MVP 下載流程仍可用。
     profile = active_download_tool()
     if profile is None:
         return DownloadToolProfile(
@@ -31,6 +33,7 @@ def selected_transfer_tool() -> DownloadToolProfile:
 
 
 def build_external_transfer_command(profile: DownloadToolProfile, url: str, output_path: str | Path) -> TransferCommand:
+    # 這裡只組 argv tuple，不走 shell 字串，避免 URL/路徑含空白或特殊字元時被誤解析。
     if profile.kind != "external_cli":
         raise ValueError(f"Profile is not an external CLI transfer tool: {profile.id}")
     if not profile.command:
@@ -43,6 +46,7 @@ def build_external_transfer_command(profile: DownloadToolProfile, url: str, outp
     executable = profile.command[0]
     base_args = tuple(profile.command[1:])
     if profile.id == "aria2c":
+        # aria2c 可多連線續傳；仍限制 retries/connection 數，避免對公開來源太激進。
         command = (
             executable,
             *base_args,
@@ -58,6 +62,7 @@ def build_external_transfer_command(profile: DownloadToolProfile, url: str, outp
             clean_url,
         )
     elif profile.id == "curl":
+        # curl profile 使用 --continue-at - 支援續傳，並以 --fail 讓 HTTP 錯誤能傳回失敗碼。
         command = (
             executable,
             *base_args,
@@ -83,6 +88,7 @@ def build_external_transfer_command(profile: DownloadToolProfile, url: str, outp
 
 
 def transfer_url_from_plan_entry(plan_entry: dict[str, object]) -> str:
+    # URL 優先順序從最明確的下載網址開始，最後才退到 docs_url。
     for key in ("download_url", "file_url", "api_base_url", "docs_url"):
         value = str(plan_entry.get(key) or "").strip()
         if value:

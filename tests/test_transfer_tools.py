@@ -1,3 +1,4 @@
+# 這份測試鎖定外部傳輸工具 argv 組裝，避免 shell/路徑/續傳參數出錯。
 from __future__ import annotations
 
 import unittest

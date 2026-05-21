@@ -1,3 +1,4 @@
+# 這份測試鎖定 render effect contract，避免效果層與資料角色對不上。
 from __future__ import annotations
 
 import unittest

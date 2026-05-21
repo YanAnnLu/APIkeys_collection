@@ -104,6 +104,7 @@ def _erddap_source_crawler(
     _full_crawl: bool,
     _max_pages: int,
 ) -> list[DatasetCandidate]:
+    # ERDDAP allDatasets 是單頁目錄型來源；full_crawl 參數在這裡沒有額外意義。
     return erddap_candidates_for_source(source, timeout, limit, search_terms)
 
 
@@ -115,10 +116,12 @@ def _html_file_index_source_crawler(
     full_crawl: bool,
     _max_pages: int,
 ) -> list[DatasetCandidate]:
+    # HTML index 沒有標準分頁；full_crawl 表示放寬同頁可收集的檔案數。
     return html_file_index_candidates_for_source(source, timeout, limit, full_crawl)
 
 
 SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
+    # source_type 的唯一 dispatch 表；新增 crawler 時要從這裡接入，避免 portal intake 與 CLI 分歧。
     "ncei_search": ncei_candidates_for_source,
     "erddap_all_datasets": _erddap_source_crawler,
     "html_file_index": _html_file_index_source_crawler,
@@ -137,6 +140,7 @@ SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:
+    # catalog JSON 是人工可維護格式；載入時在這裡正規化型別與空白。
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     return [
         DatasetDiscoverySource(
@@ -166,6 +170,7 @@ def load_all_dataset_discovery_sources(
     primary_path: str | Path,
     local_path: str | Path | None = None,
 ) -> list[DatasetDiscoverySource]:
+    # built-in source 先載入，local source 後載入；source_id 重複時保留第一筆，避免本機覆蓋官方。
     paths = [Path(primary_path)]
     if local_path is not None:
         paths.append(Path(local_path))
@@ -183,6 +188,7 @@ def load_all_dataset_discovery_sources(
 
 
 def append_dataset_discovery_source(path: str | Path, source: DatasetDiscoverySource) -> None:
+    # 追加前先以 source_id 去重，讓 promotion script 可以重跑而不產生重複列。
     path = Path(path)
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -196,6 +202,7 @@ def append_dataset_discovery_source(path: str | Path, source: DatasetDiscoverySo
 
 
 def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
+    # 寫回 JSON 時保持欄位順序穩定，降低 git diff 與人工 review 成本。
     return {
         "source_id": source.source_id,
         "provider_id": source.provider_id,
@@ -225,6 +232,7 @@ def discover_dataset_candidates(
     full_crawl: bool = False,
     max_pages: int = 0,
 ) -> list[DatasetCandidate]:
+    # 跨來源 dedupe 用 provider_id + dataset_id，避免同一來源重複命中造成 UI 候選膨脹。
     candidates: list[DatasetCandidate] = []
     seen: set[tuple[str, str]] = set()
     for source in sources:
@@ -253,6 +261,7 @@ def discover_dataset_candidates_for_source(
     full_crawl: bool = False,
     max_pages: int = 0,
 ) -> list[DatasetCandidate]:
+    # full crawl 只在使用者明確要求時提高 page size；一般 demo 保持 bounded。
     limit = max_results_override or source.max_results
     if full_crawl and not max_results_override:
         limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
@@ -260,4 +269,5 @@ def discover_dataset_candidates_for_source(
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
         return handler(source, timeout, limit, search_terms, full_crawl, max_pages)
+    # 不支援的 source_type 必須明確失敗，否則 portal intake 會以為 crawler 已接好。
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")

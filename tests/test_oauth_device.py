@@ -1,3 +1,4 @@
+# 這份測試鎖定 OAuth/device-flow 契約，避免登入狀態與 token 邊界誤判。
 from __future__ import annotations
 
 import os

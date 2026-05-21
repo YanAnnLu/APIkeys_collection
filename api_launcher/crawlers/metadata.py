@@ -4,6 +4,7 @@ import re
 
 
 def safe_dataset_id(value: str) -> str:
+    # dataset_id 會進 target path、SQL hint 與 manifest，必須先壓成安全字元集合。
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "_", value.strip().lower()).strip("_")
     return cleaned or "dataset"
 
@@ -23,6 +24,7 @@ def tuple_names(value: object) -> tuple[str, ...]:
 
 
 def merge_categories(*groups: tuple[str, ...]) -> tuple[str, ...]:
+    # 類別合併要去重且保序，避免同一 source 多次出現造成 UI filter 雜訊。
     values: list[str] = []
     seen: set[str] = set()
     for group in groups:
@@ -48,6 +50,7 @@ def first_link_url(links: object, groups: tuple[str, ...]) -> str:
 
 
 def choose_native_format(formats: tuple[str, ...]) -> str:
+    # 先挑分析/匯入價值較高的格式，避免 provider 同時列 HTML/API 時誤判。
     preferred = (
         "parquet",
         "geoparquet",

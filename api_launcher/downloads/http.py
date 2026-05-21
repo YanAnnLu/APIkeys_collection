@@ -24,6 +24,7 @@ DEFAULT_CHUNK_SIZE = 1024 * 256
 
 @dataclass(frozen=True)
 class DownloadTarget:
+    # target 同時保存 final/part/manifest 路徑，讓 resume 與 manifest 寫入邊界清楚。
     url: str
     output_path: Path
     part_path: Path
@@ -31,6 +32,7 @@ class DownloadTarget:
 
 
 class HTTPDownloadAdapter:
+    # HTTP adapter 只負責單檔下載與 sidecar manifest；排程/重試由 jobs 或 plan_runner 控制。
     def __init__(self, chunk_size: int = DEFAULT_CHUNK_SIZE, timeout: float = 30.0, policy: PoliteDownloadPolicy | None = None):
         if chunk_size < 1:
             raise ValueError("chunk_size must be at least 1.")
@@ -43,6 +45,7 @@ class HTTPDownloadAdapter:
         target = download_target_from_plan_entry(job.plan_entry)
         reused = reusable_completed_download(target, job.plan_entry)
         if reused:
+            # sidecar manifest 已驗證且與 plan 相符時直接重用，避免重複下載大型公開資料。
             size_bytes = target.output_path.stat().st_size
             yield DownloadProgress(
                 job_id=job.job_id,
@@ -60,6 +63,7 @@ class HTTPDownloadAdapter:
         for attempt in range(1, self.policy.max_retries + 1):
             controller.wait_if_paused()
             existing_bytes = target.part_path.stat().st_size if target.part_path.exists() else 0
+            # 有 .part 檔時用 Range resume；若伺服器不支援，_download_once 會重頭下載。
             request = build_download_request(target.url, resume_from=existing_bytes, user_agent=self.policy.user_agent)
             self.throttle.wait_for_url(target.url)
             try:
@@ -91,6 +95,7 @@ class HTTPDownloadAdapter:
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             status_code = int(getattr(response, "status", 200))
             if existing_bytes and status_code != 206:
+                # 伺服器未回 206 表示沒有接受續傳，舊 partial 不能直接 append。
                 existing_bytes = 0
                 target.part_path.unlink(missing_ok=True)
 
@@ -125,6 +130,7 @@ class HTTPDownloadAdapter:
                     )
 
         if target.staging_paths:
+            # staging 模式先 promote 再寫 final manifest，避免半成品出現在正式下載路徑。
             os.replace(target.part_path, target.staging_paths.payload_path)
             promote_staged_payload(target.staging_paths, job.plan_entry)
         else:
@@ -142,6 +148,7 @@ class HTTPDownloadAdapter:
 def build_download_request(url: str, resume_from: int = 0, user_agent: str | None = None) -> urllib.request.Request:
     headers = {"User-Agent": user_agent or PoliteDownloadPolicy().user_agent}
     if resume_from > 0:
+        # Range header 是續傳契約；呼叫端仍需檢查回應碼是否為 206。
         headers["Range"] = f"bytes={resume_from}-"
     return urllib.request.Request(url, headers=headers)
 
@@ -176,6 +183,7 @@ def download_target_from_plan_entry(plan_entry: dict[str, object]) -> DownloadTa
 
 
 def reusable_completed_download(target: DownloadTarget, plan_entry: dict[str, object]) -> bool:
+    # 只有 payload 存在、manifest 健康、且 manifest 仍符合 plan 時才視為可重用。
     manifest_path = target.output_path.with_suffix(target.output_path.suffix + ".manifest.json")
     if not target.output_path.exists() or not manifest_path.exists():
         return False
@@ -195,6 +203,7 @@ def reusable_completed_download(target: DownloadTarget, plan_entry: dict[str, ob
 
 
 def migrate_legacy_part_file(target: DownloadTarget) -> None:
+    # 早期版本把 .part 放在 final 旁邊；搬到 staging 後保留續傳能力。
     if not target.staging_paths:
         return
     legacy_part = target.output_path.with_suffix(target.output_path.suffix + ".part")

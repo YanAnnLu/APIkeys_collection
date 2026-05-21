@@ -1,3 +1,4 @@
+# 這份測試鎖定帳號/AI 能力路由，避免 UI 把尚未完成的登入流程當 MVP。
 from __future__ import annotations
 
 import unittest

@@ -1,3 +1,4 @@
+# 這份測試鎖定 local discovery promotion guard，避免未通過 audit 的來源被正式提升。
 from __future__ import annotations
 
 import json

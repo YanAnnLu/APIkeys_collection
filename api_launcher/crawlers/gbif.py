@@ -19,6 +19,7 @@ from api_launcher.models import Dataset
 
 
 def gbif_dataset_search_url(endpoint_url: str, search_term: str, limit: int, offset: int | None = None) -> str:
+    # GBIF dataset search 用 offset 分頁；只抓 dataset metadata，不抓 occurrence bulk data。
     params = {"q": search_term, "limit": str(max(1, limit))}
     if offset is not None:
         params["offset"] = str(max(0, offset))
@@ -31,6 +32,7 @@ def gbif_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # GBIF candidate 描述資料集來源，實際 occurrence 下載需要另外的授權/查詢策略。
     results = payload.get("results")
     if not isinstance(results, list):
         raise ValueError("GBIF dataset search payload missing results list")

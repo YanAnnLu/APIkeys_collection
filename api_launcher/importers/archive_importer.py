@@ -29,6 +29,7 @@ SUPPORTED_MEMBER_SUFFIXES = tuple(f".{source_format}" for source_format in CSV_M
 
 @dataclass(frozen=True)
 class ExtractedArchiveMember:
+    # archive importer 只抽第一個支援成員，避免 zip/tar 一次展開大量未知檔案。
     manifest_path: Path
     payload_path: Path
     member_name: str
@@ -36,6 +37,7 @@ class ExtractedArchiveMember:
 
 
 def extract_first_supported_member_manifest(manifest_path: str | Path) -> ExtractedArchiveMember:
+    # 只從健康 sidecar manifest 開始，確保 archive payload 是已下載完成且 hash 正確的檔案。
     verification = verify_manifest_file(manifest_path)
     if verification.status != "ok":
         raise ValueError(f"Archive manifest is not healthy: {verification.status} {verification.message}")
@@ -51,11 +53,13 @@ def extract_first_supported_member_manifest(manifest_path: str | Path) -> Extrac
 
 
 def is_supported_archive(path: Path) -> bool:
+    # 支援格式以檔名 suffix 判斷，涵蓋 tar.gz 這類雙副檔名。
     lower = path.name.lower()
     return any(lower.endswith(suffix) for suffix in SUPPORTED_ARCHIVE_SUFFIXES)
 
 
 def is_supported_member(name: str) -> bool:
+    # MVP 只抽可直接接 CSV/JSON importer 的成員；未知格式留給 adapter review。
     lower = name.lower()
     return any(lower.endswith(suffix) for suffix in SUPPORTED_MEMBER_SUFFIXES)
 
@@ -69,6 +73,7 @@ def member_source_format(name: str) -> str:
 
 
 def extracted_output_dir(manifest: AssetManifest) -> Path:
+    # 解壓後檔案放 state/extracted，可重建，不污染正式 downloads 目錄。
     return (
         STATE_DIR
         / "extracted"
@@ -85,6 +90,7 @@ def extract_from_zip(
     source_manifest_path: Path,
 ) -> ExtractedArchiveMember:
     with zipfile.ZipFile(archive_path) as archive:
+        # 排序後選第一個支援成員，讓同一 archive 重跑結果穩定。
         names = sorted(name for name in archive.namelist() if not name.endswith("/") and is_supported_member(name))
         if not names:
             raise ValueError(f"Archive has no supported CSV/JSON/GeoJSON member: {archive_path}")
@@ -102,6 +108,7 @@ def extract_from_tar(
     source_manifest_path: Path,
 ) -> ExtractedArchiveMember:
     with tarfile.open(archive_path) as archive:
+        # tar 也採穩定排序；不展開目錄與未知檔，避免 path traversal/垃圾檔案風險。
         members = sorted(
             (member for member in archive.getmembers() if member.isfile() and is_supported_member(member.name)),
             key=lambda member: member.name,
@@ -125,6 +132,7 @@ def write_extracted_manifest(
     manifest: AssetManifest,
     source_manifest_path: Path,
 ) -> ExtractedArchiveMember:
+    # 衍生 manifest 記錄 derived_from_manifest 與 archive_member，後續 repair 可追回原 archive。
     source_format = member_source_format(member_name)
     extracted_manifest = AssetManifest(
         provider_id=manifest.provider_id,

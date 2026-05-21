@@ -1,3 +1,4 @@
+# 這份測試鎖定 renderer dataset contract，避免 Taichi/Unreal 資產識別不一致。
 from __future__ import annotations
 
 import tempfile

@@ -24,6 +24,7 @@ EXAMPLE_INTEGRATIONS_NAME = "launcher_integrations.example.json"
 
 @dataclass(frozen=True)
 class DatabaseClientProfile:
+    # 外部 DB client profile 只描述如何啟動工具，不代表 launcher 會保存資料庫密碼。
     id: str
     label: str
     kind: str
@@ -34,6 +35,7 @@ class DatabaseClientProfile:
 
 @dataclass(frozen=True)
 class AiSummaryProfile:
+    # AI profile 是模型/endpoint/credential-env 的產品設定，真實 API key 另存在 private store。
     id: str
     label: str
     kind: str
@@ -61,6 +63,7 @@ class DownloadToolProfile:
 
 @dataclass(frozen=True)
 class RuntimeOrchestrationProfile:
+    # orchestration profile 是 Hadoop/K8S/Docker 的中期契約，目前只保留設定形狀。
     id: str
     label: str
     kind: str
@@ -88,6 +91,7 @@ class UnrealProjectProfile:
 
 
 def integrations_path() -> Path:
+    # local config 優先於 example；example 只作預設模板，不應被使用者流程改寫。
     local_path = local_integrations_path()
     if local_path.exists():
         return local_path
@@ -119,6 +123,7 @@ def ensure_local_integration_config() -> dict[str, object]:
 
 
 def save_integration_config(config: dict[str, object]) -> Path:
+    # 所有可變整合設定都寫到 ignored local config，避免把本機路徑或偏好提交進 Git。
     path = local_integrations_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -143,6 +148,7 @@ def database_client_profiles() -> list[DatabaseClientProfile]:
 
 
 def database_client_profiles_from_config(config: dict[str, object]) -> list[DatabaseClientProfile]:
+    # command_by_platform 讓 Windows/macOS/Linux 可以共用一份 example config。
     system = platform.system()
     profiles = []
     for item in config.get("database_clients", []):
@@ -175,6 +181,7 @@ def active_database_client() -> DatabaseClientProfile | None:
 
 
 def open_database_client(profile_id: str | None = None) -> DatabaseClientProfile:
+    # 這裡只啟動外部工具，不把任何資料庫連線字串或密碼傳進命令列。
     profiles = database_client_profiles()
     profile = None
     if profile_id:

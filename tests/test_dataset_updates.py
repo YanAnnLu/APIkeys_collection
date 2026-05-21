@@ -1,3 +1,4 @@
+# 這份測試鎖定 dataset update planner，避免版本轉移策略被誤執行成下載。
 from __future__ import annotations
 
 import unittest

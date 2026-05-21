@@ -1,3 +1,4 @@
+# 這份測試鎖定 Tk 視窗生命週期錯誤 suppressor，避免吞掉非預期例外。
 import unittest
 from tkinter import TclError
 

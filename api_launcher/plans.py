@@ -18,6 +18,7 @@ def build_download_plan(
     plan_name: str,
     downstream_renderer: str = "taichi_global_bathymetry.py",
 ) -> dict[str, object]:
+    # provider-level plan 是較早的粗粒度規格；dataset/version plan 會提供更精準的下載目標。
     provider_list = list(providers)
     return {
         "schema_version": 1,
@@ -66,6 +67,7 @@ def build_dataset_download_plan(
     plan_name: str,
     downstream_renderer: str = "taichi_global_bathymetry.py",
 ) -> dict[str, object]:
+    # dataset plan 的 providers 欄位其實放 plan entries；沿用舊 schema 以保持 UI/CLI 相容。
     entry_list = list(entries)
     provider_ids = {str(entry.get("provider_id") or "") for entry in entry_list if entry.get("provider_id")}
     direct_count = sum(
@@ -104,6 +106,7 @@ def provider_dataset_version_plan_entry(
     option: DatasetVersionOption,
     downloads_root: str | Path = "downloads",
 ) -> dict[str, object]:
+    # 這裡把 catalog dataset/version 轉成下載 runner 可執行的單筆 plan entry。
     eligibility = assess_dataset_version_download(option)
     import_plan = dataset_import_plan_entry(dataset, option, eligibility)
     entry = provider_plan_entry(provider)

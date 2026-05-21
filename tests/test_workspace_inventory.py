@@ -1,3 +1,4 @@
+# 這份測試鎖定 workspace inventory 輸出，避免資料夾整理時漏掉重要分類。
 from __future__ import annotations
 
 import json

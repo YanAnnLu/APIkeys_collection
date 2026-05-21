@@ -11,6 +11,7 @@ REPAIRABLE_MANIFEST_HEALTH = {"missing", "checksum_mismatch", "size_mismatch", "
 
 @dataclasses.dataclass(frozen=True)
 class LibraryContext:
+    # context 將 UI 狀態壓成 action policy 所需欄位，避免右鍵選單自行猜行為。
     provider_id: str
     local_status: str = "not_imported"
     remote_status: str = "unchecked"
@@ -50,6 +51,7 @@ DEFAULT_LIBRARY_ACTION_ORDER = (
 
 
 def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
+    # 所有 UI/agent 可執行動作都從這裡推導，避免不同入口各自判斷 install/update/repair。
     downloadable = context.has_direct_download or context.has_adapter
     installed = context.is_installed
     needs_repair = context.manifest_health in REPAIRABLE_MANIFEST_HEALTH
@@ -57,6 +59,7 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
     repair_suggestion = dict(context.repair_suggestion or {})
     repair_action_id = str(repair_suggestion.get("action_id") or "")
     repair_can_requeue = bool(repair_suggestion.get("can_requeue"))
+    # repair reason 優先說明「能不能安全重排下載」，因為這決定是否可自動化。
     if needs_repair and repair_can_requeue:
         repair_reason = "Manifest repair stream has a safe requeue plan."
     elif needs_repair and repair_action_id:
@@ -125,11 +128,13 @@ def ordered_library_actions(
     context: LibraryContext,
     action_ids: tuple[str, ...] = DEFAULT_LIBRARY_ACTION_ORDER,
 ) -> tuple[LibraryAction, ...]:
+    # action order 由呼叫端指定；政策仍由 build_library_actions 統一產生。
     actions = library_action_map(context)
     return tuple(actions[action_id] for action_id in action_ids if action_id in actions)
 
 
 def library_action_menu_label(action: LibraryAction, include_disabled_reason: bool = True, max_reason_chars: int = 56) -> str:
+    # disabled reason 截短後放進選單，讓使用者知道為什麼按鈕目前不能用。
     if action.enabled or not include_disabled_reason or not action.reason:
         return action.label
     reason = action.reason
@@ -143,6 +148,7 @@ def enabled_action_ids(context: LibraryContext) -> tuple[str, ...]:
 
 
 def library_action_agent_payload(context: LibraryContext) -> dict[str, object]:
+    # agent payload 保留完整 context/action 表，避免自動化流程重建 UI 私有規則。
     actions = build_library_actions(context)
     return {
         "provider_id": context.provider_id,

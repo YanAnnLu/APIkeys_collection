@@ -29,6 +29,7 @@ def datacite_dois_search_url(
     limit: int,
     page_number: int | None = None,
 ) -> str:
+    # DataCite 先抓 DOI metadata；contentUrl 是否能下載要交給 adapter resolver 再判斷。
     params = {
         "query": search_term,
         "resource-type-id": "dataset",
@@ -52,6 +53,7 @@ def datacite_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # DOI metadata 常是論文/資料集混合；這裡只建立候選與 provenance，不直接下載。
     items = datacite_payload_items(payload)
     candidates: list[DatasetCandidate] = []
     for item in items[:limit]:

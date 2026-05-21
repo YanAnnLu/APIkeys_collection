@@ -19,6 +19,7 @@ from api_launcher.sql_assets import validate_sql_identifier
 
 @dataclass(frozen=True)
 class CsvImportResult:
+    # import result 是後續 registry asset 與 database self-check 的共同資料來源。
     provider_id: str
     manifest_path: str
     sqlite_path: str
@@ -78,6 +79,7 @@ def import_csv_manifest_to_sqlite(
     replace: bool = False,
     row_limit: int = 0,
 ) -> CsvImportResult:
+    # CSV 匯入只接受健康 manifest，避免把半下載或 checksum 錯誤的 payload 寫進 SQLite。
     manifest_file = Path(manifest_path)
     verification = verify_manifest_file(manifest_file)
     if verification.status != "ok":

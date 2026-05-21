@@ -23,6 +23,7 @@ from api_launcher.registry import load_provider_catalog
 
 @dataclass(frozen=True)
 class LocalDiscoveryPromotionResult:
+    # promotion result 區分 promoted/skipped，讓本機草稿進 catalog 前有可審計紀錄。
     audited_source_count: int
     promoted_provider_count: int
     promoted_source_count: int
@@ -58,6 +59,7 @@ def promote_local_discovery_catalog(
     source_ids: set[str] | None = None,
     dry_run: bool = False,
 ) -> LocalDiscoveryPromotionResult:
+    # promotion 只把通過 audit 的 local staging 推進官方 catalog；dry-run 仍應產生完整摘要。
     local_provider_seed_path = Path(local_provider_seed_path)
     local_dataset_source_path = Path(local_dataset_source_path)
     provider_catalog_path = Path(provider_catalog_path)

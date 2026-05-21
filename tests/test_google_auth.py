@@ -1,3 +1,4 @@
+# 這份測試鎖定 Google token 本機狀態處理，避免 startup 觸發不必要登入流程。
 from __future__ import annotations
 
 import os

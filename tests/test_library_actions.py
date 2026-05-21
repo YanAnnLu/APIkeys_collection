@@ -1,3 +1,4 @@
+# 這份測試鎖定 library action policy，避免 UI/agent 顯示不安全或錯誤動作。
 from __future__ import annotations
 
 import unittest

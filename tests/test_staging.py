@@ -1,3 +1,4 @@
+# 這份測試鎖定 staging/promote 路徑，避免半成品進入正式 downloads 位置。
 from __future__ import annotations
 
 import tempfile

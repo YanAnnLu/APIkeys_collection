@@ -1,3 +1,4 @@
+# 這份測試鎖定 heartbeat report/prompt，避免自動推進前置安全判斷失效。
 from __future__ import annotations
 
 import io

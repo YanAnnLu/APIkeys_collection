@@ -1,3 +1,4 @@
+# 這份測試鎖定 HYG adapter metadata，避免星表版本與 renderer contract 不一致。
 from __future__ import annotations
 
 import tempfile

@@ -1,3 +1,4 @@
+# 這份測試鎖定 tile manifest round-trip，避免 renderer bridge cache key 漂移。
 from __future__ import annotations
 
 import tempfile

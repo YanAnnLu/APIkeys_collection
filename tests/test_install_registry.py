@@ -1,3 +1,4 @@
+# 這份測試鎖定 install registry 的資產歸屬，避免解除納管/repair 找錯目標。
 from __future__ import annotations
 
 import sqlite3

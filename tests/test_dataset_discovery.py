@@ -1,3 +1,4 @@
+# 這份測試鎖定多來源 crawler parser 與 audit，避免 discovery 看似成功但候選失真。
 from __future__ import annotations
 
 import tempfile

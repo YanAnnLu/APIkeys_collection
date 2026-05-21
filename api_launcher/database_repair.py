@@ -16,6 +16,7 @@ from api_launcher.repository import ApiCatalogRepository
 
 @dataclass(frozen=True)
 class DatabaseRepairResult:
+    # repair result 必須說明是否真的修改資料庫，避免 UI 把診斷建議誤當已修復。
     provider_id: str
     asset_id: str
     action_id: str
@@ -69,6 +70,7 @@ class DatabaseRegistryRepairResult:
 
 
 def stop_tracking_database_asset(repository: ApiCatalogRepository, asset_id: str) -> DatabaseRegistryRepairResult:
+    # stop-tracking 只改 registry 狀態，不執行 DROP/DELETE，適合不確定 ownership 的情境。
     asset_id = asset_id.strip()
     if not asset_id:
         raise ValueError("asset_id is required")

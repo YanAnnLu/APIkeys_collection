@@ -22,6 +22,7 @@ from api_launcher.models import Dataset
 
 
 def ogc_records_search_url(endpoint_url: str, search_term: str, limit: int) -> str:
+    # OGC API Records 使用 collections/items 查詢；limit 保護避免一次抓太多 feature。
     params = {"limit": str(max(1, limit))}
     if search_term:
         params["q"] = search_term
@@ -41,6 +42,7 @@ def ogc_records_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # OGC feature 可能含 metadata/service/data 多種 link；crawler 只整理候選，resolver 再挑 data link。
     features = ogc_records_features(payload)
     candidates: list[DatasetCandidate] = []
     for feature in features[:limit]:

@@ -20,6 +20,7 @@ GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 
 @dataclass(frozen=True)
 class OAuthDeviceConfig:
+    # OAuth device config 是中期/開發者登入契約；一般 MVP 不應要求使用者提供 client id。
     provider: str
     profile_id: str
     label: str
@@ -39,6 +40,7 @@ class OAuthDeviceConfig:
 
 @dataclass(frozen=True)
 class OAuthDeviceLoginRequest:
+    # login request 是 UI 可顯示的 device-code 狀態，不直接暴露原始 OAuth response。
     provider: str
     profile_id: str
     label: str
@@ -74,6 +76,7 @@ class OAuthDeviceTokenResult:
 
 
 def oauth_device_config_from_profile(profile: object) -> OAuthDeviceConfig | None:
+    # profile 沒有 oauth_device 時才套預設，避免把不支援 OAuth 的模型誤判成可登入。
     raw = getattr(profile, "oauth_device", {}) or {}
     profile_id = str(getattr(profile, "id", "") or "").strip()
     kind = str(getattr(profile, "kind", "") or "").strip()
@@ -108,6 +111,7 @@ def oauth_device_config_from_profile(profile: object) -> OAuthDeviceConfig | Non
 
 
 def build_oauth_device_login_request(config: OAuthDeviceConfig, timeout: float = 15.0) -> OAuthDeviceLoginRequest:
+    # 建立 device flow 時只檢查必要設定；失敗回傳結構化狀態給 UI，而不是丟出視窗例外。
     if not config.enabled:
         return _empty_request(config, "disabled", f"{config.label} QR/device login is disabled.")
     if not config.device_code_url or not config.token_url:
@@ -152,6 +156,7 @@ def build_oauth_device_login_request(config: OAuthDeviceConfig, timeout: float =
 
 
 def poll_oauth_device_token(login_request: OAuthDeviceLoginRequest, timeout: float = 15.0) -> OAuthDeviceTokenResult:
+    # poll 一次就返回，讓呼叫端依 interval/slow_down 控制節奏，避免觸犯 OAuth provider 限制。
     client_id = login_request.client_id or (os.environ.get(login_request.client_id_env, "").strip() if login_request.client_id_env else "")
     client_secret = login_request.client_secret or (os.environ.get(login_request.client_secret_env, "").strip() if login_request.client_secret_env else "")
     if not client_id:

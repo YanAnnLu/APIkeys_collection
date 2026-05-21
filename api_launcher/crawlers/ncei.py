@@ -23,6 +23,7 @@ from api_launcher.models import Dataset
 
 
 def ncei_search_url(endpoint_url: str, search_term: str, limit: int, offset: int = 0) -> str:
+    # NCEI search 先列資料集 metadata；實際 data/access API 必須在 resolver 加日期/空間邊界。
     params = {"limit": str(max(1, limit)), "available": "true", "text": search_term}
     if offset > 0:
         params["offset"] = str(offset)
@@ -38,6 +39,7 @@ def ncei_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # NCEI candidate 保留 dataset id 與 API URL，讓後續 bounded resolver 能產生小樣本 plan。
     results = payload.get("results")
     if not isinstance(results, list):
         raise ValueError("NCEI search payload missing results list")

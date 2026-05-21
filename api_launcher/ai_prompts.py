@@ -7,6 +7,7 @@ from api_launcher.models import Provider
 
 @dataclass(frozen=True)
 class PromptTemplate:
+    # prompt template 集中管理，避免 UI/CLI 各自拼不同的 AI 描述提示詞。
     prompt_id: str
     purpose: str
     system_intent: str
@@ -32,6 +33,7 @@ DATASET_DESCRIPTION_PROMPT = PromptTemplate(
 
 
 def provider_description_prompt(provider: Provider) -> str:
+    # prompt 只包含公開 metadata 與 env var 名稱，不把實際 API key/token 放進 AI 請求。
     categories = ", ".join(provider.categories) if provider.categories else "unknown"
     secret_fields = ", ".join(provider.secret_env_vars) if provider.secret_env_vars else "none"
     return "\n".join(

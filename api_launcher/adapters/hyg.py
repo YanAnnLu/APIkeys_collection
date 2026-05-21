@@ -10,12 +10,14 @@ HYG_GITHUB_ARCHIVE_HOME = "https://github.com/astronexus/HYG-Database"
 
 
 class HYGStarCatalogAdapter(DatasetAdapter):
+    # HYG adapter 是小型 CSV catalog 範例，供 renderer/plan 流程驗證資料集版本模式。
     provider_id = HYG_PROVIDER_ID
 
     def discover(self, provider: Provider, max_items: int | None = None) -> list[Dataset]:
         if provider.provider_id != self.provider_id:
             return []
         dataset = HYG_V38_STAR_CONTRACT.dataset()
+        # HYG v3.8 是目前 adapter 鎖定版本；mirror metadata 保留上游搬遷資訊。
         return [
             Dataset(
                 dataset_uid=dataset.dataset_uid,

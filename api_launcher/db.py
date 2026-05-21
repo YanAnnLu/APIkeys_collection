@@ -15,6 +15,7 @@ def utc_now_iso() -> str:
 
 
 def resolve_project_path(path: str | Path) -> Path:
+    # 路徑解析委派給 paths.py，確保 CLI 從不同 cwd 啟動時仍回到專案根目錄。
     return project_path(path)
 
 
@@ -30,6 +31,7 @@ def connect_db(path: str | Path) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    # schema migration 採用 additive/ensure-column 風格，避免破壞既有使用者資料庫。
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS providers (

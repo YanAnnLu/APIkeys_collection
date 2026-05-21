@@ -44,6 +44,7 @@ def openalex_works_search_url(
     limit: int,
     cursor: str | None = None,
 ) -> str:
+    # OpenAlex work 是研究 metadata，不代表直接資料檔；後續需透過 DOI/DataCite 找 contentUrl。
     params = {
         "filter": "type:dataset",
         "search": search_term,
@@ -68,6 +69,7 @@ def openalex_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # OpenAlex candidate 保留 DOI/host venue 線索，讓 adapter review 能追到 repository data。
     items = openalex_payload_items(payload)
     candidates: list[DatasetCandidate] = []
     for item in items[:limit]:

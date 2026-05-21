@@ -1,3 +1,4 @@
+# 這份測試鎖定 provider/dataset catalog 行為，避免 seed 與資料集列出現回歸。
 from __future__ import annotations
 
 import contextlib

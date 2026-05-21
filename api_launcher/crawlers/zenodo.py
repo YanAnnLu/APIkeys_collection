@@ -23,6 +23,7 @@ from api_launcher.models import Dataset
 
 
 def zenodo_records_search_url(endpoint_url: str, search_term: str, limit: int) -> str:
+    # Zenodo records API 可直接列 files，但 crawler 階段仍只建立候選與檔案摘要。
     return search_endpoint_url(endpoint_url, {"q": search_term, "type": "dataset", "size": str(max(1, limit))})
 
 
@@ -32,6 +33,7 @@ def zenodo_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # Zenodo metadata 可能含多檔案；後續 plan/resolver 再決定哪些可安全下載。
     hits = payload.get("hits")
     if not isinstance(hits, dict):
         raise ValueError("Zenodo records payload missing hits object")

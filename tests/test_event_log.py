@@ -1,3 +1,4 @@
+# 這份測試鎖定 structured event log，避免 repair/download 診斷事件失去可讀脈絡。
 from __future__ import annotations
 
 import json

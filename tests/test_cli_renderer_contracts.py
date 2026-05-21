@@ -1,3 +1,4 @@
+# 這份測試鎖定 renderer CLI 輸出，避免合約資料無法被 agent/工具讀取。
 from __future__ import annotations
 
 import io

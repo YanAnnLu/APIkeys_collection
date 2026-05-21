@@ -9,6 +9,7 @@ WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def platform_name() -> str:
+    # 包成函式方便測試注入 system，也集中對 platform.system() 的依賴。
     return platform.system()
 
 
@@ -22,6 +23,7 @@ def is_posix_absolute_path(value: str) -> bool:
 
 
 def is_foreign_platform_path(raw_path: str, system: str | None = None) -> bool:
+    # 先辨識外平台路徑，避免 macOS/Linux 把 Windows 磁碟路徑當相對路徑處理。
     value = raw_path.strip()
     if not value:
         return False
@@ -34,6 +36,7 @@ def is_foreign_platform_path(raw_path: str, system: str | None = None) -> bool:
 
 
 def normalize_path_for_platform(raw_path: str, system: str | None = None) -> str:
+    # 外平台路徑回空字串，讓啟動檢查警告而不是讓 pathlib 解析成錯誤相對路徑。
     value = raw_path.strip()
     if not value or is_foreign_platform_path(value, system):
         return ""
@@ -48,6 +51,7 @@ def platform_config_path(
     key: str,
     system: str | None = None,
 ) -> str:
+    # *_by_platform 優先於 generic key，讓同一 config 可以安全跨 Windows/macOS/Linux。
     current = system or platform_name()
     by_platform = item.get(f"{key}_by_platform") or {}
     if isinstance(by_platform, Mapping) and current in by_platform:

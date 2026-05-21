@@ -19,6 +19,7 @@ from api_launcher.models import Dataset
 
 
 def dataverse_search_url(endpoint_url: str, search_term: str, limit: int, start: int | None = None) -> str:
+    # Dataverse search 先取得 dataset persistent id；檔案清單由 latest-version resolver 查詢。
     params = {"q": search_term, "type": "dataset", "per_page": str(max(1, limit))}
     if start is not None:
         params["start"] = str(max(0, start))
@@ -31,6 +32,7 @@ def dataverse_candidates_from_payload(
     source_url: str,
     limit: int,
 ) -> list[DatasetCandidate]:
+    # Dataverse candidate 必須保留 global_id，後續才能安全查最新版本與 restricted file 狀態。
     data = payload.get("data")
     if not isinstance(data, dict):
         raise ValueError("Dataverse search payload missing data object")

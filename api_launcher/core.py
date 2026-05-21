@@ -155,6 +155,7 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 
 
 def safe_fetch_metadata(url: str, max_bytes: int, timeout: float) -> dict[str, object]:
+    # crawler metadata probe 只抓小片段，不下載完整資料集，也不碰需要憑證的內容。
     request = urllib.request.Request(
         url,
         headers={
@@ -163,6 +164,7 @@ def safe_fetch_metadata(url: str, max_bytes: int, timeout: float) -> dict[str, o
         },
     )
     try:
+        # 讀 max_bytes+1 是為了判斷是否截斷；摘要仍維持 bounded excerpt。
         with urllib.request.urlopen(request, timeout=timeout) as response:
             status_code = getattr(response, "status", 200)
             content_type = response.headers.get("Content-Type", "")
@@ -239,6 +241,7 @@ def record_crawl_result(
     url: str,
     result: dict[str, object],
 ) -> None:
+    # crawl result 是「來源健康快照」，不是下載結果；它只記 metadata 摘要與可疑狀態。
     conn.execute(
         """
         INSERT INTO crawl_results (
@@ -279,6 +282,7 @@ def crawl_provider(
     timeout: float,
     delay: float,
 ) -> None:
+    # provider crawl 只探測 docs/api/signup URL 的可達性，保持無 credential、無深度爬取。
     for url in provider.target_urls():
         print(f"[crawl] {provider.provider_id}: {url}")
         result = safe_fetch_metadata(url, max_bytes=max_bytes, timeout=timeout)
@@ -299,6 +303,7 @@ def crawl_providers_nonblocking(
     concurrency: int = 4,
     per_host: int = 2,
 ) -> None:
+    # CLI 需要快速掃多個 provider；單一 URL 失敗會被記錄，不讓整批 crawl 中斷。
     del per_host
     jobs: list[tuple[str, str]] = []
     for provider in providers:
@@ -318,6 +323,7 @@ def crawl_providers_nonblocking(
 
 
 def generate_templates(conn: sqlite3.Connection, output_dir: Path) -> None:
+    # template 只產生 placeholder，不能輸出真實 API key 或使用者本機 credential。
     output_dir.mkdir(parents=True, exist_ok=True)
     rows = conn.execute(
         """
@@ -570,6 +576,7 @@ def print_summary(conn: sqlite3.Connection) -> None:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    # CLI flags 集中在這裡是歷史包袱；新增大型功能時優先把行為放進專責模組。
     parser = argparse.ArgumentParser(description="Build a local catalog for a big-data downloader launcher.")
     parser.add_argument("--db", default=DB_NAME, help="SQLite database path")
     parser.add_argument("--init-db", action="store_true", help="create SQLite schema")
@@ -1494,6 +1501,7 @@ class CatalogLauncherCli:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # main 只負責命令分派與錯誤呈現；實際資料處理要盡量委派給 api_launcher 子模組。
     args = parse_args(sys.argv[1:] if argv is None else argv)
     return CatalogLauncherCli(args).run()
 

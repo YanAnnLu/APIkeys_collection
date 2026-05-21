@@ -1,3 +1,4 @@
+# 這份測試鎖定 renderer profile 的平台/效能預設，避免前端選錯 backend。
 from __future__ import annotations
 
 import os

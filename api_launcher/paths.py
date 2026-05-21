@@ -15,6 +15,7 @@ STAGING_DIR = STATE_DIR / "staging"
 
 
 def project_path(path: str | Path) -> Path:
+    # 所有相對路徑都錨定 repo root，避免 CLI/UI 從不同工作目錄啟動時寫散。
     path = Path(path)
     if path.is_absolute():
         return path
@@ -22,6 +23,7 @@ def project_path(path: str | Path) -> Path:
 
 
 def first_existing(*paths: Path) -> Path:
+    # 兼容舊版根目錄檔案；找到舊路徑時先用舊路徑，避免升級後立即找不到資料。
     for path in paths:
         if path.exists():
             return path
@@ -37,6 +39,7 @@ def config_file(name: str) -> Path:
 
 
 def local_config_file(name: str) -> Path:
+    # local config 預期在 config/，但舊根目錄檔案仍可被讀取以支援平滑搬遷。
     legacy = PROJECT_ROOT / name
     if legacy.exists():
         return legacy
@@ -44,6 +47,7 @@ def local_config_file(name: str) -> Path:
 
 
 def state_file(name: str) -> Path:
+    # state 檔預設進 ignored state/；舊根目錄 runtime 檔存在時仍優先使用。
     legacy = PROJECT_ROOT / name
     if legacy.exists():
         return legacy

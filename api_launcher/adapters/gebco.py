@@ -15,12 +15,14 @@ GEBCO_CEDA_CATALOG_2025 = "https://catalogue.ceda.ac.uk/uuid/05fba4c5b8fe4daea8f
 
 
 class GEBCOTopographyAdapter(DatasetAdapter):
+    # GEBCO adapter 目前只宣告資料集與版本選項，下載/匯入仍走通用 plan pipeline。
     provider_id = GEBCO_PROVIDER_ID
 
     def discover(self, provider: Provider, max_items: int | None = None) -> list[Dataset]:
         if provider.provider_id != self.provider_id:
             return []
         dataset = GEBCO_2025_TOPOGRAPHY_CONTRACT.dataset()
+        # GEBCO 2025 保持 renderer 相容鎖定；2026 先列為可審核版本，不直接切換。
         return [
             Dataset(
                 dataset_uid=dataset.dataset_uid,

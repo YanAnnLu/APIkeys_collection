@@ -18,6 +18,7 @@ from api_launcher.paths import catalog_file, local_config_file, state_file
 
 
 def add_discovery_args(parser: argparse.ArgumentParser) -> None:
+    # provider discovery CLI 只處理 provider seed/candidate，不負責 dataset crawler。
     parser.add_argument("--discover-provider-candidates", action="store_true", help="crawl official source pages into reviewable provider candidates")
     parser.add_argument("--provider-discovery-seeds", default=DEFAULT_SEEDS_NAME, help="JSON seed list for provider discovery")
     parser.add_argument("--provider-discovery-local-seeds", default=LOCAL_SEEDS_NAME, help="local JSON seed list for user-added source sites")
@@ -36,12 +37,14 @@ def add_discovery_args(parser: argparse.ArgumentParser) -> None:
 
 
 def discovery_command_active(args: argparse.Namespace) -> bool:
+    # core.py 用這個函式決定是否進入 CLI 命令模式，避免互動 UI 被意外啟動。
     return bool(args.discover_provider_candidates or args.add_discovery_seed)
 
 
 def add_local_discovery_seed(args: argparse.Namespace) -> None:
     if not args.add_discovery_seed:
         return
+    # 本機 seed 需要最小可審核欄位；缺欄位就停止，不寫半成品到 local config。
     required = {
         "--seed-provider-id": args.seed_provider_id,
         "--seed-name": args.seed_name,
@@ -64,6 +67,7 @@ def add_local_discovery_seed(args: argparse.Namespace) -> None:
         expected_auth_type=args.seed_auth_type.strip() or "unknown",
     )
     path = local_config_file(args.provider_discovery_local_seeds)
+    # append_discovery_seed 會做 source id 去重，讓同一命令重跑不產生重複 seed。
     append_discovery_seed(path, seed)
     print(f"[discover] added local source seed {seed.provider_id} to {path}")
 
@@ -71,6 +75,7 @@ def add_local_discovery_seed(args: argparse.Namespace) -> None:
 def discover_source_candidates(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
     if not args.discover_provider_candidates:
         return
+    # provider discovery 只輸出 review JSON，不直接把候選寫入 catalog。
     seed_path = catalog_file(args.provider_discovery_seeds)
     local_seed_path = local_config_file(args.provider_discovery_local_seeds)
     output_path = state_file(args.write_provider_candidates)

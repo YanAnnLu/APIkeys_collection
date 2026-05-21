@@ -11,6 +11,7 @@ from api_launcher.db import utc_now_iso
 
 
 class JobStatus(StrEnum):
+    # 狀態字串會出現在 UI、event log、測試與 JSON；修改時要同步呼叫端。
     QUEUED = "queued"
     RUNNING = "running"
     PAUSED = "paused"
@@ -21,6 +22,7 @@ class JobStatus(StrEnum):
 
 @dataclass(frozen=True)
 class DownloadProgress:
+    # Progress 是跨執行緒傳遞的不可變快照；UI 只讀這份資料，不直接摸 worker 狀態。
     job_id: str
     provider_id: str
     status: JobStatus
@@ -39,6 +41,7 @@ class DownloadProgress:
 
 @dataclass(frozen=True)
 class DownloadJob:
+    # plan_entry 保存原始下載計畫片段，讓 worker 可重建 target/import/manifest context。
     job_id: str
     provider_id: str
     plan_entry: dict[str, object]
@@ -51,6 +54,7 @@ class DownloadCancelled(RuntimeError):
 
 class DownloadJobController:
     def __init__(self) -> None:
+        # pause/cancel 用 Event，不讓 UI thread 阻塞在 worker 內部鎖。
         self._resume = threading.Event()
         self._resume.set()
         self._cancel = threading.Event()
@@ -84,6 +88,7 @@ ProgressCallback = Callable[[DownloadProgress], None]
 
 
 class NonBlockingDownloadQueue:
+    # queue 提供 Tk/CLI 可重用的非阻塞下載控制，不直接耦合任何 UI widget。
     def __init__(self, adapter: DownloadAdapter, max_workers: int = 3):
         if max_workers < 1:
             raise ValueError("max_workers must be at least 1.")
@@ -102,6 +107,7 @@ class NonBlockingDownloadQueue:
         provider_id = str(plan_entry.get("provider_id") or "").strip()
         if not provider_id:
             raise ValueError("plan_entry must include provider_id.")
+        # job_id 用短 uuid，避免 provider 重複排程時覆蓋進度狀態。
         job = DownloadJob(job_id=f"job_{uuid.uuid4().hex[:12]}", provider_id=provider_id, plan_entry=dict(plan_entry))
         controller = DownloadJobController()
         with self.lock:
@@ -167,6 +173,7 @@ class NonBlockingDownloadQueue:
             return self.controllers[job_id]
 
     def _run_job(self, job: DownloadJob, controller: DownloadJobController) -> None:
+        # worker 只透過 _publish 回報狀態；所有 UI 更新由 callback 再切回主執行緒。
         self._publish(
             DownloadProgress(job_id=job.job_id, provider_id=job.provider_id, status=JobStatus.RUNNING, message="Running")
         )
@@ -186,6 +193,7 @@ class NonBlockingDownloadQueue:
                 )
             )
         except DownloadCancelled as exc:
+            # 取消是使用者動作，不應記成 failed；保留目前進度供重試或人工判斷。
             current = self.snapshot(job.job_id)
             self._publish(
                 DownloadProgress(
@@ -214,5 +222,6 @@ class NonBlockingDownloadQueue:
     def _publish(self, update: DownloadProgress) -> None:
         with self.lock:
             self.progress[update.job_id] = update
+        # callback 可能是 UI bridge；不要在這裡假設 callback 可長時間阻塞。
         for callback in self.callbacks:
             callback(update)

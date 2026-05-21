@@ -1,3 +1,4 @@
+# 這份測試鎖定 provider-level download plan，避免舊 schema 與新 runner 不相容。
 from __future__ import annotations
 
 import unittest
