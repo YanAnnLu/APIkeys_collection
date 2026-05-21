@@ -6,13 +6,25 @@
 
 核心原則：目前 `docs/` 裡的每份文件都可能保存重要決策。不要因為兩份文件看起來重複，就直接刪除、覆蓋或忽略；先確認它們各自承載的是接力、產品定位、使用說明、技術總覽、子系統細節，還是歷史狀態。
 
-另一個重要原則：這些 `.md` 可能也是 Agent skill、handoff prompt、OpenSpec/Spectra 流程或外部自動化的隱性契約。合併、改名、刪除文件前，必須先搜尋 `.codex/skills/`、`.gemini/`、`.github/skills/`、`.github/prompts/`、`openspec/`、`scripts/` 是否引用該路徑，並保留 redirect/summary 以免 skill 失效。
+另一個重要原則：這些 `.md` 是專案知識與文件結構的 source of truth；Agent skill、handoff prompt、OpenSpec/Spectra 流程或外部自動化是消費這些文件的操作層。文件整理的方向應由 `.md` 的角色與專案維護性決定，不應反過來讓舊 skill 路徑凍結文件架構。合併、改名、刪除文件前，仍必須搜尋 `.codex/skills/`、`.gemini/`、`.github/skills/`、`.github/prompts/`、`openspec/`、`scripts/` 是否引用該路徑；整理好 `.md` 後，再回頭更新 skill/prompt/script 的引用，並在過渡期保留 redirect/summary 以免舊流程立刻失效。
 
 ## 雙語文件規則
 
 未來如果新增英文文件，必須同時準備繁中版本，或至少在同一輪提交裡提供清楚的繁中入口摘要與連結。若大幅更新既有英文文件，例如 `ARCHITECTURE.md`、`TECH_STACK.md`、`PROJECT_STATE.md`、`GIT_HANDOFF.md`，也要同步更新對應的繁中文件或在 `DOCS_INDEX.zh-TW.md` 標出繁中閱讀路線。
 
 白話說：英文可以保留給工程細節與工具慣例，但接力、產品判斷、使用者會讀的流程，必須有繁中版本讓下一位人類或 Agent 不用猜。
+
+## Mermaid 圖說規則
+
+凡是描述調度流程、資料流、跨模組依賴、Demo 操作路線或中長期平台邊界，優先用 Mermaid 補圖說，再搭配文字表格。尤其是這幾類文件：
+
+- `ARCHITECTURE.zh-TW.md`
+- `CODE_RELATIONSHIP_MAP.zh-TW.md`
+- `MVP_FLOW_AUDIT.zh-TW.md`
+- `USER_MANUAL.zh-TW.md`
+- `TECHNICAL_OVERVIEW.zh-TW.md`
+
+小型規則或單一 CLI 指令不用硬畫圖；但只要牽涉「誰調誰」或「按下按鈕後資料怎麼走」，就應該有 Mermaid。
 
 ## 快速閱讀路線
 
@@ -106,7 +118,7 @@
 1. 對 `DATASET_DISCOVERY_NOTES.zh-TW.md` 與 `appendices/discovery.zh-TW.md` 做逐節 diff，收斂重複內容。
 2. 將 `USER_MANUAL.zh-TW.md` 作為 Demo 主入口，再把 `USER_GUIDE.zh-TW.md` 中重複的 step-by-step 段落改成連結。
 3. 把 `PROJECT_STATE.md` 中仍是現況的段落搬到 GTD/handoff 或對應技術文件，剩下保留歷史快照。
-4. 每次合併都只做一組文件；先搜尋 skill/prompt/script 依賴，再保留 redirect/summary，跑 `git diff --check`，並在 `AGENT_HANDOFF` 記錄新的閱讀入口。
+4. 每次合併都只做一組文件；先依 `.md` 的職責決定新結構，再搜尋並更新 skill/prompt/script 依賴，必要時保留 redirect/summary，跑 `git diff --check`，並在 `AGENT_HANDOFF` 記錄新的閱讀入口。
 
 ## Heartbeat Automation 補充入口
 
