@@ -105,6 +105,7 @@ from api_launcher.importers.json_importer import import_json_manifest_to_sqlite,
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.models import Dataset, Provider
+from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
 from api_launcher.paths import catalog_file
 from api_launcher.plans import (
     build_dataset_download_plan,
@@ -606,6 +607,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
+    parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
@@ -722,6 +724,7 @@ class CatalogLauncherCli:
             self.write_templates()
             self.crawl_sources()
             self.refresh_state()
+            self.write_mvp_demo_flow()
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
@@ -884,6 +887,20 @@ class CatalogLauncherCli:
             )
         for error in result.errors:
             print(f"[download-plan] error {error}")
+
+    def write_mvp_demo_flow(self) -> None:
+        if not self.args.write_mvp_demo_flow:
+            return
+        result = write_mvp_demo_flow_files(resolve_project_path(self.args.write_mvp_demo_flow))
+        print(
+            "[mvp-demo] "
+            f"wrote {result.flow_path} review_plan={result.review_plan_path} "
+            f"offline_plan={result.offline_plan_path} resolved_plan={result.resolved_plan_path}"
+        )
+        for command in result.flow_payload.get("commands", []):
+            if not isinstance(command, dict) or command.get("step") in {1, "1"}:
+                continue
+            print(f"[mvp-demo] step{command.get('step')} {command.get('command')}")
 
     def show_adapter_review_plan(self) -> None:
         if not self.args.adapter_review_plan:

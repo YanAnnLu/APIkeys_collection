@@ -23,6 +23,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.verify_downloads,
         args.verify_downloads_json,
         bool(args.run_download_plan),
+        bool(args.write_mvp_demo_flow),
         bool(args.adapter_review_plan),
         args.adapter_review_json,
         bool(args.resolve_adapter_plan),

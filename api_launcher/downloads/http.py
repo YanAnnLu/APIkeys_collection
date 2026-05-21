@@ -93,7 +93,8 @@ class HTTPDownloadAdapter:
     ) -> Iterable[DownloadProgress]:
 
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            status_code = int(getattr(response, "status", 200))
+            # file:// 離線 fixture 沒有 HTTP status；視為 200 才能共用 downloader/manifest 路徑。
+            status_code = int(getattr(response, "status", None) or 200)
             if existing_bytes and status_code != 206:
                 # 伺服器未回 206 表示沒有接受續傳，舊 partial 不能直接 append。
                 existing_bytes = 0

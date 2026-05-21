@@ -206,6 +206,7 @@ python -m unittest discover -s tests
 
 | 目的 | 指令 |
 | --- | --- |
+| 產生可重複 MVP Demo Flow | `python3 APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json` |
 | 列出 plan 裡需要轉接器處理的項目 | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json` |
 | 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
 | 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
@@ -214,6 +215,8 @@ python -m unittest discover -s tests
 | 匯入單一 JSON / JSONL / GeoJSON manifest | `python3 APIkeys_collection.py --import-json-manifest downloads/sample.json.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
 | 批次匯入健康 CSV manifests | `python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite` |
 | 批次匯入健康 JSON manifests | `python3 APIkeys_collection.py --import-verified-json-manifests --import-sqlite-db state/curated_imports.sqlite` |
+
+`--write-mvp-demo-flow` 會寫出 `state/mvp_demo/flow.json`、一份 Socrata adapter review plan、一份離線 JSON fixture plan，以及對應的下一步指令。離線 fixture 可以在沒有網路時驗證 `download -> manifest -> SQLite import`；Socrata `$limit=25` plan 則用來驗證真實 adapter resolver 會把 API view 轉成 bounded sample。
 
 ### Database / repair
 

@@ -32,6 +32,7 @@ flowchart TD
 | Provider catalog | 已閉環 | `py APIkeys_collection.py --summary` | catalog 是 provider/source，不代表每個 provider 都有可下載資料 |
 | Crawler discovery | 部分閉環 | `--discover-dataset-candidates`, UI `資料庫 > 發現資料集候選` | Demo 可能只看到少量候選；要確認是否有 full-crawl、搜尋詞、page cap、warning |
 | Candidate review | MVP | UI `資料庫 > 審核資料集候選`, `--export-candidate-plan` | metadata-only，加入 plan 不代表已可下載 |
+| Canonical MVP Demo Flow | MVP | `--write-mvp-demo-flow state/mvp_demo/flow.json` | 會產生固定 review plan、離線 direct plan 與操作指令；離線 fixture 可驗證下載/manifest/SQLite 匯入，線上 Socrata 小樣本仍受網路影響 |
 | Adapter review | MVP | `--adapter-review-plan`, UI `Adapter 待辦` | HTML/API selector 仍要 adapter，不應假裝下載完成 |
 | Adapter resolver | MVP | `--resolve-adapter-plan` | 只做 bounded lookup，不掃整站；過大或未知格式會留在 review |
 | Download queue | MVP | `--run-download-plan`, UI 下載計畫 `開始` | 只有 direct entries 會下載；若 plan 全是 adapter/API/metadata 項目，CLI 會輸出 `skip_summary` 與 `next_action`，UI 會跳出引導，要求先開 Adapter 待辦或解析 Adapter 計畫 |
@@ -68,13 +69,14 @@ Demo 前至少確認：
 
 1. UI 能啟動並印出 `APIkeys_collection UI ready ...`。
 2. `--summary` 能列出 provider count。
-3. Crawler discovery 對至少一個 source 產生候選，且沒有 suspiciously low/zero warning。
-4. Candidate 可以加入 download/import plan。
-5. Plan 至少有一個 direct entry 或 resolver 能產生 direct entry。
-6. Download 後有 sidecar manifest。
-7. 匯入後能在 SQLite 看到 curated table asset。
-8. Repair panel 能看到下載檔案或 database self-check 狀態。
-9. MySQL 若要 Demo，先確定 env vars、driver、service/database 都準備好。
+3. 若要先做穩定 smoke test，執行 `--write-mvp-demo-flow state/mvp_demo/flow.json`，照 flow JSON 內的離線 plan 指令跑到 manifest/SQLite 匯入成功。
+4. Crawler discovery 對至少一個 source 產生候選，且沒有 suspiciously low/zero warning。
+5. Candidate 可以加入 download/import plan。
+6. Plan 至少有一個 direct entry 或 resolver 能產生 direct entry。
+7. Download 後有 sidecar manifest。
+8. 匯入後能在 SQLite 看到 curated table asset。
+9. Repair panel 能看到下載檔案或 database self-check 狀態。
+10. MySQL 若要 Demo，先確定 env vars、driver、service/database 都準備好。
 
 ## 對「爬到沒有東西可爬」的界線
 

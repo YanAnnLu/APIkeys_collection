@@ -20,6 +20,22 @@ flowchart LR
 
 圖說：這條線才是目前 MVP Demo 的主要路線。只按「下載」但沒有 direct download entry 時，下載器不會硬抓網頁。
 
+## 0. CLI 快速 Demo
+
+如果只是要先確認後端閉環，不必先打開 UI。可以產生一條固定的 MVP Demo Flow：
+
+```powershell
+py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json
+```
+
+這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、離線 JSON fixture plan 與後續指令。先跑離線 direct plan，可以在沒有網路時驗證下載、sidecar manifest、SQLite 匯入是否正常：
+
+```powershell
+py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --run-download-plan state/mvp_demo/socrata_311.offline_direct.json --downloads-root state/mvp_demo/downloads --import-supported-plan-results --import-sqlite-db state/mvp_demo/curated_demo.sqlite --plan-import-existing-table-policy rename
+```
+
+圖說：這是穩定 smoke test，不取代真正 crawler discovery；它只是先證明核心下載/匯入管線沒有斷。
+
 ## 1. 開啟程式
 
 Windows：
