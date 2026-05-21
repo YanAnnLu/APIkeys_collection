@@ -265,7 +265,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 - 每完成一個功能，要更新 `docs/PROJECT_GTD.md`。
 - 每次跨機器或跨 Agent 接力，要更新這份 `docs/AGENT_HANDOFF.zh-TW.md`。
-- 每次完成並推送一個 checkpoint，要追加 `docs/DEVELOPMENT_LOG.zh-TW.md`，記錄 commit、變更範圍、驗證、CI 與剩餘風險。
+- 每次完成並推送一個實質 checkpoint，要追加 `docs/DEVELOPMENT_LOG.zh-TW.md`，記錄 commit、變更範圍、驗證、CI 與剩餘風險；但如果某個 commit 唯一目的只是同步開發日誌，不要再為該 log-sync commit 追加下一筆日誌，避免「更新日誌 -> push -> 再更新日誌」的遞迴。
 - 新增、移動或重新定位文件時，要更新 `docs/DOCS_INDEX.zh-TW.md`；整理工作區或調整檔案責任時，要更新 `docs/WORKSPACE_LAYOUT.zh-TW.md`。
 - 新增或修改非直覺程式邏輯時，要在相鄰位置留下簡短維護註解，尤其是調度流程、安全 guard、schema/provenance 不變量、adapter 假設、外部 API 特例、跨模組 ownership 與資料轉換；註解要說明「為什麼」與「邊界」，不要只是重述程式碼。
 - 新增英文文件或大幅更新英文文件時，要同步準備繁中版本、繁中摘要或繁中閱讀路線。

@@ -101,7 +101,8 @@ gh run list --repo YanAnnLu/APIkeys_collection --limit 200 --json databaseId,hea
    `時間 | 標記 | SHA | Run | 原始標題 | 中文說明`.
 4. Keep the original English push title for lookup, but every row must also include a Traditional Chinese explanation in the `中文說明` column.
 5. Mark successful push runs as `**CHECKPOINT**`. Mark failed push runs as `**CI 失敗**` and keep them in the ledger so later agents can see the repair path.
-6. Add known risks when the history source is imperfect, such as missing local Git objects or a fallback to GitHub Actions as the source of truth.
+6. Avoid development-log recursion: record substantive feature, fix, workflow, or documentation checkpoints, but do not add a new log row for a commit whose only purpose is updating `docs/DEVELOPMENT_LOG.zh-TW.md`. A log-sync commit may be pushed and verified, but it must not trigger another log-sync commit.
+7. Add known risks when the history source is imperfect, such as missing local Git objects or a fallback to GitHub Actions as the source of truth.
 
 ## Documentation Refactor Workflow
 
