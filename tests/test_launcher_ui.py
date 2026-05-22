@@ -16,6 +16,8 @@ from frontends.tk.launcher_ui import (
     database_sql_dry_run_available,
     local_file_import_error_message,
     local_file_provenance_review_message,
+    mvp_demo_smoke_exception_message,
+    mvp_demo_smoke_result_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
@@ -64,6 +66,60 @@ class DataStoreUiHelperTests(unittest.TestCase):
 
 
 class DownloadPlanPanelUiTests(unittest.TestCase):
+    def test_mvp_demo_smoke_result_message_summarizes_user_visible_closure(self) -> None:
+        payload = {
+            "stage": "download_import_completed",
+            "succeeded": True,
+            "table_name": "demo_table",
+            "row_count": 3,
+            "artifacts": {
+                "flow_manifest": "state/mvp_demo/flow.json",
+                "curated_sqlite": "state/mvp_demo/curated_demo.sqlite",
+            },
+            "download_import": {
+                "result": {
+                    "completed": 1,
+                    "imported": 1,
+                    "failed": 0,
+                    "import_failed": 0,
+                }
+            },
+        }
+
+        message = mvp_demo_smoke_result_message(payload, lambda zh, _en="": zh)
+
+        self.assertIn("MVP Demo Smoke 通過", message)
+        self.assertIn("匯入資料表：demo_table", message)
+        self.assertIn("匯入筆數：3", message)
+        self.assertIn("state/mvp_demo/curated_demo.sqlite", message)
+
+    def test_mvp_demo_smoke_result_message_guides_failed_closure(self) -> None:
+        payload = {
+            "stage": "failed",
+            "succeeded": False,
+            "table_name": "",
+            "row_count": 0,
+            "next_action": "inspect_manifest",
+            "download_import": {"result": {"completed": 0, "imported": 0, "failed": 1, "import_failed": 0}},
+        }
+
+        message = mvp_demo_smoke_result_message(payload, lambda zh, _en="": zh)
+
+        self.assertIn("MVP Demo Smoke 未通過", message)
+        self.assertIn("下一步：inspect_manifest", message)
+        self.assertIn("修復建議", message)
+
+    def test_mvp_demo_smoke_exception_message_includes_cli_fallback(self) -> None:
+        message = mvp_demo_smoke_exception_message(
+            RuntimeError("sqlite locked"),
+            PROJECT_ROOT / "state/mvp_demo/flow.json",
+            lambda zh, _en="": zh,
+        )
+
+        self.assertIn("MVP Demo Smoke 無法完成", message)
+        self.assertIn("--run-mvp-demo-smoke-json", message)
+        self.assertIn("sqlite locked", message)
+
     def test_download_skip_next_action_message_guides_partial_skip(self) -> None:
         fake_ui = object.__new__(ApiCollectionUi)
         fake_ui.tr = lambda zh, en: zh

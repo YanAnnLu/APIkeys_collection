@@ -26,9 +26,10 @@ flowchart LR
 
 ```text
 工具 > 產生 MVP Demo Flow
+工具 > 一鍵驗證 MVP Demo Flow
 ```
 
-這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、agent-readable adapter review JSON、離線 JSON fixture plan，並把離線 direct plan 加到下方下載計畫。接著按：
+`產生 MVP Demo Flow` 會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、agent-readable adapter review JSON、離線 JSON fixture plan，並把離線 direct plan 加到下方下載計畫。接著按：
 
 ```text
 下載計畫 > 開始
@@ -36,6 +37,8 @@ flowchart LR
 ```
 
 圖說：UI 入口只幫你建立 demo 檔案並排入下載計畫，不會自動下載或自動寫資料庫；下載與匯入仍要由使用者確認。
+
+`一鍵驗證 MVP Demo Flow` 則是展示/驗收用的快速按鈕。它會使用隔離的 `state/mvp_demo/launcher.sqlite` 與 `state/mvp_demo/curated_demo.sqlite`，直接跑完離線 `download -> manifest -> SQLite import`，再顯示資料表名稱、匯入筆數與 artifact 路徑。若失敗，請依照彈窗提示先看事件紀錄與修復/驗證面板，再用彈窗附上的 CLI 指令重跑一次。
 
 如果只是要先確認後端閉環，不必打開 UI，也可以用 CLI 產生同一條固定的 MVP Demo Flow：
 

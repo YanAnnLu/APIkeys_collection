@@ -57,7 +57,10 @@ from api_launcher.adapters.yfinance import (
     write_yfinance_storage_handoff as write_yfinance_storage_handoff_file,
     write_yfinance_storage_review as write_yfinance_storage_review_file,
 )
-from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
+from api_launcher.mvp_demo import (
+    run_mvp_demo_offline_smoke,
+    write_mvp_demo_flow as write_mvp_demo_flow_files,
+)
 from api_launcher.downloads.repair import (
     ManifestVerification,
     RepairSuggestion,
@@ -129,6 +132,87 @@ def database_sql_dry_run_available(suggestion: object) -> bool:
 def data_store_env_template_path(profile_id: str) -> Path:
     # 檔名白名單化規則放在 data_store_connections，CLI/agent/UI 才會指向同一個預設範本名稱。
     return state_file(f"data_store_env_templates/{data_store_env_template_filename(profile_id)}")
+
+
+def mvp_demo_smoke_result_message(payload: dict[str, object], tr) -> str:
+    # 這個 helper 專門把 agent-readable JSON 轉成人類能採取下一步的 UI 摘要。
+    # GUI 不應只顯示 succeeded=true；一般使用者需要知道資料表、筆數、artifact 與修復入口。
+    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
+    download_import = payload.get("download_import") if isinstance(payload.get("download_import"), dict) else {}
+    result = download_import.get("result") if isinstance(download_import.get("result"), dict) else {}
+    succeeded = bool(payload.get("succeeded"))
+    stage = str(payload.get("stage") or "-")
+    table_name = str(payload.get("table_name") or "-")
+    row_count = payload.get("row_count", 0)
+    completed = result.get("completed", 0)
+    imported = result.get("imported", 0)
+    failed = result.get("failed", 0)
+    import_failed = result.get("import_failed", 0)
+    next_action = str(payload.get("next_action") or "")
+    flow_manifest = str(artifacts.get("flow_manifest") or "-")
+    curated_sqlite = str(artifacts.get("curated_sqlite") or "-")
+    status_zh = "通過" if succeeded else "未通過"
+    status_en = "passed" if succeeded else "did not pass"
+    message = tr(
+        (
+            f"MVP Demo Smoke {status_zh}\n\n"
+            f"階段：{stage}\n"
+            f"匯入資料表：{table_name}\n"
+            f"匯入筆數：{row_count}\n"
+            f"下載完成：{completed}；匯入完成：{imported}\n"
+            f"下載失敗：{failed}；匯入失敗：{import_failed}\n\n"
+            f"Flow：{flow_manifest}\n"
+            f"Curated SQLite：{curated_sqlite}"
+        ),
+        (
+            f"MVP Demo Smoke {status_en}\n\n"
+            f"Stage: {stage}\n"
+            f"Imported table: {table_name}\n"
+            f"Rows imported: {row_count}\n"
+            f"Downloads completed: {completed}; imports completed: {imported}\n"
+            f"Downloads failed: {failed}; imports failed: {import_failed}\n\n"
+            f"Flow: {flow_manifest}\n"
+            f"Curated SQLite: {curated_sqlite}"
+        ),
+    )
+    if next_action:
+        message += tr(
+            f"\n\n下一步：{next_action}",
+            f"\n\nNext action: {next_action}",
+        )
+    if not succeeded:
+        message += "\n\n" + tr(
+            "修復建議：先開啟「工具 > 最近事件紀錄」確認失敗階段；若是 manifest 或匯入失敗，"
+            "再到「工具 > 修復 / 驗證資產」檢查 sidecar manifest 與 SQLite table 狀態。",
+            "Repair guide: open Tools > Recent event logs to identify the failed stage. If the issue is manifest or import related, open Tools > Repair / verify assets to inspect sidecar manifests and SQLite table state.",
+        )
+    return message
+
+
+def mvp_demo_smoke_exception_message(error: Exception, flow_path: Path, tr) -> str:
+    # 例外訊息保留技術細節，但前面先給可操作修復步驟，避免使用者只看到 traceback。
+    command = (
+        f"py -B APIkeys_collection.py --db {flow_path.with_name('launcher.sqlite')} "
+        f"--init-db --seed --run-mvp-demo-smoke-json {flow_path}"
+    )
+    return tr(
+        (
+            f"MVP Demo Smoke 無法完成：{type(error).__name__}: {error}\n\n"
+            "修復建議：\n"
+            f"1. 確認 {flow_path.parent} 可以寫入，且沒有被同步軟體或防毒鎖住。\n"
+            "2. 開啟「工具 > 啟動環境檢查」與「工具 > 最近事件紀錄」查看路徑、SQLite、manifest 錯誤。\n"
+            "3. 若要排除 UI 因素，可在 PowerShell 執行：\n"
+            f"{command}"
+        ),
+        (
+            f"MVP Demo Smoke could not finish: {type(error).__name__}: {error}\n\n"
+            "Repair guide:\n"
+            f"1. Confirm {flow_path.parent} is writable and not locked by sync or antivirus software.\n"
+            "2. Open Tools > Startup environment checks and Tools > Recent event logs for path, SQLite, or manifest errors.\n"
+            "3. To remove UI variables, run this in PowerShell:\n"
+            f"{command}"
+        ),
+    )
 
 
 def local_file_provenance_review_message(review: object) -> str:
@@ -627,6 +711,7 @@ class ApiCollectionUi:
         self.download_plan_entries_by_provider: dict[str, dict[str, object]] = {}
         self.import_status_by_plan_key: dict[str, tuple[str, str]] = {}
         self.ui_ready_announced = False
+        self.mvp_demo_smoke_running = False
         # plan_key 讓同一 provider 可同時放多個 dataset/version，不再互相覆蓋購物車列。
         self.plan_version_by_provider: dict[str, core.DatasetVersionOption] = {}
         self.plan_provider_by_key: dict[str, str] = {}
@@ -953,6 +1038,7 @@ class ApiCollectionUi:
         tools_menu.add_command(label=self.tr("最近事件紀錄", "Recent event logs"), command=self.show_event_logs)
         tools_menu.add_command(label=self.tr("修復 / 驗證資產", "Repair / verify assets"), command=self.open_repair_panel)
         tools_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
+        tools_menu.add_command(label=self.tr("一鍵驗證 MVP Demo Flow", "Run MVP demo smoke"), command=self.run_mvp_demo_smoke_from_ui)
         tools_menu.add_command(label=self.tr("產生 yfinance 離線 Demo plan", "Create yfinance offline demo plan"), command=self.write_yfinance_demo_plan_from_ui)
         tools_menu.add_command(label=self.tr("建立 yfinance live plan（需確認）", "Create yfinance live plan (requires acknowledgement)"), command=self.open_yfinance_live_plan_dialog)
         tools_menu.add_command(label=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), command=self.open_yfinance_storage_review_dialog)
@@ -1036,6 +1122,7 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         more_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
         more_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
+        more_menu.add_command(label=self.tr("一鍵驗證 MVP Demo Flow", "Run MVP demo smoke"), command=self.run_mvp_demo_smoke_from_ui)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -5788,6 +5875,73 @@ class ApiCollectionUi:
                 f"{summary}\n\nFlow: {result.flow_path}\nReview plan: {result.review_plan_path}\nOffline plan: {result.offline_plan_path}\n\nNext: click Start in the download plan, then click Import after download finishes. UI import writes to the normal curated imports SQLite; the flow JSON also keeps isolated CLI acceptance commands.",
             ),
         )
+
+    def run_mvp_demo_smoke_from_ui(self) -> None:
+        # 一鍵 smoke 是給一般使用者/展示者的閉環按鈕：直接跑 canonical 離線 demo，
+        # 並把成功/失敗轉成可讀摘要，而不是要求使用者理解多段 CLI。
+        if self.mvp_demo_smoke_running:
+            messagebox.showinfo(
+                self.tr("MVP Demo Smoke 進行中", "MVP demo smoke is running"),
+                self.tr("目前已經有一個 MVP Demo Smoke 在執行，請等它完成。", "An MVP demo smoke run is already in progress. Wait for it to finish."),
+            )
+            return
+        flow_path = state_file(MVP_DEMO_FLOW_NAME)
+        self.mvp_demo_smoke_running = True
+        self.status_var.set(self.tr("正在一鍵驗證 MVP Demo Flow...", "Running MVP demo smoke..."))
+        threading.Thread(target=self.run_mvp_demo_smoke_worker, args=(flow_path,), daemon=True).start()
+
+    def run_mvp_demo_smoke_worker(self, flow_path: Path) -> None:
+        payload: dict[str, object] = {}
+        error: Exception | None = None
+        conn: sqlite3.Connection | None = None
+        try:
+            # canonical smoke 使用隔離 demo DB，避免展示/驗收資料污染一般使用者的主 launcher catalog。
+            demo_db_path = flow_path.with_name("launcher.sqlite")
+            conn = core.connect_db(demo_db_path)
+            repository = core.ApiCatalogRepository(conn)
+            repository.init_schema()
+            repository.seed_builtin_providers()
+            repository.seed_key_reference_if_exists(catalog_file(core.KEY_REFERENCE_NAME))
+            result = run_mvp_demo_offline_smoke(flow_path, repository)
+            payload = result.to_dict()
+            log_event(
+                "ui_mvp_demo_smoke_completed",
+                "Ran canonical MVP demo smoke from Tk UI.",
+                level="info" if result.succeeded else "error",
+                component="ui.mvp_demo",
+                context=payload,
+            )
+        except Exception as exc:  # pragma: no cover - GUI worker reports the exception through the UI thread.
+            error = exc
+            log_exception("ui_mvp_demo_smoke_failed", exc, component="ui.mvp_demo", context={"flow_path": str(flow_path)})
+        finally:
+            if conn is not None:
+                conn.close()
+        self.root.after(0, lambda: self.finish_mvp_demo_smoke(payload, error, flow_path))
+
+    def finish_mvp_demo_smoke(self, payload: dict[str, object], error: Exception | None, flow_path: Path) -> None:
+        self.mvp_demo_smoke_running = False
+        if error is not None:
+            message = mvp_demo_smoke_exception_message(error, flow_path, self.tr)
+            self.status_var.set(self.tr(f"MVP Demo Smoke 失敗：{type(error).__name__}", f"MVP demo smoke failed: {type(error).__name__}"))
+            messagebox.showerror(self.tr("MVP Demo Smoke 失敗", "MVP demo smoke failed"), message)
+            return
+
+        self.reload_data()
+        self.update_download_plan_panel()
+        succeeded = bool(payload.get("succeeded"))
+        row_count = payload.get("row_count", 0)
+        table_name = str(payload.get("table_name") or "-")
+        summary = self.tr(
+            f"MVP Demo Smoke {'通過' if succeeded else '未通過'}：{table_name}，{row_count} 筆",
+            f"MVP demo smoke {'passed' if succeeded else 'did not pass'}: {table_name}, {row_count} rows",
+        )
+        self.status_var.set(summary)
+        message = mvp_demo_smoke_result_message(payload, self.tr)
+        if succeeded:
+            messagebox.showinfo(self.tr("MVP Demo Smoke 通過", "MVP demo smoke passed"), message)
+        else:
+            messagebox.showwarning(self.tr("MVP Demo Smoke 未通過", "MVP demo smoke did not pass"), message)
 
     def write_yfinance_demo_plan_from_ui(self) -> None:
         # yfinance 離線 demo 是金融時間序列的安全驗收入口：只產生 fixture-backed plan，不安裝套件、不打 Yahoo。

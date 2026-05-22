@@ -158,13 +158,16 @@ Tk UI 目前仍可用來完成 MVP 閉環，但它在彈窗比例、複雜設定
 
 ## MVP Demo Flow
 
-如果只是要快速驗證下載、manifest 與 SQLite 匯入管線，可以使用：
+如果只是要快速驗證下載、manifest 與 SQLite 匯入管線，可以使用兩種 UI 入口：
 
 ```text
 工具 > 產生 MVP Demo Flow
+工具 > 一鍵驗證 MVP Demo Flow
 ```
 
-這個動作會呼叫 `api_launcher.mvp_demo`，在 `state/mvp_demo/` 寫出固定 flow JSON、Socrata adapter review plan、agent-readable adapter review JSON、離線 JSON fixture 與離線 direct plan，並把離線 direct plan 加到下方下載計畫。它不會自動下載，也不會自動匯入；下一步要在下載計畫按 `開始`，下載完成後再按 `匯入`。
+`產生 MVP Demo Flow` 會呼叫 `api_launcher.mvp_demo`，在 `state/mvp_demo/` 寫出固定 flow JSON、Socrata adapter review plan、agent-readable adapter review JSON、離線 JSON fixture 與離線 direct plan，並把離線 direct plan 加到下方下載計畫。它不會自動下載，也不會自動匯入；下一步要在下載計畫按 `開始`，下載完成後再按 `匯入`。
+
+`一鍵驗證 MVP Demo Flow` 會在背景直接執行同一條 canonical 離線 smoke：重寫 demo artifacts，跑完 `download -> manifest -> SQLite import`，再用彈窗顯示 `stage`、資料表、匯入筆數、下載/匯入成功數與 artifact 路徑。若失敗，彈窗會提示先看 `工具 > 最近事件紀錄`、`工具 > 修復 / 驗證資產`，並附上可在 PowerShell 重跑的 CLI 指令。
 
 這條 Demo 是 smoke test，不是正式新增供應商的捷徑。正式新增資料源仍應走 crawler/source/candidate/review 流程。
 
