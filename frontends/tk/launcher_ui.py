@@ -580,7 +580,7 @@ class ApiCollectionUi:
         self.sidebar_mode_var = StringVar(value="category")
         self.status_var = StringVar(value="準備就緒")
         self.plan_name_var = StringVar(value=self.tr("未命名下載計畫", "Untitled download plan"))
-        self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個資料源", "Download Plan: 0 sources"))
+        self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個項目", "Download Plan: 0 items"))
         self.download_plan_toggle_var = StringVar(value=self.tr("收合下載計畫", "Collapse plan"))
         self.preferred_import_existing_table_policy = self.load_import_existing_table_policy_preference()
         self.plan_import_policy_var = StringVar(value=self.import_existing_table_policy_status_label(self.preferred_import_existing_table_policy))
@@ -1337,9 +1337,9 @@ class ApiCollectionUi:
         ttk.Button(header, text=self.tr("繼續", "Resume"), style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text=self.tr("取消", "Cancel"), style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
         ttk.Button(header, text=self.tr("重試", "Retry"), style="Action.TButton", command=self.retry_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="移除", style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="清空", style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text="匯出計畫", style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
+        ttk.Button(header, text=self.tr("移除", "Remove"), style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("清空", "Clear"), style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(header, text=self.tr("匯出計畫", "Export plan"), style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
         body = ttk.Frame(plan, style="Panel.TFrame")
         body.pack(fill=X)
         self.download_plan_body = body
@@ -1348,11 +1348,11 @@ class ApiCollectionUi:
         columns = ("name", "auth", "scope", "status", "import")
         self.cart_tree = ttk.Treeview(body, columns=columns, show="headings", height=4, selectmode="browse")
         for name, label, width, anchor in [
-            ("name", "資料源", 260, "w"),
-            ("auth", "認證", 150, "w"),
-            ("scope", "範圍", 130, "w"),
-            ("status", "下載狀態", 120, "center"),
-            ("import", "匯入狀態", 210, "w"),
+            ("name", self.tr("項目", "Item"), 260, "w"),
+            ("auth", self.tr("認證", "Auth"), 150, "w"),
+            ("scope", self.tr("範圍", "Scope"), 130, "w"),
+            ("status", self.tr("下載狀態", "Download status"), 120, "center"),
+            ("import", self.tr("匯入狀態", "Import status"), 210, "w"),
         ]:
             self.cart_tree.heading(name, text=label)
             self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
