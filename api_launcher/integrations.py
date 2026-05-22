@@ -10,6 +10,7 @@ from urllib import request
 
 from api_launcher.ai_prompts import provider_description_prompt
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys
+from api_launcher.data_store_connections import DataStoreConnectionProfile, data_store_profiles_from_config
 
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
@@ -141,6 +142,30 @@ def set_active_database_client(profile_id: str) -> DatabaseClientProfile:
     if profile is None:
         raise RuntimeError(f"Database client profile is not available on this platform: {profile_id}")
     return profile
+
+
+def set_active_data_store_profile(profile_id: str) -> DataStoreConnectionProfile:
+    # active data-store profile 只記錄偏好；credential 仍只從 env/private store 讀取。
+    config = ensure_local_integration_config()
+    profiles = data_store_profiles_from_config(config)
+    profile = next((item for item in profiles if item.profile_id == profile_id), None)
+    if profile is None:
+        raise RuntimeError(f"Unknown data-store connection profile: {profile_id}")
+    config["active_data_store_profile"] = profile_id
+    save_integration_config(config)
+    return profile
+
+
+def active_data_store_profile() -> DataStoreConnectionProfile | None:
+    # 沒有使用者偏好時退回第一個 configured/default profile，避免 UI 顯示空狀態。
+    config = load_integration_config()
+    profiles = data_store_profiles_from_config(config)
+    active_id = str(config.get("active_data_store_profile") or "").strip()
+    if active_id:
+        for profile in profiles:
+            if profile.profile_id == active_id:
+                return profile
+    return profiles[0] if profiles else None
 
 
 def database_client_profiles() -> list[DatabaseClientProfile]:

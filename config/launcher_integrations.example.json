@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "active_database_client": "mysql_workbench",
+  "active_data_store_profile": "mysql_default",
   "active_ai_summary_profile": "local_ollama",
   "active_download_tool": "python_internal",
   "active_runtime_orchestration_profile": "local_docker_compose",

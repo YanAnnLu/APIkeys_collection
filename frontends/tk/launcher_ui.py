@@ -69,7 +69,7 @@ from api_launcher.database_repair import (
     write_missing_sql_table_repair_dry_run,
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
-from api_launcher.integrations import save_integration_config
+from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.google_auth import google_oauth_token_status
@@ -3202,6 +3202,14 @@ class ApiCollectionUi:
             ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        active_profile = active_data_store_profile()
+        active_var = StringVar(
+            value=self.tr(
+                f"目前作用中 profile：{active_profile.profile_id if active_profile else '-'}",
+                f"Active profile: {active_profile.profile_id if active_profile else '-'}",
+            )
+        )
+        ttk.Label(dialog, textvariable=active_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 10))
         table = ttk.Treeview(
             dialog,
             columns=("label", "kind", "engine", "required", "optional", "status"),
@@ -3234,6 +3242,9 @@ class ApiCollectionUi:
                     profile.status,
                 ),
             )
+        if active_profile and active_profile.profile_id in profiles_by_id:
+            table.selection_set(active_profile.profile_id)
+            table.focus(active_profile.profile_id)
         table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
@@ -3283,7 +3294,25 @@ class ApiCollectionUi:
                 ),
             )
 
+        def set_selected_active_profile() -> None:
+            selection = table.selection()
+            if not selection:
+                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
+                return
+            profile_id = str(selection[0])
+            try:
+                # active profile 是本機偏好設定，不含密碼；真實 credential 還是由 env/private store 負責。
+                profile = set_active_data_store_profile(profile_id)
+            except Exception as exc:
+                log_exception("data_store_active_profile_failed", exc, component="tk", context={"profile_id": profile_id})
+                messagebox.showerror(self.tr("資料儲存 profile", "Data-store profile"), f"{type(exc).__name__}: {exc}")
+                return
+            active_var.set(self.tr(f"目前作用中 profile：{profile.profile_id}", f"Active profile: {profile.profile_id}"))
+            log_event("data_store_active_profile_set", component="tk", context={"profile_id": profile.profile_id})
+            self.status_var.set(self.tr(f"已設定作用中資料儲存 profile：{profile.profile_id}", f"Active data-store profile set: {profile.profile_id}"))
+
         ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("設為作用中", "Set active"), style="Action.TButton", command=set_selected_active_profile).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("寫出 env 範本", "Write env template"), style="Action.TButton", command=write_selected_env_template).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)

@@ -107,6 +107,7 @@ from api_launcher.integrations import (
     open_database_client,
     set_active_ai_profile,
     set_active_database_client,
+    set_active_data_store_profile as set_active_data_store_profile_config,
 )
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
 from api_launcher.ingestion_pipeline import (
@@ -718,6 +719,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
     parser.add_argument("--test-data-store", action="append", default=[], help="test data-store connection profile id; use 'all' for every configured profile")
+    parser.add_argument("--set-active-data-store-profile", default="", help="set the active data-store connection profile in ignored local integration config")
     parser.add_argument("--write-data-store-env-template", default="", help="write a .env-style template for configured data-store profile variables")
     parser.add_argument(
         "--data-store-env-template-profile",
@@ -834,6 +836,7 @@ class CatalogLauncherCli:
             self.list_render_effects()
             self.list_simulation_contracts()
             self.show_library_actions()
+            self.set_active_data_store_profile()
             self.test_data_store_connections()
             self.write_data_store_env_template()
             self.self_check_databases()
@@ -1396,6 +1399,15 @@ class CatalogLauncherCli:
                 f"{result.profile_id} status={result.status} engine={result.engine} "
                 f"message={result.message} details={details}"
             )
+
+    def set_active_data_store_profile(self) -> None:
+        if not self.args.set_active_data_store_profile:
+            return
+        profile = set_active_data_store_profile_config(self.args.set_active_data_store_profile.strip())
+        print(
+            "[data-store] "
+            f"active_profile={profile.profile_id} label={profile.label} engine={profile.engine}"
+        )
 
     def write_data_store_env_template(self) -> None:
         if not self.args.write_data_store_env_template:

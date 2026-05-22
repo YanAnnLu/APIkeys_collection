@@ -191,6 +191,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID` to test one configured data-store profile, or `--test-data-store all` for every profile.
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID --test-data-store-json` when an agent needs status/details/next_action instead of human text.
+- Use `python APIkeys_collection.py --set-active-data-store-profile PROFILE_ID` to record the local active data-store profile in ignored local config. This records only the profile id, not credentials.
 - Use `python APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default` to write a local empty-value `.env` template before setting MySQL/PostgreSQL credentials. This helper must list env var names only; do not fill or commit secrets.
 - Use `python APIkeys_collection.py --self-check-databases` to verify managed database/table assets recorded in the install registry.
 - Use `python APIkeys_collection.py --self-check-databases-json` when another tool or agent needs a pure JSON issue list with stable repair suggestion IDs.

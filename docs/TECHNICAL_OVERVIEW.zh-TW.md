@@ -354,10 +354,11 @@ Data store connection testing 已有第一版骨架：
 python APIkeys_collection.py --test-data-store sqlite_local
 python APIkeys_collection.py --test-data-store all
 python APIkeys_collection.py --test-data-store mysql_default --test-data-store-json
+python APIkeys_collection.py --set-active-data-store-profile mysql_default
 python APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default
 ```
 
-SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不會為了測試而建立缺失的資料庫檔。MySQL/PostgreSQL 會先檢查必要環境變數與 optional Python driver；未安裝 driver 時只回報 `dependency_missing`，不會嘗試連線或要求把套件裝進 base/system 環境。
+`--set-active-data-store-profile` 只會把目前偏好的 profile id 寫進 ignored `launcher_integrations.local.json`；它不保存密碼、不測連線、不修改 registry。SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不會為了測試而建立缺失的資料庫檔。MySQL/PostgreSQL 會先檢查必要環境變數與 optional Python driver；未安裝 driver 時只回報 `dependency_missing`，不會嘗試連線或要求把套件裝進 base/system 環境。
 
 `--test-data-store-json` 會輸出 agent-readable JSON，包含每個 profile 的 status、details 與 `next_action`；缺 env 時會指向 `--write-data-store-env-template`，缺 driver 時只建議在專案環境安裝 optional driver。`--write-data-store-env-template` 只會把 profile 需要的環境變數名稱寫成 `.env` 風格範本，值保持空白。Tk 的 `整合 > 資料儲存連線 > 寫出 env 範本` 走同一個後端；這是為了讓本地 MySQL/PostgreSQL 接入前有明確清單，而不是把密碼寫進 Git 追蹤的 JSON。
 

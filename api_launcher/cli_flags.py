@@ -56,6 +56,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.library_actions_json,
         bool(args.library_repair_manifest),
         bool(args.test_data_store),
+        bool(args.set_active_data_store_profile),
         bool(args.write_data_store_env_template),
         args.test_data_store_json,
         args.self_check_databases,
