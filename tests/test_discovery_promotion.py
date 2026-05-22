@@ -123,6 +123,9 @@ class DiscoveryPromotionTests(unittest.TestCase):
         self.assertEqual(1, result.skipped_count)
         self.assertEqual([], provider_catalog)
         self.assertEqual("inspect_source_audit_results_before_upsert_or_promotion", result.audit["next_action"])
+        self.assertEqual("warning", result.audit["audit_summary"]["status"])
+        self.assertEqual({"zero_candidates": 1}, result.audit["audit_summary"]["by_warning_code"])
+        self.assertEqual(["example_data_ckan"], [item["source_id"] for item in result.audit["audit_summary"]["problem_sources"]])
         self.assertEqual(["zero_candidates"], result.audit["sources"][0]["warning_codes"])
         self.assertEqual("repair_crawler_query_or_parser", result.audit["sources"][0]["next_action"])
 

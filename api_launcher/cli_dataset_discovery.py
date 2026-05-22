@@ -92,6 +92,7 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             "error_count": crawl_result.error_count,
             "warning_count": crawl_result.warning_count,
             "next_action": crawl_result.next_action,
+            "audit_summary": crawl_result.audit_summary,
             "full_crawl": args.dataset_discovery_full_crawl,
             "source_results": [
                 {

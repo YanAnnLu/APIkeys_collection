@@ -727,6 +727,12 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(1, result.error_count)
         self.assertEqual(1, result.warning_count)
         self.assertEqual("inspect_source_audit_results_before_upsert_or_promotion", result.next_action)
+        summary = result.audit_summary
+        self.assertEqual("error", summary["status"])
+        self.assertEqual({"pass": 1, "warning": 1, "error": 1}, summary["by_status"])
+        self.assertEqual({"all_candidates_duplicate": 1}, summary["by_warning_code"])
+        self.assertEqual(2, summary["problem_source_count"])
+        self.assertEqual(["bad_source", "source_b"], [item["source_id"] for item in summary["problem_sources"]])
         self.assertIn("network down", [item.error for item in result.source_results if item.source_id == "bad_source"][0])
         bad_result = [item for item in result.source_results if item.source_id == "bad_source"][0]
         self.assertEqual("inspect_crawler_error", bad_result.next_action)

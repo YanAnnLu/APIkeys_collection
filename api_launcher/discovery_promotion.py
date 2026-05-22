@@ -180,6 +180,7 @@ def crawl_result_to_audit_payload(result: DatasetCrawlResult) -> dict[str, objec
         "warning_count": result.warning_count,
         "audit_issue_count": result.audit_issue_count,
         "next_action": result.next_action,
+        "audit_summary": result.audit_summary,
         "sources": [
             {
                 "source_id": source.source_id,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 from dataclasses import dataclass, replace
+from typing import Any
 
 from api_launcher.crawlers import dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
@@ -96,6 +97,63 @@ class DatasetCrawlResult:
         if discovered_count:
             return "review_or_upsert_dataset_candidates"
         return "configure_or_select_dataset_discovery_sources"
+
+    @property
+    def audit_summary(self) -> dict[str, Any]:
+        return crawl_result_audit_summary(self)
+
+
+def crawl_result_audit_summary(result: DatasetCrawlResult) -> dict[str, Any]:
+    """產生 UI 與 agent handoff 可直接讀取的 crawler audit 摘要。"""
+    by_status = {"pass": 0, "warning": 0, "error": 0}
+    by_warning_code: dict[str, int] = {}
+    by_next_action: dict[str, int] = {}
+    problem_sources: list[dict[str, object]] = []
+
+    for source in result.source_results:
+        by_status[source.audit_status] = by_status.get(source.audit_status, 0) + 1
+        by_next_action[source.next_action] = by_next_action.get(source.next_action, 0) + 1
+        for code in source.warning_codes:
+            by_warning_code[code] = by_warning_code.get(code, 0) + 1
+        if source.audit_status == "pass":
+            continue
+        # 摘要只做快速分流；完整 warning/error 仍留在 source_results 供人類追查。
+        problem_sources.append(
+            {
+                "source_id": source.source_id,
+                "provider_id": source.provider_id,
+                "source_type": source.source_type,
+                "audit_status": source.audit_status,
+                "next_action": source.next_action,
+                "warning_codes": list(source.warning_codes),
+                "error": source.error,
+            }
+        )
+
+    if result.error_count:
+        status = "error"
+    elif result.warning_count:
+        status = "warning"
+    elif result.candidate_count or any(source.candidate_count for source in result.source_results):
+        status = "pass"
+    else:
+        status = "empty"
+
+    return {
+        "status": status,
+        "source_count": len(result.source_results),
+        "candidate_count": result.candidate_count,
+        "duplicate_count": result.duplicate_count,
+        "error_count": result.error_count,
+        "warning_count": result.warning_count,
+        "audit_issue_count": result.audit_issue_count,
+        "next_action": result.next_action,
+        "by_status": by_status,
+        "by_warning_code": dict(sorted(by_warning_code.items())),
+        "by_next_action": dict(sorted(by_next_action.items())),
+        "problem_source_count": len(problem_sources),
+        "problem_sources": sorted(problem_sources, key=lambda item: str(item["source_id"])),
+    }
 
 
 def crawl_dataset_sources(
