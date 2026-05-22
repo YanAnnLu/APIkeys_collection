@@ -101,6 +101,9 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- latest_adapter_review_json_event_at: {snapshot.verification_summary.get('latest_adapter_review_json_event_at', '') or 'none'}",
         f"- latest_adapter_review_json_output: {snapshot.verification_summary.get('latest_adapter_review_json_output', '') or 'none'}",
         f"- latest_adapter_review_json_outcomes: {snapshot.verification_summary.get('latest_adapter_review_json_outcomes', '') or '{}'}",
+        f"- latest_adapter_plan_resolved_event_at: {snapshot.verification_summary.get('latest_adapter_plan_resolved_event_at', '') or 'none'}",
+        f"- latest_adapter_plan_resolved_output: {snapshot.verification_summary.get('latest_adapter_plan_resolved_output', '') or 'none'}",
+        f"- latest_adapter_plan_resolved_counts: {snapshot.verification_summary.get('latest_adapter_plan_resolved_counts', '') or '{}'}",
         "",
         "## Open GTD Focus",
         "",
@@ -260,6 +263,17 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
     latest_adapter_review_context = (
         latest_adapter_review_event.get("context") if isinstance(latest_adapter_review_event.get("context"), dict) else {}
     )
+    latest_adapter_plan_event = latest_event_by_name(events, "adapter_plan_resolved")
+    latest_adapter_plan_context = (
+        latest_adapter_plan_event.get("context") if isinstance(latest_adapter_plan_event.get("context"), dict) else {}
+    )
+    # Resolver 事件可能帶很多路徑與統計；handoff 只固定列出接力判斷最需要的幾個數字。
+    adapter_plan_counts = {
+        "direct_entries_added": latest_adapter_plan_context.get("direct_entries_added", 0),
+        "resolved_review_entries": latest_adapter_plan_context.get("resolved_review_entries", 0),
+        "unresolved_review_entries": latest_adapter_plan_context.get("unresolved_review_entries", 0),
+        "warning_count": latest_adapter_plan_context.get("warning_count", 0),
+    }
     return {
         "latest_manifest_verified_at": latest_table_timestamp(
             repository.conn,
@@ -284,6 +298,13 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
         "latest_adapter_review_json_outcomes": (
             str(latest_adapter_review_context.get("by_outcome") or {}) if latest_adapter_review_context else ""
         ),
+        "latest_adapter_plan_resolved_event_at": (
+            str(latest_adapter_plan_event.get("timestamp") or "") if latest_adapter_plan_event else ""
+        ),
+        "latest_adapter_plan_resolved_output": (
+            str(latest_adapter_plan_context.get("output_path") or "") if latest_adapter_plan_context else ""
+        ),
+        "latest_adapter_plan_resolved_counts": str(adapter_plan_counts) if latest_adapter_plan_context else "",
     }
 
 
