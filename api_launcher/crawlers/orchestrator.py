@@ -171,7 +171,9 @@ def crawl_dataset_sources(
         return DatasetCrawlResult(candidates=(), source_results=())
 
     max_workers = max(1, min(options.max_workers, len(sources)))
+    source_order = {source.source_id: index for index, source in enumerate(sources)}
     source_results: list[DatasetSourceCrawlResult] = []
+    completed_results: list[DatasetSourceCrawlResult] = []
     candidates: list[DatasetCandidate] = []
     seen: set[tuple[str, str]] = set()
     duplicate_count = 0
@@ -182,38 +184,41 @@ def crawl_dataset_sources(
             for source in sources
         }
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            source_unique_count = 0
-            source_duplicate_count = 0
-            for candidate in result.candidates:
-                key = (candidate.dataset.provider_id, candidate.dataset.dataset_id)
-                if key in seen:
-                    duplicate_count += 1
-                    source_duplicate_count += 1
-                    continue
-                seen.add(key)
-                source_unique_count += 1
-                candidates.append(candidate)
-            warnings = result.warnings
-            if result.candidate_count > 0 and source_unique_count == 0:
-                warnings = warnings + (
-                    "all_candidates_duplicate: source returned candidates, but every candidate was already seen "
-                    "from another source; verify source overlap, search terms, or provider mapping",
-                )
-            elif source_duplicate_count and source_duplicate_count >= source_unique_count:
-                warnings = warnings + (
-                    "duplicate_heavy_output: source returned "
-                    f"{source_duplicate_count} duplicate candidates and only {source_unique_count} unique candidates; "
-                    "verify pagination, parser IDs, search terms, or overlapping source configuration",
-                )
-            source_results.append(
-                replace(
-                    result,
-                    unique_candidate_count=source_unique_count,
-                    duplicate_candidate_count=source_duplicate_count,
-                    warnings=warnings,
-                )
+            completed_results.append(future.result())
+
+    # 並行完成順序會受平台與網路抖動影響；去重歸屬必須回到 catalog 設定順序才穩定。
+    for result in sorted(completed_results, key=lambda item: (source_order.get(item.source_id, len(source_order)), item.source_id)):
+        source_unique_count = 0
+        source_duplicate_count = 0
+        for candidate in result.candidates:
+            key = (candidate.dataset.provider_id, candidate.dataset.dataset_id)
+            if key in seen:
+                duplicate_count += 1
+                source_duplicate_count += 1
+                continue
+            seen.add(key)
+            source_unique_count += 1
+            candidates.append(candidate)
+        warnings = result.warnings
+        if result.candidate_count > 0 and source_unique_count == 0:
+            warnings = warnings + (
+                "all_candidates_duplicate: source returned candidates, but every candidate was already seen "
+                "from another source; verify source overlap, search terms, or provider mapping",
             )
+        elif source_duplicate_count and source_duplicate_count >= source_unique_count:
+            warnings = warnings + (
+                "duplicate_heavy_output: source returned "
+                f"{source_duplicate_count} duplicate candidates and only {source_unique_count} unique candidates; "
+                "verify pagination, parser IDs, search terms, or overlapping source configuration",
+            )
+        source_results.append(
+            replace(
+                result,
+                unique_candidate_count=source_unique_count,
+                duplicate_candidate_count=source_duplicate_count,
+                warnings=warnings,
+            )
+        )
 
     source_results.sort(key=lambda item: item.source_id)
     candidates.sort(key=lambda item: (item.dataset.provider_id, item.dataset.dataset_id, item.dataset.title.lower()))
