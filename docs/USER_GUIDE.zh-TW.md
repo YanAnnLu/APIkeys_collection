@@ -315,9 +315,9 @@ CLI 的原則和 UI 一樣：能直接下載的才下載；入口頁、登入頁
 
 目前內建來源包含 NOAA/NCEI、ERDDAP、NASA CMR、STAC、GBIF、Dataverse、Zenodo、DataCite、OpenAlex、Socrata 與多個 CKAN 入口。Dataverse/Zenodo/OpenAlex 這類研究倉儲或 metadata 目錄常只先告訴你 DOI、landing page、file count 或 work metadata，所以 crawler 只記錄可審核 metadata，不會自動下載。
 
-發現完成後，UI 會顯示錯誤與警告。這裡的警告不是程式崩潰，而是 crawler 審核覺得「看起來有跑完，但結果不夠可信」，例如某個來源回傳 0 筆候選、低於最低預期筆數、只抓到已存在的重複候選、重複候選數量異常偏高，或候選 metadata 缺少來源/evidence。看到警告時，應先檢查該供應商頁面、搜尋詞或解析器，而不是直接假設沒有資料。
+發現完成後，UI 會顯示錯誤、警告與「下一步」。這裡的警告不是程式崩潰，而是 crawler 審核覺得「看起來有跑完，但結果不夠可信」，例如某個來源回傳 0 筆候選、低於最低預期筆數、只抓到已存在的重複候選、重複候選數量異常偏高，或候選 metadata 缺少來源/evidence。看到警告時，應依 UI 顯示的下一步先檢查供應商頁面、搜尋詞、分頁、去重/id mapping 或解析器，而不是直接假設沒有資料。
 
-CLI 寫出的 `state/dataset_candidates.review.json` 會在頂層與每個 `source_results` 放入 `next_action`，每個來源也會列出 `warning_codes`。常見值包含：`repair_crawler_query_or_parser` 代表該 source 可能抓到 0 筆，需要檢查搜尋詞、分頁或 parser；`review_source_overlap_or_dedupe` 代表重複過多或全部重複，需要檢查 id mapping、來源重疊或 pagination；`repair_candidate_metadata_mapping` 代表候選缺少 dataset id、title、source url 或 evidence。這些欄位是給 UI、heartbeat 與 agent 接力用的穩定狀態碼，不需要解析整段 warning 文字。
+CLI 寫出的 `state/dataset_candidates.review.json` 會在頂層與每個 `source_results` 放入 `next_action`，每個來源也會列出 `warning_codes`。常見值包含：`repair_crawler_query_or_parser` 代表該 source 可能抓到 0 筆，需要檢查搜尋詞、分頁或 parser；`review_source_overlap_or_dedupe` 代表重複過多或全部重複，需要檢查 id mapping、來源重疊或 pagination；`repair_candidate_metadata_mapping` 代表候選缺少 dataset id、title、source url 或 evidence。這些欄位是給 UI、heartbeat 與 agent 接力用的穩定狀態碼；Tk UI 會把常見狀態碼翻成繁中操作提示，不需要解析整段 warning 文字。
 
 `資料庫 > 審核資料集候選` 會打開 crawler 找到的資料集候選清單。這裡只審核 metadata，不會下載大檔，也不會改動資料本體。
 

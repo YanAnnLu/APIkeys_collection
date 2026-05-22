@@ -3881,6 +3881,84 @@ class ApiCollectionUi:
         candidate_tree.bind("<<TreeviewSelect>>", lambda _event: render_candidate_detail(selected_candidate()))
         load_candidates()
 
+    def crawler_next_action_label(self, action: str) -> str:
+        # Crawler 後端輸出的是穩定狀態碼；Tk 只負責翻成使用者能採取的下一步，不在 UI 層重寫 audit 規則。
+        labels = {
+            "inspect_source_audit_results_before_upsert_or_promotion": self.tr(
+                "先查看來源審核結果，再決定是否寫入候選或提升 catalog。",
+                "Inspect source audit results before upserting candidates or promoting catalog entries.",
+            ),
+            "review_or_upsert_dataset_candidates": self.tr(
+                "已有可信候選，接著開啟候選審核並加入下載計畫。",
+                "Review or upsert the credible candidates, then add them to the download plan.",
+            ),
+            "configure_or_select_dataset_discovery_sources": self.tr(
+                "尚無候選，請先設定或選取有 crawler 的資料源。",
+                "No candidates were found; configure or select sources with crawler support first.",
+            ),
+            "inspect_crawler_error": self.tr(
+                "Crawler 發生錯誤，請先檢查 endpoint、網路、權限或 parser 例外。",
+                "The crawler errored; inspect the endpoint, network, access, or parser exception first.",
+            ),
+            "repair_crawler_query_or_parser": self.tr(
+                "回傳 0 筆，請檢查搜尋詞、分頁停止條件或 parser 是否失準。",
+                "Zero candidates were returned; check search terms, pagination stop rules, or parser mapping.",
+            ),
+            "adjust_query_or_min_expected_candidates": self.tr(
+                "候選少於預期，請放寬查詢、調整最低筆數或確認 source 覆蓋範圍。",
+                "Candidate count is below expectation; adjust the query, minimum count, or source coverage.",
+            ),
+            "review_source_overlap_or_dedupe": self.tr(
+                "重複候選偏高，請檢查 source 重疊、dataset id mapping 或 pagination。",
+                "Duplicate output is high; review source overlap, dataset id mapping, or pagination.",
+            ),
+            "repair_candidate_metadata_mapping": self.tr(
+                "候選 metadata 缺欄，請修 dataset id、title、source URL 或 evidence mapping。",
+                "Candidate metadata is incomplete; repair dataset id, title, source URL, or evidence mapping.",
+            ),
+            "inspect_crawler_audit_warnings": self.tr(
+                "請查看 crawler warning 明細，再決定是否審核候選或修 parser。",
+                "Inspect crawler warnings before reviewing candidates or repairing the parser.",
+            ),
+            "review_candidates": self.tr(
+                "來源結果可審核，接著確認候選並加入下載計畫。",
+                "Review the source candidates and add selected entries to the download plan.",
+            ),
+            "no_candidates_but_allowed": self.tr(
+                "這個來源沒有候選但未被視為錯誤；請確認它是否應該產出資料集。",
+                "This source returned no candidates without failing; confirm whether it should produce datasets.",
+            ),
+        }
+        action = str(action or "").strip()
+        if not action:
+            return self.tr("查看 crawler 審核結果。", "Review crawler audit results.")
+        return labels.get(action, action)
+
+    def crawler_audit_issue_lines(self, source_results: object, *, limit: int = 8) -> list[str]:
+        # 彈窗空間有限，所以這裡只做 bounded preview；完整 audit 仍由 CLI/JSON 與 candidate review 流程保留。
+        lines: list[str] = []
+        for item in source_results:
+            source_id = str(getattr(item, "source_id", "") or "-")
+            error = str(getattr(item, "error", "") or "")
+            warnings = tuple(getattr(item, "warnings", ()) or ())
+            next_action = str(getattr(item, "next_action", "") or "")
+            if not error and not warnings:
+                continue
+            if next_action:
+                lines.append(
+                    self.tr(
+                        f"{source_id}: 下一步：{self.crawler_next_action_label(next_action)}",
+                        f"{source_id}: next step: {self.crawler_next_action_label(next_action)}",
+                    )
+                )
+            if error:
+                lines.append(f"{source_id}: {error}")
+            for warning in warnings:
+                lines.append(f"{source_id}: {warning}")
+            if len(lines) >= limit:
+                break
+        return lines[:limit]
+
     def discover_dataset_candidates_from_ui(self) -> None:
         selected_provider_ids = tuple(self.selected_provider_ids())
         scope = (
@@ -3932,24 +4010,23 @@ class ApiCollectionUi:
             return
 
         def finish() -> None:
+            next_action_label = self.crawler_next_action_label(result.next_action)
             message = self.tr(
-                f"資料集候選發現完成：新增/更新 {upserted} 筆；錯誤來源 {result.error_count}；警告 {result.warning_count}；重複 {result.duplicate_count}",
-                f"Dataset discovery complete: upserted {upserted}; source errors {result.error_count}; warnings {result.warning_count}; duplicates {result.duplicate_count}",
+                f"資料集候選發現完成：新增/更新 {upserted} 筆；錯誤來源 {result.error_count}；警告 {result.warning_count}；重複 {result.duplicate_count}；下一步：{next_action_label}",
+                f"Dataset discovery complete: upserted {upserted}; source errors {result.error_count}; warnings {result.warning_count}; duplicates {result.duplicate_count}; next step: {next_action_label}",
             )
             self.status_var.set(message)
             self.reload_data()
             self.status_var.set(message)
             if result.error_count or result.warning_count:
-                issue_lines = []
-                for item in result.source_results:
-                    if item.error:
-                        issue_lines.append(f"{item.source_id}: {item.error}")
-                    for warning in item.warnings:
-                        issue_lines.append(f"{item.source_id}: {warning}")
-                issue_lines = issue_lines[:8]
+                issue_lines = self.crawler_audit_issue_lines(result.source_results)
                 messagebox.showwarning(
                     self.tr("部分 crawler 需要檢查", "Some crawlers need review"),
-                    message + "\n\n" + "\n".join(issue_lines),
+                    message
+                    + "\n\n"
+                    + self.tr("來源審核摘要：", "Source audit summary:")
+                    + "\n"
+                    + "\n".join(issue_lines),
                 )
             self.open_dataset_candidate_review_panel()
 

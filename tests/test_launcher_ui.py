@@ -88,6 +88,33 @@ class DataStoreUiHelperTests(unittest.TestCase):
         self.assertIn("寫出 env 範本", hint)
 
 
+class CrawlerAuditUiHelperTests(unittest.TestCase):
+    def test_crawler_next_action_label_guides_zero_candidate_repair(self) -> None:
+        # Tk 不解析 warning 文字；它只把 crawler 後端的 next_action 狀態碼翻成可操作的繁中提示。
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+
+        label = fake_ui.crawler_next_action_label("repair_crawler_query_or_parser")
+
+        self.assertIn("回傳 0 筆", label)
+        self.assertIn("搜尋詞", label)
+
+    def test_crawler_audit_issue_lines_include_source_next_action(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        source_result = SimpleNamespace(
+            source_id="ncei",
+            error="",
+            warnings=("zero_candidates: source returned 0 candidates",),
+            next_action="repair_crawler_query_or_parser",
+        )
+
+        lines = fake_ui.crawler_audit_issue_lines((source_result,), limit=4)
+
+        self.assertTrue(any("下一步" in line and "回傳 0 筆" in line for line in lines))
+        self.assertTrue(any("zero_candidates" in line for line in lines))
+
+
 class DownloadPlanPanelUiTests(unittest.TestCase):
     def test_mvp_demo_smoke_result_message_summarizes_user_visible_closure(self) -> None:
         payload = {
