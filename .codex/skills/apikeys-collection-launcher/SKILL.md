@@ -182,6 +182,8 @@ For UI work, "done" means the visible text is Traditional Chinese by default, th
 python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-actions-json
 ```
 
+The action payload includes `status_badge` for short UI/agent routing states such as `ready_to_plan`, `repair_requeue_ready`, and `guarded_uninstall_ready`. Treat badges as summaries only; execution still depends on `enabled`, `risk`, ownership metadata, and guarded CLI parameters.
+
 - Register local installs through `provider_installations.install_id`; do not infer ownership from names alone.
 - Register SQL/file assets in `provider_installation_assets` with `asset_role`, `source_format`, `source_uri`, and `schema_fingerprint`. Use `register_provider_database_asset` for whole databases and `register_provider_table_asset` for individual tables.
 - Distinguish official source data from curated, derived, analysis, and cache assets.

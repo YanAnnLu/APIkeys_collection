@@ -68,8 +68,27 @@ class LibraryActionTests(unittest.TestCase):
         action = library_action_map(context)["repair"]
 
         self.assertTrue(action.enabled)
+        self.assertEqual("repair_requeue_ready", action.status_badge)
         self.assertEqual("requeue_download", action.related_repair_suggestion["action_id"])
         self.assertIn("safe requeue", action.reason)
+
+    def test_status_badges_summarize_action_state_for_agents(self) -> None:
+        context = LibraryContext(
+            provider_id="sample",
+            local_status="managed",
+            update_status="stale",
+            install_id="inst_123",
+            has_direct_download=True,
+            has_render_assets=False,
+        )
+
+        actions = library_action_map(context)
+
+        self.assertEqual("ready_to_plan", actions["add_to_plan"].status_badge)
+        self.assertEqual("already_installed", actions["install"].status_badge)
+        self.assertEqual("update_available", actions["update"].status_badge)
+        self.assertEqual("missing_render_assets", actions["render_preview"].status_badge)
+        self.assertEqual("guarded_uninstall_ready", actions["uninstall"].status_badge)
 
     def test_uninstall_is_marked_destructive(self) -> None:
         context = LibraryContext(provider_id="sample", local_status="managed", install_id="inst_123")
@@ -94,6 +113,7 @@ class LibraryActionTests(unittest.TestCase):
         self.assertEqual("sample", payload["provider_id"])
         self.assertIn("open_database", payload["enabled_action_ids"])
         uninstall = next(action for action in payload["actions"] if action["action_id"] == "uninstall")
+        self.assertEqual("guarded_uninstall_ready", uninstall["status_badge"])
         self.assertEqual("destructive", uninstall["risk"])
 
     def test_cli_prints_library_actions(self) -> None:
@@ -118,6 +138,7 @@ class LibraryActionTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("[library-action] open_database enabled", text)
         self.assertIn("[library-action] render_preview enabled", text)
+        self.assertIn("badge=guarded_uninstall_ready", text)
         self.assertIn("risk=destructive", text)
 
     def test_cli_prints_library_actions_json_for_agent_skill(self) -> None:

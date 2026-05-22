@@ -35,6 +35,7 @@ class LibraryAction:
     label: str
     enabled: bool
     reason: str
+    status_badge: str
     risk: ActionRisk = "safe"
     related_repair_suggestion: dict[str, object] = field(default_factory=dict)
 
@@ -68,6 +69,21 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
         repair_reason = "Manifest health indicates missing or corrupted assets."
     else:
         repair_reason = "No repair issue is known."
+    # status_badge 是給 UI badge / agent routing 的短代碼；reason 保留人類可讀說明。
+    add_to_plan_badge = "ready_to_plan" if downloadable else "blocked_no_download_or_adapter"
+    install_badge = "already_installed" if installed else ("ready_to_install" if downloadable else "blocked_no_download_or_adapter")
+    update_badge = "update_available" if installed and update_available else ("up_to_date" if installed else "not_installed")
+    if installed and needs_repair and repair_can_requeue:
+        repair_badge = "repair_requeue_ready"
+    elif installed and needs_repair and repair_action_id:
+        repair_badge = "repair_review_needed"
+    elif installed and needs_repair:
+        repair_badge = "repair_needed"
+    else:
+        repair_badge = "healthy_or_unknown" if installed else "not_installed"
+    open_database_badge = "ready_to_open" if installed else "not_installed"
+    render_badge = "render_ready" if installed and context.has_render_assets else ("missing_render_assets" if installed else "not_installed")
+    uninstall_badge = "guarded_uninstall_ready" if installed else "not_installed"
 
     return (
         LibraryAction(
@@ -75,12 +91,14 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             "Add to download plan",
             downloadable,
             "A direct download or dataset adapter is available." if downloadable else "No direct download or adapter is available yet.",
+            add_to_plan_badge,
         ),
         LibraryAction(
             "install",
             "Install / manage",
             downloadable and not installed,
             "Ready to download/import into the managed library." if downloadable and not installed else "Already installed or not downloadable.",
+            install_badge,
             risk="state_change",
         ),
         LibraryAction(
@@ -88,6 +106,7 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             "Update",
             installed and update_available,
             "A newer or stale remote version is available." if installed and update_available else "No applicable update is known.",
+            update_badge,
             risk="state_change",
         ),
         LibraryAction(
@@ -95,6 +114,7 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             "Repair / verify",
             installed and needs_repair,
             repair_reason if installed and needs_repair else "No repair issue is known.",
+            repair_badge,
             risk="state_change",
             related_repair_suggestion=repair_suggestion,
         ),
@@ -103,18 +123,21 @@ def build_library_actions(context: LibraryContext) -> tuple[LibraryAction, ...]:
             "Open in database tool",
             installed,
             "Managed local data exists." if installed else "No managed local installation is known.",
+            open_database_badge,
         ),
         LibraryAction(
             "render_preview",
             "Render preview",
             installed and context.has_render_assets,
             "Renderer bridge assets are available." if installed and context.has_render_assets else "Renderer bridge assets are not available yet.",
+            render_badge,
         ),
         LibraryAction(
             "uninstall",
             "Uninstall / remove from library",
             installed,
             "Managed install_id exists; destructive execution still requires guarded adapters." if installed else "Nothing managed to uninstall.",
+            uninstall_badge,
             risk="destructive",
         ),
     )

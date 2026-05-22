@@ -1544,7 +1544,8 @@ class CatalogLauncherCli:
                 )
             print(
                 "[library-action] "
-                f"{action.action_id} {status} risk={action.risk} label={action.label} reason={action.reason}"
+                f"{action.action_id} {status} badge={action.status_badge} risk={action.risk} "
+                f"label={action.label} reason={action.reason}"
                 f"{repair_suffix}"
             )
 
