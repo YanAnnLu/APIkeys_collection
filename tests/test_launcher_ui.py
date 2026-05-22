@@ -136,6 +136,37 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         self.assertTrue(any("zero_candidates=1" in line for line in lines))
         self.assertTrue(any("優先檢查來源：ncei" in line for line in lines))
 
+    def test_local_discovery_audit_message_marks_dry_run_and_summary(self) -> None:
+        # promotion 前的 UI 必須明確說這只是 dry-run，並重用 crawler audit summary 的分組資訊。
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        payload = {
+            "audited_source_count": 2,
+            "promoted_provider_count": 1,
+            "promoted_source_count": 1,
+            "skipped_count": 1,
+            "audit": {
+                "audit_issue_count": 1,
+                "audit_summary": {
+                    "status": "warning",
+                    "source_count": 2,
+                    "candidate_count": 5,
+                    "problem_source_count": 1,
+                    "next_action": "inspect_source_audit_results_before_upsert_or_promotion",
+                    "by_warning_code": {"zero_candidates": 1},
+                    "problem_sources": [{"source_id": "local_ckan"}],
+                },
+            },
+            "skipped": [{"source_id": "local_ckan", "reason": "audit_warning"}],
+        }
+
+        message = fake_ui.local_discovery_audit_message(payload, Path("state/local_discovery_audit.ui.json"))
+
+        self.assertIn("dry-run，未寫入正式 catalog", message)
+        self.assertIn("審核來源 2", message)
+        self.assertIn("zero_candidates=1", message)
+        self.assertIn("local_ckan: audit_warning", message)
+
 
 class DownloadPlanPanelUiTests(unittest.TestCase):
     def test_mvp_demo_smoke_result_message_summarizes_user_visible_closure(self) -> None:

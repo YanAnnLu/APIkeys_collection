@@ -79,9 +79,13 @@ from api_launcher.database_repair import (
     write_missing_sql_table_repair_dry_run,
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
+from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
+from api_launcher.discovery import LOCAL_SEEDS_NAME
+from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
-from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, log_file, state_file
+from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
+from api_launcher.registry import PROVIDER_CATALOG_NAME
 from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
@@ -1001,6 +1005,7 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
+        library_menu.add_command(label=self.tr("審核本機 discovery 草稿", "Audit local discovery drafts"), command=self.audit_local_discovery_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         library_menu.add_checkbutton(
             label=self.tr("在列表顯示 crawler 資料集", "Show crawler datasets in list"),
@@ -4086,6 +4091,97 @@ class ApiCollectionUi:
             self.open_dataset_candidate_review_panel()
 
         self.root.after(0, finish)
+
+    def local_discovery_audit_message(self, payload: object, audit_path: Path) -> str:
+        # 本機草稿 promotion 是 catalog 前的安全閘；UI 摘要要清楚標示 dry-run，避免被誤會已正式寫入。
+        data = payload if isinstance(payload, dict) else {}
+        audit = data.get("audit") if isinstance(data.get("audit"), dict) else {}
+        summary = audit.get("audit_summary") if isinstance(audit.get("audit_summary"), dict) else {}
+        lines = [
+            self.tr(
+                "本機 discovery 草稿審核完成（dry-run，未寫入正式 catalog）。",
+                "Local discovery draft audit completed (dry-run; official catalog was not changed).",
+            ),
+            self.tr(
+                f"審核來源 {data.get('audited_source_count', 0)}；可提升 provider {data.get('promoted_provider_count', 0)}；可提升 source {data.get('promoted_source_count', 0)}；略過 {data.get('skipped_count', 0)}",
+                f"Audited sources {data.get('audited_source_count', 0)}; promotable providers {data.get('promoted_provider_count', 0)}; promotable sources {data.get('promoted_source_count', 0)}; skipped {data.get('skipped_count', 0)}",
+            ),
+        ]
+        summary_lines = self.crawler_audit_summary_lines(summary)
+        if summary_lines:
+            lines.extend(["", self.tr("Crawler 審核摘要：", "Crawler audit summary:"), *summary_lines])
+        skipped = data.get("skipped")
+        if isinstance(skipped, list) and skipped:
+            lines.extend(["", self.tr("略過來源：", "Skipped sources:")])
+            for item in skipped[:4]:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(f"{item.get('source_id') or '-'}: {item.get('reason') or '-'}")
+        lines.extend(["", self.tr(f"Audit JSON：{audit_path}", f"Audit JSON: {audit_path}")])
+        return "\n".join(lines)
+
+    def audit_local_discovery_from_ui(self) -> None:
+        self.status_var.set(self.tr("正在審核本機 discovery 草稿（dry-run）...", "Auditing local discovery drafts (dry-run)..."))
+
+        def worker() -> None:
+            output_path = state_file("local_discovery_audit.ui.json")
+            try:
+                result = promote_local_discovery_catalog(
+                    local_provider_seed_path=local_config_file(LOCAL_SEEDS_NAME),
+                    local_dataset_source_path=local_config_file(LOCAL_DATASET_DISCOVERY_SOURCES_NAME),
+                    provider_catalog_path=catalog_file(PROVIDER_CATALOG_NAME),
+                    dataset_source_catalog_path=catalog_file(core.DEFAULT_DATASET_DISCOVERY_SOURCES_NAME),
+                    options=core.DatasetCrawlOptions(
+                        timeout=12.0,
+                        max_results_override=25,
+                        full_crawl=False,
+                        max_pages=1,
+                        max_workers=4,
+                    ),
+                    dry_run=True,
+                )
+                payload = result.to_dict()
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                log_event(
+                    "local_discovery_audit_completed",
+                    "Local discovery promotion dry-run audit completed.",
+                    component="ui.dataset_discovery",
+                    context={
+                        "audited_source_count": result.audited_source_count,
+                        "skipped_count": result.skipped_count,
+                        "audit_issue_count": payload.get("audit", {}).get("audit_issue_count", 0),
+                        "output_path": str(output_path),
+                    },
+                )
+            except Exception as exc:
+                log_exception(
+                    "local_discovery_audit_failed",
+                    exc,
+                    component="ui.dataset_discovery",
+                )
+                self.root.after(0, lambda: messagebox.showerror(self.tr("本機 discovery 審核失敗", "Local discovery audit failed"), str(exc)))
+                self.root.after(0, lambda: self.status_var.set(self.tr(f"本機 discovery 審核失敗：{exc}", f"Local discovery audit failed: {exc}")))
+                return
+
+            def finish() -> None:
+                message = self.local_discovery_audit_message(payload, output_path)
+                status = self.tr(
+                    f"本機 discovery 審核完成：來源 {result.audited_source_count}；略過 {result.skipped_count}",
+                    f"Local discovery audit complete: sources {result.audited_source_count}; skipped {result.skipped_count}",
+                )
+                self.status_var.set(status)
+                audit_issue_count = int(payload.get("audit", {}).get("audit_issue_count", 0))
+                if result.audited_source_count == 0:
+                    messagebox.showinfo(self.tr("本機 discovery 審核", "Local discovery audit"), message)
+                elif result.skipped_count or audit_issue_count:
+                    messagebox.showwarning(self.tr("本機 discovery 審核", "Local discovery audit"), message)
+                else:
+                    messagebox.showinfo(self.tr("本機 discovery 審核", "Local discovery audit"), message)
+
+            self.root.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def show_environment_checks(self) -> None:
         checks = core.run_startup_checks(DB_PATH)

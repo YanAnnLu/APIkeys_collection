@@ -207,6 +207,8 @@ python -m unittest discover -s tests
 | 把乾淨入口草稿提升到本機 ignored config | `python3 APIkeys_collection.py --promote-portal-intake-local` |
 | 審核本機 discovery config 是否可提升正式 catalog | `python3 APIkeys_collection.py --promote-local-discovery-catalog --promote-local-discovery-dry-run --write-local-discovery-audit-json state/local_discovery_audit.json` |
 
+Tk UI 可用 `資料庫 > 審核本機 discovery 草稿` 跑同一條 dry-run audit。它會把結果寫到 `state/local_discovery_audit.ui.json`，並用 crawler `audit_summary` 顯示整體狀態、warning 分組、下一步與略過來源；這個入口不會寫入正式 catalog。
+
 ### Dataset discovery / candidate review
 
 | 目的 | 指令 |
