@@ -89,6 +89,22 @@ class DataStoreUiHelperTests(unittest.TestCase):
 
 
 class CrawlerAuditUiHelperTests(unittest.TestCase):
+    def test_provider_discovery_message_marks_metadata_review_boundary(self) -> None:
+        # Provider discovery 只產生 review JSON；UI 文字要避免團隊誤以為已正式納管或抓取秘密。
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        payload = {
+            "candidate_count": 1,
+            "candidates": [{"provider_id": "example_provider", "confidence": 0.8}],
+        }
+
+        message = fake_ui.provider_discovery_message(payload, Path("state/provider_candidates.ui.json"))
+
+        self.assertIn("Provider 候選發現完成：1 筆", message)
+        self.assertIn("metadata-only review JSON", message)
+        self.assertIn("example_provider: confidence=0.8", message)
+        self.assertIn("state\\provider_candidates.ui.json", message.replace("/", "\\"))
+
     def test_crawler_next_action_label_guides_zero_candidate_repair(self) -> None:
         # Tk 不解析 warning 文字；它只把 crawler 後端的 next_action 狀態碼翻成可操作的繁中提示。
         fake_ui = object.__new__(ApiCollectionUi)

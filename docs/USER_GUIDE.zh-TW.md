@@ -209,6 +209,8 @@ python -m unittest discover -s tests
 
 Tk UI 可用 `資料庫 > 審核本機 discovery 草稿` 跑同一條 dry-run audit。它會把結果寫到 `state/local_discovery_audit.ui.json`，並用 crawler `audit_summary` 顯示整體狀態、warning 分組、下一步與略過來源；這個入口不會寫入正式 catalog。
 
+Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discovery。它只輸出 `state/provider_candidates.ui.json` 作為 review JSON，並在彈窗中預覽候選 provider id 與 confidence；這不是安裝、納管或正式 catalog 寫入，也不會抓取 API key 或登入內容。
+
 ### Dataset discovery / candidate review
 
 | 目的 | 指令 |

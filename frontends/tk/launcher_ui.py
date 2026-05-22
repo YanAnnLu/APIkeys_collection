@@ -79,8 +79,9 @@ from api_launcher.database_repair import (
     write_missing_sql_table_repair_dry_run,
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
+from api_launcher.db import utc_now_iso
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
-from api_launcher.discovery import LOCAL_SEEDS_NAME
+from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, discover_provider_candidates, load_all_discovery_seeds
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, log_file, state_file
@@ -1004,6 +1005,7 @@ class ApiCollectionUi:
         library_menu = Menu(menu_bar, tearoff=0)
         library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
+        library_menu.add_command(label=self.tr("發現 provider 候選", "Discover provider candidates"), command=self.discover_provider_candidates_from_ui)
         library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
         library_menu.add_command(label=self.tr("審核本機 discovery 草稿", "Audit local discovery drafts"), command=self.audit_local_discovery_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
@@ -3887,6 +3889,87 @@ class ApiCollectionUi:
         status_box.bind("<<ComboboxSelected>>", lambda _event: load_candidates())
         candidate_tree.bind("<<TreeviewSelect>>", lambda _event: render_candidate_detail(selected_candidate()))
         load_candidates()
+
+    def provider_discovery_message(self, payload: object, output_path: Path) -> str:
+        # Provider discovery 是 catalog 入口審查，不是安裝或納管；訊息必須把 review JSON 路徑講清楚。
+        data = payload if isinstance(payload, dict) else {}
+        candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
+        lines = [
+            self.tr(
+                f"Provider 候選發現完成：{data.get('candidate_count', len(candidates))} 筆。",
+                f"Provider discovery complete: {data.get('candidate_count', len(candidates))} candidates.",
+            ),
+            self.tr(
+                "這是 metadata-only review JSON；尚未寫入正式 catalog，也沒有抓取 API key 或登入內容。",
+                "This is a metadata-only review JSON; the official catalog was not changed and no API keys or login content were collected.",
+            ),
+        ]
+        if candidates:
+            lines.extend(["", self.tr("候選預覽：", "Candidate preview:")])
+            for item in candidates[:5]:
+                if not isinstance(item, dict):
+                    continue
+                provider_id = item.get("provider_id") or "-"
+                confidence = item.get("confidence", "-")
+                lines.append(f"{provider_id}: confidence={confidence}")
+        lines.extend(["", self.tr(f"Review JSON：{output_path}", f"Review JSON: {output_path}")])
+        return "\n".join(lines)
+
+    def discover_provider_candidates_from_ui(self) -> None:
+        self.status_var.set(self.tr("正在發現 provider 候選...", "Discovering provider candidates..."))
+
+        def worker() -> None:
+            output_path = state_file("provider_candidates.ui.json")
+            try:
+                seed_path = catalog_file(DEFAULT_SEEDS_NAME)
+                local_seed_path = local_config_file(LOCAL_SEEDS_NAME)
+                seeds = load_all_discovery_seeds(seed_path, local_seed_path)
+                conn = self._connect()
+                try:
+                    existing = {provider.provider_id for provider in core.load_providers(conn)}
+                finally:
+                    conn.close()
+                candidates = discover_provider_candidates(seeds, existing_provider_ids=existing, timeout=12.0)
+                payload = {
+                    "schema_version": 1,
+                    "created_at": utc_now_iso(),
+                    "role": "reviewable provider/source candidates; metadata only; no API secrets collected",
+                    "candidate_count": len(candidates),
+                    "candidates": [candidate.to_dict() for candidate in candidates],
+                }
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                log_event(
+                    "provider_candidates_discovered",
+                    "Provider candidate review JSON written from Tk UI.",
+                    component="ui.provider_discovery",
+                    context={
+                        "candidate_count": len(candidates),
+                        "output_path": str(output_path),
+                    },
+                )
+            except Exception as exc:
+                log_exception(
+                    "provider_candidate_discovery_failed",
+                    exc,
+                    component="ui.provider_discovery",
+                )
+                self.root.after(0, lambda: messagebox.showerror(self.tr("Provider 候選發現失敗", "Provider discovery failed"), str(exc)))
+                self.root.after(0, lambda: self.status_var.set(self.tr(f"Provider 候選發現失敗：{exc}", f"Provider discovery failed: {exc}")))
+                return
+
+            def finish() -> None:
+                message = self.provider_discovery_message(payload, output_path)
+                status = self.tr(
+                    f"Provider 候選發現完成：{len(candidates)} 筆",
+                    f"Provider discovery complete: {len(candidates)} candidates",
+                )
+                self.status_var.set(status)
+                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), message)
+
+            self.root.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def crawler_next_action_label(self, action: str) -> str:
         # Crawler 後端輸出的是穩定狀態碼；Tk 只負責翻成使用者能採取的下一步，不在 UI 層重寫 audit 規則。
