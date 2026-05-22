@@ -114,6 +114,28 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         self.assertTrue(any("下一步" in line and "回傳 0 筆" in line for line in lines))
         self.assertTrue(any("zero_candidates" in line for line in lines))
 
+    def test_crawler_audit_summary_lines_group_problem_sources(self) -> None:
+        # UI 先顯示後端彙總過的 audit_summary，讓人類不必從逐 source warning 反推整體狀態。
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        summary = {
+            "status": "warning",
+            "source_count": 3,
+            "candidate_count": 7,
+            "problem_source_count": 1,
+            "next_action": "inspect_source_audit_results_before_upsert_or_promotion",
+            "by_warning_code": {"zero_candidates": 1},
+            "by_next_action": {"repair_crawler_query_or_parser": 1},
+            "problem_sources": [{"source_id": "ncei", "next_action": "repair_crawler_query_or_parser"}],
+        }
+
+        lines = fake_ui.crawler_audit_summary_lines(summary)
+
+        self.assertTrue(any("整體狀態：warning" in line and "候選 7" in line for line in lines))
+        self.assertTrue(any("總體下一步" in line and "來源審核結果" in line for line in lines))
+        self.assertTrue(any("zero_candidates=1" in line for line in lines))
+        self.assertTrue(any("優先檢查來源：ncei" in line for line in lines))
+
 
 class DownloadPlanPanelUiTests(unittest.TestCase):
     def test_mvp_demo_smoke_result_message_summarizes_user_visible_closure(self) -> None:

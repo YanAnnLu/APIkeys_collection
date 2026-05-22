@@ -3936,6 +3936,54 @@ class ApiCollectionUi:
             return self.tr("查看 crawler 審核結果。", "Review crawler audit results.")
         return labels.get(action, action)
 
+    def crawler_audit_summary_lines(self, audit_summary: object, *, limit: int = 6) -> list[str]:
+        # audit_summary 是後端提供的穩定總表；UI 只做 bounded 摘要，避免使用者只能從逐 source 明細猜整體狀態。
+        if not isinstance(audit_summary, dict):
+            return []
+        def summary_int(key: str) -> int:
+            try:
+                return int(audit_summary.get(key) or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        status = str(audit_summary.get("status") or "-")
+        source_count = summary_int("source_count")
+        candidate_count = summary_int("candidate_count")
+        problem_source_count = summary_int("problem_source_count")
+        next_action = str(audit_summary.get("next_action") or "")
+        lines = [
+            self.tr(
+                f"整體狀態：{status}；來源 {source_count}；候選 {candidate_count}；問題來源 {problem_source_count}",
+                f"Overall: {status}; sources {source_count}; candidates {candidate_count}; problem sources {problem_source_count}",
+            )
+        ]
+        if next_action:
+            lines.append(
+                self.tr(
+                    f"總體下一步：{self.crawler_next_action_label(next_action)}",
+                    f"Overall next step: {self.crawler_next_action_label(next_action)}",
+                )
+            )
+        for label, values in (
+            (self.tr("Warning 分組", "Warning groups"), audit_summary.get("by_warning_code")),
+            (self.tr("下一步分組", "Next-action groups"), audit_summary.get("by_next_action")),
+        ):
+            if not isinstance(values, dict) or not values:
+                continue
+            preview = ", ".join(f"{key}={value}" for key, value in sorted(values.items())[:3])
+            lines.append(f"{label}: {preview}")
+        problem_sources = audit_summary.get("problem_sources")
+        if isinstance(problem_sources, list) and problem_sources:
+            # 問題 source 只列前幾個 id；完整 error/warning 仍在下面的逐 source 明細與 JSON audit。
+            source_ids = [
+                str(item.get("source_id") or "-")
+                for item in problem_sources[:3]
+                if isinstance(item, dict)
+            ]
+            if source_ids:
+                lines.append(self.tr(f"優先檢查來源：{', '.join(source_ids)}", f"Review first: {', '.join(source_ids)}"))
+        return lines[:limit]
+
     def crawler_audit_issue_lines(self, source_results: object, *, limit: int = 8) -> list[str]:
         # 彈窗空間有限，所以這裡只做 bounded preview；完整 audit 仍由 CLI/JSON 與 candidate review 流程保留。
         lines: list[str] = []
@@ -4021,12 +4069,17 @@ class ApiCollectionUi:
             self.reload_data()
             self.status_var.set(message)
             if result.error_count or result.warning_count:
+                summary_lines = self.crawler_audit_summary_lines(result.audit_summary)
                 issue_lines = self.crawler_audit_issue_lines(result.source_results)
                 messagebox.showwarning(
                     self.tr("部分 crawler 需要檢查", "Some crawlers need review"),
                     message
                     + "\n\n"
                     + self.tr("來源審核摘要：", "Source audit summary:")
+                    + "\n"
+                    + "\n".join(summary_lines)
+                    + "\n\n"
+                    + self.tr("逐來源明細：", "Source details:")
                     + "\n"
                     + "\n".join(issue_lines),
                 )

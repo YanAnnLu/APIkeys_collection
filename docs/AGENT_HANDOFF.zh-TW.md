@@ -156,7 +156,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 不要在 base/system Python 裝套件；目前 macOS 主要使用 `conda run -n metal_trade_312 ...`。
 - 遇到環境差異先配置，不要假設 Windows 路徑可在 Mac 用。尤其 Mac 啟動時要依系統選路徑分隔符與平台路徑，不要讓 Windows `K:\...` 類路徑阻擋 UI。
 - 不要硬編碼代表資料集。使用者反覆強調 crawler-first：先找供應商/目錄，解析目錄，再產生候選；adapter 只處理 bounded query、auth、轉換、匯入等必要邏輯。
-- Crawler 不能只看「程式沒報錯」。如果抓到 0 筆、低於預期、全是重複、重複候選異常偏高、payload shape 不符，都要明確 warning/error；使用者特別在意這種假成功。新 crawler audit 應盡量提供 `warning_codes` 與 `next_action`，並在 discover/local-promotion JSON 頂層保留 `audit_summary`，讓 UI/agent 能先看 `by_warning_code`、`by_next_action`、`problem_sources`，再判斷要修搜尋詞、修 parser、檢查去重/id mapping，或進入候選審核。Tk `資料庫 > 發現資料集候選` 已會把常見 `next_action` 翻成繁中下一步，後續不要退回只顯示 warning 文字。
+- Crawler 不能只看「程式沒報錯」。如果抓到 0 筆、低於預期、全是重複、重複候選異常偏高、payload shape 不符，都要明確 warning/error；使用者特別在意這種假成功。新 crawler audit 應盡量提供 `warning_codes` 與 `next_action`，並在 discover/local-promotion JSON 頂層保留 `audit_summary`，讓 UI/agent 能先看 `by_warning_code`、`by_next_action`、`problem_sources`，再判斷要修搜尋詞、修 parser、檢查去重/id mapping，或進入候選審核。Tk `資料庫 > 發現資料集候選` 已會把常見 `next_action` 翻成繁中下一步，warning dialog 也會先顯示整體 audit summary 再列逐 source 明細；後續不要退回只顯示 warning 文字。
 - 未提交檔案或大改動不要擅自刪除、覆蓋、`git restore`。2026-05-17 曾發生誤還原事故，讓使用者很不安；任何看似奇怪的檔案都先備份/看 diff/產生 patch。
 - UI 預設要繁中；如果新增 UI，放到合適的選單或設定，不要到處新增零散入口。使用者覺得 Tk UI 目前只是過渡，PySide/Qt 是中期路線，MVP 前不要重寫。
 - 使用者喜歡產品概念層被記錄下來，例如 Steam-like library/install/workspace、renderer bridge、Hadoop/K8S、GIS/時間序列/多媒體資料類型。但實作時仍要先收束 MVP。
