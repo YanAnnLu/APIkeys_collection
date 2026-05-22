@@ -1126,6 +1126,17 @@ class CatalogLauncherCli:
                 "[adapter-review] "
                 f"wrote {output_path} items={summary.get('item_count', 0)} outcomes={len(by_outcome)}"
             )
+            log_event(
+                "adapter_review_json_written",
+                "Wrote adapter review JSON handoff.",
+                component="adapter_review",
+                context={
+                    "input_plan": str(resolve_project_path(self.args.adapter_review_plan)),
+                    "output_path": str(output_path),
+                    "item_count": summary.get("item_count", 0),
+                    "by_outcome": by_outcome,
+                },
+            )
         if self.args.adapter_review_json:
             print(json.dumps(review_payload, ensure_ascii=False, indent=2))
             return

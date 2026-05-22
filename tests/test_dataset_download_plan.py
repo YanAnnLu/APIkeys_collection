@@ -382,7 +382,7 @@ class DatasetDownloadPlanTests(unittest.TestCase):
             )
             output = io.StringIO()
 
-            with redirect_stdout(output):
+            with patch("api_launcher.core.log_event") as log_event_mock, redirect_stdout(output):
                 rc = main(
                     [
                         "--db",
@@ -394,6 +394,11 @@ class DatasetDownloadPlanTests(unittest.TestCase):
                     ]
                 )
             payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual("adapter_review_json_written", log_event_mock.call_args.args[0])
+            self.assertEqual(
+                {"source_resolution_required": 1},
+                log_event_mock.call_args.kwargs["context"]["by_outcome"],
+            )
 
         self.assertEqual(0, rc)
         self.assertIn("[adapter-review] wrote", output.getvalue())
