@@ -18,10 +18,11 @@
 
 ### 2026-05-22
 
-主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，同步 GTD 狀態，定義 `tem/` 本機暫存區的 Git 與交接規則，補上可重複 MVP Demo Flow，抽出下載/匯入 pipeline slice，讓 UI 共用 demo 與匯入邊界，把 yfinance 收斂成可選非官方金融資料源、離線時間序列 Demo plan 與明確 opt-in live CSV plan，將語言套件支援庫收斂成 canonical source metadata / access surface 關聯表，並把 MySQL/PostgreSQL missing table 的 dry-run SQL 修復引導接到 CLI 與 Tk UI。
+主線：完成 repo-wide 繁中維護註解工程，把註解規則落到所有 `.py` 檔，同步 GTD 狀態，定義 `tem/` 本機暫存區的 Git 與交接規則，補上可重複 MVP Demo Flow，抽出下載/匯入 pipeline slice，讓 UI 共用 demo 與匯入邊界，把 yfinance 收斂成可選非官方金融資料源、離線時間序列 Demo plan、明確 opt-in live CSV plan、保留天數與查詢視窗 metadata，將語言套件支援庫收斂成 canonical source metadata / access surface 關聯表，並把 MySQL/PostgreSQL missing table 的 dry-run SQL 修復引導接到 CLI 與 Tk UI。
 
 | 時間 | 標記 | SHA | Run | 原始標題 | 中文說明 |
 | --- | --- | --- | --- | --- | --- |
+| 09:18 | **CHECKPOINT** | `36fa6c2` | `26262760724` | Add yfinance query window presets | 替 yfinance opt-in live CSV plan 加入 chart-friendly query window presets：CLI 新增 `--yfinance-query-window`，Tk live dialog 新增「查詢視窗」下拉選單，可把 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y` 轉成 `period`/`interval`、`chart_profile` 與 `storage_hint` metadata。`period`/`interval` 手動覆寫會記為 `manual_override`；query-window 只作 chart/storage metadata，不會自動刷新、下載、匯入、排程或 crawler live call。同步 USER_GUIDE、USER_MANUAL、GTD、handoff 與 repo/local skill；本機驗證 `py_compile`、20 個 yfinance/UI 目標測試、397 個 unittest、`--summary` 與 `git diff --check`；CI Ubuntu、Windows、real DB smoke 全部成功。 |
 | 08:15 | **CHECKPOINT** | `f81847a` | `26260743271` | Add yfinance retention metadata controls | 替 yfinance opt-in live CSV plan 加入 `--yfinance-retention-days`，CLI/Tk UI 可把保留天數寫入 plan/source/dataset metadata 與 time-series contract；保留政策只作本機快取治理提示，不會自動刪檔、背景刷新、下載、匯入或 crawler live call。同步 USER_GUIDE、USER_MANUAL、GTD、handoff 與 repo/local skill；本機驗證 `py_compile`、17 個 yfinance/UI 目標測試、394 個 unittest、`--summary` 與 `git diff --check`；CI Ubuntu、Windows、real DB smoke 全部成功。 |
 | 04:53 | **CHECKPOINT** | `f31b481` | `26252519723` | Add yfinance plan actions to Tk UI | 把 yfinance 的離線 demo plan 與明確 opt-in live CSV plan 接到 Tk `工具` 選單。UI 只建立 plan 並加入下載計畫，後續仍由使用者按「開始」與「匯入」；live path 會要求 symbol/period/interval 與 unofficial personal/research 確認框，不會自動下載、背景排程、接 crawler 或在 CI 打 Yahoo。同步更新 USER_GUIDE、USER_MANUAL、GTD、handoff 與 repo/local skill；本機驗證包含 `py_compile`、16 個 yfinance/UI 針對性測試、393 個 unittest、`--summary` smoke 與 `git diff --check`，CI 的 Ubuntu、Windows 與 real DB smoke 全數成功。 |
 | 04:29 | **CHECKPOINT** | `ecfaa2b` | `26251323191` | Document data source access surfaces | 將 yfinance 延伸出的概念收斂成 `canonical source` metadata 模型：語言套件、REST、CLI、toolbox 與 database driver 不再各自變成 provider/source，而是以 `來源 / 語言或 runtime / 套件或工具名稱` 的關聯表掛到同一個背後資料庫/API。文件明確要求多語言 wrapper 取聯集合併，API key 不因公開套件而公開，adapter 的價值是把 JSON/CSV/DataFrame/SDMX/OData/paged/archive 等輸出轉成 manifest、checksum、schema/provenance、可匯入資料庫與可修復 registry record。同步更新 platform concepts、discovery notes、GTD、handoff 與 repo/local skill；本輪為文件/skill checkpoint，`git diff --check` 通過，CI 的 Ubuntu、Windows 與 real DB smoke 全數成功。 |
@@ -241,5 +242,5 @@
 ## 目前已知風險
 
 - 本機 `git log` 在 2026-05-20 附近仍會碰到缺失 object `aca3de5bb67649e291223106e927a144fe403a9a`，這與先前 handoff 記錄的雲端同步損傷吻合；本次回補改以 GitHub Actions push run list 作為時間線來源。
-- 工作區仍有未追蹤的 `APIkeys_collection (1).py`；先前確認是 `APIkeys_collection.py` 的重複副本，本輪仍未提交或刪除。
+- 先前未追蹤的 `APIkeys_collection (1).py` 重複副本已移除；目前不再列為待處理風險。
 - `docs/PROJECT_STATE.md` 是長篇歷史狀態快照；最新狀態應以本開發日誌、`PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`、`git log` 可讀範圍與 GitHub Actions 為準。
