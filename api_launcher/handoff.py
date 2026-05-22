@@ -108,6 +108,9 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- latest_download_plan_input: {snapshot.verification_summary.get('latest_download_plan_input', '') or 'none'}",
         f"- latest_download_plan_stage: {snapshot.verification_summary.get('latest_download_plan_stage', '') or 'none'}",
         f"- latest_download_plan_counts: {snapshot.verification_summary.get('latest_download_plan_counts', '') or '{}'}",
+        f"- latest_mvp_demo_smoke_event_at: {snapshot.verification_summary.get('latest_mvp_demo_smoke_event_at', '') or 'none'}",
+        f"- latest_mvp_demo_smoke_stage: {snapshot.verification_summary.get('latest_mvp_demo_smoke_stage', '') or 'none'}",
+        f"- latest_mvp_demo_smoke_result: {snapshot.verification_summary.get('latest_mvp_demo_smoke_result', '') or '{}'}",
         "",
         "## Open GTD Focus",
         "",
@@ -280,6 +283,10 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
     latest_download_plan_context = (
         latest_download_plan_event.get("context") if isinstance(latest_download_plan_event.get("context"), dict) else {}
     )
+    latest_mvp_demo_smoke_event = latest_event_by_name(events, "mvp_demo_smoke_completed")
+    latest_mvp_demo_smoke_context = (
+        latest_mvp_demo_smoke_event.get("context") if isinstance(latest_mvp_demo_smoke_event.get("context"), dict) else {}
+    )
     # Resolver 事件可能帶很多路徑與統計；handoff 只固定列出接力判斷最需要的幾個數字。
     adapter_plan_counts = {
         "direct_entries_added": latest_adapter_plan_context.get("direct_entries_added", 0),
@@ -298,6 +305,12 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
         "import_failed": latest_download_plan_context.get("import_failed", 0),
         "skip_summary": latest_download_plan_context.get("skip_summary", {}),
         "next_action": latest_download_plan_context.get("next_action", ""),
+    }
+    # MVP demo smoke 是 release/agent 最短閉環；handoff 只列最小驗收欄位，不夾帶完整 pipeline payload。
+    mvp_demo_smoke_result = {
+        "succeeded": latest_mvp_demo_smoke_context.get("succeeded", False),
+        "table_name": latest_mvp_demo_smoke_context.get("table_name", ""),
+        "row_count": latest_mvp_demo_smoke_context.get("row_count", 0),
     }
     return {
         "latest_manifest_verified_at": latest_table_timestamp(
@@ -340,6 +353,13 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
             str(latest_download_plan_context.get("stage") or "") if latest_download_plan_context else ""
         ),
         "latest_download_plan_counts": str(download_plan_counts) if latest_download_plan_context else "",
+        "latest_mvp_demo_smoke_event_at": (
+            str(latest_mvp_demo_smoke_event.get("timestamp") or "") if latest_mvp_demo_smoke_event else ""
+        ),
+        "latest_mvp_demo_smoke_stage": (
+            str(latest_mvp_demo_smoke_context.get("stage") or "") if latest_mvp_demo_smoke_context else ""
+        ),
+        "latest_mvp_demo_smoke_result": str(mvp_demo_smoke_result) if latest_mvp_demo_smoke_context else "",
     }
 
 

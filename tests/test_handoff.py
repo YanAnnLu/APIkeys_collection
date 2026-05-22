@@ -48,6 +48,8 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("latest_adapter_plan_resolved_output:", report)
         self.assertIn("latest_download_plan_event_at:", report)
         self.assertIn("latest_download_plan_stage:", report)
+        self.assertIn("latest_mvp_demo_smoke_event_at:", report)
+        self.assertIn("latest_mvp_demo_smoke_stage:", report)
         self.assertIn("Open GTD Focus", report)
         self.assertIn("open_gtd_total:", report)
         self.assertIn("Portal Intake / Local Discovery", report)
@@ -222,6 +224,35 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual("download_completed", summary["latest_download_plan_stage"])
         self.assertIn("'completed': 1", summary["latest_download_plan_counts"])
         self.assertIn("adapter_required", summary["latest_download_plan_counts"])
+
+    def test_verification_summary_reports_latest_mvp_demo_smoke(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                summary = verification_summary(
+                    repo,
+                    [
+                        {
+                            "timestamp": "2026-05-22T11:11:00+00:00",
+                            "event": "mvp_demo_smoke_completed",
+                            "context": {
+                                "stage": "download_import_completed",
+                                "succeeded": True,
+                                "table_name": "nyc_open_data_socrata_socrata_311_sample",
+                                "row_count": 3,
+                            },
+                        }
+                    ],
+                )
+            finally:
+                conn.close()
+
+        self.assertEqual("2026-05-22T11:11:00+00:00", summary["latest_mvp_demo_smoke_event_at"])
+        self.assertEqual("download_import_completed", summary["latest_mvp_demo_smoke_stage"])
+        self.assertIn("'succeeded': True", summary["latest_mvp_demo_smoke_result"])
+        self.assertIn("'row_count': 3", summary["latest_mvp_demo_smoke_result"])
 
 
 if __name__ == "__main__":
