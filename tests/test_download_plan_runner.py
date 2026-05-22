@@ -181,6 +181,36 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertIn("skip_summary adapter_required=1", output)
         self.assertIn("next_action=run_adapter_review_or_resolve_adapter_plan_before_downloading", output)
 
+    def test_cli_emits_download_plan_json_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture() as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.bin"
+            plan_path = Path(tmpdir) / "plan.json"
+            plan_path.write_text(json.dumps(sample_plan(url, output_path), ensure_ascii=False), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--run-download-plan",
+                        str(plan_path),
+                        "--run-download-plan-json",
+                        "--download-timeout",
+                        "5",
+                    ]
+                )
+            summary = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("download_completed", summary["stage"])
+        self.assertEqual(1, summary["result"]["completed"])
+        self.assertEqual({"adapter_required": 1}, summary["result"]["skip_summary"])
+        self.assertEqual("run_adapter_review_or_resolve_adapter_plan_before_downloading", summary["next_action"])
+        self.assertNotIn("[download-plan]", stdout.getvalue())
+
     def test_cli_can_import_supported_plan_results_after_download(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
             output_path = Path(tmpdir) / "downloads" / "sample.csv"

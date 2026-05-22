@@ -637,6 +637,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--verify-downloads-json", action="store_true", help="verify downloaded payloads and emit agent-readable JSON")
     parser.add_argument("--downloads-root", default="downloads", help="directory containing download sidecar manifests")
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
+    parser.add_argument("--run-download-plan-json", action="store_true", help="emit --run-download-plan result as agent-readable JSON")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
@@ -891,6 +892,21 @@ class CatalogLauncherCli:
         if self.args.manual_import_json and not (self.args.write_local_file_manifest or self.args.import_local_file):
             raise RuntimeError("--manual-import-json requires --write-local-file-manifest or --import-local-file.")
 
+    def json_stdout_mode(self) -> bool:
+        # 這些模式承諾 stdout 是機器可讀 JSON；setup 訊息仍執行，但不可混進 stdout。
+        return bool(
+            self.args.verify_downloads_json
+            or self.args.run_download_plan_json
+            or self.args.adapter_review_json
+            or self.args.resolve_adapter_plan_json
+            or self.args.manual_import_json
+            or self.args.heartbeat_plan_json
+            or self.args.library_actions_json
+            or self.args.test_data_store_json
+            or self.args.self_check_databases_json
+            or self.args.database_repair_json
+        )
+
     def apply_default_action(self) -> None:
         if command_requested(self.args):
             return
@@ -902,19 +918,22 @@ class CatalogLauncherCli:
 
     def ensure_schema(self) -> None:
         self.repository.init_schema()
-        if self.args.init_db:
+        if self.args.init_db and not self.json_stdout_mode():
             print(f"[db] initialized {self.db_path}")
 
     def seed_sources(self) -> None:
         if self.args.seed:
             self.repository.seed_builtin_providers()
-            print(f"[seed] upserted {len(PROVIDERS)} providers")
+            if not self.json_stdout_mode():
+                print(f"[seed] upserted {len(PROVIDERS)} providers")
         for registry_path in self.args.seed_json:
             count = seed_json_registry(self.conn, Path(registry_path))
-            print(f"[seed] upserted {count} providers from {registry_path}")
+            if not self.json_stdout_mode():
+                print(f"[seed] upserted {count} providers from {registry_path}")
         if self.args.seed_key_reference:
             count = self.repository.seed_key_reference_if_exists(catalog_file(KEY_REFERENCE_NAME))
-            print(f"[seed] upserted {count} credential references")
+            if not self.json_stdout_mode():
+                print(f"[seed] upserted {count} credential references")
 
     def show_lists(self) -> None:
         if self.args.list_providers:
@@ -992,6 +1011,10 @@ class CatalogLauncherCli:
                 import_existing_table_policy=self.args.plan_import_existing_table_policy,
             ),
         )
+        if self.args.run_download_plan_json:
+            # JSON mode 是 heartbeat/agent 的穩定交接格式；人類 CLI 摘要維持在預設路徑。
+            print(json.dumps(run.to_dict(), ensure_ascii=False, indent=2))
+            return
         for line in render_download_import_cli_lines(run):
             print(line)
 
