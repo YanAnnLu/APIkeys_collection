@@ -20,6 +20,7 @@ from api_launcher.adapters.yfinance import (
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
     build_yfinance_live_plan,
+    build_yfinance_storage_handoff_markdown,
     build_yfinance_storage_review,
     normalize_yfinance_query_window_preset,
     normalize_yfinance_retention_days,
@@ -27,6 +28,7 @@ from api_launcher.adapters.yfinance import (
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
     write_yfinance_live_plan,
+    write_yfinance_storage_handoff,
     write_yfinance_storage_review,
     yfinance_provider,
 )
@@ -340,6 +342,31 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS", sql_text)
         self.assertIn("LOAD DATA LOCAL INFILE", sql_text)
 
+    def test_storage_handoff_markdown_summarizes_review_without_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "live.csv"
+            plan_path = root / "live_plan.json"
+            review_path = root / "storage_review.json"
+            handoff_path = root / "storage_handoff.md"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            plan_payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                storage_target="mysql_timeseries_table",
+            )
+            plan_path.write_text(json.dumps(plan_payload, ensure_ascii=False), encoding="utf-8")
+            write_yfinance_storage_review(plan_path, review_path)
+
+            result = write_yfinance_storage_handoff(review_path, handoff_path)
+            markdown = handoff_path.read_text(encoding="utf-8")
+
+        self.assertEqual("mysql_timeseries_table", result.storage_target)
+        self.assertIn("yfinance 儲存審查交接", markdown)
+        self.assertIn("will_write_database：`False`", markdown)
+        self.assertIn("review_terms_and_license", markdown)
+        self.assertIn("DBA", markdown)
+
     def test_storage_review_target_override_can_prepare_clickhouse_sql(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / "live.csv"
@@ -359,6 +386,16 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("clickhouse_ohlcv_table", review_payload["storage_policy"]["review_target"])
         self.assertEqual(False, review_payload["execution_guard"]["will_connect_to_database"])
         self.assertIn("ENGINE = MergeTree", review_payload["dry_run_sql"])
+
+    def test_storage_handoff_rejects_non_dry_run_payload(self) -> None:
+        payload = build_yfinance_storage_review(
+            build_yfinance_live_plan(Path("live.csv"), symbols=("AAPL",)),
+            plan_path=Path("plan.json"),
+        )
+        payload["dry_run"] = False
+
+        with self.assertRaises(ValueError):
+            build_yfinance_storage_handoff_markdown(payload)
 
     def test_cli_writes_yfinance_storage_review_from_existing_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -395,6 +432,39 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertTrue(sql_exists)
         self.assertIn("[yfinance-storage-review] wrote", output.getvalue())
         self.assertEqual("mysql_timeseries_table", review_payload["target"]["key"])
+
+    def test_cli_writes_yfinance_storage_handoff_from_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "live.csv"
+            plan_path = root / "live_plan.json"
+            review_path = root / "review.json"
+            handoff_path = root / "handoff.md"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            plan_payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                storage_target="mysql_timeseries_table",
+            )
+            plan_path.write_text(json.dumps(plan_payload, ensure_ascii=False), encoding="utf-8")
+            write_yfinance_storage_review(plan_path, review_path)
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--write-yfinance-storage-handoff",
+                        str(handoff_path),
+                        "--yfinance-storage-handoff-review",
+                        str(review_path),
+                    ]
+                )
+
+            markdown = handoff_path.read_text(encoding="utf-8")
+
+        self.assertEqual(0, rc)
+        self.assertIn("[yfinance-storage-handoff] wrote", output.getvalue())
+        self.assertIn("will_write_database：`False`", markdown)
 
     def test_query_window_preset_normalization_is_bounded(self) -> None:
         self.assertEqual("intraday_5d_5m", normalize_yfinance_query_window_preset("intraday-5d-5m").key)

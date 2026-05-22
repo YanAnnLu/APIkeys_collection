@@ -78,7 +78,12 @@ py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.
 py -B APIkeys_collection.py --write-yfinance-storage-review state/yfinance_live/storage_review.json --yfinance-storage-review-plan state/yfinance_live/plan.json
 ```
 
-圖說：這一步只產生 `storage_review.json` 與必要時的 `.dry_run.sql`，用來列出目標 schema、審查動作與後續命令草稿；程式不會連線、不會建表、不會匯入，也不會把 storage target metadata 當成自動執行命令。SQLite 匯入仍走上面的 `--run-download-plan ... --import-supported-plan-results` 閉環，其他儲存目標必須等人或 DBA 審查後另行執行。
+若要把審查結果整理成人類 / DBA 可以簽核的 Markdown：
+```powershell
+py -B APIkeys_collection.py --write-yfinance-storage-handoff state/yfinance_live/storage_handoff.md --yfinance-storage-handoff-review state/yfinance_live/storage_review.json
+```
+
+圖說：這一步只產生 `storage_review.json`、必要時的 `.dry_run.sql`，以及可閱讀的 `storage_handoff.md`，用來列出目標 schema、審查動作、execution guard 與後續命令草稿；程式不會連線、不會建表、不會匯入，也不會把 storage target metadata 或 handoff 文件當成自動執行命令。SQLite 匯入仍走上面的 `--run-download-plan ... --import-supported-plan-results` 閉環，其他儲存目標必須等人或 DBA 審查後另行執行。
 
 在 Tk UI 中，對應入口在 `工具` 選單。`產生 yfinance 離線 Demo plan` 只建立本機 fixture-backed plan 並加入下載計畫；`建立 yfinance live plan（需確認）` 會要求填寫 symbol、query window、storage target、period、interval、保留天數，並勾選 unofficial/personal-research 確認框後才呼叫本機 `yfinance`。`產生 yfinance 儲存審查 dry-run` 會讀取既有 plan，寫出 review JSON 與必要時的 `.dry_run.sql`，讓使用者或 DBA 先審查 schema、命令草稿與風險。UI 仍然只把項目排進下載計畫或產生審查檔，接下來要由使用者按「開始」與「匯入」或另行人工審查，不會自動排程、背景抓取、依 query window 自動刷新、直接寫入資料庫，或依保留天數自動刪檔。
 

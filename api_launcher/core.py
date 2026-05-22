@@ -128,6 +128,7 @@ from api_launcher.adapters.yfinance import (
     YFINANCE_STORAGE_TARGET_PROFILES,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
+    write_yfinance_storage_handoff as write_yfinance_storage_handoff_files,
     write_yfinance_storage_review as write_yfinance_storage_review_files,
 )
 from api_launcher.renderer_contracts import (
@@ -658,6 +659,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="optional dry-run review target override; omitted means use the plan storage policy",
     )
     parser.add_argument("--write-yfinance-storage-review-sql", default="", help="optional companion dry-run SQL output path for --write-yfinance-storage-review")
+    parser.add_argument("--write-yfinance-storage-handoff", help="write a human/DBA Markdown handoff from a yfinance storage review JSON")
+    parser.add_argument("--yfinance-storage-handoff-review", default="", help="input yfinance storage review JSON for --write-yfinance-storage-handoff")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
@@ -796,6 +799,7 @@ class CatalogLauncherCli:
             self.write_yfinance_demo_plan()
             self.write_yfinance_live_plan()
             self.write_yfinance_storage_review()
+            self.write_yfinance_storage_handoff()
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
@@ -1036,6 +1040,28 @@ class CatalogLauncherCli:
         print(
             "[yfinance-storage-review] "
             "next=review the JSON/SQL, then run the existing download/import plan or a separately approved DBA path"
+        )
+
+    def write_yfinance_storage_handoff(self) -> None:
+        if not self.args.write_yfinance_storage_handoff:
+            return
+        if not self.args.yfinance_storage_handoff_review:
+            raise ValueError("--write-yfinance-storage-handoff requires --yfinance-storage-handoff-review.")
+        # handoff 是給人類/DBA 的簽核材料；此命令只讀 review JSON 並寫 Markdown，不提升成 SQL executor。
+        result = write_yfinance_storage_handoff_files(
+            resolve_project_path(self.args.yfinance_storage_handoff_review),
+            resolve_project_path(self.args.write_yfinance_storage_handoff),
+        )
+        print(
+            "[yfinance-storage-handoff] "
+            f"wrote {result.handoff_path} review={result.review_path} target={result.storage_target} "
+            f"actions={result.action_count} dry_run=true"
+        )
+        if result.dry_run_sql_path:
+            print(f"[yfinance-storage-handoff] sql={result.dry_run_sql_path}")
+        print(
+            "[yfinance-storage-handoff] "
+            "next=human/DBA review only; no database connection or mutation was performed"
         )
 
     def show_adapter_review_plan(self) -> None:

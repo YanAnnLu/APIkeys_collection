@@ -81,6 +81,15 @@ class YFinanceStorageReviewResult:
 
 
 @dataclass(frozen=True)
+class YFinanceStorageHandoffResult:
+    handoff_path: Path
+    review_path: Path
+    storage_target: str
+    dry_run_sql_path: Path | None
+    action_count: int
+
+
+@dataclass(frozen=True)
 class YFinanceQueryWindowPreset:
     key: str
     label: str
@@ -562,6 +571,91 @@ def write_yfinance_storage_review(
         dry_run_sql_path=sql_output,
         action_count=len(review.get("review_actions", [])),
     )
+
+
+def write_yfinance_storage_handoff(review_path: str | Path, handoff_path: str | Path) -> YFinanceStorageHandoffResult:
+    source_review = Path(review_path)
+    output_path = Path(handoff_path)
+    review = json.loads(source_review.read_text(encoding="utf-8"))
+    markdown = build_yfinance_storage_handoff_markdown(review, review_path=source_review)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(markdown, encoding="utf-8", newline="\n")
+    target = review.get("target") if isinstance(review.get("target"), dict) else {}
+    dry_run_sql = str(review.get("dry_run_sql_path") or "").strip()
+    return YFinanceStorageHandoffResult(
+        handoff_path=output_path,
+        review_path=source_review,
+        storage_target=str(target.get("key") or ""),
+        dry_run_sql_path=Path(dry_run_sql) if dry_run_sql else None,
+        action_count=len(review.get("review_actions", [])) if isinstance(review.get("review_actions"), list) else 0,
+    )
+
+
+def build_yfinance_storage_handoff_markdown(review_payload: dict[str, object], *, review_path: str | Path | None = None) -> str:
+    # handoff Markdown 是給人類/DBA 審查的包裝層；它只重述 guard 與待審項，不產生任何可自動執行的批准動作。
+    if review_payload.get("kind") != "yfinance_storage_review":
+        raise ValueError("YFinance storage handoff expects a yfinance_storage_review JSON payload.")
+    if review_payload.get("dry_run") is not True:
+        raise ValueError("YFinance storage handoff only accepts dry-run review payloads.")
+    target = review_payload.get("target") if isinstance(review_payload.get("target"), dict) else {}
+    source = review_payload.get("source") if isinstance(review_payload.get("source"), dict) else {}
+    table = review_payload.get("table") if isinstance(review_payload.get("table"), dict) else {}
+    guard = review_payload.get("execution_guard") if isinstance(review_payload.get("execution_guard"), dict) else {}
+    actions = review_payload.get("review_actions") if isinstance(review_payload.get("review_actions"), list) else []
+    dry_run_sql_path = str(review_payload.get("dry_run_sql_path") or "").strip()
+    symbols = source.get("symbols") if isinstance(source.get("symbols"), list) else []
+    symbols_text = ", ".join(str(symbol) for symbol in symbols if symbol)
+    lines = [
+        "# yfinance 儲存審查交接",
+        "",
+        "> 這份文件是人工 / DBA 審查用 handoff。launcher 產生它時不會連線、不會建表、不會匯入，也不代表已經批准執行。",
+        "",
+        "## 審查摘要",
+        "",
+        f"- Review JSON：`{review_path or review_payload.get('review_path') or ''}`",
+        f"- 目標：`{target.get('key') or ''}` / {target.get('label') or ''}",
+        f"- Engine：`{target.get('engine') or ''}`",
+        f"- 表格：`{table.get('name') or ''}`",
+        f"- CSV 來源：`{source.get('csv_uri') or ''}`",
+        f"- Symbols：`{symbols_text}`",
+        f"- 查詢視窗：period=`{source.get('period') or ''}` interval=`{source.get('interval') or ''}`",
+        f"- Dry-run SQL：`{dry_run_sql_path or '無，請看 next_command 或 SQLite import path'}`",
+        "",
+        "## 執行 guard",
+        "",
+        f"- will_connect_to_database：`{bool(guard.get('will_connect_to_database'))}`",
+        f"- will_write_database：`{bool(guard.get('will_write_database'))}`",
+        f"- will_create_table：`{bool(guard.get('will_create_table'))}`",
+        f"- will_import_rows：`{bool(guard.get('will_import_rows'))}`",
+        f"- requires_user_review：`{bool(guard.get('requires_user_review'))}`",
+        f"- requires_separate_execution：`{bool(guard.get('requires_separate_execution'))}`",
+        "",
+        "## 審查清單",
+        "",
+    ]
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        lines.append(
+            "- [ ] "
+            f"{action.get('action') or 'review'} "
+            f"({action.get('status') or 'required'})：{action.get('notes') or ''}"
+        )
+    lines.extend(
+        [
+            "",
+            "## 下一步邊界",
+            "",
+            "- 若目標是 SQLite，仍走既有 `--run-download-plan ... --import-supported-plan-results` 路徑。",
+            "- 若目標是 MySQL、TimescaleDB/PostgreSQL、ClickHouse 或 Parquet/DuckDB，必須先完成條款、schema、rollback、credential 與 ownership 審查。",
+            "- 任何真正連線、建表、匯入或排程都應該是另一個明確 opt-in 的執行命令，不應由這份 handoff 自動觸發。",
+            "",
+        ]
+    )
+    next_command = review_payload.get("next_command")
+    if next_command:
+        lines.extend(["## 參考 next_command", "", "```text", json.dumps(next_command, ensure_ascii=False, indent=2), "```", ""])
+    return "\n".join(lines)
 
 
 def build_yfinance_storage_review(
