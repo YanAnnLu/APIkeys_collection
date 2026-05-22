@@ -34,7 +34,7 @@ Classify the request before editing:
    `seed -> crawler -> candidate -> plan -> download -> import -> UI`.
 7. Keep destructive operations disabled unless an adapter can prove ownership by `install_id` and asset registry metadata.
 8. For medium/risky work across modules, write or update an OpenSpec change first. Small fixes can stay lightweight, but must update GTD/handoff/docs when behavior changes.
-   Spectra/OpenSpec automation may be used proactively for administrative task movement, commit-message drafting, spec cleanup, and GTD/handoff synchronization under delegated authority. This is not a separate human-review gate; substantive checkpoints still need test/CI evidence for traceability.
+   Spectra/OpenSpec automation may be used proactively for administrative task movement, commit-message drafting, spec cleanup, and GTD/handoff synchronization under delegated authority. Treat these steps as agent-executable workflow work; substantive checkpoints still need test/CI evidence so future agents can trace what changed and why.
 9. Run tests before commit. On macOS use the project env; on Windows avoid CloudMounter pycache issues with `-B` or `PYTHONDONTWRITEBYTECODE=1`:
 
 ```bash

@@ -74,7 +74,7 @@ open "$HOME/Applications/Spectra.app"
 npx -y @fission-ai/openspec@latest validate --all --no-interactive
 ```
 
-若未來使用 `/spectra-apply`、`/spectra-commit` 或類似自動化來整理 commit message、搬運 tasks、同步 GTD / handoff，Agent 可以在使用者授權範圍內主動使用它們代辦行政文書、規格套用與 checkpoint 整理。這不是額外的人工作意圖審查卡點；自動化的目標是減少細顆粒 checkpoint 的文書成本。每個實質 commit 仍要留下清楚意圖、可回溯測試與 CI 結果，作為接力與問題回溯的證據；log-only commit 仍不新增開發日誌列，避免形成「更新日誌 -> commit -> 再更新日誌」的遞迴。
+若未來使用 `/spectra-apply`、`/spectra-commit` 或類似自動化來整理 commit message、搬運 tasks、同步 GTD / handoff，Agent 可以在使用者授權範圍內主動使用它們代辦行政文書、規格套用與 checkpoint 整理。這些工作視為 Agent 可直接執行的流程工作；自動化的目標是減少細顆粒 checkpoint 的文書成本。每個實質 commit 仍要留下清楚意圖、可回溯測試與 CI 結果，作為接力與問題回溯的證據；log-only commit 仍不新增開發日誌列，避免形成「更新日誌 -> commit -> 再更新日誌」的遞迴。
 
 ## 本地預檢與 pre-push hook
 
