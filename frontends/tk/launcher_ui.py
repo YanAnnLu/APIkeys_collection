@@ -1006,6 +1006,7 @@ class ApiCollectionUi:
         library_menu.add_command(label=self.tr("加入選取資料源到下載計畫", "Add selected to download plan"), command=self.select_active_provider)
         library_menu.add_command(label=self.tr("抓取選取資料源 metadata", "Fetch selected metadata"), command=self.crawl_selected)
         library_menu.add_command(label=self.tr("發現 provider 候選", "Discover provider candidates"), command=self.discover_provider_candidates_from_ui)
+        library_menu.add_command(label=self.tr("審核 provider 候選", "Review provider candidates"), command=self.open_provider_candidate_review_panel)
         library_menu.add_command(label=self.tr("發現資料集候選", "Discover dataset candidates"), command=self.discover_dataset_candidates_from_ui)
         library_menu.add_command(label=self.tr("審核本機 discovery 草稿", "Audit local discovery drafts"), command=self.audit_local_discovery_from_ui)
         library_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
@@ -3889,6 +3890,139 @@ class ApiCollectionUi:
         status_box.bind("<<ComboboxSelected>>", lambda _event: load_candidates())
         candidate_tree.bind("<<TreeviewSelect>>", lambda _event: render_candidate_detail(selected_candidate()))
         load_candidates()
+
+    def provider_candidate_detail_text(self, candidate: object) -> str:
+        # Provider 候選是 review artifact；detail pane 顯示足夠 evidence，讓人先審核再決定是否進 local config。
+        data = candidate if isinstance(candidate, dict) else {}
+        fields = [
+            (self.tr("Provider ID", "Provider ID"), data.get("provider_id")),
+            (self.tr("名稱", "Name"), data.get("name")),
+            (self.tr("Owner", "Owner"), data.get("owner")),
+            (self.tr("分類", "Categories"), ", ".join(str(value) for value in data.get("categories", []) or [])),
+            (self.tr("地理範圍", "Geographic scope"), data.get("geographic_scope")),
+            (self.tr("信心分數", "Confidence"), data.get("confidence")),
+            (self.tr("來源 URL", "Source URL"), data.get("source_url")),
+            (self.tr("文件 URL", "Docs URL"), data.get("docs_url")),
+            (self.tr("API Base URL", "API Base URL"), data.get("api_base_url")),
+            (self.tr("註冊 URL", "Signup URL"), data.get("signup_url")),
+            (self.tr("Auth type", "Auth type"), data.get("auth_type")),
+            (self.tr("Key env var", "Key env var"), data.get("key_env_var")),
+            (self.tr("備註", "Notes"), data.get("notes")),
+        ]
+        lines = [f"{label}: {value or '-'}" for label, value in fields]
+        evidence = data.get("evidence")
+        if isinstance(evidence, (list, tuple)) and evidence:
+            lines.extend(["", self.tr("Evidence:", "Evidence:")])
+            lines.extend(f"- {item}" for item in evidence[:8])
+        lines.extend(
+            [
+                "",
+                self.tr(
+                    "這只是 provider/source 候選審核資訊；不代表已納管、已安裝或已取得任何 API key。",
+                    "This is provider/source candidate review information only; it does not mean the provider is managed, installed, or authenticated.",
+                ),
+            ]
+        )
+        return "\n".join(lines)
+
+    def open_provider_candidate_review_panel(self) -> None:
+        path = state_file("provider_candidates.ui.json")
+        if not path.exists():
+            messagebox.showinfo(
+                self.tr("Provider 候選", "Provider candidates"),
+                self.tr("尚未產生 provider candidate review JSON。請先執行「發現 provider 候選」。", "No provider candidate review JSON exists yet. Run \"Discover provider candidates\" first."),
+            )
+            return
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            messagebox.showerror(self.tr("Provider 候選", "Provider candidates"), self.tr(f"無法讀取 provider 候選 JSON：{exc}", f"Could not read provider candidate JSON: {exc}"))
+            return
+        candidates = [item for item in payload.get("candidates", []) if isinstance(item, dict)] if isinstance(payload, dict) else []
+
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("Provider 候選審核", "Provider candidate review"))
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("1100x660")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=self.tr("Provider 候選審核", "Provider candidate review"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                f"來源：{path}；候選 {len(candidates)} 筆。此面板只做 review，不寫正式 catalog。",
+                f"Source: {path}; {len(candidates)} candidates. This panel is review-only and does not write the official catalog.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+
+        body = ttk.Frame(dialog, style="Panel.TFrame")
+        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        tree = ttk.Treeview(body, columns=("provider_id", "name", "confidence", "auth_type", "docs_url"), show="headings", height=12)
+        for name, label, width in [
+            ("provider_id", self.tr("Provider ID", "Provider ID"), 190),
+            ("name", self.tr("名稱", "Name"), 250),
+            ("confidence", self.tr("信心", "Confidence"), 80),
+            ("auth_type", self.tr("Auth", "Auth"), 120),
+            ("docs_url", self.tr("文件", "Docs"), 360),
+        ]:
+            tree.heading(name, text=label)
+            tree.column(name, width=width, anchor="w", stretch=True)
+        detail = Text(body, height=12, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        detail.configure(state="disabled")
+        tree.pack(fill=BOTH, expand=True, side=LEFT, padx=(0, 12))
+        detail.pack(fill=BOTH, expand=True, side=LEFT)
+
+        candidate_by_iid: dict[str, dict[str, object]] = {}
+        for index, candidate in enumerate(candidates):
+            iid = str(index)
+            candidate_by_iid[iid] = candidate
+            tree.insert(
+                "",
+                END,
+                iid=iid,
+                values=(
+                    candidate.get("provider_id", ""),
+                    candidate.get("name", ""),
+                    candidate.get("confidence", ""),
+                    candidate.get("auth_type", ""),
+                    candidate.get("docs_url", ""),
+                ),
+            )
+
+        def selected_candidate() -> dict[str, object] | None:
+            selection = tree.selection()
+            return candidate_by_iid.get(str(selection[0])) if selection else None
+
+        def render_selected(_event: object | None = None) -> None:
+            candidate = selected_candidate()
+            detail.configure(state="normal")
+            detail.delete("1.0", END)
+            detail.insert(END, self.provider_candidate_detail_text(candidate or {}))
+            detail.configure(state="disabled")
+
+        def open_selected_url(key: str) -> None:
+            candidate = selected_candidate()
+            url = str((candidate or {}).get(key) or "").strip()
+            if not url:
+                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("這個候選沒有可開啟的 URL。", "This candidate does not have an openable URL."), parent=dialog)
+                return
+            webbrowser.open(url)
+
+        tree.bind("<<TreeviewSelect>>", render_selected)
+        children = tree.get_children()
+        if children:
+            tree.selection_set(children[0])
+            tree.focus(children[0])
+            render_selected()
+        else:
+            render_selected()
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.tr("開來源", "Open source"), style="Action.TButton", command=lambda: open_selected_url("source_url")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開文件", "Open docs"), style="Action.TButton", command=lambda: open_selected_url("docs_url")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("開 Review JSON", "Open review JSON"), style="Action.TButton", command=lambda: webbrowser.open(path.as_uri())).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def provider_discovery_message(self, payload: object, output_path: Path) -> str:
         # Provider discovery 是 catalog 入口審查，不是安裝或納管；訊息必須把 review JSON 路徑講清楚。

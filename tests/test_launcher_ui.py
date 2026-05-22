@@ -105,6 +105,26 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         self.assertIn("example_provider: confidence=0.8", message)
         self.assertIn("state\\provider_candidates.ui.json", message.replace("/", "\\"))
 
+    def test_provider_candidate_detail_text_keeps_review_only_warning(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        candidate = {
+            "provider_id": "example_provider",
+            "name": "Example Provider",
+            "categories": ["science", "metadata"],
+            "confidence": 0.85,
+            "source_url": "https://example.test/source",
+            "docs_url": "https://example.test/docs",
+            "evidence": ["crawled: https://example.test/source"],
+        }
+
+        detail = fake_ui.provider_candidate_detail_text(candidate)
+
+        self.assertIn("Provider ID: example_provider", detail)
+        self.assertIn("分類: science, metadata", detail)
+        self.assertIn("Evidence:", detail)
+        self.assertIn("不代表已納管", detail)
+
     def test_crawler_next_action_label_guides_zero_candidate_repair(self) -> None:
         # Tk 不解析 warning 文字；它只把 crawler 後端的 next_action 狀態碼翻成可操作的繁中提示。
         fake_ui = object.__new__(ApiCollectionUi)
