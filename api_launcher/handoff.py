@@ -168,6 +168,7 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
             "```powershell",
             "git status --short --branch",
             "$env:PYTHONDONTWRITEBYTECODE='1'; py -m unittest discover -s tests",
+            "py APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --run-mvp-demo-smoke-json state/mvp_demo/flow.json",
             "py APIkeys_collection.py --verify-downloads --manifest-health",
             "py APIkeys_collection.py --verify-downloads-json",
             "docker compose -f docker-compose.yml run --rm --build launcher",

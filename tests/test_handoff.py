@@ -56,6 +56,7 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("portal_intake_actionable:", report)
         self.assertIn("local_dataset_sources:", report)
         self.assertIn("py -m unittest discover -s tests", report)
+        self.assertIn("--run-mvp-demo-smoke-json", report)
 
     def test_handoff_snapshot_json_payload_is_serializable(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
