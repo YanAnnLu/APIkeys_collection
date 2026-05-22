@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -137,6 +138,73 @@ class ManualImportTests(unittest.TestCase):
         self.assertEqual("ok", verification.status)
         self.assertIn("[local-manifest] wrote", stdout.getvalue())
         self.assertIn("--import-json-manifest", stdout.getvalue())
+
+    def test_cli_writes_local_manifest_json_payload_for_agents(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_path = Path(tmpdir) / "records.json"
+            json_path.write_text('[{"id": 1, "name": "alpha"}]\n', encoding="utf-8")
+            manifest_path = Path(tmpdir) / "records.manifest.json"
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--write-local-file-manifest",
+                        str(manifest_path),
+                        "--local-file",
+                        str(json_path),
+                        "--manual-import-json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("write_local_file_manifest", payload["action"])
+        self.assertEqual("ok", payload["status"])
+        self.assertTrue(payload["raw_asset_registered"])
+        self.assertEqual("json", payload["manifest"]["source_format"])
+        self.assertEqual("import_json_manifest", payload["next_action"]["kind"])
+        self.assertIn("--import-json-manifest", payload["next_action"]["command"])
+
+    def test_cli_imports_local_csv_json_payload_for_agents(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "weather.csv"
+            csv_path.write_text("station,temp\nTPE,28\nKHH,30\n", encoding="utf-8")
+            launcher_db = Path(tmpdir) / "launcher.sqlite"
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            manifest_dir = Path(tmpdir) / "manual_manifests"
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(launcher_db),
+                        "--import-local-file",
+                        str(csv_path),
+                        "--local-file-manifest-dir",
+                        str(manifest_dir),
+                        "--import-sqlite-db",
+                        str(curated_db),
+                        "--import-table",
+                        "weather_manual",
+                        "--manual-import-json",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("import_local_file", payload["action"])
+        self.assertEqual("ok", payload["status"])
+        self.assertTrue(payload["raw_asset_registered"])
+        self.assertEqual("csv", payload["manifest"]["source_format"])
+        self.assertEqual("weather_manual", payload["import"]["table_name"])
+        self.assertEqual(2, payload["import"]["rows_imported"])
+        self.assertEqual("database_self_check", payload["next_action"]["kind"])
 
 
 if __name__ == "__main__":

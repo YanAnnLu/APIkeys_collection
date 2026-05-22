@@ -40,6 +40,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.import_verified_json_manifests,
         bool(args.write_local_file_manifest),
         bool(args.import_local_file),
+        args.manual_import_json,
         args.manifest_health,
         args.list_manifests,
         args.show_logs > 0,

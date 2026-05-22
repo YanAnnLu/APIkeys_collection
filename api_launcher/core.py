@@ -694,6 +694,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--local-file-dataset-uid", default="", help="dataset_uid recorded in generated local-file manifests; defaults to provider:dataset")
     parser.add_argument("--local-file-version", default=DEFAULT_MANUAL_LOCAL_VERSION, help="version recorded in generated local-file manifests")
     parser.add_argument("--local-file-source-url", default="", help="optional original source URL for local-file provenance; defaults to file:// URI")
+    parser.add_argument("--manual-import-json", action="store_true", help="emit local-file manifest/import results as agent-readable JSON")
     parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for manifest imports")
     parser.add_argument("--import-table", default="", help="target table name for single-manifest import; defaults to dataset/version")
     parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV/JSON/GeoJSON; 0 means all rows")
@@ -820,6 +821,7 @@ class CatalogLauncherCli:
 
     def run(self) -> int:
         try:
+            self.validate_cli_combinations()
             self.apply_default_action()
             self.ensure_schema()
             self.seed_sources()
@@ -881,6 +883,11 @@ class CatalogLauncherCli:
             raise
         finally:
             self.conn.close()
+
+    def validate_cli_combinations(self) -> None:
+        # JSON 輸出是手動匯入流程的附加格式；單獨使用會讓 agent 收不到任何可解析結果。
+        if self.args.manual_import_json and not (self.args.write_local_file_manifest or self.args.import_local_file):
+            raise RuntimeError("--manual-import-json requires --write-local-file-manifest or --import-local-file.")
 
     def apply_default_action(self) -> None:
         if command_requested(self.args):
@@ -1161,7 +1168,10 @@ class CatalogLauncherCli:
             source_url=self.args.local_file_source_url,
         )
         self.ensure_local_file_manifest_provider(result.provider_id)
-        self.register_local_file_manifest(result.manifest_path)
+        raw_asset_id = self.register_local_file_manifest(result.manifest_path)
+        if self.args.manual_import_json:
+            print(json.dumps(self.local_file_manifest_payload(result, raw_asset_id), ensure_ascii=False, indent=2))
+            return
         print(
             "[local-manifest] "
             f"wrote {result.manifest_path} file={result.payload_path} "
@@ -1187,7 +1197,7 @@ class CatalogLauncherCli:
             source_url=self.args.local_file_source_url,
         )
         self.ensure_local_file_manifest_provider(result.provider_id)
-        self.register_local_file_manifest(result.manifest_path)
+        raw_asset_id = self.register_local_file_manifest(result.manifest_path)
         # 手動匯入仍走既有 CSV/JSON importer，確保 checksum、schema fingerprint、registry asset 邊界一致。
         if result.import_kind == "csv":
             import_result = import_csv_manifest_to_sqlite(
@@ -1209,6 +1219,15 @@ class CatalogLauncherCli:
             )
         else:
             raise ValueError(f"Unsupported local-file import kind for {result.source_format}: {result.payload_path}")
+        if self.args.manual_import_json:
+            print(
+                json.dumps(
+                    self.local_file_import_payload(result, raw_asset_id, import_result.to_dict()),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return
         print(
             "[local-import] "
             f"manifest={result.manifest_path} provider={import_result.provider_id} "
@@ -1217,9 +1236,44 @@ class CatalogLauncherCli:
             f"asset={import_result.table_asset_id}"
         )
 
-    def register_local_file_manifest(self, manifest_path: str | Path) -> None:
+    def register_local_file_manifest(self, manifest_path: str | Path) -> str:
         # 手動檔案不是下載結果，但仍要登錄 raw file manifest，後續 manifest-health / repair / asset registry 才看得到它。
-        register_local_file_manifest_asset(self.repository, manifest_path)
+        return register_local_file_manifest_asset(self.repository, manifest_path)
+
+    def local_file_manifest_payload(self, result, raw_asset_id: str) -> dict[str, object]:
+        # 給 heartbeat/外部 agent 使用的穩定摘要：同時指出 raw file 已登記與下一個可執行匯入動作。
+        return {
+            "action": "write_local_file_manifest",
+            "status": "ok",
+            "manifest": result.as_dict(),
+            "raw_asset_id": raw_asset_id,
+            "raw_asset_registered": True,
+            "next_action": {
+                "kind": f"import_{result.import_kind}_manifest" if result.import_kind else "manual_review",
+                "command": result.next_command,
+                "sqlite_db": str(resolve_project_path(self.args.import_sqlite_db)),
+            },
+        }
+
+    def local_file_import_payload(
+        self,
+        result,
+        raw_asset_id: str,
+        import_result: dict[str, object],
+    ) -> dict[str, object]:
+        # 匯入完成 payload 把 raw manifest 與 curated table 連在一起，方便後續 agent 接 database self-check。
+        return {
+            "action": "import_local_file",
+            "status": "ok",
+            "manifest": result.as_dict(),
+            "raw_asset_id": raw_asset_id,
+            "raw_asset_registered": True,
+            "import": import_result,
+            "next_action": {
+                "kind": "database_self_check",
+                "command": "--self-check-databases --self-check-databases-json",
+            },
+        }
 
     def ensure_local_file_manifest_provider(self, provider_id: str) -> None:
         # 預設 synthetic provider 可自動建立；若使用者指定真實 provider，則要求 DB 內已有該 provider 以保護 provenance。

@@ -229,6 +229,7 @@ python -m unittest discover -s tests
 | 下載後匯入支援格式 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite` |
 | 為本機 CSV/JSON 檔建立 sidecar manifest | `python3 APIkeys_collection.py --write-local-file-manifest state/manual_imports/weather.csv.manifest.json --local-file C:\data\weather.csv` |
 | 直接匯入本機 CSV/JSON 檔 | `python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-sqlite-db state/curated_imports.sqlite --import-table weather_manual` |
+| 讓 agent 讀取手動匯入結果 | `python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-sqlite-db state/curated_imports.sqlite --import-table weather_manual --manual-import-json` |
 | 匯入單一 CSV manifest | `python3 APIkeys_collection.py --import-csv-manifest downloads/sample.csv.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
 | 匯入單一 JSON / JSONL / GeoJSON manifest | `python3 APIkeys_collection.py --import-json-manifest downloads/sample.json.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
 | 批次匯入健康 CSV manifests | `python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite` |
@@ -239,6 +240,8 @@ python -m unittest discover -s tests
 `--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。
 
 `--write-local-file-manifest` 是給使用者自備本機檔案的入口。它只接受目前匯入器能處理的 CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON 類檔案，寫出 sidecar manifest、記錄 `file://` provenance、checksum 與來源格式，並把 raw file 記到 `manual_local_files` 這個本機 synthetic provider 底下。`--import-local-file` 會先做同一件 manifest 工作，再呼叫既有 CSV/JSON manifest importer 匯入 SQLite。它不會掃整個資料夾、不會刪除來源檔、不會背景重新下載，也不會覆蓋既有 table，除非你另外明確傳入 `--import-replace-table`。
+
+`--manual-import-json` 可以加在 `--write-local-file-manifest` 或 `--import-local-file` 後面，讓輸出變成單一 JSON payload。這個 payload 會列出 manifest、raw asset id、匯入 table、列數、欄位、schema fingerprint 與下一步建議，適合 heartbeat、自動化 agent 或外部工具接續 `--self-check-databases --self-check-databases-json`。不要單獨使用 `--manual-import-json`，因為它只是手動匯入流程的輸出格式。
 
 Tk UI 也有同一條單檔入口：`資料庫 > 匯入本機 CSV/JSON 檔`，或上方 `更多 > 匯入本機 CSV/JSON 檔`。UI 會要求你選一個本機檔，並可輸入目標 table 名稱；若同名 table 已存在，會自動改成下一個可用名稱，例如 `weather_2`，不會直接覆蓋。
 
