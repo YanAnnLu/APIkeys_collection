@@ -14,6 +14,7 @@ from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.manual_import import (
     DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
     default_local_file_manifest_path,
+    local_file_provenance_review,
     write_local_file_manifest,
 )
 from api_launcher.manifests import read_manifest
@@ -37,6 +38,9 @@ class ManualImportTests(unittest.TestCase):
         self.assertTrue(manifest.source_url.startswith("file:"))
         self.assertEqual("csv", manifest.metadata["source_format"])
         self.assertEqual(True, manifest.metadata["manual_import"])
+        self.assertEqual("使用者自備本機檔案", manifest.metadata["provenance_review"]["source_label_zh_TW"])
+        self.assertIn("不把 file:// 視為可重新下載的網路來源", manifest.metadata["provenance_review"]["blocked_operations_zh_TW"])
+        self.assertEqual("CSV 表格檔", result.provenance_review["format_label_zh_TW"])
         self.assertIn("--import-csv-manifest", result.next_command)
 
     def test_rejects_unsupported_manual_file_format(self) -> None:
@@ -58,6 +62,14 @@ class ManualImportTests(unittest.TestCase):
         )
 
         self.assertEqual(Path("state/manual_imports/manual_local_files/weather_2026/draft_1/Weather 2026.json.gz.manifest.json"), path)
+
+    def test_local_file_provenance_review_labels_supported_formats(self) -> None:
+        review = local_file_provenance_review("geojson.gz", "json")
+
+        self.assertEqual("壓縮 GeoJSON FeatureCollection", review["format_label_zh_TW"])
+        self.assertEqual("JSON/JSONL/GeoJSON manifest importer", review["importer_label"])
+        self.assertEqual("local_review_required", review["risk_level"])
+        self.assertIn("不推定授權可再散布或可商用", review["blocked_operations_zh_TW"])
 
     def test_cli_imports_local_csv_and_registers_manual_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -166,6 +178,7 @@ class ManualImportTests(unittest.TestCase):
         self.assertEqual("ok", payload["status"])
         self.assertTrue(payload["raw_asset_registered"])
         self.assertEqual("json", payload["manifest"]["source_format"])
+        self.assertEqual("JSON 記錄檔", payload["manifest"]["provenance_review"]["format_label_zh_TW"])
         self.assertEqual("import_json_manifest", payload["next_action"]["kind"])
         self.assertIn("--import-json-manifest", payload["next_action"]["command"])
 
@@ -202,6 +215,7 @@ class ManualImportTests(unittest.TestCase):
         self.assertEqual("ok", payload["status"])
         self.assertTrue(payload["raw_asset_registered"])
         self.assertEqual("csv", payload["manifest"]["source_format"])
+        self.assertEqual("CSV 表格檔", payload["manifest"]["provenance_review"]["format_label_zh_TW"])
         self.assertEqual("weather_manual", payload["import"]["table_name"])
         self.assertEqual(2, payload["import"]["rows_imported"])
         self.assertEqual("database_self_check", payload["next_action"]["kind"])

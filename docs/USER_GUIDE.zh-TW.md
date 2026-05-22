@@ -241,7 +241,9 @@ python -m unittest discover -s tests
 
 `--write-local-file-manifest` 是給使用者自備本機檔案的入口。它只接受目前匯入器能處理的 CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON 類檔案，寫出 sidecar manifest、記錄 `file://` provenance、checksum 與來源格式，並把 raw file 記到 `manual_local_files` 這個本機 synthetic provider 底下。`--import-local-file` 會先做同一件 manifest 工作，再呼叫既有 CSV/JSON manifest importer 匯入 SQLite。它不會掃整個資料夾、不會刪除來源檔、不會背景重新下載，也不會覆蓋既有 table，除非你另外明確傳入 `--import-replace-table`。
 
-`--manual-import-json` 可以加在 `--write-local-file-manifest` 或 `--import-local-file` 後面，讓輸出變成單一 JSON payload。這個 payload 會列出 manifest、raw asset id、匯入 table、列數、欄位、schema fingerprint 與下一步建議，適合 heartbeat、自動化 agent 或外部工具接續 `--self-check-databases --self-check-databases-json`。不要單獨使用 `--manual-import-json`，因為它只是手動匯入流程的輸出格式。
+`--manual-import-json` 可以加在 `--write-local-file-manifest` 或 `--import-local-file` 後面，讓輸出變成單一 JSON payload。這個 payload 會列出 manifest、raw asset id、匯入 table、列數、欄位、schema fingerprint、provenance review 與下一步建議，適合 heartbeat、自動化 agent 或外部工具接續 `--self-check-databases --self-check-databases-json`。不要單獨使用 `--manual-import-json`，因為它只是手動匯入流程的輸出格式。
+
+手動匯入 manifest 的 `metadata.provenance_review` 會用中文固定說明：這是「使用者自備本機檔案」、Launcher 可安全做 checksum、raw asset 登記與 SQLite 匯入，但不會掃描整個資料夾、不會移動或刪除來源檔、不會把 `file://` 當成可重新下載來源，也不推定檔案授權可再散布或商用。這段文字是給初學使用者、團隊協作者與 agent 判斷風險用的審查摘要，不會改變匯入資料本身。
 
 Tk UI 也有同一條單檔入口：`資料庫 > 匯入本機 CSV/JSON 檔`，或上方 `更多 > 匯入本機 CSV/JSON 檔`。UI 會要求你選一個本機檔，並可輸入目標 table 名稱；若同名 table 已存在，會自動改成下一個可用名稱，例如 `weather_2`，不會直接覆蓋。
 

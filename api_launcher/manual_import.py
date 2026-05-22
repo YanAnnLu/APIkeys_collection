@@ -30,6 +30,7 @@ class LocalFileManifestResult:
     version: str
     source_format: str
     import_kind: str
+    provenance_review: dict[str, object]
     next_command: str
 
     def as_dict(self) -> dict[str, object]:
@@ -42,6 +43,7 @@ class LocalFileManifestResult:
             "version": self.version,
             "source_format": self.source_format,
             "import_kind": self.import_kind,
+            "provenance_review": self.provenance_review,
             "next_command": self.next_command,
         }
 
@@ -113,6 +115,8 @@ def write_local_file_manifest(
     clean_version = _slug(version, fallback=DEFAULT_MANUAL_LOCAL_VERSION)
     clean_dataset_uid = dataset_uid.strip() or f"{clean_provider_id}:{clean_dataset_id}"
     resolved_payload = payload_path.resolve(strict=True)
+    import_kind = local_file_import_kind(source_format)
+    provenance_review = local_file_provenance_review(source_format, import_kind)
     manifest_file = Path(manifest_path) if manifest_path else default_local_file_manifest_path(
         resolved_payload,
         manifest_dir=manifest_dir,
@@ -134,11 +138,11 @@ def write_local_file_manifest(
             "manual_source": "local_file",
             "source_format": source_format,
             "original_path": str(payload_path),
+            "provenance_review": provenance_review,
             "notes_zh_TW": "使用者自備本機檔案；manifest 只記錄 checksum/provenance，不代表可重新從網路下載。",
         },
     )
     write_manifest(manifest, manifest_file)
-    import_kind = local_file_import_kind(source_format)
     return LocalFileManifestResult(
         manifest_path=manifest_file,
         payload_path=resolved_payload,
@@ -148,6 +152,7 @@ def write_local_file_manifest(
         version=manifest.version,
         source_format=source_format,
         import_kind=import_kind,
+        provenance_review=provenance_review,
         next_command=local_file_next_import_command(manifest_file, import_kind),
     )
 
@@ -184,6 +189,50 @@ def local_file_next_import_command(manifest_path: str | Path, import_kind: str) 
     if import_kind == "json":
         return f"--import-json-manifest {path_arg}"
     return ""
+
+
+def local_file_provenance_review(source_format: str, import_kind: str) -> dict[str, object]:
+    # 這份摘要是給人類與 agent 的審查提示；它不改變匯入結果，只固定安全邊界與下一步語意。
+    format_label = {
+        "csv": "CSV 表格檔",
+        "csv.gz": "壓縮 CSV 表格檔",
+        "json": "JSON 記錄檔",
+        "json.gz": "壓縮 JSON 記錄檔",
+        "jsonl": "JSON Lines 記錄檔",
+        "jsonl.gz": "壓縮 JSON Lines 記錄檔",
+        "ndjson": "NDJSON 記錄檔",
+        "ndjson.gz": "壓縮 NDJSON 記錄檔",
+        "geojson": "GeoJSON FeatureCollection",
+        "geojson.gz": "壓縮 GeoJSON FeatureCollection",
+    }.get(source_format, source_format.upper())
+    if import_kind == "csv":
+        importer_label = "CSV manifest importer"
+    elif import_kind == "json":
+        importer_label = "JSON/JSONL/GeoJSON manifest importer"
+    else:
+        importer_label = "manual review"
+    return {
+        "source_label_zh_TW": "使用者自備本機檔案",
+        "format_label_zh_TW": format_label,
+        "importer_label": importer_label,
+        "risk_level": "local_review_required",
+        "trust_boundary_zh_TW": "Launcher 只能保證當下檔案的 checksum、大小與匯入結果，不能保證檔案原始來源或授權。",
+        "safe_operations_zh_TW": [
+            "建立 sidecar manifest",
+            "計算 checksum 與檔案大小",
+            "登記 raw file asset",
+            "使用既有 CSV/JSON 匯入器寫入 SQLite",
+            "後續可用 database self-check 檢查匯入 table",
+        ],
+        "blocked_operations_zh_TW": [
+            "不掃描整個資料夾",
+            "不移動或刪除來源檔",
+            "不把 file:// 視為可重新下載的網路來源",
+            "不自動覆蓋既有 table",
+            "不推定授權可再散布或可商用",
+        ],
+        "recommended_next_step_zh_TW": "匯入後執行資料庫自檢，並由使用者確認檔案來源、授權與欄位意義。",
+    }
 
 
 def _dataset_id(dataset_id: str, payload_path: Path) -> str:
