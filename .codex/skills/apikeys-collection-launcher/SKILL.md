@@ -34,7 +34,7 @@ Classify the request before editing:
    `seed -> crawler -> candidate -> plan -> download -> import -> UI`.
 7. Keep destructive operations disabled unless an adapter can prove ownership by `install_id` and asset registry metadata.
 8. For medium/risky work across modules, write or update an OpenSpec change first. Small fixes can stay lightweight, but must update GTD/handoff/docs when behavior changes.
-   Spectra/OpenSpec automation may be used proactively for administrative task movement, commit-message drafting, spec cleanup, and GTD/handoff synchronization under delegated authority. Treat these steps as agent-executable workflow work; substantive checkpoints still need test/CI evidence so future agents can trace what changed and why.
+   Treat OpenSpec as the durable project habit/specification memory, and this skill as the execution-time routing layer that consumes those rules. Recurring development habits, acceptance criteria, checkpoint rules, UI process boundaries, and cross-agent workflow contracts should usually become OpenSpec requirements/changes/tasks before being compressed into skill reminders. If adapting this workflow to another repository, copy the governance shape first (GTD, handoff, development log, docs index, OpenSpec workspace, project skill, smoke checks, checkpoint reporting) and remove APIkeys_collection-specific crawler/provider/database/renderer rules. Spectra/OpenSpec automation may be used proactively for administrative task movement, commit-message drafting, spec cleanup, and GTD/handoff synchronization under delegated authority. Spectra is a visual workbench for OpenSpec artifacts, not only a Qt migration tool. Treat these steps as agent-executable workflow work; substantive checkpoints still need test/CI evidence so future agents can trace what changed and why.
 9. Run tests before commit. On macOS use the project env; on Windows avoid CloudMounter pycache issues with `-B` or `PYTHONDONTWRITEBYTECODE=1`:
 
 ```bash
@@ -92,7 +92,7 @@ Do not load every document into context by default. Use this route map after che
 - Crawler, Discovery Tool, candidate, adapter review, dataset plan: `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`. `docs/appendices/discovery.zh-TW.md` is only a retained redirect for older references.
 - New data types or storage/viewer hints: `docs/DATASET_TYPE_MAP.zh-TW.md`.
 - Portal intake, team source collection, Notion-like intake: `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`.
-- OpenSpec, Spectra, Qt Designer process: `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` and `openspec/specs/development-workflow/spec.md`.
+- OpenSpec, Spectra, Qt Creator / Qt Designer process: `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` and `openspec/specs/development-workflow/spec.md`.
 - Workspace cleanup, module split, path rules: `docs/WORKSPACE_LAYOUT.zh-TW.md`.
 - User-facing UI behavior and developer CLI command index: `docs/USER_GUIDE.zh-TW.md`.
 - Setup, env, cross-platform commands: `docs/SETUP.zh-TW.md`, `docs/TECH_STACK.md`.
@@ -184,7 +184,7 @@ For UI work, "done" means the visible text is Traditional Chinese by default, th
 - Keep the default user-facing Tk UI in Traditional Chinese. When adding or touching visible UI text, prefer `ApiCollectionUi.tr("繁中", "English")` so `Settings > Interface language` can keep working.
 - UI integration/login/API key/data-store entries belong under the top `整合` menu. Do not scatter new account or database settings buttons into the drawer or toolbar.
 - AI description MVP uses explicit AI profile selection and saved local API keys under ignored `state/private/`. Startup must not open Google OAuth, browser sign-in, QR/device-code windows, or a system plist/config editor. Full Google OAuth/QR sign-in is a mid-term product feature that needs an official OAuth app or broker.
-- Tk is an MVP control panel. PySide6/Qt is a mid-term route; do not rewrite UI before backend MVP is stable.
+- Tk is an MVP control panel. PySide6/Qt is a mid-term route; do not rewrite UI before backend MVP is stable. On Windows, run `scripts\check_ui_tooling.cmd` before assuming Qt Creator, PySide6, or a named Conda env exists. `metal_trade_312` is a macOS workstation env, not a cross-platform project requirement.
 - Be careful with cross-platform local paths. Windows paths such as `K:\...` in ignored local config must not become blocking macOS startup errors; choose `*_by_platform` first and ignore/warn on foreign generic paths before `pathlib.Path` resolves them.
 - CloudMounter has previously damaged Git metadata (`index` renamed to `index 1`, refs renamed to `main 1`, stale lock files). Diagnose Git metadata non-destructively before any restore/reset.
 - Treat every `.md` as intentional handoff context. Future English docs need a Traditional Chinese version, summary, or clear Chinese entrypoint.

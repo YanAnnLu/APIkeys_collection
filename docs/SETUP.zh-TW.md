@@ -1,6 +1,6 @@
 # APIkeys_collection 跨平台開發設定
 
-更新日期：2026-05-20
+更新日期：2026-05-22
 
 ## 專案定位
 
@@ -203,7 +203,7 @@ python3 APIkeys_collection.py --verify-downloads-json
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |
 
-## OpenSpec / Spectra / Qt Designer
+## OpenSpec / Spectra / Qt Creator / Qt Designer
 
 這三個工具是給「開發流程」用的，不是一般使用者每天操作資料庫的入口。
 
@@ -222,15 +222,25 @@ openspec/changes/
 openspec/changes/archive/
 ```
 
-Spectra GUI 已安裝在使用者自己的 Applications 目錄：
+Spectra GUI 是 OpenSpec 的可視化輔助，不只服務 Qt 搬遷；crawler、adapter、MVP hardening、文件同步、checkpoint 規則等中大型或反覆出現的開發習慣，也可以先整理進 OpenSpec，再用 Spectra 檢視。
+
+若未來要把這套開發模式複製到其他專案，優先複製的是流程骨架：`PROJECT_GTD`、`AGENT_HANDOFF`、`DEVELOPMENT_LOG`、文件索引、`openspec/specs/development-workflow/spec.md`、專案 skill、pre-push smoke 與 checkpoint 回報規則。不要直接複製 APIkeys_collection 的 crawler/provider/database/renderer 專用規則；新專案應先保留通用 workflow，再逐步加入自己的 capability。
+
+macOS 上，Spectra GUI 已安裝在使用者自己的 Applications 目錄：
 
 ```bash
 open "$HOME/Applications/Spectra.app"
 ```
 
+Windows 上目前可用：
+
+```powershell
+& "$env:LOCALAPPDATA\Spectra\spectra.exe"
+```
+
 打開後選本 repo 根目錄。Spectra 是 OpenSpec 的可視化輔助工具；真正要接力與提交的狀態仍在 Git 裡的 `openspec/` 與文件。
 
-Qt Designer 已在 `metal_trade_312` 裡可用：
+macOS 的 Qt Designer 已在 `metal_trade_312` 裡可用：
 
 ```bash
 conda run -n metal_trade_312 pyside6-designer
@@ -241,5 +251,14 @@ conda run -n metal_trade_312 pyside6-designer
 ```bash
 open "/opt/homebrew/anaconda3/envs/metal_trade_312/lib/qt6/bin/Designer.app"
 ```
+
+注意：`metal_trade_312` 是另一台 macOS 的環境，不代表 Windows 工作站也有同名 env。Windows 先跑：
+
+```powershell
+.\scripts\check_ui_tooling.cmd
+.\scripts\check_ui_tooling.cmd -Json
+```
+
+截至 2026-05-22，這台 Windows 工作站已確認 Spectra 2.3.1 可用；Qt Creator 尚未安裝或不在 PATH；Conda 在 `C:\Users\lyn59\anaconda3\Scripts\conda.exe`；`py3_12_13` 存在但尚未安裝 PySide6。
 
 目前 PySide6/Qt 是中期 UI 路線，不要在 backend MVP 尚未閉環前重寫整個 Tk UI。若未來新增 `frontends/qt/`，應重用 `api_launcher/` 的 crawler、download、import、event log 與 integration contracts。

@@ -32,6 +32,39 @@ The project SHALL treat Git-tracked OpenSpec files and documentation as the sour
 - WHEN a task state, proposal, or requirement changes
 - THEN the corresponding files under `openspec/` SHALL be updated and committed, rather than leaving state only inside a GUI session.
 
+### Requirement: OpenSpec As Project Habit Memory
+
+The project SHALL use OpenSpec as the durable home for development habits, workflow contracts, acceptance criteria, and cross-agent process rules that are too broad to live only in one agent skill.
+
+#### Scenario: A recurring development habit is discovered
+
+- GIVEN the team identifies a recurring habit such as checkpoint logging, UI hardening boundaries, docs synchronization, or evidence requirements
+- WHEN the habit affects future medium or repeated work
+- THEN the agent SHOULD record it in an OpenSpec requirement, change, or task before or alongside skill updates.
+
+#### Scenario: Skill and OpenSpec overlap
+
+- GIVEN a skill tells an agent how to act during a session
+- WHEN the rule is also a durable project policy
+- THEN the skill SHOULD point to the relevant OpenSpec capability or docs route, and OpenSpec SHALL remain the versioned project contract.
+
+### Requirement: Portable Workflow Pattern
+
+The project SHALL keep its development workflow separable enough that the same governance pattern can be reused in other repositories without copying APIkeys_collection-specific domain rules.
+
+#### Scenario: Workflow is copied to another project
+
+- GIVEN another repository wants to reuse this development style
+- WHEN preparing the reusable starter set
+- THEN the agent SHOULD copy the workflow shape: project GTD, agent handoff, development log, docs index, OpenSpec workspace, project skill, local smoke checks, and checkpoint reporting rules.
+- AND the agent SHALL remove or rewrite APIkeys_collection-specific dataset, crawler, provider, Qt, database, renderer, and path rules before using the workflow in the other repository.
+
+#### Scenario: A new project is small
+
+- GIVEN the target repository has not yet developed cross-module risk
+- WHEN introducing OpenSpec
+- THEN the agent SHOULD start with only a `development-workflow` capability and add domain-specific capabilities only after repeated or risky work justifies them.
+
 ### Requirement: MVP-First Process
 
 The workflow SHALL reduce rework and handoff cost without blocking the backend MVP loop.
@@ -44,7 +77,7 @@ The workflow SHALL reduce rework and handoff cost without blocking the backend M
 
 ### Requirement: Tooling Isolation
 
-OpenSpec, Spectra, and Qt Designer setup SHALL respect the project environment boundaries.
+OpenSpec, Spectra, Qt Creator, and Qt Designer setup SHALL respect the project environment boundaries and SHALL distinguish workstation-specific tooling from cross-platform project facts.
 
 #### Scenario: Python or Qt tooling is needed on macOS
 
@@ -52,11 +85,23 @@ OpenSpec, Spectra, and Qt Designer setup SHALL respect the project environment b
 - WHEN installing or running that tool
 - THEN the agent SHALL prefer `metal_trade_312` and SHALL NOT install Python packages into base or system Python.
 
+#### Scenario: Python or Qt tooling is checked on Windows
+
+- GIVEN the project is running on the Windows workstation
+- WHEN an agent needs UI tooling facts
+- THEN the agent SHALL run `scripts\check_ui_tooling.cmd` or update its equivalent before assuming Qt Creator, PySide6, or a named Conda environment exists.
+
 #### Scenario: Spectra GUI is installed on macOS
 
 - GIVEN Spectra is installed for this workstation
 - WHEN installation location is chosen
 - THEN the app SHALL live in user-owned `~/Applications/Spectra.app` unless the user explicitly asks for a system-wide install.
+
+#### Scenario: Spectra GUI is available on Windows
+
+- GIVEN Spectra is installed for this workstation
+- WHEN an agent needs to inspect or organize OpenSpec artifacts
+- THEN the agent MAY use `C:\Users\lyn59\AppData\Local\Spectra\spectra.exe`, while keeping Git-tracked OpenSpec files as the authority.
 
 ### Requirement: Beginner-Friendly Progress Reporting
 
