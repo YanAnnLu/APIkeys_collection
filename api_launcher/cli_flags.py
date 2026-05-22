@@ -33,6 +33,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         bool(args.write_adapter_review_json),
         bool(args.resolve_adapter_plan),
         bool(args.write_resolved_adapter_plan),
+        args.resolve_adapter_plan_json,
         args.keep_original_adapter_entries,
         args.import_supported_plan_results,
         bool(args.import_csv_manifest),

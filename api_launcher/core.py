@@ -680,6 +680,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--write-adapter-review-json", default="", help="write --adapter-review-plan payload to agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
     parser.add_argument("--write-resolved-adapter-plan", default="", help="output JSON for --resolve-adapter-plan; defaults beside the input plan")
+    parser.add_argument("--resolve-adapter-plan-json", action="store_true", help="emit --resolve-adapter-plan result summary as agent-readable JSON")
     parser.add_argument("--keep-original-adapter-entries", action="store_true", help="keep original review entries when --resolve-adapter-plan adds direct entries")
     parser.add_argument("--import-supported-plan-results", action="store_true", help="after --run-download-plan, import supported CSV/JSON/GeoJSON plan results into --import-sqlite-db")
     parser.add_argument("--import-csv-manifest", help="import a verified CSV/CSV.GZ payload manifest into a curated SQLite table")
@@ -1171,12 +1172,6 @@ class CatalogLauncherCli:
             output_path = input_path.with_name(f"{input_path.stem}.resolved{input_path.suffix}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(resolved_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(
-            "[adapter-resolve] "
-            f"wrote {output_path} entries={result.entry_count}->{result.output_entry_count} "
-            f"resolved={result.resolved_review_entries} unresolved={result.unresolved_review_entries} "
-            f"direct_added={result.direct_entries_added}"
-        )
         log_event(
             "adapter_plan_resolved",
             "Resolved adapter review plan into a bounded download plan.",
@@ -1191,6 +1186,28 @@ class CatalogLauncherCli:
                 "direct_entries_added": result.direct_entries_added,
                 "warning_count": len(result.warnings),
             },
+        )
+        # JSON summary 是給 heartbeat/agent 接力用；resolved plan 本體仍寫在 output_path。
+        resolution_summary = {
+            "input_plan": str(input_path),
+            "output_path": str(output_path),
+            "entry_count": result.entry_count,
+            "output_entry_count": result.output_entry_count,
+            "resolved_review_entries": result.resolved_review_entries,
+            "unresolved_review_entries": result.unresolved_review_entries,
+            "direct_entries_added": result.direct_entries_added,
+            "warning_count": len(result.warnings),
+            "warnings": result.warnings,
+            "plan_summary": resolved_payload.get("summary", {}) if isinstance(resolved_payload.get("summary"), dict) else {},
+        }
+        if self.args.resolve_adapter_plan_json:
+            print(json.dumps(resolution_summary, ensure_ascii=False, indent=2))
+            return
+        print(
+            "[adapter-resolve] "
+            f"wrote {output_path} entries={result.entry_count}->{result.output_entry_count} "
+            f"resolved={result.resolved_review_entries} unresolved={result.unresolved_review_entries} "
+            f"direct_added={result.direct_entries_added}"
         )
         for warning in result.warnings:
             print(f"[adapter-resolve] warning {warning}")

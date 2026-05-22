@@ -918,6 +918,34 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual(1, payload["summary"]["direct_download_count"])
         self.assertEqual(1, payload["adapter_resolution"]["direct_entries_added"])
 
+    def test_cli_emits_resolved_adapter_plan_json_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "candidate_plan.json"
+            output_path = Path(tmpdir) / "candidate_plan.resolved.json"
+            input_path.write_text(json.dumps({"providers": [ckan_review_entry()]}), encoding="utf-8")
+            output = io.StringIO()
+
+            with patch("api_launcher.core.log_event"), redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--resolve-adapter-plan",
+                        str(input_path),
+                        "--write-resolved-adapter-plan",
+                        str(output_path),
+                        "--resolve-adapter-plan-json",
+                    ]
+                )
+
+            summary = json.loads(output.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual(str(output_path), summary["output_path"])
+        self.assertEqual(1, summary["direct_entries_added"])
+        self.assertEqual(1, summary["plan_summary"]["direct_download_count"])
+        self.assertNotIn("[adapter-resolve]", output.getvalue())
+
     def test_entry_without_source_resolution_action_is_ignored(self) -> None:
         entry = ckan_review_entry()
         entry["download_eligibility"] = {"status": "direct_download"}
