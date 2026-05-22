@@ -996,7 +996,8 @@ class CatalogLauncherCli:
     def run_download_plan(self) -> None:
         if not self.args.run_download_plan:
             return
-        payload = load_download_plan_file(resolve_project_path(self.args.run_download_plan))
+        input_path = resolve_project_path(self.args.run_download_plan)
+        payload = load_download_plan_file(input_path)
         run = run_download_import_slice(
             payload,
             self.repository,
@@ -1010,6 +1011,29 @@ class CatalogLauncherCli:
                 import_replace=self.args.import_replace_table,
                 import_existing_table_policy=self.args.plan_import_existing_table_policy,
             ),
+        )
+        # 下載計畫執行是 MVP 閉環的核心動作；留下 structured event 讓 handoff/agent 不必重跑或翻文字輸出。
+        log_event(
+            "download_plan_executed",
+            "Executed download plan pipeline slice.",
+            component="download_plan",
+            context={
+                "input_plan": str(input_path),
+                "stage": run.stage,
+                "next_action": run.next_action,
+                "import_requested": run.import_requested,
+                "entry_count": run.result.entry_count,
+                "submitted": run.result.submitted,
+                "completed": run.result.completed,
+                "failed": run.result.failed,
+                "skipped": run.result.skipped,
+                "registered_assets": run.result.registered_assets,
+                "imported": run.result.imported,
+                "import_skipped": run.result.import_skipped,
+                "import_failed": run.result.import_failed,
+                "skip_summary": run.result.skip_summary,
+                "error_count": len(run.result.errors),
+            },
         )
         if self.args.run_download_plan_json:
             # JSON mode 是 heartbeat/agent 的穩定交接格式；人類 CLI 摘要維持在預設路徑。

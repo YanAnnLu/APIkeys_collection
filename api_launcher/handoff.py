@@ -104,6 +104,10 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- latest_adapter_plan_resolved_event_at: {snapshot.verification_summary.get('latest_adapter_plan_resolved_event_at', '') or 'none'}",
         f"- latest_adapter_plan_resolved_output: {snapshot.verification_summary.get('latest_adapter_plan_resolved_output', '') or 'none'}",
         f"- latest_adapter_plan_resolved_counts: {snapshot.verification_summary.get('latest_adapter_plan_resolved_counts', '') or '{}'}",
+        f"- latest_download_plan_event_at: {snapshot.verification_summary.get('latest_download_plan_event_at', '') or 'none'}",
+        f"- latest_download_plan_input: {snapshot.verification_summary.get('latest_download_plan_input', '') or 'none'}",
+        f"- latest_download_plan_stage: {snapshot.verification_summary.get('latest_download_plan_stage', '') or 'none'}",
+        f"- latest_download_plan_counts: {snapshot.verification_summary.get('latest_download_plan_counts', '') or '{}'}",
         "",
         "## Open GTD Focus",
         "",
@@ -267,12 +271,28 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
     latest_adapter_plan_context = (
         latest_adapter_plan_event.get("context") if isinstance(latest_adapter_plan_event.get("context"), dict) else {}
     )
+    latest_download_plan_event = latest_event_by_name(events, "download_plan_executed")
+    latest_download_plan_context = (
+        latest_download_plan_event.get("context") if isinstance(latest_download_plan_event.get("context"), dict) else {}
+    )
     # Resolver 事件可能帶很多路徑與統計；handoff 只固定列出接力判斷最需要的幾個數字。
     adapter_plan_counts = {
         "direct_entries_added": latest_adapter_plan_context.get("direct_entries_added", 0),
         "resolved_review_entries": latest_adapter_plan_context.get("resolved_review_entries", 0),
         "unresolved_review_entries": latest_adapter_plan_context.get("unresolved_review_entries", 0),
         "warning_count": latest_adapter_plan_context.get("warning_count", 0),
+    }
+    # Download plan 摘要只放穩定計數與下一步，避免 handoff 夾帶龐大的 per-item payload。
+    download_plan_counts = {
+        "entry_count": latest_download_plan_context.get("entry_count", 0),
+        "submitted": latest_download_plan_context.get("submitted", 0),
+        "completed": latest_download_plan_context.get("completed", 0),
+        "failed": latest_download_plan_context.get("failed", 0),
+        "skipped": latest_download_plan_context.get("skipped", 0),
+        "imported": latest_download_plan_context.get("imported", 0),
+        "import_failed": latest_download_plan_context.get("import_failed", 0),
+        "skip_summary": latest_download_plan_context.get("skip_summary", {}),
+        "next_action": latest_download_plan_context.get("next_action", ""),
     }
     return {
         "latest_manifest_verified_at": latest_table_timestamp(
@@ -305,6 +325,16 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
             str(latest_adapter_plan_context.get("output_path") or "") if latest_adapter_plan_context else ""
         ),
         "latest_adapter_plan_resolved_counts": str(adapter_plan_counts) if latest_adapter_plan_context else "",
+        "latest_download_plan_event_at": (
+            str(latest_download_plan_event.get("timestamp") or "") if latest_download_plan_event else ""
+        ),
+        "latest_download_plan_input": (
+            str(latest_download_plan_context.get("input_plan") or "") if latest_download_plan_context else ""
+        ),
+        "latest_download_plan_stage": (
+            str(latest_download_plan_context.get("stage") or "") if latest_download_plan_context else ""
+        ),
+        "latest_download_plan_counts": str(download_plan_counts) if latest_download_plan_context else "",
     }
 
 

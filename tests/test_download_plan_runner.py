@@ -13,6 +13,7 @@ import zipfile
 from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.db import connect_db
@@ -137,7 +138,7 @@ class DownloadPlanRunnerTests(unittest.TestCase):
             plan_path.write_text(json.dumps(sample_plan(url, output_path), ensure_ascii=False), encoding="utf-8")
             stdout = io.StringIO()
 
-            with redirect_stdout(stdout):
+            with patch("api_launcher.core.log_event") as log_event_mock, redirect_stdout(stdout):
                 rc = main(
                     [
                         "--db",
@@ -163,7 +164,7 @@ class DownloadPlanRunnerTests(unittest.TestCase):
             plan_path.write_text(json.dumps(adapter_only_plan(), ensure_ascii=False), encoding="utf-8")
             stdout = io.StringIO()
 
-            with redirect_stdout(stdout):
+            with patch("api_launcher.core.log_event") as log_event_mock, redirect_stdout(stdout):
                 rc = main(
                     [
                         "--db",
@@ -188,7 +189,7 @@ class DownloadPlanRunnerTests(unittest.TestCase):
             plan_path.write_text(json.dumps(sample_plan(url, output_path), ensure_ascii=False), encoding="utf-8")
             stdout = io.StringIO()
 
-            with redirect_stdout(stdout):
+            with patch("api_launcher.core.log_event") as log_event_mock, redirect_stdout(stdout):
                 rc = main(
                     [
                         "--db",
@@ -203,6 +204,7 @@ class DownloadPlanRunnerTests(unittest.TestCase):
                     ]
                 )
             summary = json.loads(stdout.getvalue())
+            logged_context = log_event_mock.call_args.kwargs["context"]
 
         self.assertEqual(0, rc)
         self.assertEqual("download_completed", summary["stage"])
@@ -210,6 +212,11 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual({"adapter_required": 1}, summary["result"]["skip_summary"])
         self.assertEqual("run_adapter_review_or_resolve_adapter_plan_before_downloading", summary["next_action"])
         self.assertNotIn("[download-plan]", stdout.getvalue())
+        self.assertEqual("download_plan_executed", log_event_mock.call_args.args[0])
+        self.assertEqual(str(plan_path), logged_context["input_plan"])
+        self.assertEqual("download_completed", logged_context["stage"])
+        self.assertEqual(1, logged_context["completed"])
+        self.assertEqual({"adapter_required": 1}, logged_context["skip_summary"])
 
     def test_cli_can_import_supported_plan_results_after_download(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:
