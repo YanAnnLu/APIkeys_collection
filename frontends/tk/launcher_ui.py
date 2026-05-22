@@ -47,6 +47,7 @@ from api_launcher.adapters.yfinance import (
     normalize_yfinance_symbols,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
+    write_yfinance_storage_review as write_yfinance_storage_review_file,
 )
 from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
 from api_launcher.downloads.repair import (
@@ -86,6 +87,7 @@ RESOLVED_DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.resolved.json"
 MVP_DEMO_FLOW_NAME = "mvp_demo/flow.json"
 YFINANCE_DEMO_PLAN_NAME = "yfinance_demo/plan.json"
 YFINANCE_LIVE_PLAN_NAME = "yfinance_live/plan.json"
+YFINANCE_STORAGE_REVIEW_NAME = "yfinance_live/storage_review.json"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
@@ -159,6 +161,18 @@ def configured_ui_language() -> str:
 def yfinance_symbols_from_ui_text(text: str) -> tuple[str, ...]:
     # UI 只支援逗號或空白分隔，刻意不把分號當分隔符，避免把 shell-like 字串誤切成合法 symbol。
     return normalize_yfinance_symbols(str(text or "").replace(",", " ").split())
+
+
+def yfinance_storage_review_paths_from_ui(plan_text: str, review_text: str) -> tuple[Path, Path]:
+    # UI 只負責把文字欄位正規化成路徑；真正的 review/dry-run 邏輯仍由 adapter 控管，避免 Tk 層偷做資料庫決策。
+    def normalize_path(raw_text: str, field_name: str) -> Path:
+        text = str(raw_text or "").strip()
+        if not text:
+            raise ValueError(f"{field_name} path is required.")
+        path = Path(text).expanduser()
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+    return normalize_path(plan_text, "Plan"), normalize_path(review_text, "Review")
 
 
 class ProviderRow:
@@ -891,6 +905,7 @@ class ApiCollectionUi:
         tools_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
         tools_menu.add_command(label=self.tr("產生 yfinance 離線 Demo plan", "Create yfinance offline demo plan"), command=self.write_yfinance_demo_plan_from_ui)
         tools_menu.add_command(label=self.tr("建立 yfinance live plan（需確認）", "Create yfinance live plan (requires acknowledgement)"), command=self.open_yfinance_live_plan_dialog)
+        tools_menu.add_command(label=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), command=self.open_yfinance_storage_review_dialog)
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
         tools_menu.add_separator()
@@ -5611,6 +5626,108 @@ class ApiCollectionUi:
             dialog.destroy()
 
         ttk.Button(actions, text=self.tr("建立 plan", "Create plan"), style="Action.TButton", command=create_live_plan).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+
+    def open_yfinance_storage_review_dialog(self) -> None:
+        # storage review 是 live plan 之後的「審查交接」入口；這裡只產出 JSON/SQL 草稿，禁止直接觸發資料庫寫入。
+        dialog = Toplevel(self.root)
+        dialog.title(self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"))
+        dialog.geometry("820x430")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.transient(self.root)
+
+        plan_var = StringVar(value=str(state_file(YFINANCE_LIVE_PLAN_NAME)))
+        review_var = StringVar(value=str(state_file(YFINANCE_STORAGE_REVIEW_NAME)))
+        storage_target_var = StringVar(value=DEFAULT_YFINANCE_STORAGE_TARGET)
+
+        ttk.Label(dialog, text=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            dialog,
+            text=self.tr(
+                "這會讀取既有 yfinance plan，輸出 storage review JSON，並在需要時寫出 dry-run SQL/命令草稿。launcher 不會連線、不會建表、不會匯入，也不會把審查檔視為已執行。",
+                "This reads an existing yfinance plan and writes a storage review JSON plus dry-run SQL/command sketches when needed. The launcher will not connect, create tables, import rows, or treat the review as executed.",
+            ),
+            style="DetailMuted.TLabel",
+            wraplength=760,
+        ).pack(anchor="w", padx=24, pady=(0, 14))
+
+        form = ttk.Frame(dialog, style="Panel.TFrame")
+        form.pack(fill=X, padx=24, pady=(0, 12))
+        for label, variable, hint in [
+            (self.tr("plan 路徑", "Plan path"), plan_var, self.tr("預設讀取剛建立的 yfinance live plan", "Defaults to the yfinance live plan path")),
+            (self.tr("review 輸出", "Review output"), review_var, self.tr("若目標需要 SQL，會輸出同名 .dry_run.sql", "If the target needs SQL, a matching .dry_run.sql is written")),
+        ]:
+            row = ttk.Frame(form, style="Panel.TFrame")
+            row.pack(fill=X, pady=6)
+            ttk.Label(row, text=label, style="DetailMuted.TLabel", width=12).pack(side=LEFT)
+            ttk.Entry(row, textvariable=variable).pack(side=LEFT, fill=X, expand=True, padx=(8, 10))
+            ttk.Label(row, text=hint, style="DetailMuted.TLabel").pack(side=LEFT)
+
+        target_row = ttk.Frame(form, style="Panel.TFrame")
+        target_row.pack(fill=X, pady=6)
+        ttk.Label(target_row, text=self.tr("審查目標", "Review target"), style="DetailMuted.TLabel", width=12).pack(side=LEFT)
+        ttk.Combobox(
+            target_row,
+            textvariable=storage_target_var,
+            values=(DEFAULT_YFINANCE_STORAGE_TARGET, *YFINANCE_STORAGE_TARGET_PROFILES),
+            state="readonly",
+            width=28,
+        ).pack(side=LEFT, padx=(8, 10))
+        ttk.Label(
+            target_row,
+            text=self.tr("auto 會沿用 plan 內建議；其他值只覆寫審查檔，不會執行寫入。", "auto follows the plan suggestion; other values only override the review artifact."),
+            style="DetailMuted.TLabel",
+        ).pack(side=LEFT, fill=X, expand=True)
+
+        ttk.Label(dialog, text=YFINANCE_LIVE_WARNING, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 14))
+
+        actions = ttk.Frame(dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 20))
+
+        def create_storage_review() -> None:
+            try:
+                plan_path, review_path = yfinance_storage_review_paths_from_ui(plan_var.get(), review_var.get())
+                result = write_yfinance_storage_review_file(
+                    plan_path,
+                    review_path,
+                    storage_target=storage_target_var.get(),
+                )
+            except Exception as exc:
+                log_exception("ui_yfinance_storage_review_failed", exc, component="ui.yfinance")
+                messagebox.showerror(self.tr("yfinance 儲存審查失敗", "yfinance storage review failed"), str(exc), parent=dialog)
+                return
+
+            sql_message = f"\nDry-run SQL: {result.dry_run_sql_path}" if result.dry_run_sql_path else ""
+            summary = self.tr(
+                f"yfinance 儲存審查已建立，目標：{result.storage_target}，待審查動作：{result.action_count}。",
+                f"yfinance storage review created; target: {result.storage_target}; review actions: {result.action_count}.",
+            )
+            self.status_var.set(summary)
+            log_event(
+                "ui_yfinance_storage_review_created",
+                summary,
+                component="ui.yfinance",
+                context={
+                    "plan_path": str(result.plan_path),
+                    "review_path": str(result.review_path),
+                    "dry_run_sql_path": str(result.dry_run_sql_path or ""),
+                    "storage_target": result.storage_target,
+                    "action_count": result.action_count,
+                    "dry_run": True,
+                    "will_write_database": False,
+                },
+            )
+            messagebox.showinfo(
+                self.tr("yfinance 儲存審查已建立", "yfinance storage review created"),
+                self.tr(
+                    f"{summary}\n\nReview: {result.review_path}{sql_message}\n\n下一步是人工審查 review JSON / dry-run SQL；launcher 這一步不會連線、不會建表、不會匯入。",
+                    f"{summary}\n\nReview: {result.review_path}{sql_message}\n\nNext: review the JSON / dry-run SQL manually. This launcher step does not connect, create tables, or import rows.",
+                ),
+                parent=dialog,
+            )
+            dialog.destroy()
+
+        ttk.Button(actions, text=self.tr("產生審查檔", "Create review"), style="Action.TButton", command=create_storage_review).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("取消", "Cancel"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 
     def add_download_plan_entries_from_file(self, plan_path: Path) -> int:

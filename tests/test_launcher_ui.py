@@ -3,7 +3,13 @@ import unittest
 from types import SimpleNamespace
 from tkinter import TclError
 
-from frontends.tk.launcher_ui import contextlib_suppress_tcl_error, database_sql_dry_run_available, yfinance_symbols_from_ui_text
+from frontends.tk.launcher_ui import (
+    PROJECT_ROOT,
+    contextlib_suppress_tcl_error,
+    database_sql_dry_run_available,
+    yfinance_storage_review_paths_from_ui,
+    yfinance_symbols_from_ui_text,
+)
 
 
 class TclErrorSuppressorTests(unittest.TestCase):
@@ -36,6 +42,17 @@ class YFinanceUiHelperTests(unittest.TestCase):
     def test_yfinance_symbols_from_ui_text_rejects_shell_like_input(self) -> None:
         with self.assertRaises(ValueError):
             yfinance_symbols_from_ui_text("AAPL;rm -rf")
+
+    def test_yfinance_storage_review_paths_from_ui_normalizes_relative_paths(self) -> None:
+        # Tk dialog 收到的是文字欄位；helper 先固定相對路徑基準，避免 review 寫到不可預期的工作目錄。
+        plan_path, review_path = yfinance_storage_review_paths_from_ui("state/live_plan.json", "state/review.json")
+
+        self.assertEqual(PROJECT_ROOT / "state/live_plan.json", plan_path)
+        self.assertEqual(PROJECT_ROOT / "state/review.json", review_path)
+
+    def test_yfinance_storage_review_paths_from_ui_rejects_empty_paths(self) -> None:
+        with self.assertRaises(ValueError):
+            yfinance_storage_review_paths_from_ui("", "state/review.json")
 
 
 if __name__ == "__main__":
