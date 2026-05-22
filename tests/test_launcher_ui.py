@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from tkinter import TclError
 
 from frontends.tk.launcher_ui import (
+    ApiCollectionUi,
     PROJECT_ROOT,
     contextlib_suppress_tcl_error,
     data_store_env_template_path,
@@ -42,6 +43,15 @@ class DataStoreUiHelperTests(unittest.TestCase):
         path = data_store_env_template_path("../mysql default")
 
         self.assertEqual(PROJECT_ROOT / "state/data_store_env_templates/mysql_default.env.template", path)
+
+    def test_data_store_next_action_message_guides_missing_env(self) -> None:
+        # 測試 Tk 顯示文字跟 backend next_action 對齊；缺 env 時應引導使用者先寫範本。
+        fake_ui = SimpleNamespace(tr=lambda zh, en: zh)
+        result = SimpleNamespace(profile_id="mysql_default", status="missing_env", details={})
+
+        hint = ApiCollectionUi.data_store_next_action_message(fake_ui, result)
+
+        self.assertIn("寫出 env 範本", hint)
 
 
 class YFinanceUiHelperTests(unittest.TestCase):

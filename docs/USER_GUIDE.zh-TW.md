@@ -256,6 +256,8 @@ Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo pla
 | 從健康 manifest 重建 missing SQLite table | `python3 APIkeys_collection.py --reimport-missing-sqlite-table ASSET_ID --database-repair-json` |
 | 產生 missing MySQL/PostgreSQL table 的 dry-run SQL | `python3 APIkeys_collection.py --write-database-repair-sql ASSET_ID --database-repair-json` |
 
+Tk `整合 > 資料儲存連線` 的測試結果現在會顯示下一步提示：缺 env 時先寫出 env 範本，缺 optional driver 時只建議在專案環境安裝 driver，連線錯誤時再檢查 host、port、database、權限、網路與 driver 相容性。
+
 ### Handoff / automation / workspace
 
 | 目的 | 指令 |

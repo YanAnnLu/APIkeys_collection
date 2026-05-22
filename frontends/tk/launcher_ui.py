@@ -76,7 +76,7 @@ from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
-from api_launcher.data_store_connections import data_store_env_template_filename, data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
+from api_launcher.data_store_connections import data_store_connection_next_action, data_store_env_template_filename, data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
@@ -3161,6 +3161,32 @@ class ApiCollectionUi:
             return self.tr(f"需要 API key：{api_key_env}", f"Needs API key: {api_key_env}")
         return self.tr("不需登入", "No login")
 
+    def data_store_next_action_message(self, result: object) -> str:
+        # UI 顯示的是同一份 backend next_action 的人類版；避免 Tk 自己猜修復流程。
+        action = data_store_connection_next_action(result)
+        action_id = str(action.get("action_id") or "")
+        if action_id == "write_env_template":
+            return self.tr(
+                "下一步：按「寫出 env 範本」，在本機填入環境變數後重新測試。",
+                "Next: click Write env template, fill values locally, then rerun the test.",
+            )
+        if action_id == "install_optional_driver":
+            return self.tr(
+                "下一步：只在專案環境安裝選用資料庫 driver，然後重新測試。",
+                "Next: install the optional database driver in the project environment only, then rerun the test.",
+            )
+        if action_id == "inspect_connection":
+            return self.tr(
+                "下一步：檢查 host、port、database、帳號權限、網路與 driver 相容性。",
+                "Next: inspect host, port, database, user permissions, network reachability, and driver compatibility.",
+            )
+        if action_id == "reserved_profile":
+            return self.tr(
+                "下一步：這是保留 profile，目前只作 handoff，尚未實作 live tester。",
+                "Next: this is a reserved profile for handoff; no live tester is implemented yet.",
+            )
+        return ""
+
     def open_data_store_connection_settings(self) -> None:
         dialog = Toplevel(self.root)
         dialog.title(self.tr("資料儲存連線", "Data store connections"))
@@ -3222,7 +3248,11 @@ class ApiCollectionUi:
             result = test_data_store_connection(profile)
             table.set(profile_id, "status", result.status)
             self.status_var.set(self.tr(f"資料儲存測試：{profile_id} {result.status}", f"Data store test: {profile_id} {result.status}"))
-            messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), f"{profile.label}\n\n{result.status}: {result.message}")
+            hint = self.data_store_next_action_message(result)
+            message = f"{profile.label}\n\n{result.status}: {result.message}"
+            if hint:
+                message = f"{message}\n\n{hint}"
+            messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), message)
 
         def write_selected_env_template() -> None:
             selection = table.selection()
