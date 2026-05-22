@@ -62,6 +62,41 @@ class DataStoreUiHelperTests(unittest.TestCase):
         self.assertIn("寫出 env 範本", hint)
 
 
+class DownloadPlanPanelUiTests(unittest.TestCase):
+    def test_download_plan_toggle_label_tracks_visibility(self) -> None:
+        labels: list[str] = []
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        fake_ui.download_plan_toggle_var = SimpleNamespace(set=lambda value: labels.append(value))
+
+        fake_ui.download_plan_visible = True
+        fake_ui.update_download_plan_toggle_label()
+        fake_ui.download_plan_visible = False
+        fake_ui.update_download_plan_toggle_label()
+
+        self.assertEqual(["收合下載計畫", "展開下載計畫"], labels)
+
+    def test_toggle_download_plan_panel_hides_body_but_keeps_state(self) -> None:
+        events: list[str] = []
+        body = SimpleNamespace(
+            pack=lambda **_kwargs: events.append("pack"),
+            pack_forget=lambda: events.append("forget"),
+        )
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        fake_ui.download_plan_visible = True
+        fake_ui.download_plan_body = body
+        fake_ui.download_plan_toggle_var = SimpleNamespace(set=lambda value: events.append(f"label:{value}"))
+        fake_ui.status_var = SimpleNamespace(set=lambda value: events.append(f"status:{value}"))
+
+        fake_ui.toggle_download_plan_panel()
+
+        self.assertFalse(fake_ui.download_plan_visible)
+        self.assertIn("forget", events)
+        self.assertIn("label:展開下載計畫", events)
+        self.assertIn("status:已收合下載計畫。", events)
+
+
 class YFinanceUiHelperTests(unittest.TestCase):
     def test_yfinance_symbols_from_ui_text_accepts_comma_and_space(self) -> None:
         # UI 允許一般人常用的逗號/空白輸入，並把重複 symbol 收斂成 adapter 使用的穩定 tuple。
