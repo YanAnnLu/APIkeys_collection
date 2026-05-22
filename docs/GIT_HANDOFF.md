@@ -101,8 +101,10 @@ The report includes Git status, current HEAD, catalog counts, manifest health, l
 
 For cross-Agent handoff, update and read `docs/AGENT_HANDOFF.zh-TW.md` first. It is the short, fixed handoff card; this file remains the longer Git workflow guide.
 
-GitHub Actions runs a lightweight CI matrix on Windows and Ubuntu for pushes and pull requests to `main`. It runs unit
-tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid platform-specific `.pyc` lock issues.
+GitHub Actions runs a lightweight CI matrix on Ubuntu plus the explicit `windows-2025-vs2026` runner for pushes and
+pull requests to `main`. It runs unit tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid
+platform-specific `.pyc` lock issues. The Windows label is pinned to the Visual Studio 2026 image so the project tests
+the same Windows image GitHub is migrating `windows-latest` toward, instead of waiting for an implicit label switch.
 On macOS, `gh` is installed and authenticated as `YanAnnLu`; use it after push to confirm CI, because GitHub mobile
 notifications report workflow status, not whether `git push` reached the remote.
 
