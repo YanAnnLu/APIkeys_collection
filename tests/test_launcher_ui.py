@@ -14,6 +14,7 @@ from frontends.tk.launcher_ui import (
     contextlib_suppress_tcl_error,
     data_store_env_template_path,
     database_sql_dry_run_available,
+    local_file_provenance_review_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
@@ -90,6 +91,21 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
 
 class LocalFileImportUiWorkerTests(unittest.TestCase):
+    def test_local_file_provenance_review_message_summarizes_boundaries(self) -> None:
+        message = local_file_provenance_review_message(
+            {
+                "source_label_zh_TW": "使用者自備本機檔案",
+                "format_label_zh_TW": "CSV 表格檔",
+                "trust_boundary_zh_TW": "只驗證 checksum，不驗證授權。",
+                "blocked_operations_zh_TW": ["不掃描整個資料夾", "不移動或刪除來源檔", "不推定授權可商用", "不背景下載"],
+                "recommended_next_step_zh_TW": "執行資料庫自檢。",
+            }
+        )
+
+        self.assertIn("來源審查：使用者自備本機檔案（CSV 表格檔）", message)
+        self.assertIn("不掃描整個資料夾、不移動或刪除來源檔、不推定授權可商用", message)
+        self.assertIn("下一步：執行資料庫自檢。", message)
+
     def test_import_local_file_worker_writes_manifest_and_renames_existing_table(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -113,7 +129,7 @@ class LocalFileImportUiWorkerTests(unittest.TestCase):
 
             with (
                 patch("frontends.tk.launcher_ui.state_file", lambda name: root / name),
-                patch("frontends.tk.launcher_ui.messagebox.showinfo"),
+                patch("frontends.tk.launcher_ui.messagebox.showinfo") as showinfo,
                 patch("frontends.tk.launcher_ui.messagebox.showerror"),
                 patch("frontends.tk.launcher_ui.log_event"),
             ):
@@ -131,6 +147,8 @@ class LocalFileImportUiWorkerTests(unittest.TestCase):
         self.assertEqual([("TPE", "28")], imported_rows)
         self.assertEqual(1, manifest_count)
         self.assertTrue(any("本機檔案已匯入：weather_2" in message for message in messages))
+        self.assertIn("來源審查：使用者自備本機檔案", showinfo.call_args.args[1])
+        self.assertIn("不會執行：不掃描整個資料夾", showinfo.call_args.args[1])
 
 
 if __name__ == "__main__":

@@ -210,6 +210,8 @@ Tk UI 的入口是：
 資料庫 > 匯入本機 CSV/JSON 檔
 ```
 
+匯入成功後，UI 對話框會列出 manifest、SQLite 位置與短版來源審查摘要。這個摘要是為了讓使用者在 Demo 或日常操作時，不需要翻 manifest JSON 也能立刻知道「這是本機檔案、可追蹤 checksum、但來源與授權仍要人工確認」。
+
 或：
 
 ```text

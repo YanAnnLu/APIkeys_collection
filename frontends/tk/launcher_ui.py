@@ -131,6 +131,29 @@ def data_store_env_template_path(profile_id: str) -> Path:
     return state_file(f"data_store_env_templates/{data_store_env_template_filename(profile_id)}")
 
 
+def local_file_provenance_review_message(review: object) -> str:
+    # UI 成功訊息需要把後端 provenance_review 壓成短文字，讓新手知道這不是已驗證授權的外部來源。
+    if not isinstance(review, dict):
+        return ""
+    source_label = str(review.get("source_label_zh_TW") or "使用者自備本機檔案")
+    format_label = str(review.get("format_label_zh_TW") or "")
+    trust_boundary = str(review.get("trust_boundary_zh_TW") or "")
+    recommended = str(review.get("recommended_next_step_zh_TW") or "")
+    blocked = review.get("blocked_operations_zh_TW")
+    blocked_text = "、".join(str(item) for item in blocked[:3]) if isinstance(blocked, list) else ""
+    heading = f"來源審查：{source_label}"
+    if format_label:
+        heading += f"（{format_label}）"
+    lines = [heading]
+    if trust_boundary:
+        lines.append(f"安全邊界：{trust_boundary}")
+    if blocked_text:
+        lines.append(f"不會執行：{blocked_text}。")
+    if recommended:
+        lines.append(f"下一步：{recommended}")
+    return "\n".join(lines)
+
+
 TABLE_COLUMNS = (
     # 欄位定義集中保存 label/比例/寬度上下限，避免 resize 邏輯散在 UI 程式各處。
     ("star", "*", 0.045, 44, 64, "center", False),
@@ -2772,6 +2795,7 @@ class ApiCollectionUi:
         final_table = ""
         rows_imported = 0
         columns_count = 0
+        provenance_review: dict[str, object] = {}
         error = ""
         conn = self._connect()
         try:
@@ -2781,6 +2805,7 @@ class ApiCollectionUi:
                 None,
                 manifest_dir=state_file(MANUAL_IMPORTS_DIR_NAME),
             )
+            provenance_review = result.provenance_review
             ensure_manual_local_file_provider(repository, DEFAULT_MANUAL_LOCAL_PROVIDER_ID)
             register_local_file_manifest_asset(repository, result.manifest_path)
             manifest = read_manifest(result.manifest_path)
@@ -2816,7 +2841,16 @@ class ApiCollectionUi:
             conn.close()
         self.root.after(
             0,
-            lambda: self.finish_import_local_file(input_path, manifest_path, sqlite_path, final_table, rows_imported, columns_count, error),
+            lambda: self.finish_import_local_file(
+                input_path,
+                manifest_path,
+                sqlite_path,
+                final_table,
+                rows_imported,
+                columns_count,
+                provenance_review,
+                error,
+            ),
         )
 
     def finish_import_local_file(
@@ -2827,6 +2861,7 @@ class ApiCollectionUi:
         table_name: str,
         rows_imported: int,
         columns_count: int,
+        provenance_review: dict[str, object],
         error: str,
     ) -> None:
         if error:
@@ -2851,14 +2886,19 @@ class ApiCollectionUi:
                 "rows_imported": rows_imported,
                 "columns_count": columns_count,
                 "provider_id": DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
+                "provenance_review": provenance_review,
             },
         )
+        review_message = local_file_provenance_review_message(provenance_review)
+        message = self.tr(
+            f"{summary}\n\nManifest：{manifest_path}\nSQLite：{sqlite_path}\n\n來源檔未被移動或刪除。",
+            f"{summary}\n\nManifest: {manifest_path}\nSQLite: {sqlite_path}\n\nThe source file was not moved or deleted.",
+        )
+        if review_message:
+            message += f"\n\n{review_message}"
         messagebox.showinfo(
             self.tr("本機檔案已匯入", "Local file imported"),
-            self.tr(
-                f"{summary}\n\nManifest：{manifest_path}\nSQLite：{sqlite_path}\n\n來源檔未被移動或刪除。",
-                f"{summary}\n\nManifest: {manifest_path}\nSQLite: {sqlite_path}\n\nThe source file was not moved or deleted.",
-            ),
+            message,
         )
 
     def remove_selected_from_plan(self) -> None:
