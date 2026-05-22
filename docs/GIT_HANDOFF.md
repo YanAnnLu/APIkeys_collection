@@ -75,7 +75,7 @@ Before pushing, Windows contributors and agents can run the same fast local chec
 .\scripts\pre_push_smoke.cmd
 ```
 
-This checks whitespace problems in the working tree, staged diff, and `upstream..HEAD` pending-push diff when an upstream branch exists. It then runs core `py_compile`, `py -B -m unittest discover -s tests`, and `py -B APIkeys_collection.py --summary` with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
+This checks whitespace problems in the working tree, staged diff, and `upstream..HEAD` pending-push diff when an upstream branch exists. It then runs core `py_compile`, `py -B -m unittest discover -s tests`, `py -B APIkeys_collection.py --summary`, and the offline MVP demo smoke with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
 
 To install it as this clone's local Git `pre-push` hook:
 
@@ -102,7 +102,7 @@ The report includes Git status, current HEAD, catalog counts, manifest health, l
 For cross-Agent handoff, update and read `docs/AGENT_HANDOFF.zh-TW.md` first. It is the short, fixed handoff card; this file remains the longer Git workflow guide.
 
 GitHub Actions runs a lightweight CI matrix on Ubuntu plus the explicit `windows-2025-vs2026` runner for pushes and
-pull requests to `main`. It runs unit tests and a CLI smoke check with `PYTHONDONTWRITEBYTECODE=1` to avoid
+pull requests to `main`. It runs unit tests, `--summary`, and the offline MVP demo smoke with `PYTHONDONTWRITEBYTECODE=1` to avoid
 platform-specific `.pyc` lock issues. The Windows label is pinned to the Visual Studio 2026 image so the project tests
 the same Windows image GitHub is migrating `windows-latest` toward, instead of waiting for an implicit label switch.
 On macOS, `gh` is installed and authenticated as `YanAnnLu`; use it after push to confirm CI, because GitHub mobile

@@ -2,7 +2,8 @@ param(
     [string] $Python = "py",
     [switch] $SkipTests,
     [switch] $SkipSummary,
-    [switch] $SkipDiffCheck
+    [switch] $SkipDiffCheck,
+    [switch] $SkipMvpSmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,6 +50,23 @@ if (-not $SkipTests) {
 if (-not $SkipSummary) {
     Write-Host "[pre-push-smoke] CLI summary"
     & $Python -B APIkeys_collection.py --summary
+}
+
+if (-not $SkipMvpSmoke) {
+    Write-Host "[pre-push-smoke] MVP demo offline smoke"
+    $mvpSmokeJson = & $Python -B APIkeys_collection.py `
+        --db state/pre_push_mvp_demo/launcher.sqlite `
+        --init-db `
+        --seed `
+        --run-mvp-demo-smoke-json state/pre_push_mvp_demo/flow.json
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+    $mvpSmoke = $mvpSmokeJson | ConvertFrom-Json
+    if (-not $mvpSmoke.succeeded) {
+        throw "MVP demo smoke failed: $mvpSmokeJson"
+    }
+    Write-Host "[pre-push-smoke] MVP demo smoke stage=$($mvpSmoke.stage) row_count=$($mvpSmoke.row_count)"
 }
 
 Write-Host "[pre-push-smoke] OK"

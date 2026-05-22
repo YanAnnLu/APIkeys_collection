@@ -36,7 +36,9 @@ jobs:
       - name: CLI smoke
         env:
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python APIkeys_collection.py --init-db --seed --manifest-health --db state/ci.sqlite --summary
+        run: |
+          python APIkeys_collection.py --init-db --seed --manifest-health --db state/ci.sqlite --summary
+          python APIkeys_collection.py --db state/mvp_demo_ci/launcher.sqlite --init-db --seed --run-mvp-demo-smoke-json state/mvp_demo_ci/flow.json
 
   real-db-smoke:
     name: Real DB driver smoke on ubuntu-latest

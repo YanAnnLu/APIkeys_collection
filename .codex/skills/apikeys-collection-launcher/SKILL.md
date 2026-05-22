@@ -48,7 +48,7 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 .\.venv\Scripts\python.exe -B -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py api_launcher\core.py
 ```
 
-10. Before pushing on Windows, prefer the local pre-push smoke when time allows. It checks working tree, staged diff, and pending-push `upstream..HEAD` whitespace, then runs core `py_compile`, full unittest discovery, and `--summary` with temp pycache:
+10. Before pushing on Windows, prefer the local pre-push smoke when time allows. It checks working tree, staged diff, and pending-push `upstream..HEAD` whitespace, then runs core `py_compile`, full unittest discovery, `--summary`, and the offline MVP demo smoke with temp pycache:
 
 ```powershell
 .\scripts\pre_push_smoke.cmd

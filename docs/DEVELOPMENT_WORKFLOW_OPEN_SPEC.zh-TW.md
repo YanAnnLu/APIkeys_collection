@@ -84,7 +84,7 @@ npx -y @fission-ai/openspec@latest validate --all --no-interactive
 .\scripts\pre_push_smoke.cmd
 ```
 
-這會檢查 working tree、staged diff，以及有 upstream 時的 `upstream..HEAD` 待推送 diff，接著執行核心入口 `py_compile`、完整 `unittest discover -s tests` 與 `--summary`，並把 pycache 固定到 temp 目錄，降低 Windows/RaiDrive 鎖檔問題。若希望每次 `git push` 前自動執行，可在該 clone 本機安裝 hook：
+這會檢查 working tree、staged diff，以及有 upstream 時的 `upstream..HEAD` 待推送 diff，接著執行核心入口 `py_compile`、完整 `unittest discover -s tests`、`--summary` 與離線 MVP demo smoke，並把 pycache 固定到 temp 目錄，降低 Windows/RaiDrive 鎖檔問題。若希望每次 `git push` 前自動執行，可在該 clone 本機安裝 hook：
 
 ```powershell
 .\scripts\install_pre_push_hook.cmd

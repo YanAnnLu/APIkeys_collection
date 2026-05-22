@@ -1086,6 +1086,8 @@ class CatalogLauncherCli:
             },
         )
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+        if not result.succeeded:
+            raise RuntimeError("MVP demo offline smoke did not complete successfully.")
 
     def write_yfinance_demo_plan(self) -> None:
         if not self.args.write_yfinance_demo_plan:
