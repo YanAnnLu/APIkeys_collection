@@ -75,7 +75,7 @@ Before pushing, Windows contributors and agents can run the same fast local chec
 .\scripts\pre_push_smoke.cmd
 ```
 
-This runs `git diff --check`, core `py_compile`, `py -B -m unittest discover -s tests`, and `py -B APIkeys_collection.py --summary` with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
+This checks whitespace problems in the working tree, staged diff, and `upstream..HEAD` pending-push diff when an upstream branch exists. It then runs core `py_compile`, `py -B -m unittest discover -s tests`, and `py -B APIkeys_collection.py --summary` with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
 
 To install it as this clone's local Git `pre-push` hook:
 

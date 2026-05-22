@@ -19,8 +19,19 @@ Write-Host "[pre-push-smoke] repository: $ProjectRoot"
 Write-Host "[pre-push-smoke] python:     $Python"
 
 if (-not $SkipDiffCheck) {
-    Write-Host "[pre-push-smoke] git diff --check"
+    # 手動執行時要檢查工作區與 staged diff；pre-push hook 則還要檢查已 commit 但尚未推送的範圍。
+    $null = $true
+    Write-Host "[pre-push-smoke] git diff --check worktree"
     git diff --check
+    Write-Host "[pre-push-smoke] git diff --check staged"
+    git diff --check --cached
+    $upstream = git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $upstream) {
+        Write-Host "[pre-push-smoke] git diff --check pending push $upstream..HEAD"
+        git diff --check "$upstream..HEAD"
+    } else {
+        Write-Host "[pre-push-smoke] no upstream branch found; skipped pending-push diff check"
+    }
 }
 
 Write-Host "[pre-push-smoke] py_compile core entrypoints"
