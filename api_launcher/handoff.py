@@ -28,6 +28,7 @@ class HandoffSnapshot:
     manifest_health: dict[str, int]
     data_store_summary: dict[str, str]
     verification_summary: dict[str, str]
+    mvp_readiness: dict[str, Any]
     open_gtd_summary: dict[str, Any]
     open_gtd_items: list[dict[str, str]]
     recent_logs: list[dict[str, object]]
@@ -43,15 +44,18 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
     # 讀取比顯示更多的事件，讓時間摘要仍能找到最近的修復或驗證事件。
     recent_logs = latest_events(max(display_log_limit, 50))
     open_gtd_items = parse_open_gtd_items(project_path("docs/PROJECT_GTD.md"))
+    manifest_health = repository.dataset_asset_manifest_health_summary()
+    verification = verification_summary(repository, recent_logs)
     return HandoffSnapshot(
         generated_at=utc_now_iso(),
         git_status=_git_output("git", "status", "--short", "--branch"),
         git_head=_git_output("git", "log", "-1", "--oneline"),
         provider_count=int(provider_count),
         dataset_count=int(dataset_count),
-        manifest_health=repository.dataset_asset_manifest_health_summary(),
+        manifest_health=manifest_health,
         data_store_summary=data_store_handoff_summary(),
-        verification_summary=verification_summary(repository, recent_logs),
+        verification_summary=verification,
+        mvp_readiness=mvp_readiness_summary(verification, manifest_health),
         open_gtd_summary=gtd_status_summary(open_gtd_items),
         open_gtd_items=open_gtd_items[:12],
         recent_logs=recent_logs[-display_log_limit:] if display_log_limit else [],
@@ -79,6 +83,15 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- providers: {snapshot.provider_count}",
         f"- datasets: {snapshot.dataset_count}",
         f"- manifest_health: {snapshot.manifest_health}",
+        "",
+        "## MVP Readiness",
+        "",
+        f"- mvp_readiness_status: {snapshot.mvp_readiness.get('status', '')}",
+        f"- mvp_readiness_status_zh_TW: {snapshot.mvp_readiness.get('status_zh_TW', '')}",
+        f"- remaining_percent_estimate: {snapshot.mvp_readiness.get('remaining_percent_estimate', '')}",
+        f"- canonical_smoke: {snapshot.mvp_readiness.get('canonical_smoke', {})}",
+        f"- blockers: {snapshot.mvp_readiness.get('blockers', [])}",
+        f"- warnings: {snapshot.mvp_readiness.get('warnings', [])}",
         "",
         "## Data Store Profile",
         "",
@@ -361,7 +374,79 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
             str(latest_mvp_demo_smoke_context.get("stage") or "") if latest_mvp_demo_smoke_context else ""
         ),
         "latest_mvp_demo_smoke_result": str(mvp_demo_smoke_result) if latest_mvp_demo_smoke_context else "",
+        "latest_mvp_demo_smoke_succeeded": (
+            "true" if bool(latest_mvp_demo_smoke_context.get("succeeded")) else "false"
+        )
+        if latest_mvp_demo_smoke_context
+        else "",
+        "latest_mvp_demo_smoke_table_name": (
+            str(latest_mvp_demo_smoke_context.get("table_name") or "") if latest_mvp_demo_smoke_context else ""
+        ),
+        "latest_mvp_demo_smoke_row_count": (
+            str(latest_mvp_demo_smoke_context.get("row_count") or "0") if latest_mvp_demo_smoke_context else ""
+        ),
     }
+
+
+def mvp_readiness_summary(
+    verification: dict[str, str],
+    manifest_health: dict[str, int],
+) -> dict[str, Any]:
+    # 這個判斷只收斂 canonical MVP demo，不把 GTD 內的 post-MVP 擴充誤判成 blocker。
+    stage = verification.get("latest_mvp_demo_smoke_stage", "")
+    succeeded = verification.get("latest_mvp_demo_smoke_succeeded", "") == "true"
+    table_name = verification.get("latest_mvp_demo_smoke_table_name", "")
+    row_count = parse_int_or_zero(verification.get("latest_mvp_demo_smoke_row_count", ""))
+    blockers: list[str] = []
+    warnings: list[str] = []
+
+    if not verification.get("latest_mvp_demo_smoke_event_at"):
+        blockers.append("no_canonical_mvp_demo_smoke_event")
+    if stage != "download_import_completed":
+        blockers.append(f"canonical_smoke_stage_not_completed:{stage or 'none'}")
+    if not succeeded:
+        blockers.append("canonical_smoke_not_successful")
+    if row_count <= 0:
+        blockers.append("canonical_smoke_imported_zero_rows")
+
+    manifest_issues = {
+        status: count
+        for status, count in manifest_health.items()
+        if status not in {"ok"} and safe_positive_int(count) > 0
+    }
+    if manifest_issues:
+        # manifest 問題可能是非 demo 資產；先列 warning，避免把 post-MVP repair 誤當成 MVP 閉環未完成。
+        warnings.append(f"manifest_health_has_non_ok_entries:{manifest_issues}")
+
+    ready = not blockers
+    return {
+        "status": "ready_for_mvp_demo" if ready else "needs_mvp_smoke",
+        "status_zh_TW": "MVP Demo 閉環可交付" if ready else "MVP Demo 閉環仍需重跑或修復",
+        "remaining_percent_estimate": "0% for canonical MVP demo closure" if ready else "0.8% to 1.2%",
+        "canonical_smoke": {
+            "stage": stage,
+            "succeeded": succeeded,
+            "table_name": table_name,
+            "row_count": row_count,
+        },
+        "blockers": blockers,
+        "warnings": warnings,
+    }
+
+
+def parse_int_or_zero(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def safe_positive_int(value: object) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(parsed, 0)
 
 
 def latest_table_timestamp(conn: sqlite3.Connection, table: str, column: str) -> str:

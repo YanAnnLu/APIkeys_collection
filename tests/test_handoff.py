@@ -15,6 +15,7 @@ from api_launcher.handoff import (
     data_store_handoff_summary,
     handoff_snapshot_to_dict,
     markdown_table_cells,
+    mvp_readiness_summary,
     parse_open_gtd_items,
     render_handoff_markdown,
     verification_summary,
@@ -37,6 +38,9 @@ class HandoffTests(unittest.TestCase):
 
         self.assertIn("# APIkeys_collection Handoff", report)
         self.assertIn("providers:", report)
+        self.assertIn("MVP Readiness", report)
+        self.assertIn("mvp_readiness_status:", report)
+        self.assertIn("remaining_percent_estimate:", report)
         self.assertIn("Data Store Profile", report)
         self.assertIn("test_json_command:", report)
         self.assertIn("Verification Timestamps", report)
@@ -72,9 +76,11 @@ class HandoffTests(unittest.TestCase):
 
         encoded = json.dumps(payload, ensure_ascii=False)
         self.assertIn("verification_summary", payload)
+        self.assertIn("mvp_readiness", payload)
         self.assertIn("open_gtd_items", payload)
         self.assertIn("recent_logs", payload)
         self.assertIn("verification_summary", encoded)
+        self.assertIn("mvp_readiness", encoded)
 
     def test_cli_emits_handoff_report_json_without_human_setup_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -254,6 +260,33 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual("download_import_completed", summary["latest_mvp_demo_smoke_stage"])
         self.assertIn("'succeeded': True", summary["latest_mvp_demo_smoke_result"])
         self.assertIn("'row_count': 3", summary["latest_mvp_demo_smoke_result"])
+        self.assertEqual("true", summary["latest_mvp_demo_smoke_succeeded"])
+        self.assertEqual("nyc_open_data_socrata_socrata_311_sample", summary["latest_mvp_demo_smoke_table_name"])
+        self.assertEqual("3", summary["latest_mvp_demo_smoke_row_count"])
+
+    def test_mvp_readiness_marks_successful_canonical_smoke_ready(self) -> None:
+        readiness = mvp_readiness_summary(
+            {
+                "latest_mvp_demo_smoke_event_at": "2026-05-22T11:11:00+00:00",
+                "latest_mvp_demo_smoke_stage": "download_import_completed",
+                "latest_mvp_demo_smoke_succeeded": "true",
+                "latest_mvp_demo_smoke_table_name": "nyc_open_data_socrata_socrata_311_sample",
+                "latest_mvp_demo_smoke_row_count": "3",
+            },
+            {"ok": 1},
+        )
+
+        self.assertEqual("ready_for_mvp_demo", readiness["status"])
+        self.assertEqual("0% for canonical MVP demo closure", readiness["remaining_percent_estimate"])
+        self.assertEqual([], readiness["blockers"])
+        self.assertEqual(3, readiness["canonical_smoke"]["row_count"])
+
+    def test_mvp_readiness_keeps_missing_smoke_as_blocker(self) -> None:
+        readiness = mvp_readiness_summary({}, {})
+
+        self.assertEqual("needs_mvp_smoke", readiness["status"])
+        self.assertIn("no_canonical_mvp_demo_smoke_event", readiness["blockers"])
+        self.assertIn("canonical_smoke_imported_zero_rows", readiness["blockers"])
 
 
 if __name__ == "__main__":
