@@ -356,6 +356,50 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual("downloaded_payload_transform", payload["items"][0]["outcome_bucket"])
         self.assertEqual("ArchiveTransformAdapter", payload["items"][0]["adapter_id"])
 
+    def test_cli_writes_adapter_review_json_file(self) -> None:
+        # heartbeat/agent 不一定適合從 stdout 擷取大型 JSON，因此提供檔案輸出路徑作為交接契約。
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "plan.json"
+            output_path = Path(tmpdir) / "adapter_review.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "providers": [
+                            {
+                                "provider_id": "selector_provider",
+                                "dataset_id": "selector_dataset",
+                                "download_eligibility": {"status": "adapter_required"},
+                                "import_plan": {"status": "adapter_review_required"},
+                                "adapter_review": {
+                                    "adapter_id": "SelectorAdapter",
+                                    "required_action": "resolve_source_to_direct_download_entries",
+                                },
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--adapter-review-plan",
+                        str(plan_path),
+                        "--write-adapter-review-json",
+                        str(output_path),
+                    ]
+                )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(0, rc)
+        self.assertIn("[adapter-review] wrote", output.getvalue())
+        self.assertEqual({"source_resolution_required": 1}, payload["summary"]["by_outcome"])
+        self.assertEqual("SelectorAdapter", payload["items"][0]["adapter_id"])
+
     def test_cli_exports_candidate_plan_from_reviewable_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "launcher.sqlite"

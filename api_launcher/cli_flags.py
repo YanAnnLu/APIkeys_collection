@@ -30,6 +30,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         bool(args.write_yfinance_storage_handoff),
         bool(args.adapter_review_plan),
         args.adapter_review_json,
+        bool(args.write_adapter_review_json),
         bool(args.resolve_adapter_plan),
         bool(args.write_resolved_adapter_plan),
         args.keep_original_adapter_entries,

@@ -677,6 +677,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--yfinance-storage-handoff-review", default="", help="input yfinance storage review JSON for --write-yfinance-storage-handoff")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
+    parser.add_argument("--write-adapter-review-json", default="", help="write --adapter-review-plan payload to agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
     parser.add_argument("--write-resolved-adapter-plan", default="", help="output JSON for --resolve-adapter-plan; defaults beside the input plan")
     parser.add_argument("--keep-original-adapter-entries", action="store_true", help="keep original review entries when --resolve-adapter-plan adds direct entries")
@@ -1109,10 +1110,26 @@ class CatalogLauncherCli:
 
     def show_adapter_review_plan(self) -> None:
         if not self.args.adapter_review_plan:
+            if self.args.write_adapter_review_json:
+                raise ValueError("--write-adapter-review-json requires --adapter-review-plan.")
             return
         payload = load_download_plan_file(resolve_project_path(self.args.adapter_review_plan))
+        review_payload = adapter_review_agent_payload(payload)
+        if self.args.write_adapter_review_json:
+            output_path = resolve_project_path(self.args.write_adapter_review_json)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # 檔案輸出給 heartbeat/agent 接手；stdout 只保留短摘要，避免自動化誤解析人類文字。
+            output_path.write_text(json.dumps(review_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            summary = review_payload["summary"] if isinstance(review_payload.get("summary"), dict) else {}
+            by_outcome = summary.get("by_outcome") if isinstance(summary.get("by_outcome"), dict) else {}
+            print(
+                "[adapter-review] "
+                f"wrote {output_path} items={summary.get('item_count', 0)} outcomes={len(by_outcome)}"
+            )
         if self.args.adapter_review_json:
-            print(json.dumps(adapter_review_agent_payload(payload), ensure_ascii=False, indent=2))
+            print(json.dumps(review_payload, ensure_ascii=False, indent=2))
+            return
+        if self.args.write_adapter_review_json:
             return
         items = adapter_review_items(payload)
         adapter_count = len({item.adapter_id for item in items})

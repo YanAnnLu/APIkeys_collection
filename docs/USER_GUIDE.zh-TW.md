@@ -224,6 +224,7 @@ python -m unittest discover -s tests
 | 針對 yfinance plan 產生儲存目標 dry-run 審查檔 | `python3 APIkeys_collection.py --write-yfinance-storage-review state/yfinance_live/storage_review.json --yfinance-storage-review-plan state/yfinance_live/plan.json` |
 | 從 yfinance 儲存審查檔產生人類 / DBA 交接文件 | `python3 APIkeys_collection.py --write-yfinance-storage-handoff state/yfinance_live/storage_handoff.md --yfinance-storage-handoff-review state/yfinance_live/storage_review.json` |
 | 列出 plan 裡需要轉接器處理的項目 | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json` |
+| 寫出 agent-readable Adapter 待辦 JSON | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json --write-adapter-review-json state/adapter_review.json` |
 | 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
 | 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
 | 下載後匯入支援格式 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite` |
