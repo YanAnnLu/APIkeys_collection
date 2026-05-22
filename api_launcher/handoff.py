@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
+from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.db import utc_now_iso
 from api_launcher.discovery import LOCAL_SEEDS_NAME, load_discovery_seeds
 from api_launcher.event_log import latest_events
+from api_launcher.integrations import active_data_store_profile
 from api_launcher.paths import local_config_file, project_path
 from api_launcher.portal_intake import DEFAULT_PORTAL_INTAKE_PATH, build_portal_intake_payload
 from api_launcher.repository import ApiCatalogRepository
@@ -24,6 +26,7 @@ class HandoffSnapshot:
     provider_count: int
     dataset_count: int
     manifest_health: dict[str, int]
+    data_store_summary: dict[str, str]
     verification_summary: dict[str, str]
     open_gtd_summary: dict[str, Any]
     open_gtd_items: list[dict[str, str]]
@@ -47,6 +50,7 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
         provider_count=int(provider_count),
         dataset_count=int(dataset_count),
         manifest_health=repository.dataset_asset_manifest_health_summary(),
+        data_store_summary=data_store_handoff_summary(),
         verification_summary=verification_summary(repository, recent_logs),
         open_gtd_summary=gtd_status_summary(open_gtd_items),
         open_gtd_items=open_gtd_items[:12],
@@ -75,6 +79,16 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- providers: {snapshot.provider_count}",
         f"- datasets: {snapshot.dataset_count}",
         f"- manifest_health: {snapshot.manifest_health}",
+        "",
+        "## Data Store Profile",
+        "",
+        f"- active_profile: {snapshot.data_store_summary.get('active_profile', '') or 'none'}",
+        f"- active_engine: {snapshot.data_store_summary.get('engine', '') or 'none'}",
+        f"- active_store_kind: {snapshot.data_store_summary.get('store_kind', '') or 'none'}",
+        f"- required_env_vars: {snapshot.data_store_summary.get('required_env_vars', '') or '-'}",
+        f"- test_command: {snapshot.data_store_summary.get('test_command', '') or '-'}",
+        f"- test_json_command: {snapshot.data_store_summary.get('test_json_command', '') or '-'}",
+        f"- env_template_command: {snapshot.data_store_summary.get('env_template_command', '') or '-'}",
         "",
         "## Verification Timestamps",
         "",
@@ -188,6 +202,26 @@ def gtd_status_summary(items: list[dict[str, str]]) -> dict[str, Any]:
         status = item.get("status", "unknown") or "unknown"
         by_status[status] = by_status.get(status, 0) + 1
     return {"total": len(items), "by_status": by_status}
+
+
+def data_store_handoff_summary() -> dict[str, str]:
+    # Handoff 只列 profile 與命令，不跑連線測試，避免接力報告觸發網路或資料庫 side effect。
+    profile = active_data_store_profile()
+    if profile is None:
+        return {}
+    template_path = f"state/data_store_env_templates/{data_store_env_template_filename(profile.profile_id)}"
+    return {
+        "active_profile": profile.profile_id,
+        "engine": profile.engine,
+        "store_kind": profile.store_kind,
+        "required_env_vars": ", ".join(profile.required_env_vars),
+        "test_command": f"python APIkeys_collection.py --test-data-store {profile.profile_id}",
+        "test_json_command": f"python APIkeys_collection.py --test-data-store {profile.profile_id} --test-data-store-json",
+        "env_template_command": (
+            f"python APIkeys_collection.py --write-data-store-env-template {template_path} "
+            f"--data-store-env-template-profile {profile.profile_id}"
+        ),
+    }
 
 
 def markdown_table_cells(line: str) -> list[str]:

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from api_launcher.db import connect_db
-from api_launcher.handoff import build_handoff_snapshot, markdown_table_cells, parse_open_gtd_items, render_handoff_markdown
+from api_launcher.handoff import build_handoff_snapshot, data_store_handoff_summary, markdown_table_cells, parse_open_gtd_items, render_handoff_markdown
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -25,6 +25,8 @@ class HandoffTests(unittest.TestCase):
 
         self.assertIn("# APIkeys_collection Handoff", report)
         self.assertIn("providers:", report)
+        self.assertIn("Data Store Profile", report)
+        self.assertIn("test_json_command:", report)
         self.assertIn("Verification Timestamps", report)
         self.assertIn("latest_download_requeue_event_at:", report)
         self.assertIn("latest_download_requeue_outcome:", report)
@@ -60,6 +62,15 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual("Data store connections", items[0]["area"])
         self.assertEqual("Skeleton", items[0]["status"])
         self.assertEqual("Add HDFS probes.", items[0]["next_step"])
+
+    def test_data_store_handoff_summary_has_safe_commands_without_secret_values(self) -> None:
+        summary = data_store_handoff_summary()
+
+        self.assertIn("active_profile", summary)
+        self.assertIn("--test-data-store", summary["test_command"])
+        self.assertIn("--test-data-store-json", summary["test_json_command"])
+        self.assertIn("--write-data-store-env-template", summary["env_template_command"])
+        self.assertNotIn("PASSWORD=", " ".join(summary.values()))
 
 
 if __name__ == "__main__":
