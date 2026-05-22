@@ -64,6 +64,70 @@ class DataStoreUiHelperTests(unittest.TestCase):
 
 
 class DownloadPlanPanelUiTests(unittest.TestCase):
+    def test_download_skip_next_action_message_guides_partial_skip(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+
+        message = fake_ui.download_skip_next_action_message("下載工作已開始：1；略過：1", partial=True)
+
+        self.assertIn("已啟動的 direct download 會繼續排隊", message)
+        self.assertIn("解析 Adapter 計畫", message)
+
+    def test_start_download_plan_items_warns_when_some_items_are_skipped(self) -> None:
+        class FakeQueue:
+            def __init__(self) -> None:
+                self.submitted: list[dict[str, object]] = []
+
+            def submit(self, entry: dict[str, object]) -> SimpleNamespace:
+                # 測試只需要鎖定 UI 決策邊界，不啟動真正的下載 worker。
+                self.submitted.append(entry)
+                return SimpleNamespace(job_id=f"job-{len(self.submitted)}")
+
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        fake_ui.prepare_provider_for_download = lambda _plan_key: True
+        fake_ui.plan_entry_for_item = lambda _row, _version, plan_key: (
+            {
+                "download_url": "https://example.test/data.csv",
+                "target_path": "downloads/data.csv",
+                "download_eligibility": {"status": "direct_download"},
+            }
+            if plan_key == "direct"
+            else {
+                "download_eligibility": {
+                    "status": "adapter_required",
+                    "reason": "需要 Adapter 審核後才能下載",
+                },
+                "adapter_review": {"reason": "selector"},
+            },
+            None,
+        )
+        fake_ui.download_queue = FakeQueue()
+        fake_ui.download_status_by_provider = {}
+        fake_ui.import_status_by_plan_key = {}
+        fake_ui.download_jobs_by_provider = {}
+        fake_ui.download_providers_by_job = {}
+        fake_ui.download_plan_entries_by_provider = {}
+        fake_ui.update_download_jobs_panel = lambda: None
+        status_messages: list[str] = []
+        fake_ui.status_var = SimpleNamespace(set=lambda message: status_messages.append(message))
+
+        with patch("frontends.tk.launcher_ui.messagebox.showinfo") as showinfo:
+            fake_ui.start_download_plan_items(
+                [
+                    ("direct", SimpleNamespace(name="Direct source"), None),
+                    ("adapter", SimpleNamespace(name="Adapter source"), None),
+                ]
+            )
+
+        self.assertEqual(1, len(fake_ui.download_queue.submitted))
+        self.assertEqual(("queued", "0%", str(Path("downloads/data.csv"))), fake_ui.download_status_by_provider["direct"])
+        self.assertEqual("skipped", fake_ui.download_status_by_provider["adapter"][0])
+        self.assertIn("下載工作已開始：1；略過：1", status_messages[-1])
+        showinfo.assert_called_once()
+        self.assertEqual("部分項目未啟動下載", showinfo.call_args.args[0])
+        self.assertIn("已啟動的 direct download 會繼續排隊", showinfo.call_args.args[1])
+
     def test_download_plan_toggle_label_tracks_visibility(self) -> None:
         labels: list[str] = []
         fake_ui = object.__new__(ApiCollectionUi)

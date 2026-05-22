@@ -336,7 +336,7 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 如果資料不是透過下載計畫取得，而是你手上已有 CSV/JSON 類本機檔案，使用 `資料庫 > 匯入本機 CSV/JSON 檔`。這條 UI 路徑也會先建立 manifest，再匯入 SQLite；它只處理你選取的那一個檔案，不會掃整個資料夾。
 
-如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。按 `開始` 時若沒有任何 direct download，UI 會顯示略過分類並提示你先開 `Adapter 待辦` 或 `解析 Adapter 計畫`。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
+如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。按 `開始` 時若沒有任何 direct download，UI 會顯示略過分類並提示你先開 `Adapter 待辦` 或 `解析 Adapter 計畫`；若同一份計畫有一部分已開始下載、另一部分被略過，UI 也會另外提示已啟動的下載會繼續排隊，被略過的項目仍要走 Adapter 待辦或解析流程。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
 
 目前 ZIP/TAR 壓縮包已有第一個 MVP adapter：如果 plan 標示 `requires_unpack_or_adapter`，而壓縮包裡有 CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON 類成員，launcher 會抽出第一個支援檔、建立衍生 manifest，再接到 SQLite 匯入流程。它仍然是保守策略，不會嘗試猜測複雜壓縮包裡所有檔案的語意。
 

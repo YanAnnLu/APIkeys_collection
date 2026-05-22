@@ -2422,6 +2422,18 @@ class ApiCollectionUi:
         parts = [f"{labels.get(bucket, bucket)}={count}" for bucket, count in skip_summary.items() if count]
         return "；".join(parts)
 
+    def download_skip_next_action_message(self, summary: str, *, partial: bool) -> str:
+        # 下載略過不是單純錯誤：多數是尚未解析的 API/selector/metadata，需要把下一步明確告訴使用者。
+        if partial:
+            return summary + "\n\n" + self.tr(
+                "已啟動的 direct download 會繼續排隊；被略過的項目仍是 API、入口頁、selector 或 metadata。請先開 Adapter 待辦，或按「解析 Adapter 計畫」把可安全界定的小樣本轉成 direct download。",
+                "Started direct downloads will stay queued. Skipped items are still APIs, landing pages, selectors, or metadata. Open the adapter review queue or resolve the adapter plan before downloading them.",
+            )
+        return summary + "\n\n" + self.tr(
+            "這些項目目前還是 API、入口頁、selector 或 metadata。請先開 Adapter 待辦，或按「解析 Adapter 計畫」把可安全界定的小樣本轉成 direct download。",
+            "These items are still APIs, landing pages, selectors, or metadata. Open the adapter review queue or resolve the adapter plan before downloading.",
+        )
+
     def start_download_plan_items(self, items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]) -> None:
         # 這裡只啟動 direct_download；需要 adapter 的項目保留在審核/解析流程，不硬猜 URL。
         started = 0
@@ -2465,12 +2477,13 @@ class ApiCollectionUi:
             # 這個提示把「沒有直接下載」改成可行的下一步，避免 Demo 時看起來像按鈕沒接上。
             messagebox.showinfo(
                 self.tr("沒有可直接下載項目", "No direct downloads"),
-                summary
-                + "\n\n"
-                + self.tr(
-                    "這些項目目前還是 API、入口頁、selector 或 metadata。請先開 Adapter 待辦，或按「解析 Adapter 計畫」把可安全界定的小樣本轉成 direct download。",
-                    "These items are still APIs, landing pages, selectors, or metadata. Open the adapter review queue or resolve the adapter plan before downloading.",
-                ),
+                self.download_skip_next_action_message(summary, partial=False),
+            )
+        elif started and skipped:
+            # 部分成功仍要提示剩餘項目的下一步，否則使用者會誤以為整份 plan 都已經處理完。
+            messagebox.showinfo(
+                self.tr("部分項目未啟動下載", "Some items were not started"),
+                self.download_skip_next_action_message(summary, partial=True),
             )
 
     def prepare_provider_for_download(self, plan_key: str) -> bool:
