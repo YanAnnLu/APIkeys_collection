@@ -43,6 +43,12 @@ flowchart LR
 py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json
 ```
 
+如果只想讓後端自己跑完離線 smoke，並取得 agent-readable JSON 驗收摘要，可以直接用：
+
+```powershell
+py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --run-mvp-demo-smoke-json state/mvp_demo/flow.json
+```
+
 這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、agent-readable adapter review JSON、離線 JSON fixture plan 與後續指令。先跑離線 direct plan，可以在沒有網路時驗證下載、sidecar manifest、SQLite 匯入是否正常：
 
 ```powershell

@@ -125,7 +125,10 @@ from api_launcher.manual_import import (
     write_local_file_manifest as write_local_file_manifest_file,
 )
 from api_launcher.models import Dataset, Provider
-from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
+from api_launcher.mvp_demo import (
+    run_mvp_demo_offline_smoke,
+    write_mvp_demo_flow as write_mvp_demo_flow_files,
+)
 from api_launcher.paths import catalog_file
 from api_launcher.plans import (
     build_dataset_download_plan,
@@ -641,6 +644,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
+    parser.add_argument("--run-mvp-demo-smoke-json", help="write the canonical MVP demo flow and run its offline download/import smoke as JSON")
     parser.add_argument("--write-yfinance-demo-plan", help="write a fixture-backed Yahoo Finance/yfinance OHLCV demo plan")
     parser.add_argument("--write-yfinance-live-plan", help="explicit opt-in: fetch Yahoo Finance/yfinance live OHLCV data into a local CSV-backed plan")
     parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for yfinance demo/live plans; can be repeated")
@@ -834,6 +838,7 @@ class CatalogLauncherCli:
             self.crawl_sources()
             self.refresh_state()
             self.write_mvp_demo_flow()
+            self.run_mvp_demo_smoke()
             self.write_yfinance_demo_plan()
             self.write_yfinance_live_plan()
             self.write_yfinance_storage_review()
@@ -898,6 +903,7 @@ class CatalogLauncherCli:
         return bool(
             self.args.verify_downloads_json
             or self.args.run_download_plan_json
+            or bool(self.args.run_mvp_demo_smoke_json)
             or self.args.adapter_review_json
             or self.args.resolve_adapter_plan_json
             or self.args.manual_import_json
@@ -1057,6 +1063,29 @@ class CatalogLauncherCli:
             if not isinstance(command, dict) or command.get("step") in {1, "1"}:
                 continue
             print(f"[mvp-demo] step{command.get('step')} {command.get('command')}")
+
+    def run_mvp_demo_smoke(self) -> None:
+        if not self.args.run_mvp_demo_smoke_json:
+            return
+        # 這是 release/heartbeat 可重跑的最短 MVP 閉環：固定 fixture，不碰外網，結果只輸出 JSON。
+        result = run_mvp_demo_offline_smoke(
+            resolve_project_path(self.args.run_mvp_demo_smoke_json),
+            self.repository,
+        )
+        log_event(
+            "mvp_demo_smoke_completed",
+            "Ran canonical offline MVP demo smoke.",
+            component="mvp_demo",
+            context={
+                "flow_path": str(result.flow.flow_path),
+                "stage": result.run.stage,
+                "succeeded": result.succeeded,
+                "table_name": result.table_name,
+                "row_count": result.row_count,
+                "download_import": result.run.to_dict(),
+            },
+        )
+        print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
 
     def write_yfinance_demo_plan(self) -> None:
         if not self.args.write_yfinance_demo_plan:

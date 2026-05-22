@@ -118,6 +118,35 @@ class MvpDemoFlowTests(unittest.TestCase):
         self.assertIn("submitted=1 completed=1", output.getvalue())
         self.assertIn("imported=1", output.getvalue())
 
+    def test_cli_runs_demo_smoke_as_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            flow_path = Path(tmpdir) / "flow.json"
+            db_path = Path(tmpdir) / "launcher.sqlite"
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(db_path),
+                        "--init-db",
+                        "--seed",
+                        "--run-mvp-demo-smoke-json",
+                        str(flow_path),
+                    ]
+                )
+
+            payload = json.loads(output.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertTrue(payload["succeeded"])
+        self.assertEqual("download_import_completed", payload["stage"])
+        self.assertEqual("nyc_open_data_socrata_socrata_311_sample", payload["table_name"])
+        self.assertEqual(3, payload["row_count"])
+        self.assertEqual(1, payload["download_import"]["result"]["submitted"])
+        self.assertEqual(1, payload["download_import"]["result"]["imported"])
+        self.assertEqual("flow.json", Path(payload["artifacts"]["flow_manifest"]).name)
+
 
 if __name__ == "__main__":
     unittest.main()
