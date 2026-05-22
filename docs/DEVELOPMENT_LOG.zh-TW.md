@@ -19,10 +19,11 @@
 
 ### 2026-05-23
 
-目前開發階段：**MVP Hardening / Product Naming**。這一段把對外產品名從歷史相容名 `APIkeys_collection` 收斂為 `RuRuKa Asset Launcher`，短稱 `RRKAL`；`RRK` 作為未來品牌字根保留在產品定位中，但既有 repo、package、CLI wrapper 與產物檔名暫不做破壞式批量改名。
+目前開發階段：**MVP Hardening / Product Naming / Library UI**。這一段把對外產品名從歷史相容名 `APIkeys_collection` 收斂為 `RuRuKa Asset Launcher`，短稱 `RRKAL`；`RRK` 作為未來品牌字根保留在產品定位中，但既有 repo、package、CLI wrapper 與產物檔名暫不做破壞式批量改名。同時開始把 Steam-like library action 的 `status_badge` 顯示到 Tk 右鍵選單，讓使用者能直接看懂可加入計畫、可修復、可受控移除等狀態。
 
 | 時間 | 開發階段 | 狀態 | SHA | Run | 原始提交訊息 | 中文說明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 02:20 | MVP Hardening | **CHECKPOINT** | `d1c6d21` | `26304716621` | Show localized library action badges | 讓 Steam-like 資料資產右鍵動作真正露出可讀狀態：`api_launcher/library_actions.py` 新增 `status_badge` 的 zh-TW/en-US 短標籤與 menu-label 選項，Tk 右鍵選單會顯示「可加入計畫」、「可重排修復」、「可受控移除」等 badge；同時更新 USER_GUIDE、GTD、AGENT_HANDOFF，並補 `tests.test_library_actions` 覆蓋本地化 badge 與 disabled reason 合併輸出。驗證：`py -B -m py_compile api_launcher\library_actions.py frontends\tk\launcher_ui.py tests\test_library_actions.py`、`py -B -m unittest tests.test_library_actions tests.test_launcher_ui -v` 41 tests、`git diff --check`、`scripts\pre_push_smoke_brief.cmd` 467 tests / 4 skipped + MVP demo smoke `row_count=3`；CI Ubuntu、`windows-2025-vs2026`、real DB smoke 全部 success。 |
 | 01:29 | Product Naming / MVP Hardening | **CHECKPOINT** | `3d3b35d` | `26302421754` | Brand as RuRuKa Asset Launcher | 將對外產品名統一為 `RuRuKa Asset Launcher`，短稱 `RRKAL`；Tk 視窗標題、UI ready 訊息、Google callback 頁標題、handoff / heartbeat 報告標題、README、產品定位、架構文件、GTD、使用者文件、repo/local skill 與測試全部同步。`Aseat` 拼字已收斂為標準 `Asset` / `Crawler Asset` 用語；產品定位明確寫入 `RRK` 可作為未來品牌字根，但 `APIkeys_collection` 仍保留為 repo、Python package、CLI 入口與歷史相容名稱。GitHub repo description 也更新為 RRKAL 描述。驗證：`git diff --check`、`py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py api_launcher\handoff.py api_launcher\heartbeat.py`、`tests.test_handoff tests.test_heartbeat tests.test_launcher_ui` 49 tests、`scripts\pre_push_smoke_brief.cmd` 465 tests / 4 skipped + MVP demo smoke `row_count=3`、CI Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全綠。 |
 
 ### 2026-05-22
