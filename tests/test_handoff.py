@@ -6,7 +6,14 @@ import unittest
 from pathlib import Path
 
 from api_launcher.db import connect_db
-from api_launcher.handoff import build_handoff_snapshot, data_store_handoff_summary, markdown_table_cells, parse_open_gtd_items, render_handoff_markdown
+from api_launcher.handoff import (
+    build_handoff_snapshot,
+    data_store_handoff_summary,
+    markdown_table_cells,
+    parse_open_gtd_items,
+    render_handoff_markdown,
+    verification_summary,
+)
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -30,6 +37,8 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("Verification Timestamps", report)
         self.assertIn("latest_download_requeue_event_at:", report)
         self.assertIn("latest_download_requeue_outcome:", report)
+        self.assertIn("latest_adapter_review_json_event_at:", report)
+        self.assertIn("latest_adapter_review_json_output:", report)
         self.assertIn("Open GTD Focus", report)
         self.assertIn("open_gtd_total:", report)
         self.assertIn("Portal Intake / Local Discovery", report)
@@ -71,6 +80,32 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("--test-data-store-json", summary["test_json_command"])
         self.assertIn("--write-data-store-env-template", summary["env_template_command"])
         self.assertNotIn("PASSWORD=", " ".join(summary.values()))
+
+    def test_verification_summary_reports_latest_adapter_review_json_export(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                summary = verification_summary(
+                    repo,
+                    [
+                        {
+                            "timestamp": "2026-05-22T09:00:00+00:00",
+                            "event": "adapter_review_json_written",
+                            "context": {
+                                "output_path": "state/adapter_review.json",
+                                "by_outcome": {"source_resolution_required": 1},
+                            },
+                        }
+                    ],
+                )
+            finally:
+                conn.close()
+
+        self.assertEqual("2026-05-22T09:00:00+00:00", summary["latest_adapter_review_json_event_at"])
+        self.assertEqual("state/adapter_review.json", summary["latest_adapter_review_json_output"])
+        self.assertIn("source_resolution_required", summary["latest_adapter_review_json_outcomes"])
 
 
 if __name__ == "__main__":
