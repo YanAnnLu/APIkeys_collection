@@ -121,6 +121,7 @@ python APIkeys_collection.py --verify-downloads-json
 
 ```bash
 python APIkeys_collection.py --test-data-store all
+python APIkeys_collection.py --test-data-store mysql_default --test-data-store-json
 python APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default
 python APIkeys_collection.py --self-check-databases
 python APIkeys_collection.py --self-check-databases-json

@@ -60,6 +60,12 @@ class DataStoreEnvTemplateResult:
     env_vars: tuple[str, ...]
 
 
+def data_store_env_template_filename(profile_id: str) -> str:
+    # profile id 可能來自 local config；任何要變成檔名的值都必須先收斂到安全字元。
+    safe_profile_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in profile_id).strip("_")
+    return f"{safe_profile_id or 'data_store_profile'}.env.template"
+
+
 DEFAULT_DATA_STORE_PROFILES = (
     # 內建 profile 只定義常見環境變數名稱；真實值永遠由 os.environ 或本機 config 提供。
     DataStoreConnectionProfile(
@@ -252,6 +258,65 @@ def write_data_store_env_template(
         profile_ids=tuple(profile.profile_id for profile in profiles),
         env_vars=env_vars,
     )
+
+
+def data_store_connection_agent_payload(results: tuple[DataStoreConnectionTestResult, ...]) -> dict[str, object]:
+    # JSON payload 給 heartbeat / agent / UI 後續重用；next_action 要指向安全、非破壞的下一步。
+    return {
+        "kind": "data_store_connection_tests",
+        "results": [data_store_connection_result_payload(result) for result in results],
+    }
+
+
+def data_store_connection_result_payload(result: DataStoreConnectionTestResult) -> dict[str, object]:
+    return {
+        "profile_id": result.profile_id,
+        "engine": result.engine,
+        "status": result.status,
+        "ok": result.ok,
+        "message": result.message,
+        "details": result.details,
+        "next_action": data_store_connection_next_action(result),
+    }
+
+
+def data_store_connection_next_action(result: DataStoreConnectionTestResult) -> dict[str, object]:
+    # 連線測試失敗時要給可操作的修復方向，但仍不能自動安裝套件或寫入 credential。
+    if result.status == "missing_env":
+        template_path = f"state/data_store_env_templates/{data_store_env_template_filename(result.profile_id)}"
+        return {
+            "action_id": "write_env_template",
+            "label": "Write data-store env template",
+            "description": "Write an empty-value env template, fill it locally, then rerun the connection test.",
+            "command": (
+                f"--write-data-store-env-template {template_path} "
+                f"--data-store-env-template-profile {result.profile_id}"
+            ),
+        }
+    if result.status == "dependency_missing":
+        return {
+            "action_id": "install_optional_driver",
+            "label": "Install optional database driver in the project environment",
+            "description": "Install only in the project/CI smoke environment, then rerun the connection test.",
+            "driver": result.details.get("driver") or result.details.get("driver_options") or "",
+        }
+    if result.status == "unsupported":
+        return {
+            "action_id": "reserved_profile",
+            "label": "Reserved profile",
+            "description": "This data-store profile is modeled for handoff, but no live tester is implemented yet.",
+        }
+    if result.status == "error":
+        return {
+            "action_id": "inspect_connection",
+            "label": "Inspect data-store connection settings",
+            "description": "Check host, port, database, user permissions, network reachability, and driver compatibility.",
+        }
+    return {
+        "action_id": "none",
+        "label": "No repair needed",
+        "description": "Connection test passed.",
+    }
 
 
 def _append_env_template_line(

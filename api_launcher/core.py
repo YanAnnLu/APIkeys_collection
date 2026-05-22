@@ -59,6 +59,7 @@ from api_launcher.dataset_discovery import (
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import (
     DataStoreConnectionProfile,
+    data_store_connection_agent_payload,
     data_store_profiles_from_config,
     test_data_store_connection,
     write_data_store_env_template,
@@ -725,6 +726,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="profile id for --write-data-store-env-template; repeatable, defaults to all configured profiles",
     )
     parser.add_argument("--self-check-databases", action="store_true", help="verify managed database assets against configured data-store checks")
+    parser.add_argument("--test-data-store-json", action="store_true", help="emit data-store connection test results as agent-readable JSON")
     parser.add_argument("--self-check-databases-json", action="store_true", help="verify managed database assets and emit issues as agent-readable JSON")
     parser.add_argument(
         "--reimport-missing-sqlite-table",
@@ -1379,12 +1381,15 @@ class CatalogLauncherCli:
             )
 
     def test_data_store_connections(self) -> None:
-        if not self.args.test_data_store:
+        if not (self.args.test_data_store or self.args.test_data_store_json):
             return
         requested = {value.strip() for value in self.args.test_data_store if value.strip()}
         selected = self.selected_data_store_profiles(requested)
-        for profile in selected:
-            result = test_data_store_connection(profile)
+        results = tuple(test_data_store_connection(profile) for profile in selected)
+        if self.args.test_data_store_json:
+            print(json.dumps(data_store_connection_agent_payload(results), ensure_ascii=False, indent=2, sort_keys=True))
+            return
+        for profile, result in zip(selected, results, strict=True):
             details = json.dumps(result.details, ensure_ascii=False, sort_keys=True)
             print(
                 "[data-store] "

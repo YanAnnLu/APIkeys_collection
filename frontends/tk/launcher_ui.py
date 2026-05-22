@@ -76,7 +76,7 @@ from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
-from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
+from api_launcher.data_store_connections import data_store_env_template_filename, data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
@@ -119,9 +119,8 @@ def database_sql_dry_run_available(suggestion: object) -> bool:
 
 
 def data_store_env_template_path(profile_id: str) -> Path:
-    # profile id 可能來自 local JSON；檔名先白名單化，避免 UI 寫檔時讓 profile id 影響目錄層級。
-    safe_profile_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in profile_id).strip("_")
-    return state_file(f"data_store_env_templates/{safe_profile_id or 'data_store_profile'}.env.template")
+    # 檔名白名單化規則放在 data_store_connections，CLI/agent/UI 才會指向同一個預設範本名稱。
+    return state_file(f"data_store_env_templates/{data_store_env_template_filename(profile_id)}")
 
 
 TABLE_COLUMNS = (

@@ -1,6 +1,7 @@
 # 這份測試鎖定 data-store profile/env 檢查，避免缺 credential 時仍嘗試連線。
 from __future__ import annotations
 
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -13,6 +14,9 @@ from api_launcher.core import main
 from api_launcher.data_store_connections import (
     DEFAULT_DATA_STORE_PROFILES,
     DataStoreConnectionProfile,
+    data_store_connection_agent_payload,
+    data_store_connection_next_action,
+    data_store_env_template_filename,
     data_store_profile,
     data_store_profiles_from_config,
     data_store_profiles_by_kind,
@@ -136,6 +140,9 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertIn("APIKEYS_MYSQL_PORT=\n", template)
         self.assertNotIn("secret=", template.lower())
 
+    def test_env_template_filename_sanitizes_profile_id(self) -> None:
+        self.assertEqual("mysql_default.env.template", data_store_env_template_filename("../mysql default"))
+
     def test_env_template_deduplicates_shared_env_vars(self) -> None:
         profile_a = DataStoreConnectionProfile(
             profile_id="a",
@@ -158,6 +165,35 @@ class DataStoreConnectionTests(unittest.TestCase):
 
         self.assertEqual(1, template.count("SHARED_HOST=\n"))
         self.assertIn("SHARED_HOST already listed above", template)
+
+    def test_data_store_connection_agent_payload_guides_missing_env(self) -> None:
+        profile = data_store_profile("mysql_default")
+        self.assertIsNotNone(profile)
+        result = test_data_store_connection(profile, {})
+
+        payload = data_store_connection_agent_payload((result,))
+        first = payload["results"][0]
+
+        self.assertEqual("missing_env", first["status"])
+        self.assertEqual("write_env_template", first["next_action"]["action_id"])
+        self.assertIn("--write-data-store-env-template", first["next_action"]["command"])
+
+    def test_data_store_connection_next_action_guides_dependency_missing(self) -> None:
+        result = test_data_store_connection(
+            DataStoreConnectionProfile(
+                profile_id="mysql_fake",
+                label="MySQL fake",
+                store_kind="relational_sql",
+                engine="mysql",
+                required_env_vars=("HOST", "DB", "USER", "PASSWORD"),
+                env_var_map={"host": "HOST", "database": "DB", "user": "USER", "password": "PASSWORD"},
+            ),
+            {"HOST": "localhost", "DB": "sample", "USER": "demo", "PASSWORD": "secret"},
+        )
+
+        action = data_store_connection_next_action(result)
+
+        self.assertIn(action["action_id"], {"install_optional_driver", "inspect_connection", "none"})
 
     def test_write_data_store_env_template_returns_handoff_metadata(self) -> None:
         profile = data_store_profile("postgres_default")
@@ -457,6 +493,28 @@ class DataStoreConnectionTests(unittest.TestCase):
         self.assertIn("[data-store-env] wrote", output.getvalue())
         self.assertIn("profiles=mysql_default", output.getvalue())
         self.assertIn("APIKEYS_MYSQL_PASSWORD=", text)
+
+    def test_cli_can_emit_data_store_connection_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = io.StringIO()
+
+            with patch.dict("os.environ", {}, clear=True):
+                with redirect_stdout(output):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--test-data-store",
+                            "mysql_default",
+                            "--test-data-store-json",
+                        ]
+                    )
+            payload = json.loads(output.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("data_store_connection_tests", payload["kind"])
+        self.assertEqual("mysql_default", payload["results"][0]["profile_id"])
+        self.assertEqual("write_env_template", payload["results"][0]["next_action"]["action_id"])
 
 
 class FakeCursor:
