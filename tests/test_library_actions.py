@@ -16,6 +16,7 @@ from api_launcher.library_actions import (
     library_action_agent_payload,
     library_action_map,
     library_action_menu_label,
+    library_action_status_badge_label,
     ordered_library_actions,
 )
 from api_launcher.manifests import build_asset_manifest, write_manifest
@@ -90,6 +91,11 @@ class LibraryActionTests(unittest.TestCase):
         self.assertEqual("missing_render_assets", actions["render_preview"].status_badge)
         self.assertEqual("guarded_uninstall_ready", actions["uninstall"].status_badge)
 
+    def test_status_badge_labels_are_localized_for_ui(self) -> None:
+        self.assertEqual("可重排修復", library_action_status_badge_label("repair_requeue_ready"))
+        self.assertEqual("Guarded uninstall ready", library_action_status_badge_label("guarded_uninstall_ready", "en-US"))
+        self.assertEqual("custom_badge", library_action_status_badge_label("custom_badge"))
+
     def test_uninstall_is_marked_destructive(self) -> None:
         context = LibraryContext(provider_id="sample", local_status="managed", install_id="inst_123")
         actions = {action.action_id: action for action in build_library_actions(context)}
@@ -104,6 +110,15 @@ class LibraryActionTests(unittest.TestCase):
         self.assertIn("add_to_plan", action_map)
         self.assertEqual("add_to_plan", ordered_ids[0])
         self.assertIn("No direct download", library_action_menu_label(action_map["add_to_plan"]))
+
+    def test_menu_label_can_include_localized_status_badge(self) -> None:
+        ready_actions = library_action_map(LibraryContext(provider_id="sample", has_direct_download=True))
+        blocked_actions = library_action_map(LibraryContext(provider_id="sample"))
+
+        self.assertIn("[可加入計畫]", library_action_menu_label(ready_actions["add_to_plan"], include_status_badge=True))
+        blocked_label = library_action_menu_label(blocked_actions["add_to_plan"], include_status_badge=True)
+        self.assertIn("No direct download", blocked_label)
+        self.assertIn("[需解析下載方式]", blocked_label)
 
     def test_agent_payload_reuses_shared_policy(self) -> None:
         context = LibraryContext(provider_id="sample", local_status="managed", install_id="inst_123")

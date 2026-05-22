@@ -2063,7 +2063,7 @@ class ApiCollectionUi:
         if action is None:
             return
         menu.add_command(
-            label=library_action_menu_label(action),
+            label=library_action_menu_label(action, include_status_badge=True, badge_language=self.ui_language),
             command=command,
             state="normal" if action.enabled else "disabled",
         )
