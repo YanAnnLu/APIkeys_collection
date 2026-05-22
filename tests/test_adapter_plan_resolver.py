@@ -897,7 +897,7 @@ class AdapterPlanResolverTests(unittest.TestCase):
             input_path.write_text(json.dumps({"providers": [ckan_review_entry()]}), encoding="utf-8")
             output = io.StringIO()
 
-            with redirect_stdout(output):
+            with patch("api_launcher.core.log_event") as log_event_mock, redirect_stdout(output):
                 rc = main(
                     [
                         "--db",
@@ -910,6 +910,8 @@ class AdapterPlanResolverTests(unittest.TestCase):
                 )
 
             payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual("adapter_plan_resolved", log_event_mock.call_args.args[0])
+            self.assertEqual(1, log_event_mock.call_args.kwargs["context"]["direct_entries_added"])
 
         self.assertEqual(0, rc)
         self.assertIn("[adapter-resolve] wrote", output.getvalue())

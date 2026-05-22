@@ -1177,6 +1177,21 @@ class CatalogLauncherCli:
             f"resolved={result.resolved_review_entries} unresolved={result.unresolved_review_entries} "
             f"direct_added={result.direct_entries_added}"
         )
+        log_event(
+            "adapter_plan_resolved",
+            "Resolved adapter review plan into a bounded download plan.",
+            component="adapter_resolver",
+            context={
+                "input_plan": str(input_path),
+                "output_path": str(output_path),
+                "entry_count": result.entry_count,
+                "output_entry_count": result.output_entry_count,
+                "resolved_review_entries": result.resolved_review_entries,
+                "unresolved_review_entries": result.unresolved_review_entries,
+                "direct_entries_added": result.direct_entries_added,
+                "warning_count": len(result.warnings),
+            },
+        )
         for warning in result.warnings:
             print(f"[adapter-resolve] warning {warning}")
 
