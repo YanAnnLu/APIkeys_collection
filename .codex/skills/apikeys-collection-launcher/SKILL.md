@@ -67,8 +67,8 @@ To install the same check as a local-only Git hook for this clone, run `.\script
 11. After pushing, verify GitHub Actions rather than assuming push success means CI success:
 
 ```bash
-gh run list --repo YanAnnLu/APIkeys_collection --limit 5
-gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
+gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
 ```
 
 The CI workflow should stay on Node 24-ready official actions. As of 2026-05-20, `.github/workflows/ci.yml` uses
@@ -112,7 +112,7 @@ Use this when updating `docs/DEVELOPMENT_LOG.zh-TW.md`.
 1. Prefer GitHub Actions push history over local `git log` when local Git history is damaged or incomplete:
 
 ```bash
-gh run list --repo YanAnnLu/APIkeys_collection --limit 200 --json databaseId,headSha,displayTitle,event,status,conclusion,createdAt
+gh run list --repo kagamihara-rururka/APIkeys_collection --limit 200 --json databaseId,headSha,displayTitle,event,status,conclusion,createdAt
 ```
 
 2. Keep the log ledger-style, not only summarized. Group entries by Asia/Taipei date in reverse chronological order, newest date first. Within each date, list entries newest time first. Add a one-line daily main theme, then list every relevant push run.

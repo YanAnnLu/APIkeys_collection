@@ -54,8 +54,8 @@
 5. push 後追 GitHub Actions：
 
    ```bash
-   gh run list --repo YanAnnLu/APIkeys_collection --limit 5
-   gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
+   gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5
+   gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
    ```
 
    注意：`git push` 成功只代表 commit 到遠端，不代表 Windows/Ubuntu CI 成功。手機 GitHub 通知若顯示 `CI failed`，要看 workflow log，不是重試 push。
@@ -230,7 +230,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - `--self-check-databases` 現在人類輸出會包含 `suggestion=...` 修復代號；`--self-check-databases-json` 會輸出純 JSON，包含每個 missing/error database/table asset 的錯誤、去敏感化位置、是否有 schema fingerprint、profile/schema metadata、以及修復建議。MySQL/PostgreSQL 缺表若有健康 CSV/JSON/GeoJSON 類 manifest，JSON details 會標 `sql_dry_run_available=true`，下一步可用 Tk「產生 dry-run SQL」或 CLI `--write-database-repair-sql ASSET_ID` 產生人工審核用 SQL；這仍不是自動修復。Database repair CLI/UI 成功時也會寫 `database_repair_completed` 到 `state/logs/launcher_events.jsonl`，可用 `--show-logs 20` 查。
 - Tk Repair panel 的「資料庫」分頁會重用同一套 database self-check verifier 與 `database_self_check_issues()`；現在可用「調整資料庫連線」修改單一 database/table asset 的 `data_store_profile_id` 與 `schema_name`，儲存後清掉舊 error 並重新自檢；也可用「停止追蹤」把單一 database/table asset 標成 `unmanaged`，讓它退出後續自檢；若是由 CSV/CSV.GZ/JSON/JSONL/NDJSON/GeoJSON manifest 匯入過、現在 table missing 的 SQLite table，可用「重新匯入資料表」從記錄的健康 sidecar manifest 重建缺失 table。非 SQLite 的 MySQL/PostgreSQL 缺表若標有 `sql_dry_run_available=true`，可用「產生 dry-run SQL」寫出 `state/database_repair/*.dry_run.sql` 供審核，不連線、不執行 DDL/DML、不修改 registry。CLI/agent 可用 `--unmanage-database-asset ASSET_ID --database-repair-json` 做同一個 registry-only 停止追蹤，也可用 `--reimport-missing-sqlite-table ASSET_ID --database-repair-json` 呼叫同一個 reimport guard，或用 `--write-database-repair-sql ASSET_ID --database-repair-json` 呼叫同一個 dry-run SQL guard。`database_self_check_issues()` / `--self-check-databases-json` 只在 SQLite manifest-backed 缺表條件成立時標 `can_auto_repair=true`，UI/CLI 都會擋下不符合條件的重新匯入列。停止追蹤只改 registry metadata；重新匯入只在 table 不存在時建立 table，不自動 `DROP`、覆蓋既有 table、或移動檔案。
 - 2026-05-17 已修復 Windows CI：Python `with sqlite3.connect(...)` 不會自動 close connection，Windows temp SQLite 會被檔案鎖住並造成 `WinError 32`；短生命週期 SQLite probe/test 請用 `contextlib.closing(sqlite3.connect(...))`。
-- macOS 目前已安裝並登入 GitHub CLI (`gh`) 為 `YanAnnLu`，可直接查 CI run/log。
+- macOS 目前已安裝 GitHub CLI (`gh`)；GitHub 帳號已由 `YanAnnLu` 改名為 `kagamihara-rururka`，查 CI run/log 時使用 `kagamihara-rururka/APIkeys_collection`。
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 團隊開始共同尋找資料庫入口網站時，請先寫入 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`。這是組員用的入口收集表，不要貼 API key/token/cookie；只記網站、API 文件、授權、入口類型、主題、地理範圍與是否需要登入。CLI 已有 `--portal-intake-report --write-portal-intake-json state/portal_intake.review.json`，會把表格整理成 provider seed 草稿、dataset discovery source 草稿、crawler mapping 待辦、adapter/integration backlog 或 incomplete warning；`--promote-portal-intake-local` 只會把乾淨草稿寫進被 Git 忽略的 `config/provider_discovery_seeds.local.json` 與 `config/dataset_discovery_sources.local.json`，不直接改正式 catalog。草稿要進正式 catalog 時，用 `--promote-local-discovery-catalog --write-local-discovery-audit-json state/local_discovery_audit.json`；這會先跑 crawler audit，只有 error=0/warning=0 的 local dataset source 才會寫入正式 catalog。
 - `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 主入口，不是暫存雜檔；crawler-first、爬蟲資產 / Aseat、candidate review、bounded resolver、adapter handoff、dataset-version plan 的新規格都應寫在這裡。`docs/appendices/discovery.zh-TW.md` 只保留 redirect/摘要，避免舊 handoff、skill 或 prompt 引用失效。

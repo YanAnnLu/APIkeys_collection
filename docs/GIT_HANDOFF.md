@@ -43,8 +43,8 @@ git status --short
 git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md docs catalog config scripts .gitignore .gitattributes
 git commit -m "Describe the launcher change"
 git push origin main
-gh run list --repo YanAnnLu/APIkeys_collection --limit 5
-gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status
+gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
 git status --short
 ```
 
@@ -113,7 +113,7 @@ GitHub Actions runs a lightweight CI matrix on Ubuntu plus the explicit `windows
 pull requests to `main`. It runs unit tests, `--summary`, and the offline MVP demo smoke with `PYTHONDONTWRITEBYTECODE=1` to avoid
 platform-specific `.pyc` lock issues. The Windows label is pinned to the Visual Studio 2026 image so the project tests
 the same Windows image GitHub is migrating `windows-latest` toward, instead of waiting for an implicit label switch.
-On macOS, `gh` is installed and authenticated as `YanAnnLu`; use it after push to confirm CI, because GitHub mobile
+On macOS, `gh` is installed; the account was renamed from `YanAnnLu` to `kagamihara-rururka`, so use `kagamihara-rururka/APIkeys_collection` after push to confirm CI, because GitHub mobile
 notifications report workflow status, not whether `git push` reached the remote.
 
 If Windows CI fails with `PermissionError: [WinError 32]` around `*.sqlite` in a temp directory, check for unclosed

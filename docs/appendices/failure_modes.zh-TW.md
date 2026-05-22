@@ -41,7 +41,7 @@
 5. 若有未提交 diff，先用 `git diff > state/recovery/<timestamp>.patch` 或複製檔案到 ignored recovery 位置；不要把「看起來不符合文件」當成可丟棄內容。
 6. 若懷疑下載檔壞掉，執行 `py APIkeys_collection.py --verify-downloads`，再用 `py APIkeys_collection.py --manifest-health --list-manifests` 看 SQLite 中的健康統計與明細。若要給 UI 或下一位 Agent 讀，改用 `py APIkeys_collection.py --verify-downloads-json` 取得 summary、issues、repair suggestion 與可重排下載的 plan entry。
 7. 修改後跑測試與 Docker。
-8. push 後用 GitHub CLI 追 CI：`gh run list --repo YanAnnLu/APIkeys_collection --limit 5`，再對最新 run 執行 `gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status`。push 成功不代表 Windows/Ubuntu CI 成功。
+8. push 後用 GitHub CLI 追 CI：`gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`，再對最新 run 執行 `gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status`。push 成功不代表 Windows/Ubuntu CI 成功。
 
 ## SQLite / Windows CI 注意
 

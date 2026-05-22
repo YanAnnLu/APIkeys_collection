@@ -11,7 +11,7 @@ from api_launcher.handoff import parse_open_gtd_items
 from api_launcher.paths import project_path
 
 
-REPO_SLUG = "YanAnnLu/APIkeys_collection"
+REPO_SLUG = "kagamihara-rururka/APIkeys_collection"
 DEFAULT_REPORT_PATH = Path("state/heartbeat/heartbeat.md")
 DEFAULT_PLAN_PATH = Path("state/heartbeat/heartbeat_plan.json")
 DEFAULT_AGENT_PROMPT_PATH = Path("state/heartbeat/agent_prompt.md")
@@ -427,7 +427,7 @@ def default_verification_commands() -> list[str]:
         "$env:PYTHONDONTWRITEBYTECODE='1'; py -B -c \"import py_compile; [py_compile.compile(path, doraise=True) for path in ['APIkeys_collection.py','APIkeys_collection_ui.py','api_launcher/core.py','api_launcher/cli_flags.py','api_launcher/heartbeat.py']]\"",
         "git diff --check",
         "git push origin BRANCH_OR_MAIN",
-        "gh run watch RUN_ID --repo YanAnnLu/APIkeys_collection --exit-status",
+        "gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status",
     ]
 
 

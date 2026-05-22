@@ -307,7 +307,7 @@ The next refactor should split `api_launcher/core.py` further into crawl, export
 - Keep project files UTF-8 with LF line endings.
 - SQLite state on synced drives can conflict. Prefer treating `*.sqlite` as rebuildable state or copy it locally before heavy writes.
 - Git for Windows was installed on 2026-05-17 and the repo was initialized on `main`.
-- GitHub CLI was installed and authenticated as `YanAnnLu` on 2026-05-17.
+- GitHub CLI was installed and authenticated as `YanAnnLu` on 2026-05-17; the GitHub account/repo owner was later renamed to `kagamihara-rururka`.
 - Docker Desktop 4.73.0 is installed and verified on this Windows machine.
 - WSL is installed for Docker Desktop; the `docker-desktop` WSL distro runs as WSL2.
 - Docker Compose is verified with `docker compose run --rm --build launcher`.
