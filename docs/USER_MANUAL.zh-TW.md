@@ -1,6 +1,6 @@
 # 使用者操作手冊
 
-最後更新：2026-05-22
+最後更新：2026-05-23
 
 這份手冊是面向第一次操作 Demo 的使用者。更細的背景說明仍保留在 `docs/USER_GUIDE.zh-TW.md`；本文件聚焦「照著做」。
 
@@ -113,7 +113,7 @@ python3 APIkeys_collection_ui.py
 啟動成功時，終端機會看到：
 
 ```text
-APIkeys_collection UI ready ...
+RuRuKa Asset Launcher (RRKAL) UI ready ...
 ```
 
 若 UI 沒有浮出，先看終端機錯誤與 `state/logs/launcher_events.jsonl`。

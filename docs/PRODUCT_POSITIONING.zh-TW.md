@@ -1,10 +1,14 @@
 # 產品定位
 
-最後更新：2026-05-22
+最後更新：2026-05-23
 
 ## 一句話
 
-APIkeys Collection 正在從 API key/source 管理器，演進成「資料工程版 Steam」：把原本需要到處找來源、查依賴、比版本、下載、匯入、驗證、修復與橋接的工作，集中成一個懶人化但可追蹤的平台。
+目前對外產品名是 **RuRuKa Asset Launcher**，短稱 **RRKAL**；`APIkeys_collection` 保留為 repo、Python package、CLI 入口與歷史相容名稱。
+
+`RRK` 可作為未來品牌字根，用於新的 UI 模組、功能別名、外部文件或視覺命名；既有程式 namespace、CLI 檔名與相容 wrapper 不應因為短稱好用而直接批量更名，除非另開一個具備遷移路徑與測試範圍的 rename checkpoint。
+
+RuRuKa Asset Launcher 正在從 API key/source 管理器，演進成「資料工程版 Steam」：把原本需要到處找來源、查依賴、比版本、下載、匯入、驗證、修復與橋接的工作，集中成一個懶人化但可追蹤的平台。
 
 ## 新定位
 
@@ -12,11 +16,11 @@ APIkeys Collection 正在從 API key/source 管理器，演進成「資料工程
 
 > 一個類 Steam 的科學資料集與爬蟲資產 launcher，負責 discovery、下載、安裝、版本、更新、解除安裝、資料清洗、SQL/檔案/API 納管，並把資料轉接給 Taichi、Unreal 或未來 agent 使用。
 
-Steam 最強的概念不是商店頁本身，而是把「找遊戲、裝依賴、更新 runtime、同步存檔、確認本機是否安裝、修復壞掉檔案」這些麻煩事平台化。APIkeys Collection 面對的是資料工程：資料散在 NOAA、ERDDAP、STAC、CKAN、API、CSV、資料庫、物件儲存與研究站台之間；使用者不應每次都從搜尋引擎、文件、壓縮檔、SQL 匯入與路徑設定重新開始。
+Steam 最強的概念不是商店頁本身，而是把「找遊戲、裝依賴、更新 runtime、同步存檔、確認本機是否安裝、修復壞掉檔案」這些麻煩事平台化。RuRuKa Asset Launcher 面對的是資料工程：資料散在 NOAA、ERDDAP、STAC、CKAN、API、CSV、資料庫、物件儲存與研究站台之間；使用者不應每次都從搜尋引擎、文件、壓縮檔、SQL 匯入與路徑設定重新開始。
 
 因此產品核心是：讓資料源與爬蟲能力像 Steam library 裡的遊戲一樣可搜尋、可收藏、可審核、可安裝、可驗證、可更新、可修復；同時把原始資料、本機安裝、個人工作區與渲染/分析橋接分清楚。
 
-更長期的上位概念請見 `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`。那份文件把本專案整理成 local-first 資料資產平台：不只管理資料庫，也管理 raw artifact、pandas/DataFrame 類暫態資料、Discovery Tool、爬蟲資產 / Aseat、adapter/importer、storage backend、renderer backend、ML model、job、recipe 與 lineage。它是 roadmap 與概念總綱，不是目前 MVP 必須一次實作的清單。
+更長期的上位概念請見 `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md`。那份文件把本專案整理成 local-first 資料資產平台：不只管理資料庫，也管理 raw artifact、pandas/DataFrame 類暫態資料、Discovery Tool、爬蟲資產 / Crawler Asset、adapter/importer、storage backend、renderer backend、ML model、job、recipe 與 lineage。它是 roadmap 與概念總綱，不是目前 MVP 必須一次實作的清單。
 
 ## 產品形態補充
 

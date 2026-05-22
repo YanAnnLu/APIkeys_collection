@@ -1,4 +1,4 @@
 interface:
-  display_name: "APIkeys Collection Developer"
+  display_name: "RuRuKa Asset Launcher Developer"
   short_description: "Maintain the launcher repo with MVP, docs, crawler, and safety rules."
   default_prompt: "Continue developing APIkeys_collection safely, following handoff, MVP, documentation, and CI rules."

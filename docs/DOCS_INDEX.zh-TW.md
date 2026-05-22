@@ -37,7 +37,7 @@
 | 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、怎麼安全換平台、下一步在哪、文件怎麼找。 |
 | 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 屬於哪個開發階段、改了什麼、如何驗證、還有什麼風險。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
-| 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Aseat、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
+| 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `MVP_FLOW_AUDIT.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first，並確認候選、resolver、下載與匯入是否真的閉環。 |
 | 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |
 | 要整理檔案或重構 | `CODE_RELATIONSHIP_MAP.zh-TW.md` -> `WORKSPACE_LAYOUT.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先看程式調度關係、檔案分類、路徑規則與拆分優先順序。 |
@@ -59,12 +59,12 @@
 | `MVP_FLOW_AUDIT.zh-TW.md` | MVP 閉環稽核表，列出 Demo 流程、下載/匯入/repair/MySQL 的可驗證狀態與缺口。 | Demo 前後、發現按鈕沒有閉環、下載/匯入/crawler 行為改變時更新。 |
 | `USER_MANUAL.zh-TW.md` | 帶圖說的使用者操作手冊，面向 Demo 與第一次操作。 | 新增 UI/CLI 操作、改變使用者流程、補圖說時更新。 |
 | `PRODUCT_POSITIONING.zh-TW.md` | 產品定位：科學資料集與爬蟲資產 launcher、資料工程版 Steam、虛擬孿生資料管線。 | 產品語言或中長期方向改變時更新。 |
-| `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` | 中長期概念總綱，整理資料資產、Discovery Tool、爬蟲資產 / Aseat、標準化策略、湖倉/K8S、Render Studio、ML、Notion/TradingView connector 與 local-first 桌面形態。 | 重大產品概念討論、平台接口方向、商業化定位或中期 roadmap 改變時更新；不要把它當成當前 MVP 實作清單。 |
+| `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` | 中長期概念總綱，整理資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、標準化策略、湖倉/K8S、Render Studio、ML、Notion/TradingView connector 與 local-first 桌面形態。 | 重大產品概念討論、平台接口方向、商業化定位或中期 roadmap 改變時更新；不要把它當成當前 MVP 實作清單。 |
 | `ARCHITECTURE.zh-TW.md` | 中文架構入口，說明本機 MVP、分散式閉環、模組層、資料夾目標結構與重要邊界。 | 模組責任、資料流、Hadoop/K8S/renderer/mobile/P2P 邊界改變時更新。 |
 | `ARCHITECTURE.md` | 英文架構原文與跨語系參考。 | 大幅更新時同步更新 `ARCHITECTURE.zh-TW.md` 或至少補中文摘要。 |
 | `TECHNICAL_OVERVIEW.zh-TW.md` | 中文技術總覽，白話說明資料、下載、SQL、AI、renderer 等主線。 | 新功能進入 MVP 或 skeleton 邊界改變時更新。 |
 | `DATASET_TYPE_MAP.zh-TW.md` | 資料類型地圖，說明 table、GIS、time-series、array、media、RAG 等資料該怎麼想。 | 新增資料類型、storage hint、viewer hint 時更新。 |
-| `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 主入口，聚焦 crawler-first、爬蟲資產 / Aseat 的落點、candidate review、adapter 邊界、bounded resolver、download/import plan 與版本計畫。 | 改 crawler、crawler asset 概念、candidate、adapter resolver、download plan 時更新。 |
+| `DATASET_DISCOVERY_NOTES.zh-TW.md` | dataset discovery 主入口，聚焦 crawler-first、爬蟲資產 / Crawler Asset 的落點、candidate review、adapter 邊界、bounded resolver、download/import plan 與版本計畫。 | 改 crawler、crawler asset 概念、candidate、adapter resolver、download plan 時更新。 |
 | `DATABASE_PORTAL_INTAKE.zh-TW.md` | 組員收集資料入口網站的表格與規則。 | intake 欄位、promotion 流程、Notion 同步規則改變時更新。 |
 | `DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` | OpenSpec / Spectra / Qt Designer 開發流程，定義中大型改動的規格化習慣。 | 開發流程、OpenSpec 工具、Spectra GUI、Qt/PySide6 工具位置或規格門檻改變時更新。 |
 | `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序、路徑規則，以及 `tem/` 本機暫存區的使用規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime/暫存目錄時更新。 |

@@ -3,7 +3,7 @@ name: apikeys-collection-client
 description: Use when operating APIkeys_collection as a user/client rather than developing it. Trigger for tasks like finding dataset sources, running discovery, reviewing candidates, exporting or resolving download plans, downloading direct entries, importing supported CSV/JSON results into SQLite, checking manifests, repairing downloads, testing data-store profiles, generating AI summaries, or producing handoff reports without changing source code.
 ---
 
-# APIkeys Collection Client
+# RuRuKa Asset Launcher Client
 
 這是客戶端 / 使用者層 skill。目標是讓 Agent 會使用 APIkeys_collection，而不是一遇到問題就改程式碼。
 

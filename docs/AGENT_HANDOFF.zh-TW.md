@@ -107,7 +107,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --init-db --seed --man
 
 ## 目前專案定位
 
-APIkeys Collection 是一個類 Steam 的科學資料集/資料庫 launcher。它不是單純 API key 管理器，而是要管理：
+RuRuKa Asset Launcher 是一個類 Steam 的科學資料集/資料庫 launcher。它不是單純 API key 管理器，而是要管理：
 
 - 資料源與供應商 discovery seeds
 - 下載計畫，也就是資料集購物車
@@ -171,7 +171,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 ## 最近完成
 
 - Tk UI 實作檔已從 `frontends/tk/APIkeys_collection_ui.py` 改名為 `frontends/tk/launcher_ui.py`。
-- Tk UI 從 IDE 或背景 shell 啟動後會自動浮出、短暫置前並印出 `APIkeys_collection UI ready ...`；相關 TclError suppressor 已收窄成只吞 Tk/Tcl 視窗生命週期錯誤，不再靜默吞掉非預期例外。
+- Tk UI 從 IDE 或背景 shell 啟動後會自動浮出、短暫置前並印出 `RuRuKa Asset Launcher (RRKAL) UI ready ...`；相關 TclError suppressor 已收窄成只吞 Tk/Tcl 視窗生命週期錯誤，不再靜默吞掉非預期例外。
 - Tk root 建立失敗時，`frontends/tk/launcher_ui.py` 的 `main()` 會攔截 `TclError`、寫入 `ui_tk_startup_failed` event、在 stderr 印出繁中修復建議並回傳 `2`。若錯誤提到 `init.tcl`、Tcl/Tk runtime 或 display，先用系統 Python 執行 `py -B APIkeys_collection_ui.py`；若要用 `.venv`，請以含 Tcl/Tk 的 Python 重建，不要混用 base/system Python 套件。
 - 新增 `docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/MVP_FLOW_AUDIT.zh-TW.md`、`docs/USER_MANUAL.zh-TW.md`：分別補上程式關聯地圖、Demo 閉環稽核、帶圖說的使用者操作手冊。之後整理資料夾或新增功能時，先同步這三份文件，避免調度關係只留在聊天紀錄。
 - 文件與 skill 的優先順序已明確：`.md` 是 source of truth，skill/prompt/script 是消費層。整理好 `.md` 後要回頭改 skill 引用，而不是讓舊 skill 路徑反過來決定文件不能整理。
@@ -233,8 +233,8 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - macOS 目前已安裝 GitHub CLI (`gh`)；GitHub 帳號已由 `YanAnnLu` 改名為 `kagamihara-rururka`，查 CI run/log 時使用 `kagamihara-rururka/APIkeys_collection`。
 - 海域法域資料請記住：領海、EEZ、爭議區、公海不是單純座標戳，而是帶法律/行政屬性的 GIS polygon 圖層。MySQL spatial 可做 MVP；較完整 GIS 分析、切 tile、空間索引應優先考慮 PostGIS；原始資料保留 GeoPackage/Shapefile/GeoJSON 與 manifest。
 - 團隊開始共同尋找資料庫入口網站時，請先寫入 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md`。這是組員用的入口收集表，不要貼 API key/token/cookie；只記網站、API 文件、授權、入口類型、主題、地理範圍與是否需要登入。CLI 已有 `--portal-intake-report --write-portal-intake-json state/portal_intake.review.json`，會把表格整理成 provider seed 草稿、dataset discovery source 草稿、crawler mapping 待辦、adapter/integration backlog 或 incomplete warning；`--promote-portal-intake-local` 只會把乾淨草稿寫進被 Git 忽略的 `config/provider_discovery_seeds.local.json` 與 `config/dataset_discovery_sources.local.json`，不直接改正式 catalog。草稿要進正式 catalog 時，用 `--promote-local-discovery-catalog --write-local-discovery-audit-json state/local_discovery_audit.json`；這會先跑 crawler audit，只有 error=0/warning=0 的 local dataset source 才會寫入正式 catalog。
-- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 主入口，不是暫存雜檔；crawler-first、爬蟲資產 / Aseat、candidate review、bounded resolver、adapter handoff、dataset-version plan 的新規格都應寫在這裡。`docs/appendices/discovery.zh-TW.md` 只保留 redirect/摘要，避免舊 handoff、skill 或 prompt 引用失效。
-- 2026-05-22 已補「爬蟲資產 / Crawler Asset / Aseat」概念：它是 API 搜集器的概念擴充，代表可治理、可版本化、可審核、可排程、可修復的資料取得能力；它不取代 Provider、Dataset、DatasetDiscoverySource、Adapter 或 Mission，而是把現有 crawler/source/resolver/event-log 流程包成產品層。短期不要為此硬加大型 registry；等 UI/健康檢查/repair mission 需要時，再把它提升成正式資料模型。
+- `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 是重要 discovery 主入口，不是暫存雜檔；crawler-first、爬蟲資產 / Crawler Asset、candidate review、bounded resolver、adapter handoff、dataset-version plan 的新規格都應寫在這裡。`docs/appendices/discovery.zh-TW.md` 只保留 redirect/摘要，避免舊 handoff、skill 或 prompt 引用失效。
+- 2026-05-22 已補「爬蟲資產 / Crawler Asset」概念：它是 API 搜集器的概念擴充，代表可治理、可版本化、可審核、可排程、可修復的資料取得能力；它不取代 Provider、Dataset、DatasetDiscoverySource、Adapter 或 Mission，而是把現有 crawler/source/resolver/event-log 流程包成產品層。短期不要為此硬加大型 registry；等 UI/健康檢查/repair mission 需要時，再把它提升成正式資料模型。
 - 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
 - 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
 - `tem/` 已正式定義成本機暫存資料夾，並由 `.gitignore` 排除。它可以保存外部 agent 交接包或概念素材，但不是 canonical source of truth；團隊協作者與 CI 都不會看到本機 `tem/` 內容。下一位 Agent 若從 `tem/` 讀到有用資料，應把摘要或正式檔案搬進文件/原始碼後再提交。

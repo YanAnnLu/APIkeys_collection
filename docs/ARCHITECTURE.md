@@ -1,8 +1,8 @@
-# APIkeys Collection Architecture
+# RuRuKa Asset Launcher Architecture
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
-APIkeys Collection is a Steam-like launcher for data sources, crawler assets, and
+RuRuKa Asset Launcher is a Steam-like launcher for data sources, crawler assets, and
 local databases. It catalogs providers, governs data-acquisition capabilities,
 builds download plans, downloads/imports datasets, tracks installed assets, and
 prepares data for downstream renderers such as `taichi_global_bathymetry.py`.
@@ -24,7 +24,7 @@ mid-term distributed loop where Hadoop and Kubernetes may be owned by other team
 flowchart LR
     Provider[Provider / official source]
     Catalog[Provider + dataset catalog]
-    CrawlerAsset[Crawler asset / Aseat]
+    CrawlerAsset[Crawler asset / Crawler Asset]
     Candidate[Dataset candidate]
     Plan[Download plan]
     Download[Direct downloader]
@@ -79,7 +79,7 @@ launcher should not own either cluster; it should prepare contracts, submit or d
 Crawler assets are the governed capability layer between catalog sources and dataset candidates. A crawler asset may
 package a crawler type, parser, bounded resolver, credentials/rate-limit boundaries, safety guards, health status,
 repair workflow, and lineage. It does not replace Provider, Dataset, DiscoverySource, Adapter, or Mission; it makes the
-existing crawler/source/resolver path product-readable for a future Aseat-style cockpit.
+existing crawler/source/resolver path product-readable for a future crawler-asset cockpit.
 
 ### Library / Install / Workspace Model
 
@@ -248,7 +248,7 @@ network policy, and operational health.
 | Core orchestration | `api_launcher/core.py` | CLI commands and shared exports used by the UI. |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py` | SQLite schema, catalog state, crawl results, install registry, local asset state. |
 | Catalog model | `api_launcher/models.py`, `api_launcher/registry.py`, catalog JSON/CSV/MD files | Provider and dataset definitions. |
-| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | Polite metadata/source discovery, dataset candidate discovery, and the future crawler asset / Aseat governance boundary. |
+| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/cli_discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | Polite metadata/source discovery, dataset candidate discovery, and the future crawler asset / Crawler Asset governance boundary. |
 | Planning | `api_launcher/adapters/*`, `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Builds download-plan JSON, provider-specific dataset/query contracts, adapter handoff, and bounded resolver paths. Unofficial sources such as yfinance must stay fixture-tested by default; live yfinance is allowed only through an explicit opt-in CSV plan path, never background crawling or CI live calls. |
 | Library actions | `api_launcher/library_actions.py` | Shared Steam-like action availability rules for install, update, repair, open, render, and uninstall. |
 | Downloading | `api_launcher/downloads/` | Nonblocking job queue, resumable HTTP adapter, staging, manifest repair, and optional external transfer tools. |

@@ -3,7 +3,9 @@ name: apikeys-collection-launcher
 description: Use for developer-level work on the APIkeys_collection repository, a Steam-like data asset launcher. Trigger when modifying source code, tests, docs, Tk UI, provider catalog, discovery/crawler tools, adapter resolvers, download/import plans, manifests, install registry, SQL/data-store assets, provenance, curation, cross-platform handoff, or local database integration. For operating the launcher without code changes, use the client/user skill instead.
 ---
 
-# APIkeys Collection Launcher
+# RuRuKa Asset Launcher
+
+Product display name: **RuRuKa Asset Launcher**. Short name: **RRKAL**. Compatibility name: `APIkeys_collection`; keep repo, package, CLI wrappers, generated filenames, and historical references compatible unless a dedicated rename migration explicitly scopes them.
 
 This is the project developer skill, the second layer in the skill plan:
 

@@ -1,6 +1,6 @@
 # Dataset Discovery 補充說明
 
-更新日期：2026-05-22
+更新日期：2026-05-23
 
 ## 文件角色
 
@@ -57,11 +57,11 @@ state/logs/launcher_events.jsonl
 它的輸出是否能追到後續 manifest、curated table、repair event 與 lineage？
 ```
 
-這也是 Aseat 概念可以落地的位置：Aseat 不是取代 Provider、Dataset 或 Adapter，而是包住一個可維護的資料取得能力，讓 UI 以「資產護照、任務隊列、健康狀態、修復流程」呈現它。短期仍以現有 crawler/source/resolver 檔案推進；中期才把它提升成獨立 registry 或操作艙。
+這也是 Crawler Asset 概念可以落地的位置：Crawler Asset 不是取代 Provider、Dataset 或 Adapter，而是包住一個可維護的資料取得能力，讓 UI 以「資產護照、任務隊列、健康狀態、修復流程」呈現它。短期仍以現有 crawler/source/resolver 檔案推進；中期才把它提升成獨立 registry 或操作艙。
 
 ```mermaid
 flowchart LR
-    Source[資料發現來源] --> Asset[爬蟲資產 / Aseat]
+    Source[資料發現來源] --> Asset[爬蟲資產 / Crawler Asset]
     Asset --> Candidate[資料集候選]
     Candidate --> Review[Adapter 待辦 / 人工審核]
     Candidate --> Resolver[有界解析器]

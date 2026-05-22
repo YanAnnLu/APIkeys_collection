@@ -1,8 +1,8 @@
-# APIkeys Collection 中文技術概要
+# RuRuKa Asset Launcher 中文技術概要
 
 最後更新：2026-05-18
 
-APIkeys Collection 是一個類 Steam 的資料庫與資料源啟動器。它的目標不是只保存 API key，而是協助大數據專案管理「資料源、下載計畫、本機資料庫、安裝狀態、清洗流程、渲染器橋接」。
+RuRuKa Asset Launcher（短稱：RRKAL；內部相容名稱：APIkeys_collection）是一個類 Steam 的資料庫與資料源啟動器。它的目標不是只保存 API key，而是協助大數據專案管理「資料源、下載計畫、本機資料庫、安裝狀態、清洗流程、渲染器橋接」。
 
 更白話地說，它想把資料工程裡最麻煩的「到處搜集」懶人化：找官方來源、看文件、確認授權、挑版本、下載檔案、保存 manifest、匯入 SQLite/資料庫、檢查壞檔、重建 cache、接到 Taichi/Unreal/圖表前端。這些不是一次性腳本該各做各的，而應該像 Steam 管遊戲一樣，放進同一個 library / install / repair / workspace 模型裡。
 

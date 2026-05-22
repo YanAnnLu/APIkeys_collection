@@ -36,7 +36,7 @@ class HandoffTests(unittest.TestCase):
             finally:
                 conn.close()
 
-        self.assertIn("# APIkeys_collection Handoff", report)
+        self.assertIn("# RuRuKa Asset Launcher Handoff", report)
         self.assertIn("providers:", report)
         self.assertIn("MVP Readiness", report)
         self.assertIn("mvp_readiness_status:", report)

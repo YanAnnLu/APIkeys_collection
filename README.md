@@ -1,8 +1,8 @@
-# APIkeys_collection
+# RuRuKa Asset Launcher
 
 繁體中文入口請看 [README.zh-TW.md](README.zh-TW.md)。
 
-`APIkeys_collection.py` builds a local, extensible Steam-like launcher for public scientific data-provider metadata.
+RuRuKa Asset Launcher (short name: RRKAL; compatibility name: `APIkeys_collection`) builds a local, extensible Steam-like launcher for public scientific data-provider metadata.
 
 It is designed as a data-engineering platform that makes the annoying parts of scientific data work more like Steam:
 discover sources, review datasets, choose versions, download, verify manifests, import into local stores, repair broken

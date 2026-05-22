@@ -1,6 +1,6 @@
 # MVP 閉環稽核
 
-最後更新：2026-05-22
+最後更新：2026-05-23
 
 這份文件用來回答 Demo 時最重要的問題：哪些流程真的可以從 UI/CLI 走完，哪些只是有按鈕或骨架，卡住時該看哪裡。
 
@@ -67,7 +67,7 @@ py -B APIkeys_collection.py --test-data-store mysql_default
 
 Demo 前至少確認：
 
-1. UI 能啟動並印出 `APIkeys_collection UI ready ...`。
+1. UI 能啟動並印出 `RuRuKa Asset Launcher (RRKAL) UI ready ...`。
 2. `--summary` 能列出 provider count。
 3. 若要先做穩定 smoke test，執行 `--write-mvp-demo-flow state/mvp_demo/flow.json`，照 flow JSON 內的離線 plan 指令跑到 manifest/SQLite 匯入成功。
 4. Crawler discovery 對至少一個 source 產生候選，且沒有 suspiciously low/zero warning。

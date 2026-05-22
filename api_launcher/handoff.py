@@ -67,7 +67,7 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
 def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
     # Markdown 是給人與下一位 agent 共讀的格式；不要在這裡塞 UI 專用結構。
     lines = [
-        "# APIkeys_collection Handoff",
+        "# RuRuKa Asset Launcher Handoff",
         "",
         f"Generated at: {snapshot.generated_at}",
         "",

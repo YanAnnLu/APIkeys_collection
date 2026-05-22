@@ -93,6 +93,8 @@ from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DB_PATH = state_file(core.DB_NAME)
+PRODUCT_DISPLAY_NAME = "RuRuKa Asset Launcher"
+PRODUCT_SHORT_NAME = "RRKAL"
 DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.json"
 RESOLVED_DOWNLOAD_PLAN_NAME = "APIkeys_collection_download_plan.resolved.json"
 MVP_DEMO_FLOW_NAME = "mvp_demo/flow.json"
@@ -651,7 +653,7 @@ def reveal_path_in_file_manager(path: Path) -> None:
 class ApiCollectionUi:
     def __init__(self, root: Tk):
         self.root = root
-        self.root.title("APIkeys_collection")
+        self.root.title(PRODUCT_DISPLAY_NAME)
         # 初始尺寸用螢幕比例推導，避免在筆電或外接螢幕上開成過小/過大的視窗。
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
@@ -781,7 +783,7 @@ class ApiCollectionUi:
             return
         self.ui_ready_announced = True
         print(
-            f"APIkeys_collection UI ready "
+            f"{PRODUCT_DISPLAY_NAME} ({PRODUCT_SHORT_NAME}) UI ready "
             f"(pid={os.getpid()}, window={self.root.winfo_width()}x{self.root.winfo_height()}).",
             flush=True,
         )
@@ -4703,7 +4705,7 @@ class ApiCollectionUi:
                             self._respond(400, self.server_message(False, result_box["error"]))
                             return
                         result_box["code"] = code
-                        self._respond(200, self.server_message(True, "登入完成，可以回到 APIkeys_collection。"))
+                        self._respond(200, self.server_message(True, f"登入完成，可以回到 {PRODUCT_DISPLAY_NAME}。"))
 
                     def _respond(self, status: int, content: str) -> None:
                         encoded = content.encode("utf-8")
@@ -4714,7 +4716,7 @@ class ApiCollectionUi:
                         self.wfile.write(encoded)
 
                     def server_message(self, success: bool, message: str) -> str:
-                        title = "APIkeys_collection Google 登入"
+                        title = f"{PRODUCT_DISPLAY_NAME} Google 登入"
                         color = "#146c43" if success else "#9b1c1c"
                         return (
                             "<!doctype html><html><head><meta charset='utf-8'>"

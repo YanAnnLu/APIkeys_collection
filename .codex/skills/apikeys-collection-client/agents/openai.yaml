@@ -1,4 +1,4 @@
 interface:
-  display_name: "APIkeys Collection Client"
+  display_name: "RuRuKa Asset Launcher Client"
   short_description: "Operate the launcher with CLI/UI workflows without changing code."
   default_prompt: "Use APIkeys_collection to discover, review, download, import, verify, or repair datasets without modifying source code."

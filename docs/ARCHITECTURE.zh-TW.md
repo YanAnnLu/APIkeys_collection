@@ -1,8 +1,8 @@
-# APIkeys Collection 架構
+# RuRuKa Asset Launcher 架構
 
-最後更新：2026-05-22
+最後更新：2026-05-23
 
-APIkeys Collection 是一個類 Steam 的科學資料集、爬蟲資產與本機資料庫 launcher。它負責整理 provider/catalog、治理資料取得能力、產生下載計畫、下載與匯入資料、追蹤已安裝資產，並把整理後的資料交給 Taichi、Unreal 或其他下游 renderer / 分析工具。
+RuRuKa Asset Launcher 是一個類 Steam 的科學資料集、爬蟲資產與本機資料庫 launcher。它負責整理 provider/catalog、治理資料取得能力、產生下載計畫、下載與匯入資料、追蹤已安裝資產，並把整理後的資料交給 Taichi、Unreal 或其他下游 renderer / 分析工具。
 
 英文原文仍保留在 `docs/ARCHITECTURE.md`；本文件是繁中架構入口，補足接力與中文討論需要。
 
@@ -21,7 +21,7 @@ APIkeys Collection 是一個類 Steam 的科學資料集、爬蟲資產與本機
 flowchart LR
     Provider["供應商 / 官方來源"]
     Catalog["供應商與資料集目錄"]
-    CrawlerAsset["爬蟲資產 / Aseat<br/>可治理的資料取得能力"]
+    CrawlerAsset["爬蟲資產 / Crawler Asset<br/>可治理的資料取得能力"]
     Candidate["資料集候選"]
     Plan["下載計畫"]
     Download["直接下載器"]
@@ -142,7 +142,7 @@ flowchart TD
 | Frontends | `frontends/tk/launcher_ui.py`, `frontends/unreal/`, future Qt/mobile | UI、renderer-facing code、remote-control client。 |
 | Core orchestration | `api_launcher/core.py`, `api_launcher/cli_*.py` | CLI routing 與共用輸出。 |
 | Persistence | `api_launcher/db.py`, `api_launcher/repository.py`, `api_launcher/registry.py` | SQLite schema、catalog state、crawl results、install registry、asset state。 |
-| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery、dataset candidate discovery，以及中期 crawler asset / Aseat 的治理邊界。 |
+| Discovery / crawler assets | `api_launcher/discovery.py`, `api_launcher/crawlers/*`, `catalog/provider_discovery_seeds.json`, `catalog/dataset_discovery_sources.json` | provider/source discovery、dataset candidate discovery，以及中期 crawler asset / Crawler Asset 的治理邊界。 |
 | Planning | `api_launcher/adapters/*`, `api_launcher/plans.py`, `adapter_review.py`, `adapter_plan_resolver.py` | Download/import plan、provider-specific dataset/query contract、adapter handoff、bounded resolver；非官方 yfinance 預設仍走 fixture 測試，live path 必須明確 opt-in 產生 CSV plan，不接背景 crawler 或 CI live call。 |
 | Pipeline slice | `api_launcher/ingestion_pipeline.py` | direct plan 的下載、manifest 登錄、支援格式匯入、blocked next_action 與 CLI/UI 共用 stage。 |
 | Downloading | `api_launcher/downloads/*` | job queue、HTTP adapter、staging、manifest repair、transfer tools。 |

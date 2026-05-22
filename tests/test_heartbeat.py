@@ -119,7 +119,7 @@ class HeartbeatTests(unittest.TestCase):
 
         report = render_heartbeat_report(payload)
 
-        self.assertIn("# APIkeys_collection Heartbeat Report", report)
+        self.assertIn("# RuRuKa Asset Launcher Heartbeat Report", report)
         self.assertIn("safe_to_progress: True", report)
         self.assertIn("py -B -m unittest tests.test_heartbeat -v", report)
 
@@ -142,7 +142,7 @@ class HeartbeatTests(unittest.TestCase):
 
         prompt = render_heartbeat_agent_prompt(payload)
 
-        self.assertIn("APIkeys_collection Heartbeat Agent Prompt", prompt)
+        self.assertIn("RuRuKa Asset Launcher Heartbeat Agent Prompt", prompt)
         self.assertIn("Download repair scanner", prompt)
         self.assertIn("Do not run destructive DB/file operations.", prompt)
         self.assertIn("py -B -m unittest tests.test_heartbeat -v", prompt)

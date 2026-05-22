@@ -90,7 +90,7 @@ def render_heartbeat_report(payload: dict[str, object]) -> str:
     repo_state = repo.get("repo_state") if isinstance(repo.get("repo_state"), dict) else {}
     ci = payload.get("ci") if isinstance(payload.get("ci"), dict) else {}
     lines = [
-        "# APIkeys_collection Heartbeat Report",
+        "# RuRuKa Asset Launcher Heartbeat Report",
         "",
         f"Generated at: {payload.get('generated_at', '')}",
         "",
@@ -180,9 +180,9 @@ def render_heartbeat_agent_prompt(payload: dict[str, object]) -> str:
     stop = payload.get("stop_rules") if isinstance(payload.get("stop_rules"), list) else stop_rules()
     commands = plan.get("verification_commands") if isinstance(plan.get("verification_commands"), list) else default_verification_commands()
     lines = [
-        "# APIkeys_collection Heartbeat Agent Prompt",
+        "# RuRuKa Asset Launcher Heartbeat Agent Prompt",
         "",
-        "你是接手 APIkeys_collection 的自動 heartbeat agent。請不要依賴聊天記憶，必須以 repo 內文件與目前工作區狀態為準。",
+        "你是接手 RuRuKa Asset Launcher（內部相容名稱：APIkeys_collection）的自動 heartbeat agent。請不要依賴聊天記憶，必須以 repo 內文件與目前工作區狀態為準。",
         "",
         "## Mandatory Startup",
         "",
