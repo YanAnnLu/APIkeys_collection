@@ -79,6 +79,68 @@ class RepairTests(unittest.TestCase):
 
         self.assertEqual("manual_recover", suggestion.action_id)
         self.assertFalse(suggestion.can_requeue)
+        self.assertEqual("source_url_missing", suggestion.outcome_bucket)
+        self.assertEqual("inspect_manifest_or_recreate_plan", suggestion.next_action)
+
+    def test_adapter_manifest_without_source_url_routes_to_adapter_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            manifest_path = write_manifest(
+                build_asset_manifest(
+                    payload,
+                    {
+                        "provider_id": "sample",
+                        "dataset_version": {
+                            "dataset_id": "sample-dataset",
+                            "metadata": {
+                                "adapter_review": {
+                                    "adapter_id": "sample_adapter",
+                                    "required_action": "resolve_download_url",
+                                    "outcome_bucket": "source_resolution_required",
+                                }
+                            },
+                        },
+                    },
+                ),
+                payload.with_suffix(".bin.manifest.json"),
+            )
+            payload.unlink()
+
+            result = verify_manifest_file(manifest_path)
+            suggestion = repair_suggestion_for_result(result)
+
+        self.assertEqual("adapter_repair_review", suggestion.action_id)
+        self.assertFalse(suggestion.can_requeue)
+        self.assertEqual("adapter_source_missing", suggestion.outcome_bucket)
+        self.assertEqual("run_adapter_review_or_resolve_adapter_plan", suggestion.next_action)
+        self.assertEqual("sample_adapter", suggestion.adapter_id)
+        self.assertEqual("source_resolution_required", suggestion.review_hint["outcome_bucket"])
+
+    def test_adapter_non_http_source_url_stays_review_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = Path(tmpdir) / "sample.bin"
+            payload.write_bytes(b"abc")
+            manifest_path = write_manifest(
+                build_asset_manifest(
+                    payload,
+                    {
+                        "provider_id": "sample",
+                        "api_base_url": "s3://example-bucket/sample.bin",
+                        "dataset_version": {"metadata": {"adapter_id": "s3_adapter"}},
+                    },
+                ),
+                payload.with_suffix(".bin.manifest.json"),
+            )
+            payload.unlink()
+
+            suggestion = repair_suggestion_for_result(verify_manifest_file(manifest_path))
+
+        self.assertEqual("adapter_repair_review", suggestion.action_id)
+        self.assertFalse(suggestion.can_requeue)
+        self.assertEqual("adapter_source_not_requeueable", suggestion.outcome_bucket)
+        self.assertEqual("run_adapter_specific_repair_or_export_review", suggestion.next_action)
+        self.assertEqual("s3_adapter", suggestion.adapter_id)
 
     def test_scan_download_manifests_summarizes_results(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -121,7 +183,13 @@ class RepairTests(unittest.TestCase):
                     "version": "1",
                     "manifest_path": f"downloads/{index}.manifest.json",
                     "payload_path": f"downloads/{index}.bin",
-                    "repair_suggestion": {"action_id": "requeue_download", "can_requeue": True},
+                    "repair_suggestion": {
+                        "action_id": "requeue_download",
+                        "can_requeue": True,
+                        "outcome_bucket": "requeue_ready",
+                        "next_action": "requeue_download",
+                        "adapter_id": "sample_adapter",
+                    },
                 }
                 for index in range(25)
             ],
@@ -139,6 +207,9 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(20, len(context["issues"]))
         self.assertEqual("provider-0", context["issues"][0]["provider_id"])
         self.assertEqual("provider-19", context["issues"][-1]["provider_id"])
+        self.assertEqual("requeue_ready", context["issues"][0]["repair_outcome_bucket"])
+        self.assertEqual("requeue_download", context["issues"][0]["repair_next_action"])
+        self.assertEqual("sample_adapter", context["issues"][0]["adapter_id"])
 
     def test_log_download_requeue_requested_includes_outcome_and_job(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -175,6 +246,8 @@ class RepairTests(unittest.TestCase):
         self.assertEqual("sample", context["provider_id"])
         self.assertEqual("missing", context["status"])
         self.assertEqual("requeue_download", context["repair_action_id"])
+        self.assertEqual("requeue_ready", context["repair_outcome_bucket"])
+        self.assertEqual("requeue_download", context["repair_next_action"])
         self.assertEqual("job-1", context["job_id"])
         self.assertEqual("state/test.sqlite", context["db_path"])
 
@@ -224,6 +297,7 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(1, event_context["requeue_count"])
         self.assertEqual("missing", event_context["issues"][0]["status"])
         self.assertEqual("requeue_download", event_context["issues"][0]["repair_action_id"])
+        self.assertEqual("requeue_ready", event_context["issues"][0]["repair_outcome_bucket"])
 
 
 if __name__ == "__main__":

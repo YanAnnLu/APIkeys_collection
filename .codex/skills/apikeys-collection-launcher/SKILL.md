@@ -210,6 +210,7 @@ The action payload includes `status_badge` for short UI/agent routing states suc
 ## Repair Workflow
 
 - Inspect file health with `python APIkeys_collection.py --verify-downloads --manifest-health --list-manifests`.
+- Use `python APIkeys_collection.py --verify-downloads-json` when an agent needs structured repair routing. `repair_suggestion` includes `outcome_bucket`, `next_action`, `adapter_id`, and `review_hint`; only `requeue_ready` with `can_requeue=true` should be treated as safe to queue automatically.
 - Use Tk `Tools > Repair / verify manifests` for human repair work. Rows with missing/size/checksum problems and a manifest-recorded HTTP(S) `source_url` can be safely requeued through staging with `Requeue selected`.
 - Do not invent a repair action for `manifest_error` or manifests without `source_url`; those require manual inspection or adapter-specific recovery.
 

@@ -24,6 +24,7 @@ class ManifestVerification:
     version: str = ""
     source_url: str = ""
     message: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def needs_repair(self) -> bool:
@@ -41,6 +42,7 @@ class ManifestVerification:
             "source_url": self.source_url,
             "message": self.message,
             "needs_repair": self.needs_repair,
+            "metadata": self.metadata,
         }
 
 
@@ -52,6 +54,10 @@ class RepairSuggestion:
     description: str
     can_requeue: bool = False
     plan_entry: dict[str, object] = field(default_factory=dict)
+    outcome_bucket: str = ""
+    next_action: str = ""
+    adapter_id: str = ""
+    review_hint: dict[str, object] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -60,6 +66,10 @@ class RepairSuggestion:
             "description": self.description,
             "can_requeue": self.can_requeue,
             "plan_entry": self.plan_entry,
+            "outcome_bucket": self.outcome_bucket,
+            "next_action": self.next_action,
+            "adapter_id": self.adapter_id,
+            "review_hint": self.review_hint,
         }
 
 
@@ -153,6 +163,9 @@ def download_manifest_verification_event_context(
                 "payload_path": issue.get("payload_path", ""),
                 "repair_action_id": suggestion.get("action_id", ""),
                 "can_requeue": bool(suggestion.get("can_requeue")),
+                "repair_outcome_bucket": suggestion.get("outcome_bucket", ""),
+                "repair_next_action": suggestion.get("next_action", ""),
+                "adapter_id": suggestion.get("adapter_id", ""),
             }
         )
     return {
@@ -220,6 +233,9 @@ def download_requeue_event_context(
         "target_path": str(plan_entry.get("target_path") or result.payload_path or ""),
         "repair_action_id": suggestion.action_id,
         "can_requeue": suggestion.can_requeue,
+        "repair_outcome_bucket": suggestion.outcome_bucket,
+        "repair_next_action": suggestion.next_action,
+        "adapter_id": suggestion.adapter_id,
         "job_id": job_id,
         "error_type": error_type,
         "error_message": error_message,
@@ -261,33 +277,75 @@ def log_download_requeue_requested(
 
 
 def repair_suggestion_for_result(result: ManifestVerification) -> RepairSuggestion:
+    adapter_hint = _adapter_repair_hint(result)
+    adapter_id = str(adapter_hint.get("adapter_id") or "")
     if result.status == "ok":
-        return RepairSuggestion("none", "No action needed", "Payload matches its sidecar manifest.")
+        return RepairSuggestion(
+            "none",
+            "No action needed",
+            "Payload matches its sidecar manifest.",
+            outcome_bucket="healthy",
+            next_action="none",
+        )
     if result.status == "manifest_error":
         return RepairSuggestion(
             "inspect_manifest",
             "Inspect manifest",
             "The manifest could not be parsed, so the launcher cannot safely infer a source URL or target path.",
+            outcome_bucket="manifest_parse_error",
+            next_action="inspect_manifest",
         )
     if not result.needs_repair:
-        return RepairSuggestion("inspect", "Inspect status", "No automatic repair rule is available for this status.")
+        return RepairSuggestion(
+            "inspect",
+            "Inspect status",
+            "No automatic repair rule is available for this status.",
+            outcome_bucket="unsupported_status",
+            next_action="inspect_status",
+        )
     if not result.source_url:
+        if adapter_id:
+            return RepairSuggestion(
+                "adapter_repair_review",
+                "Review adapter repair",
+                f"The manifest does not record a source URL; review or rerun adapter output for {adapter_id} before requeue.",
+                outcome_bucket="adapter_source_missing",
+                next_action="run_adapter_review_or_resolve_adapter_plan",
+                adapter_id=adapter_id,
+                review_hint=adapter_hint,
+            )
         return RepairSuggestion(
             "manual_recover",
             "Manual recovery needed",
             "The manifest does not record a source URL, so the launcher cannot safely requeue this download.",
+            outcome_bucket="source_url_missing",
+            next_action="inspect_manifest_or_recreate_plan",
         )
     if not _is_requeue_source_url(result.source_url):
+        if adapter_id:
+            return RepairSuggestion(
+                "adapter_repair_review",
+                "Review adapter repair",
+                f"The recorded source URL is not an HTTP(S) download URL; adapter {adapter_id} must decide the safe recovery path.",
+                outcome_bucket="adapter_source_not_requeueable",
+                next_action="run_adapter_specific_repair_or_export_review",
+                adapter_id=adapter_id,
+                review_hint=adapter_hint,
+            )
         return RepairSuggestion(
             "manual_recover",
             "Manual recovery needed",
             f"The recorded source URL is not an HTTP(S) download URL: {result.source_url}",
+            outcome_bucket="source_url_not_requeueable",
+            next_action="inspect_source_url_or_recreate_plan",
         )
     if not result.provider_id:
         return RepairSuggestion(
             "manual_recover",
             "Manual recovery needed",
             "The manifest does not record a provider_id, so the download queue cannot safely own the job.",
+            outcome_bucket="provider_id_missing",
+            next_action="inspect_manifest_or_recreate_plan",
         )
 
     plan_entry: dict[str, object] = {
@@ -316,6 +374,10 @@ def repair_suggestion_for_result(result: ManifestVerification) -> RepairSuggesti
         "Safely re-download through staging, then atomically promote the payload after the transfer completes.",
         can_requeue=True,
         plan_entry=plan_entry,
+        outcome_bucket="requeue_ready",
+        next_action="requeue_download",
+        adapter_id=adapter_id,
+        review_hint=adapter_hint,
     )
 
 
@@ -336,9 +398,34 @@ def _result(
         version=manifest.version,
         source_url=manifest.source_url,
         message=message,
+        metadata=dict(manifest.metadata),
     )
 
 
 def _is_requeue_source_url(url: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _adapter_repair_hint(result: ManifestVerification) -> dict[str, object]:
+    # manifest metadata 可能保留 adapter_review / adapter_resolution 線索；修復層只回報線索，不自行執行 adapter。
+    metadata = result.metadata if isinstance(result.metadata, dict) else {}
+    review = metadata.get("adapter_review") if isinstance(metadata.get("adapter_review"), dict) else {}
+    resolution = metadata.get("adapter_resolution") if isinstance(metadata.get("adapter_resolution"), dict) else {}
+    adapter_id = str(
+        review.get("adapter_id")
+        or resolution.get("adapter_id")
+        or metadata.get("adapter_id")
+        or metadata.get("adapter")
+        or ""
+    )
+    if not adapter_id:
+        return {}
+    return {
+        "adapter_id": adapter_id,
+        "required_action": str(review.get("required_action") or resolution.get("policy") or metadata.get("required_action") or ""),
+        "outcome_bucket": str(review.get("outcome_bucket") or metadata.get("outcome_bucket") or ""),
+        "source_kind": str(review.get("source_kind") or metadata.get("source_kind") or ""),
+        "source_url": result.source_url,
+        "manifest_path": str(result.manifest_path),
+    }
