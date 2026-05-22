@@ -12,7 +12,8 @@ from typing import Callable, Iterable
 from api_launcher.adapters.base import DatasetAdapter, dataset_uid
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.models import Dataset, Provider
-from api_launcher.plans import build_dataset_download_plan, provider_dataset_version_plan_entry
+from api_launcher.plans import build_dataset_download_plan, provider_dataset_version_plan_entry, sql_table_hint
+from api_launcher.sql_assets import validate_sql_identifier
 
 
 YFINANCE_PROVIDER_ID = "yahoo_finance_yfinance"
@@ -68,6 +69,15 @@ class YFinanceLivePlanResult:
     query_window_preset: str = ""
     storage_target: str = DEFAULT_YFINANCE_STORAGE_TARGET
     warning: str = YFINANCE_LIVE_WARNING
+
+
+@dataclass(frozen=True)
+class YFinanceStorageReviewResult:
+    review_path: Path
+    plan_path: Path
+    storage_target: str
+    dry_run_sql_path: Path | None
+    action_count: int
 
 
 @dataclass(frozen=True)
@@ -519,6 +529,127 @@ def build_yfinance_live_plan(
     return payload
 
 
+def write_yfinance_storage_review(
+    plan_path: str | Path,
+    review_path: str | Path,
+    *,
+    storage_target: str | None = None,
+    dry_run_sql_path: str | Path | None = None,
+) -> YFinanceStorageReviewResult:
+    source_plan = Path(plan_path)
+    output_path = Path(review_path)
+    payload = json.loads(source_plan.read_text(encoding="utf-8"))
+    review = build_yfinance_storage_review(
+        payload,
+        plan_path=source_plan,
+        review_path=output_path,
+        storage_target=storage_target,
+    )
+    sql_text = str(review.get("dry_run_sql") or "")
+    sql_output: Path | None = None
+    if sql_text:
+        sql_output = Path(dry_run_sql_path) if dry_run_sql_path else output_path.with_suffix(".dry_run.sql")
+        sql_output.parent.mkdir(parents=True, exist_ok=True)
+        sql_output.write_text(sql_text, encoding="utf-8", newline="\n")
+        review["dry_run_sql_path"] = sql_output.as_posix()
+        review["dry_run_sql"] = ""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(plan_payload_json(review), encoding="utf-8")
+    return YFinanceStorageReviewResult(
+        review_path=output_path,
+        plan_path=source_plan,
+        storage_target=str(review["target"]["key"]),
+        dry_run_sql_path=sql_output,
+        action_count=len(review.get("review_actions", [])),
+    )
+
+
+def build_yfinance_storage_review(
+    plan_payload: dict[str, object],
+    *,
+    plan_path: str | Path | None = None,
+    review_path: str | Path | None = None,
+    storage_target: str | None = None,
+) -> dict[str, object]:
+    # 這個 review 是 metadata -> 人工審查 -> 明確執行 的中間層；它刻意不觸發任何資料庫連線。
+    entry = _single_yfinance_plan_entry(plan_payload)
+    source = plan_payload.get("source") if isinstance(plan_payload.get("source"), dict) else {}
+    contract = entry.get("time_series_contract") if isinstance(entry.get("time_series_contract"), dict) else {}
+    import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+    dataset_version = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
+    storage_policy = _yfinance_review_storage_policy(source, contract, storage_target)
+    target_key = str(storage_policy.get("review_target") or storage_policy.get("recommended_target") or "sqlite_mvp_table")
+    profile = YFINANCE_STORAGE_TARGET_PROFILES[target_key]
+    table_name = sql_table_hint(str(import_plan.get("table_hint") or "yfinance_ohlcv"))
+    csv_uri = str(source.get("csv_path") or entry.get("download_url") or "")
+    sql_text = _yfinance_storage_review_sql(profile, table_name, csv_uri)
+    command = _yfinance_review_command(plan_path, profile, table_name)
+    return {
+        "kind": "yfinance_storage_review",
+        "schema_version": 1,
+        "dry_run": True,
+        "plan_path": str(plan_path or ""),
+        "review_path": str(review_path or ""),
+        "review_status": "requires_human_review",
+        "source_warning": YFINANCE_LIVE_WARNING,
+        "source": {
+            "kind": source.get("kind") or "yfinance_plan",
+            "provider_id": source.get("provider_id") or YFINANCE_PROVIDER_ID,
+            "symbols": list(source.get("symbols") or contract.get("symbols") or []),
+            "period": source.get("period") or contract.get("period") or "",
+            "interval": source.get("interval") or contract.get("interval") or "",
+            "csv_uri": csv_uri,
+            "received_at": source.get("received_at") or "",
+            "ingest_run_id": source.get("ingest_run_id") or "",
+        },
+        "dataset": {
+            "provider_id": entry.get("provider_id") or YFINANCE_PROVIDER_ID,
+            "dataset_id": entry.get("dataset_id") or dataset_version.get("dataset_id") or "",
+            "dataset_uid": entry.get("dataset_uid") or dataset_version.get("dataset_uid") or "",
+            "version": dataset_version.get("version") or entry.get("version") or "",
+        },
+        "target": yfinance_storage_target_profile_metadata(profile),
+        "storage_policy": storage_policy,
+        "table": {
+            "name": table_name,
+            "shape": profile.table_shape,
+            "dedupe_keys": ["symbol", "event_time", "ingest_run_id"],
+            "columns": _yfinance_storage_review_columns(profile.engine),
+        },
+        "execution_guard": {
+            "will_connect_to_database": False,
+            "will_write_database": False,
+            "will_create_table": False,
+            "will_import_rows": False,
+            "requires_user_review": True,
+            "requires_separate_execution": True,
+        },
+        "review_actions": [
+            {
+                "step": 1,
+                "action": "review_terms_and_license",
+                "status": "required",
+                "notes": "確認 Yahoo/yfinance 條款與 personal/research-only 邊界後，才進入任何實際匯出或匯入。",
+            },
+            {
+                "step": 2,
+                "action": "verify_source_csv_manifest",
+                "status": "required",
+                "notes": "先用既有 download/manifest flow 驗證 CSV，避免直接把未驗證檔案寫入資料庫。",
+            },
+            {
+                "step": 3,
+                "action": "review_storage_target",
+                "status": "dry_run_only",
+                "target": profile.key,
+                "notes": "本檔只列出目標 schema、命令或 SQL 草稿，不會自動執行。",
+            },
+        ],
+        "next_command": command,
+        "dry_run_sql": sql_text,
+    }
+
+
 def yfinance_fixture_dataset(symbols: tuple[str, ...], fixture_path: Path) -> Dataset:
     dataset_id = yfinance_fixture_dataset_id(symbols)
     return Dataset(
@@ -853,6 +984,178 @@ def yfinance_retention_policy(retention_days: int) -> dict[str, object]:
         "background_refresh": False,
         "notes": "Retention is metadata for local cache governance; the launcher does not delete files automatically.",
     }
+
+
+def _single_yfinance_plan_entry(plan_payload: dict[str, object]) -> dict[str, object]:
+    providers = plan_payload.get("providers")
+    if not isinstance(providers, list):
+        raise ValueError("YFinance storage review expects a download plan with a providers list.")
+    for entry in providers:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("provider_id") or "") == YFINANCE_PROVIDER_ID:
+            return entry
+    raise ValueError("YFinance storage review could not find a Yahoo Finance/yfinance plan entry.")
+
+
+def _yfinance_review_storage_policy(
+    source: dict[str, object],
+    contract: dict[str, object],
+    storage_target: str | None,
+) -> dict[str, object]:
+    raw_policy = source.get("storage_policy") if isinstance(source.get("storage_policy"), dict) else contract.get("storage_policy")
+    policy = dict(raw_policy) if isinstance(raw_policy, dict) else yfinance_storage_target_policy()
+    # review target 是可審查的具體目標；plan 裡若是 auto，就收斂到當時的 recommended target。
+    if storage_target not in (None, ""):
+        normalized = normalize_yfinance_storage_target(storage_target)
+        if normalized != DEFAULT_YFINANCE_STORAGE_TARGET:
+            policy = yfinance_storage_target_policy(storage_target=normalized)
+    target_key = str(policy.get("recommended_target") or "sqlite_mvp_table")
+    if target_key not in YFINANCE_STORAGE_TARGET_PROFILES:
+        target_key = "sqlite_mvp_table"
+    policy["review_target"] = target_key
+    policy["review_is_dry_run"] = True
+    policy["review_requires_separate_execution"] = True
+    return policy
+
+
+def _yfinance_storage_review_columns(engine: str) -> list[dict[str, str]]:
+    if engine in {"mysql", "timescaledb_postgresql"}:
+        time_type = "DATETIME" if engine == "mysql" else "TIMESTAMPTZ"
+        numeric_type = "DECIMAL(20,8)" if engine == "mysql" else "NUMERIC"
+        return [
+            {"name": "event_time", "type": time_type, "nullable": "false"},
+            {"name": "symbol", "type": "VARCHAR(32)", "nullable": "false"},
+            {"name": "open", "type": numeric_type, "nullable": "true"},
+            {"name": "high", "type": numeric_type, "nullable": "true"},
+            {"name": "low", "type": numeric_type, "nullable": "true"},
+            {"name": "close", "type": numeric_type, "nullable": "true"},
+            {"name": "adj_close", "type": numeric_type, "nullable": "true"},
+            {"name": "volume", "type": "BIGINT" if engine == "mysql" else "NUMERIC", "nullable": "true"},
+            {"name": "received_at", "type": time_type, "nullable": "false"},
+            {"name": "ingest_run_id", "type": "VARCHAR(128)", "nullable": "false"},
+            {"name": "source_sequence", "type": "INTEGER", "nullable": "true"},
+            {"name": "revision", "type": "VARCHAR(64)", "nullable": "true"},
+        ]
+    if engine == "clickhouse":
+        return [
+            {"name": "event_time", "type": "DateTime64(3, 'UTC')", "nullable": "false"},
+            {"name": "symbol", "type": "LowCardinality(String)", "nullable": "false"},
+            {"name": "open", "type": "Nullable(Decimal(20,8))", "nullable": "true"},
+            {"name": "high", "type": "Nullable(Decimal(20,8))", "nullable": "true"},
+            {"name": "low", "type": "Nullable(Decimal(20,8))", "nullable": "true"},
+            {"name": "close", "type": "Nullable(Decimal(20,8))", "nullable": "true"},
+            {"name": "adj_close", "type": "Nullable(Decimal(20,8))", "nullable": "true"},
+            {"name": "volume", "type": "Nullable(UInt64)", "nullable": "true"},
+            {"name": "received_at", "type": "DateTime64(3, 'UTC')", "nullable": "false"},
+            {"name": "ingest_run_id", "type": "String", "nullable": "false"},
+            {"name": "source_sequence", "type": "Nullable(UInt32)", "nullable": "true"},
+            {"name": "revision", "type": "Nullable(String)", "nullable": "true"},
+        ]
+    return [{"name": name, "type": "TEXT", "nullable": "true"} for name in YFINANCE_CSV_FIELDNAMES]
+
+
+def _yfinance_storage_review_sql(profile: YFinanceStorageTargetProfile, table_name: str, csv_uri: str) -> str:
+    engine = profile.engine
+    if engine == "sqlite":
+        return ""
+    if engine == "mysql":
+        table = _quote_yfinance_identifier(engine, table_name)
+        columns = ",\n  ".join(_mysql_column_sql(column) for column in _yfinance_storage_review_columns(engine))
+        return (
+            _storage_review_sql_header(profile, table_name, csv_uri)
+            + f"CREATE TABLE IF NOT EXISTS {table} (\n  {columns},\n"
+            + "  PRIMARY KEY (`symbol`, `event_time`, `ingest_run_id`)\n);\n\n"
+            + "-- Review-only import sketch; adjust LOCAL INFILE policy, timezone parsing, and transaction scope before execution.\n"
+            + f"-- LOAD DATA LOCAL INFILE {_sql_literal(csv_uri)} INTO TABLE {table} FIELDS TERMINATED BY ',' ENCLOSED BY '\"' IGNORE 1 LINES;\n"
+        )
+    if engine == "timescaledb_postgresql":
+        table = _quote_yfinance_identifier(engine, table_name)
+        columns = ",\n  ".join(_postgres_column_sql(column) for column in _yfinance_storage_review_columns(engine))
+        return (
+            _storage_review_sql_header(profile, table_name, csv_uri)
+            + f"CREATE TABLE IF NOT EXISTS {table} (\n  {columns},\n"
+            + f"  PRIMARY KEY (symbol, event_time, ingest_run_id)\n);\n\n"
+            + f"-- SELECT create_hypertable({_sql_literal(table_name)}, 'event_time', if_not_exists => TRUE);\n"
+            + "-- Review-only import sketch; use COPY from a vetted local path after manifest verification.\n"
+            + f"-- COPY {table} FROM {_sql_literal(csv_uri)} WITH (FORMAT csv, HEADER true);\n"
+        )
+    if engine == "clickhouse":
+        table = _quote_yfinance_identifier(engine, table_name)
+        columns = ",\n  ".join(_clickhouse_column_sql(column) for column in _yfinance_storage_review_columns(engine))
+        return (
+            _storage_review_sql_header(profile, table_name, csv_uri)
+            + f"CREATE TABLE IF NOT EXISTS {table} (\n  {columns}\n)\n"
+            + "ENGINE = MergeTree\nORDER BY (symbol, event_time, ingest_run_id);\n\n"
+            + "-- Review-only import sketch; adapt file() path and permissions before execution.\n"
+            + f"-- INSERT INTO {table} SELECT * FROM file({_sql_literal(csv_uri)}, 'CSVWithNames');\n"
+        )
+    if engine == "parquet_duckdb":
+        parquet_path = f"{table_name}.parquet"
+        return (
+            _storage_review_sql_header(profile, table_name, csv_uri)
+            + "-- DuckDB/Parquet export sketch; this is not executed by the launcher.\n"
+            + f"COPY (SELECT * FROM read_csv_auto({_sql_literal(csv_uri)}, header=true)) "
+            + f"TO {_sql_literal(parquet_path)} (FORMAT PARQUET);\n"
+        )
+    return _storage_review_sql_header(profile, table_name, csv_uri)
+
+
+def _yfinance_review_command(
+    plan_path: str | Path | None,
+    profile: YFinanceStorageTargetProfile,
+    table_name: str,
+) -> dict[str, str]:
+    plan_label = str(plan_path or "<PLAN_PATH>")
+    if profile.engine == "sqlite":
+        return {
+            "kind": "sqlite_import",
+            "command": (
+                "python APIkeys_collection.py "
+                f"--run-download-plan {plan_label} --import-supported-plan-results "
+                "--plan-import-existing-table-policy rename"
+            ),
+            "notes": "SQLite 是目前唯一已接上既有 importer 的 yfinance storage execution path。",
+        }
+    return {
+        "kind": "dry_run_review",
+        "command": f"review generated SQL for target={profile.key} table={table_name}",
+        "notes": "先由人或 DBA 審查 dry-run SQL；launcher 本輪不會連線、不會建表、不會匯入。",
+    }
+
+
+def _storage_review_sql_header(profile: YFinanceStorageTargetProfile, table_name: str, csv_uri: str) -> str:
+    return (
+        "-- APIkeys_collection yfinance storage review dry-run\n"
+        "-- 本檔只供審查；launcher 不會自動執行，也不會連線或寫入資料庫。\n"
+        f"-- target={profile.key} engine={profile.engine} table={table_name}\n"
+        f"-- source_csv={csv_uri}\n\n"
+    )
+
+
+def _mysql_column_sql(column: dict[str, str]) -> str:
+    nullable = "NOT NULL" if column["nullable"] == "false" else "NULL"
+    return f"`{validate_sql_identifier(column['name'])}` {column['type']} {nullable}"
+
+
+def _postgres_column_sql(column: dict[str, str]) -> str:
+    nullable = "NOT NULL" if column["nullable"] == "false" else "NULL"
+    return f'"{validate_sql_identifier(column["name"])}" {column["type"]} {nullable}'
+
+
+def _clickhouse_column_sql(column: dict[str, str]) -> str:
+    return f"`{validate_sql_identifier(column['name'])}` {column['type']}"
+
+
+def _quote_yfinance_identifier(engine: str, identifier: str) -> str:
+    clean = validate_sql_identifier(identifier)
+    if engine in {"mysql", "clickhouse"}:
+        return f"`{clean}`"
+    return f'"{clean}"'
+
+
+def _sql_literal(value: str) -> str:
+    return "'" + str(value or "").replace("'", "''") + "'"
 
 
 def yfinance_query_uri(symbols: Iterable[str], period: str = "1mo", interval: str = "1d") -> str:

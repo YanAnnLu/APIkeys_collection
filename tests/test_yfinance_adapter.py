@@ -20,12 +20,14 @@ from api_launcher.adapters.yfinance import (
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
     build_yfinance_live_plan,
+    build_yfinance_storage_review,
     normalize_yfinance_query_window_preset,
     normalize_yfinance_retention_days,
     normalize_yfinance_storage_target,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
     write_yfinance_live_plan,
+    write_yfinance_storage_review,
     yfinance_provider,
 )
 from api_launcher.core import main
@@ -307,6 +309,92 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual(False, policy["automatic_migration"])
         self.assertEqual(True, policy["requires_explicit_user_import_or_export"])
         self.assertEqual("parquet_duckdb_archive", payload["providers"][0]["time_series_contract"]["storage_policy"]["recommended_target"])
+
+    def test_storage_review_writes_mysql_dry_run_without_mutating_database(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "live.csv"
+            plan_path = root / "live_plan.json"
+            review_path = root / "storage_review.json"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            plan_payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                query_window_preset="daily_6mo",
+                storage_target="mysql_timeseries_table",
+                received_at="2026-05-22T00:00:00Z",
+                ingest_run_id="test_run",
+            )
+            plan_path.write_text(json.dumps(plan_payload, ensure_ascii=False), encoding="utf-8")
+
+            result = write_yfinance_storage_review(plan_path, review_path)
+            review_payload = json.loads(review_path.read_text(encoding="utf-8"))
+            sql_text = result.dry_run_sql_path.read_text(encoding="utf-8") if result.dry_run_sql_path else ""
+
+        self.assertEqual("mysql_timeseries_table", result.storage_target)
+        self.assertEqual("yfinance_storage_review", review_payload["kind"])
+        self.assertTrue(review_payload["dry_run"])
+        self.assertEqual(False, review_payload["execution_guard"]["will_write_database"])
+        self.assertEqual("mysql_timeseries_table", review_payload["target"]["key"])
+        self.assertEqual("mysql_timeseries_table", review_payload["storage_policy"]["review_target"])
+        self.assertIn("CREATE TABLE IF NOT EXISTS", sql_text)
+        self.assertIn("LOAD DATA LOCAL INFILE", sql_text)
+
+    def test_storage_review_target_override_can_prepare_clickhouse_sql(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "live.csv"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            plan_payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                storage_target="sqlite_mvp_table",
+            )
+            review_payload = build_yfinance_storage_review(
+                plan_payload,
+                plan_path=Path(tmpdir) / "live_plan.json",
+                storage_target="clickhouse_ohlcv_table",
+            )
+
+        self.assertEqual("clickhouse_ohlcv_table", review_payload["target"]["key"])
+        self.assertEqual("clickhouse_ohlcv_table", review_payload["storage_policy"]["review_target"])
+        self.assertEqual(False, review_payload["execution_guard"]["will_connect_to_database"])
+        self.assertIn("ENGINE = MergeTree", review_payload["dry_run_sql"])
+
+    def test_cli_writes_yfinance_storage_review_from_existing_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "live.csv"
+            plan_path = root / "live_plan.json"
+            review_path = root / "review.json"
+            sql_path = root / "review.sql"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            plan_payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                storage_target="mysql_timeseries_table",
+            )
+            plan_path.write_text(json.dumps(plan_payload, ensure_ascii=False), encoding="utf-8")
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--write-yfinance-storage-review",
+                        str(review_path),
+                        "--yfinance-storage-review-plan",
+                        str(plan_path),
+                        "--write-yfinance-storage-review-sql",
+                        str(sql_path),
+                    ]
+                )
+
+            review_payload = json.loads(review_path.read_text(encoding="utf-8"))
+            sql_exists = sql_path.exists()
+
+        self.assertEqual(0, rc)
+        self.assertTrue(sql_exists)
+        self.assertIn("[yfinance-storage-review] wrote", output.getvalue())
+        self.assertEqual("mysql_timeseries_table", review_payload["target"]["key"])
 
     def test_query_window_preset_normalization_is_bounded(self) -> None:
         self.assertEqual("intraday_5d_5m", normalize_yfinance_query_window_preset("intraday-5d-5m").key)

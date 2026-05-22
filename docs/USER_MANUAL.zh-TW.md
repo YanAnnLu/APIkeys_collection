@@ -73,6 +73,13 @@ py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.
 
 這會在本機寫出 live CSV 與可匯入 plan；`--yfinance-query-window` 只會選擇 chart-friendly 的 period/interval 與 storage hint，可用值包含 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`。`--yfinance-storage-target` 只會寫入建議儲存目標 metadata，可用值包含 `auto`、`sqlite_mvp_table`、`mysql_timeseries_table`、`parquet_duckdb_archive`、`timescaledb_hypertable`、`clickhouse_ohlcv_table`；目前不會直接寫 MySQL、Parquet、TimescaleDB 或 ClickHouse。`--yfinance-retention-days` 只會寫進 plan metadata，提醒這份本機快取預期保留多久，不會自動刪檔或背景刷新。之後仍要用 `--run-download-plan ... --import-supported-plan-results` 明確執行。它只適合作為非官方、personal/research 用途資料源，不應視為商用或可再散布資料來源，也不會在 CI 或 crawler 裡自動執行。
 
+若要先審查「這份 yfinance plan 將來應該如何進 MySQL/Parquet/TimescaleDB/ClickHouse」，可以產生 dry-run review：
+```powershell
+py -B APIkeys_collection.py --write-yfinance-storage-review state/yfinance_live/storage_review.json --yfinance-storage-review-plan state/yfinance_live/plan.json
+```
+
+圖說：這一步只產生 `storage_review.json` 與必要時的 `.dry_run.sql`，用來列出目標 schema、審查動作與後續命令草稿；程式不會連線、不會建表、不會匯入，也不會把 storage target metadata 當成自動執行命令。SQLite 匯入仍走上面的 `--run-download-plan ... --import-supported-plan-results` 閉環，其他儲存目標必須等人或 DBA 審查後另行執行。
+
 在 Tk UI 中，對應入口在 `工具` 選單。`產生 yfinance 離線 Demo plan` 只建立本機 fixture-backed plan 並加入下載計畫；`建立 yfinance live plan（需確認）` 會要求填寫 symbol、query window、storage target、period、interval、保留天數，並勾選 unofficial/personal-research 確認框後才呼叫本機 `yfinance`。UI 仍然只把項目排進下載計畫，接下來要由使用者按「開始」與「匯入」，不會自動排程、背景抓取、依 query window 自動刷新、直接寫入資料庫，或依保留天數自動刪檔。
 
 ## 1. 開啟程式

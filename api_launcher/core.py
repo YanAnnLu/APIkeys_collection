@@ -128,6 +128,7 @@ from api_launcher.adapters.yfinance import (
     YFINANCE_STORAGE_TARGET_PROFILES,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
+    write_yfinance_storage_review as write_yfinance_storage_review_files,
 )
 from api_launcher.renderer_contracts import (
     GEBCO_2025_TOPOGRAPHY_CONTRACT,
@@ -648,6 +649,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="metadata-only storage target hint for yfinance live CSV plans; does not write to MySQL/Parquet/ClickHouse",
     )
     parser.add_argument("--yfinance-acknowledge-unofficial", action="store_true", help="required for --write-yfinance-live-plan after reviewing unofficial personal/research-only warning")
+    parser.add_argument("--write-yfinance-storage-review", help="write a dry-run storage review JSON for an existing yfinance plan")
+    parser.add_argument("--yfinance-storage-review-plan", default="", help="input yfinance plan JSON for --write-yfinance-storage-review")
+    parser.add_argument(
+        "--yfinance-storage-review-target",
+        default="",
+        choices=("", DEFAULT_YFINANCE_STORAGE_TARGET, *YFINANCE_STORAGE_TARGET_PROFILES),
+        help="optional dry-run review target override; omitted means use the plan storage policy",
+    )
+    parser.add_argument("--write-yfinance-storage-review-sql", default="", help="optional companion dry-run SQL output path for --write-yfinance-storage-review")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
     parser.add_argument("--resolve-adapter-plan", help="resolve reviewable resource entries in a download plan JSON")
@@ -785,6 +795,7 @@ class CatalogLauncherCli:
             self.write_mvp_demo_flow()
             self.write_yfinance_demo_plan()
             self.write_yfinance_live_plan()
+            self.write_yfinance_storage_review()
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
@@ -997,6 +1008,34 @@ class CatalogLauncherCli:
             "next="
             f"--run-download-plan {result.plan_path} --downloads-root {self.args.downloads_root} "
             "--import-supported-plan-results --plan-import-existing-table-policy rename"
+        )
+
+    def write_yfinance_storage_review(self) -> None:
+        if not self.args.write_yfinance_storage_review:
+            return
+        if not self.args.yfinance_storage_review_plan:
+            raise ValueError("--write-yfinance-storage-review requires --yfinance-storage-review-plan.")
+        # storage review 是 yfinance metadata 到實際匯出/匯入之間的人工審查閘門；這裡只寫檔，不連資料庫。
+        result = write_yfinance_storage_review_files(
+            resolve_project_path(self.args.yfinance_storage_review_plan),
+            resolve_project_path(self.args.write_yfinance_storage_review),
+            storage_target=self.args.yfinance_storage_review_target or None,
+            dry_run_sql_path=(
+                resolve_project_path(self.args.write_yfinance_storage_review_sql)
+                if self.args.write_yfinance_storage_review_sql
+                else None
+            ),
+        )
+        print(
+            "[yfinance-storage-review] "
+            f"wrote {result.review_path} plan={result.plan_path} target={result.storage_target} "
+            f"actions={result.action_count} dry_run=true"
+        )
+        if result.dry_run_sql_path:
+            print(f"[yfinance-storage-review] sql={result.dry_run_sql_path}")
+        print(
+            "[yfinance-storage-review] "
+            "next=review the JSON/SQL, then run the existing download/import plan or a separately approved DBA path"
         )
 
     def show_adapter_review_plan(self) -> None:
