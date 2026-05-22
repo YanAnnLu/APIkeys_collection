@@ -31,6 +31,15 @@
 
 小修可以不開正式 change，例如 typo、窄範圍測試補強、單一 parser bug、文件補一句。但完成後仍要更新 `PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md` 或相關文件。
 
+## OpenSpec 的語言規則
+
+OpenSpec 的內容不必只能英文。實務上建議分成兩層：
+
+- 工具層：`openspec/specs/development-workflow/spec.md`、capability id、change id、CLI flag、模組路徑、`Requirement:`、`Scenario:` 等結構標記維持英文或 ASCII，方便工具解析、搜尋與跨 agent 引用。
+- 說明層：需求意圖、驗收標準、風險、任務說明、交接提醒可以用繁體中文；若未來要給外部英文協作者看，再補雙語摘要即可。
+
+也就是說，OpenSpec 不是英文限定文件。對本專案來說，面向團隊維護的規則應優先能被中文讀者快速理解；只有被工具或跨語言生態引用的 identifier 才需要維持英文。
+
 ## 建議工作節奏
 
 1. Discuss：先用白話確認問題與限制，尤其要說清楚這一步距離 MVP 是變近還是只是在鋪路。

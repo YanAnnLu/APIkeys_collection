@@ -32,6 +32,22 @@ The project SHALL treat Git-tracked OpenSpec files and documentation as the sour
 - WHEN a task state, proposal, or requirement changes
 - THEN the corresponding files under `openspec/` SHALL be updated and committed, rather than leaving state only inside a GUI session.
 
+### Requirement: OpenSpec Language Policy / OpenSpec 語言規則
+
+The project SHALL allow Traditional Chinese prose inside OpenSpec specs, changes, tasks, design notes, risks, and acceptance criteria.
+
+#### Scenario: Team-facing workflow rule
+
+- GIVEN a rule is meant for the current human team and future agents working in this repository
+- WHEN the rule explains intent, workflow boundaries, acceptance criteria, risks, or handoff notes
+- THEN the rule SHOULD be written in Traditional Chinese or bilingual Chinese/English so maintainers can read it without extra translation.
+
+#### Scenario: Tool-facing identifiers
+
+- GIVEN a field, file path, capability id, command, CLI flag, product name, or OpenSpec structural marker is consumed by tools or searched by agents
+- WHEN writing the OpenSpec artifact
+- THEN the identifier SHOULD remain stable ASCII/English, while the explanatory prose MAY be Traditional Chinese.
+
 ### Requirement: OpenSpec As Project Habit Memory
 
 The project SHALL use OpenSpec as the durable home for development habits, workflow contracts, acceptance criteria, and cross-agent process rules that are too broad to live only in one agent skill.
