@@ -107,8 +107,7 @@ def write_local_file_manifest(
 
     source_format = source_format_from_path(payload_path)
     if source_format not in SUPPORTED_MANUAL_IMPORT_FORMATS:
-        supported = ", ".join(SUPPORTED_MANUAL_IMPORT_FORMATS)
-        raise ValueError(f"Unsupported manual import format '{source_format}' for {payload_path}; supported: {supported}")
+        raise ValueError(manual_import_unsupported_format_message(payload_path, source_format))
 
     clean_dataset_id = _dataset_id(dataset_id, payload_path)
     clean_provider_id = _slug(provider_id, fallback=DEFAULT_MANUAL_LOCAL_PROVIDER_ID)
@@ -233,6 +232,17 @@ def local_file_provenance_review(source_format: str, import_kind: str) -> dict[s
         ],
         "recommended_next_step_zh_TW": "匯入後執行資料庫自檢，並由使用者確認檔案來源、授權與欄位意義。",
     }
+
+
+def manual_import_unsupported_format_message(path: str | Path, source_format: str) -> str:
+    # 錯誤訊息直接給修復方向，避免 UI/agent 只看到「不支援」卻不知道下一步。
+    supported = ", ".join(SUPPORTED_MANUAL_IMPORT_FORMATS)
+    return (
+        f"Unsupported manual import format '{source_format}' for {path}; supported: {supported}. "
+        "目前手動匯入只支援 CSV/JSON/JSONL/NDJSON/GeoJSON 類檔案。"
+        "若來源是 SQL、Excel、Parquet、Shapefile、NetCDF、HDF、ZIP/TAR 原始包或其他格式，"
+        "請先轉成支援格式，或把它留在 adapter/manual review，不要硬塞進 SQLite。"
+    )
 
 
 def _dataset_id(dataset_id: str, payload_path: Path) -> str:

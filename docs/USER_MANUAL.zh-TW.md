@@ -204,6 +204,8 @@ python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-s
 
 手動匯入的來源審查摘要會提醒：Launcher 只確認當下檔案的 checksum、格式與匯入結果，不能替使用者確認原始來源或授權；它不會掃資料夾、不會刪檔、不會把本機 `file://` 路徑當成可重新下載的網路來源，也不會自動覆蓋既有 table。
 
+如果選到目前不支援的 SQL、Excel、Parquet、Shapefile、NetCDF、HDF 或壓縮原始包，Launcher 會拒絕匯入並提示先轉成 CSV/JSON 類支援格式，或留給 adapter/manual review。這種拒絕是安全保護，不代表資料沒有價值。
+
 Tk UI 的入口是：
 
 ```text

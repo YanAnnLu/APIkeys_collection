@@ -245,6 +245,8 @@ python -m unittest discover -s tests
 
 手動匯入 manifest 的 `metadata.provenance_review` 會用中文固定說明：這是「使用者自備本機檔案」、Launcher 可安全做 checksum、raw asset 登記與 SQLite 匯入，但不會掃描整個資料夾、不會移動或刪除來源檔、不會把 `file://` 當成可重新下載來源，也不推定檔案授權可再散布或商用。這段文字是給初學使用者、團隊協作者與 agent 判斷風險用的審查摘要，不會改變匯入資料本身。
 
+若手動匯入遇到 SQL、Excel、Parquet、Shapefile、NetCDF、HDF、ZIP/TAR 原始包或其他目前不支援格式，CLI/Tk 會拒絕匯入並提示先轉成支援的 CSV/JSON 類檔案，或把該來源留在 adapter/manual review。不要為了讓 Demo 過關而把未知格式硬塞進 SQLite。
+
 Tk UI 也有同一條單檔入口：`資料庫 > 匯入本機 CSV/JSON 檔`，或上方 `更多 > 匯入本機 CSV/JSON 檔`。UI 會要求你選一個本機檔，並可輸入目標 table 名稱；若同名 table 已存在，會自動改成下一個可用名稱，例如 `weather_2`，不會直接覆蓋。匯入完成對話框會顯示短版「來源審查」，提醒這是使用者自備本機檔案、Launcher 只驗 checksum/匯入結果，不代表原始來源或授權已驗證。
 
 `--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；`--yfinance-query-window` 可選 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`，用來帶入 chart-friendly 的 period/interval 與 storage hint。若另加 `--yfinance-period` 或 `--yfinance-interval`，CLI 會把它記為 manual override。`--yfinance-storage-target` 可選 `auto`、`sqlite_mvp_table`、`mysql_timeseries_table`、`parquet_duckdb_archive`、`timescaledb_hypertable`、`clickhouse_ohlcv_table`，只寫入 plan/source/dataset metadata，表示後續可考慮的儲存目標；目前不會直接寫 MySQL、Parquet、TimescaleDB 或 ClickHouse。`--yfinance-retention-days` 也只寫入 metadata，作為本機快取治理提示，不會自動刪檔或背景刷新。後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。

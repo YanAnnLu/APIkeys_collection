@@ -15,6 +15,7 @@ from api_launcher.manual_import import (
     DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
     default_local_file_manifest_path,
     local_file_provenance_review,
+    manual_import_unsupported_format_message,
     write_local_file_manifest,
 )
 from api_launcher.manifests import read_manifest
@@ -52,6 +53,15 @@ class ManualImportTests(unittest.TestCase):
                 write_local_file_manifest(payload_path, Path(tmpdir) / "notes.manifest.json")
 
         self.assertIn("Unsupported manual import format", str(context.exception))
+        self.assertIn("請先轉成支援格式", str(context.exception))
+        self.assertIn("adapter/manual review", str(context.exception))
+
+    def test_unsupported_format_message_lists_guided_repair(self) -> None:
+        message = manual_import_unsupported_format_message("archive.zip", "zip")
+
+        self.assertIn("supported:", message)
+        self.assertIn("SQL、Excel、Parquet", message)
+        self.assertIn("不要硬塞進 SQLite", message)
 
     def test_default_manifest_path_keeps_provider_dataset_version_layers(self) -> None:
         path = default_local_file_manifest_path(
