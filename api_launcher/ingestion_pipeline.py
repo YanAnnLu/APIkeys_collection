@@ -271,7 +271,8 @@ def classify_existing_download_import_stage(result: DownloadPlanRunResult) -> st
 
 
 def download_import_next_action(result: DownloadPlanRunResult) -> str:
-    if result.submitted == 0 and result.skipped:
+    # 只要 plan 裡仍有被略過的非 direct 項目，就保留下一步提示；即使其他 direct download 已成功，也不能讓 agent 誤以為整份 plan 都完成。
+    if result.skipped:
         return DOWNLOAD_BLOCKED_NEXT_ACTION
     return ""
 

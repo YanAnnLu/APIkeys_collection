@@ -69,6 +69,27 @@ class IngestionPipelineTests(unittest.TestCase):
         self.assertIn("[download-plan] skip_summary adapter_required=1", lines)
         self.assertIn(f"[download-plan] next_action={DOWNLOAD_BLOCKED_NEXT_ACTION}", lines)
 
+    def test_download_import_slice_keeps_next_action_for_partial_adapter_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            flow = write_mvp_demo_flow(Path(tmpdir) / "flow.json")
+            plan = _read_json(flow.offline_plan_path)
+            plan["providers"].extend(adapter_only_plan()["providers"])
+            conn = connect_db(Path(tmpdir) / "launcher.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+                run = run_download_import_slice(plan, repo)
+            finally:
+                conn.close()
+
+        lines = render_download_import_cli_lines(run)
+        self.assertEqual("download_completed", run.stage)
+        self.assertEqual(1, run.result.completed)
+        self.assertEqual(1, run.result.skipped)
+        self.assertEqual(DOWNLOAD_BLOCKED_NEXT_ACTION, run.next_action)
+        self.assertIn(f"[download-plan] next_action={DOWNLOAD_BLOCKED_NEXT_ACTION}", lines)
+
     def test_existing_download_import_slice_reuses_manifest_without_redownloading(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             flow = write_mvp_demo_flow(Path(tmpdir) / "flow.json")
