@@ -69,6 +69,8 @@ class DiscoveryPromotionTests(unittest.TestCase):
         self.assertEqual(1, result.promoted_source_count)
         self.assertEqual("example_data", providers[0].provider_id)
         self.assertEqual("example_data_ckan", sources[0].source_id)
+        self.assertEqual("review_or_upsert_dataset_candidates", result.audit["next_action"])
+        self.assertEqual("review_candidates", result.audit["sources"][0]["next_action"])
 
     def test_skips_source_when_audit_has_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -120,6 +122,9 @@ class DiscoveryPromotionTests(unittest.TestCase):
         self.assertEqual(0, result.promoted_source_count)
         self.assertEqual(1, result.skipped_count)
         self.assertEqual([], provider_catalog)
+        self.assertEqual("inspect_source_audit_results_before_upsert_or_promotion", result.audit["next_action"])
+        self.assertEqual(["zero_candidates"], result.audit["sources"][0]["warning_codes"])
+        self.assertEqual("repair_crawler_query_or_parser", result.audit["sources"][0]["next_action"])
 
 
 def source(provider_id: str, source_id: str) -> DatasetDiscoverySource:

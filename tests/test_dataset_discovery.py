@@ -726,11 +726,63 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(1, result.duplicate_count)
         self.assertEqual(1, result.error_count)
         self.assertEqual(1, result.warning_count)
+        self.assertEqual("inspect_source_audit_results_before_upsert_or_promotion", result.next_action)
         self.assertIn("network down", [item.error for item in result.source_results if item.source_id == "bad_source"][0])
+        bad_result = [item for item in result.source_results if item.source_id == "bad_source"][0]
+        self.assertEqual("inspect_crawler_error", bad_result.next_action)
         duplicate_result = [item for item in result.source_results if item.duplicate_candidate_count == 1][0]
         self.assertEqual(0, duplicate_result.unique_candidate_count)
         self.assertEqual(1, duplicate_result.duplicate_candidate_count)
         self.assertIn("all_candidates_duplicate", duplicate_result.warnings[0])
+        self.assertEqual(("all_candidates_duplicate",), duplicate_result.warning_codes)
+        self.assertEqual("review_source_overlap_or_dedupe", duplicate_result.next_action)
+
+    def test_dataset_crawler_orchestrator_warns_on_duplicate_heavy_output(self) -> None:
+        sources = [
+            DatasetDiscoverySource(
+                source_id="duplicate_heavy_source",
+                provider_id="sample_provider",
+                name="Duplicate Heavy Source",
+                source_type="sample",
+                endpoint_url="https://example.test/duplicates",
+            )
+        ]
+        original = dataset_sources.discover_dataset_candidates_for_source
+
+        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+            # 同一 source 內大量重複通常代表分頁停條件、ID mapping 或 parser shape 壞掉；不能當成正常成功。
+            return [
+                dataset_sources.DatasetCandidate(
+                    dataset=Dataset(
+                        dataset_uid=f"ds_duplicate_{index}",
+                        provider_id="sample_provider",
+                        dataset_id="same_dataset",
+                        title="Same Dataset",
+                        categories=("test",),
+                        metadata={"candidate_status": "needs_review"},
+                    ),
+                    source_id=source.source_id,
+                    source_type=source.source_type,
+                    source_url=source.endpoint_url,
+                    confidence=0.9,
+                    evidence=("unit test",),
+                )
+                for index in range(3)
+            ]
+
+        dataset_sources.discover_dataset_candidates_for_source = fake_discover
+        try:
+            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1))
+        finally:
+            dataset_sources.discover_dataset_candidates_for_source = original
+
+        source_result = result.source_results[0]
+        self.assertEqual(1, result.candidate_count)
+        self.assertEqual(2, result.duplicate_count)
+        self.assertEqual(1, source_result.unique_candidate_count)
+        self.assertEqual(2, source_result.duplicate_candidate_count)
+        self.assertIn("duplicate_heavy_output", source_result.warning_codes)
+        self.assertEqual("review_source_overlap_or_dedupe", source_result.next_action)
 
     def test_dataset_crawler_orchestrator_warns_on_empty_success(self) -> None:
         sources = [
@@ -758,6 +810,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(1, result.warning_count)
         self.assertEqual("warning", result.source_results[0].audit_status)
         self.assertIn("zero_candidates", result.source_results[0].warnings[0])
+        self.assertEqual(("zero_candidates",), result.source_results[0].warning_codes)
+        self.assertEqual("repair_crawler_query_or_parser", result.source_results[0].next_action)
 
     def test_payload_shape_mismatch_is_not_silent_success(self) -> None:
         source = DatasetDiscoverySource(

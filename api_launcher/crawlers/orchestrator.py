@@ -37,12 +37,35 @@ class DatasetSourceCrawlResult:
         return len(self.warnings)
 
     @property
+    def warning_codes(self) -> tuple[str, ...]:
+        # warning 文字給人看，code 給 CLI/agent 做 routing；兩者共用冒號前綴，避免另建一套枚舉後忘記同步。
+        return tuple(warning.split(":", 1)[0].strip() for warning in self.warnings if warning.strip())
+
+    @property
     def audit_status(self) -> str:
         if self.error:
             return "error"
         if self.warnings:
             return "warning"
         return "pass"
+
+    @property
+    def next_action(self) -> str:
+        # next_action 是給 UI/agent 的短路由；真正原因仍保留在 error/warnings，避免把修復細節藏起來。
+        if self.error:
+            return "inspect_crawler_error"
+        codes = set(self.warning_codes)
+        if not codes:
+            return "review_candidates" if self.candidate_count else "no_candidates_but_allowed"
+        if "candidate_metadata_issue" in codes:
+            return "repair_candidate_metadata_mapping"
+        if "zero_candidates" in codes:
+            return "repair_crawler_query_or_parser"
+        if "below_min_candidates" in codes:
+            return "adjust_query_or_min_expected_candidates"
+        if "all_candidates_duplicate" in codes or "duplicate_heavy_output" in codes:
+            return "review_source_overlap_or_dedupe"
+        return "inspect_crawler_audit_warnings"
 
 
 @dataclass(frozen=True)
@@ -63,6 +86,16 @@ class DatasetCrawlResult:
     @property
     def audit_issue_count(self) -> int:
         return self.error_count + self.warning_count
+
+    @property
+    def next_action(self) -> str:
+        # 結果層 next_action 只做總體路由；逐 source 的修復方向在 source_results 裡。
+        if self.audit_issue_count:
+            return "inspect_source_audit_results_before_upsert_or_promotion"
+        discovered_count = self.candidate_count or sum(result.candidate_count for result in self.source_results)
+        if discovered_count:
+            return "review_or_upsert_dataset_candidates"
+        return "configure_or_select_dataset_discovery_sources"
 
 
 def crawl_dataset_sources(
@@ -108,6 +141,12 @@ def crawl_dataset_sources(
                 warnings = warnings + (
                     "all_candidates_duplicate: source returned candidates, but every candidate was already seen "
                     "from another source; verify source overlap, search terms, or provider mapping",
+                )
+            elif source_duplicate_count and source_duplicate_count >= source_unique_count:
+                warnings = warnings + (
+                    "duplicate_heavy_output: source returned "
+                    f"{source_duplicate_count} duplicate candidates and only {source_unique_count} unique candidates; "
+                    "verify pagination, parser IDs, search terms, or overlapping source configuration",
                 )
             source_results.append(
                 replace(

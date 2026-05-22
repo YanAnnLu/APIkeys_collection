@@ -91,6 +91,7 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             "duplicate_count": crawl_result.duplicate_count,
             "error_count": crawl_result.error_count,
             "warning_count": crawl_result.warning_count,
+            "next_action": crawl_result.next_action,
             "full_crawl": args.dataset_discovery_full_crawl,
             "source_results": [
                 {
@@ -103,6 +104,8 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
                     "audit_status": result.audit_status,
                     "error": result.error,
                     "warnings": list(result.warnings),
+                    "warning_codes": list(result.warning_codes),
+                    "next_action": result.next_action,
                 }
                 for result in crawl_result.source_results
             ],
@@ -113,13 +116,16 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             "[dataset-discover] "
             f"wrote {len(candidates)} dataset candidates to {output_path} "
             f"sources={len(sources)} errors={crawl_result.error_count} "
-            f"warnings={crawl_result.warning_count} duplicates={crawl_result.duplicate_count}"
+            f"warnings={crawl_result.warning_count} duplicates={crawl_result.duplicate_count} "
+            f"next_action={crawl_result.next_action}"
         )
         for result in crawl_result.source_results:
             if result.error:
                 print(f"[dataset-discover] source_error {result.source_id}: {result.error}")
             for warning in result.warnings:
                 print(f"[dataset-discover] source_warning {result.source_id}: {warning}")
+            if result.audit_status != "pass":
+                print(f"[dataset-discover] source_next_action {result.source_id}: {result.next_action}")
         if args.upsert_dataset_candidates:
             count = upsert_candidates(conn, candidates)
             print(f"[dataset-discover] upserted {count} dataset candidates")
