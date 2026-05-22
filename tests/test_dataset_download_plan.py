@@ -212,9 +212,28 @@ class DatasetDownloadPlanTests(unittest.TestCase):
 
         self.assertEqual(1, payload["summary"]["item_count"])
         self.assertEqual({"ExampleSelectorAdapter": 1}, payload["summary"]["by_adapter"])
+        self.assertEqual({"source_resolution_required": 1}, payload["summary"]["by_outcome"])
         self.assertEqual(1, len(items))
         self.assertEqual("ExampleSelectorAdapter", items[0].adapter_id)
         self.assertEqual("resolve_source_to_direct_download_entries", items[0].required_action)
+        self.assertEqual("source_resolution_required", items[0].outcome_bucket)
+
+    def test_adapter_review_payload_marks_downloaded_transform_outcome(self) -> None:
+        entry = {
+            "provider_id": "archive_provider",
+            "dataset_id": "archive_dataset",
+            "download_url": "https://example.test/archive.zip",
+            "download_eligibility": {"status": "direct_download"},
+            "import_plan": {"status": "requires_unpack_or_adapter", "reason": "archive member selection required"},
+            "adapter_review": {"adapter_id": "ArchiveTransformAdapter", "source_kind": "direct_file_needs_transform"},
+        }
+
+        payload = adapter_review_agent_payload({"providers": [entry]})
+        items = adapter_review_items({"providers": [entry]})
+
+        self.assertEqual({"downloaded_payload_transform": 1}, payload["summary"]["by_outcome"])
+        self.assertEqual("unpack_or_transform_downloaded_payload", items[0].required_action)
+        self.assertEqual("downloaded_payload_transform", items[0].to_dict()["outcome_bucket"])
 
     def test_dataset_plan_summary_counts_direct_and_review_entries(self) -> None:
         entries = [
@@ -291,6 +310,7 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertIn("[adapter-review] items=1 adapters=1", output.getvalue())
         self.assertIn("adapter=GEBCOTopographyAdapter", output.getvalue())
+        self.assertIn("outcome=source_resolution_required", output.getvalue())
 
     def test_cli_exports_candidate_plan_from_reviewable_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

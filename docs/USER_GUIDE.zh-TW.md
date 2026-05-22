@@ -348,6 +348,8 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json
 ```
 
+Adapter 待辦會列出 `action` 與 `outcome`：`source_resolution_required` 代表還要把 API/入口頁/selector 解析成 direct download；`downloaded_payload_transform` 代表檔案可下載，但下載後還要解壓或轉換；`import_adapter_required` / `import_transform_required` 代表匯入前仍需要 adapter 或轉換規則。JSON 輸出會在 summary 裡提供 `by_outcome`，方便 agent 先批次處理同類問題。
+
 若候選來自 CKAN/Data.gov 這類「一個 dataset 底下有多個 resource」的平台，可以先嘗試解析 plan：
 
 ```bash

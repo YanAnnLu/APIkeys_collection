@@ -31,6 +31,7 @@ class AdapterReviewItem:
     required_action: str
     expected_output: str
     reason: str
+    outcome_bucket: str
     download_status: str
     import_status: str
     plan_status: str
@@ -52,6 +53,7 @@ class AdapterReviewItem:
             "required_action": self.required_action,
             "expected_output": self.expected_output,
             "reason": self.reason,
+            "outcome_bucket": self.outcome_bucket,
             "download_status": self.download_status,
             "import_status": self.import_status,
             "plan_status": self.plan_status,
@@ -98,6 +100,7 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
     # source_kind 用來區分「要找 direct files」與「已下載但需轉換」，兩者後續 adapter 工作不同。
     source_kind = first_text(review.get("source_kind")) or ("direct_file_needs_transform" if download_status == "direct_download" else "api_landing_or_selector")
     reason = first_text(review.get("reason"), import_plan.get("reason"), eligibility.get("reason"))
+    outcome_bucket = infer_outcome_bucket(download_status, import_status, required_action)
     return AdapterReviewItem(
         plan_index=index,
         provider_id=provider_id,
@@ -113,6 +116,7 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
         required_action=required_action,
         expected_output=first_text(review.get("expected_output")) or "direct_download_plan_entries_with_manifests_and_import_plan",
         reason=reason,
+        outcome_bucket=outcome_bucket,
         download_status=download_status,
         import_status=import_status,
         plan_status=str(entry.get("plan_status") or ""),
@@ -124,6 +128,19 @@ def infer_required_action(download_status: str, import_status: str) -> str:
     if download_status == "direct_download" and import_status in {"requires_unpack_or_adapter", "manual_review_required"}:
         return "unpack_or_transform_downloaded_payload"
     return "resolve_source_to_direct_download_entries"
+
+
+def infer_outcome_bucket(download_status: str, import_status: str, required_action: str) -> str:
+    # outcome_bucket 是給 agent/UI 的粗分類；真正實作仍由 required_action 與 adapter_id 接手。
+    if required_action == "unpack_or_transform_downloaded_payload":
+        return "downloaded_payload_transform"
+    if download_status == "adapter_required":
+        return "source_resolution_required"
+    if download_status == "direct_download" and import_status in REVIEW_IMPORT_STATUSES:
+        return "import_transform_required"
+    if import_status in REVIEW_IMPORT_STATUSES:
+        return "import_adapter_required"
+    return "adapter_review_required"
 
 
 def first_text(*values: object) -> str:
@@ -140,16 +157,19 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
     items = adapter_review_items(plan_payload)
     by_adapter: dict[str, int] = {}
     by_action: dict[str, int] = {}
+    by_outcome: dict[str, int] = {}
     for item in items:
         # 同時統計 adapter 與 action，可以看出是同一來源缺 resolver，還是多種轉換工作混在一起。
         by_adapter[item.adapter_id] = by_adapter.get(item.adapter_id, 0) + 1
         by_action[item.required_action] = by_action.get(item.required_action, 0) + 1
+        by_outcome[item.outcome_bucket] = by_outcome.get(item.outcome_bucket, 0) + 1
     return {
         "summary": {
             "item_count": len(items),
             "adapter_count": len(by_adapter),
             "by_adapter": by_adapter,
             "by_action": by_action,
+            "by_outcome": by_outcome,
         },
         "items": [item.to_dict() for item in items],
     }

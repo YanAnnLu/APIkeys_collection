@@ -1122,7 +1122,7 @@ class CatalogLauncherCli:
                 "[adapter-review] "
                 f"#{item.plan_index} provider={item.provider_id} dataset={item.dataset_id or '-'} "
                 f"version={item.version or '-'} adapter={item.adapter_id} action={item.required_action} "
-                f"source={item.source_url or item.landing_url or '-'}"
+                f"outcome={item.outcome_bucket} source={item.source_url or item.landing_url or '-'}"
             )
             if item.reason:
                 print(f"[adapter-review]    reason={item.reason}")

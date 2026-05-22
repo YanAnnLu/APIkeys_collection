@@ -6181,14 +6181,15 @@ class ApiCollectionUi:
             wraplength=900,
         ).pack(anchor="w", padx=24, pady=(0, 12))
 
-        table = ttk.Treeview(dialog, columns=("adapter", "action", "provider", "dataset", "version", "source"), show="headings", height=10, selectmode="browse")
+        table = ttk.Treeview(dialog, columns=("adapter", "action", "outcome", "provider", "dataset", "version", "source"), show="headings", height=10, selectmode="browse")
         for name, label, width in [
             ("adapter", self.tr("Adapter", "Adapter"), 180),
-            ("action", self.tr("下一步", "Next action"), 220),
+            ("action", self.tr("下一步", "Next action"), 200),
+            ("outcome", self.tr("結果分類", "Outcome"), 170),
             ("provider", self.tr("資料源", "Provider"), 150),
             ("dataset", self.tr("資料集", "Dataset"), 180),
             ("version", self.tr("版本", "Version"), 90),
-            ("source", self.tr("來源 URL", "Source URL"), 260),
+            ("source", self.tr("來源 URL", "Source URL"), 240),
         ]:
             table.heading(name, text=label)
             table.column(name, width=width, anchor="w", stretch=True)
@@ -6201,7 +6202,7 @@ class ApiCollectionUi:
                 "",
                 END,
                 iid=iid,
-                values=(item.adapter_id, item.required_action, item.provider_id, item.dataset_id, item.version or "-", item.source_url or item.landing_url),
+                values=(item.adapter_id, item.required_action, item.outcome_bucket, item.provider_id, item.dataset_id, item.version or "-", item.source_url or item.landing_url),
             )
 
         detail = Text(dialog, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
@@ -6224,6 +6225,7 @@ class ApiCollectionUi:
                         [
                             f"adapter_id: {item.adapter_id}",
                             f"required_action: {item.required_action}",
+                            f"outcome_bucket: {item.outcome_bucket}",
                             f"expected_output: {item.expected_output}",
                             f"provider_id: {item.provider_id}",
                             f"dataset_uid: {item.dataset_uid or '-'}",
