@@ -2074,8 +2074,18 @@ class CatalogLauncherCli:
 
 def main(argv: list[str] | None = None) -> int:
     # main 只負責命令分派與錯誤呈現；實際資料處理要盡量委派給 api_launcher 子模組。
+    configure_cli_stdio()
     args = parse_args(sys.argv[1:] if argv is None else argv)
     return CatalogLauncherCli(args).run()
+
+
+def configure_cli_stdio() -> None:
+    # GitHub Windows runner 與部分舊終端可能仍用 cp1252；CLI/JSON 會輸出中文 handoff 欄位，需先避免編碼例外。
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
 
 
 if __name__ == "__main__":

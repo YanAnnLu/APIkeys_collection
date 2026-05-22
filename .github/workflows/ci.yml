@@ -36,6 +36,7 @@ jobs:
       - name: CLI smoke
         env:
           PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONIOENCODING: "utf-8"
         run: |
           python APIkeys_collection.py --init-db --seed --manifest-health --db state/ci.sqlite --summary
           python APIkeys_collection.py --db state/mvp_demo_ci/launcher.sqlite --init-db --seed --run-mvp-demo-smoke-json state/mvp_demo_ci/flow.json

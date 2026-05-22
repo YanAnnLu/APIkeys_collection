@@ -15,6 +15,7 @@ Set-Location $ProjectRoot
 # Git hook 會在不同 shell 裡啟動；先固定 pycache 位置，避免 Windows/RaiDrive 鎖住 repo 內 __pycache__。
 $env:PYTHONPYCACHEPREFIX = Join-Path $env:TEMP "apikeys_collection_pycache"
 $env:PYTHONDONTWRITEBYTECODE = "1"
+$env:PYTHONIOENCODING = "utf-8"
 
 Write-Host "[pre-push-smoke] repository: $ProjectRoot"
 Write-Host "[pre-push-smoke] python:     $Python"
