@@ -2434,6 +2434,29 @@ class ApiCollectionUi:
             "These items are still APIs, landing pages, selectors, or metadata. Open the adapter review queue or resolve the adapter plan before downloading.",
         )
 
+    def import_skipped_detail_message(self, skipped: list[str], *, limit: int = 4) -> str:
+        if not skipped:
+            return ""
+        # 匯入流程可能部分成功；把略過原因直接列出，避免使用者誤以為所有 plan item 都已進 SQLite。
+        preview_items = skipped[:limit]
+        preview = "\n".join(f"- {item}" for item in preview_items)
+        remaining = len(skipped) - len(preview_items)
+        heading = self.tr(
+            f"\n\n會略過：{len(skipped)} 個不支援或未準備好的項目。原因預覽：",
+            f"\n\nWill skip {len(skipped)} unsupported or unready items. Reason preview:",
+        )
+        if remaining:
+            tail = self.tr(
+                f"\n...還有 {remaining} 個項目未列出；請依原因先處理 Adapter 待辦、解析 Adapter 計畫、下載或 manifest 健康狀態。",
+                f"\n...{remaining} more items are not shown; follow the reason to resolve adapter review, adapter-plan resolution, download, or manifest health first.",
+            )
+        else:
+            tail = self.tr(
+                "\n請依原因先處理 Adapter 待辦、解析 Adapter 計畫、下載或 manifest 健康狀態。",
+                "\nFollow the reason to resolve adapter review, adapter-plan resolution, download, or manifest health first.",
+            )
+        return f"{heading}\n{preview}{tail}"
+
     def start_download_plan_items(self, items: list[tuple[str, ProviderRow, core.DatasetVersionOption | None]]) -> None:
         # 這裡只啟動 direct_download；需要 adapter 的項目保留在審核/解析流程，不硬猜 URL。
         started = 0
@@ -2675,11 +2698,10 @@ class ApiCollectionUi:
             supported.append((plan_key, entry, label))
 
         if not supported:
-            detail = "\n".join(skipped[:6])
             messagebox.showinfo(
                 self.tr("沒有可匯入項目", "No importable items"),
                 self.tr("目前下載計畫中沒有已支援的 CSV/JSON/GeoJSON 匯入項目。", "The current plan has no supported CSV/JSON/GeoJSON import items.")
-                + (f"\n\n{detail}" if detail else ""),
+                + self.import_skipped_detail_message(skipped, limit=6),
             )
             return
 
@@ -2691,7 +2713,6 @@ class ApiCollectionUi:
             f"\n\n同名資料表策略：{self.import_existing_table_policy_label(existing_table_policy)}",
             f"\n\nExisting table policy: {self.import_existing_table_policy_label(existing_table_policy)}",
         )
-        skipped_hint = self.tr(f"\n\n會略過：{len(skipped)} 個不支援或未準備好的項目。", f"\n\nWill skip {len(skipped)} unsupported or unready items.") if skipped else ""
         confirmed = messagebox.askyesno(
             self.tr("匯入下載結果", "Import downloaded results"),
             self.tr(
@@ -2699,7 +2720,7 @@ class ApiCollectionUi:
                 f"Import {len(supported)} supported items into SQLite:\n{sqlite_path}\n\nSidecar manifests will be verified before import.",
             )
             + policy_hint
-            + skipped_hint,
+            + self.import_skipped_detail_message(skipped),
         )
         if not confirmed:
             return

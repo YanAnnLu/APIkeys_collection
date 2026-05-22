@@ -332,7 +332,7 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 
 如果 `--run-download-plan` 顯示 `submitted=0`，先看下一行的 `skip_summary`。`adapter_required` 表示還要跑 `--adapter-review-plan` 或 `--resolve-adapter-plan`，`metadata_only` 表示目前只有目錄資訊，`missing_download_url` 表示 plan 還沒有可交給下載器的 URL。這不是下載器壞掉，而是 launcher 保守地擋住未界定的 API、入口頁或 metadata；CLI 也會輸出 `next_action=run_adapter_review_or_resolve_adapter_plan_before_downloading`，提醒你先走修復/解析步驟。
 
-在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON/GeoJSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`略過`、`需 adapter` 或 `需解壓/adapter`。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料；如果共用匯入流程回報已存在 table，UI 會把它顯示成「略過」，不是「失敗」。
+在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON/GeoJSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`略過`、`需 adapter` 或 `需解壓/adapter`。如果同一份計畫裡一部分可以匯入、另一部分會被略過，匯入確認框會列出略過原因預覽，讓你知道哪些項目需要先做 Adapter 待辦、解析 Adapter 計畫、補下載或修 manifest。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料；如果共用匯入流程回報已存在 table，UI 會把它顯示成「略過」，不是「失敗」。
 
 如果資料不是透過下載計畫取得，而是你手上已有 CSV/JSON 類本機檔案，使用 `資料庫 > 匯入本機 CSV/JSON 檔`。這條 UI 路徑也會先建立 manifest，再匯入 SQLite；它只處理你選取的那一個檔案，不會掃整個資料夾。
 

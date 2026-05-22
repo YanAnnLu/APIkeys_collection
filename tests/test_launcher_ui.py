@@ -73,6 +73,57 @@ class DownloadPlanPanelUiTests(unittest.TestCase):
         self.assertIn("已啟動的 direct download 會繼續排隊", message)
         self.assertIn("解析 Adapter 計畫", message)
 
+    def test_import_skipped_detail_message_lists_reasons_and_limits_preview(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+
+        message = fake_ui.import_skipped_detail_message(
+            [
+                "Adapter page: 需要 Adapter 審核",
+                "Metadata only: 只有 metadata",
+                "Missing manifest: 請先完成下載",
+            ],
+            limit=2,
+        )
+
+        self.assertIn("會略過：3 個", message)
+        self.assertIn("- Adapter page: 需要 Adapter 審核", message)
+        self.assertIn("- Metadata only: 只有 metadata", message)
+        self.assertNotIn("Missing manifest", message)
+        self.assertIn("還有 1 個項目未列出", message)
+
+    def test_import_supported_plan_results_confirmation_lists_skipped_reasons(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+        fake_ui.tr = lambda zh, en: zh
+        direct_row = SimpleNamespace(name="Direct CSV")
+        adapter_row = SimpleNamespace(name="Adapter page")
+        fake_ui.selected_plan_items = lambda: [
+            ("direct", direct_row, None),
+            ("adapter", adapter_row, None),
+        ]
+        fake_ui.plan_item_label = lambda _plan_key, row, _option=None: row.name
+        fake_ui.download_plan_entries_by_provider = {
+            "direct": {
+                "import_plan": {"status": "supported_after_download"},
+                "download_url": "https://example.test/data.csv",
+            },
+            "adapter": {
+                "import_plan": {"status": "adapter_required", "reason": "需要 Adapter 審核後才能匯入"},
+            },
+        }
+        fake_ui.ask_import_existing_table_policy = lambda: "rename"
+        fake_ui.import_existing_table_policy_label = lambda _policy: "安全改名"
+
+        with patch("frontends.tk.launcher_ui.messagebox.askyesno", return_value=False) as askyesno:
+            fake_ui.import_supported_plan_results_from_ui()
+
+        askyesno.assert_called_once()
+        message = askyesno.call_args.args[1]
+        self.assertIn("將把 1 個已支援項目匯入 SQLite", message)
+        self.assertIn("會略過：1 個", message)
+        self.assertIn("- Adapter page: 需要 Adapter 審核後才能匯入", message)
+        self.assertIn("解析 Adapter 計畫", message)
+
     def test_start_download_plan_items_warns_when_some_items_are_skipped(self) -> None:
         class FakeQueue:
             def __init__(self) -> None:
