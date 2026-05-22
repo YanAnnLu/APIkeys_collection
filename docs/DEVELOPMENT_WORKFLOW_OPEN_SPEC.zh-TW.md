@@ -74,6 +74,24 @@ open "$HOME/Applications/Spectra.app"
 npx -y @fission-ai/openspec@latest validate --all --no-interactive
 ```
 
+若未來使用 `/spectra-apply`、`/spectra-commit` 或類似自動化來整理 commit message、搬運 tasks、同步 GTD / handoff，Agent 可以在授權範圍內主動使用它們代辦行政文書與規格套用。自動化的目標是減少細顆粒 checkpoint 的文書成本；每個實質 commit 仍要留下清楚意圖、可回溯測試與 CI 結果，log-only commit 仍不新增開發日誌列，避免形成「更新日誌 -> commit -> 再更新日誌」的遞迴。
+
+## 本地預檢與 pre-push hook
+
+推送前可先跑本地預檢：
+
+```powershell
+.\scripts\pre_push_smoke.cmd
+```
+
+這會執行 `git diff --check`、核心入口 `py_compile`、完整 `unittest discover -s tests` 與 `--summary`，並把 pycache 固定到 temp 目錄，降低 Windows/RaiDrive 鎖檔問題。若希望每次 `git push` 前自動執行，可在該 clone 本機安裝 hook：
+
+```powershell
+.\scripts\install_pre_push_hook.cmd
+```
+
+pre-push hook 是 `.git/hooks/` 內的本機設定，不會被 Git 追蹤；它負責把錯誤盡量擋在 push 前。push 後仍要跑 `gh run watch --exit-status`，讓遠端 checkpoint 留下可回溯 CI 紀錄。
+
 ## Qt Designer 的定位
 
 Qt Designer 是中期 UI 路線的設計工具，不代表現在要立刻重寫 Tk。它目前的價值是：

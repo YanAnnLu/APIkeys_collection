@@ -67,6 +67,24 @@ py -m unittest discover -s tests
 py APIkeys_collection.py --summary
 ```
 
+## Optional Local Pre-push Smoke
+
+Before pushing, Windows contributors and agents can run the same fast local checks with one command:
+
+```powershell
+.\scripts\pre_push_smoke.cmd
+```
+
+This runs `git diff --check`, core `py_compile`, `py -B -m unittest discover -s tests`, and `py -B APIkeys_collection.py --summary` with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
+
+To install it as this clone's local Git `pre-push` hook:
+
+```powershell
+.\scripts\install_pre_push_hook.cmd
+```
+
+Git hooks live under `.git/hooks/`, so this is intentionally local-only and is not pushed to GitHub. If a true emergency push is needed after reviewing the risk, use `git push --no-verify`; normal development should still watch GitHub Actions after push so the checkpoint has a remote CI record.
+
 On the current macOS Codex handoff environment, prefer the project env rather than base Python:
 
 ```bash

@@ -47,7 +47,15 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 .\.venv\Scripts\python.exe -B -m py_compile APIkeys_collection.py APIkeys_collection_ui.py frontends\tk\launcher_ui.py api_launcher\core.py
 ```
 
-10. After pushing, verify GitHub Actions rather than assuming push success means CI success:
+10. Before pushing on Windows, prefer the local pre-push smoke when time allows. It runs `git diff --check`, core `py_compile`, full unittest discovery, and `--summary` with temp pycache:
+
+```powershell
+.\scripts\pre_push_smoke.cmd
+```
+
+To install the same check as a local-only Git hook for this clone, run `.\scripts\install_pre_push_hook.cmd`. Hooks live under `.git/hooks/` and are not committed; they reduce failed CI queue time. Still watch GitHub Actions after push so each checkpoint has a remote CI record.
+
+11. After pushing, verify GitHub Actions rather than assuming push success means CI success:
 
 ```bash
 gh run list --repo YanAnnLu/APIkeys_collection --limit 5
