@@ -54,6 +54,14 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 .\scripts\pre_push_smoke.cmd
 ```
 
+For lower-token agent sessions, use the brief wrapper first:
+
+```powershell
+.\scripts\pre_push_smoke_brief.cmd
+```
+
+It writes the full log to `state/logs/pre_push_smoke_*.log` and prints only key pass/fail, traceback, unittest, and MVP smoke lines. External summarizers such as `distill` are optional post-processors for saved logs or selected tails only; do not use them for raw JSON, SQL, secrets/env/credential output, destructive-action review, or as a replacement for CI/test evidence. On Windows call `distill.cmd`, and use it only when `distill.cmd --version` succeeds. As of 2026-05-22, `@samuelfaj/distill@1.5.2` is blocked on Windows because npm does not publish the expected `@samuelfaj/distill-win32-x64` package.
+
 To install the same check as a local-only Git hook for this clone, run `.\scripts\install_pre_push_hook.cmd`. Hooks live under `.git/hooks/` and are not committed; they reduce failed CI queue time. Still watch GitHub Actions after push so each checkpoint has a remote CI record.
 
 11. After pushing, verify GitHub Actions rather than assuming push success means CI success:

@@ -77,6 +77,14 @@ Before pushing, Windows contributors and agents can run the same fast local chec
 
 This checks whitespace problems in the working tree, staged diff, and `upstream..HEAD` pending-push diff when an upstream branch exists. It then runs core `py_compile`, `py -B -m unittest discover -s tests`, `py -B APIkeys_collection.py --summary`, and the offline MVP demo smoke with a temp pycache folder. On this project it is usually much faster than waiting for a failed GitHub Actions queue, though the full test suite may take tens of seconds depending on disk and Python environment.
 
+For agent sessions where token usage matters, prefer the brief wrapper:
+
+```powershell
+.\scripts\pre_push_smoke_brief.cmd
+```
+
+It writes the complete pre-push output under `state/logs/pre_push_smoke_*.log`, then prints only key status, failure, traceback, unittest, and MVP smoke lines. If an external summarizer such as `distill` is available, use it only on the saved log or selected tail, not as the source of truth. On Windows, call `distill.cmd` rather than `distill`; as of 2026-05-22, `@samuelfaj/distill@1.5.2` installs but cannot run on this machine because the npm registry does not publish the expected `@samuelfaj/distill-win32-x64` platform package. Treat `distill` as optional until `distill.cmd --version` succeeds.
+
 To install it as this clone's local Git `pre-push` hook:
 
 ```powershell

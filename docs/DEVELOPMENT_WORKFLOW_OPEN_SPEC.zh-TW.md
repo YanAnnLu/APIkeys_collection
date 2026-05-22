@@ -92,6 +92,14 @@ npx -y @fission-ai/openspec@latest validate --all --no-interactive
 
 pre-push hook 是 `.git/hooks/` 內的本機設定，不會被 Git 追蹤；它負責把錯誤盡量擋在 push 前。push 後仍要跑 `gh run watch --exit-status`，讓遠端 checkpoint 留下可回溯 CI 紀錄。
 
+若 agent 對話的 token 成本太高，優先使用簡報版預檢：
+
+```powershell
+.\scripts\pre_push_smoke_brief.cmd
+```
+
+它仍然執行同一套 `pre_push_smoke`，但完整輸出會落到 `state/logs/pre_push_smoke_*.log`，螢幕只顯示關鍵狀態、錯誤、traceback、unittest 與 MVP smoke 行。外部摘要器如 `distill` 只能作為可選後處理：用在 saved log 或 tail 上，不取代原始 log、CI、測試結果或開發日誌證據。Windows 上請用 `distill.cmd`；若 `distill.cmd --version` 失敗，就不要把它寫入工作流。2026-05-22 實測 `@samuelfaj/distill@1.5.2` 會尋找尚未發布的 `@samuelfaj/distill-win32-x64`，因此目前只記為可選工具，不列為專案依賴。
+
 ## Qt Designer 的定位
 
 Qt Designer 是中期 UI 路線的設計工具，不代表現在要立刻重寫 Tk。它目前的價值是：

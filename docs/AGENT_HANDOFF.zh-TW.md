@@ -152,6 +152,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 開發策略已正式往 OpenSpec-aligned workflow 過渡。下一位 Agent 不要只把 OpenSpec 當成可選工具，而要把它視為新的協作規範方向：凡是中大型、跨模組、會影響架構/資料模型/UI/外部整合的改動，先寫清楚「變更目的、範圍、任務、驗收標準、風險」再實作；小修、測試補強、窄範圍 bugfix 可以維持快速小步，但完成後要回補 GTD / handoff / 相關設計文件。正式 `openspec/` 目錄已建立，第一個 capability 是 `openspec/specs/development-workflow/spec.md`；Spectra GUI 已裝在 `~/Applications/Spectra.app`；Qt Designer 以 `conda run -n metal_trade_312 pyside6-designer` 啟動。
 - 匯報要面向初學者：少用抽象工程術語，多用白話說明「這一步解決什麼、還差什麼、為什麼重要」。每次中途或最後匯報，順手說明距離 MVP 還剩哪些大塊。
 - 做到一個穩定節點就要 commit/push，並用 `gh run watch` 或 `gh run list` 確認 CI。使用者手機會收到 GitHub Actions 通知，所以不要只說 push 成功。
+- 為了降低 token 用量，長輸出請優先用 repo-owned 簡報入口，例如 `.\scripts\pre_push_smoke_brief.cmd`。完整 log 會寫到 `state/logs/pre_push_smoke_*.log`，對話中只貼關鍵行與失敗尾端。外部 `distill` 只能當可選後處理；不要用它取代 raw log、JSON、SQL、CI、測試證據，也不要把可能含 secrets/env/credential 的輸出送去未知 provider。Windows 上若要用 `distill`，必須先確認 `distill.cmd --version` 成功；2026-05-22 實測 `@samuelfaj/distill@1.5.2` 缺 `@samuelfaj/distill-win32-x64` 平台包，尚不能視為可用。
 - 不要在 base/system Python 裝套件；目前 macOS 主要使用 `conda run -n metal_trade_312 ...`。
 - 遇到環境差異先配置，不要假設 Windows 路徑可在 Mac 用。尤其 Mac 啟動時要依系統選路徑分隔符與平台路徑，不要讓 Windows `K:\...` 類路徑阻擋 UI。
 - 不要硬編碼代表資料集。使用者反覆強調 crawler-first：先找供應商/目錄，解析目錄，再產生候選；adapter 只處理 bounded query、auth、轉換、匯入等必要邏輯。
