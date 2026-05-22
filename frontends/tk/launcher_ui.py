@@ -38,6 +38,7 @@ from api_launcher.importers.csv_importer import table_exists
 from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_LIVE_WARNING,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
@@ -5452,13 +5453,14 @@ class ApiCollectionUi:
         # live yfinance 是明確 opt-in 的窄入口；UI 先建立 CSV-backed plan，不在背景排程或 crawler 自動抓取。
         dialog = Toplevel(self.root)
         dialog.title(self.tr("建立 yfinance live plan", "Create yfinance live plan"))
-        dialog.geometry("820x470")
+        dialog.geometry("820x500")
         dialog.configure(bg=COLORS["panel"])
         dialog.transient(self.root)
 
         symbols_var = StringVar(value="AAPL")
         period_var = StringVar(value="5d")
         interval_var = StringVar(value="1d")
+        retention_days_var = StringVar(value=str(DEFAULT_YFINANCE_RETENTION_DAYS))
         acknowledge_var = BooleanVar(value=False)
 
         ttk.Label(dialog, text=self.tr("建立 yfinance live plan", "Create yfinance live plan"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
@@ -5478,6 +5480,7 @@ class ApiCollectionUi:
             (self.tr("股票代號", "Symbols"), symbols_var, self.tr("例：AAPL, MSFT；逗號或空白分隔", "Example: AAPL, MSFT; comma or space separated")),
             (self.tr("查詢期間", "Period"), period_var, self.tr("例：5d、1mo、1y、ytd、max", "Example: 5d, 1mo, 1y, ytd, max")),
             (self.tr("時間間隔", "Interval"), interval_var, self.tr("例：1d、1h、5m", "Example: 1d, 1h, 5m")),
+            (self.tr("保留天數", "Retention days"), retention_days_var, self.tr("只寫入 plan metadata，不會自動刪檔", "Metadata only; files are not auto-deleted")),
         ]:
             row = ttk.Frame(form, style="Panel.TFrame")
             row.pack(fill=X, pady=5)
@@ -5513,6 +5516,7 @@ class ApiCollectionUi:
                     symbols=symbols,
                     period=period_var.get(),
                     interval=interval_var.get(),
+                    retention_days=int(retention_days_var.get()),
                     acknowledge_unofficial=True,
                 )
                 added = self.add_download_plan_entries_from_file(result.plan_path)
@@ -5536,6 +5540,7 @@ class ApiCollectionUi:
                     "symbols": list(result.symbols),
                     "period": result.period,
                     "interval": result.interval,
+                    "retention_days": result.retention_days,
                     "added_to_plan": added,
                 },
             )

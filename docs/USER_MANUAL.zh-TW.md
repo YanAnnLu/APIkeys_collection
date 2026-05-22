@@ -68,12 +68,12 @@ py -B APIkeys_collection.py --db state/yfinance_demo/launcher.sqlite --init-db -
 圖說：這只使用本機產生的 CSV fixture，不會安裝 `yfinance`，也不會連到 Yahoo。若要真的抓取 live yfinance，必須由使用者明確 opt-in：
 
 ```powershell
-py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-period 5d --yfinance-interval 1d --yfinance-acknowledge-unofficial
+py -B APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-period 5d --yfinance-interval 1d --yfinance-retention-days 365 --yfinance-acknowledge-unofficial
 ```
 
-這會在本機寫出 live CSV 與可匯入 plan；之後仍要用 `--run-download-plan ... --import-supported-plan-results` 明確執行。它只適合作為非官方、personal/research 用途資料源，不應視為商用或可再散布資料來源，也不會在 CI 或 crawler 裡自動執行。
+這會在本機寫出 live CSV 與可匯入 plan；`--yfinance-retention-days` 只會寫進 plan metadata，提醒這份本機快取預期保留多久，不會自動刪檔或背景刷新。之後仍要用 `--run-download-plan ... --import-supported-plan-results` 明確執行。它只適合作為非官方、personal/research 用途資料源，不應視為商用或可再散布資料來源，也不會在 CI 或 crawler 裡自動執行。
 
-在 Tk UI 中，對應入口在 `工具` 選單。`產生 yfinance 離線 Demo plan` 只建立本機 fixture-backed plan 並加入下載計畫；`建立 yfinance live plan（需確認）` 會要求填寫 symbol、period、interval，並勾選 unofficial/personal-research 確認框後才呼叫本機 `yfinance`。UI 仍然只把項目排進下載計畫，接下來要由使用者按「開始」與「匯入」，不會自動排程或背景抓取。
+在 Tk UI 中，對應入口在 `工具` 選單。`產生 yfinance 離線 Demo plan` 只建立本機 fixture-backed plan 並加入下載計畫；`建立 yfinance live plan（需確認）` 會要求填寫 symbol、period、interval、保留天數，並勾選 unofficial/personal-research 確認框後才呼叫本機 `yfinance`。UI 仍然只把項目排進下載計畫，接下來要由使用者按「開始」與「匯入」，不會自動排程、背景抓取或依保留天數自動刪檔。
 
 ## 1. 開啟程式
 

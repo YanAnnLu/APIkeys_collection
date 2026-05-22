@@ -22,6 +22,9 @@ YFINANCE_SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-^=]{0,31}$")
 YFINANCE_PERIOD_RE = re.compile(r"^(?:[1-9][0-9]*(?:d|wk|mo|y)|ytd|max)$")
 YFINANCE_INTERVAL_RE = re.compile(r"^(?:[1-9][0-9]*(?:m|h|d|wk|mo))$")
 DEFAULT_YFINANCE_SYMBOLS = ("AAPL", "MSFT")
+DEFAULT_YFINANCE_RETENTION_DAYS = 365
+MIN_YFINANCE_RETENTION_DAYS = 1
+MAX_YFINANCE_RETENTION_DAYS = 3650
 YFINANCE_DEMO_RECEIVED_AT = "2026-05-21T00:00:00Z"
 YFINANCE_DEMO_INGEST_RUN_ID = "fixture_yfinance_demo_2026_05_21"
 YFINANCE_LIVE_WARNING = (
@@ -59,6 +62,7 @@ class YFinanceLivePlanResult:
     rows_written: int
     period: str
     interval: str
+    retention_days: int
     warning: str = YFINANCE_LIVE_WARNING
 
 
@@ -172,6 +176,7 @@ def write_yfinance_live_plan(
     period: str = "1mo",
     interval: str = "1d",
     downloads_root: str | Path = "downloads",
+    retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
     *,
     acknowledge_unofficial: bool = False,
     fetcher: Callable[[tuple[str, ...], str, str], object] | None = None,
@@ -187,6 +192,7 @@ def write_yfinance_live_plan(
     normalized_symbols = normalize_yfinance_symbols(symbols)
     normalized_period = normalize_yfinance_period(period)
     normalized_interval = normalize_yfinance_interval(interval)
+    normalized_retention_days = normalize_yfinance_retention_days(retention_days)
     output_path = Path(plan_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     csv_path = output_path.with_name(f"{output_path.stem}.live.csv")
@@ -206,6 +212,7 @@ def write_yfinance_live_plan(
         period=normalized_period,
         interval=normalized_interval,
         downloads_root=downloads_root,
+        retention_days=normalized_retention_days,
         received_at=received_at_value,
         ingest_run_id=ingest_id,
     )
@@ -217,6 +224,7 @@ def write_yfinance_live_plan(
         rows_written=len(rows),
         period=normalized_period,
         interval=normalized_interval,
+        retention_days=normalized_retention_days,
     )
 
 
@@ -282,15 +290,24 @@ def build_yfinance_live_plan(
     period: str = "1mo",
     interval: str = "1d",
     downloads_root: str | Path = "downloads",
+    retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
     received_at: str = "",
     ingest_run_id: str = "",
 ) -> dict[str, object]:
     normalized_symbols = normalize_yfinance_symbols(symbols)
     normalized_period = normalize_yfinance_period(period)
     normalized_interval = normalize_yfinance_interval(interval)
+    normalized_retention_days = normalize_yfinance_retention_days(retention_days)
     csv_file = Path(csv_path)
     provider = yfinance_provider()
-    dataset = yfinance_live_dataset(normalized_symbols, csv_file, normalized_period, normalized_interval)
+    dataset = yfinance_live_dataset(
+        normalized_symbols,
+        csv_file,
+        normalized_period,
+        normalized_interval,
+        normalized_retention_days,
+    )
+    retention_policy = yfinance_retention_policy(normalized_retention_days)
     option = DatasetVersionOption(
         dataset_uid=dataset.dataset_uid,
         dataset_id=dataset.dataset_id,
@@ -313,6 +330,7 @@ def build_yfinance_live_plan(
             "received_at": received_at,
             "ingest_run_id": ingest_run_id,
             "live_fetch": True,
+            "retention_policy": retention_policy,
         },
     )
     entry = provider_dataset_version_plan_entry(provider, dataset, option, downloads_root=downloads_root)
@@ -327,6 +345,7 @@ def build_yfinance_live_plan(
         "symbols": list(normalized_symbols),
         "period": normalized_period,
         "interval": normalized_interval,
+        "retention_policy": retention_policy,
     }
     payload = build_dataset_download_plan([entry], plan_name="yfinance_live_ohlcv_opt_in")
     payload["source"] = {
@@ -340,6 +359,7 @@ def build_yfinance_live_plan(
         "docs_url": YFINANCE_DOCS_URL,
         "received_at": received_at,
         "ingest_run_id": ingest_run_id,
+        "retention_policy": retention_policy,
     }
     return payload
 
@@ -374,9 +394,16 @@ def yfinance_fixture_dataset(symbols: tuple[str, ...], fixture_path: Path) -> Da
     )
 
 
-def yfinance_live_dataset(symbols: tuple[str, ...], csv_path: Path, period: str, interval: str) -> Dataset:
+def yfinance_live_dataset(
+    symbols: tuple[str, ...],
+    csv_path: Path,
+    period: str,
+    interval: str,
+    retention_days: int,
+) -> Dataset:
     # live CSV 被視為「使用者剛剛明確抓取的 raw asset」，不是可自由散布的官方資料集版本。
     dataset_id = f"yfinance_ohlcv_live_{'_'.join(_safe_symbol_slug(symbol) for symbol in symbols)}"
+    retention_policy = yfinance_retention_policy(retention_days)
     return Dataset(
         dataset_uid=dataset_uid(YFINANCE_PROVIDER_ID, dataset_id),
         provider_id=YFINANCE_PROVIDER_ID,
@@ -403,6 +430,7 @@ def yfinance_live_dataset(symbols: tuple[str, ...], csv_path: Path, period: str,
             "download_url": csv_path.resolve().as_uri(),
             "source_format": "csv",
             "live_fetch": True,
+            "retention_policy": retention_policy,
         },
     )
 
@@ -520,6 +548,31 @@ def normalize_yfinance_interval(interval: str) -> str:
     if not YFINANCE_INTERVAL_RE.match(value):
         raise ValueError(f"Unsupported yfinance interval: {interval!r}")
     return value
+
+
+def normalize_yfinance_retention_days(retention_days: int | str) -> int:
+    # retention 是本機治理 metadata，不會自動刪檔；先把範圍收斂，避免 plan 記錄無界快取承諾。
+    try:
+        value = int(retention_days)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Unsupported yfinance retention days: {retention_days!r}") from exc
+    if value < MIN_YFINANCE_RETENTION_DAYS or value > MAX_YFINANCE_RETENTION_DAYS:
+        raise ValueError(
+            "Unsupported yfinance retention days: "
+            f"{retention_days!r}; expected {MIN_YFINANCE_RETENTION_DAYS}-{MAX_YFINANCE_RETENTION_DAYS}."
+        )
+    return value
+
+
+def yfinance_retention_policy(retention_days: int) -> dict[str, object]:
+    normalized_days = normalize_yfinance_retention_days(retention_days)
+    return {
+        "retention_days": normalized_days,
+        "scope": "local_personal_research_cache",
+        "automatic_delete": False,
+        "background_refresh": False,
+        "notes": "Retention is metadata for local cache governance; the launcher does not delete files automatically.",
+    }
 
 
 def yfinance_query_uri(symbols: Iterable[str], period: str = "1mo", interval: str = "1d") -> str:

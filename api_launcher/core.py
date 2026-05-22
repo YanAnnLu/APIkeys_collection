@@ -120,6 +120,7 @@ from api_launcher.plans import (
     provider_plan_entry,
 )
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_LIVE_WARNING,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
@@ -624,6 +625,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for yfinance demo/live plans; can be repeated")
     parser.add_argument("--yfinance-period", default="1mo", help="period for --write-yfinance-live-plan, for example 5d, 1mo, 1y, ytd, or max")
     parser.add_argument("--yfinance-interval", default="1d", help="interval for --write-yfinance-live-plan, for example 1d, 1h, or 5m")
+    parser.add_argument(
+        "--yfinance-retention-days",
+        type=int,
+        default=DEFAULT_YFINANCE_RETENTION_DAYS,
+        help="local retention metadata for yfinance live CSV plans; default 365 days",
+    )
     parser.add_argument("--yfinance-acknowledge-unofficial", action="store_true", help="required for --write-yfinance-live-plan after reviewing unofficial personal/research-only warning")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
@@ -956,13 +963,15 @@ class CatalogLauncherCli:
             period=self.args.yfinance_period,
             interval=self.args.yfinance_interval,
             downloads_root=self.args.downloads_root,
+            retention_days=self.args.yfinance_retention_days,
             acknowledge_unofficial=self.args.yfinance_acknowledge_unofficial,
         )
         print(f"[yfinance-live] warning={YFINANCE_LIVE_WARNING}")
         print(
             "[yfinance-live] "
             f"wrote {result.plan_path} csv={result.csv_path} symbols={','.join(result.symbols)} "
-            f"rows={result.rows_written} period={result.period} interval={result.interval}"
+            f"rows={result.rows_written} period={result.period} interval={result.interval} "
+            f"retention_days={result.retention_days}"
         )
         print(
             "[yfinance-live] "

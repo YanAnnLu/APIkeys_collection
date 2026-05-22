@@ -13,10 +13,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_PROVIDER_ID,
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
     build_yfinance_live_plan,
+    normalize_yfinance_retention_days,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
     write_yfinance_live_plan,
@@ -89,6 +91,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 symbols=("aapl", "MSFT"),
                 period="5d",
                 interval="1d",
+                retention_days=90,
                 fetcher=lambda _symbols, _period, _interval: FakeYFinanceFrame(),
                 acknowledge_unofficial=True,
                 received_at="2026-05-22T00:00:00Z",
@@ -99,9 +102,12 @@ class YFinanceAdapterTests(unittest.TestCase):
 
         self.assertEqual(("AAPL", "MSFT"), result.symbols)
         self.assertEqual(4, result.rows_written)
+        self.assertEqual(90, result.retention_days)
         self.assertEqual("yfinance_live_csv", payload["source"]["kind"])
+        self.assertEqual(90, payload["source"]["retention_policy"]["retention_days"])
         self.assertEqual("direct_download", payload["providers"][0]["download_eligibility"]["status"])
         self.assertEqual("supported_after_download", payload["providers"][0]["import_plan"]["status"])
+        self.assertEqual(False, payload["providers"][0]["time_series_contract"]["retention_policy"]["background_refresh"])
         self.assertIn("unofficial", payload["source"]["warning"])
         self.assertIn("2026-05-21T00:00:00Z,AAPL,100,103,99,102,102,1000000", csv_text)
         self.assertIn("test_yfinance_live", csv_text)
@@ -117,6 +123,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 rows_written=2,
                 period="5d",
                 interval="1d",
+                retention_days=30,
             )
 
             with patch("api_launcher.core.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
@@ -131,14 +138,18 @@ class YFinanceAdapterTests(unittest.TestCase):
                             "5d",
                             "--yfinance-interval",
                             "1d",
+                            "--yfinance-retention-days",
+                            "30",
                             "--yfinance-acknowledge-unofficial",
                         ]
                     )
 
         self.assertEqual(0, rc)
         self.assertIn("[yfinance-live] warning=", output.getvalue())
+        self.assertIn("retention_days=30", output.getvalue())
         live_mock.assert_called_once()
         self.assertTrue(live_mock.call_args.kwargs["acknowledge_unofficial"])
+        self.assertEqual(30, live_mock.call_args.kwargs["retention_days"])
 
     def test_demo_plan_can_download_and_import_without_yfinance_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -200,6 +211,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 symbols=("AAPL",),
                 period="1mo",
                 interval="1d",
+                retention_days=45,
                 received_at="2026-05-22T00:00:00Z",
                 ingest_run_id="test_run",
             )
@@ -208,6 +220,15 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("yfinance_live_csv", payload["source"]["kind"])
         self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
         self.assertEqual("append_only_or_revisable_market_data", entry["time_series_contract"]["kind"])
+        self.assertEqual(45, payload["source"]["retention_policy"]["retention_days"])
+        self.assertEqual(45, entry["dataset_version"]["metadata"]["retention_policy"]["retention_days"])
+
+    def test_retention_days_are_bounded_for_live_plan_metadata(self) -> None:
+        self.assertEqual(DEFAULT_YFINANCE_RETENTION_DAYS, normalize_yfinance_retention_days(str(DEFAULT_YFINANCE_RETENTION_DAYS)))
+        with self.assertRaises(ValueError):
+            normalize_yfinance_retention_days(0)
+        with self.assertRaises(ValueError):
+            normalize_yfinance_retention_days(3651)
 
 
 class FakeYFinanceFrame:
