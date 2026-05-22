@@ -154,6 +154,14 @@ def local_file_provenance_review_message(review: object) -> str:
     return "\n".join(lines)
 
 
+def local_file_import_error_message(exc: Exception) -> str:
+    # 手動匯入的格式錯誤已由後端寫成使用者可讀的修復指引；UI 不再加工程用例外類名。
+    message = str(exc).strip()
+    if isinstance(exc, ValueError) and message.startswith("Unsupported manual import format"):
+        return message
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
 TABLE_COLUMNS = (
     # 欄位定義集中保存 label/比例/寬度上下限，避免 resize 邏輯散在 UI 程式各處。
     ("star", "*", 0.045, 44, 64, "center", False),
@@ -2866,7 +2874,7 @@ class ApiCollectionUi:
             rows_imported = import_result.rows_imported
             columns_count = len(import_result.columns)
         except Exception as exc:
-            error = f"{type(exc).__name__}: {exc}"
+            error = local_file_import_error_message(exc)
             log_exception("ui_import_local_file_failed", exc, component="ui.import")
         finally:
             conn.close()

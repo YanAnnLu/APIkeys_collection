@@ -14,6 +14,7 @@ from frontends.tk.launcher_ui import (
     contextlib_suppress_tcl_error,
     data_store_env_template_path,
     database_sql_dry_run_available,
+    local_file_import_error_message,
     local_file_provenance_review_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
@@ -126,6 +127,12 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
 
 class LocalFileImportUiWorkerTests(unittest.TestCase):
+    def test_local_file_import_error_message_keeps_guided_format_repair_clean(self) -> None:
+        message = local_file_import_error_message(ValueError("Unsupported manual import format 'xlsx' for workbook.xlsx; 請先轉成支援格式。"))
+
+        self.assertTrue(message.startswith("Unsupported manual import format"))
+        self.assertNotIn("ValueError:", message)
+
     def test_local_file_provenance_review_message_summarizes_boundaries(self) -> None:
         message = local_file_provenance_review_message(
             {
@@ -184,6 +191,36 @@ class LocalFileImportUiWorkerTests(unittest.TestCase):
         self.assertTrue(any("本機檔案已匯入：weather_2" in message for message in messages))
         self.assertIn("來源審查：使用者自備本機檔案", showinfo.call_args.args[1])
         self.assertIn("不會執行：不掃描整個資料夾", showinfo.call_args.args[1])
+
+    def test_import_local_file_worker_shows_guided_unsupported_format_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            workbook_path = root / "weather.xlsx"
+            workbook_path.write_bytes(b"not really excel")
+            launcher_db = root / "launcher.sqlite"
+            curated_db = root / "curated.sqlite"
+            with closing(connect_db(launcher_db)) as conn:
+                ApiCatalogRepository(conn).init_schema()
+            messages: list[str] = []
+            fake_ui = object.__new__(ApiCollectionUi)
+            fake_ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+            fake_ui._connect = lambda: connect_db(launcher_db)
+            fake_ui.tr = lambda zh, en: zh
+            fake_ui.status_var = SimpleNamespace(set=lambda message: messages.append(message))
+
+            with (
+                patch("frontends.tk.launcher_ui.state_file", lambda name: root / name),
+                patch("frontends.tk.launcher_ui.messagebox.showerror") as showerror,
+                patch("frontends.tk.launcher_ui.log_exception"),
+            ):
+                fake_ui.import_local_file_worker(workbook_path, curated_db, "weather")
+
+            error_text = showerror.call_args.args[1]
+
+        self.assertIn("Unsupported manual import format", error_text)
+        self.assertIn("請先轉成支援格式", error_text)
+        self.assertNotIn("ValueError:", error_text)
+        self.assertTrue(any("Unsupported manual import format" in message for message in messages))
 
 
 if __name__ == "__main__":
