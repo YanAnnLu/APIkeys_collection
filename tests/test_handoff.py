@@ -1,14 +1,19 @@
 # 這份測試鎖定 handoff report 欄位，避免接力時缺少 Git、manifest 或 GTD 脈絡。
 from __future__ import annotations
 
+import io
+import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
+from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.handoff import (
     build_handoff_snapshot,
     data_store_handoff_summary,
+    handoff_snapshot_to_dict,
     markdown_table_cells,
     parse_open_gtd_items,
     render_handoff_markdown,
@@ -49,6 +54,46 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("portal_intake_actionable:", report)
         self.assertIn("local_dataset_sources:", report)
         self.assertIn("py -m unittest discover -s tests", report)
+
+    def test_handoff_snapshot_json_payload_is_serializable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+
+                payload = handoff_snapshot_to_dict(build_handoff_snapshot(repo))
+            finally:
+                conn.close()
+
+        encoded = json.dumps(payload, ensure_ascii=False)
+        self.assertIn("verification_summary", payload)
+        self.assertIn("open_gtd_items", payload)
+        self.assertIn("recent_logs", payload)
+        self.assertIn("verification_summary", encoded)
+
+    def test_cli_emits_handoff_report_json_without_human_setup_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--init-db",
+                        "--seed",
+                        "--handoff-report-json",
+                    ]
+                )
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertIn("git_status", payload)
+        self.assertIn("verification_summary", payload)
+        self.assertIn("open_gtd_summary", payload)
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
 
     def test_open_gtd_parser_keeps_code_span_pipes_inside_cells(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

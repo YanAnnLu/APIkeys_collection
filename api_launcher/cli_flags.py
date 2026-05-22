@@ -48,6 +48,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.list_manifests,
         args.show_logs > 0,
         bool(args.handoff_report),
+        args.handoff_report_json,
         bool(args.heartbeat_report),
         args.heartbeat_plan_json,
         bool(args.write_heartbeat_plan_json),

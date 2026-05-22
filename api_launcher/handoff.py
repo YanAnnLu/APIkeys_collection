@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -173,6 +173,11 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def handoff_snapshot_to_dict(snapshot: HandoffSnapshot) -> dict[str, Any]:
+    # JSON handoff 給 heartbeat/agent 直接解析；欄位與 Markdown snapshot 同源，避免兩套交接資料分歧。
+    return asdict(snapshot)
 
 
 def parse_open_gtd_items(path: Path) -> list[dict[str, str]]:

@@ -83,7 +83,7 @@ from api_launcher.downloads.eligibility import DownloadEligibility, assess_provi
 from api_launcher.downloads.plan_runner import load_download_plan_file
 from api_launcher.environment import EnvironmentCheck, run_startup_checks
 from api_launcher.event_log import latest_events, log_event, log_exception
-from api_launcher.handoff import build_handoff_snapshot, render_handoff_markdown
+from api_launcher.handoff import build_handoff_snapshot, handoff_snapshot_to_dict, render_handoff_markdown
 from api_launcher.heartbeat import (
     build_heartbeat_payload,
     write_heartbeat_agent_prompt,
@@ -712,6 +712,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
+    parser.add_argument("--handoff-report-json", action="store_true", help="emit handoff snapshot as agent-readable JSON")
     parser.add_argument("--heartbeat-report", help="write a heartbeat readiness Markdown report")
     parser.add_argument("--heartbeat-plan-json", action="store_true", help="emit heartbeat readiness and next-task plan as JSON")
     parser.add_argument("--write-heartbeat-plan-json", default="", help="write heartbeat readiness and next-task plan JSON")
@@ -900,6 +901,7 @@ class CatalogLauncherCli:
             or self.args.adapter_review_json
             or self.args.resolve_adapter_plan_json
             or self.args.manual_import_json
+            or self.args.handoff_report_json
             or self.args.heartbeat_plan_json
             or self.args.library_actions_json
             or self.args.test_data_store_json
@@ -1514,12 +1516,17 @@ class CatalogLauncherCli:
                 )
 
     def write_handoff_report(self) -> None:
-        if self.args.handoff_report:
+        if self.args.handoff_report or self.args.handoff_report_json:
             snapshot = build_handoff_snapshot(self.repository)
-            output_path = resolve_project_path(self.args.handoff_report)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(render_handoff_markdown(snapshot), encoding="utf-8")
-            print(f"[handoff] wrote {output_path}")
+            if self.args.handoff_report:
+                output_path = resolve_project_path(self.args.handoff_report)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(render_handoff_markdown(snapshot), encoding="utf-8")
+                if not self.args.handoff_report_json:
+                    print(f"[handoff] wrote {output_path}")
+            if self.args.handoff_report_json:
+                # JSON mode 直接輸出同一份 snapshot；避免混入 `[handoff] wrote ...` 破壞 parser。
+                print(json.dumps(handoff_snapshot_to_dict(snapshot), ensure_ascii=False, indent=2))
 
     def run_heartbeat_report(self) -> None:
         if not (
