@@ -13,11 +13,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_PROVIDER_ID,
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
     build_yfinance_live_plan,
+    normalize_yfinance_query_window_preset,
     normalize_yfinance_retention_days,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
@@ -124,6 +126,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 period="5d",
                 interval="1d",
                 retention_days=30,
+                query_window_preset=DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
             )
 
             with patch("api_launcher.core.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
@@ -150,6 +153,7 @@ class YFinanceAdapterTests(unittest.TestCase):
         live_mock.assert_called_once()
         self.assertTrue(live_mock.call_args.kwargs["acknowledge_unofficial"])
         self.assertEqual(30, live_mock.call_args.kwargs["retention_days"])
+        self.assertEqual(DEFAULT_YFINANCE_QUERY_WINDOW_PRESET, live_mock.call_args.kwargs["query_window_preset"])
 
     def test_demo_plan_can_download_and_import_without_yfinance_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -222,6 +226,60 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("append_only_or_revisable_market_data", entry["time_series_contract"]["kind"])
         self.assertEqual(45, payload["source"]["retention_policy"]["retention_days"])
         self.assertEqual(45, entry["dataset_version"]["metadata"]["retention_policy"]["retention_days"])
+
+    def test_query_window_preset_supplies_chart_friendly_period_interval(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_fetcher(symbols: tuple[str, ...], period: str, interval: str) -> FakeYFinanceFrame:
+            captured["symbols"] = symbols
+            captured["period"] = period
+            captured["interval"] = interval
+            return FakeYFinanceFrame()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = write_yfinance_live_plan(
+                Path(tmpdir) / "live_plan.json",
+                symbols=("AAPL", "MSFT"),
+                query_window_preset="intraday-5d-5m",
+                fetcher=fake_fetcher,
+                acknowledge_unofficial=True,
+                received_at="2026-05-22T00:00:00Z",
+                ingest_run_id="test_yfinance_window",
+            )
+            payload = json.loads(result.plan_path.read_text(encoding="utf-8"))
+
+        query_window = payload["source"]["query_window"]
+        self.assertEqual("5d", captured["period"])
+        self.assertEqual("5m", captured["interval"])
+        self.assertEqual("5d", result.period)
+        self.assertEqual("5m", result.interval)
+        self.assertEqual("intraday_5d_5m", result.query_window_preset)
+        self.assertEqual("intraday_5d_5m", query_window["preset_key"])
+        self.assertEqual(False, query_window["background_refresh"])
+        self.assertEqual("short_horizon_sqlite_or_mysql_cache", query_window["storage_hint"])
+
+    def test_query_window_preset_records_manual_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "live.csv"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                period="5d",
+                interval="1d",
+                query_window_preset="daily_6mo",
+            )
+
+        query_window = payload["source"]["query_window"]
+        self.assertEqual("daily_6mo", query_window["preset_key"])
+        self.assertEqual("5d", query_window["period"])
+        self.assertEqual("1d", query_window["interval"])
+        self.assertEqual(True, query_window["manual_override"])
+
+    def test_query_window_preset_normalization_is_bounded(self) -> None:
+        self.assertEqual("intraday_5d_5m", normalize_yfinance_query_window_preset("intraday-5d-5m").key)
+        with self.assertRaises(ValueError):
+            normalize_yfinance_query_window_preset("background-live")
 
     def test_retention_days_are_bounded_for_live_plan_metadata(self) -> None:
         self.assertEqual(DEFAULT_YFINANCE_RETENTION_DAYS, normalize_yfinance_retention_days(str(DEFAULT_YFINANCE_RETENTION_DAYS)))

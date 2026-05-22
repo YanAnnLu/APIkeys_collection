@@ -25,6 +25,7 @@ DEFAULT_YFINANCE_SYMBOLS = ("AAPL", "MSFT")
 DEFAULT_YFINANCE_RETENTION_DAYS = 365
 MIN_YFINANCE_RETENTION_DAYS = 1
 MAX_YFINANCE_RETENTION_DAYS = 3650
+DEFAULT_YFINANCE_QUERY_WINDOW_PRESET = "daily_1mo"
 YFINANCE_DEMO_RECEIVED_AT = "2026-05-21T00:00:00Z"
 YFINANCE_DEMO_INGEST_RUN_ID = "fixture_yfinance_demo_2026_05_21"
 YFINANCE_LIVE_WARNING = (
@@ -63,7 +64,59 @@ class YFinanceLivePlanResult:
     period: str
     interval: str
     retention_days: int
+    query_window_preset: str = ""
     warning: str = YFINANCE_LIVE_WARNING
+
+
+@dataclass(frozen=True)
+class YFinanceQueryWindowPreset:
+    key: str
+    label: str
+    period: str
+    interval: str
+    chart_profile: str
+    storage_hint: str
+    notes: str
+
+
+YFINANCE_QUERY_WINDOW_PRESETS: dict[str, YFinanceQueryWindowPreset] = {
+    "intraday_5d_5m": YFinanceQueryWindowPreset(
+        key="intraday_5d_5m",
+        label="Intraday 5 days / 5 minute candles",
+        period="5d",
+        interval="5m",
+        chart_profile="intraday_candles",
+        storage_hint="short_horizon_sqlite_or_mysql_cache",
+        notes="Good for UI smoke checks and short intraday chart previews; still requires explicit user fetch.",
+    ),
+    "daily_1mo": YFinanceQueryWindowPreset(
+        key="daily_1mo",
+        label="Daily 1 month",
+        period="1mo",
+        interval="1d",
+        chart_profile="daily_candles",
+        storage_hint="sqlite_or_mysql_mvp_table",
+        notes="Default chart-friendly daily window for MVP download/import validation.",
+    ),
+    "daily_6mo": YFinanceQueryWindowPreset(
+        key="daily_6mo",
+        label="Daily 6 months",
+        period="6mo",
+        interval="1d",
+        chart_profile="daily_candles_medium_horizon",
+        storage_hint="mysql_or_parquet_duckdb_candidate",
+        notes="Useful for medium-horizon chart review without moving into heavy tick storage.",
+    ),
+    "weekly_1y": YFinanceQueryWindowPreset(
+        key="weekly_1y",
+        label="Weekly 1 year",
+        period="1y",
+        interval="1wk",
+        chart_profile="weekly_candles",
+        storage_hint="sqlite_mysql_or_parquet_archive_candidate",
+        notes="Lower-density long chart window for trend previews and storage-target planning.",
+    ),
+}
 
 
 class YFinanceMarketDataAdapter(DatasetAdapter):
@@ -121,6 +174,8 @@ def yfinance_query_template_dataset() -> Dataset:
             "data_family": "realtime_timeseries",
             "temporal_resolution": "1d_default",
             "update_strategy": "live_market_data",
+            "default_query_window_preset": DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
+            "query_window_presets": [yfinance_query_window_preset_metadata(preset) for preset in YFINANCE_QUERY_WINDOW_PRESETS.values()],
             "dedupe_keys": ("symbol", "event_time", "interval", "ingest_run_id"),
             "required_fields": (
                 "event_time",
@@ -173,10 +228,11 @@ def write_yfinance_demo_plan(
 def write_yfinance_live_plan(
     plan_path: str | Path,
     symbols: Iterable[str] = DEFAULT_YFINANCE_SYMBOLS,
-    period: str = "1mo",
-    interval: str = "1d",
+    period: str | None = None,
+    interval: str | None = None,
     downloads_root: str | Path = "downloads",
     retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
+    query_window_preset: str | None = DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     *,
     acknowledge_unofficial: bool = False,
     fetcher: Callable[[tuple[str, ...], str, str], object] | None = None,
@@ -190,8 +246,9 @@ def write_yfinance_live_plan(
             "Pass --yfinance-acknowledge-unofficial only after reviewing the warning and provider terms."
         )
     normalized_symbols = normalize_yfinance_symbols(symbols)
-    normalized_period = normalize_yfinance_period(period)
-    normalized_interval = normalize_yfinance_interval(interval)
+    query_window = yfinance_query_window_policy(period=period, interval=interval, query_window_preset=query_window_preset)
+    normalized_period = str(query_window["period"])
+    normalized_interval = str(query_window["interval"])
     normalized_retention_days = normalize_yfinance_retention_days(retention_days)
     output_path = Path(plan_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -213,6 +270,7 @@ def write_yfinance_live_plan(
         interval=normalized_interval,
         downloads_root=downloads_root,
         retention_days=normalized_retention_days,
+        query_window_preset=str(query_window.get("preset_key") or ""),
         received_at=received_at_value,
         ingest_run_id=ingest_id,
     )
@@ -225,6 +283,7 @@ def write_yfinance_live_plan(
         period=normalized_period,
         interval=normalized_interval,
         retention_days=normalized_retention_days,
+        query_window_preset=str(query_window.get("preset_key") or ""),
     )
 
 
@@ -287,16 +346,18 @@ def build_yfinance_demo_plan(
 def build_yfinance_live_plan(
     csv_path: str | Path,
     symbols: Iterable[str] = DEFAULT_YFINANCE_SYMBOLS,
-    period: str = "1mo",
-    interval: str = "1d",
+    period: str | None = None,
+    interval: str | None = None,
     downloads_root: str | Path = "downloads",
     retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
+    query_window_preset: str | None = DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     received_at: str = "",
     ingest_run_id: str = "",
 ) -> dict[str, object]:
     normalized_symbols = normalize_yfinance_symbols(symbols)
-    normalized_period = normalize_yfinance_period(period)
-    normalized_interval = normalize_yfinance_interval(interval)
+    query_window = yfinance_query_window_policy(period=period, interval=interval, query_window_preset=query_window_preset)
+    normalized_period = str(query_window["period"])
+    normalized_interval = str(query_window["interval"])
     normalized_retention_days = normalize_yfinance_retention_days(retention_days)
     csv_file = Path(csv_path)
     provider = yfinance_provider()
@@ -331,6 +392,7 @@ def build_yfinance_live_plan(
             "ingest_run_id": ingest_run_id,
             "live_fetch": True,
             "retention_policy": retention_policy,
+            "query_window": query_window,
         },
     )
     entry = provider_dataset_version_plan_entry(provider, dataset, option, downloads_root=downloads_root)
@@ -346,6 +408,7 @@ def build_yfinance_live_plan(
         "period": normalized_period,
         "interval": normalized_interval,
         "retention_policy": retention_policy,
+        "query_window": query_window,
     }
     payload = build_dataset_download_plan([entry], plan_name="yfinance_live_ohlcv_opt_in")
     payload["source"] = {
@@ -360,6 +423,7 @@ def build_yfinance_live_plan(
         "received_at": received_at,
         "ingest_run_id": ingest_run_id,
         "retention_policy": retention_policy,
+        "query_window": query_window,
     }
     return payload
 
@@ -562,6 +626,65 @@ def normalize_yfinance_retention_days(retention_days: int | str) -> int:
             f"{retention_days!r}; expected {MIN_YFINANCE_RETENTION_DAYS}-{MAX_YFINANCE_RETENTION_DAYS}."
         )
     return value
+
+
+def normalize_yfinance_query_window_preset(preset: str | None) -> YFinanceQueryWindowPreset | None:
+    value = str(preset or "").strip().lower().replace("-", "_")
+    if not value:
+        return None
+    if value not in YFINANCE_QUERY_WINDOW_PRESETS:
+        allowed = ", ".join(sorted(YFINANCE_QUERY_WINDOW_PRESETS))
+        raise ValueError(f"Unsupported yfinance query window preset: {preset!r}; expected one of: {allowed}.")
+    return YFINANCE_QUERY_WINDOW_PRESETS[value]
+
+
+def yfinance_query_window_preset_metadata(preset: YFinanceQueryWindowPreset) -> dict[str, str]:
+    return {
+        "preset_key": preset.key,
+        "label": preset.label,
+        "period": preset.period,
+        "interval": preset.interval,
+        "chart_profile": preset.chart_profile,
+        "storage_hint": preset.storage_hint,
+        "notes": preset.notes,
+    }
+
+
+def yfinance_query_window_policy(
+    *,
+    period: str | None = None,
+    interval: str | None = None,
+    query_window_preset: str | None = None,
+) -> dict[str, object]:
+    preset = normalize_yfinance_query_window_preset(query_window_preset)
+    # preset 是圖表/儲存語意，不是排程；使用者仍可用 period/interval 明確覆寫實際查詢範圍。
+    base_period = preset.period if preset else "1mo"
+    base_interval = preset.interval if preset else "1d"
+    normalized_period = normalize_yfinance_period(period if period not in (None, "") else base_period)
+    normalized_interval = normalize_yfinance_interval(interval if interval not in (None, "") else base_interval)
+    policy: dict[str, object] = {
+        "period": normalized_period,
+        "interval": normalized_interval,
+        "manual_override": bool(
+            preset and (normalized_period != preset.period or normalized_interval != preset.interval)
+        ),
+        "background_refresh": False,
+        "notes": "Query window presets are chart/storage metadata only; they do not schedule live refreshes.",
+    }
+    if preset:
+        preset_metadata = yfinance_query_window_preset_metadata(preset)
+        policy.update(
+            {
+                "preset_key": preset_metadata["preset_key"],
+                "label": preset_metadata["label"],
+                "chart_profile": preset_metadata["chart_profile"],
+                "storage_hint": preset_metadata["storage_hint"],
+            }
+        )
+        policy["preset_period"] = preset.period
+        policy["preset_interval"] = preset.interval
+        policy["preset_notes"] = preset.notes
+    return policy
 
 
 def yfinance_retention_policy(retention_days: int) -> dict[str, object]:

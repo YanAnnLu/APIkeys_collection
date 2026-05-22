@@ -120,8 +120,10 @@ from api_launcher.plans import (
     provider_plan_entry,
 )
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_LIVE_WARNING,
+    YFINANCE_QUERY_WINDOW_PRESETS,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
 )
@@ -623,8 +625,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--write-yfinance-demo-plan", help="write a fixture-backed Yahoo Finance/yfinance OHLCV demo plan")
     parser.add_argument("--write-yfinance-live-plan", help="explicit opt-in: fetch Yahoo Finance/yfinance live OHLCV data into a local CSV-backed plan")
     parser.add_argument("--yfinance-symbol", action="append", default=[], help="symbol for yfinance demo/live plans; can be repeated")
-    parser.add_argument("--yfinance-period", default="1mo", help="period for --write-yfinance-live-plan, for example 5d, 1mo, 1y, ytd, or max")
-    parser.add_argument("--yfinance-interval", default="1d", help="interval for --write-yfinance-live-plan, for example 1d, 1h, or 5m")
+    parser.add_argument("--yfinance-period", default=None, help="period for --write-yfinance-live-plan, for example 5d, 1mo, 1y, ytd, or max")
+    parser.add_argument("--yfinance-interval", default=None, help="interval for --write-yfinance-live-plan, for example 1d, 1h, or 5m")
+    parser.add_argument(
+        "--yfinance-query-window",
+        default=DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
+        choices=tuple(YFINANCE_QUERY_WINDOW_PRESETS),
+        help="chart-friendly yfinance period/interval preset; explicit --yfinance-period/--yfinance-interval can override it",
+    )
     parser.add_argument(
         "--yfinance-retention-days",
         type=int,
@@ -964,6 +972,7 @@ class CatalogLauncherCli:
             interval=self.args.yfinance_interval,
             downloads_root=self.args.downloads_root,
             retention_days=self.args.yfinance_retention_days,
+            query_window_preset=self.args.yfinance_query_window,
             acknowledge_unofficial=self.args.yfinance_acknowledge_unofficial,
         )
         print(f"[yfinance-live] warning={YFINANCE_LIVE_WARNING}")
@@ -971,7 +980,7 @@ class CatalogLauncherCli:
             "[yfinance-live] "
             f"wrote {result.plan_path} csv={result.csv_path} symbols={','.join(result.symbols)} "
             f"rows={result.rows_written} period={result.period} interval={result.interval} "
-            f"retention_days={result.retention_days}"
+            f"retention_days={result.retention_days} query_window={result.query_window_preset or '-'}"
         )
         print(
             "[yfinance-live] "

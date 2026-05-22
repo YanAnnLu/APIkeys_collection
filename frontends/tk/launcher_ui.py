@@ -38,8 +38,10 @@ from api_launcher.importers.csv_importer import table_exists
 from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
 from api_launcher.adapters.yfinance import (
+    DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
     YFINANCE_LIVE_WARNING,
+    YFINANCE_QUERY_WINDOW_PRESETS,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
@@ -5453,13 +5455,14 @@ class ApiCollectionUi:
         # live yfinance 是明確 opt-in 的窄入口；UI 先建立 CSV-backed plan，不在背景排程或 crawler 自動抓取。
         dialog = Toplevel(self.root)
         dialog.title(self.tr("建立 yfinance live plan", "Create yfinance live plan"))
-        dialog.geometry("820x500")
+        dialog.geometry("820x540")
         dialog.configure(bg=COLORS["panel"])
         dialog.transient(self.root)
 
         symbols_var = StringVar(value="AAPL")
         period_var = StringVar(value="5d")
         interval_var = StringVar(value="1d")
+        query_window_var = StringVar(value=DEFAULT_YFINANCE_QUERY_WINDOW_PRESET)
         retention_days_var = StringVar(value=str(DEFAULT_YFINANCE_RETENTION_DAYS))
         acknowledge_var = BooleanVar(value=False)
 
@@ -5476,6 +5479,33 @@ class ApiCollectionUi:
 
         form = ttk.Frame(dialog, style="Panel.TFrame")
         form.pack(fill=X, padx=24, pady=(0, 12))
+        query_window_row = ttk.Frame(form, style="Panel.TFrame")
+        query_window_row.pack(fill=X, pady=5)
+        ttk.Label(query_window_row, text=self.tr("查詢視窗", "Query window"), style="DetailMuted.TLabel", width=12).pack(side=LEFT)
+        query_window_combo = ttk.Combobox(
+            query_window_row,
+            textvariable=query_window_var,
+            values=tuple(YFINANCE_QUERY_WINDOW_PRESETS),
+            state="readonly",
+            width=28,
+        )
+        query_window_combo.pack(side=LEFT, padx=(8, 10))
+        ttk.Label(
+            query_window_row,
+            text=self.tr("預設會帶入 period/interval；手動改欄位仍可覆寫", "Preset fills period/interval; manual edits can override"),
+            style="DetailMuted.TLabel",
+        ).pack(side=LEFT)
+
+        def apply_query_window_preset(_event: object | None = None) -> None:
+            # preset 只幫使用者選擇圖表友善的 period/interval，不代表排程或自動 refresh。
+            preset = YFINANCE_QUERY_WINDOW_PRESETS.get(query_window_var.get())
+            if preset is None:
+                return
+            period_var.set(preset.period)
+            interval_var.set(preset.interval)
+
+        query_window_combo.bind("<<ComboboxSelected>>", apply_query_window_preset)
+        apply_query_window_preset()
         for label, variable, hint in [
             (self.tr("股票代號", "Symbols"), symbols_var, self.tr("例：AAPL, MSFT；逗號或空白分隔", "Example: AAPL, MSFT; comma or space separated")),
             (self.tr("查詢期間", "Period"), period_var, self.tr("例：5d、1mo、1y、ytd、max", "Example: 5d, 1mo, 1y, ytd, max")),
@@ -5517,6 +5547,7 @@ class ApiCollectionUi:
                     period=period_var.get(),
                     interval=interval_var.get(),
                     retention_days=int(retention_days_var.get()),
+                    query_window_preset=query_window_var.get(),
                     acknowledge_unofficial=True,
                 )
                 added = self.add_download_plan_entries_from_file(result.plan_path)
@@ -5541,6 +5572,7 @@ class ApiCollectionUi:
                     "period": result.period,
                     "interval": result.interval,
                     "retention_days": result.retention_days,
+                    "query_window": result.query_window_preset,
                     "added_to_plan": added,
                 },
             )
