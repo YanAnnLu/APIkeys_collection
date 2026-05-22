@@ -312,6 +312,50 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertIn("adapter=GEBCOTopographyAdapter", output.getvalue())
         self.assertIn("outcome=source_resolution_required", output.getvalue())
 
+    def test_cli_emits_adapter_review_json_with_outcome_summary(self) -> None:
+        # 這條回歸測試保護 agent-readable CLI，不只測函式本身；未來 core.py 拆子命令時，
+        # 仍必須保留 JSON summary.by_outcome，讓自動化流程可依 outcome 分批處理。
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "providers": [
+                            {
+                                "provider_id": "archive_provider",
+                                "dataset_id": "archive_dataset",
+                                "download_url": "https://example.test/archive.zip",
+                                "download_eligibility": {"status": "direct_download"},
+                                "import_plan": {"status": "requires_unpack_or_adapter"},
+                                "adapter_review": {
+                                    "adapter_id": "ArchiveTransformAdapter",
+                                    "source_kind": "direct_file_needs_transform",
+                                },
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--adapter-review-plan",
+                        str(plan_path),
+                        "--adapter-review-json",
+                    ]
+                )
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(0, rc)
+        self.assertEqual({"downloaded_payload_transform": 1}, payload["summary"]["by_outcome"])
+        self.assertEqual("downloaded_payload_transform", payload["items"][0]["outcome_bucket"])
+        self.assertEqual("ArchiveTransformAdapter", payload["items"][0]["adapter_id"])
+
     def test_cli_exports_candidate_plan_from_reviewable_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "launcher.sqlite"
