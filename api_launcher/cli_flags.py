@@ -56,6 +56,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.library_actions_json,
         bool(args.library_repair_manifest),
         bool(args.test_data_store),
+        bool(args.write_data_store_env_template),
         args.self_check_databases,
         args.self_check_databases_json,
         bool(args.reimport_missing_sqlite_table),

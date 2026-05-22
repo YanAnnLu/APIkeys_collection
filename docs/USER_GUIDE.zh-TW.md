@@ -248,6 +248,7 @@ Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo pla
 | --- | --- |
 | 測單一 data-store profile | `python3 APIkeys_collection.py --test-data-store mysql_default` |
 | 測所有 data-store profiles | `python3 APIkeys_collection.py --test-data-store all` |
+| 寫出 MySQL/PostgreSQL 等 data-store env 範本 | `python3 APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default` |
 | 檢查 managed database/table assets | `python3 APIkeys_collection.py --self-check-databases` |
 | 產生 agent-readable database issue JSON | `python3 APIkeys_collection.py --self-check-databases-json` |
 | 停止追蹤單一 database/table asset | `python3 APIkeys_collection.py --unmanage-database-asset ASSET_ID --database-repair-json` |

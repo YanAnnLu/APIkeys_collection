@@ -353,9 +353,12 @@ Data store connection testing 已有第一版骨架：
 ```bash
 python APIkeys_collection.py --test-data-store sqlite_local
 python APIkeys_collection.py --test-data-store all
+python APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default
 ```
 
 SQLite 會用 read-only 方式開啟既有檔案並做基本 introspection，不會為了測試而建立缺失的資料庫檔。MySQL/PostgreSQL 會先檢查必要環境變數與 optional Python driver；未安裝 driver 時只回報 `dependency_missing`，不會嘗試連線或要求把套件裝進 base/system 環境。
+
+`--write-data-store-env-template` 只會把 profile 需要的環境變數名稱寫成 `.env` 風格範本，值保持空白。Tk 的 `整合 > 資料儲存連線 > 寫出 env 範本` 走同一個後端；這是為了讓本地 MySQL/PostgreSQL 接入前有明確清單，而不是把密碼寫進 Git 追蹤的 JSON。
 
 `hadoop_default` 目前是預留 profile。它代表未來可對接 Hadoop/HDFS/Hive/Spark，但現在 tester 只會明確回報 unsupported。這是刻意的：先讓另一個小組有正式入口，不在 launcher 裡臨時硬寫 Hadoop 指令。
 

@@ -6,6 +6,7 @@ from tkinter import TclError
 from frontends.tk.launcher_ui import (
     PROJECT_ROOT,
     contextlib_suppress_tcl_error,
+    data_store_env_template_path,
     database_sql_dry_run_available,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
@@ -33,6 +34,14 @@ class DatabaseDryRunUiHelperTests(unittest.TestCase):
     def test_database_sql_dry_run_available_defaults_to_false(self) -> None:
         self.assertFalse(database_sql_dry_run_available(SimpleNamespace(details={})))
         self.assertFalse(database_sql_dry_run_available(SimpleNamespace(details="not-a-dict")))
+
+
+class DataStoreUiHelperTests(unittest.TestCase):
+    def test_data_store_env_template_path_sanitizes_profile_id(self) -> None:
+        # local JSON 的 profile id 不一定乾淨；UI helper 要保證範本永遠落在 state 子目錄。
+        path = data_store_env_template_path("../mysql default")
+
+        self.assertEqual(PROJECT_ROOT / "state/data_store_env_templates/mysql_default.env.template", path)
 
 
 class YFinanceUiHelperTests(unittest.TestCase):

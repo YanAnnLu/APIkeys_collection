@@ -191,7 +191,7 @@ python3 APIkeys_collection.py --verify-downloads-json
 | `整合 > 保存 Gemini API key` | 直接保存 Gemini API key 並啟用 `gemini_flash` profile；下次啟動自動載入。 |
 | `整合 > AI 輔助模型選擇` | 選擇真正要調用的 AI profile。 |
 | `整合 > Google OAuth（中期 / 開發者）` | 保留中期正式 Google 帳號登入、QR/device-code，以及開發者 OAuth 設定；一般使用者不需要貼 OAuth Client ID。 |
-| `整合 > 資料儲存連線` | 檢查 MySQL/PostgreSQL/SQLite/NoSQL/object store 等連線設定，不保存密碼。 |
+| `整合 > 資料儲存連線` | 檢查 MySQL/PostgreSQL/SQLite/NoSQL/object store 等連線設定，也可把選取 profile 寫成本機 env 範本；不保存密碼。 |
 | `工具 > 開發者 CLI` | 在專案根目錄跑單次 CLI 命令。 |
 | 左側 `依類型 / 依提供商` | 切換分類方式；依提供商模式會嘗試顯示網站 favicon。 |
 

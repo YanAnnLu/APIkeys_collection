@@ -28,7 +28,9 @@ from api_launcher.data_store_connections import (
     postgresql_table_count,
     postgresql_table_exists,
     postgresql_table_names,
+    render_data_store_env_template,
     test_data_store_connection,
+    write_data_store_env_template,
     _postgresql_kwargs,
 )
 
@@ -121,6 +123,56 @@ class DataStoreConnectionTests(unittest.TestCase):
         )
 
         self.assertEqual("ANALYTICS_PG_DB", profiles[0].env_var_map["database"])
+
+    def test_env_template_lists_required_and_optional_vars_without_values(self) -> None:
+        profile = data_store_profile("mysql_default")
+        self.assertIsNotNone(profile)
+
+        template = render_data_store_env_template((profile,))
+
+        self.assertIn("# profile: mysql_default", template)
+        self.assertIn("# required: password secret", template)
+        self.assertIn("APIKEYS_MYSQL_HOST=\n", template)
+        self.assertIn("APIKEYS_MYSQL_PORT=\n", template)
+        self.assertNotIn("secret=", template.lower())
+
+    def test_env_template_deduplicates_shared_env_vars(self) -> None:
+        profile_a = DataStoreConnectionProfile(
+            profile_id="a",
+            label="A",
+            store_kind="relational_sql",
+            engine="mysql",
+            required_env_vars=("SHARED_HOST",),
+            env_var_map={"host": "SHARED_HOST"},
+        )
+        profile_b = DataStoreConnectionProfile(
+            profile_id="b",
+            label="B",
+            store_kind="relational_sql",
+            engine="postgresql",
+            required_env_vars=("SHARED_HOST",),
+            env_var_map={"host": "SHARED_HOST"},
+        )
+
+        template = render_data_store_env_template((profile_a, profile_b))
+
+        self.assertEqual(1, template.count("SHARED_HOST=\n"))
+        self.assertIn("SHARED_HOST already listed above", template)
+
+    def test_write_data_store_env_template_returns_handoff_metadata(self) -> None:
+        profile = data_store_profile("postgres_default")
+        self.assertIsNotNone(profile)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "postgres.env.template"
+
+            result = write_data_store_env_template((profile,), output_path)
+
+            text = output_path.read_text(encoding="utf-8")
+
+        self.assertEqual(output_path, result.path)
+        self.assertEqual(("postgres_default",), result.profile_ids)
+        self.assertIn("APIKEYS_POSTGRES_PASSWORD=", text)
+        self.assertIn("APIKEYS_POSTGRES_PORT", result.env_vars)
 
     def test_sqlite_connection_test_opens_existing_database_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -381,6 +433,30 @@ class DataStoreConnectionTests(unittest.TestCase):
 
         self.assertEqual(0, rc)
         self.assertIn("[data-store] sqlite_local status=ok", output.getvalue())
+
+    def test_cli_can_write_data_store_env_template(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "mysql.env.template"
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--write-data-store-env-template",
+                        str(output_path),
+                        "--data-store-env-template-profile",
+                        "mysql_default",
+                    ]
+                )
+
+            text = output_path.read_text(encoding="utf-8")
+
+        self.assertEqual(0, rc)
+        self.assertIn("[data-store-env] wrote", output.getvalue())
+        self.assertIn("profiles=mysql_default", output.getvalue())
+        self.assertIn("APIKEYS_MYSQL_PASSWORD=", text)
 
 
 class FakeCursor:

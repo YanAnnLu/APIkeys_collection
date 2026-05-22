@@ -190,6 +190,7 @@ python APIkeys_collection.py --show-library-actions PROVIDER_ID --library-action
 ## Data Store Self-check
 
 - Use `python APIkeys_collection.py --test-data-store PROFILE_ID` to test one configured data-store profile, or `--test-data-store all` for every profile.
+- Use `python APIkeys_collection.py --write-data-store-env-template state/data_store_env_templates/mysql.env.template --data-store-env-template-profile mysql_default` to write a local empty-value `.env` template before setting MySQL/PostgreSQL credentials. This helper must list env var names only; do not fill or commit secrets.
 - Use `python APIkeys_collection.py --self-check-databases` to verify managed database/table assets recorded in the install registry.
 - Use `python APIkeys_collection.py --self-check-databases-json` when another tool or agent needs a pure JSON issue list with stable repair suggestion IDs.
 - Tk `工具 > 修復 / 驗證資產` shows database issues in a dedicated tab using `database_self_check_issues()`; it can edit registry profile/schema, stop tracking one asset, reimport safe missing SQLite tables, and write MySQL/PostgreSQL dry-run SQL. Keep any real SQL execution disabled until ownership and DBA review boundaries are explicit.

@@ -76,7 +76,7 @@ from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
-from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
+from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
@@ -116,6 +116,12 @@ def database_sql_dry_run_available(suggestion: object) -> bool:
     # database_self_check 已經集中判斷安全條件；UI 只讀旗標，避免在視窗層重寫資料庫 ownership 規則。
     details = getattr(suggestion, "details", {})
     return isinstance(details, dict) and bool(details.get("sql_dry_run_available"))
+
+
+def data_store_env_template_path(profile_id: str) -> Path:
+    # profile id 可能來自 local JSON；檔名先白名單化，避免 UI 寫檔時讓 profile id 影響目錄層級。
+    safe_profile_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in profile_id).strip("_")
+    return state_file(f"data_store_env_templates/{safe_profile_id or 'data_store_profile'}.env.template")
 
 
 TABLE_COLUMNS = (
@@ -3219,7 +3225,37 @@ class ApiCollectionUi:
             self.status_var.set(self.tr(f"資料儲存測試：{profile_id} {result.status}", f"Data store test: {profile_id} {result.status}"))
             messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), f"{profile.label}\n\n{result.status}: {result.message}")
 
+        def write_selected_env_template() -> None:
+            selection = table.selection()
+            if not selection:
+                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
+                return
+            profile_id = str(selection[0])
+            profile = profiles_by_id[profile_id]
+            output_path = data_store_env_template_path(profile_id)
+            try:
+                # 範本只寫 env var 名稱與空值，協助本機 MySQL/PostgreSQL 設定，不保存任何密碼。
+                result = write_data_store_env_template((profile,), output_path)
+            except Exception as exc:
+                log_exception("data_store_env_template_failed", exc, component="tk", context={"profile_id": profile_id})
+                messagebox.showerror(self.tr("資料儲存 env 範本", "Data-store env template"), f"{type(exc).__name__}: {exc}")
+                return
+            log_event(
+                "data_store_env_template_written",
+                component="tk",
+                context={"profile_id": profile_id, "path": str(result.path), "env_vars": list(result.env_vars)},
+            )
+            self.status_var.set(self.tr(f"已寫出資料儲存 env 範本：{result.path}", f"Wrote data-store env template: {result.path}"))
+            messagebox.showinfo(
+                self.tr("資料儲存 env 範本", "Data-store env template"),
+                self.tr(
+                    f"已寫出：\n{result.path}\n\n請只在本機填入密碼，不要提交到 Git。",
+                    f"Wrote:\n{result.path}\n\nFill secrets locally only; do not commit them to Git.",
+                ),
+            )
+
         ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.tr("寫出 env 範本", "Write env template"), style="Action.TButton", command=write_selected_env_template).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
 

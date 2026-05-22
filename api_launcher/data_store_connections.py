@@ -52,6 +52,14 @@ class RelationalSchemaSummary:
     schema_fingerprint: str
 
 
+@dataclass(frozen=True)
+class DataStoreEnvTemplateResult:
+    # env 範本是人類設定資料庫連線前的安全交接物；只記錄檔案與 profile，不帶任何 secret。
+    path: Path
+    profile_ids: tuple[str, ...]
+    env_vars: tuple[str, ...]
+
+
 DEFAULT_DATA_STORE_PROFILES = (
     # 內建 profile 只定義常見環境變數名稱；真實值永遠由 os.environ 或本機 config 提供。
     DataStoreConnectionProfile(
@@ -193,6 +201,91 @@ def data_store_profile(profile_id: str) -> DataStoreConnectionProfile | None:
 def data_store_profiles_by_kind(kind: str) -> tuple[DataStoreConnectionProfile, ...]:
     wanted = kind.strip().lower()
     return tuple(profile for profile in DEFAULT_DATA_STORE_PROFILES if profile.store_kind == wanted)
+
+
+def render_data_store_env_template(profiles: tuple[DataStoreConnectionProfile, ...]) -> str:
+    """Render a .env-style template without embedding any secret values."""
+    # 這份輸出會被 UI/CLI 寫到 ignored state 或使用者指定路徑；值一律留空，避免範本被誤當 credential。
+    if not profiles:
+        raise ValueError("At least one data-store profile is required.")
+
+    lines = [
+        "# APIkeys_collection data-store environment template",
+        "# Fill values in your local shell/profile only. Do not commit secrets.",
+        "# Required variables left empty will be reported by --test-data-store.",
+        "",
+    ]
+    emitted: set[str] = set()
+    for profile in profiles:
+        lines.extend(
+            [
+                f"# profile: {profile.profile_id}",
+                f"# label: {profile.label}",
+                f"# engine: {profile.engine}",
+                f"# store_kind: {profile.store_kind}",
+            ]
+        )
+        if profile.notes:
+            lines.append(f"# notes: {profile.notes}")
+        lines.append("# required")
+        for name in profile.required_env_vars:
+            _append_env_template_line(lines, emitted, name, profile, required=True)
+        if profile.optional_env_vars:
+            lines.append("# optional")
+            for name in profile.optional_env_vars:
+                _append_env_template_line(lines, emitted, name, profile, required=False)
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_data_store_env_template(
+    profiles: tuple[DataStoreConnectionProfile, ...],
+    path: str | Path,
+) -> DataStoreEnvTemplateResult:
+    # 寫檔集中在 data-store 模組，讓 CLI 與 Tk 用同一份格式與防 secret 規則。
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(render_data_store_env_template(profiles), encoding="utf-8")
+    env_vars = tuple(dict.fromkeys(name for profile in profiles for name in profile.required_env_vars + profile.optional_env_vars))
+    return DataStoreEnvTemplateResult(
+        path=output_path,
+        profile_ids=tuple(profile.profile_id for profile in profiles),
+        env_vars=env_vars,
+    )
+
+
+def _append_env_template_line(
+    lines: list[str],
+    emitted: set[str],
+    name: str,
+    profile: DataStoreConnectionProfile,
+    required: bool,
+) -> None:
+    # 同一個 env var 可能被多個 profile 共用；範本只輸出一次，後續用註解標出共用關係。
+    role = _env_var_role(profile, name)
+    secret_note = " secret" if _env_var_looks_secret(name, role) else ""
+    if name in emitted:
+        lines.append(f"# {name} already listed above for another profile ({role or 'shared'}{secret_note}).")
+        return
+    emitted.add(name)
+    requirement = "required" if required else "optional"
+    if role:
+        lines.append(f"# {requirement}: {role}{secret_note}")
+    else:
+        lines.append(f"# {requirement}{secret_note}")
+    lines.append(f"{name}=")
+
+
+def _env_var_role(profile: DataStoreConnectionProfile, env_var: str) -> str:
+    for role, mapped_env in profile.env_var_map.items():
+        if mapped_env == env_var:
+            return str(role)
+    return ""
+
+
+def _env_var_looks_secret(name: str, role: str) -> bool:
+    lowered = f"{name} {role}".lower()
+    return any(token in lowered for token in ("password", "secret", "token", "api_key", "access_key"))
 
 
 def test_data_store_connection(

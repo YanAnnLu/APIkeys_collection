@@ -57,7 +57,12 @@ from api_launcher.dataset_discovery import (
     load_dataset_discovery_sources,
 )
 from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
-from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection
+from api_launcher.data_store_connections import (
+    DataStoreConnectionProfile,
+    data_store_profiles_from_config,
+    test_data_store_connection,
+    write_data_store_env_template,
+)
 from api_launcher.database_repair import (
     database_repair_sql_path_for_asset,
     reimport_missing_sqlite_table_asset,
@@ -712,6 +717,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--library-adapter", action="store_true", help="mark context as having a dataset adapter")
     parser.add_argument("--library-render-assets", action="store_true", help="mark context as having renderer bridge assets")
     parser.add_argument("--test-data-store", action="append", default=[], help="test data-store connection profile id; use 'all' for every configured profile")
+    parser.add_argument("--write-data-store-env-template", default="", help="write a .env-style template for configured data-store profile variables")
+    parser.add_argument(
+        "--data-store-env-template-profile",
+        action="append",
+        default=[],
+        help="profile id for --write-data-store-env-template; repeatable, defaults to all configured profiles",
+    )
     parser.add_argument("--self-check-databases", action="store_true", help="verify managed database assets against configured data-store checks")
     parser.add_argument("--self-check-databases-json", action="store_true", help="verify managed database assets and emit issues as agent-readable JSON")
     parser.add_argument(
@@ -821,6 +833,7 @@ class CatalogLauncherCli:
             self.list_simulation_contracts()
             self.show_library_actions()
             self.test_data_store_connections()
+            self.write_data_store_env_template()
             self.self_check_databases()
             self.run_database_repairs()
             self.generate_ai_summary()
@@ -1368,15 +1381,8 @@ class CatalogLauncherCli:
     def test_data_store_connections(self) -> None:
         if not self.args.test_data_store:
             return
-        profiles = data_store_profiles_from_config(load_integration_config())
         requested = {value.strip() for value in self.args.test_data_store if value.strip()}
-        if "all" in {value.lower() for value in requested}:
-            selected = profiles
-        else:
-            selected = tuple(profile for profile in profiles if profile.profile_id in requested)
-            missing = sorted(requested - {profile.profile_id for profile in selected})
-            if missing:
-                raise RuntimeError(f"Unknown data-store connection profile(s): {', '.join(missing)}")
+        selected = self.selected_data_store_profiles(requested)
         for profile in selected:
             result = test_data_store_connection(profile)
             details = json.dumps(result.details, ensure_ascii=False, sort_keys=True)
@@ -1385,6 +1391,28 @@ class CatalogLauncherCli:
                 f"{result.profile_id} status={result.status} engine={result.engine} "
                 f"message={result.message} details={details}"
             )
+
+    def write_data_store_env_template(self) -> None:
+        if not self.args.write_data_store_env_template:
+            return
+        requested = {value.strip() for value in self.args.data_store_env_template_profile if value.strip()}
+        selected = self.selected_data_store_profiles(requested)
+        result = write_data_store_env_template(selected, resolve_project_path(self.args.write_data_store_env_template))
+        print(
+            "[data-store-env] "
+            f"wrote {result.path} profiles={','.join(result.profile_ids)} env_vars={len(result.env_vars)}"
+        )
+
+    def selected_data_store_profiles(self, requested: set[str]) -> tuple[DataStoreConnectionProfile, ...]:
+        # CLI 以同一套 selector 服務連線測試與 env 範本輸出，避免 profile id 規則分歧。
+        profiles = data_store_profiles_from_config(load_integration_config())
+        if not requested or "all" in {value.lower() for value in requested}:
+            return profiles
+        selected = tuple(profile for profile in profiles if profile.profile_id in requested)
+        missing = sorted(requested - {profile.profile_id for profile in selected})
+        if missing:
+            raise RuntimeError(f"Unknown data-store connection profile(s): {', '.join(missing)}")
+        return selected
 
     def self_check_databases(self) -> None:
         if not (self.args.self_check_databases or self.args.self_check_databases_json):
