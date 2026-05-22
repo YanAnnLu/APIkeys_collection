@@ -200,6 +200,20 @@ python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-s
 
 這會先為本機檔案建立 sidecar manifest，再用相同的 CSV/JSON 匯入器寫入 SQLite。來源檔不會被移動或刪除；raw file 與 curated table 會以 `manual_local_files` 這個本機 synthetic provider 登記，方便後續 manifest health、schema fingerprint 與修復流程追蹤。
 
+Tk UI 的入口是：
+
+```text
+資料庫 > 匯入本機 CSV/JSON 檔
+```
+
+或：
+
+```text
+更多 > 匯入本機 CSV/JSON 檔
+```
+
+UI 會開檔案選擇器，只處理你選的單一檔案。table 名稱可以留空由檔名推導；若同名 table 已經存在，會自動改成 `table_2` 這類新名稱，不會覆蓋舊表。
+
 ## 7. 驗證與修復
 
 打開：

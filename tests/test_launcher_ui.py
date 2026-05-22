@@ -2,6 +2,11 @@
 import unittest
 from types import SimpleNamespace
 from tkinter import TclError
+import sqlite3
+import tempfile
+from contextlib import closing
+from pathlib import Path
+from unittest.mock import patch
 
 from frontends.tk.launcher_ui import (
     ApiCollectionUi,
@@ -13,6 +18,8 @@ from frontends.tk.launcher_ui import (
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
 )
+from api_launcher.db import connect_db
+from api_launcher.repository import ApiCatalogRepository
 
 
 class TclErrorSuppressorTests(unittest.TestCase):
@@ -80,6 +87,50 @@ class YFinanceUiHelperTests(unittest.TestCase):
             PROJECT_ROOT / "state/storage_handoff.md",
             yfinance_project_path_from_ui_text("state/storage_handoff.md", "Handoff"),
         )
+
+
+class LocalFileImportUiWorkerTests(unittest.TestCase):
+    def test_import_local_file_worker_writes_manifest_and_renames_existing_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            csv_path = root / "weather.csv"
+            csv_path.write_text("station,temp\nTPE,28\n", encoding="utf-8")
+            launcher_db = root / "launcher.sqlite"
+            curated_db = root / "curated.sqlite"
+            with closing(connect_db(launcher_db)) as conn:
+                ApiCatalogRepository(conn).init_schema()
+            with closing(sqlite3.connect(curated_db)) as curated:
+                curated.execute('CREATE TABLE "weather" (station TEXT)')
+                curated.execute('INSERT INTO "weather" VALUES (?)', ("OLD",))
+                curated.commit()
+            messages: list[str] = []
+            fake_ui = object.__new__(ApiCollectionUi)
+            fake_ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+            fake_ui._connect = lambda: connect_db(launcher_db)
+            fake_ui.tr = lambda zh, en: zh
+            fake_ui.reload_data = lambda: None
+            fake_ui.status_var = SimpleNamespace(set=lambda message: messages.append(message))
+
+            with (
+                patch("frontends.tk.launcher_ui.state_file", lambda name: root / name),
+                patch("frontends.tk.launcher_ui.messagebox.showinfo"),
+                patch("frontends.tk.launcher_ui.messagebox.showerror"),
+                patch("frontends.tk.launcher_ui.log_event"),
+            ):
+                fake_ui.import_local_file_worker(csv_path, curated_db, "weather")
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                original_rows = curated.execute('SELECT station FROM "weather"').fetchall()
+                imported_rows = curated.execute('SELECT station, temp FROM "weather_2"').fetchall()
+            with closing(connect_db(launcher_db)) as conn:
+                manifest_count = conn.execute(
+                    "SELECT COUNT(*) FROM dataset_asset_manifests WHERE provider_id = 'manual_local_files' AND status = 'ok'"
+                ).fetchone()[0]
+
+        self.assertEqual([("OLD",)], original_rows)
+        self.assertEqual([("TPE", "28")], imported_rows)
+        self.assertEqual(1, manifest_count)
+        self.assertTrue(any("本機檔案已匯入：weather_2" in message for message in messages))
 
 
 if __name__ == "__main__":

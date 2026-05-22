@@ -24,7 +24,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, BooleanVar, Canvas, Menu, PhotoImage, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 import APIkeys_collection as core
 from api_launcher.favicons import download_favicon_png, favicon_cache_path, favicon_url_for_page, provider_home_url
@@ -34,9 +34,16 @@ from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_fro
 from api_launcher.downloads.plan_runner import (
     download_entry_skip_bucket,
 )
-from api_launcher.importers.csv_importer import table_exists
+from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, table_exists, table_name_for_manifest, unique_table_name
+from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, run_existing_download_import_slice
 from api_launcher.manifests import read_manifest
+from api_launcher.manual_import import (
+    DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
+    ensure_manual_local_file_provider,
+    register_local_file_manifest_asset,
+    write_local_file_manifest as write_local_file_manifest_file,
+)
 from api_launcher.adapters.yfinance import (
     DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
@@ -91,6 +98,7 @@ YFINANCE_LIVE_PLAN_NAME = "yfinance_live/plan.json"
 YFINANCE_STORAGE_REVIEW_NAME = "yfinance_live/storage_review.json"
 YFINANCE_STORAGE_HANDOFF_NAME = "yfinance_live/storage_handoff.md"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
+MANUAL_IMPORTS_DIR_NAME = "manual_imports"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
     "zh-TW": "繁體中文",
@@ -882,6 +890,7 @@ class ApiCollectionUi:
         )
         library_menu.add_command(label=self.tr("驗證已下載檔案", "Verify downloaded files"), command=self.verify_download_manifests)
         library_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
+        library_menu.add_command(label=self.tr("匯入本機 CSV/JSON 檔", "Import local CSV/JSON file"), command=self.import_local_file_from_ui)
         library_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         library_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
         library_menu.add_separator()
@@ -991,6 +1000,7 @@ class ApiCollectionUi:
         more_menu.add_command(label=self.tr("審核資料集候選", "Review dataset candidates"), command=self.open_dataset_candidate_review_panel)
         more_menu.add_command(label=self.tr("匯出下載計畫", "Export download plan"), command=self.export_download_plan)
         more_menu.add_command(label=self.tr("匯入可支援下載結果", "Import supported downloaded results"), command=self.import_supported_plan_results_from_ui)
+        more_menu.add_command(label=self.tr("匯入本機 CSV/JSON 檔", "Import local CSV/JSON file"), command=self.import_local_file_from_ui)
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         more_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
         more_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
@@ -2715,6 +2725,141 @@ class ApiCollectionUi:
             messagebox.showwarning(self.tr("匯入完成但有問題", "Import finished with issues"), body)
         else:
             messagebox.showinfo(self.tr("匯入完成", "Import finished"), body)
+
+    def import_local_file_from_ui(self) -> None:
+        # UI 手動匯入只處理使用者明確選取的一個檔案；不掃資料夾、不搬檔、不猜測來源。
+        selected = filedialog.askopenfilename(
+            parent=self.root,
+            title=self.tr("選擇本機 CSV/JSON 檔", "Choose local CSV/JSON file"),
+            filetypes=(
+                (self.tr("支援的資料檔", "Supported data files"), "*.csv *.csv.gz *.json *.json.gz *.jsonl *.jsonl.gz *.ndjson *.ndjson.gz *.geojson *.geojson.gz"),
+                ("CSV", "*.csv *.csv.gz"),
+                ("JSON / JSONL / GeoJSON", "*.json *.json.gz *.jsonl *.jsonl.gz *.ndjson *.ndjson.gz *.geojson *.geojson.gz"),
+                (self.tr("所有檔案", "All files"), "*.*"),
+            ),
+        )
+        if not selected:
+            return
+        table_name = simpledialog.askstring(
+            self.tr("匯入本機檔案", "Import local file"),
+            self.tr(
+                "目標資料表名稱（可留空，由檔名推導；若同名已存在會自動改名，不會覆蓋）：",
+                "Target table name (optional; inferred from filename if blank; existing names are auto-renamed, not overwritten):",
+            ),
+            parent=self.root,
+        )
+        if table_name is None:
+            return
+        sqlite_path = state_file(CURATED_IMPORTS_NAME)
+        confirmed = messagebox.askyesno(
+            self.tr("匯入本機檔案", "Import local file"),
+            self.tr(
+                f"將為這個本機檔案建立 sidecar manifest，然後匯入 SQLite：\n{selected}\n\nSQLite：{sqlite_path}\n\n不會移動、刪除來源檔，也不會覆蓋既有資料表。",
+                f"A sidecar manifest will be written for this local file, then imported into SQLite:\n{selected}\n\nSQLite: {sqlite_path}\n\nThe source file will not be moved/deleted and existing tables will not be overwritten.",
+            ),
+        )
+        if not confirmed:
+            return
+        self.status_var.set(self.tr("正在匯入本機檔案到 SQLite...", "Importing local file into SQLite..."))
+        threading.Thread(
+            target=self.import_local_file_worker,
+            args=(Path(selected), sqlite_path, table_name.strip()),
+            daemon=True,
+        ).start()
+
+    def import_local_file_worker(self, input_path: Path, sqlite_path: Path, table_name: str) -> None:
+        manifest_path = Path("")
+        final_table = ""
+        rows_imported = 0
+        columns_count = 0
+        error = ""
+        conn = self._connect()
+        try:
+            repository = core.ApiCatalogRepository(conn)
+            result = write_local_file_manifest_file(
+                input_path,
+                None,
+                manifest_dir=state_file(MANUAL_IMPORTS_DIR_NAME),
+            )
+            ensure_manual_local_file_provider(repository, DEFAULT_MANUAL_LOCAL_PROVIDER_ID)
+            register_local_file_manifest_asset(repository, result.manifest_path)
+            manifest = read_manifest(result.manifest_path)
+            requested_table = table_name or table_name_for_manifest(manifest)
+            final_table = unique_table_name(sqlite_path, requested_table)
+            # 真正匯入仍走既有 importer；UI 只決定 safe table name 與 thread 邊界。
+            if result.import_kind == "csv":
+                import_result = import_csv_manifest_to_sqlite(
+                    result.manifest_path,
+                    sqlite_path,
+                    repository,
+                    table_name=final_table,
+                    replace=False,
+                )
+            elif result.import_kind == "json":
+                import_result = import_json_manifest_to_sqlite(
+                    result.manifest_path,
+                    sqlite_path,
+                    repository,
+                    table_name=final_table,
+                    replace=False,
+                )
+            else:
+                raise ValueError(f"Unsupported local import format: {result.source_format}")
+            manifest_path = result.manifest_path
+            final_table = import_result.table_name
+            rows_imported = import_result.rows_imported
+            columns_count = len(import_result.columns)
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            log_exception("ui_import_local_file_failed", exc, component="ui.import")
+        finally:
+            conn.close()
+        self.root.after(
+            0,
+            lambda: self.finish_import_local_file(input_path, manifest_path, sqlite_path, final_table, rows_imported, columns_count, error),
+        )
+
+    def finish_import_local_file(
+        self,
+        input_path: Path,
+        manifest_path: Path,
+        sqlite_path: Path,
+        table_name: str,
+        rows_imported: int,
+        columns_count: int,
+        error: str,
+    ) -> None:
+        if error:
+            self.status_var.set(self.tr(f"本機檔案匯入失敗：{error}", f"Local file import failed: {error}"))
+            messagebox.showerror(self.tr("本機檔案匯入失敗", "Local file import failed"), error)
+            return
+        self.reload_data()
+        summary = self.tr(
+            f"本機檔案已匯入：{table_name}，{rows_imported} rows / {columns_count} columns",
+            f"Local file imported: {table_name}, {rows_imported} rows / {columns_count} columns",
+        )
+        self.status_var.set(summary)
+        log_event(
+            "ui_import_local_file_completed",
+            summary,
+            component="ui.import",
+            context={
+                "input_path": str(input_path),
+                "manifest_path": str(manifest_path),
+                "sqlite_path": str(sqlite_path),
+                "table_name": table_name,
+                "rows_imported": rows_imported,
+                "columns_count": columns_count,
+                "provider_id": DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
+            },
+        )
+        messagebox.showinfo(
+            self.tr("本機檔案已匯入", "Local file imported"),
+            self.tr(
+                f"{summary}\n\nManifest：{manifest_path}\nSQLite：{sqlite_path}\n\n來源檔未被移動或刪除。",
+                f"{summary}\n\nManifest: {manifest_path}\nSQLite: {sqlite_path}\n\nThe source file was not moved or deleted.",
+            ),
+        )
 
     def remove_selected_from_plan(self) -> None:
         selection = self.cart_tree.selection()

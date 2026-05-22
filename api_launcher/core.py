@@ -121,6 +121,7 @@ from api_launcher.manual_import import (
     DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
     DEFAULT_MANUAL_LOCAL_VERSION,
     ensure_manual_local_file_provider,
+    register_local_file_manifest_asset,
     write_local_file_manifest as write_local_file_manifest_file,
 )
 from api_launcher.models import Dataset, Provider
@@ -1218,13 +1219,7 @@ class CatalogLauncherCli:
 
     def register_local_file_manifest(self, manifest_path: str | Path) -> None:
         # 手動檔案不是下載結果，但仍要登錄 raw file manifest，後續 manifest-health / repair / asset registry 才看得到它。
-        manifest = read_manifest(manifest_path)
-        self.repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
-        self.repository.register_downloaded_manifest_asset(
-            manifest,
-            manifest_path,
-            notes="Manual local source asset registered from verified sidecar manifest.",
-        )
+        register_local_file_manifest_asset(self.repository, manifest_path)
 
     def ensure_local_file_manifest_provider(self, provider_id: str) -> None:
         # 預設 synthetic provider 可自動建立；若使用者指定真實 provider，則要求 DB 內已有該 provider 以保護 provenance。

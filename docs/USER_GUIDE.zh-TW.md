@@ -240,6 +240,8 @@ python -m unittest discover -s tests
 
 `--write-local-file-manifest` 是給使用者自備本機檔案的入口。它只接受目前匯入器能處理的 CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON 類檔案，寫出 sidecar manifest、記錄 `file://` provenance、checksum 與來源格式，並把 raw file 記到 `manual_local_files` 這個本機 synthetic provider 底下。`--import-local-file` 會先做同一件 manifest 工作，再呼叫既有 CSV/JSON manifest importer 匯入 SQLite。它不會掃整個資料夾、不會刪除來源檔、不會背景重新下載，也不會覆蓋既有 table，除非你另外明確傳入 `--import-replace-table`。
 
+Tk UI 也有同一條單檔入口：`資料庫 > 匯入本機 CSV/JSON 檔`，或上方 `更多 > 匯入本機 CSV/JSON 檔`。UI 會要求你選一個本機檔，並可輸入目標 table 名稱；若同名 table 已存在，會自動改成下一個可用名稱，例如 `weather_2`，不會直接覆蓋。
+
 `--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；`--yfinance-query-window` 可選 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`，用來帶入 chart-friendly 的 period/interval 與 storage hint。若另加 `--yfinance-period` 或 `--yfinance-interval`，CLI 會把它記為 manual override。`--yfinance-storage-target` 可選 `auto`、`sqlite_mvp_table`、`mysql_timeseries_table`、`parquet_duckdb_archive`、`timescaledb_hypertable`、`clickhouse_ohlcv_table`，只寫入 plan/source/dataset metadata，表示後續可考慮的儲存目標；目前不會直接寫 MySQL、Parquet、TimescaleDB 或 ClickHouse。`--yfinance-retention-days` 也只寫入 metadata，作為本機快取治理提示，不會自動刪檔或背景刷新。後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
 
 若要把 plan 裡的 storage target 推進到可審查階段，使用 `--write-yfinance-storage-review` 搭配 `--yfinance-storage-review-plan`。它會輸出 review JSON，若目標是 MySQL、TimescaleDB/PostgreSQL、ClickHouse 或 Parquet/DuckDB，還會在同名 `.dry_run.sql` 寫出審查用 SQL/命令草稿；launcher 不會連線、不會建表、不會匯入資料，也不會把 dry-run 視為已執行。若要把這份 JSON/SQL 交給人類或 DBA 審查，可以再用 `--write-yfinance-storage-handoff` 搭配 `--yfinance-storage-handoff-review` 產生 Markdown，裡面會列出 source、target、table、dry-run SQL、execution guard 與審查清單；它同樣只寫文件，不代表批准或執行。SQLite 仍是目前唯一接上既有 `--run-download-plan ... --import-supported-plan-results` 的可操作路徑。
@@ -322,6 +324,8 @@ python3 APIkeys_collection.py --run-download-plan state/candidate_plan.json --im
 如果 `--run-download-plan` 顯示 `submitted=0`，先看下一行的 `skip_summary`。`adapter_required` 表示還要跑 `--adapter-review-plan` 或 `--resolve-adapter-plan`，`metadata_only` 表示目前只有目錄資訊，`missing_download_url` 表示 plan 還沒有可交給下載器的 URL。這不是下載器壞掉，而是 launcher 保守地擋住未界定的 API、入口頁或 metadata；CLI 也會輸出 `next_action=run_adapter_review_or_resolve_adapter_plan_before_downloading`，提醒你先走修復/解析步驟。
 
 在 UI 裡也有同樣的引導動作：先把資料集版本加入下方下載計畫並按 `開始`，下載完成後按下載計畫區的 `匯入`，或使用 `資料庫 > 匯入可支援下載結果`。Launcher 會先檢查 sidecar manifest，只有健康且 `import_plan` 標示支援的 CSV/JSON/GeoJSON 項目會匯入 `state/curated_imports.sqlite`。下載計畫與下載工作表會顯示 `匯入狀態`，例如 `待下載/驗證`、`可匯入 -> table_name`、`已匯入 -> table_name`、`略過`、`需 adapter` 或 `需解壓/adapter`。若目標 table 已存在，UI 會安全改名成 `table_name_2`、`table_name_3` 之類的新表，不會直接覆蓋既有資料；如果共用匯入流程回報已存在 table，UI 會把它顯示成「略過」，不是「失敗」。
+
+如果資料不是透過下載計畫取得，而是你手上已有 CSV/JSON 類本機檔案，使用 `資料庫 > 匯入本機 CSV/JSON 檔`。這條 UI 路徑也會先建立 manifest，再匯入 SQLite；它只處理你選取的那一個檔案，不會掃整個資料夾。
 
 如果看到 `需 adapter`，意思不是壞掉，而是這個入口目前還不是直接檔案，可能是 API、資料選擇器、登入後目錄頁，或下載後還需要解壓/轉換。按 `開始` 時若沒有任何 direct download，UI 會顯示略過分類並提示你先開 `Adapter 待辦` 或 `解析 Adapter 計畫`。Plan 裡會保存 `adapter_review` 線索，包含 adapter 名稱、來源 URL 與下一步要做的動作，方便後續開發 adapter 接手。
 

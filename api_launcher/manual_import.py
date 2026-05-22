@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from api_launcher.manifests import AssetManifest, sha256_file, write_manifest
+from api_launcher.manifests import AssetManifest, read_manifest, sha256_file, write_manifest
 from api_launcher.models import Provider
 from api_launcher.paths import STATE_DIR
 from api_launcher.repository import ApiCatalogRepository, source_format_from_path
@@ -75,6 +75,17 @@ def ensure_manual_local_file_provider(
     # provider_installations 有 provider_id 外鍵；預設手動匯入 provider 必須先落進 DB，匯入資產才能登記。
     if provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
         repository.upsert_provider(manual_local_file_provider(provider_id))
+
+
+def register_local_file_manifest_asset(repository: ApiCatalogRepository, manifest_path: str | Path) -> str:
+    # 手動本機檔案也要進 manifest registry；否則後續 manifest-health / repair panel 會看不到 raw file。
+    manifest = read_manifest(manifest_path)
+    repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
+    return repository.register_downloaded_manifest_asset(
+        manifest,
+        manifest_path,
+        notes="Manual local source asset registered from verified sidecar manifest.",
+    )
 
 
 def write_local_file_manifest(
