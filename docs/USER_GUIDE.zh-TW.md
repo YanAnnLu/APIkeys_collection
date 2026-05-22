@@ -240,7 +240,7 @@ python -m unittest discover -s tests
 
 若要把 plan 裡的 storage target 推進到可審查階段，使用 `--write-yfinance-storage-review` 搭配 `--yfinance-storage-review-plan`。它會輸出 review JSON，若目標是 MySQL、TimescaleDB/PostgreSQL、ClickHouse 或 Parquet/DuckDB，還會在同名 `.dry_run.sql` 寫出審查用 SQL/命令草稿；launcher 不會連線、不會建表、不會匯入資料，也不會把 dry-run 視為已執行。若要把這份 JSON/SQL 交給人類或 DBA 審查，可以再用 `--write-yfinance-storage-handoff` 搭配 `--yfinance-storage-handoff-review` 產生 Markdown，裡面會列出 source、target、table、dry-run SQL、execution guard 與審查清單；它同樣只寫文件，不代表批准或執行。SQLite 仍是目前唯一接上既有 `--run-download-plan ... --import-supported-plan-results` 的可操作路徑。
 
-Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo plan` 只建立 fixture-backed plan 並加入下載計畫；`工具 > 建立 yfinance live plan（需確認）` 會先要求使用者填寫 symbol、query window、storage target、period、interval、保留天數，並勾選 unofficial/personal-research 確認框，才會呼叫本機選用 `yfinance` 產生 CSV-backed plan；`工具 > 產生 yfinance 儲存審查 dry-run` 可讀取既有 plan，寫出 review JSON 與必要時的 `.dry_run.sql`，讓使用者或 DBA 先審查目標 schema、命令草稿與風險。query window 只輔助選擇圖表友善的查詢範圍，storage target 與保留天數也只進入 metadata，不代表 launcher 會自動寫資料庫、自動刷新或自動刪檔。這些 UI 入口都不會自動下載、匯入、背景重複抓取、直接連線寫庫或接到 crawler。
+Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo plan` 只建立 fixture-backed plan 並加入下載計畫；`工具 > 建立 yfinance live plan（需確認）` 會先要求使用者填寫 symbol、query window、storage target、period、interval、保留天數，並勾選 unofficial/personal-research 確認框，才會呼叫本機選用 `yfinance` 產生 CSV-backed plan；`工具 > 產生 yfinance 儲存審查 dry-run` 可讀取既有 plan，寫出 review JSON、handoff Markdown 與必要時的 `.dry_run.sql`，讓使用者或 DBA 先審查目標 schema、命令草稿與風險。query window 只輔助選擇圖表友善的查詢範圍，storage target 與保留天數也只進入 metadata，不代表 launcher 會自動寫資料庫、自動刷新或自動刪檔。這些 UI 入口都不會自動下載、匯入、背景重複抓取、直接連線寫庫或接到 crawler。
 
 ### Database / repair
 

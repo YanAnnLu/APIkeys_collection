@@ -47,6 +47,7 @@ from api_launcher.adapters.yfinance import (
     normalize_yfinance_symbols,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
+    write_yfinance_storage_handoff as write_yfinance_storage_handoff_file,
     write_yfinance_storage_review as write_yfinance_storage_review_file,
 )
 from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
@@ -88,6 +89,7 @@ MVP_DEMO_FLOW_NAME = "mvp_demo/flow.json"
 YFINANCE_DEMO_PLAN_NAME = "yfinance_demo/plan.json"
 YFINANCE_LIVE_PLAN_NAME = "yfinance_live/plan.json"
 YFINANCE_STORAGE_REVIEW_NAME = "yfinance_live/storage_review.json"
+YFINANCE_STORAGE_HANDOFF_NAME = "yfinance_live/storage_handoff.md"
 CURATED_IMPORTS_NAME = "curated_imports.sqlite"
 DEFAULT_UI_LANGUAGE = "zh-TW"
 UI_LANGUAGES = {
@@ -165,14 +167,16 @@ def yfinance_symbols_from_ui_text(text: str) -> tuple[str, ...]:
 
 def yfinance_storage_review_paths_from_ui(plan_text: str, review_text: str) -> tuple[Path, Path]:
     # UI 只負責把文字欄位正規化成路徑；真正的 review/dry-run 邏輯仍由 adapter 控管，避免 Tk 層偷做資料庫決策。
-    def normalize_path(raw_text: str, field_name: str) -> Path:
-        text = str(raw_text or "").strip()
-        if not text:
-            raise ValueError(f"{field_name} path is required.")
-        path = Path(text).expanduser()
-        return path if path.is_absolute() else PROJECT_ROOT / path
+    return yfinance_project_path_from_ui_text(plan_text, "Plan"), yfinance_project_path_from_ui_text(review_text, "Review")
 
-    return normalize_path(plan_text, "Plan"), normalize_path(review_text, "Review")
+
+def yfinance_project_path_from_ui_text(raw_text: str, field_name: str) -> Path:
+    # yfinance dialog 有多個 artifact 路徑；集中基準可以避免其中一欄意外落到 shell cwd。
+    text = str(raw_text or "").strip()
+    if not text:
+        raise ValueError(f"{field_name} path is required.")
+    path = Path(text).expanduser()
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 
 class ProviderRow:
@@ -5632,12 +5636,13 @@ class ApiCollectionUi:
         # storage review 是 live plan 之後的「審查交接」入口；這裡只產出 JSON/SQL 草稿，禁止直接觸發資料庫寫入。
         dialog = Toplevel(self.root)
         dialog.title(self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"))
-        dialog.geometry("820x430")
+        dialog.geometry("840x500")
         dialog.configure(bg=COLORS["panel"])
         dialog.transient(self.root)
 
         plan_var = StringVar(value=str(state_file(YFINANCE_LIVE_PLAN_NAME)))
         review_var = StringVar(value=str(state_file(YFINANCE_STORAGE_REVIEW_NAME)))
+        handoff_var = StringVar(value=str(state_file(YFINANCE_STORAGE_HANDOFF_NAME)))
         storage_target_var = StringVar(value=DEFAULT_YFINANCE_STORAGE_TARGET)
 
         ttk.Label(dialog, text=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
@@ -5656,6 +5661,7 @@ class ApiCollectionUi:
         for label, variable, hint in [
             (self.tr("plan 路徑", "Plan path"), plan_var, self.tr("預設讀取剛建立的 yfinance live plan", "Defaults to the yfinance live plan path")),
             (self.tr("review 輸出", "Review output"), review_var, self.tr("若目標需要 SQL，會輸出同名 .dry_run.sql", "If the target needs SQL, a matching .dry_run.sql is written")),
+            (self.tr("handoff 輸出", "Handoff output"), handoff_var, self.tr("給人類 / DBA 審查的 Markdown", "Markdown for human / DBA review")),
         ]:
             row = ttk.Frame(form, style="Panel.TFrame")
             row.pack(fill=X, pady=6)
@@ -5687,11 +5693,13 @@ class ApiCollectionUi:
         def create_storage_review() -> None:
             try:
                 plan_path, review_path = yfinance_storage_review_paths_from_ui(plan_var.get(), review_var.get())
+                handoff_path = yfinance_project_path_from_ui_text(handoff_var.get(), "Handoff")
                 result = write_yfinance_storage_review_file(
                     plan_path,
                     review_path,
                     storage_target=storage_target_var.get(),
                 )
+                handoff_result = write_yfinance_storage_handoff_file(result.review_path, handoff_path)
             except Exception as exc:
                 log_exception("ui_yfinance_storage_review_failed", exc, component="ui.yfinance")
                 messagebox.showerror(self.tr("yfinance 儲存審查失敗", "yfinance storage review failed"), str(exc), parent=dialog)
@@ -5699,8 +5707,8 @@ class ApiCollectionUi:
 
             sql_message = f"\nDry-run SQL: {result.dry_run_sql_path}" if result.dry_run_sql_path else ""
             summary = self.tr(
-                f"yfinance 儲存審查已建立，目標：{result.storage_target}，待審查動作：{result.action_count}。",
-                f"yfinance storage review created; target: {result.storage_target}; review actions: {result.action_count}.",
+                f"yfinance 儲存審查已建立，目標：{result.storage_target}，待審查動作：{result.action_count}，並已產生 handoff。",
+                f"yfinance storage review created; target: {result.storage_target}; review actions: {result.action_count}; handoff created.",
             )
             self.status_var.set(summary)
             log_event(
@@ -5710,6 +5718,7 @@ class ApiCollectionUi:
                 context={
                     "plan_path": str(result.plan_path),
                     "review_path": str(result.review_path),
+                    "handoff_path": str(handoff_result.handoff_path),
                     "dry_run_sql_path": str(result.dry_run_sql_path or ""),
                     "storage_target": result.storage_target,
                     "action_count": result.action_count,
@@ -5720,8 +5729,8 @@ class ApiCollectionUi:
             messagebox.showinfo(
                 self.tr("yfinance 儲存審查已建立", "yfinance storage review created"),
                 self.tr(
-                    f"{summary}\n\nReview: {result.review_path}{sql_message}\n\n下一步是人工審查 review JSON / dry-run SQL；launcher 這一步不會連線、不會建表、不會匯入。",
-                    f"{summary}\n\nReview: {result.review_path}{sql_message}\n\nNext: review the JSON / dry-run SQL manually. This launcher step does not connect, create tables, or import rows.",
+                    f"{summary}\n\nReview: {result.review_path}\nHandoff: {handoff_result.handoff_path}{sql_message}\n\n下一步是人工審查 handoff / review JSON / dry-run SQL；launcher 這一步不會連線、不會建表、不會匯入。",
+                    f"{summary}\n\nReview: {result.review_path}\nHandoff: {handoff_result.handoff_path}{sql_message}\n\nNext: review the handoff / JSON / dry-run SQL manually. This launcher step does not connect, create tables, or import rows.",
                 ),
                 parent=dialog,
             )

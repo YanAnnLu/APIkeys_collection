@@ -7,6 +7,7 @@ from frontends.tk.launcher_ui import (
     PROJECT_ROOT,
     contextlib_suppress_tcl_error,
     database_sql_dry_run_available,
+    yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
 )
@@ -53,6 +54,13 @@ class YFinanceUiHelperTests(unittest.TestCase):
     def test_yfinance_storage_review_paths_from_ui_rejects_empty_paths(self) -> None:
         with self.assertRaises(ValueError):
             yfinance_storage_review_paths_from_ui("", "state/review.json")
+
+    def test_yfinance_project_path_from_ui_text_normalizes_handoff_path(self) -> None:
+        # storage review dialog 會同時產生 JSON、SQL 與 Markdown；handoff 欄位也要套同一個 project-root 基準。
+        self.assertEqual(
+            PROJECT_ROOT / "state/storage_handoff.md",
+            yfinance_project_path_from_ui_text("state/storage_handoff.md", "Handoff"),
+        )
 
 
 if __name__ == "__main__":
