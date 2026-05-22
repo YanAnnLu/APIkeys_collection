@@ -171,6 +171,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 - Tk UI 實作檔已從 `frontends/tk/APIkeys_collection_ui.py` 改名為 `frontends/tk/launcher_ui.py`。
 - Tk UI 從 IDE 或背景 shell 啟動後會自動浮出、短暫置前並印出 `APIkeys_collection UI ready ...`；相關 TclError suppressor 已收窄成只吞 Tk/Tcl 視窗生命週期錯誤，不再靜默吞掉非預期例外。
+- Tk root 建立失敗時，`frontends/tk/launcher_ui.py` 的 `main()` 會攔截 `TclError`、寫入 `ui_tk_startup_failed` event、在 stderr 印出繁中修復建議並回傳 `2`。若錯誤提到 `init.tcl`、Tcl/Tk runtime 或 display，先用系統 Python 執行 `py -B APIkeys_collection_ui.py`；若要用 `.venv`，請以含 Tcl/Tk 的 Python 重建，不要混用 base/system Python 套件。
 - 新增 `docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/MVP_FLOW_AUDIT.zh-TW.md`、`docs/USER_MANUAL.zh-TW.md`：分別補上程式關聯地圖、Demo 閉環稽核、帶圖說的使用者操作手冊。之後整理資料夾或新增功能時，先同步這三份文件，避免調度關係只留在聊天紀錄。
 - 文件與 skill 的優先順序已明確：`.md` 是 source of truth，skill/prompt/script 是消費層。整理好 `.md` 後要回頭改 skill 引用，而不是讓舊 skill 路徑反過來決定文件不能整理。
 - 調度流程文件應優先用 Mermaid。新增跨模組流程、Demo route、資料流或調度關係時，先更新 `ARCHITECTURE.zh-TW.md`、`CODE_RELATIONSHIP_MAP.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md` 或 `USER_MANUAL.zh-TW.md` 的 Mermaid 圖，再補文字。
@@ -278,7 +279,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 
 - 每完成一個功能，要更新 `docs/PROJECT_GTD.md`。
 - 每次跨機器或跨 Agent 接力，要更新這份 `docs/AGENT_HANDOFF.zh-TW.md`。
-- 一輪對話可以包含多個實質 checkpoint commit；合理時可以把同一 MVP 主題下的相鄰小切片連續推進，但每個 commit 仍要可審查、可驗證、可由 CI 回溯。每次完成並推送實質 checkpoint 後，要追加 `docs/DEVELOPMENT_LOG.zh-TW.md`，記錄 commit、變更範圍、驗證、CI 與剩餘風險；但如果某個 commit 唯一目的只是同步開發日誌，不要再為該 log-sync commit 追加下一筆日誌，避免「更新日誌 -> push -> 再更新日誌」的遞迴。
+- 一輪對話可以包含多個實質 checkpoint commit；合理時可以把同一 MVP 主題下的相鄰小切片連續推進，但每個 commit 仍要可審查、可驗證、可由 CI 回溯。每次完成並推送實質 checkpoint 後，要追加 `docs/DEVELOPMENT_LOG.zh-TW.md`，記錄開發階段、commit、變更範圍、驗證、CI 與剩餘風險；但如果某個 commit 唯一目的只是同步開發日誌，不要再為該 log-sync commit 追加下一筆日誌，避免「更新日誌 -> push -> 再更新日誌」的遞迴。
 - 新增、移動或重新定位文件時，要更新 `docs/DOCS_INDEX.zh-TW.md`；整理工作區或調整檔案責任時，要更新 `docs/WORKSPACE_LAYOUT.zh-TW.md`。
 - 新增或修改非直覺程式邏輯時，要在相鄰位置留下維護註解，且本專案註解密度可以比一般專案略高，因為團隊成員不一定熟悉整個 codebase。維護註解預設使用繁體中文；檔名、CLI flag、API 名稱、標準與產品名可保留原文以免失準。註解尤其要補在函式目的、調度流程、安全 guard、schema/provenance 不變量、adapter 假設、外部 API 特例、跨模組 ownership 與資料轉換；註解要說明「為什麼」與「邊界」，不要只是重述程式碼。
 - 新增英文文件或大幅更新英文文件時，要同步準備繁中版本、繁中摘要或繁中閱讀路線。

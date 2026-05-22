@@ -109,8 +109,8 @@ gh run list --repo YanAnnLu/APIkeys_collection --limit 200 --json databaseId,hea
 
 2. Keep the log ledger-style, not only summarized. Group entries by Asia/Taipei date in reverse chronological order, newest date first. Within each date, list entries newest time first. Add a one-line daily main theme, then list every relevant push run.
 3. Use a Markdown table for each date section with these columns:
-   `時間 | 標記 | SHA | Run | 原始標題 | 中文說明`.
-4. Keep the original English push title for lookup, but every row must also include a Traditional Chinese explanation in the `中文說明` column.
+   `時間 | 開發階段 | 標記 | SHA | Run | 原始標題 | 中文說明`.
+4. Keep the original English push title for lookup, but every row must also include a coarse development-stage label in the `開發階段` column and a Traditional Chinese explanation in the `中文說明` column. Use phase labels such as `MVP Demo Closure`, `MVP Hardening`, `Database / Repair`, `Discovery / Crawler`, and `Docs / Workflow`.
 5. Mark successful push runs as `**CHECKPOINT**`. Mark failed push runs as `**CI 失敗**` and keep them in the ledger so later agents can see the repair path.
 6. A single user turn may contain multiple substantive checkpoint commits. Prefer grouping adjacent small slices under one MVP theme when it is safe, but keep each commit reviewable and CI-verifiable. Record every substantive feature, fix, workflow, or documentation checkpoint in the development log after it has been pushed and verified.
 7. Avoid development-log recursion: do not add a new log row for a commit whose only purpose is updating `docs/DEVELOPMENT_LOG.zh-TW.md`. A log-sync commit may be pushed and verified, but it must not trigger another log-sync commit.

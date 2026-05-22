@@ -6457,8 +6457,30 @@ class contextlib_suppress_tcl_error:
         return isinstance(exc, TclError)
 
 
+def tk_startup_failure_message(error: Exception) -> str:
+    # Tk root 還沒建立時不能依賴 messagebox；這裡回傳純文字，讓 wrapper/CLI stderr 也能提示修復方向。
+    detail = f"{type(error).__name__}: {error}"
+    return (
+        "Tk UI 無法啟動。\n\n"
+        f"錯誤：{detail}\n\n"
+        "修復建議：\n"
+        "1. 如果錯誤提到 init.tcl、Tcl 或 Tk，代表目前 Python 環境的 Tcl/Tk runtime 不完整；"
+        "請先改用系統 Python 執行 `py -B APIkeys_collection_ui.py`。\n"
+        "2. 如果一定要使用 `.venv`，請用包含 Tcl/Tk 的 Python 重新建立 venv，"
+        "不要把 base/system Python 套件直接混進專案環境。\n"
+        "3. 如果錯誤提到 display、DISPLAY 或圖形環境，請在有桌面 session 的機器上開啟 UI；"
+        "後端可先用 `py -B APIkeys_collection.py --summary` 檢查。"
+    )
+
+
 def main() -> int:
-    root = Tk()
+    try:
+        root = Tk()
+    except TclError as exc:
+        # 這是 UI runtime/preflight 的最早防線；此時沒有 root，所以只能寫 stderr 與 event log。
+        log_exception("ui_tk_startup_failed", exc, component="ui.startup")
+        print(tk_startup_failure_message(exc), file=sys.stderr)
+        return 2
     ApiCollectionUi(root)
     root.mainloop()
     return 0

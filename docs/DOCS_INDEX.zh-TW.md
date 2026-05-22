@@ -35,7 +35,7 @@
 | 情境 | 建議先讀 | 目的 |
 | --- | --- | --- |
 | 新 Agent 接手 | `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先知道目前做到哪、怎麼安全換平台、下一步在哪、文件怎麼找。 |
-| 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 改了什麼、如何驗證、還有什麼風險。 |
+| 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 屬於哪個開發階段、改了什麼、如何驗證、還有什麼風險。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Aseat、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `MVP_FLOW_AUDIT.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first，並確認候選、resolver、下載與匯入是否真的閉環。 |
@@ -52,7 +52,7 @@
 | --- | --- | --- |
 | `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力卡，記錄最新狀態、雷點與下一步。 | 每次穩定節點、commit/push 前後、跨 Agent 前更新。 |
 | `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
-| `DEVELOPMENT_LOG.zh-TW.md` | 開發日誌，從 2026-05-21 起用流水帳記錄 push / CI run；最近日期與同日內最新時間放最上方，成功 run 用 `**CHECKPOINT**` 標醒目，失敗 run 保留為 `**CI 失敗**`，每筆都要有中文說明。 | 每次完成並推送一個版本 checkpoint 後追加，不重寫舊紀錄；需要回補時可用 GitHub Actions run list 反推。 |
+| `DEVELOPMENT_LOG.zh-TW.md` | 開發日誌，從 2026-05-21 起用流水帳記錄 push / CI run；最近日期與同日內最新時間放最上方，成功 run 用 `**CHECKPOINT**` 標醒目，失敗 run 保留為 `**CI 失敗**`，每筆都要有 `開發階段` 與中文說明。 | 每次完成並推送一個版本 checkpoint 後追加，不重寫舊紀錄；需要回補時可用 GitHub Actions run list 反推。 |
 | `HEARTBEAT_AUTOMATION.zh-TW.md` | heartbeat automation 的安全規則、CLI/script 入口、外部排程與 agent runner 邊界。 | 更改 heartbeat CLI、scheduler、停止條件或自動推進規則時更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
 | `CODE_RELATIONSHIP_MAP.zh-TW.md` | 程式關聯地圖，說明入口、子系統、調度方向、測試入口與註解規則。 | 拆模組、搬資料夾、調整 CLI/UI/backend 邊界時更新。 |
@@ -119,7 +119,7 @@
 6. 舊路徑可能被 skill、prompt 或外部自動化使用時，先保留 redirect/summary，不直接刪檔。
 7. `.md` 先整理好，再回頭更新 skill/prompt/script；不要讓舊 skill 路徑決定文件不能重構。
 8. 繁中 `.md` 的 Mermaid 節點與箭頭文字要以繁體中文為主；檔名、CLI flag、模組路徑、產品名與標準名可保留原文。
-9. 更新 `DOCS_INDEX.zh-TW.md`、`AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md`，追加 `DEVELOPMENT_LOG.zh-TW.md`，並同步 repo 內 `.codex/skills/apikeys-collection-launcher`。開發日誌採流水帳倒序格式，最近日期與同日內最新時間都在最上方；每筆 push/CI run 保留時間、短 SHA、run ID、原始英文標題、中文說明與醒目的 `**CHECKPOINT**` / `**CI 失敗**` 標記。
+9. 更新 `DOCS_INDEX.zh-TW.md`、`AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md`，追加 `DEVELOPMENT_LOG.zh-TW.md`，並同步 repo 內 `.codex/skills/apikeys-collection-launcher`。開發日誌採流水帳倒序格式，最近日期與同日內最新時間都在最上方；每筆 push/CI run 保留時間、開發階段、短 SHA、run ID、原始英文標題、中文說明與醒目的 `**CHECKPOINT**` / `**CI 失敗**` 標記。
 10. 跑 `git diff --check`；若文件範例、腳本或生成流程有改，再跑對應測試。
 
 ## 近期收攏評估

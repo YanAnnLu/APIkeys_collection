@@ -30,6 +30,14 @@ docker compose -f docker-compose.yml run --rm --build launcher
 py APIkeys_collection_ui.py
 ```
 
+如果 Tk UI 入口回報 `init.tcl`、Tcl/Tk runtime 或 display 錯誤，先用系統 Python 重跑：
+
+```powershell
+py -B APIkeys_collection_ui.py
+```
+
+這通常代表目前 `.venv` 沒有完整 Tcl/Tk runtime。若要繼續使用 `.venv`，請用含 Tcl/Tk 的 Python 重新建立，不要把 base/system Python 套件直接混進專案環境。後端仍可先用 `py -B APIkeys_collection.py --summary` 確認核心可用。
+
 若 PowerShell script execution policy 阻擋 `.ps1`：
 
 ```powershell

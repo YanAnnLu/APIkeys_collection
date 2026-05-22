@@ -25,6 +25,8 @@ Windows 可以用：
 py APIkeys_collection_ui.py
 ```
 
+若 UI 一啟動就因 `init.tcl`、Tcl/Tk runtime 或 display 問題失敗，入口會在 stderr 印出修復建議並回傳非零錯誤碼。Windows 上先改用系統 Python 的 `py -B APIkeys_collection_ui.py`；若一定要使用 `.venv`，請用包含 Tcl/Tk 的 Python 重建 venv，不要把 base/system Python 套件混進專案環境。
+
 從 IDE 或背景 shell 啟動時，主視窗會在初始化後自動浮出並在終端機印出 `APIkeys_collection UI ready ...`，方便確認 UI 已經完成啟動。
 
 若要先確認後端狀態：

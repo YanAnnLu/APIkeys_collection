@@ -1,10 +1,11 @@
 # 這份測試鎖定 Tk 視窗生命週期錯誤 suppressor，避免吞掉非預期例外。
+import io
 import unittest
 from types import SimpleNamespace
 from tkinter import TclError
 import sqlite3
 import tempfile
-from contextlib import closing
+from contextlib import closing, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,8 +17,10 @@ from frontends.tk.launcher_ui import (
     database_sql_dry_run_available,
     local_file_import_error_message,
     local_file_provenance_review_message,
+    main as launcher_ui_main,
     mvp_demo_smoke_exception_message,
     mvp_demo_smoke_result_message,
+    tk_startup_failure_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
@@ -35,6 +38,26 @@ class TclErrorSuppressorTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             with contextlib_suppress_tcl_error():
                 raise RuntimeError("unexpected")
+
+    def test_tk_startup_failure_message_guides_missing_tcl_runtime(self) -> None:
+        message = tk_startup_failure_message(TclError("Can't find a usable init.tcl"))
+
+        self.assertIn("Tk UI 無法啟動", message)
+        self.assertIn("init.tcl", message)
+        self.assertIn("py -B APIkeys_collection_ui.py", message)
+
+    def test_main_returns_error_code_when_tk_root_cannot_start(self) -> None:
+        output = io.StringIO()
+
+        with (
+            patch("frontends.tk.launcher_ui.Tk", side_effect=TclError("no display name")),
+            patch("frontends.tk.launcher_ui.log_exception"),
+            redirect_stderr(output),
+        ):
+            rc = launcher_ui_main()
+
+        self.assertEqual(2, rc)
+        self.assertIn("Tk UI 無法啟動", output.getvalue())
 
 
 class DatabaseDryRunUiHelperTests(unittest.TestCase):
