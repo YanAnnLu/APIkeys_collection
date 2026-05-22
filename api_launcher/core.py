@@ -122,8 +122,10 @@ from api_launcher.plans import (
 from api_launcher.adapters.yfinance import (
     DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
+    DEFAULT_YFINANCE_STORAGE_TARGET,
     YFINANCE_LIVE_WARNING,
     YFINANCE_QUERY_WINDOW_PRESETS,
+    YFINANCE_STORAGE_TARGET_PROFILES,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
 )
@@ -639,6 +641,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_YFINANCE_RETENTION_DAYS,
         help="local retention metadata for yfinance live CSV plans; default 365 days",
     )
+    parser.add_argument(
+        "--yfinance-storage-target",
+        default=DEFAULT_YFINANCE_STORAGE_TARGET,
+        choices=(DEFAULT_YFINANCE_STORAGE_TARGET, *YFINANCE_STORAGE_TARGET_PROFILES),
+        help="metadata-only storage target hint for yfinance live CSV plans; does not write to MySQL/Parquet/ClickHouse",
+    )
     parser.add_argument("--yfinance-acknowledge-unofficial", action="store_true", help="required for --write-yfinance-live-plan after reviewing unofficial personal/research-only warning")
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
@@ -973,6 +981,7 @@ class CatalogLauncherCli:
             downloads_root=self.args.downloads_root,
             retention_days=self.args.yfinance_retention_days,
             query_window_preset=self.args.yfinance_query_window,
+            storage_target=self.args.yfinance_storage_target,
             acknowledge_unofficial=self.args.yfinance_acknowledge_unofficial,
         )
         print(f"[yfinance-live] warning={YFINANCE_LIVE_WARNING}")
@@ -980,7 +989,8 @@ class CatalogLauncherCli:
             "[yfinance-live] "
             f"wrote {result.plan_path} csv={result.csv_path} symbols={','.join(result.symbols)} "
             f"rows={result.rows_written} period={result.period} interval={result.interval} "
-            f"retention_days={result.retention_days} query_window={result.query_window_preset or '-'}"
+            f"retention_days={result.retention_days} query_window={result.query_window_preset or '-'} "
+            f"storage_target={result.storage_target or '-'}"
         )
         print(
             "[yfinance-live] "

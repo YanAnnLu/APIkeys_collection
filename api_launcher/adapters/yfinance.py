@@ -26,6 +26,7 @@ DEFAULT_YFINANCE_RETENTION_DAYS = 365
 MIN_YFINANCE_RETENTION_DAYS = 1
 MAX_YFINANCE_RETENTION_DAYS = 3650
 DEFAULT_YFINANCE_QUERY_WINDOW_PRESET = "daily_1mo"
+DEFAULT_YFINANCE_STORAGE_TARGET = "auto"
 YFINANCE_DEMO_RECEIVED_AT = "2026-05-21T00:00:00Z"
 YFINANCE_DEMO_INGEST_RUN_ID = "fixture_yfinance_demo_2026_05_21"
 YFINANCE_LIVE_WARNING = (
@@ -65,6 +66,7 @@ class YFinanceLivePlanResult:
     interval: str
     retention_days: int
     query_window_preset: str = ""
+    storage_target: str = DEFAULT_YFINANCE_STORAGE_TARGET
     warning: str = YFINANCE_LIVE_WARNING
 
 
@@ -76,6 +78,18 @@ class YFinanceQueryWindowPreset:
     interval: str
     chart_profile: str
     storage_hint: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class YFinanceStorageTargetProfile:
+    key: str
+    label: str
+    engine: str
+    asset_role: str
+    table_shape: str
+    recommended_for: str
+    status: str
     notes: str
 
 
@@ -116,6 +130,68 @@ YFINANCE_QUERY_WINDOW_PRESETS: dict[str, YFinanceQueryWindowPreset] = {
         storage_hint="sqlite_mysql_or_parquet_archive_candidate",
         notes="Lower-density long chart window for trend previews and storage-target planning.",
     ),
+}
+
+
+YFINANCE_STORAGE_TARGET_PROFILES: dict[str, YFinanceStorageTargetProfile] = {
+    "sqlite_mvp_table": YFinanceStorageTargetProfile(
+        key="sqlite_mvp_table",
+        label="SQLite curated OHLCV table",
+        engine="sqlite",
+        asset_role="curated_table",
+        table_shape="one_row_per_symbol_event_time",
+        recommended_for="MVP fixture/live plan import and single-user validation.",
+        status="mvp_supported_via_csv_import",
+        notes="Uses the existing CSV-to-SQLite importer after the user explicitly runs download/import.",
+    ),
+    "mysql_timeseries_table": YFinanceStorageTargetProfile(
+        key="mysql_timeseries_table",
+        label="MySQL OHLCV table",
+        engine="mysql",
+        asset_role="curated_table",
+        table_shape="one_row_per_symbol_event_time_with_ingest_run_id",
+        recommended_for="Team-visible MVP storage when a configured MySQL profile exists.",
+        status="metadata_only",
+        notes="Records the target intent only; the launcher does not write MySQL tables from yfinance live plans yet.",
+    ),
+    "parquet_duckdb_archive": YFinanceStorageTargetProfile(
+        key="parquet_duckdb_archive",
+        label="Parquet / DuckDB analytical archive",
+        engine="parquet_duckdb",
+        asset_role="analysis_or_cache_asset",
+        table_shape="partitionable_symbol_date_ohlcv",
+        recommended_for="Medium-horizon local analytics and chart replay without committing to an always-on database.",
+        status="planned_metadata_only",
+        notes="Useful for later export/import planning; no Parquet writer is invoked by the current yfinance plan.",
+    ),
+    "timescaledb_hypertable": YFinanceStorageTargetProfile(
+        key="timescaledb_hypertable",
+        label="TimescaleDB / PostgreSQL hypertable",
+        engine="timescaledb_postgresql",
+        asset_role="timeseries_table",
+        table_shape="hypertable_event_time_symbol",
+        recommended_for="Future higher-volume append/backfill workflows.",
+        status="planned_metadata_only",
+        notes="Requires an explicit PostgreSQL/TimescaleDB execution path before it can mutate a remote database.",
+    ),
+    "clickhouse_ohlcv_table": YFinanceStorageTargetProfile(
+        key="clickhouse_ohlcv_table",
+        label="ClickHouse OHLCV columnar table",
+        engine="clickhouse",
+        asset_role="timeseries_columnar_table",
+        table_shape="columnar_symbol_event_time_ohlcv",
+        recommended_for="Future high-volume chart and aggregation workloads.",
+        status="planned_metadata_only",
+        notes="Kept as a target passport entry only; no ClickHouse dependency or writer is added.",
+    ),
+}
+
+
+YFINANCE_QUERY_WINDOW_STORAGE_TARGETS: dict[str, tuple[str, ...]] = {
+    "intraday_5d_5m": ("sqlite_mvp_table", "mysql_timeseries_table", "clickhouse_ohlcv_table"),
+    "daily_1mo": ("sqlite_mvp_table", "mysql_timeseries_table", "parquet_duckdb_archive"),
+    "daily_6mo": ("mysql_timeseries_table", "parquet_duckdb_archive", "timescaledb_hypertable"),
+    "weekly_1y": ("parquet_duckdb_archive", "mysql_timeseries_table", "timescaledb_hypertable"),
 }
 
 
@@ -176,6 +252,11 @@ def yfinance_query_template_dataset() -> Dataset:
             "update_strategy": "live_market_data",
             "default_query_window_preset": DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
             "query_window_presets": [yfinance_query_window_preset_metadata(preset) for preset in YFINANCE_QUERY_WINDOW_PRESETS.values()],
+            "default_storage_target": DEFAULT_YFINANCE_STORAGE_TARGET,
+            "storage_target_profiles": [
+                yfinance_storage_target_profile_metadata(profile)
+                for profile in YFINANCE_STORAGE_TARGET_PROFILES.values()
+            ],
             "dedupe_keys": ("symbol", "event_time", "interval", "ingest_run_id"),
             "required_fields": (
                 "event_time",
@@ -233,6 +314,7 @@ def write_yfinance_live_plan(
     downloads_root: str | Path = "downloads",
     retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
     query_window_preset: str | None = DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
+    storage_target: str | None = DEFAULT_YFINANCE_STORAGE_TARGET,
     *,
     acknowledge_unofficial: bool = False,
     fetcher: Callable[[tuple[str, ...], str, str], object] | None = None,
@@ -247,6 +329,7 @@ def write_yfinance_live_plan(
         )
     normalized_symbols = normalize_yfinance_symbols(symbols)
     query_window = yfinance_query_window_policy(period=period, interval=interval, query_window_preset=query_window_preset)
+    storage_policy = yfinance_storage_target_policy(query_window=query_window, storage_target=storage_target)
     normalized_period = str(query_window["period"])
     normalized_interval = str(query_window["interval"])
     normalized_retention_days = normalize_yfinance_retention_days(retention_days)
@@ -271,6 +354,7 @@ def write_yfinance_live_plan(
         downloads_root=downloads_root,
         retention_days=normalized_retention_days,
         query_window_preset=str(query_window.get("preset_key") or ""),
+        storage_target=str(storage_policy.get("selection") or DEFAULT_YFINANCE_STORAGE_TARGET),
         received_at=received_at_value,
         ingest_run_id=ingest_id,
     )
@@ -284,6 +368,7 @@ def write_yfinance_live_plan(
         interval=normalized_interval,
         retention_days=normalized_retention_days,
         query_window_preset=str(query_window.get("preset_key") or ""),
+        storage_target=str(storage_policy.get("selection") or DEFAULT_YFINANCE_STORAGE_TARGET),
     )
 
 
@@ -351,11 +436,13 @@ def build_yfinance_live_plan(
     downloads_root: str | Path = "downloads",
     retention_days: int = DEFAULT_YFINANCE_RETENTION_DAYS,
     query_window_preset: str | None = DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
+    storage_target: str | None = DEFAULT_YFINANCE_STORAGE_TARGET,
     received_at: str = "",
     ingest_run_id: str = "",
 ) -> dict[str, object]:
     normalized_symbols = normalize_yfinance_symbols(symbols)
     query_window = yfinance_query_window_policy(period=period, interval=interval, query_window_preset=query_window_preset)
+    storage_policy = yfinance_storage_target_policy(query_window=query_window, storage_target=storage_target)
     normalized_period = str(query_window["period"])
     normalized_interval = str(query_window["interval"])
     normalized_retention_days = normalize_yfinance_retention_days(retention_days)
@@ -367,6 +454,7 @@ def build_yfinance_live_plan(
         normalized_period,
         normalized_interval,
         normalized_retention_days,
+        storage_policy=storage_policy,
     )
     retention_policy = yfinance_retention_policy(normalized_retention_days)
     option = DatasetVersionOption(
@@ -393,6 +481,7 @@ def build_yfinance_live_plan(
             "live_fetch": True,
             "retention_policy": retention_policy,
             "query_window": query_window,
+            "storage_policy": storage_policy,
         },
     )
     entry = provider_dataset_version_plan_entry(provider, dataset, option, downloads_root=downloads_root)
@@ -409,6 +498,7 @@ def build_yfinance_live_plan(
         "interval": normalized_interval,
         "retention_policy": retention_policy,
         "query_window": query_window,
+        "storage_policy": storage_policy,
     }
     payload = build_dataset_download_plan([entry], plan_name="yfinance_live_ohlcv_opt_in")
     payload["source"] = {
@@ -424,6 +514,7 @@ def build_yfinance_live_plan(
         "ingest_run_id": ingest_run_id,
         "retention_policy": retention_policy,
         "query_window": query_window,
+        "storage_policy": storage_policy,
     }
     return payload
 
@@ -464,6 +555,7 @@ def yfinance_live_dataset(
     period: str,
     interval: str,
     retention_days: int,
+    storage_policy: dict[str, object] | None = None,
 ) -> Dataset:
     # live CSV 被視為「使用者剛剛明確抓取的 raw asset」，不是可自由散布的官方資料集版本。
     dataset_id = f"yfinance_ohlcv_live_{'_'.join(_safe_symbol_slug(symbol) for symbol in symbols)}"
@@ -495,6 +587,9 @@ def yfinance_live_dataset(
             "source_format": "csv",
             "live_fetch": True,
             "retention_policy": retention_policy,
+            "storage_policy": storage_policy or yfinance_storage_target_policy(
+                query_window=yfinance_query_window_policy(period=period, interval=interval),
+            ),
         },
     )
 
@@ -647,6 +742,68 @@ def yfinance_query_window_preset_metadata(preset: YFinanceQueryWindowPreset) -> 
         "chart_profile": preset.chart_profile,
         "storage_hint": preset.storage_hint,
         "notes": preset.notes,
+    }
+
+
+def normalize_yfinance_storage_target(storage_target: str | None) -> str:
+    value = str(storage_target or DEFAULT_YFINANCE_STORAGE_TARGET).strip().lower().replace("-", "_")
+    if not value:
+        return DEFAULT_YFINANCE_STORAGE_TARGET
+    if value == DEFAULT_YFINANCE_STORAGE_TARGET:
+        return value
+    if value not in YFINANCE_STORAGE_TARGET_PROFILES:
+        allowed = ", ".join([DEFAULT_YFINANCE_STORAGE_TARGET, *sorted(YFINANCE_STORAGE_TARGET_PROFILES)])
+        raise ValueError(f"Unsupported yfinance storage target: {storage_target!r}; expected one of: {allowed}.")
+    return value
+
+
+def yfinance_storage_target_profile_metadata(profile: YFinanceStorageTargetProfile) -> dict[str, object]:
+    return {
+        "key": profile.key,
+        "label": profile.label,
+        "engine": profile.engine,
+        "asset_role": profile.asset_role,
+        "table_shape": profile.table_shape,
+        "recommended_for": profile.recommended_for,
+        "status": profile.status,
+        "notes": profile.notes,
+    }
+
+
+def yfinance_storage_target_policy(
+    *,
+    query_window: dict[str, object] | None = None,
+    storage_target: str | None = DEFAULT_YFINANCE_STORAGE_TARGET,
+) -> dict[str, object]:
+    selected = normalize_yfinance_storage_target(storage_target)
+    preset_key = str((query_window or {}).get("preset_key") or "")
+    if selected == DEFAULT_YFINANCE_STORAGE_TARGET:
+        target_keys = list(
+            YFINANCE_QUERY_WINDOW_STORAGE_TARGETS.get(
+                preset_key,
+                ("sqlite_mvp_table", "mysql_timeseries_table", "parquet_duckdb_archive"),
+            )
+        )
+        mode = "auto_suggestion"
+    else:
+        target_keys = [selected]
+        mode = "explicit_user_selection"
+    profiles = [
+        yfinance_storage_target_profile_metadata(YFINANCE_STORAGE_TARGET_PROFILES[key])
+        for key in target_keys
+        if key in YFINANCE_STORAGE_TARGET_PROFILES
+    ]
+    # storage target 目前是資料護照 metadata；真正寫入 MySQL/Parquet/ClickHouse 仍需之後的明確匯出或匯入流程。
+    recommended = str(profiles[0]["key"]) if profiles else "sqlite_mvp_table"
+    return {
+        "selection": selected,
+        "mode": mode,
+        "recommended_target": recommended,
+        "targets": profiles,
+        "background_write": False,
+        "automatic_migration": False,
+        "requires_explicit_user_import_or_export": True,
+        "notes": "Storage targets are planning metadata only; yfinance live plans still write local CSV and require explicit user download/import.",
     }
 
 

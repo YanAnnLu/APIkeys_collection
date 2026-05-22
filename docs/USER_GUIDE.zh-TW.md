@@ -220,7 +220,7 @@ python -m unittest discover -s tests
 | --- | --- |
 | 產生可重複 MVP Demo Flow | `python3 APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json` |
 | 產生 yfinance 離線金融時間序列 Demo plan | `python3 APIkeys_collection.py --write-yfinance-demo-plan state/yfinance_demo/plan.json --yfinance-symbol AAPL --yfinance-symbol MSFT` |
-| 明確 opt-in 抓取 yfinance live CSV 並產生匯入 plan | `python3 APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-query-window daily_1mo --yfinance-retention-days 365 --yfinance-acknowledge-unofficial` |
+| 明確 opt-in 抓取 yfinance live CSV 並產生匯入 plan | `python3 APIkeys_collection.py --write-yfinance-live-plan state/yfinance_live/plan.json --yfinance-symbol AAPL --yfinance-query-window daily_1mo --yfinance-storage-target auto --yfinance-retention-days 365 --yfinance-acknowledge-unofficial` |
 | 列出 plan 裡需要轉接器處理的項目 | `python3 APIkeys_collection.py --adapter-review-plan state/candidate_plan.json` |
 | 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
 | 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
@@ -234,9 +234,9 @@ python -m unittest discover -s tests
 
 `--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。
 
-`--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；`--yfinance-query-window` 可選 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`，用來帶入 chart-friendly 的 period/interval 與 storage hint。若另加 `--yfinance-period` 或 `--yfinance-interval`，CLI 會把它記為 manual override。`--yfinance-retention-days` 只寫入 plan/source/dataset metadata，作為本機快取治理提示，不會自動刪檔或背景刷新。後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
+`--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；`--yfinance-query-window` 可選 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`，用來帶入 chart-friendly 的 period/interval 與 storage hint。若另加 `--yfinance-period` 或 `--yfinance-interval`，CLI 會把它記為 manual override。`--yfinance-storage-target` 可選 `auto`、`sqlite_mvp_table`、`mysql_timeseries_table`、`parquet_duckdb_archive`、`timescaledb_hypertable`、`clickhouse_ohlcv_table`，只寫入 plan/source/dataset metadata，表示後續可考慮的儲存目標；目前不會直接寫 MySQL、Parquet、TimescaleDB 或 ClickHouse。`--yfinance-retention-days` 也只寫入 metadata，作為本機快取治理提示，不會自動刪檔或背景刷新。後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
 
-Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo plan` 只建立 fixture-backed plan 並加入下載計畫；`工具 > 建立 yfinance live plan（需確認）` 會先要求使用者填寫 symbol、query window、period、interval、保留天數，並勾選 unofficial/personal-research 確認框，才會呼叫本機選用 `yfinance` 產生 CSV-backed plan。query window 只輔助選擇圖表友善的查詢範圍，保留天數也只進入 metadata，不代表 launcher 會自動刷新或自動刪檔。兩個 UI 入口都不會自動下載、匯入、背景重複抓取或接到 crawler。
+Tk UI 也提供同一條保守入口：`工具 > 產生 yfinance 離線 Demo plan` 只建立 fixture-backed plan 並加入下載計畫；`工具 > 建立 yfinance live plan（需確認）` 會先要求使用者填寫 symbol、query window、storage target、period、interval、保留天數，並勾選 unofficial/personal-research 確認框，才會呼叫本機選用 `yfinance` 產生 CSV-backed plan。query window 只輔助選擇圖表友善的查詢範圍，storage target 與保留天數也只進入 metadata，不代表 launcher 會自動寫資料庫、自動刷新或自動刪檔。兩個 UI 入口都不會自動下載、匯入、背景重複抓取或接到 crawler。
 
 ### Database / repair
 

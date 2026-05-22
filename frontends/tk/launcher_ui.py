@@ -40,8 +40,10 @@ from api_launcher.manifests import read_manifest
 from api_launcher.adapters.yfinance import (
     DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
+    DEFAULT_YFINANCE_STORAGE_TARGET,
     YFINANCE_LIVE_WARNING,
     YFINANCE_QUERY_WINDOW_PRESETS,
+    YFINANCE_STORAGE_TARGET_PROFILES,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan as write_yfinance_demo_plan_files,
     write_yfinance_live_plan as write_yfinance_live_plan_files,
@@ -5455,7 +5457,7 @@ class ApiCollectionUi:
         # live yfinance 是明確 opt-in 的窄入口；UI 先建立 CSV-backed plan，不在背景排程或 crawler 自動抓取。
         dialog = Toplevel(self.root)
         dialog.title(self.tr("建立 yfinance live plan", "Create yfinance live plan"))
-        dialog.geometry("820x540")
+        dialog.geometry("820x585")
         dialog.configure(bg=COLORS["panel"])
         dialog.transient(self.root)
 
@@ -5463,6 +5465,7 @@ class ApiCollectionUi:
         period_var = StringVar(value="5d")
         interval_var = StringVar(value="1d")
         query_window_var = StringVar(value=DEFAULT_YFINANCE_QUERY_WINDOW_PRESET)
+        storage_target_var = StringVar(value=DEFAULT_YFINANCE_STORAGE_TARGET)
         retention_days_var = StringVar(value=str(DEFAULT_YFINANCE_RETENTION_DAYS))
         acknowledge_var = BooleanVar(value=False)
 
@@ -5506,6 +5509,25 @@ class ApiCollectionUi:
 
         query_window_combo.bind("<<ComboboxSelected>>", apply_query_window_preset)
         apply_query_window_preset()
+        storage_row = ttk.Frame(form, style="Panel.TFrame")
+        storage_row.pack(fill=X, pady=5)
+        ttk.Label(storage_row, text=self.tr("儲存目標", "Storage target"), style="DetailMuted.TLabel", width=12).pack(side=LEFT)
+        ttk.Combobox(
+            storage_row,
+            textvariable=storage_target_var,
+            values=(DEFAULT_YFINANCE_STORAGE_TARGET, *YFINANCE_STORAGE_TARGET_PROFILES),
+            state="readonly",
+            width=28,
+        ).pack(side=LEFT, padx=(8, 10))
+        ttk.Label(
+            storage_row,
+            text=self.tr(
+                "只寫入 metadata；不會直接寫 MySQL/Parquet/ClickHouse",
+                "Metadata only; does not write MySQL/Parquet/ClickHouse",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(side=LEFT, fill=X, expand=True)
+
         for label, variable, hint in [
             (self.tr("股票代號", "Symbols"), symbols_var, self.tr("例：AAPL, MSFT；逗號或空白分隔", "Example: AAPL, MSFT; comma or space separated")),
             (self.tr("查詢期間", "Period"), period_var, self.tr("例：5d、1mo、1y、ytd、max", "Example: 5d, 1mo, 1y, ytd, max")),
@@ -5548,6 +5570,7 @@ class ApiCollectionUi:
                     interval=interval_var.get(),
                     retention_days=int(retention_days_var.get()),
                     query_window_preset=query_window_var.get(),
+                    storage_target=storage_target_var.get(),
                     acknowledge_unofficial=True,
                 )
                 added = self.add_download_plan_entries_from_file(result.plan_path)
@@ -5573,6 +5596,7 @@ class ApiCollectionUi:
                     "interval": result.interval,
                     "retention_days": result.retention_days,
                     "query_window": result.query_window_preset,
+                    "storage_target": result.storage_target,
                     "added_to_plan": added,
                 },
             )

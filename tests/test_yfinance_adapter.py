@@ -15,12 +15,14 @@ from unittest.mock import patch
 from api_launcher.adapters.yfinance import (
     DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
     DEFAULT_YFINANCE_RETENTION_DAYS,
+    DEFAULT_YFINANCE_STORAGE_TARGET,
     YFINANCE_PROVIDER_ID,
     YFinanceMarketDataAdapter,
     build_yfinance_demo_plan,
     build_yfinance_live_plan,
     normalize_yfinance_query_window_preset,
     normalize_yfinance_retention_days,
+    normalize_yfinance_storage_target,
     normalize_yfinance_symbols,
     write_yfinance_demo_plan,
     write_yfinance_live_plan,
@@ -127,6 +129,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 interval="1d",
                 retention_days=30,
                 query_window_preset=DEFAULT_YFINANCE_QUERY_WINDOW_PRESET,
+                storage_target="mysql_timeseries_table",
             )
 
             with patch("api_launcher.core.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
@@ -143,6 +146,8 @@ class YFinanceAdapterTests(unittest.TestCase):
                             "1d",
                             "--yfinance-retention-days",
                             "30",
+                            "--yfinance-storage-target",
+                            "mysql_timeseries_table",
                             "--yfinance-acknowledge-unofficial",
                         ]
                     )
@@ -150,10 +155,12 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertIn("[yfinance-live] warning=", output.getvalue())
         self.assertIn("retention_days=30", output.getvalue())
+        self.assertIn("storage_target=mysql_timeseries_table", output.getvalue())
         live_mock.assert_called_once()
         self.assertTrue(live_mock.call_args.kwargs["acknowledge_unofficial"])
         self.assertEqual(30, live_mock.call_args.kwargs["retention_days"])
         self.assertEqual(DEFAULT_YFINANCE_QUERY_WINDOW_PRESET, live_mock.call_args.kwargs["query_window_preset"])
+        self.assertEqual("mysql_timeseries_table", live_mock.call_args.kwargs["storage_target"])
 
     def test_demo_plan_can_download_and_import_without_yfinance_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -226,6 +233,8 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("append_only_or_revisable_market_data", entry["time_series_contract"]["kind"])
         self.assertEqual(45, payload["source"]["retention_policy"]["retention_days"])
         self.assertEqual(45, entry["dataset_version"]["metadata"]["retention_policy"]["retention_days"])
+        self.assertEqual("auto", payload["source"]["storage_policy"]["selection"])
+        self.assertEqual("sqlite_mvp_table", payload["source"]["storage_policy"]["recommended_target"])
 
     def test_query_window_preset_supplies_chart_friendly_period_interval(self) -> None:
         captured: dict[str, object] = {}
@@ -257,6 +266,8 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("intraday_5d_5m", query_window["preset_key"])
         self.assertEqual(False, query_window["background_refresh"])
         self.assertEqual("short_horizon_sqlite_or_mysql_cache", query_window["storage_hint"])
+        self.assertEqual("auto", payload["source"]["storage_policy"]["selection"])
+        self.assertEqual("sqlite_mvp_table", payload["source"]["storage_policy"]["recommended_target"])
 
     def test_query_window_preset_records_manual_override(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -275,6 +286,27 @@ class YFinanceAdapterTests(unittest.TestCase):
         self.assertEqual("5d", query_window["period"])
         self.assertEqual("1d", query_window["interval"])
         self.assertEqual(True, query_window["manual_override"])
+        self.assertEqual("mysql_timeseries_table", payload["source"]["storage_policy"]["recommended_target"])
+
+    def test_live_plan_can_record_explicit_storage_target_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "live.csv"
+            csv_path.write_text("event_time,symbol\n", encoding="utf-8")
+            payload = build_yfinance_live_plan(
+                csv_path,
+                symbols=("AAPL",),
+                query_window_preset="daily_6mo",
+                storage_target="parquet-duckdb-archive",
+            )
+
+        policy = payload["source"]["storage_policy"]
+        self.assertEqual("parquet_duckdb_archive", policy["selection"])
+        self.assertEqual("explicit_user_selection", policy["mode"])
+        self.assertEqual("parquet_duckdb_archive", policy["recommended_target"])
+        self.assertEqual(False, policy["background_write"])
+        self.assertEqual(False, policy["automatic_migration"])
+        self.assertEqual(True, policy["requires_explicit_user_import_or_export"])
+        self.assertEqual("parquet_duckdb_archive", payload["providers"][0]["time_series_contract"]["storage_policy"]["recommended_target"])
 
     def test_query_window_preset_normalization_is_bounded(self) -> None:
         self.assertEqual("intraday_5d_5m", normalize_yfinance_query_window_preset("intraday-5d-5m").key)
@@ -287,6 +319,12 @@ class YFinanceAdapterTests(unittest.TestCase):
             normalize_yfinance_retention_days(0)
         with self.assertRaises(ValueError):
             normalize_yfinance_retention_days(3651)
+
+    def test_storage_target_normalization_is_bounded(self) -> None:
+        self.assertEqual(DEFAULT_YFINANCE_STORAGE_TARGET, normalize_yfinance_storage_target(""))
+        self.assertEqual("parquet_duckdb_archive", normalize_yfinance_storage_target("parquet-duckdb-archive"))
+        with self.assertRaises(ValueError):
+            normalize_yfinance_storage_target("direct-mysql-write-now")
 
 
 class FakeYFinanceFrame:
