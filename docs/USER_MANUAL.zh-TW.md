@@ -192,6 +192,14 @@ APIkeys_collection UI ready ...
 
 不支援的檔案不會硬塞進 SQLite，會留在 adapter/manual review。
 
+如果檔案不是由 launcher 下載，而是使用者已經放在本機，可以先走 CLI 手動匯入入口：
+
+```bash
+python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-sqlite-db state/curated_imports.sqlite --import-table weather_manual
+```
+
+這會先為本機檔案建立 sidecar manifest，再用相同的 CSV/JSON 匯入器寫入 SQLite。來源檔不會被移動或刪除；raw file 與 curated table 會以 `manual_local_files` 這個本機 synthetic provider 登記，方便後續 manifest health、schema fingerprint 與修復流程追蹤。
+
 ## 7. 驗證與修復
 
 打開：

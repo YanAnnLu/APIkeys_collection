@@ -227,6 +227,8 @@ python -m unittest discover -s tests
 | 解析可安全下載的小樣本或 direct resource | `python3 APIkeys_collection.py --resolve-adapter-plan state/candidate_plan.json --write-resolved-adapter-plan state/candidate_plan.resolved.json` |
 | 執行 direct entries 下載 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --download-plan-limit 1 --verify-downloads --manifest-health` |
 | 下載後匯入支援格式 | `python3 APIkeys_collection.py --run-download-plan state/candidate_plan.resolved.json --import-supported-plan-results --import-sqlite-db state/curated_imports.sqlite` |
+| 為本機 CSV/JSON 檔建立 sidecar manifest | `python3 APIkeys_collection.py --write-local-file-manifest state/manual_imports/weather.csv.manifest.json --local-file C:\data\weather.csv` |
+| 直接匯入本機 CSV/JSON 檔 | `python3 APIkeys_collection.py --import-local-file C:\data\weather.csv --import-sqlite-db state/curated_imports.sqlite --import-table weather_manual` |
 | 匯入單一 CSV manifest | `python3 APIkeys_collection.py --import-csv-manifest downloads/sample.csv.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
 | 匯入單一 JSON / JSONL / GeoJSON manifest | `python3 APIkeys_collection.py --import-json-manifest downloads/sample.json.manifest.json --import-sqlite-db state/curated_imports.sqlite --import-table sample_curated` |
 | 批次匯入健康 CSV manifests | `python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite` |
@@ -235,6 +237,8 @@ python -m unittest discover -s tests
 `--write-mvp-demo-flow` 會寫出 `state/mvp_demo/flow.json`、一份 Socrata adapter review plan、一份離線 JSON fixture plan，以及對應的下一步指令。離線 fixture 可以在沒有網路時驗證 `download -> manifest -> SQLite import`；Socrata `$limit=25` plan 則用來驗證真實 adapter resolver 會把 API view 轉成 bounded sample。
 
 `--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。
+
+`--write-local-file-manifest` 是給使用者自備本機檔案的入口。它只接受目前匯入器能處理的 CSV/CSV.GZ/JSON/JSON.GZ/JSONL/NDJSON/GeoJSON 類檔案，寫出 sidecar manifest、記錄 `file://` provenance、checksum 與來源格式，並把 raw file 記到 `manual_local_files` 這個本機 synthetic provider 底下。`--import-local-file` 會先做同一件 manifest 工作，再呼叫既有 CSV/JSON manifest importer 匯入 SQLite。它不會掃整個資料夾、不會刪除來源檔、不會背景重新下載，也不會覆蓋既有 table，除非你另外明確傳入 `--import-replace-table`。
 
 `--write-yfinance-live-plan` 是正式 live 抓取的第一個窄入口，但必須手動加 `--yfinance-acknowledge-unofficial`。這會呼叫本機 Python 環境裡的選用 `yfinance` 套件，把結果寫成一份 local CSV，並產生 file-backed download/import plan；`--yfinance-query-window` 可選 `intraday_5d_5m`、`daily_1mo`、`daily_6mo`、`weekly_1y`，用來帶入 chart-friendly 的 period/interval 與 storage hint。若另加 `--yfinance-period` 或 `--yfinance-interval`，CLI 會把它記為 manual override。`--yfinance-storage-target` 可選 `auto`、`sqlite_mvp_table`、`mysql_timeseries_table`、`parquet_duckdb_archive`、`timescaledb_hypertable`、`clickhouse_ohlcv_table`，只寫入 plan/source/dataset metadata，表示後續可考慮的儲存目標；目前不會直接寫 MySQL、Parquet、TimescaleDB 或 ClickHouse。`--yfinance-retention-days` 也只寫入 metadata，作為本機快取治理提示，不會自動刪檔或背景刷新。後續仍要用 `--run-download-plan ... --import-supported-plan-results` 明確匯入。這條路徑不會在 crawler、CI 或背景排程中自動執行；Yahoo/yfinance 仍是非官方、personal/research-only 來源，不要把資料視為可商業再散布。
 

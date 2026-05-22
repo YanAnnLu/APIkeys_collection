@@ -117,6 +117,12 @@ from api_launcher.ingestion_pipeline import (
 )
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
+from api_launcher.manual_import import (
+    DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
+    DEFAULT_MANUAL_LOCAL_VERSION,
+    ensure_manual_local_file_provider,
+    write_local_file_manifest as write_local_file_manifest_file,
+)
 from api_launcher.models import Dataset, Provider
 from api_launcher.mvp_demo import write_mvp_demo_flow as write_mvp_demo_flow_files
 from api_launcher.paths import catalog_file
@@ -678,6 +684,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--import-verified-csv-manifests", action="store_true", help="import healthy CSV/CSV.GZ manifests from the registry into curated SQLite tables")
     parser.add_argument("--import-json-manifest", help="import a verified JSON/JSONL/GeoJSON payload manifest into a curated SQLite table")
     parser.add_argument("--import-verified-json-manifests", action="store_true", help="import healthy JSON/JSONL/GeoJSON manifests from the registry into curated SQLite tables")
+    parser.add_argument("--write-local-file-manifest", default="", help="write a sidecar manifest for a user-provided local CSV/JSON file")
+    parser.add_argument("--import-local-file", default="", help="write a local-file manifest and import a supported CSV/JSON payload into SQLite")
+    parser.add_argument("--local-file", default="", help="input file for --write-local-file-manifest")
+    parser.add_argument("--local-file-manifest-dir", default="state/manual_imports", help="default output directory for generated local-file manifests")
+    parser.add_argument("--local-file-provider-id", default=DEFAULT_MANUAL_LOCAL_PROVIDER_ID, help="provider_id recorded in generated local-file manifests")
+    parser.add_argument("--local-file-dataset-id", default="", help="dataset_id recorded in generated local-file manifests; defaults from filename")
+    parser.add_argument("--local-file-dataset-uid", default="", help="dataset_uid recorded in generated local-file manifests; defaults to provider:dataset")
+    parser.add_argument("--local-file-version", default=DEFAULT_MANUAL_LOCAL_VERSION, help="version recorded in generated local-file manifests")
+    parser.add_argument("--local-file-source-url", default="", help="optional original source URL for local-file provenance; defaults to file:// URI")
     parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for manifest imports")
     parser.add_argument("--import-table", default="", help="target table name for single-manifest import; defaults to dataset/version")
     parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV/JSON/GeoJSON; 0 means all rows")
@@ -819,6 +834,8 @@ class CatalogLauncherCli:
             self.run_download_plan()
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
+            self.write_local_file_manifest()
+            self.import_local_file()
             self.import_csv_manifest()
             self.import_verified_csv_manifests()
             self.import_json_manifest()
@@ -1127,9 +1144,105 @@ class CatalogLauncherCli:
         for warning in result.warnings:
             print(f"[adapter-resolve] warning {warning}")
 
+    def write_local_file_manifest(self) -> None:
+        if not self.args.write_local_file_manifest:
+            return
+        if not self.args.local_file:
+            raise ValueError("--write-local-file-manifest requires --local-file.")
+        result = write_local_file_manifest_file(
+            resolve_project_path(self.args.local_file),
+            resolve_project_path(self.args.write_local_file_manifest),
+            manifest_dir=resolve_project_path(self.args.local_file_manifest_dir),
+            provider_id=self.args.local_file_provider_id,
+            dataset_id=self.args.local_file_dataset_id,
+            dataset_uid=self.args.local_file_dataset_uid,
+            version=self.args.local_file_version,
+            source_url=self.args.local_file_source_url,
+        )
+        self.ensure_local_file_manifest_provider(result.provider_id)
+        self.register_local_file_manifest(result.manifest_path)
+        print(
+            "[local-manifest] "
+            f"wrote {result.manifest_path} file={result.payload_path} "
+            f"format={result.source_format} dataset={result.dataset_id} version={result.version}"
+        )
+        if result.next_command:
+            print(
+                "[local-manifest] "
+                f"next={result.next_command} --import-sqlite-db {resolve_project_path(self.args.import_sqlite_db)}"
+            )
+
+    def import_local_file(self) -> None:
+        if not self.args.import_local_file:
+            return
+        result = write_local_file_manifest_file(
+            resolve_project_path(self.args.import_local_file),
+            None,
+            manifest_dir=resolve_project_path(self.args.local_file_manifest_dir),
+            provider_id=self.args.local_file_provider_id,
+            dataset_id=self.args.local_file_dataset_id,
+            dataset_uid=self.args.local_file_dataset_uid,
+            version=self.args.local_file_version,
+            source_url=self.args.local_file_source_url,
+        )
+        self.ensure_local_file_manifest_provider(result.provider_id)
+        self.register_local_file_manifest(result.manifest_path)
+        # 手動匯入仍走既有 CSV/JSON importer，確保 checksum、schema fingerprint、registry asset 邊界一致。
+        if result.import_kind == "csv":
+            import_result = import_csv_manifest_to_sqlite(
+                result.manifest_path,
+                resolve_project_path(self.args.import_sqlite_db),
+                self.repository,
+                table_name=self.args.import_table,
+                replace=self.args.import_replace_table,
+                row_limit=self.args.import_row_limit,
+            )
+        elif result.import_kind == "json":
+            import_result = import_json_manifest_to_sqlite(
+                result.manifest_path,
+                resolve_project_path(self.args.import_sqlite_db),
+                self.repository,
+                table_name=self.args.import_table,
+                replace=self.args.import_replace_table,
+                row_limit=self.args.import_row_limit,
+            )
+        else:
+            raise ValueError(f"Unsupported local-file import kind for {result.source_format}: {result.payload_path}")
+        print(
+            "[local-import] "
+            f"manifest={result.manifest_path} provider={import_result.provider_id} "
+            f"table={import_result.table_name} rows={import_result.rows_imported} "
+            f"columns={len(import_result.columns)} sqlite={import_result.sqlite_path} "
+            f"asset={import_result.table_asset_id}"
+        )
+
+    def register_local_file_manifest(self, manifest_path: str | Path) -> None:
+        # 手動檔案不是下載結果，但仍要登錄 raw file manifest，後續 manifest-health / repair / asset registry 才看得到它。
+        manifest = read_manifest(manifest_path)
+        self.repository.upsert_dataset_asset_manifest(manifest, manifest_path, status="ok")
+        self.repository.register_downloaded_manifest_asset(
+            manifest,
+            manifest_path,
+            notes="Manual local source asset registered from verified sidecar manifest.",
+        )
+
+    def ensure_local_file_manifest_provider(self, provider_id: str) -> None:
+        # 預設 synthetic provider 可自動建立；若使用者指定真實 provider，則要求 DB 內已有該 provider 以保護 provenance。
+        if provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
+            ensure_manual_local_file_provider(self.repository, provider_id)
+            return
+        if not self.repository.load_providers([provider_id]):
+            raise ValueError(
+                f"Unknown --local-file-provider-id '{provider_id}'. Run --seed for built-in providers, "
+                f"or omit the flag to use {DEFAULT_MANUAL_LOCAL_PROVIDER_ID}."
+            )
+
     def import_csv_manifest(self) -> None:
         if not self.args.import_csv_manifest:
             return
+        manifest = read_manifest(resolve_project_path(self.args.import_csv_manifest))
+        if manifest.provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
+            ensure_manual_local_file_provider(self.repository, manifest.provider_id)
         result = import_csv_manifest_to_sqlite(
             resolve_project_path(self.args.import_csv_manifest),
             resolve_project_path(self.args.import_sqlite_db),
@@ -1168,6 +1281,9 @@ class CatalogLauncherCli:
     def import_json_manifest(self) -> None:
         if not self.args.import_json_manifest:
             return
+        manifest = read_manifest(resolve_project_path(self.args.import_json_manifest))
+        if manifest.provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
+            ensure_manual_local_file_provider(self.repository, manifest.provider_id)
         result = import_json_manifest_to_sqlite(
             resolve_project_path(self.args.import_json_manifest),
             resolve_project_path(self.args.import_sqlite_db),
