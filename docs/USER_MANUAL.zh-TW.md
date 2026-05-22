@@ -28,7 +28,7 @@ flowchart LR
 工具 > 產生 MVP Demo Flow
 ```
 
-這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、離線 JSON fixture plan，並把離線 direct plan 加到下方下載計畫。接著按：
+這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、agent-readable adapter review JSON、離線 JSON fixture plan，並把離線 direct plan 加到下方下載計畫。接著按：
 
 ```text
 下載計畫 > 開始
@@ -43,7 +43,7 @@ flowchart LR
 py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --write-mvp-demo-flow state/mvp_demo/flow.json
 ```
 
-這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、離線 JSON fixture plan 與後續指令。先跑離線 direct plan，可以在沒有網路時驗證下載、sidecar manifest、SQLite 匯入是否正常：
+這會在 `state/mvp_demo/` 寫出 flow 說明、Socrata review plan、agent-readable adapter review JSON、離線 JSON fixture plan 與後續指令。先跑離線 direct plan，可以在沒有網路時驗證下載、sidecar manifest、SQLite 匯入是否正常：
 
 ```powershell
 py -B APIkeys_collection.py --db state/mvp_demo/launcher.sqlite --init-db --seed --run-download-plan state/mvp_demo/socrata_311.offline_direct.json --downloads-root state/mvp_demo/downloads --import-supported-plan-results --import-sqlite-db state/mvp_demo/curated_demo.sqlite --plan-import-existing-table-policy rename

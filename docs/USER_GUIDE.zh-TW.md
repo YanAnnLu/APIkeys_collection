@@ -164,7 +164,7 @@ Tk UI 目前仍可用來完成 MVP 閉環，但它在彈窗比例、複雜設定
 工具 > 產生 MVP Demo Flow
 ```
 
-這個動作會呼叫 `api_launcher.mvp_demo`，在 `state/mvp_demo/` 寫出固定 flow JSON、Socrata adapter review plan、離線 JSON fixture 與離線 direct plan，並把離線 direct plan 加到下方下載計畫。它不會自動下載，也不會自動匯入；下一步要在下載計畫按 `開始`，下載完成後再按 `匯入`。
+這個動作會呼叫 `api_launcher.mvp_demo`，在 `state/mvp_demo/` 寫出固定 flow JSON、Socrata adapter review plan、agent-readable adapter review JSON、離線 JSON fixture 與離線 direct plan，並把離線 direct plan 加到下方下載計畫。它不會自動下載，也不會自動匯入；下一步要在下載計畫按 `開始`，下載完成後再按 `匯入`。
 
 這條 Demo 是 smoke test，不是正式新增供應商的捷徑。正式新增資料源仍應走 crawler/source/candidate/review 流程。
 
@@ -236,7 +236,7 @@ python -m unittest discover -s tests
 | 批次匯入健康 CSV manifests | `python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db state/curated_imports.sqlite` |
 | 批次匯入健康 JSON manifests | `python3 APIkeys_collection.py --import-verified-json-manifests --import-sqlite-db state/curated_imports.sqlite` |
 
-`--write-mvp-demo-flow` 會寫出 `state/mvp_demo/flow.json`、一份 Socrata adapter review plan、一份離線 JSON fixture plan，以及對應的下一步指令。離線 fixture 可以在沒有網路時驗證 `download -> manifest -> SQLite import`；Socrata `$limit=25` plan 則用來驗證真實 adapter resolver 會把 API view 轉成 bounded sample。
+`--write-mvp-demo-flow` 會寫出 `state/mvp_demo/flow.json`、一份 Socrata adapter review plan、一份 agent-readable adapter review JSON、一份離線 JSON fixture plan，以及對應的下一步指令。離線 fixture 可以在沒有網路時驗證 `download -> manifest -> SQLite import`；Socrata `$limit=25` plan 則用來驗證真實 adapter resolver 會把 API view 轉成 bounded sample。
 
 `--write-yfinance-demo-plan` 會寫出一份離線 OHLCV CSV fixture plan，欄位包含 `event_time`、`symbol`、`open/high/low/close`、`adj_close`、`volume`、`received_at`、`ingest_run_id`、`source_sequence` 與 `revision`。它的用途是驗證金融時間序列可以走現有下載、manifest 與 SQLite 匯入閉環；它不安裝 `yfinance`，也不在 CI 打 Yahoo。
 

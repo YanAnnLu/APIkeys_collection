@@ -6,6 +6,7 @@ import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 
+from api_launcher.adapter_review import adapter_review_agent_payload
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.db import utc_now_iso
 from api_launcher.models import Dataset, Provider
@@ -27,6 +28,7 @@ class MvpDemoFlowWriteResult:
     flow_path: Path
     db_path: Path
     review_plan_path: Path
+    review_payload_path: Path
     offline_sample_path: Path
     offline_plan_path: Path
     resolved_plan_path: Path
@@ -206,6 +208,7 @@ def build_mvp_demo_flow_payload(
     flow_path: Path,
     db_path: Path,
     review_plan_path: Path,
+    review_payload_path: Path,
     offline_sample_path: Path,
     offline_plan_path: Path,
     resolved_plan_path: Path,
@@ -216,6 +219,7 @@ def build_mvp_demo_flow_payload(
     flow_arg = _command_arg(_project_display_path(flow_path))
     db_arg = _command_arg(_project_display_path(db_path))
     review_arg = _command_arg(_project_display_path(review_plan_path))
+    review_payload_arg = _command_arg(_project_display_path(review_payload_path))
     offline_plan_arg = _command_arg(_project_display_path(offline_plan_path))
     resolved_arg = _command_arg(_project_display_path(resolved_plan_path))
     downloads_arg = _command_arg(_project_display_path(downloads_root))
@@ -232,6 +236,7 @@ def build_mvp_demo_flow_payload(
             "flow_manifest": _project_display_path(flow_path),
             "launcher_db": _project_display_path(db_path),
             "review_plan": _project_display_path(review_plan_path),
+            "adapter_review_json": _project_display_path(review_payload_path),
             "offline_sample": _project_display_path(offline_sample_path),
             "offline_direct_plan": _project_display_path(offline_plan_path),
             "resolved_plan": _project_display_path(resolved_plan_path),
@@ -248,7 +253,7 @@ def build_mvp_demo_flow_payload(
             {
                 "step": 2,
                 "name_zh_TW": "查看 adapter 待辦",
-                "command": f"{base} --adapter-review-plan {review_arg}",
+                "command": f"{base} --adapter-review-plan {review_arg} --write-adapter-review-json {review_payload_arg}",
                 "expected_zh_TW": "看到 1 筆需要解析的 Socrata API view。",
             },
             {
@@ -305,6 +310,7 @@ def write_mvp_demo_flow(flow_path: str | Path) -> MvpDemoFlowWriteResult:
     flow_path = Path(flow_path)
     flow_path.parent.mkdir(parents=True, exist_ok=True)
     review_plan_path = flow_path.with_name("socrata_311.review.json")
+    review_payload_path = flow_path.with_name("socrata_311.adapter_review.json")
     db_path = flow_path.with_name("launcher.sqlite")
     offline_sample_path = flow_path.with_name("socrata_311.offline_sample.json")
     offline_plan_path = flow_path.with_name("socrata_311.offline_direct.json")
@@ -314,6 +320,10 @@ def write_mvp_demo_flow(flow_path: str | Path) -> MvpDemoFlowWriteResult:
 
     review_plan = build_mvp_demo_review_plan(downloads_root=_project_display_path(downloads_root))
     review_plan_path.write_text(json.dumps(review_plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    review_payload_path.write_text(
+        json.dumps(adapter_review_agent_payload(review_plan), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     offline_sample_path.write_text(json.dumps(mvp_demo_offline_sample_rows(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     offline_plan = build_mvp_demo_offline_direct_plan(
         offline_sample_path,
@@ -324,6 +334,7 @@ def write_mvp_demo_flow(flow_path: str | Path) -> MvpDemoFlowWriteResult:
         flow_path=flow_path,
         db_path=db_path,
         review_plan_path=review_plan_path,
+        review_payload_path=review_payload_path,
         offline_sample_path=offline_sample_path,
         offline_plan_path=offline_plan_path,
         resolved_plan_path=resolved_plan_path,
@@ -336,6 +347,7 @@ def write_mvp_demo_flow(flow_path: str | Path) -> MvpDemoFlowWriteResult:
         flow_path=flow_path,
         db_path=db_path,
         review_plan_path=review_plan_path,
+        review_payload_path=review_payload_path,
         offline_sample_path=offline_sample_path,
         offline_plan_path=offline_plan_path,
         resolved_plan_path=resolved_plan_path,
