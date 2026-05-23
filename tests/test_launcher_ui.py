@@ -14,6 +14,7 @@ from frontends.tk.launcher_ui import (
     PROJECT_ROOT,
     main as launcher_ui_main,
 )
+from frontends.tk.dialogs import ProviderCandidateReviewDialog
 from frontends.tk.startup_helpers import (
     contextlib_suppress_tcl_error,
     tk_startup_failure_message,
@@ -119,12 +120,12 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
             "evidence": ["crawled: https://example.test/source"],
         }
 
-        detail = fake_ui.provider_candidate_detail_text(candidate)
+        detail = ProviderCandidateReviewDialog.candidate_detail_text(candidate, lambda _zh, en: en)
 
         self.assertIn("Provider ID: example_provider", detail)
-        self.assertIn("分類: science, metadata", detail)
+        self.assertIn("Categories: science, metadata", detail)
         self.assertIn("Evidence:", detail)
-        self.assertIn("不代表已納管", detail)
+        self.assertIn("does not mean the provider is managed", detail)
 
     def test_provider_seed_from_candidate_preserves_local_review_fields(self) -> None:
         # UI 寫入的是 ignored local seed，後續還要經過 promotion audit；這裡只驗證欄位轉換不遺失來源線索。
@@ -142,7 +143,7 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
             "auth_type": "api_key",
         }
 
-        seed = fake_ui.provider_seed_from_candidate(candidate)
+        seed = ProviderCandidateReviewDialog.provider_seed_from_candidate(candidate)
 
         self.assertEqual("example_provider", seed.provider_id)
         self.assertEqual(("science", "metadata"), seed.categories)
@@ -154,7 +155,7 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         fake_ui = object.__new__(ApiCollectionUi)
 
         with self.assertRaisesRegex(ValueError, "owner"):
-            fake_ui.provider_seed_from_candidate({"provider_id": "example_provider", "name": "Example"})
+            ProviderCandidateReviewDialog.provider_seed_from_candidate({"provider_id": "example_provider", "name": "Example"})
 
     def test_provider_dataset_source_from_candidate_creates_local_source_draft(self) -> None:
         # Provider review 面板的 source 草稿只進 ignored local config；正式 catalog 仍需 local discovery audit。
@@ -168,7 +169,7 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
             "search_terms": ["ocean"],
         }
 
-        source = fake_ui.provider_dataset_source_from_candidate(candidate)
+        source = ProviderCandidateReviewDialog.provider_dataset_source_from_candidate(candidate)
 
         self.assertEqual("example_provider_ckan_package_search", source.source_id)
         self.assertEqual("ckan_package_search", source.source_type)

@@ -122,9 +122,8 @@ from api_launcher.database_repair import (
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.db import utc_now_iso
-from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, append_dataset_discovery_source
-from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, ProviderSeed, append_discovery_seed, discover_provider_candidates, load_all_discovery_seeds
-from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
+from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
+from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, discover_provider_candidates, load_all_discovery_seeds
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
@@ -135,6 +134,7 @@ from frontends.tk.dialogs import (
     DeveloperCliDialog,
     GoogleGeminiSettingsDialog,
     ImportExistingTablePolicyDialog,
+    ProviderCandidateReviewDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -2673,241 +2673,24 @@ class ApiCollectionUi:
     def open_dataset_candidate_review_panel(self) -> None:
         DatasetCandidateReviewDialog(self)
 
-    def provider_candidate_detail_text(self, candidate: object) -> str:
-        # Provider 候選是 review artifact；detail pane 顯示足夠 evidence，讓人先審核再決定是否進 local config。
-        data = candidate if isinstance(candidate, dict) else {}
-        fields = [
-            (self.tr("Provider ID", "Provider ID"), data.get("provider_id")),
-            (self.tr("名稱", "Name"), data.get("name")),
-            (self.tr("Owner", "Owner"), data.get("owner")),
-            (self.tr("分類", "Categories"), ", ".join(str(value) for value in data.get("categories", []) or [])),
-            (self.tr("地理範圍", "Geographic scope"), data.get("geographic_scope")),
-            (self.tr("信心分數", "Confidence"), data.get("confidence")),
-            (self.tr("來源 URL", "Source URL"), data.get("source_url")),
-            (self.tr("文件 URL", "Docs URL"), data.get("docs_url")),
-            (self.tr("API Base URL", "API Base URL"), data.get("api_base_url")),
-            (self.tr("註冊 URL", "Signup URL"), data.get("signup_url")),
-            (self.tr("Auth type", "Auth type"), data.get("auth_type")),
-            (self.tr("Key env var", "Key env var"), data.get("key_env_var")),
-            (self.tr("備註", "Notes"), data.get("notes")),
-        ]
-        lines = [f"{label}: {value or '-'}" for label, value in fields]
-        evidence = data.get("evidence")
-        if isinstance(evidence, (list, tuple)) and evidence:
-            lines.extend(["", self.tr("Evidence:", "Evidence:")])
-            lines.extend(f"- {item}" for item in evidence[:8])
-        lines.extend(
-            [
-                "",
-                self.tr(
-                    "這只是 provider/source 候選審核資訊；不代表已納管、已安裝或已取得任何 API key。",
-                    "This is provider/source candidate review information only; it does not mean the provider is managed, installed, or authenticated.",
-                ),
-            ]
-        )
-        return "\n".join(lines)
-
-    def provider_seed_from_candidate(self, candidate: object) -> ProviderSeed:
-        # 這裡只把審核過的 provider 候選轉成 ignored local seed；正式 catalog promotion 仍要走後續 audit gate。
-        data = candidate if isinstance(candidate, dict) else {}
-        provider_id = str(data.get("provider_id") or "").strip()
-        name = str(data.get("name") or "").strip()
-        owner = str(data.get("owner") or "").strip()
-        homepage_url = str(data.get("source_url") or data.get("docs_url") or data.get("api_base_url") or "").strip()
-        missing = [
-            label
-            for label, value in (
-                ("provider_id", provider_id),
-                ("name", name),
-                ("owner", owner),
-                ("source_url/docs_url/api_base_url", homepage_url),
-            )
-            if not value
-        ]
-        if missing:
-            raise ValueError("missing required candidate fields: " + ", ".join(missing))
-        categories = tuple(str(value).strip() for value in data.get("categories", []) if str(value).strip())
-        return ProviderSeed(
-            provider_id=provider_id,
-            name=name,
-            owner=owner,
-            categories=categories or ("custom",),
-            geographic_scope=str(data.get("geographic_scope") or "global").strip() or "global",
-            homepage_url=homepage_url,
-            docs_url=str(data.get("docs_url") or "").strip(),
-            api_base_url=str(data.get("api_base_url") or "").strip(),
-            signup_url=str(data.get("signup_url") or "").strip(),
-            expected_auth_type=str(data.get("auth_type") or "unknown").strip() or "unknown",
-        )
-
-    def provider_dataset_source_from_candidate(self, candidate: object):
-        # source 草稿比 provider seed 更接近「可爬資料集」；只有明確或可保守推導的 crawler 類型才寫入。
-        data = candidate if isinstance(candidate, dict) else {}
-        return dataset_source_from_provider_candidate(data)
-
     def open_provider_candidate_review_panel(self) -> None:
         path = state_file("provider_candidates.ui.json")
         if not path.exists():
             messagebox.showinfo(
                 self.tr("Provider 候選", "Provider candidates"),
-                self.tr("尚未產生 provider candidate review JSON。請先執行「發現 provider 候選」。", "No provider candidate review JSON exists yet. Run \"Discover provider candidates\" first."),
+                self.tr("尚未產生 provider candidate review JSON。請先執行 provider 候選探索。", "No provider candidate review JSON exists yet. Run \"Discover provider candidates\" first."),
             )
             return
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
-            messagebox.showerror(self.tr("Provider 候選", "Provider candidates"), self.tr(f"無法讀取 provider 候選 JSON：{exc}", f"Could not read provider candidate JSON: {exc}"))
+            messagebox.showerror(
+                self.tr("Provider 候選", "Provider candidates"),
+                self.tr(f"無法讀取 provider 候選 JSON：{exc}", f"Could not read provider candidate JSON: {exc}"),
+            )
             return
         candidates = [item for item in payload.get("candidates", []) if isinstance(item, dict)] if isinstance(payload, dict) else []
-
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("Provider 候選審核", "Provider candidate review"))
-        dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("1100x660")
-        dialog.transient(self.root)
-        ttk.Label(dialog, text=self.tr("Provider 候選審核", "Provider candidate review"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        ttk.Label(
-            dialog,
-            text=self.tr(
-                f"來源：{path}；候選 {len(candidates)} 筆。此面板只做 review，不寫正式 catalog。",
-                f"Source: {path}; {len(candidates)} candidates. This panel is review-only and does not write the official catalog.",
-            ),
-            style="DetailMuted.TLabel",
-        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
-
-        body = ttk.Frame(dialog, style="Panel.TFrame")
-        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
-        tree = ttk.Treeview(body, columns=("provider_id", "name", "confidence", "auth_type", "docs_url"), show="headings", height=12)
-        for name, label, width in [
-            ("provider_id", self.tr("Provider ID", "Provider ID"), 190),
-            ("name", self.tr("名稱", "Name"), 250),
-            ("confidence", self.tr("信心", "Confidence"), 80),
-            ("auth_type", self.tr("Auth", "Auth"), 120),
-            ("docs_url", self.tr("文件", "Docs"), 360),
-        ]:
-            tree.heading(name, text=label)
-            tree.column(name, width=width, anchor="w", stretch=True)
-        detail = Text(body, height=12, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
-        detail.configure(state="disabled")
-        tree.pack(fill=BOTH, expand=True, side=LEFT, padx=(0, 12))
-        detail.pack(fill=BOTH, expand=True, side=LEFT)
-
-        candidate_by_iid: dict[str, dict[str, object]] = {}
-        for index, candidate in enumerate(candidates):
-            iid = str(index)
-            candidate_by_iid[iid] = candidate
-            tree.insert(
-                "",
-                END,
-                iid=iid,
-                values=(
-                    candidate.get("provider_id", ""),
-                    candidate.get("name", ""),
-                    candidate.get("confidence", ""),
-                    candidate.get("auth_type", ""),
-                    candidate.get("docs_url", ""),
-                ),
-            )
-
-        def selected_candidate() -> dict[str, object] | None:
-            selection = tree.selection()
-            return candidate_by_iid.get(str(selection[0])) if selection else None
-
-        def render_selected(_event: object | None = None) -> None:
-            candidate = selected_candidate()
-            detail.configure(state="normal")
-            detail.delete("1.0", END)
-            detail.insert(END, self.provider_candidate_detail_text(candidate or {}))
-            detail.configure(state="disabled")
-
-        def open_selected_url(key: str) -> None:
-            candidate = selected_candidate()
-            url = str((candidate or {}).get(key) or "").strip()
-            if not url:
-                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("這個候選沒有可開啟的 URL。", "This candidate does not have an openable URL."), parent=dialog)
-                return
-            webbrowser.open(url)
-
-        def write_selected_local_seed() -> None:
-            candidate = selected_candidate()
-            if candidate is None:
-                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("請先選取一筆 provider 候選。", "Select a provider candidate first."), parent=dialog)
-                return
-            try:
-                seed = self.provider_seed_from_candidate(candidate)
-            except ValueError as exc:
-                messagebox.showerror(self.tr("Provider 候選", "Provider candidates"), self.tr(f"無法寫入本機 seed：{exc}", f"Could not write local seed: {exc}"), parent=dialog)
-                return
-            output_path = local_config_file(LOCAL_SEEDS_NAME)
-            append_discovery_seed(output_path, seed)
-            log_event(
-                "provider_candidate_local_seed_written",
-                "Provider candidate written to ignored local discovery seed.",
-                component="ui.provider_discovery",
-                context={"provider_id": seed.provider_id, "output_path": str(output_path)},
-            )
-            self.status_var.set(self.tr(f"已寫入本機 provider seed：{seed.provider_id}", f"Local provider seed written: {seed.provider_id}"))
-            messagebox.showinfo(
-                self.tr("Provider 候選", "Provider candidates"),
-                self.tr(
-                    f"已寫入本機 ignored seed：{output_path}\n\n這仍未寫入正式 catalog；接著請用「審核本機 discovery 草稿」確認是否可提升。",
-                    f"Wrote ignored local seed: {output_path}\n\nThe official catalog was not changed; next run \"Audit local discovery drafts\" before promotion.",
-                ),
-                parent=dialog,
-            )
-
-        def write_selected_local_source() -> None:
-            candidate = selected_candidate()
-            if candidate is None:
-                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("請先選取一筆 provider 候選。", "Select a provider candidate first."), parent=dialog)
-                return
-            try:
-                source = self.provider_dataset_source_from_candidate(candidate)
-            except ValueError as exc:
-                messagebox.showerror(
-                    self.tr("Provider 候選", "Provider candidates"),
-                    self.tr(
-                        f"無法寫入 source 草稿：{exc}\n\n這個候選還沒有可支援的 crawler type 與 endpoint，因此會繼續留在 review。",
-                        f"Could not write local source draft: {exc}\n\nThis candidate does not yet have a supported crawler type and endpoint, so it stays in review.",
-                    ),
-                    parent=dialog,
-                )
-                return
-            output_path = local_config_file(LOCAL_DATASET_DISCOVERY_SOURCES_NAME)
-            append_dataset_discovery_source(output_path, source)
-            log_event(
-                "provider_candidate_local_source_written",
-                "Provider candidate written to ignored local dataset discovery source draft.",
-                component="ui.provider_discovery",
-                context={"provider_id": source.provider_id, "source_id": source.source_id, "source_type": source.source_type, "output_path": str(output_path)},
-            )
-            self.status_var.set(self.tr(f"已寫入本機 source 草稿：{source.source_id}", f"Local source draft written: {source.source_id}"))
-            messagebox.showinfo(
-                self.tr("Provider 候選", "Provider candidates"),
-                self.tr(
-                    f"已寫入本機 dataset source 草稿：{output_path}\n\nSource: {source.source_id}\nType: {source.source_type}\n\n這仍未寫入正式 catalog；接著請用「審核本機 discovery 草稿」確認是否可提升。",
-                    f"Wrote ignored local dataset source draft: {output_path}\n\nSource: {source.source_id}\nType: {source.source_type}\n\nThe official catalog was not changed; next run \"Audit local discovery drafts\" before promotion.",
-                ),
-                parent=dialog,
-            )
-
-        tree.bind("<<TreeviewSelect>>", render_selected)
-        children = tree.get_children()
-        if children:
-            tree.selection_set(children[0])
-            tree.focus(children[0])
-            render_selected()
-        else:
-            render_selected()
-
-        actions = ttk.Frame(dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 18))
-        ttk.Button(actions, text=self.tr("寫入 source 草稿", "Write source draft"), style="Action.TButton", command=write_selected_local_source).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("寫入本機 seed", "Write local seed"), style="Action.TButton", command=write_selected_local_seed).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開來源", "Open source"), style="Action.TButton", command=lambda: open_selected_url("source_url")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開文件", "Open docs"), style="Action.TButton", command=lambda: open_selected_url("docs_url")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開 Review JSON", "Open review JSON"), style="Action.TButton", command=lambda: webbrowser.open(path.as_uri())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        ProviderCandidateReviewDialog(self, path, candidates)
 
     def provider_discovery_message(self, payload: object, output_path: Path) -> str:
         # Provider discovery 是 catalog 入口審查，不是安裝或納管；訊息必須把 review JSON 路徑講清楚。

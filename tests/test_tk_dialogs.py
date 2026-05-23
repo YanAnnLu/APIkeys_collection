@@ -13,6 +13,7 @@ from frontends.tk.dialogs import (
     DeveloperCliDialog,
     GoogleGeminiSettingsDialog,
     ImportExistingTablePolicyDialog,
+    ProviderCandidateReviewDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -40,6 +41,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DeveloperCliDialog))
         self.assertTrue(callable(GoogleGeminiSettingsDialog))
         self.assertTrue(callable(ImportExistingTablePolicyDialog))
+        self.assertTrue(callable(ProviderCandidateReviewDialog))
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
