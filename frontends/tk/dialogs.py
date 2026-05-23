@@ -436,6 +436,150 @@ class UiLanguageSettingsDialog:
         self.dialog.destroy()
 
 
+class AiModelSettingsDialog:
+    def __init__(self, ui: Any):
+        # AI profile 選擇視窗只負責表格與按鈕調度；OAuth/API key 的實作仍留在
+        # 主 UI 現有方法，避免一次搬動 credential 相關流程造成風險。
+        self.ui = ui
+        self.root = ui.root
+        self.dialog = Toplevel(self.root)
+        self.dialog.title(self.ui.tr("AI 輔助模型", "AI assistant model"))
+        self.dialog.configure(bg=COLORS["panel"])
+        self.dialog.geometry("760x460")
+        self.dialog.transient(self.root)
+        self._build()
+
+    @staticmethod
+    def profile_row_values(
+        profile: Any,
+        *,
+        active_profile_id: str,
+        login_status: str,
+        enabled_label: str,
+        disabled_label: str,
+    ) -> tuple[str, object, object, object, str, str, object]:
+        # Treeview 欄位順序固定在 helper，讓測試能保護 UI row contract。
+        return (
+            "✓" if active_profile_id and active_profile_id == profile.id else "",
+            profile.label,
+            profile.kind,
+            profile.model,
+            login_status,
+            enabled_label if profile.enabled else disabled_label,
+            profile.notes,
+        )
+
+    def _build(self) -> None:
+        ttk.Label(self.dialog, text=self.ui.tr("AI 輔助模型", "AI assistant model"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            self.dialog,
+            text=self.ui.tr(
+                "選擇產生資料源描述時要調用的 AI profile。登入或 API key 可以先存在各 profile 裡，但真正使用哪個模型由這裡決定。",
+                "Choose which AI profile should be used for dataset descriptions. Login/API keys can be stored per profile, but this setting decides which one is called.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        self.table = ttk.Treeview(
+            self.dialog,
+            columns=("use", "label", "kind", "model", "login", "status", "notes"),
+            show="headings",
+            height=9,
+            selectmode="browse",
+        )
+        for name, label, width in [
+            ("use", self.ui.tr("使用", "Use"), 58),
+            ("label", self.ui.tr("AI profile", "AI profile"), 150),
+            ("kind", self.ui.tr("服務", "Service"), 110),
+            ("model", self.ui.tr("模型", "Model"), 150),
+            ("login", self.ui.tr("登入", "Login"), 150),
+            ("status", self.ui.tr("狀態", "Status"), 80),
+            ("notes", self.ui.tr("備註", "Notes"), 220),
+        ]:
+            self.table.heading(name, text=label)
+            self.table.column(name, width=width, anchor="w", stretch=True)
+        active = core.active_ai_profile()
+        active_profile_id = active.id if active else ""
+        for profile in core.ai_summary_profiles():
+            self.table.insert(
+                "",
+                END,
+                iid=profile.id,
+                values=self.profile_row_values(
+                    profile,
+                    active_profile_id=active_profile_id,
+                    login_status=self.ui.ai_profile_login_status(profile),
+                    enabled_label=self.ui.tr("啟用", "Enabled"),
+                    disabled_label=self.ui.tr("停用", "Disabled"),
+                ),
+            )
+        self.table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        if active:
+            self.table.selection_set(active.id)
+            self.table.focus(active.id)
+
+        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        self.table.bind("<Double-1>", lambda _event: self.use_selected())
+        ttk.Button(actions, text=self.ui.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=self.use_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(
+            actions,
+            text=self.ui.tr("開發者 OAuth 設定", "Developer OAuth setup"),
+            style="Action.TButton",
+            command=lambda: self.ui.configure_oauth_client_for_selected(self.table, parent=self.dialog),
+        ).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("未來：帳號登入", "Future: account sign-in"), style="Action.TButton", command=self.login_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("保存 API key", "Save API key"), style="Action.TButton", command=self.paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.ui.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
+
+    def _selected_profile_id(self) -> str | None:
+        selection = self.table.selection()
+        if not selection:
+            return None
+        return str(selection[0])
+
+    def _show_missing_selection(self) -> None:
+        messagebox.showinfo(
+            self.ui.tr("尚未選取", "Nothing selected"),
+            self.ui.tr("請先選取一個 AI profile。", "Select an AI profile first."),
+            parent=self.dialog,
+        )
+
+    def use_selected(self) -> None:
+        selected_profile_id = self._selected_profile_id()
+        if not selected_profile_id:
+            self._show_missing_selection()
+            return
+        try:
+            selected = core.set_active_ai_profile(selected_profile_id)
+        except Exception as exc:
+            messagebox.showerror(self.ui.tr("AI 模型設定失敗", "AI model setup failed"), str(exc), parent=self.dialog)
+            return
+        self.ui.selected_ai_profile_id = selected.id
+        for item in self.table.get_children():
+            values = list(self.table.item(item, "values"))
+            values[0] = "✓" if item == selected.id else ""
+            self.table.item(item, values=values)
+        self.ui.status_var.set(self.ui.tr(f"AI 輔助模型已設定：{selected.label}", f"AI assistant model set: {selected.label}"))
+
+    def login_selected(self) -> None:
+        selected_profile_id = self._selected_profile_id()
+        if not selected_profile_id:
+            self._show_missing_selection()
+            return
+        self.ui.open_ai_profile_browser_login_dialog(selected_profile_id, parent=self.dialog)
+
+    def paste_key_for_selected(self) -> None:
+        selected_profile_id = self._selected_profile_id()
+        self.ui.configure_ai_api_key_session(selected_profile_id)
+        for item in self.table.get_children():
+            profile = next((candidate for candidate in core.ai_summary_profiles() if candidate.id == item), None)
+            if profile:
+                values = list(self.table.item(item, "values"))
+                values[4] = self.ui.ai_profile_login_status(profile)
+                self.table.item(item, values=values)
+
+
 class StartupEnvironmentChecksDialog:
     def __init__(self, ui: Any):
         # 啟動環境檢查只讀取 core startup checks，適合維持成薄 dialog。

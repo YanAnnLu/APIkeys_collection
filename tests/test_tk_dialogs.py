@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from frontends.tk.dialogs import (
+    AiModelSettingsDialog,
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
@@ -27,6 +28,7 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_dialog_classes_are_importable(self) -> None:
         # 這個測試保護 launcher_ui.py 拆分後的公開匯入點，不需要真的開 Tk 視窗。
         self.assertTrue(callable(ProviderEditorDialog))
+        self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DeveloperCliDialog))
@@ -97,6 +99,28 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(
             ("2026-05-23T12:00:00Z", "info", "tk", "demo", "ok"),
             RecentEventLogsDialog.event_row_values(event),
+        )
+
+    def test_ai_model_profile_row_values_mark_active_profile(self) -> None:
+        # AI profile 表格用同一個 helper 產生 row，避免選用勾選欄位在拆分後失真。
+        profile = SimpleNamespace(
+            id="gemini_flash",
+            label="Gemini Flash",
+            kind="gemini",
+            model="gemini-2.5-flash",
+            enabled=True,
+            notes="cloud",
+        )
+
+        self.assertEqual(
+            ("✓", "Gemini Flash", "gemini", "gemini-2.5-flash", "API key ready", "啟用", "cloud"),
+            AiModelSettingsDialog.profile_row_values(
+                profile,
+                active_profile_id="gemini_flash",
+                login_status="API key ready",
+                enabled_label="啟用",
+                disabled_label="停用",
+            ),
         )
 
 

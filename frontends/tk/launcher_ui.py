@@ -127,6 +127,7 @@ from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, Provide
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from frontends.tk.dialogs import (
+    AiModelSettingsDialog,
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
@@ -2698,96 +2699,7 @@ class ApiCollectionUi:
         UiLanguageSettingsDialog(self)
 
     def open_ai_model_settings(self) -> None:
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("AI 輔助模型", "AI assistant model"))
-        dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("760x460")
-        dialog.transient(self.root)
-        ttk.Label(dialog, text=self.tr("AI 輔助模型", "AI assistant model"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        ttk.Label(
-            dialog,
-            text=self.tr(
-                "選擇產生資料源描述時要調用的 AI profile。登入或 API key 可以先存在各 profile 裡，但真正使用哪個模型由這裡決定。",
-                "Choose which AI profile should be used for dataset descriptions. Login/API keys can be stored per profile, but this setting decides which one is called.",
-            ),
-            style="DetailMuted.TLabel",
-        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
-        table = ttk.Treeview(dialog, columns=("use", "label", "kind", "model", "login", "status", "notes"), show="headings", height=9, selectmode="browse")
-        for name, label, width in [
-            ("use", self.tr("使用", "Use"), 58),
-            ("label", self.tr("AI profile", "AI profile"), 150),
-            ("kind", self.tr("服務", "Service"), 110),
-            ("model", self.tr("模型", "Model"), 150),
-            ("login", self.tr("登入", "Login"), 150),
-            ("status", self.tr("狀態", "Status"), 80),
-            ("notes", self.tr("備註", "Notes"), 220),
-        ]:
-            table.heading(name, text=label)
-            table.column(name, width=width, anchor="w", stretch=True)
-        active = core.active_ai_profile()
-        for profile in core.ai_summary_profiles():
-            table.insert(
-                "",
-                END,
-                iid=profile.id,
-                values=(
-                    "✓" if active and active.id == profile.id else "",
-                    profile.label,
-                    profile.kind,
-                    profile.model,
-                    self.ai_profile_login_status(profile),
-                    self.tr("啟用", "Enabled") if profile.enabled else self.tr("停用", "Disabled"),
-                    profile.notes,
-                ),
-            )
-        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
-        if active:
-            table.selection_set(active.id)
-            table.focus(active.id)
-        actions = ttk.Frame(dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 18))
-
-        def use_selected() -> None:
-            selection = table.selection()
-            if not selection:
-                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=dialog)
-                return
-            try:
-                selected = core.set_active_ai_profile(str(selection[0]))
-            except Exception as exc:
-                messagebox.showerror(self.tr("AI 模型設定失敗", "AI model setup failed"), str(exc), parent=dialog)
-                return
-            self.selected_ai_profile_id = selected.id
-            for item in table.get_children():
-                values = list(table.item(item, "values"))
-                values[0] = "✓" if item == selected.id else ""
-                table.item(item, values=values)
-            self.status_var.set(self.tr(f"AI 輔助模型已設定：{selected.label}", f"AI assistant model set: {selected.label}"))
-
-        def login_selected() -> None:
-            selection = table.selection()
-            if not selection:
-                messagebox.showinfo(self.tr("尚未選取", "Nothing selected"), self.tr("請先選取一個 AI profile。", "Select an AI profile first."), parent=dialog)
-                return
-            self.open_ai_profile_browser_login_dialog(str(selection[0]), parent=dialog)
-
-        def paste_key_for_selected() -> None:
-            selection = table.selection()
-            self.configure_ai_api_key_session(str(selection[0]) if selection else None)
-            for item in table.get_children():
-                profile = next((candidate for candidate in core.ai_summary_profiles() if candidate.id == item), None)
-                if profile:
-                    values = list(table.item(item, "values"))
-                    values[4] = self.ai_profile_login_status(profile)
-                    table.item(item, values=values)
-
-        table.bind("<Double-1>", lambda _event: use_selected())
-        ttk.Button(actions, text=self.tr("使用選取模型", "Use selected model"), style="Action.TButton", command=use_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開發者 OAuth 設定", "Developer OAuth setup"), style="Action.TButton", command=lambda: self.configure_oauth_client_for_selected(table, parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("未來：帳號登入", "Future: account sign-in"), style="Action.TButton", command=login_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("保存 API key", "Save API key"), style="Action.TButton", command=paste_key_for_selected).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("顯示本機設定檔", "Reveal local config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        AiModelSettingsDialog(self)
 
     def api_key_env_for_profile(self, profile: core.AiSummaryProfile) -> str:
         return default_api_key_env(profile)
