@@ -7,6 +7,11 @@ Toplevel 的欄位配置、按鈕行為與本機工具設定都堆在同一個 6
 
 from __future__ import annotations
 
+import json
+import shlex
+import subprocess
+import threading
+import webbrowser
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
 from typing import Any
@@ -17,11 +22,12 @@ from api_launcher.data_store_connections import (
     test_data_store_connection,
     write_data_store_env_template,
 )
-from api_launcher.event_log import log_event, log_exception
-from api_launcher.integrations import active_data_store_profile, set_active_data_store_profile
+from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
+from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
+from api_launcher.paths import PROJECT_ROOT, log_file
 from frontends.tk.desktop_integration import reveal_path_in_file_manager
 from frontends.tk.provider_models import ProviderRow
-from frontends.tk.ui_config import COLORS
+from frontends.tk.ui_config import COLORS, DB_PATH, DEFAULT_UI_LANGUAGE, UI_LANGUAGES
 from frontends.tk.ui_helpers import data_store_env_template_path
 
 
@@ -259,6 +265,294 @@ class DatabaseClientSettingsDialog:
         path = core.local_integrations_path()
         core.ensure_local_integration_config()
         reveal_path_in_file_manager(path)
+
+
+class DeveloperCliDialog:
+    def __init__(self, ui: Any):
+        # CLI 視窗需要主 UI 的翻譯、status_var 與 Tk after；封裝後主 UI 不再持有
+        # subprocess / shlex 細節，避免 launcher_ui.py 持續膨脹。
+        self.ui = ui
+        self.root = ui.root
+        self.dialog = Toplevel(self.root)
+        self.dialog.title(self.ui.tr("開發者 CLI", "Developer CLI"))
+        self.dialog.configure(bg=COLORS["panel"])
+        self.dialog.geometry("860x560")
+        self.dialog.transient(self.root)
+
+        self.command_var = StringVar(value="python APIkeys_collection.py --help")
+        self._build()
+
+    @staticmethod
+    def split_command(command: str) -> list[str]:
+        # shlex 是 CLI 字串到 argv 的安全邊界；保留成 helper 方便 headless 測試。
+        return shlex.split(command)
+
+    def _build(self) -> None:
+        ttk.Label(self.dialog, text=self.ui.tr("開發者 CLI", "Developer CLI"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            self.dialog,
+            text=self.ui.tr(
+                f"工作目錄：{PROJECT_ROOT}\n輸入單次命令後按執行，輸出會顯示在下方。",
+                f"Working directory: {PROJECT_ROOT}\nEnter a one-shot command and run it; output appears below.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 12))
+        self.command_entry = ttk.Entry(self.dialog, textvariable=self.command_var, style="Search.TEntry")
+        self.command_entry.pack(fill=X, padx=24, pady=(0, 12))
+        self.output = Text(self.dialog, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=14, pady=12, font=("Consolas", 11))
+        self.output.pack(fill=BOTH, expand=True, padx=24, pady=(0, 12))
+        self.output.insert("1.0", self.ui.tr("尚未執行命令。", "No command has been run yet."))
+        self.output.configure(state="disabled")
+
+        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        self.command_entry.bind("<Return>", lambda _event: self.run_command())
+        ttk.Button(actions, text=self.ui.tr("執行", "Run"), style="Action.TButton", command=self.run_command).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("清空", "Clear"), style="Action.TButton", command=lambda: self.set_output("")).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
+        self.command_entry.focus_set()
+
+    def append_output(self, text: str) -> None:
+        self.output.configure(state="normal")
+        self.output.insert(END, text)
+        self.output.see(END)
+        self.output.configure(state="disabled")
+
+    def set_output(self, text: str) -> None:
+        self.output.configure(state="normal")
+        self.output.delete("1.0", END)
+        self.output.insert("1.0", text)
+        self.output.configure(state="disabled")
+
+    def run_command(self) -> None:
+        command = self.command_var.get().strip()
+        if not command:
+            return
+        try:
+            args = self.split_command(command)
+        except ValueError as exc:
+            self.set_output(self.ui.tr(f"命令解析失敗：{exc}", f"Command parse failed: {exc}"))
+            return
+        self.set_output(f"$ {command}\n\n")
+        self.ui.status_var.set(self.ui.tr(f"正在執行 CLI：{command}", f"Running CLI: {command}"))
+        threading.Thread(target=lambda: self._run_command_worker(args), daemon=True).start()
+
+    def _run_command_worker(self, args: list[str]) -> None:
+        try:
+            completed = subprocess.run(
+                args,
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=300,
+                check=False,
+            )
+            text = ""
+            if completed.stdout:
+                text += completed.stdout
+            if completed.stderr:
+                text += ("\n[stderr]\n" if text else "[stderr]\n") + completed.stderr
+            text += f"\n[exit code] {completed.returncode}\n"
+            self.root.after(0, lambda: self.append_output(text))
+            self.root.after(
+                0,
+                lambda: self.ui.status_var.set(
+                    self.ui.tr(f"CLI 執行完成：exit {completed.returncode}", f"CLI finished: exit {completed.returncode}")
+                ),
+            )
+        except Exception as exc:
+            error = str(exc)
+            self.root.after(0, lambda: self.append_output(f"\n[error] {error}\n"))
+            self.root.after(0, lambda: self.ui.status_var.set(self.ui.tr(f"CLI 執行失敗：{error}", f"CLI failed: {error}")))
+
+
+class UiLanguageSettingsDialog:
+    def __init__(self, ui: Any):
+        # 語言設定會回寫本機 integration config，並通知主 UI 重建選單；
+        # 因此用 ui 窄介面保存 callback，不讓 dialogs.py 直接知道主畫面內部布局。
+        self.ui = ui
+        self.root = ui.root
+        self.dialog = Toplevel(self.root)
+        self.dialog.title(self.ui.tr("介面語言", "Interface language"))
+        self.dialog.configure(bg=COLORS["panel"])
+        self.dialog.geometry("460x220")
+        self.dialog.transient(self.root)
+
+        self.labels_by_code = UI_LANGUAGES
+        self.codes_by_label = self.language_codes_by_label(self.labels_by_code)
+        self.language_var = StringVar(
+            value=self.labels_by_code.get(self.ui.ui_language, self.labels_by_code[DEFAULT_UI_LANGUAGE])
+        )
+        self._build()
+
+    @staticmethod
+    def language_codes_by_label(labels_by_code: dict[str, str]) -> dict[str, str]:
+        # Combobox 只顯示人類可讀標籤；保存時必須穩定還原成 config code。
+        return {label: code for code, label in labels_by_code.items()}
+
+    def _build(self) -> None:
+        ttk.Label(self.dialog, text=self.ui.tr("介面語言", "Interface language"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            self.dialog,
+            text=self.ui.tr(
+                "選擇 launcher 顯示語言。新開啟的視窗會立即使用；主畫面完整套用需要重新啟動。",
+                "Choose the launcher display language. New dialogs use it immediately; restart for the whole main window.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+        selector = ttk.Combobox(
+            self.dialog,
+            textvariable=self.language_var,
+            values=tuple(self.labels_by_code.values()),
+            state="readonly",
+            font=("Helvetica", 12),
+        )
+        selector.pack(fill=X, padx=24, pady=(0, 18))
+        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.ui.tr("儲存", "Save"), style="Action.TButton", command=self.save_language).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(actions, text=self.ui.tr("取消", "Cancel"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
+
+    def save_language(self) -> None:
+        selected_code = self.codes_by_label.get(self.language_var.get(), DEFAULT_UI_LANGUAGE)
+        config = core.ensure_local_integration_config()
+        config["ui_language"] = selected_code
+        save_integration_config(config)
+        self.ui.ui_language = selected_code
+        if hasattr(self.ui, "plan_import_policy_var"):
+            self.ui.plan_import_policy_var.set(
+                self.ui.import_existing_table_policy_status_label(self.ui.preferred_import_existing_table_policy)
+            )
+        self.ui._build_menu_bar()
+        self.ui.status_var.set(self.ui.tr("介面語言已更新。主畫面完整套用需要重新啟動。", "Interface language updated. Restart for the full main window."))
+        messagebox.showinfo(
+            self.ui.tr("介面語言", "Interface language"),
+            self.ui.tr(
+                "已儲存介面語言設定。新開啟的視窗會先套用，主畫面完整套用請重新啟動。",
+                "Language saved. New dialogs will use it now; restart for the full main window.",
+            ),
+            parent=self.dialog,
+        )
+        self.dialog.destroy()
+
+
+class StartupEnvironmentChecksDialog:
+    def __init__(self, ui: Any):
+        # 啟動環境檢查只讀取 core startup checks，適合維持成薄 dialog。
+        self.ui = ui
+        self.root = ui.root
+        self.checks = core.run_startup_checks(DB_PATH)
+        self.dialog = Toplevel(self.root)
+        self.dialog.title(self.ui.tr("啟動環境檢查", "Startup environment checks"))
+        self.dialog.configure(bg=COLORS["panel"])
+        self.dialog.geometry("760x520")
+        self.dialog.transient(self.root)
+        self._build()
+
+    def _build(self) -> None:
+        ttk.Label(self.dialog, text=self.ui.tr("啟動環境檢查", "Startup environment checks"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        table = ttk.Treeview(self.dialog, columns=("name", "status", "detail"), show="headings", height=14)
+        for name, label, width in [
+            ("name", self.ui.tr("檢查項目", "Check"), 190),
+            ("status", self.ui.tr("狀態", "Status"), 90),
+            ("detail", self.ui.tr("細節", "Detail"), 460),
+        ]:
+            table.heading(name, text=label)
+            table.column(name, width=width, anchor="w", stretch=True)
+        for check in self.checks:
+            table.insert("", END, values=(check.name, check.status, check.detail))
+        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
+
+
+class RecentEventLogsDialog:
+    def __init__(self, ui: Any):
+        # 事件紀錄視窗是觀測/交接工具；抽出後 launcher_ui.py 不再知道 JSONL 表格細節。
+        self.ui = ui
+        self.root = ui.root
+        self.events = latest_events(100)
+        self.event_by_iid: dict[str, dict[str, object]] = {}
+        self.dialog = Toplevel(self.root)
+        self.dialog.title(self.ui.tr("最近事件紀錄", "Recent event logs"))
+        self.dialog.configure(bg=COLORS["panel"])
+        self.dialog.geometry("980x620")
+        self.dialog.transient(self.root)
+        self._build()
+
+    @staticmethod
+    def event_row_values(event: dict[str, object]) -> tuple[object, object, object, object, object]:
+        # Treeview 欄位順序集中在這裡，避免未來調整欄位時漏改測試與插入邏輯。
+        return (
+            event.get("timestamp", ""),
+            event.get("level", ""),
+            event.get("component", ""),
+            event.get("event", ""),
+            event.get("message", ""),
+        )
+
+    def _build(self) -> None:
+        ttk.Label(self.dialog, text=self.ui.tr("最近事件紀錄", "Recent event logs"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
+        ttk.Label(
+            self.dialog,
+            text=self.ui.tr(
+                "Launcher 和未來 Agent 會用這些 JSONL 結構化事件做除錯與交接。",
+                "Structured JSONL events used by the launcher and future agents for debugging and handoff.",
+            ),
+            style="DetailMuted.TLabel",
+        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
+
+        body = ttk.Frame(self.dialog, style="Panel.TFrame")
+        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
+        self.table = ttk.Treeview(body, columns=("time", "level", "component", "event", "message"), show="headings", height=10)
+        for name, label, width in [
+            ("time", self.ui.tr("時間", "Time"), 180),
+            ("level", self.ui.tr("層級", "Level"), 80),
+            ("component", self.ui.tr("元件", "Component"), 120),
+            ("event", self.ui.tr("事件", "Event"), 180),
+            ("message", self.ui.tr("訊息", "Message"), 360),
+        ]:
+            self.table.heading(name, text=label)
+            self.table.column(name, width=width, anchor="w", stretch=True)
+        self.detail = Text(body, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
+        self.detail.configure(state="disabled")
+
+        for index, event in enumerate(self.events):
+            iid = str(index)
+            self.event_by_iid[iid] = event
+            self.table.insert("", END, iid=iid, values=self.event_row_values(event))
+
+        self.table.bind("<<TreeviewSelect>>", self.show_selected_log)
+        self.table.pack(fill=BOTH, expand=True, pady=(0, 10))
+        self.detail.pack(fill=BOTH, expand=True)
+        self.show_selected_log()
+
+        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
+        actions.pack(fill=X, padx=24, pady=(0, 18))
+        event_path = log_file(EVENT_LOG_NAME)
+        if event_path.exists():
+            ttk.Button(
+                actions,
+                text=self.ui.tr("開啟 JSONL 檔案", "Open JSONL file"),
+                style="Action.TButton",
+                command=lambda: webbrowser.open(event_path.as_uri()),
+            ).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
+
+    def show_selected_log(self, _event: object | None = None) -> None:
+        selection = self.table.selection()
+        selected = self.event_by_iid.get(str(selection[0])) if selection else None
+        self.detail.configure(state="normal")
+        self.detail.delete("1.0", END)
+        if selected is None:
+            self.detail.insert(
+                END,
+                self.ui.tr("尚未選取事件。", "No event selected.") if self.events else self.ui.tr("目前沒有結構化事件紀錄。", "No structured log events yet."),
+            )
+        else:
+            self.detail.insert(END, json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True))
+        self.detail.configure(state="disabled")
 
 
 class DataStoreConnectionSettingsDialog:

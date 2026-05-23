@@ -4,7 +4,15 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from frontends.tk.dialogs import DataStoreConnectionSettingsDialog, DatabaseClientSettingsDialog, ProviderEditorDialog
+from frontends.tk.dialogs import (
+    DataStoreConnectionSettingsDialog,
+    DatabaseClientSettingsDialog,
+    DeveloperCliDialog,
+    ProviderEditorDialog,
+    RecentEventLogsDialog,
+    StartupEnvironmentChecksDialog,
+    UiLanguageSettingsDialog,
+)
 
 
 class _FakeVar:
@@ -21,6 +29,10 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(ProviderEditorDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
+        self.assertTrue(callable(DeveloperCliDialog))
+        self.assertTrue(callable(UiLanguageSettingsDialog))
+        self.assertTrue(callable(StartupEnvironmentChecksDialog))
+        self.assertTrue(callable(RecentEventLogsDialog))
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。
@@ -57,6 +69,35 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with patch("frontends.tk.dialogs.active_data_store_profile", return_value=None):
             self.assertEqual("目前作用中 profile：-", dialog._active_profile_label())
+
+    def test_developer_cli_split_command_preserves_quoted_arguments(self) -> None:
+        # 開發者 CLI 允許輸入單行命令；quoted argument 必須維持為同一個 argv。
+        self.assertEqual(
+            ["python", "APIkeys_collection.py", "--summary", "hello world"],
+            DeveloperCliDialog.split_command('python APIkeys_collection.py --summary "hello world"'),
+        )
+
+    def test_ui_language_codes_by_label_round_trips_display_labels(self) -> None:
+        # 語言 combobox 顯示 label，但設定檔需要寫回穩定語言代碼。
+        self.assertEqual(
+            {"繁體中文": "zh-TW", "English": "en-US"},
+            UiLanguageSettingsDialog.language_codes_by_label({"zh-TW": "繁體中文", "en-US": "English"}),
+        )
+
+    def test_recent_event_log_row_values_are_stable(self) -> None:
+        # 事件表格欄位順序是 UI/測試共享契約，避免後續解耦時插入錯欄。
+        event = {
+            "timestamp": "2026-05-23T12:00:00Z",
+            "level": "info",
+            "component": "tk",
+            "event": "demo",
+            "message": "ok",
+        }
+
+        self.assertEqual(
+            ("2026-05-23T12:00:00Z", "info", "tk", "demo", "ok"),
+            RecentEventLogsDialog.event_row_values(event),
+        )
 
 
 if __name__ == "__main__":
