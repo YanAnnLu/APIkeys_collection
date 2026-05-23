@@ -12,8 +12,10 @@ from unittest.mock import patch
 from frontends.tk.launcher_ui import (
     ApiCollectionUi,
     PROJECT_ROOT,
-    contextlib_suppress_tcl_error,
     main as launcher_ui_main,
+)
+from frontends.tk.startup_helpers import (
+    contextlib_suppress_tcl_error,
     tk_startup_failure_message,
 )
 from frontends.tk.ui_helpers import (

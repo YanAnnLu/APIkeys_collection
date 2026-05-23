@@ -56,6 +56,11 @@ from api_launcher.adapters.yfinance import (
     write_yfinance_storage_handoff as write_yfinance_storage_handoff_file,
     write_yfinance_storage_review as write_yfinance_storage_review_file,
 )
+from frontends.tk.desktop_integration import reveal_path_in_file_manager
+from frontends.tk.startup_helpers import (
+    contextlib_suppress_tcl_error,
+    tk_startup_failure_message,
+)
 from frontends.tk.ui_helpers import (
     clamp,
     data_store_env_template_path,
@@ -412,17 +417,6 @@ class DatabaseClientSettingsDialog:
         path = core.local_integrations_path()
         core.ensure_local_integration_config()
         reveal_path_in_file_manager(path)
-
-
-def reveal_path_in_file_manager(path: Path) -> None:
-    # 用平台原生命令定位檔案；失敗時不改檔，只讓使用者自己開設定檔。
-    if sys.platform == "darwin":
-        subprocess.Popen(["open", "-R", str(path)])
-        return
-    if os.name == "nt":
-        subprocess.Popen(["explorer", f"/select,{path}"])
-        return
-    webbrowser.open(path.parent.as_uri())
 
 
 class ApiCollectionUi:
@@ -6765,30 +6759,6 @@ class ApiCollectionUi:
             return
         webbrowser.open(row.docs_url or row.signup_url or row.api_base_url)
         self.status_var.set(f"已開啟官方文件頁：{row.name}")
-
-
-class contextlib_suppress_tcl_error:
-    def __enter__(self) -> None:
-        return None
-
-    def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
-        return isinstance(exc, TclError)
-
-
-def tk_startup_failure_message(error: Exception) -> str:
-    # Tk root 還沒建立時不能依賴 messagebox；這裡回傳純文字，讓 wrapper/CLI stderr 也能提示修復方向。
-    detail = f"{type(error).__name__}: {error}"
-    return (
-        "Tk UI 無法啟動。\n\n"
-        f"錯誤：{detail}\n\n"
-        "修復建議：\n"
-        "1. 如果錯誤提到 init.tcl、Tcl 或 Tk，代表目前 Python 環境的 Tcl/Tk runtime 不完整；"
-        "請先改用系統 Python 執行 `py -B APIkeys_collection_ui.py`。\n"
-        "2. 如果一定要使用 `.venv`，請用包含 Tcl/Tk 的 Python 重新建立 venv，"
-        "不要把 base/system Python 套件直接混進專案環境。\n"
-        "3. 如果錯誤提到 display、DISPLAY 或圖形環境，請在有桌面 session 的機器上開啟 UI；"
-        "後端可先用 `py -B APIkeys_collection.py --summary` 檢查。"
-    )
 
 
 def main() -> int:
