@@ -18,6 +18,18 @@ from api_launcher.adapter_plan_resolvers.dataverse import (
 from api_launcher.adapter_plan_resolvers.ckan import (
     ckan_package_show_resource_entries as resolve_ckan_package_show_resource_entries,
 )
+from api_launcher.adapter_plan_resolvers.cmr_asset import (
+    bounded_cmr_granule_asset_lookup_url as resolve_bounded_cmr_granule_asset_lookup_url,
+    cmr_feed_link_resource as resolve_cmr_feed_link_resource,
+    cmr_granule_asset_candidate_urls as resolve_cmr_granule_asset_candidate_urls,
+    cmr_granule_asset_link_entries as resolve_cmr_granule_asset_link_entries,
+    cmr_granule_asset_lookup_url as resolve_cmr_granule_asset_lookup_url,
+    cmr_granule_asset_resources as resolve_cmr_granule_asset_resources,
+    cmr_granule_concept_id_from_path,
+    cmr_granule_records,
+    cmr_link_resources as resolve_cmr_link_resources,
+    entry_is_cmr_granule as resolve_entry_is_cmr_granule,
+)
 from api_launcher.adapter_plan_resolvers.socrata import (
     bounded_socrata_url,
     resource_is_socrata_api_url,
@@ -1450,74 +1462,31 @@ def cmr_granule_asset_link_entries(
     plan_index: int,
     downloads_root: str | Path,
 ) -> list[dict[str, object]]:
-    lookup_url = cmr_granule_asset_lookup_url(entry)
-    if not lookup_url:
-        return []
-    try:
-        payload = fetch_json(lookup_url)
-    except Exception:
-        return []
-    resources = cmr_granule_asset_resources(payload)
-    resolved_entries: list[dict[str, object]] = []
-    for resource_index, resource in enumerate(resources[:CMR_GRANULE_ASSET_MAX_LINKS], start=1):
-        url = resource_url(resource)
-        if not url or not resource_looks_downloadable(resource, url):
-            continue
-        if not any(cmr_link_rel_is_data(rel) for rel in resource_link_rels(resource)):
-            continue
-        if resource_is_cmr_metadata_link(entry, resource, url):
-            continue
-        if resource_exceeds_size_bound(resource):
-            continue
-        resolved = direct_resource_entry(
-            entry,
-            resource,
-            plan_index,
-            resource_index,
-            url,
-            downloads_root,
-            resolver_id=CMR_GRANULE_ASSET_RESOLVER_ID,
-            resolver_source_url=lookup_url,
-        )
-        if resolved:
-            resolved["adapter_resolution"] = {
-                **resolved["adapter_resolution"],
-                "policy": "explicit_cmr_granule_data_links_under_size_limit",
-                "lookup_url": lookup_url,
-                "max_asset_links": CMR_GRANULE_ASSET_MAX_LINKS,
-            }
-            resolved_entries.append(resolved)
-    return resolved_entries
+    # 主模組保留舊入口與 fetch_json patch 點；CMR data-link 篩選交給專屬 resolver。
+    return resolve_cmr_granule_asset_link_entries(
+        entry,
+        plan_index,
+        downloads_root,
+        fetch_json=fetch_json,
+        direct_resource_entry=direct_resource_entry,
+        resource_url=resource_url,
+        resource_looks_downloadable=resource_looks_downloadable,
+        resource_exceeds_size_bound=resource_exceeds_size_bound,
+        resource_is_cmr_metadata_link=resource_is_cmr_metadata_link,
+        resource_link_rels=resource_link_rels,
+        cmr_link_rel_is_data=cmr_link_rel_is_data,
+        first_text=first_text,
+        resolver_id=CMR_GRANULE_ASSET_RESOLVER_ID,
+        max_asset_links=CMR_GRANULE_ASSET_MAX_LINKS,
+    )
 
 
 def cmr_granule_asset_lookup_url(entry: dict[str, object]) -> str:
-    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
-    option_metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
-    if not entry_is_cmr_granule(entry, option_metadata):
-        return ""
-    for raw_url in cmr_granule_asset_candidate_urls(entry, version_meta, option_metadata):
-        lookup_url = bounded_cmr_granule_asset_lookup_url(raw_url)
-        if lookup_url:
-            return lookup_url
-    return ""
+    return resolve_cmr_granule_asset_lookup_url(entry, first_text=first_text)
 
 
 def entry_is_cmr_granule(entry: dict[str, object], option_metadata: dict[str, object]) -> bool:
-    markers = {
-        str(entry.get("source_format") or "").strip().lower(),
-        str(entry.get("data_type") or "").strip().lower(),
-        str(option_metadata.get("native_format") or "").strip().lower(),
-        str(option_metadata.get("source_format") or "").strip().lower(),
-        str(option_metadata.get("discovery_source_type") or "").strip().lower(),
-        str(option_metadata.get("source_type") or "").strip().lower(),
-    }
-    if {"cmr_granule", "cmr_granules"} & markers:
-        return True
-    return bool(
-        option_metadata.get("granule_concept_id")
-        or option_metadata.get("cmr_granule_id")
-        or option_metadata.get("granule_ur")
-    )
+    return resolve_entry_is_cmr_granule(entry, option_metadata)
 
 
 def cmr_granule_asset_candidate_urls(
@@ -1525,116 +1494,23 @@ def cmr_granule_asset_candidate_urls(
     version_meta: dict[str, object],
     option_metadata: dict[str, object],
 ) -> list[str]:
-    candidates = [
-        option_metadata.get("cmr_granule_url"),
-        option_metadata.get("granule_concept_url"),
-        version_meta.get("download_url"),
-        entry.get("adapter_review_url"),
-        option_metadata.get("cmr_granules_url"),
-        option_metadata.get("source_url"),
-        (entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else "",
-        entry.get("api_base_url"),
-        entry.get("landing_url"),
-        version_meta.get("landing_url"),
-        entry.get("docs_url"),
-    ]
-    urls: list[str] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        url = first_text(candidate)
-        if not url or url in seen:
-            continue
-        seen.add(url)
-        urls.append(url)
-    return urls
+    return resolve_cmr_granule_asset_candidate_urls(entry, version_meta, option_metadata, first_text=first_text)
 
 
 def bounded_cmr_granule_asset_lookup_url(raw_url: str) -> str:
-    parsed = urllib.parse.urlparse(raw_url)
-    if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != "cmr.earthdata.nasa.gov":
-        return ""
-    path = parsed.path.rstrip("/")
-    lower_path = path.lower()
-    concept_id = cmr_granule_concept_id_from_path(path)
-    if concept_id:
-        concept_path = path.rsplit("/", 1)[0] + f"/{concept_id}.json"
-        return urllib.parse.urlunparse(parsed._replace(path=concept_path, query="", fragment=""))
-    if lower_path.endswith("/search/granules"):
-        path = f"{path}.json"
-    elif not lower_path.endswith("/search/granules.json"):
-        return ""
-    query_pairs = [
-        (key, value)
-        for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
-        if key.lower() not in {"page_size", "page_num", "offset"}
-    ]
-    query_pairs.append(("page_size", str(CMR_GRANULE_SAMPLE_LIMIT)))
-    query = urllib.parse.urlencode(query_pairs, doseq=True, safe=",")
-    return urllib.parse.urlunparse(parsed._replace(path=path, query=query, fragment=""))
-
-
-def cmr_granule_concept_id_from_path(path: str) -> str:
-    segments = [segment for segment in path.rstrip("/").split("/") if segment]
-    if len(segments) < 3 or segments[-2].lower() != "concepts":
-        return ""
-    candidate = segments[-1]
-    for suffix in (".json", ".html"):
-        if candidate.lower().endswith(suffix):
-            candidate = candidate[: -len(suffix)]
-            break
-    return candidate if candidate.upper().startswith("G") else ""
+    return resolve_bounded_cmr_granule_asset_lookup_url(raw_url)
 
 
 def cmr_granule_asset_resources(payload: dict[str, object]) -> list[dict[str, object]]:
-    resources: list[dict[str, object]] = []
-    seen: set[tuple[str, str]] = set()
-    for record in cmr_granule_records(payload):
-        for resource in cmr_link_resources(record):
-            url = resource_url(resource)
-            rel = first_text(resource.get("rel"))
-            key = (url, rel)
-            if not url or key in seen:
-                continue
-            seen.add(key)
-            resources.append(resource)
-    return resources
-
-
-def cmr_granule_records(payload: dict[str, object]) -> list[dict[str, object]]:
-    records: list[dict[str, object]] = []
-    feed = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
-    feed_entries = feed.get("entry") if isinstance(feed.get("entry"), list) else []
-    records.extend(dict(item) for item in feed_entries if isinstance(item, dict))
-    for key in ("entry", "items", "results", "data"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            records.extend(dict(item) for item in value if isinstance(item, dict))
-    if payload.get("links"):
-        records.append(payload)
-    return records
+    return resolve_cmr_granule_asset_resources(payload, first_text=first_text, resource_url=resource_url)
 
 
 def cmr_link_resources(record: dict[str, object]) -> list[dict[str, object]]:
-    resources: list[dict[str, object]] = []
-    links = record.get("links") if isinstance(record.get("links"), list) else []
-    for link in links:
-        if isinstance(link, dict):
-            resources.append(cmr_feed_link_resource(link))
-    return [resource for resource in resources if resource_url(resource)]
+    return resolve_cmr_link_resources(record, first_text=first_text, resource_url=resource_url)
 
 
 def cmr_feed_link_resource(link: dict[str, object]) -> dict[str, object]:
-    url = first_text(link.get("href"), link.get("url"))
-    return {
-        "name": first_text(link.get("title"), link.get("name"), link.get("rel"), Path(urllib.parse.urlparse(url).path).name),
-        "format": first_text(link.get("format"), link.get("mimetype"), link.get("mimeType"), link.get("type")),
-        "mimetype": first_text(link.get("mimetype"), link.get("mimeType"), link.get("type")),
-        "download_url": url,
-        "rel": link.get("rel") or "",
-        "size": first_text(link.get("sizeInBytes"), link.get("SizeInBytes"), link.get("size_bytes"), link.get("size")),
-        "inherited": link.get("inherited") or False,
-        "source": "cmr_granule_link",
-    }
+    return resolve_cmr_feed_link_resource(link, first_text=first_text)
 
 
 def parse_iso_calendar_date(value: str) -> date | None:
