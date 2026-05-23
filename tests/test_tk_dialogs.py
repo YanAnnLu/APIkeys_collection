@@ -21,6 +21,7 @@ from frontends.tk.dialogs import (
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
+from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
 from frontends.tk.download_workflows import DownloadWorkflowMixin
 from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
@@ -30,6 +31,7 @@ from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMix
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
+from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
@@ -62,6 +64,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AiSummaryWorkflowMixin.generate_active_summary))
         self.assertTrue(callable(DiscoveryWorkflowMixin))
         self.assertTrue(callable(DiscoveryWorkflowMixin.discover_dataset_candidates_from_ui))
+        self.assertTrue(callable(DownloadPlanPanelWorkflowMixin))
+        self.assertTrue(callable(DownloadPlanPanelWorkflowMixin.toggle_download_plan_panel))
         self.assertTrue(callable(DownloadWorkflowMixin))
         self.assertTrue(callable(DownloadWorkflowMixin.start_download_plan_items))
         self.assertTrue(callable(ImportWorkflowMixin))
@@ -80,6 +84,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(ResponsiveLayoutWorkflowMixin.open_detail_drawer))
         self.assertTrue(callable(SidebarWorkflowMixin))
         self.assertTrue(callable(SidebarWorkflowMixin.refresh_sidebar_filters))
+        self.assertTrue(callable(TableDataWorkflowMixin))
+        self.assertTrue(callable(TableDataWorkflowMixin.reload_data))
         self.assertTrue(callable(TableInteractionWorkflowMixin))
         self.assertTrue(callable(TableInteractionWorkflowMixin.set_category))
         self.assertTrue(callable(YfinanceWorkflowMixin))

@@ -55,6 +55,7 @@ from frontends.tk.ui_labels import (
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
+from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
 from frontends.tk.download_workflows import DownloadWorkflowMixin
 from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
@@ -62,6 +63,7 @@ from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
+from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
@@ -90,7 +92,23 @@ from api_launcher.library_actions import LibraryAction, LibraryContext, library_
 from api_launcher.data_store_connections import data_store_profiles_from_config
 
 
-class ApiCollectionUi(AiSummaryWorkflowMixin, DiscoveryWorkflowMixin, PlanWorkflowMixin, ProviderSettingsWorkflowMixin, SidebarWorkflowMixin, ResponsiveLayoutWorkflowMixin, TableInteractionWorkflowMixin, ImportWorkflowMixin, DownloadWorkflowMixin, OAuthWorkflowMixin, RepairWorkflowMixin, MvpDemoWorkflowMixin, YfinanceWorkflowMixin):
+class ApiCollectionUi(
+    AiSummaryWorkflowMixin,
+    DiscoveryWorkflowMixin,
+    PlanWorkflowMixin,
+    ProviderSettingsWorkflowMixin,
+    SidebarWorkflowMixin,
+    ResponsiveLayoutWorkflowMixin,
+    DownloadPlanPanelWorkflowMixin,
+    TableDataWorkflowMixin,
+    TableInteractionWorkflowMixin,
+    ImportWorkflowMixin,
+    DownloadWorkflowMixin,
+    OAuthWorkflowMixin,
+    RepairWorkflowMixin,
+    MvpDemoWorkflowMixin,
+    YfinanceWorkflowMixin,
+):
     def __init__(self, root: Tk):
         self.root = root
         self.root.title(PRODUCT_DISPLAY_NAME)
@@ -647,294 +665,6 @@ class ApiCollectionUi(AiSummaryWorkflowMixin, DiscoveryWorkflowMixin, PlanWorkfl
                 padx=(0, 6) if index % 2 == 0 else (6, 0),
                 pady=(0, 8),
             )
-
-    def _build_download_plan_panel(self, parent: ttk.Frame, outer_pad: int) -> None:
-        # Download plan panel 同時顯示購物車與背景工作列，避免下載狀態只藏在 log。
-        plan = ttk.Frame(parent, style="Panel.TFrame")
-        plan.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
-        self.download_plan_panel = plan
-
-        header = ttk.Frame(plan, style="Panel.TFrame")
-        header.pack(fill=X, padx=14, pady=(12, 8))
-        ttk.Label(header, textvariable=self.plan_count_var, style="DetailSection.TLabel").pack(side=LEFT)
-        ttk.Entry(header, textvariable=self.plan_name_var, font=("Helvetica", 12), width=34).pack(side=LEFT, padx=(14, 8))
-        ttk.Button(header, textvariable=self.download_plan_toggle_var, style="Action.TButton", command=self.toggle_download_plan_panel).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("開始", "Start"), style="Action.TButton", command=self.start_download_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("匯入", "Import"), style="Action.TButton", command=self.import_supported_plan_results_from_ui).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("暫停", "Pause"), style="Action.TButton", command=self.pause_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("繼續", "Resume"), style="Action.TButton", command=self.resume_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("取消", "Cancel"), style="Action.TButton", command=self.cancel_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("重試", "Retry"), style="Action.TButton", command=self.retry_active_download).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("移除", "Remove"), style="Action.TButton", command=self.remove_selected_from_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("清空", "Clear"), style="Action.TButton", command=self.clear_download_plan).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(header, text=self.tr("匯出計畫", "Export plan"), style="Action.TButton", command=self.export_download_plan).pack(side=RIGHT)
-        body = ttk.Frame(plan, style="Panel.TFrame")
-        body.pack(fill=X)
-        self.download_plan_body = body
-        ttk.Label(body, textvariable=self.plan_import_policy_var, style="DetailMuted.TLabel").pack(anchor="w", padx=14, pady=(0, 8))
-
-        columns = ("name", "auth", "scope", "status", "import")
-        self.cart_tree = ttk.Treeview(body, columns=columns, show="headings", height=4, selectmode="browse")
-        for name, label, width, anchor in [
-            ("name", self.tr("項目", "Item"), 260, "w"),
-            ("auth", self.tr("認證", "Auth"), 150, "w"),
-            ("scope", self.tr("範圍", "Scope"), 130, "w"),
-            ("status", self.tr("下載狀態", "Download status"), 120, "center"),
-            ("import", self.tr("匯入狀態", "Import status"), 210, "w"),
-        ]:
-            self.cart_tree.heading(name, text=label)
-            self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
-        self.cart_tree.pack(fill=X, padx=14, pady=(0, 12))
-        self.cart_tree.bind("<<TreeviewSelect>>", self.on_cart_select)
-
-        job_columns = ("name", "status", "progress", "import", "target")
-        self.download_tree = ttk.Treeview(body, columns=job_columns, show="headings", height=4, selectmode="browse")
-        for name, label, width, anchor in [
-            ("name", self.tr("下載工作", "Download Job"), 240, "w"),
-            ("status", self.tr("狀態", "Status"), 100, "center"),
-            ("progress", self.tr("進度", "Progress"), 95, "center"),
-            ("import", self.tr("匯入", "Import"), 190, "w"),
-            ("target", self.tr("目標", "Target"), 360, "w"),
-        ]:
-            self.download_tree.heading(name, text=label)
-            self.download_tree.column(name, width=width, anchor=anchor, stretch=True)
-        self.download_tree.pack(fill=X, padx=14, pady=(0, 12))
-        self.download_tree.bind("<<TreeviewSelect>>", self.on_download_select)
-        self.apply_download_plan_visibility()
-
-    def update_download_plan_toggle_label(self) -> None:
-        # 收合時仍保留 header 與計數，讓使用者知道 plan 內還有幾個項目。
-        label = self.tr("收合下載計畫", "Collapse plan") if self.download_plan_visible else self.tr("展開下載計畫", "Expand plan")
-        self.download_plan_toggle_var.set(label)
-
-    def apply_download_plan_visibility(self) -> None:
-        # 只收合 plan body，不拆掉 header；下載工作仍在背景 queue 中持續更新。
-        if not hasattr(self, "download_plan_body"):
-            return
-        if self.download_plan_visible:
-            self.download_plan_body.pack(fill=X)
-        else:
-            self.download_plan_body.pack_forget()
-        self.update_download_plan_toggle_label()
-
-    def toggle_download_plan_panel(self) -> None:
-        self.download_plan_visible = not self.download_plan_visible
-        self.apply_download_plan_visibility()
-        self.status_var.set(
-            self.tr("已展開下載計畫。", "Download plan expanded.")
-            if self.download_plan_visible
-            else self.tr("已收合下載計畫。", "Download plan collapsed.")
-        )
-
-    def reload_data(self) -> None:
-        # reload 是 UI 的資料同步點：一次讀 provider、dataset，再重建篩選與下載計畫顯示。
-        conn = self._connect()
-        try:
-            repository = core.ApiCatalogRepository(conn)
-            entries = repository.list_provider_catalog_entries()
-            datasets = repository.list_datasets()
-        finally:
-            conn.close()
-        self.rows = [ProviderRow(entry) for entry in entries]
-        self.datasets_by_provider = {}
-        for dataset in datasets:
-            self.datasets_by_provider.setdefault(dataset.provider_id, []).append(dataset)
-        for provider_datasets in self.datasets_by_provider.values():
-            provider_datasets.sort(key=lambda item: item.title.lower())
-        for row in self.rows:
-            self.selected.setdefault(row.provider_id, BooleanVar(value=False))
-        known_ids = {row.provider_id for row in self.rows}
-        for provider_id in list(self.selected):
-            if provider_id not in known_ids:
-                del self.selected[provider_id]
-        self.apply_filter()
-        if self.active_provider_id not in {row.provider_id for row in self.rows}:
-            self.active_provider_id = self.rows[0].provider_id if self.rows else ""
-        self.refresh_sidebar_filters()
-        if self.detail_visible:
-            self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
-        self.update_download_plan_panel()
-        self.status_var.set(f"已載入 {len(self.rows)} 個資料源。")
-
-    def apply_filter(self) -> None:
-        if not hasattr(self, "tree"):
-            return
-        # 搜尋會同時命中 provider 欄位與 crawler 發現的 dataset 欄位。
-        query = "" if self.search_placeholder_active else self.search_var.get().strip().lower()
-        category = self.category_var.get()
-        self.current_filter_query = query
-        self.current_filter_category = category
-        filtered = []
-        for row in self.rows:
-            provider_datasets = self.datasets_by_provider.get(row.provider_id, [])
-            if category == "starred" and not row.is_starred:
-                continue
-            if category == "noaa" and "noaa" not in row.provider_id.lower() and "noaa" not in row.owner.lower():
-                continue
-            if category == "requires_key" and not row.key_env_var:
-                continue
-            if category.startswith("provider:"):
-                if row.owner != category.removeprefix("provider:"):
-                    continue
-            elif category not in ("all", "starred", "noaa", "requires_key"):
-                if category not in row.categories and not any(category in dataset.categories for dataset in provider_datasets):
-                    continue
-            haystack = " ".join([row.provider_id, row.name, row.owner, row.category_label, row.auth_type, row.notes]).lower()
-            dataset_haystack = " ".join(
-                " ".join(
-                    [
-                        dataset.dataset_id,
-                        dataset.title,
-                        ", ".join(dataset.categories),
-                        dataset.data_type,
-                        dataset.native_format,
-                        dataset.geographic_scope,
-                        str(dataset.metadata.get("candidate_status") or ""),
-                    ]
-                )
-                for dataset in provider_datasets
-            ).lower()
-            if query and query not in haystack:
-                if query not in dataset_haystack:
-                    continue
-            filtered.append(row)
-        self.filtered_rows = filtered
-        self.render_table()
-
-    def render_table(self) -> None:
-        # Treeview 不是 virtual list；資料量變大前先用完整重繪保持狀態簡單可預期。
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        self.dataset_table_items = {}
-        for row in self.filtered_rows:
-            checked = "?" if self.selected[row.provider_id].get() else ""
-            tags = []
-            if row.is_starred:
-                tags.append("starred")
-            if row.action_label:
-                tags.append("has_action")
-            if row.update_status == "remote_updated":
-                tags.append("remote_updated")
-            provider_datasets = self.visible_datasets_for_provider(row.provider_id)
-            row_name = row.name
-            if provider_datasets:
-                row_name = self.tr(f"{row.name}（{len(provider_datasets)} 筆資料集）", f"{row.name} ({len(provider_datasets)} datasets)")
-            self.tree.insert(
-                "",
-                END,
-                iid=row.provider_id,
-                values=(
-                    row.star_label,
-                    checked,
-                    row_name,
-                    row.category_label,
-                    row.local_label,
-                    self.localized_download_label(row.download_eligibility),
-                    row.action_label,
-                ),
-                tags=tuple(tags),
-            )
-            if self.show_dataset_rows_var.get():
-                for dataset in provider_datasets:
-                    item_id = self.dataset_tree_iid(dataset)
-                    self.dataset_table_items[item_id] = dataset
-                    self.tree.insert(
-                        "",
-                        END,
-                        iid=item_id,
-                        values=(
-                            "",
-                            "+",
-                            f"  ↳ {dataset.title}",
-                            self.dataset_category_label(dataset),
-                            self.dataset_candidate_status_label(dataset),
-                            self.dataset_download_label(dataset),
-                            self.tr("加入", "Add"),
-                        ),
-                        tags=("dataset_row",),
-                    )
-        if self.active_provider_id in {row.provider_id for row in self.filtered_rows}:
-            self.tree.selection_set(self.active_provider_id)
-            self.tree.focus(self.active_provider_id)
-        self.resize_table_columns()
-        self.update_download_plan_panel()
-        self.status_var.set(f"顯示 {len(self.filtered_rows)} / {len(self.rows)} 個資料源。")
-
-    def dataset_tree_iid(self, dataset: core.Dataset) -> str:
-        return f"dataset::{dataset.dataset_uid}"
-
-    def dataset_for_table_item(self, item: object) -> core.Dataset | None:
-        return self.dataset_table_items.get(str(item))
-
-    def provider_id_for_table_item(self, item: object) -> str:
-        dataset = self.dataset_for_table_item(item)
-        if dataset is not None:
-            return dataset.provider_id
-        return str(item)
-
-    def visible_datasets_for_provider(self, provider_id: str) -> list[core.Dataset]:
-        # rejected 候選不顯示在主列表，但仍可在候選審核面板查到歷史狀態。
-        datasets = self.datasets_by_provider.get(provider_id, [])
-        query = self.current_filter_query
-        category = self.current_filter_category
-        visible = []
-        for dataset in datasets:
-            if self.dataset_candidate_status(dataset) == "rejected":
-                continue
-            if category not in ("all", "starred", "noaa", "requires_key") and not category.startswith("provider:"):
-                if category not in dataset.categories:
-                    continue
-            if query and query not in self.dataset_search_text(dataset):
-                continue
-            visible.append(dataset)
-        return visible
-
-    def dataset_search_text(self, dataset: core.Dataset) -> str:
-        metadata = dataset.metadata
-        return " ".join(
-            [
-                dataset.dataset_uid,
-                dataset.provider_id,
-                dataset.dataset_id,
-                dataset.title,
-                ", ".join(dataset.categories),
-                dataset.data_type,
-                dataset.native_format,
-                dataset.geographic_scope,
-                dataset.temporal_coverage,
-                str(metadata.get("candidate_status") or ""),
-                str(metadata.get("source_url") or ""),
-            ]
-        ).lower()
-
-    def dataset_candidate_status(self, dataset: core.Dataset) -> str:
-        return str(dataset.metadata.get("candidate_status") or "").strip().lower()
-
-    def dataset_candidate_status_label(self, dataset: core.Dataset) -> str:
-        labels = {
-            "needs_review": self.tr("待審核", "Needs review"),
-            "approved": self.tr("可用", "Approved"),
-            "planned": self.tr("已排入", "Planned"),
-            "rejected": self.tr("已拒絕", "Rejected"),
-        }
-        return labels.get(self.dataset_candidate_status(dataset), self.tr("已發現", "Discovered"))
-
-    def dataset_category_label(self, dataset: core.Dataset) -> str:
-        values = [*dataset.categories]
-        if dataset.data_type and dataset.data_type not in values:
-            values.append(dataset.data_type)
-        if dataset.native_format and dataset.native_format not in values:
-            values.append(dataset.native_format)
-        return ", ".join(values)
-
-    def dataset_download_label(self, dataset: core.Dataset) -> str:
-        options = core.version_options_for_dataset(dataset)
-        option = options[0] if options else None
-        if option and option.download_url and core.looks_like_direct_download(option.download_url):
-            return self.tr("直接下載", "Direct")
-        if option and option.download_url:
-            return self.tr("需轉接器", "Needs adapter")
-        return self.tr("metadata", "metadata")
 
     def on_tree_click(self, event: object) -> None:
         # 第一欄切 star、第二欄切下載計畫；dataset child row 的第二/動作欄則加入計畫。
