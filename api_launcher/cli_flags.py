@@ -6,6 +6,7 @@ from api_launcher.cli_database_repair import database_repair_command_active
 from api_launcher.cli_dataset_discovery import dataset_discovery_command_active
 from api_launcher.cli_discovery import discovery_command_active
 from api_launcher.cli_download_plan import download_plan_command_active
+from api_launcher.cli_manifest_import import manifest_import_command_active
 from api_launcher.cli_manual_import import manual_import_command_active
 from api_launcher.cli_portal_intake import portal_intake_command_active
 from api_launcher.cli_yfinance import yfinance_command_active
@@ -37,10 +38,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         bool(args.write_resolved_adapter_plan),
         args.resolve_adapter_plan_json,
         args.keep_original_adapter_entries,
-        bool(args.import_csv_manifest),
-        args.import_verified_csv_manifests,
-        bool(args.import_json_manifest),
-        args.import_verified_json_manifests,
+        manifest_import_command_active(args),
         manual_import_command_active(args),
         args.manifest_health,
         args.list_manifests,

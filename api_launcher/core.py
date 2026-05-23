@@ -50,6 +50,12 @@ from api_launcher.cli_flags import command_requested
 from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
 from api_launcher.cli_database_repair import run_database_repairs
 from api_launcher.cli_download_plan import run_download_plan_cli
+from api_launcher.cli_manifest_import import (
+    import_csv_manifest_cli,
+    import_json_manifest_cli,
+    import_verified_csv_manifests_cli,
+    import_verified_json_manifests_cli,
+)
 from api_launcher.cli_manual_import import (
     import_local_file_cli,
     validate_manual_import_args,
@@ -65,7 +71,6 @@ from api_launcher.dataset_discovery import (
     dataset_with_candidate_metadata,
     load_dataset_discovery_sources,
 )
-from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
 from api_launcher.data_store_connections import (
     DataStoreConnectionProfile,
     data_store_connection_agent_payload,
@@ -111,13 +116,11 @@ from api_launcher.integrations import (
     set_active_database_client,
     set_active_data_store_profile as set_active_data_store_profile_config,
 )
-from api_launcher.importers.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.manual_import import (
     DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
     DEFAULT_MANUAL_LOCAL_VERSION,
-    ensure_manual_local_file_provider,
 )
 from api_launcher.models import Dataset, Provider
 from api_launcher.mvp_demo import (
@@ -794,10 +797,10 @@ class CatalogLauncherCli:
             self.resolve_adapter_plan()
             write_local_file_manifest_cli(self.args, self.repository)
             import_local_file_cli(self.args, self.repository)
-            self.import_csv_manifest()
-            self.import_verified_csv_manifests()
-            self.import_json_manifest()
-            self.import_verified_json_manifests()
+            import_csv_manifest_cli(self.args, self.repository)
+            import_verified_csv_manifests_cli(self.args, self.repository)
+            import_json_manifest_cli(self.args, self.repository)
+            import_verified_json_manifests_cli(self.args, self.repository)
             self.verify_downloads()
             self.show_manifest_health()
             self.list_manifests()
@@ -1087,93 +1090,6 @@ class CatalogLauncherCli:
         )
         for warning in result.warnings:
             print(f"[adapter-resolve] warning {warning}")
-
-    def import_csv_manifest(self) -> None:
-        if not self.args.import_csv_manifest:
-            return
-        manifest = read_manifest(resolve_project_path(self.args.import_csv_manifest))
-        if manifest.provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
-            ensure_manual_local_file_provider(self.repository, manifest.provider_id)
-        result = import_csv_manifest_to_sqlite(
-            resolve_project_path(self.args.import_csv_manifest),
-            resolve_project_path(self.args.import_sqlite_db),
-            self.repository,
-            table_name=self.args.import_table,
-            replace=self.args.import_replace_table,
-            row_limit=self.args.import_row_limit,
-        )
-        print(
-            "[csv-import] "
-            f"provider={result.provider_id} table={result.table_name} rows={result.rows_imported} "
-            f"columns={len(result.columns)} sqlite={result.sqlite_path} asset={result.table_asset_id}"
-        )
-
-    def import_verified_csv_manifests(self) -> None:
-        if not self.args.import_verified_csv_manifests:
-            return
-        result = import_verified_csv_manifests_to_sqlite(
-            self.repository,
-            resolve_project_path(self.args.import_sqlite_db),
-            provider_ids=self.args.provider or None,
-            replace=self.args.import_replace_table,
-            row_limit=self.args.import_row_limit,
-        )
-        print(
-            "[csv-import-batch] "
-            f"checked={result.checked} imported={result.imported} skipped={result.skipped} "
-            f"non_csv={result.skipped_non_csv} unhealthy={result.skipped_unhealthy} "
-            f"existing={result.skipped_existing} failed={result.failed} sqlite={resolve_project_path(self.args.import_sqlite_db)}"
-        )
-        for item in result.results:
-            print(f"[csv-import-batch] imported provider={item.provider_id} table={item.table_name} rows={item.rows_imported}")
-        for error in result.errors:
-            print(f"[csv-import-batch] error {error}")
-
-    def import_json_manifest(self) -> None:
-        if not self.args.import_json_manifest:
-            return
-        manifest = read_manifest(resolve_project_path(self.args.import_json_manifest))
-        if manifest.provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
-            ensure_manual_local_file_provider(self.repository, manifest.provider_id)
-        result = import_json_manifest_to_sqlite(
-            resolve_project_path(self.args.import_json_manifest),
-            resolve_project_path(self.args.import_sqlite_db),
-            self.repository,
-            table_name=self.args.import_table,
-            replace=self.args.import_replace_table,
-            row_limit=self.args.import_row_limit,
-        )
-        print(
-            "[json-import] "
-            f"provider={result.provider_id} table={result.table_name} rows={result.rows_imported} "
-            f"columns={len(result.columns)} shape={result.source_shape} sqlite={result.sqlite_path} "
-            f"asset={result.table_asset_id}"
-        )
-
-    def import_verified_json_manifests(self) -> None:
-        if not self.args.import_verified_json_manifests:
-            return
-        result = import_verified_json_manifests_to_sqlite(
-            self.repository,
-            resolve_project_path(self.args.import_sqlite_db),
-            provider_ids=self.args.provider or None,
-            replace=self.args.import_replace_table,
-            row_limit=self.args.import_row_limit,
-        )
-        print(
-            "[json-import-batch] "
-            f"checked={result.checked} imported={result.imported} skipped={result.skipped} "
-            f"non_json={result.skipped_non_json} unhealthy={result.skipped_unhealthy} "
-            f"existing={result.skipped_existing} failed={result.failed} sqlite={resolve_project_path(self.args.import_sqlite_db)}"
-        )
-        for item in result.results:
-            print(
-                "[json-import-batch] "
-                f"imported provider={item.provider_id} table={item.table_name} "
-                f"rows={item.rows_imported} shape={item.source_shape}"
-            )
-        for error in result.errors:
-            print(f"[json-import-batch] error {error}")
 
     def show_manifest_health(self) -> None:
         if self.args.manifest_health:
