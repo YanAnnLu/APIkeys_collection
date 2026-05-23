@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from frontends.tk.dialogs import (
+    AdapterReviewDialog,
     AiModelSettingsDialog,
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
@@ -30,6 +31,7 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_dialog_classes_are_importable(self) -> None:
         # 這個測試保護 launcher_ui.py 拆分後的公開匯入點，不需要真的開 Tk 視窗。
         self.assertTrue(callable(ProviderEditorDialog))
+        self.assertTrue(callable(AdapterReviewDialog))
         self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
@@ -144,6 +146,33 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_import_existing_table_policy_values_are_stable(self) -> None:
         # 同名資料表策略會傳進匯入 pipeline；value 不能因 UI 文案調整而漂移。
         self.assertEqual(("rename", "skip", "replace"), ImportExistingTablePolicyDialog.policy_option_values())
+
+    def test_adapter_review_row_and_detail_text_are_stable(self) -> None:
+        # Adapter review panel 是 agent 接力常看的表格；row/detail 形狀要固定。
+        item = SimpleNamespace(
+            adapter_id="socrata",
+            required_action="resolve_api",
+            outcome_bucket="source_resolution_required",
+            expected_output="direct_plan_entry",
+            provider_id="nyc_open_data",
+            dataset_uid="abcd-1234",
+            dataset_id="trees",
+            version="latest",
+            source_url="https://example.test/api",
+            landing_url="https://example.test/page",
+            download_status="adapter_required",
+            import_status="pending",
+            reason="selector",
+        )
+
+        self.assertEqual(
+            ("socrata", "resolve_api", "source_resolution_required", "nyc_open_data", "trees", "latest", "https://example.test/api"),
+            AdapterReviewDialog.review_item_row_values(item),
+        )
+        detail = AdapterReviewDialog.review_item_detail_text(item)
+        self.assertIn("adapter_id: socrata", detail)
+        self.assertIn("dataset_uid: abcd-1234", detail)
+        self.assertIn("reason: selector", detail)
 
 
 if __name__ == "__main__":

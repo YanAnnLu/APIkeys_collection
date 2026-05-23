@@ -127,6 +127,7 @@ from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, Provide
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from frontends.tk.dialogs import (
+    AdapterReviewDialog,
     AiModelSettingsDialog,
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
@@ -145,7 +146,7 @@ from api_launcher.registry import PROVIDER_CATALOG_NAME
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.data_store_connections import data_store_profiles_from_config
-from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
+from api_launcher.adapter_review import adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
 
@@ -5630,102 +5631,7 @@ class ApiCollectionUi:
         if not review_items:
             messagebox.showinfo(self.tr("沒有 Adapter 待辦", "No adapter review items"), self.tr("目前下載計畫沒有需要 adapter 接手的項目。", "The current plan has no adapter-required items."))
             return
-
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("Adapter 待辦", "Adapter review queue"))
-        dialog.geometry("980x560")
-        dialog.configure(bg=COLORS["panel"])
-        dialog.transient(self.root)
-        ttk.Label(dialog, text=self.tr("Adapter 待辦", "Adapter review queue"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 6))
-        ttk.Label(
-            dialog,
-            text=self.tr(
-                f"目前有 {len(review_items)} 個項目需要 adapter 把 API、頁面、選擇器或壓縮格式轉成可下載/可匯入流程。",
-                f"{len(review_items)} items need an adapter to turn APIs, pages, selectors, or packed formats into downloadable/importable flows.",
-            ),
-            style="DetailMuted.TLabel",
-            wraplength=900,
-        ).pack(anchor="w", padx=24, pady=(0, 12))
-
-        table = ttk.Treeview(dialog, columns=("adapter", "action", "outcome", "provider", "dataset", "version", "source"), show="headings", height=10, selectmode="browse")
-        for name, label, width in [
-            ("adapter", self.tr("Adapter", "Adapter"), 180),
-            ("action", self.tr("下一步", "Next action"), 200),
-            ("outcome", self.tr("結果分類", "Outcome"), 170),
-            ("provider", self.tr("資料源", "Provider"), 150),
-            ("dataset", self.tr("資料集", "Dataset"), 180),
-            ("version", self.tr("版本", "Version"), 90),
-            ("source", self.tr("來源 URL", "Source URL"), 240),
-        ]:
-            table.heading(name, text=label)
-            table.column(name, width=width, anchor="w", stretch=True)
-
-        item_by_iid: dict[str, AdapterReviewItem] = {}
-        for index, item in enumerate(review_items):
-            iid = str(index)
-            item_by_iid[iid] = item
-            table.insert(
-                "",
-                END,
-                iid=iid,
-                values=(item.adapter_id, item.required_action, item.outcome_bucket, item.provider_id, item.dataset_id, item.version or "-", item.source_url or item.landing_url),
-            )
-
-        detail = Text(dialog, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
-        detail.configure(state="disabled")
-
-        def selected_item() -> AdapterReviewItem | None:
-            selection = table.selection()
-            return item_by_iid.get(str(selection[0])) if selection else None
-
-        def show_selected(_event: object | None = None) -> None:
-            item = selected_item()
-            detail.configure(state="normal")
-            detail.delete("1.0", END)
-            if item is None:
-                detail.insert(END, self.tr("請選取一個 adapter 待辦項目。", "Select an adapter review item."))
-            else:
-                detail.insert(
-                    END,
-                    "\n".join(
-                        [
-                            f"adapter_id: {item.adapter_id}",
-                            f"required_action: {item.required_action}",
-                            f"outcome_bucket: {item.outcome_bucket}",
-                            f"expected_output: {item.expected_output}",
-                            f"provider_id: {item.provider_id}",
-                            f"dataset_uid: {item.dataset_uid or '-'}",
-                            f"dataset_id: {item.dataset_id or '-'}",
-                            f"version: {item.version or '-'}",
-                            f"source_url: {item.source_url or '-'}",
-                            f"landing_url: {item.landing_url or '-'}",
-                            f"download_status: {item.download_status or '-'}",
-                            f"import_status: {item.import_status or '-'}",
-                            f"reason: {item.reason or '-'}",
-                        ]
-                    ),
-                )
-            detail.configure(state="disabled")
-
-        def open_item_url(kind: str) -> None:
-            item = selected_item()
-            if item is None:
-                return
-            url = item.source_url if kind == "source" else item.landing_url
-            if url:
-                webbrowser.open(url)
-
-        table.bind("<<TreeviewSelect>>", show_selected)
-        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 10))
-        detail.pack(fill=BOTH, expand=True, padx=24, pady=(0, 12))
-        show_selected()
-
-        actions = ttk.Frame(dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 18))
-        ttk.Button(actions, text=self.tr("開來源 URL", "Open source URL"), style="Action.TButton", command=lambda: open_item_url("source")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("開 landing 頁", "Open landing page"), style="Action.TButton", command=lambda: open_item_url("landing")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("解析可下載 resources", "Resolve downloadable resources"), style="Action.TButton", command=lambda: (dialog.destroy(), self.resolve_adapter_plan_from_ui())).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        AdapterReviewDialog(self, review_items)
 
     def export_download_plan(self) -> None:
         items = self.selected_plan_items()
