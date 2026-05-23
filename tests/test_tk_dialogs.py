@@ -10,6 +10,7 @@ from frontends.tk.dialogs import (
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
     GoogleGeminiSettingsDialog,
+    ImportExistingTablePolicyDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -34,6 +35,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DeveloperCliDialog))
         self.assertTrue(callable(GoogleGeminiSettingsDialog))
+        self.assertTrue(callable(ImportExistingTablePolicyDialog))
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
@@ -138,6 +140,10 @@ class TkDialogModuleTest(unittest.TestCase):
             ("Google", "oauth", "planned", "gemini, drive"),
             GoogleGeminiSettingsDialog.account_provider_row_values(provider),
         )
+
+    def test_import_existing_table_policy_values_are_stable(self) -> None:
+        # 同名資料表策略會傳進匯入 pipeline；value 不能因 UI 文案調整而漂移。
+        self.assertEqual(("rename", "skip", "replace"), ImportExistingTablePolicyDialog.policy_option_values())
 
 
 if __name__ == "__main__":

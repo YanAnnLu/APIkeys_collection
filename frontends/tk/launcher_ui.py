@@ -132,6 +132,7 @@ from frontends.tk.dialogs import (
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
     GoogleGeminiSettingsDialog,
+    ImportExistingTablePolicyDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -1783,80 +1784,7 @@ class ApiCollectionUi:
         )
 
     def ask_import_existing_table_policy(self) -> str | None:
-        # 同名資料表策略是破壞性風險點；replace 需要二次確認，預設走 rename。
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("既有資料表處理方式", "Existing table policy"))
-        dialog.transient(self.root)
-        dialog.grab_set()
-        dialog.geometry("620x340")
-        dialog.configure(bg=COLORS["panel"])
-
-        policy_var = StringVar(value=self.preferred_import_existing_table_policy)
-        result: dict[str, str | None] = {"policy": None}
-
-        frame = ttk.Frame(dialog, padding=18)
-        frame.pack(fill=BOTH, expand=True)
-        ttk.Label(
-            frame,
-            text=self.tr(
-                "如果 SQLite 裡已經有同名資料表，要怎麼處理？",
-                "What should happen if SQLite already has a table with the same name?",
-            ),
-            font=("Helvetica", 14, "bold"),
-        ).pack(anchor="w", pady=(0, 12))
-
-        options = (
-            (
-                "rename",
-                self.tr("保留舊表，匯入成新表（建議）", "Keep old table and import as a new table (recommended)"),
-                self.tr("例如 table 會變成 table_2，不覆蓋既有資料。", "For example, table becomes table_2 without overwriting existing data."),
-            ),
-            (
-                "skip",
-                self.tr("保留舊表，略過同名項目", "Keep old table and skip same-name items"),
-                self.tr("適合只想補匯尚未存在的資料。", "Use this when you only want to import missing tables."),
-            ),
-            (
-                "replace",
-                self.tr("覆蓋同名表", "Replace same-name table"),
-                self.tr("會重建同名資料表；只有確定要刷新資料時才使用。", "This recreates the same-name table; use only when you mean to refresh it."),
-            ),
-        )
-        for value, title, description in options:
-            row = ttk.Frame(frame)
-            row.pack(fill=X, anchor="w", pady=5)
-            ttk.Radiobutton(row, text=title, value=value, variable=policy_var).pack(anchor="w")
-            ttk.Label(row, text=description, foreground=COLORS["muted"], wraplength=540).pack(anchor="w", padx=(24, 0), pady=(2, 0))
-
-        buttons = ttk.Frame(frame)
-        buttons.pack(fill=X, pady=(14, 0))
-
-        def cancel() -> None:
-            result["policy"] = None
-            dialog.destroy()
-
-        def accept() -> None:
-            policy = normalized_ui_import_policy(policy_var.get())
-            if policy == "replace":
-                confirmed = messagebox.askyesno(
-                    self.tr("確認覆蓋", "Confirm replace"),
-                    self.tr(
-                        "覆蓋會重建同名資料表。請確認這是你想要的行為。",
-                        "Replace recreates the same-name table. Please confirm this is what you want.",
-                    ),
-                    parent=dialog,
-                )
-                if not confirmed:
-                    return
-            self.save_import_existing_table_policy_preference(policy)
-            result["policy"] = policy
-            dialog.destroy()
-
-        ttk.Button(buttons, text=self.tr("取消", "Cancel"), command=cancel).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(buttons, text=self.tr("繼續", "Continue"), command=accept).pack(side=RIGHT)
-        dialog.protocol("WM_DELETE_WINDOW", cancel)
-        dialog.wait_window()
-        return result["policy"]
+        return ImportExistingTablePolicyDialog(self).result
 
     def version_options_for_provider(self, provider_id: str) -> list[core.DatasetVersionOption]:
         # 若 catalog 尚未有 adapter dataset，右鍵開版本選單時做一次 bounded discovery。
