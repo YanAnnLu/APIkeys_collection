@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from api_launcher.cli_database_repair import database_repair_command_active
 from api_launcher.cli_dataset_discovery import dataset_discovery_command_active
 from api_launcher.cli_discovery import discovery_command_active
 from api_launcher.cli_portal_intake import portal_intake_command_active
@@ -67,10 +68,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.test_data_store_json,
         args.self_check_databases,
         args.self_check_databases_json,
-        bool(args.reimport_missing_sqlite_table),
-        bool(args.unmanage_database_asset),
-        bool(args.write_database_repair_sql),
-        args.database_repair_json,
+        database_repair_command_active(args),
         bool(args.generate_ai_summary),
         bool(args.write_tile_manifest),
         bool(args.export_json),

@@ -48,6 +48,7 @@ from api_launcher.cli_dataset_discovery import (
 )
 from api_launcher.cli_flags import command_requested
 from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
+from api_launcher.cli_database_repair import run_database_repairs
 from api_launcher.cli_yfinance import add_yfinance_args, run_yfinance_cli
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
@@ -65,12 +66,6 @@ from api_launcher.data_store_connections import (
     data_store_profiles_from_config,
     test_data_store_connection,
     write_data_store_env_template,
-)
-from api_launcher.database_repair import (
-    database_repair_sql_path_for_asset,
-    reimport_missing_sqlite_table_asset,
-    stop_tracking_database_asset,
-    write_missing_sql_table_repair_dry_run,
 )
 from api_launcher.database_self_check import (
     DatabaseAssetVerifier,
@@ -822,7 +817,7 @@ class CatalogLauncherCli:
             self.test_data_store_connections()
             self.write_data_store_env_template()
             self.self_check_databases()
-            self.run_database_repairs()
+            run_database_repairs(self.args, self.repository, self.db_path, log_event)
             self.generate_ai_summary()
             self.write_tile_manifest()
             self.export_catalogs()
@@ -1617,95 +1612,6 @@ class CatalogLauncherCli:
                 "[database-self-check] "
                 f"{issue.provider_id} {issue.asset_kind} {issue.engine or '-'}:{issue.asset_name} "
                 f"status={issue.status} suggestion={suggestion.action_id} error={issue.error or '-'}"
-            )
-
-    def run_database_repairs(self) -> None:
-        reimport_asset_ids = tuple(asset_id.strip() for asset_id in self.args.reimport_missing_sqlite_table if asset_id.strip())
-        unmanage_asset_ids = tuple(asset_id.strip() for asset_id in self.args.unmanage_database_asset if asset_id.strip())
-        sql_dry_run_asset_ids = tuple(asset_id.strip() for asset_id in self.args.write_database_repair_sql if asset_id.strip())
-        if not reimport_asset_ids and not unmanage_asset_ids and not sql_dry_run_asset_ids:
-            return
-        result_payloads = []
-        actions = []
-
-        def remember_action(action_id: str) -> None:
-            if action_id not in actions:
-                actions.append(action_id)
-
-        for asset_id in reimport_asset_ids:
-            result = reimport_missing_sqlite_table_asset(self.repository, asset_id)
-            result_payloads.append(result.to_dict())
-            remember_action(result.action_id)
-            if not self.args.database_repair_json:
-                print(
-                    "[database-repair] "
-                    f"action={result.action_id} asset_id={result.asset_id} "
-                    f"provider={result.provider_id} table={result.table_name} "
-                    f"rows={result.rows_imported} sqlite={result.sqlite_path}"
-                )
-
-        for asset_id in unmanage_asset_ids:
-            result = stop_tracking_database_asset(self.repository, asset_id)
-            result_payloads.append(result.to_dict())
-            remember_action(result.action_id)
-            if not self.args.database_repair_json:
-                print(
-                    "[database-repair] "
-                    f"action={result.action_id} asset_id={result.asset_id} "
-                    f"provider={result.provider_id} asset={result.asset_kind}:{result.engine}:{result.asset_name} "
-                    f"status={result.status} database_modified={str(result.database_modified).lower()}"
-                )
-
-        for asset_id in sql_dry_run_asset_ids:
-            # 非 SQLite 修復只寫 SQL 草稿；實際執行必須由使用者/DBA 審核後手動進行。
-            output_path = self.database_repair_sql_path(asset_id)
-            result = write_missing_sql_table_repair_dry_run(
-                self.repository,
-                asset_id,
-                output_path,
-                row_limit=self.args.database_repair_sql_row_limit,
-            )
-            result_payloads.append(result.to_dict())
-            remember_action(result.action_id)
-            if not self.args.database_repair_json:
-                print(
-                    "[database-repair] "
-                    f"action={result.action_id} asset_id={result.asset_id} "
-                    f"provider={result.provider_id} table={result.table_name} "
-                    f"rows={result.rows_planned} sql={result.sql_path} dry_run=true"
-                )
-
-        if self.args.database_repair_json:
-            payload = {
-                "schema_version": 1,
-                "action": actions[0] if len(actions) == 1 else "database_repair",
-                "result_count": len(result_payloads),
-                "results": result_payloads,
-            }
-            self.log_database_repair_completed(payload["action"], result_payloads)
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-        else:
-            self.log_database_repair_completed(actions[0] if len(actions) == 1 else "database_repair", result_payloads)
-
-    def database_repair_sql_path(self, asset_id: str) -> Path:
-        # 路徑正規化交給 database_repair 共用 helper，讓 CLI 與 UI 產生完全相同的 dry-run 檔名。
-        output_dir = resolve_project_path(self.args.database_repair_sql_dir)
-        return database_repair_sql_path_for_asset(asset_id, output_dir)
-
-    def log_database_repair_completed(self, action: str, results: list[dict[str, object]]) -> None:
-        if not results:
-            return
-        with contextlib.suppress(Exception):
-            log_event(
-                "database_repair_completed",
-                f"Database repair completed: {action}",
-                component="database_repair",
-                context={
-                    "db_path": str(self.db_path),
-                    "action": action,
-                    "result_count": len(results),
-                    "results": results,
-                },
             )
 
     def generate_ai_summary(self) -> None:
