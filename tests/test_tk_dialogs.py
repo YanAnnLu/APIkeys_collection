@@ -28,6 +28,9 @@ from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
+from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
+from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
+from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
 
@@ -73,6 +76,12 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(ProviderSettingsWorkflowMixin.open_database_tool))
         self.assertTrue(callable(RepairWorkflowMixin))
         self.assertTrue(callable(RepairWorkflowMixin.open_repair_panel))
+        self.assertTrue(callable(ResponsiveLayoutWorkflowMixin))
+        self.assertTrue(callable(ResponsiveLayoutWorkflowMixin.open_detail_drawer))
+        self.assertTrue(callable(SidebarWorkflowMixin))
+        self.assertTrue(callable(SidebarWorkflowMixin.refresh_sidebar_filters))
+        self.assertTrue(callable(TableInteractionWorkflowMixin))
+        self.assertTrue(callable(TableInteractionWorkflowMixin.set_category))
         self.assertTrue(callable(YfinanceWorkflowMixin))
         self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
 
