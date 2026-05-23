@@ -80,8 +80,9 @@ from api_launcher.database_repair import (
 )
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.db import utc_now_iso
-from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
+from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, append_dataset_discovery_source
 from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, ProviderSeed, append_discovery_seed, discover_provider_candidates, load_all_discovery_seeds
+from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, log_file, state_file
@@ -3958,6 +3959,11 @@ class ApiCollectionUi:
             expected_auth_type=str(data.get("auth_type") or "unknown").strip() or "unknown",
         )
 
+    def provider_dataset_source_from_candidate(self, candidate: object):
+        # source 草稿比 provider seed 更接近「可爬資料集」；只有明確或可保守推導的 crawler 類型才寫入。
+        data = candidate if isinstance(candidate, dict) else {}
+        return dataset_source_from_provider_candidate(data)
+
     def open_provider_candidate_review_panel(self) -> None:
         path = state_file("provider_candidates.ui.json")
         if not path.exists():
@@ -4069,6 +4075,41 @@ class ApiCollectionUi:
                 parent=dialog,
             )
 
+        def write_selected_local_source() -> None:
+            candidate = selected_candidate()
+            if candidate is None:
+                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("請先選取一筆 provider 候選。", "Select a provider candidate first."), parent=dialog)
+                return
+            try:
+                source = self.provider_dataset_source_from_candidate(candidate)
+            except ValueError as exc:
+                messagebox.showerror(
+                    self.tr("Provider 候選", "Provider candidates"),
+                    self.tr(
+                        f"無法寫入 source 草稿：{exc}\n\n這個候選還沒有可支援的 crawler type 與 endpoint，因此會繼續留在 review。",
+                        f"Could not write local source draft: {exc}\n\nThis candidate does not yet have a supported crawler type and endpoint, so it stays in review.",
+                    ),
+                    parent=dialog,
+                )
+                return
+            output_path = local_config_file(LOCAL_DATASET_DISCOVERY_SOURCES_NAME)
+            append_dataset_discovery_source(output_path, source)
+            log_event(
+                "provider_candidate_local_source_written",
+                "Provider candidate written to ignored local dataset discovery source draft.",
+                component="ui.provider_discovery",
+                context={"provider_id": source.provider_id, "source_id": source.source_id, "source_type": source.source_type, "output_path": str(output_path)},
+            )
+            self.status_var.set(self.tr(f"已寫入本機 source 草稿：{source.source_id}", f"Local source draft written: {source.source_id}"))
+            messagebox.showinfo(
+                self.tr("Provider 候選", "Provider candidates"),
+                self.tr(
+                    f"已寫入本機 dataset source 草稿：{output_path}\n\nSource: {source.source_id}\nType: {source.source_type}\n\n這仍未寫入正式 catalog；接著請用「審核本機 discovery 草稿」確認是否可提升。",
+                    f"Wrote ignored local dataset source draft: {output_path}\n\nSource: {source.source_id}\nType: {source.source_type}\n\nThe official catalog was not changed; next run \"Audit local discovery drafts\" before promotion.",
+                ),
+                parent=dialog,
+            )
+
         tree.bind("<<TreeviewSelect>>", render_selected)
         children = tree.get_children()
         if children:
@@ -4080,6 +4121,7 @@ class ApiCollectionUi:
 
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.tr("寫入 source 草稿", "Write source draft"), style="Action.TButton", command=write_selected_local_source).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("寫入本機 seed", "Write local seed"), style="Action.TButton", command=write_selected_local_seed).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開來源", "Open source"), style="Action.TButton", command=lambda: open_selected_url("source_url")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開文件", "Open docs"), style="Action.TButton", command=lambda: open_selected_url("docs_url")).pack(side=LEFT, padx=(0, 10))

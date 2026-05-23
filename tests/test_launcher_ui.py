@@ -155,6 +155,24 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "owner"):
             fake_ui.provider_seed_from_candidate({"provider_id": "example_provider", "name": "Example"})
 
+    def test_provider_dataset_source_from_candidate_creates_local_source_draft(self) -> None:
+        # Provider review 面板的 source 草稿只進 ignored local config；正式 catalog 仍需 local discovery audit。
+        fake_ui = object.__new__(ApiCollectionUi)
+        candidate = {
+            "provider_id": "example_provider",
+            "name": "Example Provider",
+            "source_type": "ckan_package_search",
+            "endpoint_url": "https://data.example.test/api/3/action/package_search",
+            "categories": ["open_data", "metadata"],
+            "search_terms": ["ocean"],
+        }
+
+        source = fake_ui.provider_dataset_source_from_candidate(candidate)
+
+        self.assertEqual("example_provider_ckan_package_search", source.source_id)
+        self.assertEqual("ckan_package_search", source.source_type)
+        self.assertEqual(("ocean",), source.search_terms)
+
     def test_crawler_next_action_label_guides_zero_candidate_repair(self) -> None:
         # Tk 不解析 warning 文字；它只把 crawler 後端的 next_action 狀態碼翻成可操作的繁中提示。
         fake_ui = object.__new__(ApiCollectionUi)
