@@ -29,7 +29,7 @@ conda run -n metal_trade_312 python APIkeys_collection.py --workspace-inventory 
 | `api_launcher/crawlers/` | 資料集發現爬蟲 | `types.py` 放共用資料結構，`metadata.py` 放共用 metadata 判斷，`fetch.py` 放 HTTP/JSON/URL helper，`pagination.py` 放 full-crawl page cap 與去重 append helper，`ncei.py`/`stac.py`/`ckan.py`/`erddap.py`/`cmr.py`/`gbif.py`/`dataverse.py`/`zenodo.py`/`datacite.py`/`ogc_records.py`/`socrata.py`/`openalex.py`/`html_index.py` 是已拆出的 source 模組；query URL builder、payload parser、source-level fetch/parse flow 與 pagination flow 都優先放在各自模組；上層 orchestrator 統一調度。 |
 | `api_launcher/downloads/` | 下載/驗證/修復 | 不要被 `.gitignore` 的 `/downloads/` runtime 目錄誤傷。 |
 | `api_launcher/importers/` | CSV/JSON/archive 匯入 | raw -> curated 的 bounded transform 放這裡。 |
-| `frontends/tk/` | 目前 Tk 控制台 | UI 過渡期仍保留，但業務邏輯要慢慢外移到 `api_launcher/`。 |
+| `frontends/tk/` | 目前 Tk 控制台 | UI 過渡期仍保留，但業務邏輯要慢慢外移到 `api_launcher/`。`launcher_ui.py` 應只保留 widget、事件與視窗生命週期；純 helper 先放 `ui_helpers.py`，Provider table view-model 先放 `provider_models.py`，避免 7000 行主檔繼續膨脹。 |
 | `frontends/unreal/` | Unreal frontend 邊界文件 | Unreal 專案本體仍在 repo 外；這裡只放橋接規則/工具。 |
 | `renderers/` | Taichi/renderer prototype | 保持輕量，不要讓重型 renderer 依賴污染 launcher 基本測試。 |
 | `catalog/` | 正式可提交 catalog/reference | 只有通過 review/audit 的 seed/source 才進這裡。 |
