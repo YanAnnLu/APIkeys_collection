@@ -46,6 +46,15 @@ from api_launcher.adapter_plan_resolvers.erddap import (
     erddap_sample_csv_url as resolve_erddap_sample_csv_url,
     tabledap_sample_variables as resolve_tabledap_sample_variables,
 )
+from api_launcher.adapter_plan_resolvers.ncei_search import (
+    bounded_ncei_search_url as resolve_bounded_ncei_search_url,
+    entry_is_ncei_search_candidate as resolve_entry_is_ncei_search_candidate,
+    ncei_bounded_search_entry as resolve_ncei_bounded_search_entry,
+    ncei_bounded_search_url as resolve_ncei_bounded_search_url,
+    ncei_candidate_urls as resolve_ncei_candidate_urls,
+    ncei_limited_query as resolve_ncei_limited_query,
+    ncei_search_sibling_endpoint as resolve_ncei_search_sibling_endpoint,
+)
 from api_launcher.adapter_plan_resolvers.socrata import (
     bounded_socrata_url,
     resource_is_socrata_api_url,
@@ -853,90 +862,14 @@ def ncei_bounded_search_entry(
     plan_index: int,
     downloads_root: str | Path,
 ) -> dict[str, object]:
-    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
-    option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
-    sample_url, source_url, endpoint_kind, ncei_dataset_id = ncei_bounded_search_url(entry, version_meta, option_metadata)
-    if not sample_url:
-        return {}
-
-    provider_id = first_text(entry.get("provider_id"), "unknown_provider")
-    dataset_id = first_text(entry.get("dataset_id"), version_meta.get("dataset_id"), ncei_dataset_id, "ncei_dataset")
-    dataset_uid = first_text(entry.get("dataset_uid"), version_meta.get("dataset_uid"), dataset_id)
-    version = first_text(version_meta.get("version"), entry.get("version"), "discovered")
-    sample_version = f"{version}-ncei-search-sample" if version else "ncei-search-sample"
-    dataset = Dataset(
-        dataset_uid=dataset_uid,
-        provider_id=provider_id,
-        dataset_id=dataset_id,
-        title=first_text(entry.get("dataset_title"), entry.get("name"), dataset_id),
-        categories=tuple(str(value) for value in entry.get("categories", ()) if str(value).strip()) if isinstance(entry.get("categories"), (list, tuple)) else (),
-        data_type=str(option_metadata.get("data_family") or entry.get("data_type") or "metadata_sample"),
-        native_format="json",
-        geographic_scope=str(entry.get("geographic_scope") or ""),
-        landing_url=first_text(entry.get("landing_url"), version_meta.get("landing_url"), entry.get("docs_url")),
-        api_url=sample_url,
-        license_url=str(entry.get("license_url") or ""),
-        version=sample_version,
-        metadata={
-            **option_metadata,
-            "data_family": option_metadata.get("data_family") or entry.get("data_type") or "metadata_sample",
-            "bounded_query": {
-                "resolver_id": NCEI_SEARCH_RESOLVER_ID,
-                "source_url": source_url,
-                "endpoint_kind": endpoint_kind,
-                "sample_limit": NCEI_SEARCH_SAMPLE_LIMIT,
-                "ncei_dataset_id": ncei_dataset_id,
-            },
-        },
+    return resolve_ncei_bounded_search_entry(
+        entry,
+        plan_index,
+        downloads_root,
+        first_text=first_text,
+        resolver_id=NCEI_SEARCH_RESOLVER_ID,
+        sample_limit=NCEI_SEARCH_SAMPLE_LIMIT,
     )
-    option = DatasetVersionOption(
-        dataset_uid=dataset_uid,
-        dataset_id=dataset_id,
-        label="NCEI bounded search sample JSON",
-        version=sample_version,
-        status="resolved_sample",
-        download_url=sample_url,
-        landing_url=dataset.landing_url,
-        update_strategy="sample_then_review",
-        notes="Bounded NOAA/NCEI Search API sample generated from crawler metadata; this downloads search metadata only.",
-        metadata={"native_format": "json", "resolver_id": NCEI_SEARCH_RESOLVER_ID, "ncei_dataset_id": ncei_dataset_id},
-    )
-    eligibility = DownloadEligibility(
-        status="direct_download",
-        label="Bounded API",
-        reason=f"The NOAA/NCEI Search API request was bounded to {NCEI_SEARCH_SAMPLE_LIMIT} JSON metadata records.",
-        direct_url=sample_url,
-    )
-    resolved = dict(entry)
-    resolved.update(
-        {
-            "dataset_uid": dataset_uid,
-            "dataset_id": dataset_id,
-            "dataset_title": dataset.title,
-            "dataset_version": option.to_plan_metadata(),
-            "source_format": "json",
-            "target": "local_file_asset",
-            "use_staging": True,
-            "download_eligibility": eligibility.to_dict(),
-            "download_url": sample_url,
-            "target_path": dataset_download_target_path(provider_id, dataset, option, downloads_root).as_posix(),
-            "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
-            "plan_status": "planned",
-            "adapter_resolution": {
-                "resolver_id": NCEI_SEARCH_RESOLVER_ID,
-                "original_plan_index": plan_index,
-                "sample_url": sample_url,
-                "policy": "bounded_search_metadata_sample_only",
-                "sample_limit": NCEI_SEARCH_SAMPLE_LIMIT,
-                "source_url": source_url,
-                "endpoint_kind": endpoint_kind,
-                "ncei_dataset_id": ncei_dataset_id,
-            },
-        }
-    )
-    resolved.pop("adapter_review", None)
-    resolved.pop("adapter_review_url", None)
-    return resolved
 
 
 def ncei_bounded_search_url(
@@ -944,41 +877,17 @@ def ncei_bounded_search_url(
     version_meta: dict[str, object],
     option_metadata: dict[str, object],
 ) -> tuple[str, str, str, str]:
-    if not entry_is_ncei_search_candidate(entry, option_metadata):
-        return "", "", "", ""
-    ncei_dataset_id = first_text(
-        option_metadata.get("ncei_result_id"),
-        option_metadata.get("ncei_dataset_id"),
-        entry.get("dataset_id"),
-        version_meta.get("dataset_id"),
+    return resolve_ncei_bounded_search_url(
+        entry,
+        version_meta,
+        option_metadata,
+        first_text=first_text,
+        sample_limit=NCEI_SEARCH_SAMPLE_LIMIT,
     )
-    for raw_url in ncei_candidate_urls(entry, version_meta, option_metadata):
-        sample_url, endpoint_kind = bounded_ncei_search_url(raw_url, ncei_dataset_id)
-        if sample_url:
-            return sample_url, raw_url, endpoint_kind, ncei_dataset_id
-    endpoint_url = first_text(option_metadata.get("ncei_search_endpoint_url"), option_metadata.get("source_endpoint_url"))
-    if endpoint_url:
-        sample_url, endpoint_kind = bounded_ncei_search_url(endpoint_url, ncei_dataset_id)
-        if sample_url:
-            return sample_url, endpoint_url, endpoint_kind, ncei_dataset_id
-    return "", "", "", ""
 
 
 def entry_is_ncei_search_candidate(entry: dict[str, object], option_metadata: dict[str, object]) -> bool:
-    markers = {
-        str(entry.get("provider_id") or "").strip().lower(),
-        str(entry.get("source_format") or "").strip().lower(),
-        str(entry.get("data_type") or "").strip().lower(),
-        str(option_metadata.get("native_format") or "").strip().lower(),
-        str(option_metadata.get("source_format") or "").strip().lower(),
-        str(option_metadata.get("discovery_source_type") or "").strip().lower(),
-        str(option_metadata.get("source_type") or "").strip().lower(),
-    }
-    if "ncei_search" in markers:
-        return True
-    return any("ncei" in marker for marker in markers) and bool(
-        option_metadata.get("ncei_result_id") or option_metadata.get("ncei_dataset_id")
-    )
+    return resolve_entry_is_ncei_search_candidate(entry, option_metadata)
 
 
 def ncei_candidate_urls(
@@ -986,56 +895,15 @@ def ncei_candidate_urls(
     version_meta: dict[str, object],
     option_metadata: dict[str, object],
 ) -> list[str]:
-    candidates = [
-        option_metadata.get("source_url"),
-        option_metadata.get("ncei_search_url"),
-        option_metadata.get("api_url"),
-        version_meta.get("download_url"),
-        (entry.get("adapter_review") or {}).get("source_url") if isinstance(entry.get("adapter_review"), dict) else "",
-        entry.get("adapter_review_url"),
-        entry.get("api_base_url"),
-    ]
-    urls: list[str] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        url = first_text(candidate)
-        if not url or url in seen:
-            continue
-        seen.add(url)
-        urls.append(url)
-    return urls
+    return resolve_ncei_candidate_urls(entry, version_meta, option_metadata, first_text=first_text)
 
 
 def bounded_ncei_search_url(raw_url: str, ncei_dataset_id: str) -> tuple[str, str]:
-    parsed = urllib.parse.urlparse(raw_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return "", ""
-    path = parsed.path.rstrip("/")
-    lower_path = path.lower()
-    if "/access/services/search/v1/" not in lower_path:
-        return "", ""
-    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
-    if lower_path.endswith("/data"):
-        sample_query = ncei_limited_query(query, require_dataset=True, dataset_id=ncei_dataset_id)
-        if not sample_query:
-            return "", ""
-        return urllib.parse.urlunparse(parsed._replace(query=sample_query, fragment="")), "data"
-    if lower_path.endswith("/datasets"):
-        data_endpoint = ncei_search_sibling_endpoint(parsed, "data")
-        if ncei_dataset_id:
-            sample_query = ncei_limited_query(query, require_dataset=True, dataset_id=ncei_dataset_id, for_data_endpoint=True)
-            if sample_query:
-                return urllib.parse.urlunparse(data_endpoint._replace(query=sample_query, fragment="")), "data"
-        sample_query = ncei_limited_query(query, require_dataset=False, dataset_id="", for_data_endpoint=False)
-        if not sample_query:
-            return "", ""
-        return urllib.parse.urlunparse(parsed._replace(query=sample_query, fragment="")), "datasets"
-    return "", ""
+    return resolve_bounded_ncei_search_url(raw_url, ncei_dataset_id, sample_limit=NCEI_SEARCH_SAMPLE_LIMIT)
 
 
 def ncei_search_sibling_endpoint(parsed: urllib.parse.ParseResult, endpoint: str) -> urllib.parse.ParseResult:
-    prefix = parsed.path.rsplit("/", 1)[0]
-    return parsed._replace(path=f"{prefix}/{endpoint}", query="", fragment="")
+    return resolve_ncei_search_sibling_endpoint(parsed, endpoint)
 
 
 def ncei_limited_query(
@@ -1044,38 +912,13 @@ def ncei_limited_query(
     dataset_id: str,
     for_data_endpoint: bool = True,
 ) -> str:
-    if for_data_endpoint:
-        allowed_keys = {
-            "bbox": "bbox",
-            "datatypes": "dataTypes",
-            "dataset": "dataset",
-            "enddate": "endDate",
-            "locationids": "locationIds",
-            "startdate": "startDate",
-            "stations": "stations",
-        }
-        filtered = [
-            (allowed_keys[key.lower()], value)
-            for key, value in query
-            if key.lower() in allowed_keys and value != ""
-        ]
-    else:
-        filtered = [
-            (key, value)
-            for key, value in query
-            if key.lower() not in {"limit", "offset"} and value != ""
-        ]
-    filtered = [(key, value) for key, value in filtered if key.lower() not in {"limit", "offset"}]
-    keys = {key.lower() for key, _value in filtered}
-    if dataset_id and "dataset" not in keys:
-        filtered.insert(0, ("dataset", dataset_id))
-    if require_dataset and "dataset" not in {key.lower() for key, _value in filtered}:
-        return ""
-    if not filtered:
-        return ""
-    filtered.append(("limit", str(NCEI_SEARCH_SAMPLE_LIMIT)))
-    filtered.append(("offset", "0"))
-    return urllib.parse.urlencode(filtered, doseq=True, safe=",:")
+    return resolve_ncei_limited_query(
+        query,
+        require_dataset,
+        dataset_id,
+        for_data_endpoint=for_data_endpoint,
+        sample_limit=NCEI_SEARCH_SAMPLE_LIMIT,
+    )
 
 
 def ncei_bounded_access_data_entry(
