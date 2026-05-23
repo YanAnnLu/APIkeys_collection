@@ -359,7 +359,7 @@ class DownloadPlanPanelUiTests(unittest.TestCase):
         fake_ui.ask_import_existing_table_policy = lambda: "rename"
         fake_ui.import_existing_table_policy_label = lambda _policy: "安全改名"
 
-        with patch("frontends.tk.launcher_ui.messagebox.askyesno", return_value=False) as askyesno:
+        with patch("frontends.tk.import_workflows.messagebox.askyesno", return_value=False) as askyesno:
             fake_ui.import_supported_plan_results_from_ui()
 
         askyesno.assert_called_once()
@@ -502,10 +502,10 @@ class LocalFileImportUiWorkerTests(unittest.TestCase):
             fake_ui.status_var = SimpleNamespace(set=lambda message: messages.append(message))
 
             with (
-                patch("frontends.tk.launcher_ui.state_file", lambda name: root / name),
-                patch("frontends.tk.launcher_ui.messagebox.showinfo") as showinfo,
-                patch("frontends.tk.launcher_ui.messagebox.showerror"),
-                patch("frontends.tk.launcher_ui.log_event"),
+                patch("frontends.tk.import_workflows.state_file", lambda name: root / name),
+                patch("frontends.tk.import_workflows.messagebox.showinfo") as showinfo,
+                patch("frontends.tk.import_workflows.messagebox.showerror"),
+                patch("frontends.tk.import_workflows.log_event"),
             ):
                 fake_ui.import_local_file_worker(csv_path, curated_db, "weather")
 
@@ -541,9 +541,9 @@ class LocalFileImportUiWorkerTests(unittest.TestCase):
             fake_ui.status_var = SimpleNamespace(set=lambda message: messages.append(message))
 
             with (
-                patch("frontends.tk.launcher_ui.state_file", lambda name: root / name),
-                patch("frontends.tk.launcher_ui.messagebox.showerror") as showerror,
-                patch("frontends.tk.launcher_ui.log_exception"),
+                patch("frontends.tk.import_workflows.state_file", lambda name: root / name),
+                patch("frontends.tk.import_workflows.messagebox.showerror") as showerror,
+                patch("frontends.tk.import_workflows.log_exception"),
             ):
                 fake_ui.import_local_file_worker(workbook_path, curated_db, "weather")
 
