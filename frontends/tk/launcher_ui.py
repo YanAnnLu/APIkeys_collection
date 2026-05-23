@@ -9,8 +9,6 @@ downloads, and can import supported CSV/JSON/GeoJSON results into the local MVP 
 
 from __future__ import annotations
 
-import os
-import sqlite3
 import sys
 import threading
 import webbrowser
@@ -18,19 +16,16 @@ from tkinter import BooleanVar, Menu, PhotoImage, StringVar, TclError, Tk, messa
 
 import APIkeys_collection as core
 from api_launcher.downloads.jobs import DownloadProgress, NonBlockingDownloadQueue
-from api_launcher.event_log import log_event, log_exception
+from api_launcher.event_log import log_exception
 from api_launcher.downloads.http import HTTPDownloadAdapter
 from frontends.tk.startup_helpers import (
-    contextlib_suppress_tcl_error,
     tk_startup_failure_message,
 )
 from frontends.tk.ui_config import (
     COLORS,
-    DB_PATH,
     DOWNLOAD_REPAIR_ACTION_STATUSES,
     LAYOUT,
     PRODUCT_DISPLAY_NAME,
-    PRODUCT_SHORT_NAME,
     TABLE_COLUMNS,
     configured_ui_language,
 )
@@ -45,6 +40,7 @@ from frontends.tk.ui_labels import (
     localized_download_repair_label as localized_download_repair_label_text,
 )
 from frontends.tk.provider_models import ProviderRow
+from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
@@ -66,12 +62,12 @@ from api_launcher.downloads.repair import (
     repair_suggestion_for_result,
     verify_manifest_file,
 )
-from api_launcher.integrations import save_integration_config
-from api_launcher.paths import PROJECT_ROOT, catalog_file
+from api_launcher.paths import PROJECT_ROOT
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 
 
 class ApiCollectionUi(
+    AppLifecycleWorkflowMixin,
     AiSummaryWorkflowMixin,
     DiscoveryWorkflowMixin,
     PlanWorkflowMixin,
@@ -180,85 +176,6 @@ class ApiCollectionUi(
             return en_us
         return zh_tw
 
-    def supported_cursor(self, candidates: tuple[str, ...]) -> str:
-        original = self.root.cget("cursor")
-        for cursor in candidates:
-            try:
-                self.root.configure(cursor=cursor)
-                self.root.configure(cursor=original)
-                return cursor
-            except TclError:
-                continue
-        try:
-            self.root.configure(cursor=original)
-        except TclError:
-            pass
-        return original or "arrow"
-
-    def present_main_window(self) -> None:
-        """Make the launcher window visible when started from an IDE/background shell."""
-        # 多個 Tk 呼叫可能在視窗關閉邊界拋 TclError；這裡只吞視窗生命週期錯誤。
-        with contextlib_suppress_tcl_error():
-            self.root.update_idletasks()
-        with contextlib_suppress_tcl_error():
-            self.root.deiconify()
-        with contextlib_suppress_tcl_error():
-            self.root.lift()
-        with contextlib_suppress_tcl_error():
-            self.root.attributes("-topmost", True)
-            self.root.after(700, self.release_topmost)
-        with contextlib_suppress_tcl_error():
-            self.root.focus_force()
-        with contextlib_suppress_tcl_error():
-            self.root.update_idletasks()
-        self.announce_ui_ready()
-
-    def release_topmost(self) -> None:
-        with contextlib_suppress_tcl_error():
-            self.root.attributes("-topmost", False)
-
-    def announce_ui_ready(self) -> None:
-        if self.ui_ready_announced:
-            return
-        self.ui_ready_announced = True
-        print(
-            f"{PRODUCT_DISPLAY_NAME} ({PRODUCT_SHORT_NAME}) UI ready "
-            f"(pid={os.getpid()}, window={self.root.winfo_width()}x{self.root.winfo_height()}).",
-            flush=True,
-        )
-
-    def load_column_width_overrides(self) -> dict[str, int]:
-        # 欄寬是使用者偏好；讀取時仍用 TABLE_COLUMNS 正規化，避免舊 config 撐破畫面。
-        raw_widths = core.load_integration_config().get("ui_table_column_widths")
-        if not isinstance(raw_widths, dict):
-            return {}
-        widths: dict[str, int] = {}
-        valid_names = {column[0] for column in TABLE_COLUMNS}
-        for name, value in raw_widths.items():
-            if name not in valid_names:
-                continue
-            try:
-                widths[str(name)] = self.normalized_column_width(str(name), int(value))
-            except (TypeError, ValueError):
-                continue
-        return widths
-
-    def save_column_width_overrides(self) -> None:
-        config = core.ensure_local_integration_config()
-        if self.column_width_overrides:
-            config["ui_table_column_widths"] = dict(sorted(self.column_width_overrides.items()))
-        else:
-            config.pop("ui_table_column_widths", None)
-        save_integration_config(config)
-
-    def normalized_column_width(self, name: str, width: int) -> int:
-        spec = next((column for column in TABLE_COLUMNS if column[0] == name), None)
-        if spec is None:
-            return width
-        _name, _label, _ratio, min_width, max_width, _anchor, _stretch = spec
-        manual_max = max(max_width, LAYOUT["column_manual_max"])
-        return clamp(width, min_width, manual_max)
-
     def localized_download_label(self, eligibility: object) -> str:
         return localized_download_label_text(eligibility, self.ui_language)
 
@@ -273,54 +190,6 @@ class ApiCollectionUi(
 
     def localized_database_repair_description(self, suggestion: object) -> str:
         return localized_database_repair_description_text(suggestion, self.ui_language, self.tr)
-
-    def _init_database(self) -> None:
-        # UI 啟動時只初始化本機 catalog schema 與內建 seeds，不執行下載或 OAuth。
-        conn = core.connect_db(DB_PATH)
-        try:
-            repository = core.ApiCatalogRepository(conn)
-            repository.init_schema()
-            repository.seed_builtin_providers()
-            repository.seed_key_reference_if_exists(catalog_file(core.KEY_REFERENCE_NAME))
-        finally:
-            conn.close()
-
-    def _connect(self) -> sqlite3.Connection:
-        return core.connect_db(DB_PATH)
-
-    def close_app(self) -> None:
-        self.cancel_detail_animation()
-        if self.resize_after_id:
-            self.root.after_cancel(self.resize_after_id)
-            self.resize_after_id = None
-        for job_id in list(self.download_providers_by_job):
-            with contextlib_suppress_tcl_error():
-                # 視窗關閉時先要求 worker 取消，避免背景下載繼續寫入已關閉 UI 的 callback。
-                self.download_queue.cancel(job_id)
-        self.download_queue.shutdown(wait=False, cancel_futures=True)
-        self.root.destroy()
-
-    def run_startup_environment_checks(self) -> None:
-        # 環境檢查只回報/記錄問題；不在 UI 啟動時自動修改使用者機器設定。
-        checks = core.run_startup_checks(DB_PATH)
-        problems = [check for check in checks if check.status in {"warning", "error"}]
-        if problems:
-            for check in problems:
-                log_event(
-                    "startup_check_problem",
-                    check.detail,
-                    level=check.status,
-                    component="ui.startup",
-                    context={"name": check.name},
-                )
-            summary = ", ".join(f"{check.name}:{check.status}" for check in problems[:4])
-            self.status_var.set(self.tr(f"啟動環境檢查需要注意：{summary}", f"Startup environment checks need attention: {summary}"))
-            if any(check.status == "error" for check in problems):
-                details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
-                messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
-
-
-
 
 
     def on_tree_click(self, event: object) -> None:

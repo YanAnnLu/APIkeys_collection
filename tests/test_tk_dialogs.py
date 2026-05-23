@@ -4,6 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
     AiModelSettingsDialog,
@@ -62,6 +63,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
+        self.assertTrue(callable(AppLifecycleWorkflowMixin))
+        self.assertTrue(callable(AppLifecycleWorkflowMixin.present_main_window))
         self.assertTrue(callable(AiSummaryWorkflowMixin))
         self.assertTrue(callable(AiSummaryWorkflowMixin.generate_active_summary))
         self.assertTrue(callable(DetailPanelWorkflowMixin))

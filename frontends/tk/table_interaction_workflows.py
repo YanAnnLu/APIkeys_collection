@@ -5,11 +5,46 @@ from __future__ import annotations
 
 from tkinter import TclError
 
-from frontends.tk.ui_config import TABLE_COLUMNS
+import APIkeys_collection as core
+from api_launcher.integrations import save_integration_config
+from frontends.tk.ui_config import LAYOUT, TABLE_COLUMNS
+from frontends.tk.ui_helpers import clamp
 
 
 class TableInteractionWorkflowMixin:
     """封裝不改變資料內容的 Treeview / search UI 事件。"""
+
+    def load_column_width_overrides(self) -> dict[str, int]:
+        # 欄寬是使用者偏好；讀取時仍用 TABLE_COLUMNS 正規化，避免舊 config 撐破畫面。
+        raw_widths = core.load_integration_config().get("ui_table_column_widths")
+        if not isinstance(raw_widths, dict):
+            return {}
+        widths: dict[str, int] = {}
+        valid_names = {column[0] for column in TABLE_COLUMNS}
+        for name, value in raw_widths.items():
+            if name not in valid_names:
+                continue
+            try:
+                widths[str(name)] = self.normalized_column_width(str(name), int(value))
+            except (TypeError, ValueError):
+                continue
+        return widths
+
+    def save_column_width_overrides(self) -> None:
+        config = core.ensure_local_integration_config()
+        if self.column_width_overrides:
+            config["ui_table_column_widths"] = dict(sorted(self.column_width_overrides.items()))
+        else:
+            config.pop("ui_table_column_widths", None)
+        save_integration_config(config)
+
+    def normalized_column_width(self, name: str, width: int) -> int:
+        spec = next((column for column in TABLE_COLUMNS if column[0] == name), None)
+        if spec is None:
+            return width
+        _name, _label, _ratio, min_width, max_width, _anchor, _stretch = spec
+        manual_max = max(max_width, LAYOUT["column_manual_max"])
+        return clamp(width, min_width, manual_max)
 
     def table_column_name_from_event(self, event: object) -> str:
         column_id = self.tree.identify_column(getattr(event, "x", 0))
