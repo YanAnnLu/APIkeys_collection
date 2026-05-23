@@ -125,6 +125,36 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
         self.assertIn("Evidence:", detail)
         self.assertIn("不代表已納管", detail)
 
+    def test_provider_seed_from_candidate_preserves_local_review_fields(self) -> None:
+        # UI 寫入的是 ignored local seed，後續還要經過 promotion audit；這裡只驗證欄位轉換不遺失來源線索。
+        fake_ui = object.__new__(ApiCollectionUi)
+        candidate = {
+            "provider_id": "example_provider",
+            "name": "Example Provider",
+            "owner": "Example Org",
+            "categories": ["science", "metadata"],
+            "geographic_scope": "global",
+            "source_url": "https://example.test/source",
+            "docs_url": "https://example.test/docs",
+            "api_base_url": "https://api.example.test",
+            "signup_url": "https://example.test/signup",
+            "auth_type": "api_key",
+        }
+
+        seed = fake_ui.provider_seed_from_candidate(candidate)
+
+        self.assertEqual("example_provider", seed.provider_id)
+        self.assertEqual(("science", "metadata"), seed.categories)
+        self.assertEqual("https://example.test/source", seed.homepage_url)
+        self.assertEqual("https://example.test/docs", seed.docs_url)
+        self.assertEqual("api_key", seed.expected_auth_type)
+
+    def test_provider_seed_from_candidate_rejects_missing_boundary_fields(self) -> None:
+        fake_ui = object.__new__(ApiCollectionUi)
+
+        with self.assertRaisesRegex(ValueError, "owner"):
+            fake_ui.provider_seed_from_candidate({"provider_id": "example_provider", "name": "Example"})
+
     def test_crawler_next_action_label_guides_zero_candidate_repair(self) -> None:
         # Tk 不解析 warning 文字；它只把 crawler 後端的 next_action 狀態碼翻成可操作的繁中提示。
         fake_ui = object.__new__(ApiCollectionUi)

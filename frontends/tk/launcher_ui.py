@@ -81,7 +81,7 @@ from api_launcher.database_repair import (
 from api_launcher.database_self_check import DatabaseAssetVerifier, DatabaseSelfCheckIssue, database_self_check_issues
 from api_launcher.db import utc_now_iso
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
-from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, discover_provider_candidates, load_all_discovery_seeds
+from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, ProviderSeed, append_discovery_seed, discover_provider_candidates, load_all_discovery_seeds
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, log_file, state_file
@@ -3925,6 +3925,39 @@ class ApiCollectionUi:
         )
         return "\n".join(lines)
 
+    def provider_seed_from_candidate(self, candidate: object) -> ProviderSeed:
+        # 這裡只把審核過的 provider 候選轉成 ignored local seed；正式 catalog promotion 仍要走後續 audit gate。
+        data = candidate if isinstance(candidate, dict) else {}
+        provider_id = str(data.get("provider_id") or "").strip()
+        name = str(data.get("name") or "").strip()
+        owner = str(data.get("owner") or "").strip()
+        homepage_url = str(data.get("source_url") or data.get("docs_url") or data.get("api_base_url") or "").strip()
+        missing = [
+            label
+            for label, value in (
+                ("provider_id", provider_id),
+                ("name", name),
+                ("owner", owner),
+                ("source_url/docs_url/api_base_url", homepage_url),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError("missing required candidate fields: " + ", ".join(missing))
+        categories = tuple(str(value).strip() for value in data.get("categories", []) if str(value).strip())
+        return ProviderSeed(
+            provider_id=provider_id,
+            name=name,
+            owner=owner,
+            categories=categories or ("custom",),
+            geographic_scope=str(data.get("geographic_scope") or "global").strip() or "global",
+            homepage_url=homepage_url,
+            docs_url=str(data.get("docs_url") or "").strip(),
+            api_base_url=str(data.get("api_base_url") or "").strip(),
+            signup_url=str(data.get("signup_url") or "").strip(),
+            expected_auth_type=str(data.get("auth_type") or "unknown").strip() or "unknown",
+        )
+
     def open_provider_candidate_review_panel(self) -> None:
         path = state_file("provider_candidates.ui.json")
         if not path.exists():
@@ -4008,6 +4041,34 @@ class ApiCollectionUi:
                 return
             webbrowser.open(url)
 
+        def write_selected_local_seed() -> None:
+            candidate = selected_candidate()
+            if candidate is None:
+                messagebox.showinfo(self.tr("Provider 候選", "Provider candidates"), self.tr("請先選取一筆 provider 候選。", "Select a provider candidate first."), parent=dialog)
+                return
+            try:
+                seed = self.provider_seed_from_candidate(candidate)
+            except ValueError as exc:
+                messagebox.showerror(self.tr("Provider 候選", "Provider candidates"), self.tr(f"無法寫入本機 seed：{exc}", f"Could not write local seed: {exc}"), parent=dialog)
+                return
+            output_path = local_config_file(LOCAL_SEEDS_NAME)
+            append_discovery_seed(output_path, seed)
+            log_event(
+                "provider_candidate_local_seed_written",
+                "Provider candidate written to ignored local discovery seed.",
+                component="ui.provider_discovery",
+                context={"provider_id": seed.provider_id, "output_path": str(output_path)},
+            )
+            self.status_var.set(self.tr(f"已寫入本機 provider seed：{seed.provider_id}", f"Local provider seed written: {seed.provider_id}"))
+            messagebox.showinfo(
+                self.tr("Provider 候選", "Provider candidates"),
+                self.tr(
+                    f"已寫入本機 ignored seed：{output_path}\n\n這仍未寫入正式 catalog；接著請用「審核本機 discovery 草稿」確認是否可提升。",
+                    f"Wrote ignored local seed: {output_path}\n\nThe official catalog was not changed; next run \"Audit local discovery drafts\" before promotion.",
+                ),
+                parent=dialog,
+            )
+
         tree.bind("<<TreeviewSelect>>", render_selected)
         children = tree.get_children()
         if children:
@@ -4019,6 +4080,7 @@ class ApiCollectionUi:
 
         actions = ttk.Frame(dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
+        ttk.Button(actions, text=self.tr("寫入本機 seed", "Write local seed"), style="Action.TButton", command=write_selected_local_seed).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開來源", "Open source"), style="Action.TButton", command=lambda: open_selected_url("source_url")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開文件", "Open docs"), style="Action.TButton", command=lambda: open_selected_url("docs_url")).pack(side=LEFT, padx=(0, 10))
         ttk.Button(actions, text=self.tr("開 Review JSON", "Open review JSON"), style="Action.TButton", command=lambda: webbrowser.open(path.as_uri())).pack(side=LEFT, padx=(0, 10))
