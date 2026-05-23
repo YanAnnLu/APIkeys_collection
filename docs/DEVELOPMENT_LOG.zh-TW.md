@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-23
+最後更新：2026-05-24
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -15,7 +15,15 @@
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
 
-## 2026-05-17 至 2026-05-23 回補流水帳
+## 2026-05-17 至 2026-05-24 回補流水帳
+
+### 2026-05-24
+
+目前開發階段：**MVP Hardening / Tk UI Decoupling**。這一段繼續用小切片收束 `launcher_ui.py`，優先搬移無副作用的面板建置與表格資料生命週期，保留 row action、修復、卸載、爬蟲等高風險流程在主流程或既有 mixin 中，避免一次抽動太多控制邊界。
+
+| 時間 | 開發階段 | 狀態 | SHA | Run | 原始提交訊息 | 中文說明 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:06 | MVP Hardening | **CHECKPOINT** | `7337f36` | `26337375378` | Split Tk table data workflows | 延續 Tk UI 解耦，把下載計畫面板建置、收合/展開狀態搬到 `frontends/tk/download_plan_panel_workflows.py`，並把 provider/dataset 表格的 `reload_data`、filter、render、dataset row helper 搬到 `frontends/tk/table_data_workflows.py`。主視窗仍保留 menu/layout/detail 與 row action、修復、卸載、爬蟲等較高風險控制流程；`launcher_ui.py` 從 1389 行降到 1116 行。新增 mixin importability guard；驗證包含 temp `PYTHONPYCACHEPREFIX` `py_compile` OK、Tk/UI targeted 62 tests OK、`git diff --check` / cached check OK、`scripts\pre_push_smoke_brief.cmd` 510 tests / 4 skipped + MVP demo smoke `stage=download_import_completed`、`row_count=3`，以及 CI Ubuntu、`windows-2025-vs2026`、real DB smoke 全部 success。 |
 
 ### 2026-05-23
 
