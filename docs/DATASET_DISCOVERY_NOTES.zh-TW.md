@@ -91,7 +91,7 @@ flowchart LR
 - NOAA AIS / MarineCadastre
 - NOAA GOES-R cloud/moisture imagery
 
-這些 seed 只是搜尋與匯入候選來源的起點，不是最終 catalog。未來使用者可以透過 local seed 檔或 UI 手動新增區域平台、研究機構、政府資料站或團隊內部資料站。Tk `資料庫 > 審核 provider 候選` 也可以把候選寫成 ignored local provider seed；若候選已帶有明確或可保守推導的 supported crawler type 與 endpoint，還可以寫成 ignored local dataset discovery source 草稿。CLI/agent 可用 `--write-provider-candidate-source-drafts --provider-candidate-source-drafts-input ...` 從同一類 review JSON 批次重建本機 source 草稿，方便 Mac 接力或無 UI 工作流。這些 local 草稿都必須再經 `審核本機 discovery 草稿` / crawler audit，不能直接視為正式來源。
+這些 seed 只是搜尋與匯入候選來源的起點，不是最終 catalog。未來使用者可以透過 local seed 檔或 UI 手動新增區域平台、研究機構、政府資料站或團隊內部資料站。Tk `資料庫 > 審核 provider 候選` 也可以把候選寫成 ignored local provider seed；若候選已帶有明確或可保守推導的 supported crawler type 與 endpoint，還可以寫成 ignored local dataset discovery source 草稿。CLI/agent 可用 `--write-provider-candidate-source-drafts --provider-candidate-source-drafts-input ...` 從同一類 review JSON 批次重建本機 source 草稿，方便 Mac 接力或無 UI 工作流；summary 會帶 `next_action`、`audit_command` 與 `audit_source_ids`，CLI 也會寫入 `provider_candidate_source_drafts_written` structured event，讓 `--handoff-report` / `--handoff-report-json` 能直接顯示下一步 dry-run audit 指令。這些 local 草稿都必須再經 `審核本機 discovery 草稿` / crawler audit，不能直接視為正式來源。
 
 ## Dataset discovery sources
 

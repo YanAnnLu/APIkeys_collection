@@ -48,6 +48,8 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("latest_download_requeue_outcome:", report)
         self.assertIn("latest_adapter_review_json_event_at:", report)
         self.assertIn("latest_adapter_review_json_output:", report)
+        self.assertIn("latest_provider_candidate_source_draft_event_at:", report)
+        self.assertIn("latest_provider_candidate_source_draft_audit_command:", report)
         self.assertIn("latest_adapter_plan_resolved_event_at:", report)
         self.assertIn("latest_adapter_plan_resolved_output:", report)
         self.assertIn("latest_download_plan_event_at:", report)
@@ -164,6 +166,53 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual("2026-05-22T09:00:00+00:00", summary["latest_adapter_review_json_event_at"])
         self.assertEqual("state/adapter_review.json", summary["latest_adapter_review_json_output"])
         self.assertIn("source_resolution_required", summary["latest_adapter_review_json_outcomes"])
+
+    def test_verification_summary_reports_latest_provider_candidate_source_drafts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                summary = verification_summary(
+                    repo,
+                    [
+                        {
+                            "timestamp": "2026-05-23T03:40:00+00:00",
+                            "event": "provider_candidate_source_drafts_written",
+                            "context": {
+                                "dataset_source_path": "config/dataset_discovery_sources.local.json",
+                                "source_draft_count": 2,
+                                "skipped_count": 1,
+                                "provider_filter": ["sample_ckan"],
+                                "audit_source_ids": ["sample_ckan_ckan_package_search"],
+                                "next_action": "run_local_discovery_audit_before_catalog_promotion",
+                                "audit_command": (
+                                    "python APIkeys_collection.py --promote-local-discovery-catalog "
+                                    "--promote-local-discovery-dry-run "
+                                    "--write-local-discovery-audit-json state/local_discovery_audit.json"
+                                ),
+                            },
+                        }
+                    ],
+                )
+            finally:
+                conn.close()
+
+        self.assertEqual("2026-05-23T03:40:00+00:00", summary["latest_provider_candidate_source_draft_event_at"])
+        self.assertEqual(
+            "config/dataset_discovery_sources.local.json",
+            summary["latest_provider_candidate_source_draft_path"],
+        )
+        self.assertIn("'source_draft_count': 2", summary["latest_provider_candidate_source_draft_counts"])
+        self.assertIn("sample_ckan_ckan_package_search", summary["latest_provider_candidate_source_draft_counts"])
+        self.assertEqual(
+            "run_local_discovery_audit_before_catalog_promotion",
+            summary["latest_provider_candidate_source_draft_next_action"],
+        )
+        self.assertIn(
+            "--promote-local-discovery-catalog",
+            summary["latest_provider_candidate_source_draft_audit_command"],
+        )
 
     def test_verification_summary_reports_latest_adapter_plan_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

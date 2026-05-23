@@ -16,6 +16,11 @@ from api_launcher.crawlers.types import DatasetDiscoverySource
 
 EXPLICIT_SOURCE_TYPE_KEYS = ("dataset_source_type", "source_type", "crawler_source_type")
 ENDPOINT_URL_KEYS = ("dataset_source_endpoint_url", "endpoint_url", "api_base_url", "source_url", "docs_url")
+LOCAL_DISCOVERY_AUDIT_NEXT_ACTION = "run_local_discovery_audit_before_catalog_promotion"
+LOCAL_DISCOVERY_AUDIT_COMMAND = (
+    "python APIkeys_collection.py --promote-local-discovery-catalog "
+    "--promote-local-discovery-dry-run --write-local-discovery-audit-json state/local_discovery_audit.json"
+)
 
 
 def dataset_source_from_provider_candidate(candidate: Mapping[str, object]) -> DatasetDiscoverySource:
@@ -96,6 +101,10 @@ def write_provider_candidate_source_drafts(
         "source_draft_count": len(written),
         "skipped_count": len(skipped),
         "dataset_source_path": str(output_path),
+        # source draft 只是 staging；summary 直接帶下一步，避免接力 agent 把它誤當成已通過 crawler audit。
+        "next_action": LOCAL_DISCOVERY_AUDIT_NEXT_ACTION,
+        "audit_command": LOCAL_DISCOVERY_AUDIT_COMMAND,
+        "audit_source_ids": [str(source.get("source_id") or "") for source in written],
         "sources": written,
         "skipped": skipped,
     }

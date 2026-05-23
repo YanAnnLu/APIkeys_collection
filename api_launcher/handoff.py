@@ -114,6 +114,11 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         f"- latest_adapter_review_json_event_at: {snapshot.verification_summary.get('latest_adapter_review_json_event_at', '') or 'none'}",
         f"- latest_adapter_review_json_output: {snapshot.verification_summary.get('latest_adapter_review_json_output', '') or 'none'}",
         f"- latest_adapter_review_json_outcomes: {snapshot.verification_summary.get('latest_adapter_review_json_outcomes', '') or '{}'}",
+        f"- latest_provider_candidate_source_draft_event_at: {snapshot.verification_summary.get('latest_provider_candidate_source_draft_event_at', '') or 'none'}",
+        f"- latest_provider_candidate_source_draft_path: {snapshot.verification_summary.get('latest_provider_candidate_source_draft_path', '') or 'none'}",
+        f"- latest_provider_candidate_source_draft_counts: {snapshot.verification_summary.get('latest_provider_candidate_source_draft_counts', '') or '{}'}",
+        f"- latest_provider_candidate_source_draft_next_action: {snapshot.verification_summary.get('latest_provider_candidate_source_draft_next_action', '') or 'none'}",
+        f"- latest_provider_candidate_source_draft_audit_command: {snapshot.verification_summary.get('latest_provider_candidate_source_draft_audit_command', '') or 'none'}",
         f"- latest_adapter_plan_resolved_event_at: {snapshot.verification_summary.get('latest_adapter_plan_resolved_event_at', '') or 'none'}",
         f"- latest_adapter_plan_resolved_output: {snapshot.verification_summary.get('latest_adapter_plan_resolved_output', '') or 'none'}",
         f"- latest_adapter_plan_resolved_counts: {snapshot.verification_summary.get('latest_adapter_plan_resolved_counts', '') or '{}'}",
@@ -289,6 +294,10 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
     latest_adapter_review_context = (
         latest_adapter_review_event.get("context") if isinstance(latest_adapter_review_event.get("context"), dict) else {}
     )
+    latest_source_draft_event = latest_event_by_name(events, "provider_candidate_source_drafts_written")
+    latest_source_draft_context = (
+        latest_source_draft_event.get("context") if isinstance(latest_source_draft_event.get("context"), dict) else {}
+    )
     latest_adapter_plan_event = latest_event_by_name(events, "adapter_plan_resolved")
     latest_adapter_plan_context = (
         latest_adapter_plan_event.get("context") if isinstance(latest_adapter_plan_event.get("context"), dict) else {}
@@ -307,6 +316,13 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
         "resolved_review_entries": latest_adapter_plan_context.get("resolved_review_entries", 0),
         "unresolved_review_entries": latest_adapter_plan_context.get("unresolved_review_entries", 0),
         "warning_count": latest_adapter_plan_context.get("warning_count", 0),
+    }
+    # Source draft 是 ignored local staging；handoff 只揭露數量與下一步 dry-run audit，避免接力時誤推正式 catalog。
+    source_draft_counts = {
+        "source_draft_count": latest_source_draft_context.get("source_draft_count", 0),
+        "skipped_count": latest_source_draft_context.get("skipped_count", 0),
+        "provider_filter": latest_source_draft_context.get("provider_filter", []),
+        "audit_source_ids": latest_source_draft_context.get("audit_source_ids", []),
     }
     # Download plan 摘要只放穩定計數與下一步，避免 handoff 夾帶龐大的 per-item payload。
     download_plan_counts = {
@@ -349,6 +365,21 @@ def verification_summary(repository: ApiCatalogRepository, events: list[dict[str
         ),
         "latest_adapter_review_json_outcomes": (
             str(latest_adapter_review_context.get("by_outcome") or {}) if latest_adapter_review_context else ""
+        ),
+        "latest_provider_candidate_source_draft_event_at": (
+            str(latest_source_draft_event.get("timestamp") or "") if latest_source_draft_event else ""
+        ),
+        "latest_provider_candidate_source_draft_path": (
+            str(latest_source_draft_context.get("dataset_source_path") or "") if latest_source_draft_context else ""
+        ),
+        "latest_provider_candidate_source_draft_counts": (
+            str(source_draft_counts) if latest_source_draft_context else ""
+        ),
+        "latest_provider_candidate_source_draft_next_action": (
+            str(latest_source_draft_context.get("next_action") or "") if latest_source_draft_context else ""
+        ),
+        "latest_provider_candidate_source_draft_audit_command": (
+            str(latest_source_draft_context.get("audit_command") or "") if latest_source_draft_context else ""
         ),
         "latest_adapter_plan_resolved_event_at": (
             str(latest_adapter_plan_event.get("timestamp") or "") if latest_adapter_plan_event else ""

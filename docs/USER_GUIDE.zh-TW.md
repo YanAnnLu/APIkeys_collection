@@ -212,6 +212,8 @@ Tk UI 可用 `資料庫 > 審核本機 discovery 草稿` 跑同一條 dry-run au
 
 Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discovery。它只輸出 `state/provider_candidates.ui.json` 作為 review JSON，並在彈窗中預覽候選 provider id 與 confidence；這不是安裝、納管或正式 catalog 寫入，也不會抓取 API key 或登入內容。接著可用 `資料庫 > 審核 provider 候選` 讀取同一份 JSON，用列表查看 provider id、名稱、confidence、auth type、文件 URL，右側會列出 source/docs/API/signup/evidence 與 review-only 提醒，並可直接開來源、開文件或打開 review JSON。若確認某筆候選值得保留，可按「寫入本機 seed」把它寫進 ignored local provider discovery seed；若候選已明確標出或可保守推導出支援的 crawler type 與 endpoint，也可按「寫入 source 草稿」寫入 ignored local dataset discovery source。這兩個動作都仍未寫正式 catalog，下一步應跑 `資料庫 > 審核本機 discovery 草稿` 或 CLI dry-run promotion guard。
 
+`--write-provider-candidate-source-drafts-json` 的 summary 會帶出 `next_action`、`audit_command` 與 `audit_source_ids`，同時 CLI 會留下 `provider_candidate_source_drafts_written` structured event；`--handoff-report` / `--handoff-report-json` 會顯示最近一次 source draft 寫入與下一步 dry-run audit 指令，方便 Mac 或 heartbeat agent 接力。
+
 ### Dataset discovery / candidate review
 
 | 目的 | 指令 |

@@ -69,6 +69,9 @@ class DiscoveryDraftTests(unittest.TestCase):
 
         self.assertEqual(1, summary["source_draft_count"])
         self.assertEqual(1, summary["skipped_count"])
+        self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
+        self.assertIn("--promote-local-discovery-catalog", summary["audit_command"])
+        self.assertEqual(["sample_ckan_ckan_package_search"], summary["audit_source_ids"])
         self.assertEqual("sample_ckan_ckan_package_search", sources[0].source_id)
         self.assertIn("supported dataset discovery source type", summary["skipped"][0]["reason"])
 
@@ -99,6 +102,8 @@ class DiscoveryDraftTests(unittest.TestCase):
         self.assertEqual(1, len(sources))
         self.assertEqual(1, summary["source_draft_count"])
         self.assertEqual(1, summary["skipped_count"])
+        self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
+        self.assertIn("--write-local-discovery-audit-json", summary["audit_command"])
 
 
 def provider_candidate_payload() -> dict[str, object]:

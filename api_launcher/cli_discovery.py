@@ -15,6 +15,7 @@ from api_launcher.discovery import (
     load_all_discovery_seeds,
 )
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
+from api_launcher.event_log import log_event
 from api_launcher.repository import load_providers
 from api_launcher.paths import catalog_file, local_config_file, state_file
 
@@ -125,6 +126,7 @@ def write_provider_candidate_source_drafts_cli(args: argparse.Namespace) -> None
         output_path,
         provider_ids=tuple(args.provider_candidate_source_provider_id or ()),
     )
+    summary_path_text = ""
     print(
         "[discover] wrote "
         f"{summary['source_draft_count']} local dataset source drafts to {output_path} "
@@ -134,4 +136,22 @@ def write_provider_candidate_source_drafts_cli(args: argparse.Namespace) -> None
         summary_path = resolve_project_path(args.write_provider_candidate_source_drafts_json)
         summary_path.parent.mkdir(parents=True, exist_ok=True)
         summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        summary_path_text = str(summary_path)
         print(f"[discover] wrote provider candidate source draft summary to {summary_path}")
+    # 這個事件是 Mac/heartbeat 接力用的最小索引：只記 staging 路徑與下一步 audit，不把草稿內容塞進 log。
+    log_event(
+        "provider_candidate_source_drafts_written",
+        "provider candidate source drafts written to local discovery config",
+        component="discovery",
+        context={
+            "input_path": str(input_path),
+            "dataset_source_path": str(output_path),
+            "summary_path": summary_path_text,
+            "source_draft_count": summary.get("source_draft_count", 0),
+            "skipped_count": summary.get("skipped_count", 0),
+            "provider_filter": summary.get("provider_filter", []),
+            "audit_source_ids": summary.get("audit_source_ids", []),
+            "next_action": summary.get("next_action", ""),
+            "audit_command": summary.get("audit_command", ""),
+        },
+    )
