@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from frontends.tk.dialogs import DatabaseClientSettingsDialog, ProviderEditorDialog
+from frontends.tk.dialogs import DataStoreConnectionSettingsDialog, DatabaseClientSettingsDialog, ProviderEditorDialog
 
 
 class _FakeVar:
@@ -19,6 +20,7 @@ class TkDialogModuleTest(unittest.TestCase):
         # 這個測試保護 launcher_ui.py 拆分後的公開匯入點，不需要真的開 Tk 視窗。
         self.assertTrue(callable(ProviderEditorDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
+        self.assertTrue(callable(DataStoreConnectionSettingsDialog))
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。
@@ -45,6 +47,16 @@ class TkDialogModuleTest(unittest.TestCase):
         dialog.profile_var = _FakeVar("dbeaver - DBeaver (enabled)")
 
         self.assertIs(dbeaver_profile, dialog.selected_profile())
+
+    def test_data_store_active_profile_label_uses_ui_translation(self) -> None:
+        # DataStore dialog 用主 UI 的 tr callback，避免抽出 class 後失去語言設定。
+        dialog = object.__new__(DataStoreConnectionSettingsDialog)
+        dialog.ui = SimpleNamespace(tr=lambda zh, _en: zh)
+        with patch("frontends.tk.dialogs.active_data_store_profile", return_value=SimpleNamespace(profile_id="mysql_local")):
+            self.assertEqual("目前作用中 profile：mysql_local", dialog._active_profile_label())
+
+        with patch("frontends.tk.dialogs.active_data_store_profile", return_value=None):
+            self.assertEqual("目前作用中 profile：-", dialog._active_profile_label())
 
 
 if __name__ == "__main__":

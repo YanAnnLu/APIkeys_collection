@@ -84,7 +84,6 @@ from frontends.tk.ui_config import (
 )
 from frontends.tk.ui_helpers import (
     clamp,
-    data_store_env_template_path,
     database_sql_dry_run_available,
     local_file_import_error_message,
     local_file_provenance_review_message,
@@ -131,8 +130,8 @@ from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCE
 from api_launcher.discovery import DEFAULT_SEEDS_NAME, LOCAL_SEEDS_NAME, ProviderSeed, append_discovery_seed, discover_provider_candidates, load_all_discovery_seeds
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
-from frontends.tk.dialogs import DatabaseClientSettingsDialog, ProviderEditorDialog
-from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
+from frontends.tk.dialogs import DataStoreConnectionSettingsDialog, DatabaseClientSettingsDialog, ProviderEditorDialog
+from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, log_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.registry import PROVIDER_CATALOG_NAME
@@ -140,7 +139,7 @@ from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
-from api_launcher.data_store_connections import data_store_profiles_from_config, test_data_store_connection, write_data_store_env_template
+from api_launcher.data_store_connections import data_store_profiles_from_config
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
 
@@ -2948,134 +2947,7 @@ class ApiCollectionUi:
         return data_store_next_action_message_text(result, self.tr)
 
     def open_data_store_connection_settings(self) -> None:
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("資料儲存連線", "Data store connections"))
-        dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("900x520")
-        dialog.transient(self.root)
-        ttk.Label(dialog, text=self.tr("資料儲存連線", "Data store connections"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        ttk.Label(
-            dialog,
-            text=self.tr(
-                "Launcher 之後可能管理 SQL、NoSQL、物件儲存、向量資料庫與本機檔案資料庫。密碼請放在環境變數或未來的安全憑證庫，不要寫進 Git 檔案。",
-                "The launcher may manage SQL, NoSQL, object storage, vector DBs, and file-backed stores. Secrets stay in environment variables or a future credential vault.",
-            ),
-            style="DetailMuted.TLabel",
-        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
-        active_profile = active_data_store_profile()
-        active_var = StringVar(
-            value=self.tr(
-                f"目前作用中 profile：{active_profile.profile_id if active_profile else '-'}",
-                f"Active profile: {active_profile.profile_id if active_profile else '-'}",
-            )
-        )
-        ttk.Label(dialog, textvariable=active_var, style="DetailMuted.TLabel").pack(anchor="w", fill=X, padx=24, pady=(0, 10))
-        table = ttk.Treeview(
-            dialog,
-            columns=("label", "kind", "engine", "required", "optional", "status"),
-            show="headings",
-            height=10,
-        )
-        for name, label, width in [
-            ("label", self.tr("設定檔", "Profile"), 160),
-            ("kind", self.tr("儲存類型", "Store kind"), 140),
-            ("engine", self.tr("引擎", "Engine"), 120),
-            ("required", self.tr("必要環境變數", "Required env vars"), 260),
-            ("optional", self.tr("選用環境變數", "Optional env vars"), 180),
-            ("status", self.tr("狀態", "Status"), 90),
-        ]:
-            table.heading(name, text=label)
-            table.column(name, width=width, anchor="w", stretch=True)
-        profiles = data_store_profiles_from_config(core.load_integration_config())
-        profiles_by_id = {profile.profile_id: profile for profile in profiles}
-        for profile in profiles:
-            table.insert(
-                "",
-                END,
-                iid=profile.profile_id,
-                values=(
-                    profile.label,
-                    profile.store_kind,
-                    profile.engine,
-                    ", ".join(profile.required_env_vars),
-                    ", ".join(profile.optional_env_vars) or "-",
-                    profile.status,
-                ),
-            )
-        if active_profile and active_profile.profile_id in profiles_by_id:
-            table.selection_set(active_profile.profile_id)
-            table.focus(active_profile.profile_id)
-        table.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
-        actions = ttk.Frame(dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 18))
-
-        def test_selected_profile() -> None:
-            selection = table.selection()
-            if not selection:
-                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
-                return
-            profile_id = str(selection[0])
-            profile = profiles_by_id[profile_id]
-            result = test_data_store_connection(profile)
-            table.set(profile_id, "status", result.status)
-            self.status_var.set(self.tr(f"資料儲存測試：{profile_id} {result.status}", f"Data store test: {profile_id} {result.status}"))
-            hint = self.data_store_next_action_message(result)
-            message = f"{profile.label}\n\n{result.status}: {result.message}"
-            if hint:
-                message = f"{message}\n\n{hint}"
-            messagebox.showinfo(self.tr("資料儲存連線測試", "Data store connection test"), message)
-
-        def write_selected_env_template() -> None:
-            selection = table.selection()
-            if not selection:
-                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
-                return
-            profile_id = str(selection[0])
-            profile = profiles_by_id[profile_id]
-            output_path = data_store_env_template_path(profile_id)
-            try:
-                # 範本只寫 env var 名稱與空值，協助本機 MySQL/PostgreSQL 設定，不保存任何密碼。
-                result = write_data_store_env_template((profile,), output_path)
-            except Exception as exc:
-                log_exception("data_store_env_template_failed", exc, component="tk", context={"profile_id": profile_id})
-                messagebox.showerror(self.tr("資料儲存 env 範本", "Data-store env template"), f"{type(exc).__name__}: {exc}")
-                return
-            log_event(
-                "data_store_env_template_written",
-                component="tk",
-                context={"profile_id": profile_id, "path": str(result.path), "env_vars": list(result.env_vars)},
-            )
-            self.status_var.set(self.tr(f"已寫出資料儲存 env 範本：{result.path}", f"Wrote data-store env template: {result.path}"))
-            messagebox.showinfo(
-                self.tr("資料儲存 env 範本", "Data-store env template"),
-                self.tr(
-                    f"已寫出：\n{result.path}\n\n請只在本機填入密碼，不要提交到 Git。",
-                    f"Wrote:\n{result.path}\n\nFill secrets locally only; do not commit them to Git.",
-                ),
-            )
-
-        def set_selected_active_profile() -> None:
-            selection = table.selection()
-            if not selection:
-                messagebox.showinfo(self.tr("資料儲存連線", "Data store connections"), self.tr("請先選取一個資料儲存設定檔。", "Select a data-store profile first."))
-                return
-            profile_id = str(selection[0])
-            try:
-                # active profile 是本機偏好設定，不含密碼；真實 credential 還是由 env/private store 負責。
-                profile = set_active_data_store_profile(profile_id)
-            except Exception as exc:
-                log_exception("data_store_active_profile_failed", exc, component="tk", context={"profile_id": profile_id})
-                messagebox.showerror(self.tr("資料儲存 profile", "Data-store profile"), f"{type(exc).__name__}: {exc}")
-                return
-            active_var.set(self.tr(f"目前作用中 profile：{profile.profile_id}", f"Active profile: {profile.profile_id}"))
-            log_event("data_store_active_profile_set", component="tk", context={"profile_id": profile.profile_id})
-            self.status_var.set(self.tr(f"已設定作用中資料儲存 profile：{profile.profile_id}", f"Active data-store profile set: {profile.profile_id}"))
-
-        ttk.Button(actions, text=self.tr("測試選取項目", "Test selected"), style="Action.TButton", command=test_selected_profile).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("設為作用中", "Set active"), style="Action.TButton", command=set_selected_active_profile).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("寫出 env 範本", "Write env template"), style="Action.TButton", command=write_selected_env_template).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
+        DataStoreConnectionSettingsDialog(self)
 
     def open_dataset_candidate_review_panel(self) -> None:
         dialog = Toplevel(self.root)
