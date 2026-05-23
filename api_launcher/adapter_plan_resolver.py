@@ -77,6 +77,18 @@ from api_launcher.adapter_plan_resolvers.ncei_search_data_file import (
     ncei_search_data_file_resources as resolve_ncei_search_data_file_resources,
     ncei_search_data_file_url as resolve_ncei_search_data_file_url,
 )
+from api_launcher.adapter_plan_resolvers.metadata_guards import (
+    cmr_link_rel_is_data as resolve_cmr_link_rel_is_data,
+    cmr_link_rel_is_metadata as resolve_cmr_link_rel_is_metadata,
+    cmr_link_rel_token as resolve_cmr_link_rel_token,
+    entry_is_cmr_candidate as resolve_entry_is_cmr_candidate,
+    entry_is_ogc_records_candidate as resolve_entry_is_ogc_records_candidate,
+    resource_is_cmr_metadata_link as resolve_resource_is_cmr_metadata_link,
+    resource_is_ogc_records_metadata_link as resolve_resource_is_ogc_records_metadata_link,
+    resource_link_rels as resolve_resource_link_rels,
+    resource_url_is_cmr_api_metadata as resolve_resource_url_is_cmr_api_metadata,
+    resource_value_is_truthy as resolve_resource_value_is_truthy,
+)
 from api_launcher.adapter_plan_resolvers.socrata import (
     bounded_socrata_url,
     resource_is_socrata_api_url,
@@ -1144,132 +1156,43 @@ def resource_is_stac_items_link(resource: dict[str, object], url: str) -> bool:
 
 
 def resource_is_ogc_records_metadata_link(entry: dict[str, object], resource: dict[str, object]) -> bool:
-    if not entry_is_ogc_records_candidate(entry):
-        return False
-    rel = str(resource.get("rel") or "").strip().lower()
-    return rel in {
-        "alternate",
-        "canonical",
-        "collection",
-        "describedby",
-        "items",
-        "parent",
-        "related",
-        "root",
-        "self",
-        "service-desc",
-        "service-doc",
-    }
+    return resolve_resource_is_ogc_records_metadata_link(entry, resource)
 
 
 def resource_is_cmr_metadata_link(entry: dict[str, object], resource: dict[str, object], url: str) -> bool:
-    if not (entry_is_cmr_candidate(entry) or resource_url_is_cmr_api_metadata(url)):
-        return False
-    rels = resource_link_rels(resource)
-    if any(cmr_link_rel_is_data(rel) for rel in rels):
-        return False
-    if any(cmr_link_rel_is_metadata(rel) for rel in rels):
-        return True
-    if resource_value_is_truthy(resource.get("inherited")):
-        return True
-    return resource_url_is_cmr_api_metadata(url)
+    return resolve_resource_is_cmr_metadata_link(entry, resource, url)
 
 
 def entry_is_cmr_candidate(entry: dict[str, object]) -> bool:
-    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
-    option_metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
-    markers = [
-        str(entry.get("provider_id") or ""),
-        str(entry.get("source_format") or ""),
-        str(entry.get("data_type") or ""),
-        str(option_metadata.get("native_format") or ""),
-        str(option_metadata.get("source_format") or ""),
-        str(option_metadata.get("discovery_source_type") or ""),
-        str(option_metadata.get("source_type") or ""),
-    ]
-    categories = entry.get("categories")
-    if isinstance(categories, (list, tuple)):
-        markers.extend(str(value) for value in categories)
-    review = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
-    markers.append(str(review.get("adapter_id") or ""))
-    return any("cmr" in marker.strip().lower() for marker in markers)
+    return resolve_entry_is_cmr_candidate(entry)
 
 
 def resource_link_rels(resource: dict[str, object]) -> list[str]:
-    rel = resource.get("rel")
-    if isinstance(rel, str):
-        return [rel]
-    if isinstance(rel, list):
-        return [str(value) for value in rel if str(value).strip()]
-    return []
+    return resolve_resource_link_rels(resource)
 
 
 def cmr_link_rel_is_data(rel: str) -> bool:
-    token = cmr_link_rel_token(rel)
-    return token in {"data", "download", "enclosure"}
+    return resolve_cmr_link_rel_is_data(rel)
 
 
 def cmr_link_rel_is_metadata(rel: str) -> bool:
-    token = cmr_link_rel_token(rel)
-    return token in {
-        "alternate",
-        "browse",
-        "canonical",
-        "collection",
-        "describedby",
-        "documentation",
-        "metadata",
-        "opendap",
-        "parent",
-        "related",
-        "root",
-        "self",
-        "service",
-        "service-desc",
-        "service-doc",
-    }
+    return resolve_cmr_link_rel_is_metadata(rel)
 
 
 def cmr_link_rel_token(rel: str) -> str:
-    cleaned = rel.strip().lower().rstrip("#/")
-    if not cleaned:
-        return ""
-    return cleaned.rsplit("/", 1)[-1]
+    return resolve_cmr_link_rel_token(rel)
 
 
 def resource_value_is_truthy(value: object) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value or "").strip().lower() in {"1", "true", "yes"}
+    return resolve_resource_value_is_truthy(value)
 
 
 def resource_url_is_cmr_api_metadata(url: str) -> bool:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        return False
-    if parsed.netloc.lower() != "cmr.earthdata.nasa.gov":
-        return False
-    path = parsed.path.rstrip("/").lower()
-    return path.startswith("/search/") and (
-        path.endswith("/collections")
-        or path.endswith("/collections.json")
-        or path.endswith("/granules")
-        or path.endswith("/granules.json")
-        or "/concepts/" in path
-    )
+    return resolve_resource_url_is_cmr_api_metadata(url)
 
 
 def entry_is_ogc_records_candidate(entry: dict[str, object]) -> bool:
-    version_meta = entry.get("dataset_version") if isinstance(entry.get("dataset_version"), dict) else {}
-    option_metadata = version_meta.get("metadata") if isinstance(version_meta.get("metadata"), dict) else {}
-    markers = {
-        str(entry.get("source_format") or "").strip().lower(),
-        str(option_metadata.get("native_format") or "").strip().lower(),
-        str(option_metadata.get("source_format") or "").strip().lower(),
-        str(option_metadata.get("discovery_source_type") or "").strip().lower(),
-        str(option_metadata.get("source_type") or "").strip().lower(),
-    }
-    return "ogc_api_records" in markers or "ogc_record" in markers
+    return resolve_entry_is_ogc_records_candidate(entry)
 
 
 def erddap_info_url(protocol_url: str, dataset_id: str) -> str:
