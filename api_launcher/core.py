@@ -49,6 +49,7 @@ from api_launcher.cli_dataset_discovery import (
 from api_launcher.cli_flags import command_requested
 from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
 from api_launcher.cli_database_repair import run_database_repairs
+from api_launcher.cli_download_plan import run_download_plan_cli
 from api_launcher.cli_yfinance import add_yfinance_args, run_yfinance_cli
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
@@ -91,7 +92,6 @@ from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_fro
 from api_launcher.integrations import (
     active_ai_profile,
     active_database_client,
-    active_download_policy,
     active_download_tool,
     ai_summary_profiles,
     database_client_profiles,
@@ -107,11 +107,6 @@ from api_launcher.integrations import (
     set_active_data_store_profile as set_active_data_store_profile_config,
 )
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite, import_verified_json_manifests_to_sqlite
-from api_launcher.ingestion_pipeline import (
-    DownloadImportPipelineOptions,
-    render_download_import_cli_lines,
-    run_download_import_slice,
-)
 from api_launcher.library_actions import LibraryContext, build_library_actions, library_action_agent_payload
 from api_launcher.manifests import read_manifest
 from api_launcher.manual_import import (
@@ -791,7 +786,7 @@ class CatalogLauncherCli:
             self.write_mvp_demo_flow()
             self.run_mvp_demo_smoke()
             run_yfinance_cli(self.args)
-            self.run_download_plan()
+            run_download_plan_cli(self.args, self.repository, log_event)
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
             self.write_local_file_manifest()
@@ -949,55 +944,6 @@ class CatalogLauncherCli:
             downloads_root=resolve_project_path(self.args.downloads_root),
             logger=log_event,
         )
-
-    def run_download_plan(self) -> None:
-        if not self.args.run_download_plan:
-            return
-        input_path = resolve_project_path(self.args.run_download_plan)
-        payload = load_download_plan_file(input_path)
-        run = run_download_import_slice(
-            payload,
-            self.repository,
-            DownloadImportPipelineOptions(
-                policy=active_download_policy(),
-                timeout=self.args.download_timeout,
-                limit=self.args.download_plan_limit,
-                import_supported_results=self.args.import_supported_plan_results,
-                import_sqlite_path=resolve_project_path(self.args.import_sqlite_db),
-                import_row_limit=self.args.import_row_limit,
-                import_replace=self.args.import_replace_table,
-                import_existing_table_policy=self.args.plan_import_existing_table_policy,
-            ),
-        )
-        # 下載計畫執行是 MVP 閉環的核心動作；留下 structured event 讓 handoff/agent 不必重跑或翻文字輸出。
-        log_event(
-            "download_plan_executed",
-            "Executed download plan pipeline slice.",
-            component="download_plan",
-            context={
-                "input_plan": str(input_path),
-                "stage": run.stage,
-                "next_action": run.next_action,
-                "import_requested": run.import_requested,
-                "entry_count": run.result.entry_count,
-                "submitted": run.result.submitted,
-                "completed": run.result.completed,
-                "failed": run.result.failed,
-                "skipped": run.result.skipped,
-                "registered_assets": run.result.registered_assets,
-                "imported": run.result.imported,
-                "import_skipped": run.result.import_skipped,
-                "import_failed": run.result.import_failed,
-                "skip_summary": run.result.skip_summary,
-                "error_count": len(run.result.errors),
-            },
-        )
-        if self.args.run_download_plan_json:
-            # JSON mode 是 heartbeat/agent 的穩定交接格式；人類 CLI 摘要維持在預設路徑。
-            print(json.dumps(run.to_dict(), ensure_ascii=False, indent=2))
-            return
-        for line in render_download_import_cli_lines(run):
-            print(line)
 
     def write_mvp_demo_flow(self) -> None:
         if not self.args.write_mvp_demo_flow:
