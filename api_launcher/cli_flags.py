@@ -5,6 +5,7 @@ import argparse
 from api_launcher.cli_dataset_discovery import dataset_discovery_command_active
 from api_launcher.cli_discovery import discovery_command_active
 from api_launcher.cli_portal_intake import portal_intake_command_active
+from api_launcher.cli_yfinance import yfinance_command_active
 
 
 def command_requested(args: argparse.Namespace) -> bool:
@@ -26,10 +27,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.run_download_plan_json,
         bool(args.write_mvp_demo_flow),
         bool(args.run_mvp_demo_smoke_json),
-        bool(args.write_yfinance_demo_plan),
-        bool(args.write_yfinance_live_plan),
-        bool(args.write_yfinance_storage_review),
-        bool(args.write_yfinance_storage_handoff),
+        yfinance_command_active(args),
         bool(args.adapter_review_plan),
         args.adapter_review_json,
         bool(args.write_adapter_review_json),

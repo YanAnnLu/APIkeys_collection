@@ -136,7 +136,7 @@ class YFinanceAdapterTests(unittest.TestCase):
                 storage_target="mysql_timeseries_table",
             )
 
-            with patch("api_launcher.core.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
+            with patch("api_launcher.cli_yfinance.write_yfinance_live_plan_files", return_value=fake_result) as live_mock:
                 with redirect_stdout(output):
                     rc = main(
                         [
