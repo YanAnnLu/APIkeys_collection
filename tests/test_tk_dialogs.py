@@ -26,6 +26,7 @@ from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
+from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
@@ -68,6 +69,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(OAuthWorkflowMixin.open_ai_profile_browser_login_dialog))
         self.assertTrue(callable(PlanWorkflowMixin))
         self.assertTrue(callable(PlanWorkflowMixin.current_download_plan_payload))
+        self.assertTrue(callable(ProviderSettingsWorkflowMixin))
+        self.assertTrue(callable(ProviderSettingsWorkflowMixin.open_database_tool))
         self.assertTrue(callable(RepairWorkflowMixin))
         self.assertTrue(callable(RepairWorkflowMixin.open_repair_panel))
         self.assertTrue(callable(YfinanceWorkflowMixin))
