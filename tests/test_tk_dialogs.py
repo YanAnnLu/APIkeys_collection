@@ -34,6 +34,7 @@ from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMix
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
 from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
+from frontends.tk.window_layout_workflows import WindowLayoutWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
 
@@ -91,6 +92,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(TableDataWorkflowMixin.reload_data))
         self.assertTrue(callable(TableInteractionWorkflowMixin))
         self.assertTrue(callable(TableInteractionWorkflowMixin.set_category))
+        self.assertTrue(callable(WindowLayoutWorkflowMixin))
+        self.assertTrue(callable(WindowLayoutWorkflowMixin._build_layout))
         self.assertTrue(callable(YfinanceWorkflowMixin))
         self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
 
