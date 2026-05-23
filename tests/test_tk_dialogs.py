@@ -9,6 +9,7 @@ from frontends.tk.dialogs import (
     AiModelSettingsDialog,
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
+    DatasetCandidateReviewDialog,
     DeveloperCliDialog,
     GoogleGeminiSettingsDialog,
     ImportExistingTablePolicyDialog,
@@ -35,6 +36,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
+        self.assertTrue(callable(DatasetCandidateReviewDialog))
         self.assertTrue(callable(DeveloperCliDialog))
         self.assertTrue(callable(GoogleGeminiSettingsDialog))
         self.assertTrue(callable(ImportExistingTablePolicyDialog))
@@ -173,6 +175,38 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("adapter_id: socrata", detail)
         self.assertIn("dataset_uid: abcd-1234", detail)
         self.assertIn("reason: selector", detail)
+
+    def test_dataset_candidate_review_row_and_detail_text_are_stable(self) -> None:
+        # Dataset candidate review 會讀 crawler 證據並改 registry 狀態；抽成 class 後仍要保住 row/detail 契約。
+        dataset = SimpleNamespace(
+            metadata={
+                "candidate_status": "needs_review",
+                "data_family": "tabular",
+                "storage_hint": "sqlite",
+                "analysis_hint": "pandas",
+                "viewer_hint": "table",
+                "confidence": 0.88,
+                "source_url": "https://example.test/source.csv",
+                "evidence": {"source_type": "ckan"},
+            },
+            provider_id="example_provider",
+            title="Example Dataset",
+            dataset_id="example_dataset",
+            data_type="csv",
+            native_format="CSV",
+            geographic_scope="global",
+            landing_url="https://example.test/landing",
+            api_url="https://example.test/api",
+        )
+
+        self.assertEqual(
+            ("needs_review", "example_provider", "Example Dataset", "tabular", "CSV", "0.88"),
+            DatasetCandidateReviewDialog.candidate_row_values(dataset),
+        )
+        detail = DatasetCandidateReviewDialog.candidate_detail_text(dataset, lambda zh, _en: zh)
+        self.assertIn("標題: Example Dataset", detail)
+        self.assertIn("來源: https://example.test/source.csv", detail)
+        self.assertIn('"source_type": "ckan"', detail)
 
 
 if __name__ == "__main__":
