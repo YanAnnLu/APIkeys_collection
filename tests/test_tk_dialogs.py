@@ -33,6 +33,7 @@ from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMix
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
+from frontends.tk.source_action_workflows import SourceActionWorkflowMixin
 from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.window_layout_workflows import WindowLayoutWorkflowMixin
@@ -91,6 +92,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(ResponsiveLayoutWorkflowMixin.open_detail_drawer))
         self.assertTrue(callable(SidebarWorkflowMixin))
         self.assertTrue(callable(SidebarWorkflowMixin.refresh_sidebar_filters))
+        self.assertTrue(callable(SourceActionWorkflowMixin))
+        self.assertTrue(callable(SourceActionWorkflowMixin.run_row_action))
         self.assertTrue(callable(TableDataWorkflowMixin))
         self.assertTrue(callable(TableDataWorkflowMixin.reload_data))
         self.assertTrue(callable(TableInteractionWorkflowMixin))
