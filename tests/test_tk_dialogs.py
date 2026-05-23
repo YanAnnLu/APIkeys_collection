@@ -19,6 +19,7 @@ from frontends.tk.dialogs import (
     StartupEnvironmentChecksDialog,
     UiLanguageSettingsDialog,
 )
+from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
 
 class _FakeVar:
@@ -45,6 +46,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
+        self.assertTrue(callable(YfinanceWorkflowMixin))
+        self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。
