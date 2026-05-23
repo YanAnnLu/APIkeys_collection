@@ -6,6 +6,7 @@ from api_launcher.cli_database_repair import database_repair_command_active
 from api_launcher.cli_dataset_discovery import dataset_discovery_command_active
 from api_launcher.cli_discovery import discovery_command_active
 from api_launcher.cli_download_plan import download_plan_command_active
+from api_launcher.cli_manual_import import manual_import_command_active
 from api_launcher.cli_portal_intake import portal_intake_command_active
 from api_launcher.cli_yfinance import yfinance_command_active
 
@@ -40,9 +41,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.import_verified_csv_manifests,
         bool(args.import_json_manifest),
         args.import_verified_json_manifests,
-        bool(args.write_local_file_manifest),
-        bool(args.import_local_file),
-        args.manual_import_json,
+        manual_import_command_active(args),
         args.manifest_health,
         args.list_manifests,
         args.show_logs > 0,

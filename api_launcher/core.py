@@ -50,6 +50,11 @@ from api_launcher.cli_flags import command_requested
 from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
 from api_launcher.cli_database_repair import run_database_repairs
 from api_launcher.cli_download_plan import run_download_plan_cli
+from api_launcher.cli_manual_import import (
+    import_local_file_cli,
+    validate_manual_import_args,
+    write_local_file_manifest_cli,
+)
 from api_launcher.cli_yfinance import add_yfinance_args, run_yfinance_cli
 from api_launcher.adapter_review import adapter_review_agent_payload, adapter_review_items
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
@@ -113,8 +118,6 @@ from api_launcher.manual_import import (
     DEFAULT_MANUAL_LOCAL_PROVIDER_ID,
     DEFAULT_MANUAL_LOCAL_VERSION,
     ensure_manual_local_file_provider,
-    register_local_file_manifest_asset,
-    write_local_file_manifest as write_local_file_manifest_file,
 )
 from api_launcher.models import Dataset, Provider
 from api_launcher.mvp_demo import (
@@ -789,8 +792,8 @@ class CatalogLauncherCli:
             run_download_plan_cli(self.args, self.repository, log_event)
             self.show_adapter_review_plan()
             self.resolve_adapter_plan()
-            self.write_local_file_manifest()
-            self.import_local_file()
+            write_local_file_manifest_cli(self.args, self.repository)
+            import_local_file_cli(self.args, self.repository)
             self.import_csv_manifest()
             self.import_verified_csv_manifests()
             self.import_json_manifest()
@@ -838,9 +841,7 @@ class CatalogLauncherCli:
             self.conn.close()
 
     def validate_cli_combinations(self) -> None:
-        # JSON 輸出是手動匯入流程的附加格式；單獨使用會讓 agent 收不到任何可解析結果。
-        if self.args.manual_import_json and not (self.args.write_local_file_manifest or self.args.import_local_file):
-            raise RuntimeError("--manual-import-json requires --write-local-file-manifest or --import-local-file.")
+        validate_manual_import_args(self.args)
 
     def json_stdout_mode(self) -> bool:
         # 這些模式承諾 stdout 是機器可讀 JSON；setup 訊息仍執行，但不可混進 stdout。
@@ -1086,140 +1087,6 @@ class CatalogLauncherCli:
         )
         for warning in result.warnings:
             print(f"[adapter-resolve] warning {warning}")
-
-    def write_local_file_manifest(self) -> None:
-        if not self.args.write_local_file_manifest:
-            return
-        if not self.args.local_file:
-            raise ValueError("--write-local-file-manifest requires --local-file.")
-        result = write_local_file_manifest_file(
-            resolve_project_path(self.args.local_file),
-            resolve_project_path(self.args.write_local_file_manifest),
-            manifest_dir=resolve_project_path(self.args.local_file_manifest_dir),
-            provider_id=self.args.local_file_provider_id,
-            dataset_id=self.args.local_file_dataset_id,
-            dataset_uid=self.args.local_file_dataset_uid,
-            version=self.args.local_file_version,
-            source_url=self.args.local_file_source_url,
-        )
-        self.ensure_local_file_manifest_provider(result.provider_id)
-        raw_asset_id = self.register_local_file_manifest(result.manifest_path)
-        if self.args.manual_import_json:
-            print(json.dumps(self.local_file_manifest_payload(result, raw_asset_id), ensure_ascii=False, indent=2))
-            return
-        print(
-            "[local-manifest] "
-            f"wrote {result.manifest_path} file={result.payload_path} "
-            f"format={result.source_format} dataset={result.dataset_id} version={result.version}"
-        )
-        if result.next_command:
-            print(
-                "[local-manifest] "
-                f"next={result.next_command} --import-sqlite-db {resolve_project_path(self.args.import_sqlite_db)}"
-            )
-
-    def import_local_file(self) -> None:
-        if not self.args.import_local_file:
-            return
-        result = write_local_file_manifest_file(
-            resolve_project_path(self.args.import_local_file),
-            None,
-            manifest_dir=resolve_project_path(self.args.local_file_manifest_dir),
-            provider_id=self.args.local_file_provider_id,
-            dataset_id=self.args.local_file_dataset_id,
-            dataset_uid=self.args.local_file_dataset_uid,
-            version=self.args.local_file_version,
-            source_url=self.args.local_file_source_url,
-        )
-        self.ensure_local_file_manifest_provider(result.provider_id)
-        raw_asset_id = self.register_local_file_manifest(result.manifest_path)
-        # 手動匯入仍走既有 CSV/JSON importer，確保 checksum、schema fingerprint、registry asset 邊界一致。
-        if result.import_kind == "csv":
-            import_result = import_csv_manifest_to_sqlite(
-                result.manifest_path,
-                resolve_project_path(self.args.import_sqlite_db),
-                self.repository,
-                table_name=self.args.import_table,
-                replace=self.args.import_replace_table,
-                row_limit=self.args.import_row_limit,
-            )
-        elif result.import_kind == "json":
-            import_result = import_json_manifest_to_sqlite(
-                result.manifest_path,
-                resolve_project_path(self.args.import_sqlite_db),
-                self.repository,
-                table_name=self.args.import_table,
-                replace=self.args.import_replace_table,
-                row_limit=self.args.import_row_limit,
-            )
-        else:
-            raise ValueError(f"Unsupported local-file import kind for {result.source_format}: {result.payload_path}")
-        if self.args.manual_import_json:
-            print(
-                json.dumps(
-                    self.local_file_import_payload(result, raw_asset_id, import_result.to_dict()),
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            )
-            return
-        print(
-            "[local-import] "
-            f"manifest={result.manifest_path} provider={import_result.provider_id} "
-            f"table={import_result.table_name} rows={import_result.rows_imported} "
-            f"columns={len(import_result.columns)} sqlite={import_result.sqlite_path} "
-            f"asset={import_result.table_asset_id}"
-        )
-
-    def register_local_file_manifest(self, manifest_path: str | Path) -> str:
-        # 手動檔案不是下載結果，但仍要登錄 raw file manifest，後續 manifest-health / repair / asset registry 才看得到它。
-        return register_local_file_manifest_asset(self.repository, manifest_path)
-
-    def local_file_manifest_payload(self, result, raw_asset_id: str) -> dict[str, object]:
-        # 給 heartbeat/外部 agent 使用的穩定摘要：同時指出 raw file 已登記與下一個可執行匯入動作。
-        return {
-            "action": "write_local_file_manifest",
-            "status": "ok",
-            "manifest": result.as_dict(),
-            "raw_asset_id": raw_asset_id,
-            "raw_asset_registered": True,
-            "next_action": {
-                "kind": f"import_{result.import_kind}_manifest" if result.import_kind else "manual_review",
-                "command": result.next_command,
-                "sqlite_db": str(resolve_project_path(self.args.import_sqlite_db)),
-            },
-        }
-
-    def local_file_import_payload(
-        self,
-        result,
-        raw_asset_id: str,
-        import_result: dict[str, object],
-    ) -> dict[str, object]:
-        # 匯入完成 payload 把 raw manifest 與 curated table 連在一起，方便後續 agent 接 database self-check。
-        return {
-            "action": "import_local_file",
-            "status": "ok",
-            "manifest": result.as_dict(),
-            "raw_asset_id": raw_asset_id,
-            "raw_asset_registered": True,
-            "import": import_result,
-            "next_action": {
-                "kind": "database_self_check",
-                "command": "--self-check-databases --self-check-databases-json",
-            },
-        }
-
-    def ensure_local_file_manifest_provider(self, provider_id: str) -> None:
-        # 預設 synthetic provider 可自動建立；若使用者指定真實 provider，則要求 DB 內已有該 provider 以保護 provenance。
-        if provider_id == DEFAULT_MANUAL_LOCAL_PROVIDER_ID:
-            ensure_manual_local_file_provider(self.repository, provider_id)
-            return
-        if not self.repository.load_providers([provider_id]):
-            raise ValueError(
-                f"Unknown --local-file-provider-id '{provider_id}'. Run --seed for built-in providers, "
-                f"or omit the flag to use {DEFAULT_MANUAL_LOCAL_PROVIDER_ID}."
-            )
 
     def import_csv_manifest(self) -> None:
         if not self.args.import_csv_manifest:
