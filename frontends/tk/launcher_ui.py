@@ -56,6 +56,7 @@ from frontends.tk.ui_labels import (
     localized_download_repair_label as localized_download_repair_label_text,
 )
 from frontends.tk.provider_models import ProviderRow
+from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_workflows import DownloadWorkflowMixin
 from frontends.tk.import_workflows import ImportWorkflowMixin
@@ -96,12 +97,10 @@ from frontends.tk.dialogs import (
 from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
-from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
-from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
 from api_launcher.data_store_connections import data_store_profiles_from_config
 
 
-class ApiCollectionUi(DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowMixin, DownloadWorkflowMixin, OAuthWorkflowMixin, RepairWorkflowMixin, MvpDemoWorkflowMixin, YfinanceWorkflowMixin):
+class ApiCollectionUi(AiSummaryWorkflowMixin, DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowMixin, DownloadWorkflowMixin, OAuthWorkflowMixin, RepairWorkflowMixin, MvpDemoWorkflowMixin, YfinanceWorkflowMixin):
     def __init__(self, root: Tk):
         self.root = root
         self.root.title(PRODUCT_DISPLAY_NAME)
@@ -330,12 +329,6 @@ class ApiCollectionUi(DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowM
             if any(check.status == "error" for check in problems):
                 details = "\n".join(f"[{check.status}] {check.name}: {check.detail}" for check in problems)
                 messagebox.showwarning(self.tr("啟動環境檢查", "Startup environment check"), details)
-
-    def load_saved_ai_api_keys_for_startup(self) -> None:
-        """Startup may read local private API-key state, but must not trigger OAuth/login UI."""
-        loaded_api_keys = load_saved_ai_api_keys(core.ai_summary_profiles())
-        if loaded_api_keys:
-            self.status_var.set(self.tr(f"已載入本機 AI API key：{', '.join(loaded_api_keys[:3])}", f"Loaded local AI API keys: {', '.join(loaded_api_keys[:3])}"))
 
     def _setup_style(self) -> None:
         style = ttk.Style(self.root)
@@ -1129,12 +1122,6 @@ class ApiCollectionUi(DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowM
         if not self.search_var.get().strip():
             self.set_search_placeholder()
 
-    def ai_profile_labels(self) -> dict[str, str]:
-        return {
-            f"{profile.label} ({profile.kind} / {profile.model})": profile.id
-            for profile in core.ai_summary_profiles()
-        }
-
     def set_category(self, category: str) -> None:
         self.category_var.set(category)
         self.apply_filter()
@@ -1683,40 +1670,6 @@ class ApiCollectionUi(DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowM
     def open_ai_model_settings(self) -> None:
         AiModelSettingsDialog(self)
 
-    def api_key_env_for_profile(self, profile: core.AiSummaryProfile) -> str:
-        return default_api_key_env(profile)
-
-    def profile_has_cloud_credential(self, profile: core.AiSummaryProfile) -> bool:
-        load_saved_ai_api_keys([profile])
-        api_key_env = self.api_key_env_for_profile(profile)
-        if api_key_env and os.environ.get(api_key_env, "").strip():
-            return True
-        oauth_config = oauth_device_config_from_profile(profile)
-        if oauth_config is None:
-            return False
-        status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
-        return status == "ready"
-
-    def ai_profile_login_status(self, profile: core.AiSummaryProfile) -> str:
-        if profile.kind == "ollama":
-            return self.tr("本機服務", "Local service")
-        api_key_env = self.api_key_env_for_profile(profile)
-        if api_key_env and os.environ.get(api_key_env, "").strip():
-            return self.tr(f"API key 已載入：{api_key_env}", f"API key ready: {api_key_env}")
-        saved_status, _saved_message = saved_ai_api_key_status(profile)
-        if saved_status == "stored":
-            return self.tr(f"API key 已保存：{api_key_env}", f"API key saved: {api_key_env}")
-        oauth_config = oauth_device_config_from_profile(profile)
-        if oauth_config is not None:
-            if not oauth_config.enabled:
-                return self.tr("OAuth 已停用", "OAuth disabled")
-            status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
-            if status == "ready":
-                return self.tr(f"OAuth 已登入：{status}", f"OAuth signed in: {status}")
-        if api_key_env:
-            return self.tr(f"需要 API key：{api_key_env}", f"Needs API key: {api_key_env}")
-        return self.tr("不需登入", "No login")
-
     def data_store_next_action_message(self, result: object) -> str:
         return data_store_next_action_message_text(result, self.tr)
 
@@ -1731,93 +1684,6 @@ class ApiCollectionUi(DiscoveryWorkflowMixin, PlanWorkflowMixin, ImportWorkflowM
 
     def open_google_gemini_settings(self) -> None:
         GoogleGeminiSettingsDialog(self)
-
-    def generate_active_summary(self) -> None:
-        row = self.row_by_provider_id(self.active_provider_id)
-        if row is None:
-            messagebox.showinfo("尚未選取", "請先選取一個資料源。")
-            return
-        profile = next((item for item in core.ai_summary_profiles() if item.id == self.selected_ai_profile_id), None)
-        if profile is None:
-            messagebox.showinfo(
-                "尚未設定 AI 摘要",
-                (
-                    "請在「整合 > AI 輔助模型選擇」選擇要使用的模型。"
-                    "預設建議可先用本機 Ollama，免登入也不需要雲端 API key。"
-                ),
-            )
-            return
-        if not profile.enabled:
-            try:
-                profile = core.set_active_ai_profile(profile.id)
-            except Exception as exc:
-                messagebox.showerror("AI 摘要設定失敗", str(exc))
-                return
-        if profile.kind != "ollama" and not self.profile_has_cloud_credential(profile):
-            if not self.configure_ai_api_key_session(profile.id, parent=self.root):
-                self.status_var.set("AI 摘要尚未啟動：需要 API key 或已保存的登入 token。")
-                return
-            profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), profile)
-        self.selected_ai_profile_id = profile.id
-        self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
-        thread = threading.Thread(target=self._summary_worker, args=(row.provider_id, profile.id), daemon=True)
-        thread.start()
-
-    def _summary_worker(self, provider_id: str, profile_id: str) -> None:
-        saved_summary = False
-        try:
-            conn = self._connect()
-            try:
-                repository = core.ApiCatalogRepository(conn)
-                providers = repository.load_providers([provider_id])
-                if not providers:
-                    raise RuntimeError(f"Unknown provider_id: {provider_id}")
-                provider = providers[0]
-                summary = core.generate_provider_summary(provider, profile_id=profile_id)
-                if not provider.notes:
-                    provider = core.Provider(
-                        provider_id=provider.provider_id,
-                        name=provider.name,
-                        owner=provider.owner,
-                        categories=provider.categories,
-                        geographic_scope=provider.geographic_scope,
-                        docs_url=provider.docs_url,
-                        api_base_url=provider.api_base_url,
-                        signup_url=provider.signup_url,
-                        auth_type=provider.auth_type,
-                        key_env_var=provider.key_env_var,
-                        license_url=provider.license_url,
-                        terms_url=provider.terms_url,
-                        notes=summary,
-                        crawl_urls=provider.crawl_urls,
-                    )
-                    repository.upsert_provider(provider)
-                    saved_summary = True
-            finally:
-                conn.close()
-        except Exception as exc:
-            error = str(exc)
-            log_exception(
-                "ai_summary_failed",
-                exc,
-                component="ui.ai_summary",
-                context={"provider_id": provider_id, "profile_id": profile_id},
-            )
-            self.root.after(0, lambda: messagebox.showerror("AI 摘要失敗", error))
-            self.root.after(0, lambda: self.status_var.set(f"AI 摘要失敗：{error}"))
-            return
-
-        def update_ui() -> None:
-            if saved_summary:
-                self.reload_data()
-                row = self.row_by_provider_id(provider_id)
-                self.set_ai_summary_text(summary)
-                self.status_var.set(f"AI 說明已寫入：{row.name if row else provider_id}")
-            else:
-                self.set_ai_summary_text(summary)
-                self.status_var.set("AI 摘要已產生；既有描述未被覆蓋。")
-
-        self.root.after(0, update_ui)
 
     def run_row_action(self, provider_id: str) -> None:
         row = self.row_by_provider_id(provider_id)

@@ -19,6 +19,7 @@ from frontends.tk.dialogs import (
     StartupEnvironmentChecksDialog,
     UiLanguageSettingsDialog,
 )
+from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_workflows import DownloadWorkflowMixin
 from frontends.tk.import_workflows import ImportWorkflowMixin
@@ -53,6 +54,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
+        self.assertTrue(callable(AiSummaryWorkflowMixin))
+        self.assertTrue(callable(AiSummaryWorkflowMixin.generate_active_summary))
         self.assertTrue(callable(DiscoveryWorkflowMixin))
         self.assertTrue(callable(DiscoveryWorkflowMixin.discover_dataset_candidates_from_ui))
         self.assertTrue(callable(DownloadWorkflowMixin))
