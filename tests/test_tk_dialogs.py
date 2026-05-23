@@ -19,6 +19,7 @@ from frontends.tk.dialogs import (
     StartupEnvironmentChecksDialog,
     UiLanguageSettingsDialog,
 )
+from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 
 
@@ -46,6 +47,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
+        self.assertTrue(callable(MvpDemoWorkflowMixin))
+        self.assertTrue(callable(MvpDemoWorkflowMixin.write_mvp_demo_flow_from_ui))
         self.assertTrue(callable(YfinanceWorkflowMixin))
         self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
 
