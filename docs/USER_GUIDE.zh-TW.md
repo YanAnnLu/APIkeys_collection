@@ -202,6 +202,7 @@ python -m unittest discover -s tests
 | 目的 | 指令 |
 | --- | --- |
 | 從官方來源頁抓 provider 候選 | `python3 APIkeys_collection.py --discover-provider-candidates --write-provider-candidates state/provider_candidates.review.json` |
+| 將 provider 候選寫成本機 source 草稿 | `python3 APIkeys_collection.py --write-provider-candidate-source-drafts --provider-candidate-source-drafts-input state/provider_candidates.review.json --write-provider-candidate-source-drafts-json state/provider_candidate_source_drafts.summary.json` |
 | 新增本機 provider discovery seed | `python3 APIkeys_collection.py --add-discovery-seed --seed-provider-id ID --seed-name "名稱" --seed-homepage-url URL` |
 | 解析團隊入口表 | `python3 APIkeys_collection.py --portal-intake-report --write-portal-intake-json state/portal_intake.review.json` |
 | 把乾淨入口草稿提升到本機 ignored config | `python3 APIkeys_collection.py --promote-portal-intake-local` |

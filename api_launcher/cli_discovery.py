@@ -4,6 +4,7 @@ import argparse
 import json
 import sqlite3
 
+from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.db import resolve_project_path, utc_now_iso
 from api_launcher.discovery import (
     DEFAULT_SEEDS_NAME,
@@ -13,6 +14,7 @@ from api_launcher.discovery import (
     discover_provider_candidates,
     load_all_discovery_seeds,
 )
+from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.repository import load_providers
 from api_launcher.paths import catalog_file, local_config_file, state_file
 
@@ -34,11 +36,20 @@ def add_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--seed-api-base-url", default="", help="API base URL for --add-discovery-seed")
     parser.add_argument("--seed-signup-url", default="", help="signup URL for --add-discovery-seed")
     parser.add_argument("--seed-auth-type", default="unknown", help="expected auth type for --add-discovery-seed")
+    parser.add_argument("--write-provider-candidate-source-drafts", action="store_true", help="write supported provider candidates as ignored local dataset discovery source drafts")
+    parser.add_argument("--provider-candidate-source-drafts-input", default="", help="provider candidate review JSON to convert; defaults to the current discovery output or state/provider_candidates.ui.json")
+    parser.add_argument("--provider-candidate-source-drafts-local", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local dataset discovery sources JSON to update")
+    parser.add_argument("--provider-candidate-source-provider-id", action="append", default=[], help="only convert candidates for this provider_id; can be repeated")
+    parser.add_argument("--write-provider-candidate-source-drafts-json", default="", help="optional JSON summary for the local source draft write")
 
 
 def discovery_command_active(args: argparse.Namespace) -> bool:
     # core.py 用這個函式決定是否進入 CLI 命令模式，避免互動 UI 被意外啟動。
-    return bool(args.discover_provider_candidates or args.add_discovery_seed)
+    return bool(
+        args.discover_provider_candidates
+        or args.add_discovery_seed
+        or args.write_provider_candidate_source_drafts
+    )
 
 
 def add_local_discovery_seed(args: argparse.Namespace) -> None:
@@ -92,3 +103,35 @@ def discover_source_candidates(conn: sqlite3.Connection, args: argparse.Namespac
     }
     output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"[discover] wrote {len(candidates)} provider candidates to {output_path}")
+
+
+def write_provider_candidate_source_drafts_cli(args: argparse.Namespace) -> None:
+    if not args.write_provider_candidate_source_drafts:
+        return
+    # 同一個命令若剛跑完 provider discovery，就沿用該輸出；否則預設讀 Tk review JSON。
+    if args.provider_candidate_source_drafts_input:
+        input_path = resolve_project_path(args.provider_candidate_source_drafts_input)
+    elif args.discover_provider_candidates:
+        input_path = state_file(args.write_provider_candidates)
+    else:
+        input_path = state_file("provider_candidates.ui.json")
+    if not input_path.exists():
+        raise SystemExit(f"--write-provider-candidate-source-drafts input not found: {input_path}")
+
+    output_path = local_config_file(args.provider_candidate_source_drafts_local)
+    payload = json.loads(input_path.read_text(encoding="utf-8"))
+    summary = write_provider_candidate_source_drafts(
+        payload,
+        output_path,
+        provider_ids=tuple(args.provider_candidate_source_provider_id or ()),
+    )
+    print(
+        "[discover] wrote "
+        f"{summary['source_draft_count']} local dataset source drafts to {output_path} "
+        f"(skipped {summary['skipped_count']})"
+    )
+    if args.write_provider_candidate_source_drafts_json:
+        summary_path = resolve_project_path(args.write_provider_candidate_source_drafts_json)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"[discover] wrote provider candidate source draft summary to {summary_path}")

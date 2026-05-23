@@ -3,8 +3,14 @@ from __future__ import annotations
 import re
 import urllib.parse
 from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
-from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
+from api_launcher.crawlers.dataset_sources import (
+    SUPPORTED_DATASET_SOURCE_TYPES,
+    append_dataset_discovery_source,
+    source_to_dict,
+)
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
@@ -48,6 +54,60 @@ def dataset_source_from_provider_candidate(candidate: Mapping[str, object]) -> D
         min_expected_candidates=int_value(candidate.get("min_expected_candidates"), default=1),
         notes="Drafted from a provider candidate review. This local source must pass crawler audit before catalog promotion.",
     )
+
+
+def write_provider_candidate_source_drafts(
+    payload: Mapping[str, object],
+    output_path: str | Path,
+    provider_ids: tuple[str, ...] = (),
+) -> dict[str, object]:
+    # 這裡只把 review JSON 轉成本機草稿；正式 catalog 仍必須經過 crawler audit 與 promotion guard。
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        raise ValueError("provider candidate payload must contain a candidates list")
+
+    output_path = Path(output_path)
+    provider_filter = {provider_id.strip() for provider_id in provider_ids if provider_id.strip()}
+    written: list[dict[str, object]] = []
+    skipped: list[dict[str, object]] = []
+
+    for index, candidate in enumerate(candidates, start=1):
+        if not isinstance(candidate, Mapping):
+            skipped.append(skipped_candidate(index, {}, "candidate_not_object"))
+            continue
+        provider_id = clean_text(candidate.get("provider_id"))
+        if provider_filter and provider_id not in provider_filter:
+            skipped.append(skipped_candidate(index, candidate, "provider_filter"))
+            continue
+        try:
+            source = dataset_source_from_provider_candidate(candidate)
+        except ValueError as exc:
+            # 無法證明 crawler type / endpoint 的項目留在 review，避免把 landing page 誤當可爬來源。
+            skipped.append(skipped_candidate(index, candidate, str(exc)))
+            continue
+        append_dataset_discovery_source(output_path, source)
+        written.append(source_to_dict(source))
+
+    return {
+        "schema_version": 1,
+        "role": "local dataset discovery source drafts from provider candidate review; ignored local config only",
+        "candidate_count": len(candidates),
+        "provider_filter": sorted(provider_filter),
+        "source_draft_count": len(written),
+        "skipped_count": len(skipped),
+        "dataset_source_path": str(output_path),
+        "sources": written,
+        "skipped": skipped,
+    }
+
+
+def skipped_candidate(index: int, candidate: Mapping[str, Any], reason: str) -> dict[str, object]:
+    return {
+        "index": index,
+        "provider_id": clean_text(candidate.get("provider_id")),
+        "name": clean_text(candidate.get("name")),
+        "reason": reason,
+    }
 
 
 def first_supported_source_type(candidate: Mapping[str, object]) -> str:

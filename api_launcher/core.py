@@ -40,6 +40,7 @@ from api_launcher.cli_discovery import (
     add_discovery_args,
     add_local_discovery_seed,
     discover_source_candidates,
+    write_provider_candidate_source_drafts_cli,
 )
 from api_launcher.cli_dataset_discovery import (
     add_dataset_discovery_args,
@@ -875,6 +876,7 @@ class CatalogLauncherCli:
             self.export_catalogs()
             add_local_discovery_seed(self.args)
             discover_source_candidates(self.conn, self.args)
+            write_provider_candidate_source_drafts_cli(self.args)
             discover_dataset_candidates_cli(self.conn, self.args)
             self.write_samples()
             self.handle_dataset_discovery()
