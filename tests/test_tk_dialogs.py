@@ -19,6 +19,7 @@ from frontends.tk.dialogs import (
     StartupEnvironmentChecksDialog,
     UiLanguageSettingsDialog,
 )
+from frontends.tk.download_workflows import DownloadWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
@@ -49,6 +50,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
+        self.assertTrue(callable(DownloadWorkflowMixin))
+        self.assertTrue(callable(DownloadWorkflowMixin.start_download_plan_items))
         self.assertTrue(callable(MvpDemoWorkflowMixin))
         self.assertTrue(callable(MvpDemoWorkflowMixin.write_mvp_demo_flow_from_ui))
         self.assertTrue(callable(OAuthWorkflowMixin))
