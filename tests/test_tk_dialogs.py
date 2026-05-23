@@ -9,6 +9,7 @@ from frontends.tk.dialogs import (
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
+    GoogleGeminiSettingsDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -32,6 +33,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DeveloperCliDialog))
+        self.assertTrue(callable(GoogleGeminiSettingsDialog))
         self.assertTrue(callable(UiLanguageSettingsDialog))
         self.assertTrue(callable(StartupEnvironmentChecksDialog))
         self.assertTrue(callable(RecentEventLogsDialog))
@@ -121,6 +123,20 @@ class TkDialogModuleTest(unittest.TestCase):
                 enabled_label="啟用",
                 disabled_label="停用",
             ),
+        )
+
+    def test_google_gemini_account_provider_row_values_are_stable(self) -> None:
+        # Google/Gemini 連線視窗抽成 class 後，帳號支援表格仍維持固定欄位順序。
+        provider = SimpleNamespace(
+            label="Google",
+            auth_mode="oauth",
+            status="planned",
+            capability_targets=("gemini", "drive"),
+        )
+
+        self.assertEqual(
+            ("Google", "oauth", "planned", "gemini, drive"),
+            GoogleGeminiSettingsDialog.account_provider_row_values(provider),
         )
 
 

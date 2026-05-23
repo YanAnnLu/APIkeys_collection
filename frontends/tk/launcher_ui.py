@@ -131,6 +131,7 @@ from frontends.tk.dialogs import (
     DataStoreConnectionSettingsDialog,
     DatabaseClientSettingsDialog,
     DeveloperCliDialog,
+    GoogleGeminiSettingsDialog,
     ProviderEditorDialog,
     RecentEventLogsDialog,
     StartupEnvironmentChecksDialog,
@@ -140,10 +141,8 @@ from api_launcher.integrations import save_integration_config
 from api_launcher.paths import DOWNLOADS_DIR, PROJECT_ROOT, catalog_file, local_config_file, state_file
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from api_launcher.registry import PROVIDER_CATALOG_NAME
-from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import activate_saved_oauth_token, build_oauth_device_login_request, exchange_oauth_authorization_code, looks_like_google_oauth_client_id, oauth_authorization_url, oauth_device_config_from_profile, oauth_token_status, pkce_code_challenge, poll_oauth_device_token, save_oauth_config_token, save_oauth_device_token
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, save_ai_api_key, saved_ai_api_key_status
-from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.data_store_connections import data_store_profiles_from_config
 from api_launcher.adapter_review import AdapterReviewItem, adapter_review_items
 from api_launcher.import_policies import UI_IMPORT_POLICY_CONFIG_KEY, normalized_ui_import_policy
@@ -3529,100 +3528,7 @@ class ApiCollectionUi:
         RecentEventLogsDialog(self)
 
     def open_google_gemini_settings(self) -> None:
-        dialog = Toplevel(self.root)
-        dialog.title(self.tr("Gemini / Google 連線", "Gemini / Google connection"))
-        dialog.configure(bg=COLORS["panel"])
-        dialog.geometry("840x560")
-        dialog.transient(self.root)
-        dialog.grab_set()
-        ttk.Label(dialog, text=self.tr("Gemini / Google 連線", "Gemini / Google connection"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        profile = core.active_ai_profile()
-        profile_text = self.tr(f"目前 AI profile：{profile.label} ({profile.kind})", f"Current AI profile: {profile.label} ({profile.kind})") if profile else self.tr("目前沒有啟用 AI profile。", "No active AI profile.")
-        gemini_profile = next((item for item in core.ai_summary_profiles() if item.id == "gemini_flash"), None)
-        gemini_oauth = oauth_device_config_from_profile(gemini_profile) if gemini_profile else None
-        if gemini_oauth:
-            token_status, token_message = oauth_token_status(gemini_oauth.token_store, label=gemini_profile.label)
-        else:
-            token_status, token_message = google_oauth_token_status()
-        token_text = self.tr(f"Gemini / Google token：{token_status} - {token_message}", f"Gemini / Google token: {token_status} - {token_message}")
-        readiness_text = self.tr(
-            "目前狀態：AI 生成管線已存在；Google 帳號登入需要專案端先配置官方 OAuth App，才會像一般網站一樣開瀏覽器選帳號或掃碼。",
-            "Current status: AI generation exists; Google account login needs the project to provide an official OAuth app before it can open a normal browser account chooser or QR flow.",
-        )
-        ttk.Label(dialog, text=readiness_text, style="DetailMuted.TLabel", wraplength=760).pack(anchor="w", padx=24, pady=(0, 10))
-        text = Text(dialog, height=12, wrap=WORD, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", padx=16, pady=14, font=("Helvetica", 11))
-        text.pack(fill=X, expand=False, padx=24, pady=(0, 14))
-        message = self.tr(
-            "\n".join(
-                [
-                    "這裡是 Google / Gemini 連線入口。",
-                    "白話說：它不是展示用空殼，但 Google 帳號登入還需要專案端把官方 OAuth App 配好。",
-                    "一般網站能直接讓你選 Google 帳號，是因為網站已經替使用者處理好 OAuth App 身分；使用者不該被要求貼 Client ID。",
-                    "這裡只負責登入、token 與 Google 相關設定；真正要調用哪個 AI，請到「整合 > AI 輔助模型選擇」選。",
-                    "",
-                    profile_text,
-                    token_text,
-                    "",
-                    "目前支援：",
-                    "1. Google 帳號瀏覽器登入：專案 OAuth App 配好後，才會打開 Google 授權頁並把 token 存在本機 private state。",
-                    "2. Google QR/device-code：同樣需要官方 OAuth App 與 device-code 端點，不能在缺設定時硬造。",
-                    "3. Gemini API key：作為目前 MVP 主路線，保存到本機 private state，下次啟動自動載入。",
-                    "",
-                    "目前開發版不會要求一般使用者貼 OAuth Client ID；那是專案/開發者要負責配置的事情。",
-                ]
-            ),
-            "\n".join(
-                [
-                    "This panel is the Google/Gemini connection entry point.",
-                    "Plainly: it is not a fake shell, but Google account login still needs the project to provide an official OAuth app.",
-                    "Normal web services can let you choose a Google account because the service already owns the OAuth app identity; users should not be asked to paste a Client ID.",
-                    "It handles login, tokens, and Google-related setup only. Choose the model under Integrations > AI assistant model selection.",
-                    "",
-                    profile_text,
-                    token_text,
-                    "",
-                    "Currently supported:",
-                    "1. Google browser account login: after the project OAuth app is configured, opens Google's authorization page and stores the token under local private state.",
-                    "2. Google QR/device-code: also needs an official OAuth app and device-code endpoint; it cannot be invented when setup is missing.",
-                    "3. Gemini API key: the current MVP path, saved under local private state and loaded automatically next launch.",
-                    "",
-                    "This development build will not ask normal users to paste an OAuth Client ID; that is a project/developer responsibility.",
-                ]
-            ),
-        )
-        text.insert("1.0", message)
-        text.configure(state="disabled")
-        providers = ttk.Treeview(dialog, columns=("provider", "mode", "status", "targets"), show="headings", height=3)
-        for name, label, width in [
-            ("provider", self.tr("帳號", "Account"), 110),
-            ("mode", self.tr("登入模式", "Login mode"), 140),
-            ("status", self.tr("狀態", "Status"), 90),
-            ("targets", self.tr("能力目標", "Capability targets"), 230),
-        ]:
-            providers.heading(name, text=label)
-            providers.column(name, width=width, anchor="w", stretch=True)
-        for provider in DEFAULT_ACCOUNT_PROVIDERS:
-            providers.insert(
-                "",
-                END,
-                values=(provider.label, provider.auth_mode, provider.status, ", ".join(provider.capability_targets)),
-            )
-        providers.pack(fill=X, padx=24, pady=(0, 14))
-        actions = ttk.Frame(dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 20))
-        primary_actions = ttk.Frame(actions, style="Panel.TFrame")
-        primary_actions.pack(fill=X, pady=(0, 8))
-        secondary_actions = ttk.Frame(actions, style="Panel.TFrame")
-        secondary_actions.pack(fill=X)
-
-        ttk.Button(primary_actions, text=self.tr("保存 Gemini API key 並啟用", "Save Gemini API key and enable"), style="Action.TButton", command=lambda: self.configure_ai_api_key_session("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("AI 模型設定", "AI model settings"), style="Action.TButton", command=self.open_ai_model_settings).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("產生目前資料源描述", "Generate selected source description"), style="Action.TButton", command=self.generate_active_summary).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(primary_actions, text=self.tr("關閉", "Close"), style="Action.TButton", command=dialog.destroy).pack(side=RIGHT)
-        ttk.Button(secondary_actions, text=self.tr("中期：Google 帳號登入", "Mid-term: Google account login"), style="Action.TButton", command=lambda: self.open_ai_profile_browser_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(secondary_actions, text=self.tr("中期：QR / 裝置碼", "Mid-term: QR / device code"), style="Action.TButton", command=lambda: self.open_ai_profile_login_dialog("gemini_flash", parent=dialog)).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(secondary_actions, text=self.tr("開發期備用：Google AI Studio", "Development fallback: Google AI Studio"), style="Action.TButton", command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(secondary_actions, text=self.tr("顯示本機整合設定檔", "Reveal local integration config"), style="Action.TButton", command=self.open_integration_config_file).pack(side=LEFT, padx=(0, 10))
+        GoogleGeminiSettingsDialog(self)
 
     def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:
         selection = table.selection()
