@@ -2,7 +2,7 @@
 
 RuRuKa Asset Launcher（短稱：RRKAL；內部相容名稱：APIkeys_collection）是一個類 Steam 的科學資料集、資料資產與本機資料庫 launcher。它不是單純 API key 清單，而是把「找資料源、審核資料集、挑版本、下載、驗證 manifest、匯入 SQLite / MySQL、修復資產、橋接渲染或分析工具」收進同一個可維護流程。
 
-英文入口仍保留在 [README.md](README.md)。更完整的文件地圖請看 [docs/DOCS_INDEX.zh-TW.md](docs/DOCS_INDEX.zh-TW.md)。
+英文入口仍保留在 [README.md](README.md)。Agent 接手時先看 [docs/AGENT_START_HERE.zh-TW.md](docs/AGENT_START_HERE.zh-TW.md)，更完整的文件地圖請看 [docs/DOCS_INDEX.zh-TW.md](docs/DOCS_INDEX.zh-TW.md)。
 
 ## 目前能做什麼
 
@@ -56,6 +56,7 @@ python3 APIkeys_collection.py --verify-downloads --manifest-health --self-check-
 
 | 文件 | 用途 |
 | --- | --- |
+| [docs/AGENT_START_HERE.zh-TW.md](docs/AGENT_START_HERE.zh-TW.md) | Agent 最短入口、權威順序、目前主線、不要做什麼。 |
 | [docs/DOCS_INDEX.zh-TW.md](docs/DOCS_INDEX.zh-TW.md) | 文件地圖、整理規則、Mermaid 與雙語規則。 |
 | [docs/AGENT_HANDOFF.zh-TW.md](docs/AGENT_HANDOFF.zh-TW.md) | 跨機器 / 跨 Agent 接力卡。 |
 | [docs/PROJECT_GTD.md](docs/PROJECT_GTD.md) | 目前進度、MVP 狀態、下一步。 |

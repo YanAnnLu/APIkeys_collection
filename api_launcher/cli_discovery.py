@@ -18,6 +18,7 @@ from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.event_log import log_event
 from api_launcher.repository import load_providers
 from api_launcher.paths import catalog_file, local_config_file, state_file
+from api_launcher.source_pattern_drafts import write_source_draft_from_url
 
 
 def add_discovery_args(parser: argparse.ArgumentParser) -> None:
@@ -42,6 +43,18 @@ def add_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--provider-candidate-source-drafts-local", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local dataset discovery sources JSON to update")
     parser.add_argument("--provider-candidate-source-provider-id", action="append", default=[], help="only convert candidates for this provider_id; can be repeated")
     parser.add_argument("--write-provider-candidate-source-drafts-json", default="", help="optional JSON summary for the local source draft write")
+    parser.add_argument("--write-source-draft-from-url", default="", help="detect one source URL and append an ignored local dataset discovery source draft")
+    parser.add_argument("--source-draft-provider-id", default="", help="provider/source id for --write-source-draft-from-url; defaults to the URL host")
+    parser.add_argument("--source-draft-name", default="", help="display name for --write-source-draft-from-url; defaults to host plus detected pattern")
+    parser.add_argument("--source-draft-source-id", default="", help="explicit source_id for --write-source-draft-from-url")
+    parser.add_argument("--source-draft-category", action="append", default=[], help="category for --write-source-draft-from-url; can be repeated")
+    parser.add_argument("--source-draft-scope", default="global", help="geographic scope for --write-source-draft-from-url")
+    parser.add_argument("--source-draft-max-results", type=int, default=10, help="max candidates for the generated local source draft")
+    parser.add_argument("--source-draft-min-expected-candidates", type=int, default=1, help="minimum expected candidates for crawler audit")
+    parser.add_argument("--source-draft-local", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local dataset discovery sources JSON to update")
+    parser.add_argument("--source-draft-detector-timeout", type=float, default=8.0, help="seconds for source-pattern detector probes")
+    parser.add_argument("--source-draft-detector-min-confidence", type=float, default=0.35, help="minimum detector confidence before keeping the URL in review")
+    parser.add_argument("--write-source-draft-json", default="", help="optional JSON summary for --write-source-draft-from-url")
 
 
 def discovery_command_active(args: argparse.Namespace) -> bool:
@@ -50,6 +63,7 @@ def discovery_command_active(args: argparse.Namespace) -> bool:
         args.discover_provider_candidates
         or args.add_discovery_seed
         or args.write_provider_candidate_source_drafts
+        or bool(args.write_source_draft_from_url)
     )
 
 
@@ -151,6 +165,54 @@ def write_provider_candidate_source_drafts_cli(args: argparse.Namespace) -> None
             "skipped_count": summary.get("skipped_count", 0),
             "provider_filter": summary.get("provider_filter", []),
             "audit_source_ids": summary.get("audit_source_ids", []),
+            "next_action": summary.get("next_action", ""),
+            "audit_command": summary.get("audit_command", ""),
+        },
+    )
+
+
+def write_source_draft_from_url_cli(args: argparse.Namespace) -> None:
+    if not args.write_source_draft_from_url:
+        return
+    # URL detector 只寫入 ignored local source draft；真正 catalog promotion 仍需 local discovery audit。
+    output_path = local_config_file(args.source_draft_local)
+    summary = write_source_draft_from_url(
+        args.write_source_draft_from_url,
+        output_path,
+        provider_id=args.source_draft_provider_id,
+        name=args.source_draft_name,
+        source_id=args.source_draft_source_id,
+        categories=tuple(args.source_draft_category or ()),
+        geographic_scope=args.source_draft_scope,
+        max_results=args.source_draft_max_results,
+        min_expected_candidates=args.source_draft_min_expected_candidates,
+        timeout=args.source_draft_detector_timeout,
+        minimum_confidence=args.source_draft_detector_min_confidence,
+    )
+    summary_path_text = ""
+    detection = summary.get("source_pattern_detection", {})
+    print(
+        "[discover] detected "
+        f"{detection.get('pattern_id', 'unknown')} -> {detection.get('source_type_hint', '')} "
+        f"and wrote 1 local dataset source draft to {output_path}"
+    )
+    if args.write_source_draft_json:
+        summary_path = resolve_project_path(args.write_source_draft_json)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        summary_path_text = str(summary_path)
+        print(f"[discover] wrote detected source draft summary to {summary_path}")
+    log_event(
+        "source_pattern_source_draft_written",
+        "source pattern detector wrote a local dataset discovery source draft",
+        component="discovery",
+        context={
+            "source_url": args.write_source_draft_from_url,
+            "dataset_source_path": str(output_path),
+            "summary_path": summary_path_text,
+            "source_draft_count": summary.get("source_draft_count", 0),
+            "audit_source_ids": summary.get("audit_source_ids", []),
+            "source_pattern_detection": summary.get("source_pattern_detection", {}),
             "next_action": summary.get("next_action", ""),
             "audit_command": summary.get("audit_command", ""),
         },

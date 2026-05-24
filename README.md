@@ -44,7 +44,8 @@ reference file, templates, and exports.
 
 - `APIkeys_collection.py`: thin compatibility entry point for the CLI and existing UI imports.
 - `docs/TECH_STACK.md`: dependency boundaries for launcher, Docker, and optional renderer packages.
-- `docs/AGENT_HANDOFF.zh-TW.md`: cross-agent handoff card; read this first when taking over work.
+- `docs/AGENT_START_HERE.zh-TW.md`: shortest agent entry map; read this first when taking over work.
+- `docs/AGENT_HANDOFF.zh-TW.md`: cross-agent handoff card, latest risks, and next steps.
 - `docs/PROJECT_GTD.md`: current product status, progress table, and next steps.
 - `docs/DEVELOPMENT_LOG.zh-TW.md`: Traditional Chinese development log for pushed checkpoints, verification, and residual risks.
 - `docs/DOCS_INDEX.zh-TW.md`: documentation map; explains every important doc and when to update it.

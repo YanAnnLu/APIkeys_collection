@@ -2,11 +2,15 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.crawlers.dataset_sources import load_dataset_discovery_sources
+from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
+from api_launcher.source_pattern_drafts import dataset_source_from_detected_url
+from api_launcher.source_pattern_drafts import write_source_draft_from_url
 
 
 class DiscoveryDraftTests(unittest.TestCase):
@@ -104,6 +108,97 @@ class DiscoveryDraftTests(unittest.TestCase):
         self.assertEqual(1, summary["skipped_count"])
         self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
         self.assertIn("--write-local-discovery-audit-json", summary["audit_command"])
+
+    def test_detected_url_becomes_local_source_draft(self) -> None:
+        detection = SourcePatternDetection(
+            pattern_id="stac",
+            confidence=0.75,
+            evidence=("JSON contains stac_version", "Has collections reference"),
+            source_type_hint="stac_collections",
+        )
+
+        source, returned_detection = dataset_source_from_detected_url(
+            "https://planetarycomputer.microsoft.com/api/stac/v1",
+            provider_id="planetary_computer",
+            name="Planetary Computer",
+            categories=("satellite",),
+            detector=lambda _url: detection,
+        )
+
+        self.assertEqual(detection, returned_detection)
+        self.assertEqual("planetary_computer_api_stac_v1_stac_collections", source.source_id)
+        self.assertEqual("stac_collections", source.source_type)
+        self.assertEqual("https://planetarycomputer.microsoft.com/api/stac/v1/collections", source.endpoint_url)
+        self.assertEqual(("satellite",), source.categories)
+        self.assertIn("pattern=stac", source.notes)
+        self.assertIn("JSON contains stac_version", source.notes)
+
+    def test_detected_unknown_source_stays_in_review(self) -> None:
+        detection = SourcePatternDetection(pattern_id="unknown", confidence=0.1, evidence=(), source_type_hint="")
+
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            dataset_source_from_detected_url("https://example.test/landing", detector=lambda _url: detection)
+
+    def test_write_source_draft_from_url_records_detection_summary(self) -> None:
+        detection = SourcePatternDetection(
+            pattern_id="ckan",
+            confidence=0.5,
+            evidence=("CKAN package_search returns success=true",),
+            source_type_hint="ckan_package_search",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "dataset_discovery_sources.local.json"
+            summary = write_source_draft_from_url(
+                "https://data.example.test/api/3/action",
+                output_path,
+                provider_id="sample_ckan",
+                name="Sample CKAN",
+                detector=lambda _url: detection,
+            )
+            sources = load_dataset_discovery_sources(output_path)
+
+        self.assertEqual(1, summary["source_draft_count"])
+        self.assertEqual(["sample_ckan_api_3_action_ckan_package_search"], summary["audit_source_ids"])
+        self.assertEqual("ckan", summary["source_pattern_detection"]["pattern_id"])
+        self.assertEqual("ckan_package_search", sources[0].source_type)
+        self.assertEqual("https://data.example.test/api/3/action/package_search", sources[0].endpoint_url)
+
+    def test_cli_writes_detected_source_draft_from_url(self) -> None:
+        detection = SourcePatternDetection(
+            pattern_id="erddap",
+            confidence=0.75,
+            evidence=("ERDDAP info/index.json returns table metadata",),
+            source_type_hint="erddap_all_datasets",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_sources_path = Path(tmpdir) / "dataset_discovery_sources.local.json"
+            summary_path = Path(tmpdir) / "source_pattern_summary.json"
+            with patch("api_launcher.source_pattern_drafts.detect_source_interface_pattern", return_value=detection):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--write-source-draft-from-url",
+                        "https://coastwatch.pfeg.noaa.gov/erddap",
+                        "--source-draft-provider-id",
+                        "noaa_coastwatch",
+                        "--source-draft-name",
+                        "NOAA CoastWatch",
+                        "--source-draft-local",
+                        str(local_sources_path),
+                        "--write-source-draft-json",
+                        str(summary_path),
+                    ]
+                )
+            sources = load_dataset_discovery_sources(local_sources_path)
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, len(sources))
+        self.assertEqual("erddap_all_datasets", sources[0].source_type)
+        self.assertIn("/erddap/tabledap/allDatasets.json", sources[0].endpoint_url)
+        self.assertEqual("erddap", summary["source_pattern_detection"]["pattern_id"])
+        self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
 
 
 def provider_candidate_payload() -> dict[str, object]:

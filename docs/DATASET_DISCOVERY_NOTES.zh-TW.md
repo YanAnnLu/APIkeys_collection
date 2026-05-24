@@ -169,7 +169,21 @@ source URL
 
 目前要先把 source detector 做成保守、可測、可擴充的服務。CMR detector 只能在 host/path 像 NASA CMR 時 probe CMR 固定端點，避免所有 URL 都被 NASA CMR 的成功回應污染。遇到 unknown 時，不自動下載，改回報 `source_pattern_unknown` 或引導人工補 source profile。
 
+CLI/agent 若只是拿到一個入口 URL，可以先用 detector 產生 ignored local source draft，不直接改官方 catalog：
+
+```powershell
+py -3 -B APIkeys_collection.py --write-source-draft-from-url https://example.org/stac `
+  --source-draft-provider-id example_source `
+  --source-draft-name "Example Source" `
+  --source-draft-category satellite `
+  --write-source-draft-json state/source_pattern_draft.summary.json
+```
+
+這條路徑會寫入 `dataset_discovery_sources.local.json`，summary 會保留 `source_pattern_detection`、`audit_source_ids`、`next_action` 與 crawler audit 指令。它的定位是「URL -> detector evidence -> source draft -> local discovery audit」，不是下載、匯入或正式 catalog promotion。
+
 K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案。可吸收的部分包含 HTTP header/timeout、HTML `href` 擷取、相對 URL 合併、Scrapy 分層思想、CSV/SQLite 清洗、rate limit/politeness、錯誤處理與 fixture 測試。落地時一律轉成 RRKAL 的 source pattern detector、crawler adapter、content parser、manifest/import pipeline 與 audit warning，不讓 crawler 直接寫 DB 或假裝未知格式已可解析。
+
+Sciverse / OpenDataLab 這類科學文獻 API 暫時不應打亂 geospatial asset downloader 主線。對地理資料下載來說，它不是 STAC / OGC / CMR / ERDDAP 等資料本體入口；比較合理的定位是低優先級 `literature_discovery_api` 或 `vendor_science_api`，用來搜尋地理資料相關論文、DOI、方法、資料集名稱與引用片段，產生 provenance 線索後再交給真正的資料入口 detector 判斷。第一階段仍優先穩住 STAC、OGC、CMR、ERDDAP、CKAN、Socrata、HTML file index 與 unknown fallback。
 
 K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是程式碼來源。金融/風控教材補 time-series asset、交易日曆、補資料策略與 storage review；GIS、星圖與 3D 範例補 raster/tile/cache、bbox、projection 與 renderer-ready manifest；數學與機械工程教材補 bounds/geometry/transform；Pandas 與資料清理教材補 header normalize、type inference、schema fingerprint 與 bad-row warning；Fluent Python / PyMOTW 補 protocol、iterator、context manager、subcommand 與 concurrency 設計。CODE_KM 的價值在治理模型：來源 provenance、checksum、pipeline run state、rights/review gate、local metadata index 與人類可讀知識庫分離。RRKAL 應把這些概念收斂到 source profile、crawler run registry、manifest/import pipeline、install registry、adapter review、rights/provenance gate 與 agent skill 分工，而不是讓教材範例碼進入正式產品路徑。
 
