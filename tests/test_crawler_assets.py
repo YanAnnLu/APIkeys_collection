@@ -11,7 +11,7 @@ from api_launcher.crawler_asset_profiles import (
     set_crawler_asset_archived,
     toggle_crawler_asset_archived,
 )
-from api_launcher.crawler_asset_capabilities import bounds_facets_for_source
+from api_launcher.crawler_asset_bounds import bounds_facets_for_source, bounds_schema_for_source
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     crawler_asset_from_source,
@@ -48,6 +48,8 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("needs_bounds_or_adapter", asset.capability_status(BUILD_DOWNLOAD_PLAN))
         self.assertEqual("needs_bounds_or_adapter", asset.capability_status("download_selected"))
         self.assertEqual(("package", "resource", "format", "limit"), asset.capabilities[2].bounds_facets)
+        self.assertEqual(("package", "resource", "format", "limit"), tuple(facet.facet_id for facet in asset.capabilities[2].bounds_schema))
+        self.assertEqual("LimitBounds", asset.capabilities[2].bounds_schema[-1].group)
         self.assertEqual("public_or_review", asset.capabilities[2].credential_mode)
         self.assertIn("adapter_required", asset.capabilities[2].error_buckets)
         self.assertEqual(1, asset.seed_count)
@@ -70,6 +72,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("selectable", asset.capability_status(BUILD_DOWNLOAD_PLAN))
         self.assertIn("下載計畫:可選", asset.capability_summary)
         self.assertEqual(("version", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
+        self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[1].maps_to[0])
         self.assertEqual("full entry", asset.seed_summary)
 
     def test_unsupported_source_is_visible_but_marked_as_handler_backlog(self) -> None:
@@ -102,6 +105,8 @@ class CrawlerAssetTest(unittest.TestCase):
 
         self.assertEqual("crawler_managed_auth", asset.access_requirement)
         self.assertEqual("user_credential_required", asset.capabilities[0].credential_mode)
+        self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
+        self.assertEqual("AuthBounds", asset.capabilities[2].bounds_schema[-1].group)
 
     def test_source_type_drives_dynamic_bounds_facets(self) -> None:
         source = DatasetDiscoverySource(
@@ -113,6 +118,27 @@ class CrawlerAssetTest(unittest.TestCase):
         )
 
         self.assertEqual(("collection", "time", "bbox", "asset_role", "limit"), bounds_facets_for_source(source))
+        schema = bounds_schema_for_source(source)
+        self.assertEqual(("collection", "time", "bbox", "asset_role", "limit"), tuple(facet.facet_id for facet in schema))
+        self.assertEqual(("SourceDownloadBounds.time_field", "SourceDownloadBounds.start_date", "SourceDownloadBounds.end_date"), schema[1].maps_to)
+        self.assertEqual("SpatialBounds", schema[2].group)
+        self.assertTrue(schema[2].requires_schema_probe)
+
+    def test_capability_to_dict_includes_bounds_schema_for_frontends(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_erddap",
+            provider_id="demo_provider",
+            name="Demo ERDDAP",
+            source_type="erddap_all_datasets",
+            endpoint_url="https://example.test/erddap/info/index.json",
+        )
+
+        asset = crawler_asset_from_source(source)
+        payload = asset.capabilities[2].to_dict()
+
+        self.assertIn("bounds_schema", payload)
+        self.assertEqual("columns", payload["bounds_schema"][1]["facet_id"])
+        self.assertEqual("ColumnBounds", payload["bounds_schema"][1]["group"])
 
     def test_load_crawler_asset_source_finds_single_entry(self) -> None:
         with TemporaryDirectory() as tmp:

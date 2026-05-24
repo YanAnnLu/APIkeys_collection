@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from api_launcher.crawler_asset_bounds import (
+    CrawlerAssetBoundFacet,
+    bounds_facets_for_source,
+    bounds_schema_for_facets,
+    bounds_schema_for_source,
+)
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
@@ -28,6 +34,7 @@ class CrawlerAssetCapability:
     output_contract: str
     credential_mode: str
     bounds_facets: tuple[str, ...] = ()
+    bounds_schema: tuple[CrawlerAssetBoundFacet, ...] = ()
     error_buckets: tuple[str, ...] = ()
     rate_limit_policy: str = "polite_default"
     terms_risk: str = "review"
@@ -43,6 +50,7 @@ class CrawlerAssetCapability:
             "output_contract": self.output_contract,
             "credential_mode": self.credential_mode,
             "bounds_facets": list(self.bounds_facets),
+            "bounds_schema": [facet.to_dict() for facet in self.bounds_schema],
             "error_buckets": list(self.error_buckets),
             "rate_limit_policy": self.rate_limit_policy,
             "terms_risk": self.terms_risk,
@@ -65,6 +73,7 @@ def crawler_asset_capabilities(source: DatasetDiscoverySource, *, supported: boo
     credential_mode = credential_mode_for_source(source)
     terms_risk = terms_risk_for_source(source)
     bounds_facets = bounds_facets_for_source(source)
+    plan_bounds_schema = bounds_schema_for_source(source, credential_mode=credential_mode)
 
     if supported:
         metadata_status = "ready"
@@ -123,6 +132,7 @@ def crawler_asset_capabilities(source: DatasetDiscoverySource, *, supported: boo
             output_contract="DatasetCandidate[] + audit summary",
             credential_mode=credential_mode,
             bounds_facets=("search_terms", "max_results", "max_pages"),
+            bounds_schema=bounds_schema_for_facets(("search_terms", "max_results", "max_pages"), credential_mode=credential_mode),
             error_buckets=("zero_candidates", "duplicate_heavy", "low_candidate_count", "unexpected_payload"),
             terms_risk=terms_risk,
             next_action=listing_next,
@@ -136,6 +146,7 @@ def crawler_asset_capabilities(source: DatasetDiscoverySource, *, supported: boo
             output_contract="download plan entry / adapter review item",
             credential_mode=credential_mode,
             bounds_facets=bounds_facets,
+            bounds_schema=plan_bounds_schema,
             error_buckets=("missing_schema", "unbounded_query", "adapter_required", "credential_required", "terms_review_required"),
             terms_risk=terms_risk,
             next_action=plan_next,
@@ -174,30 +185,6 @@ def terms_risk_for_source(source: DatasetDiscoverySource) -> str:
     if any(word in text for word in ("restricted", "license", "terms", "commercial", "citation", "earthdata", "kaggle")):
         return "terms_review_required"
     return "public_or_review"
-
-
-def bounds_facets_for_source(source: DatasetDiscoverySource) -> tuple[str, ...]:
-    """推估建立下載計畫時需要的界域維度，供 UI 動態表單使用。"""
-
-    if source.source_type == "html_file_index" or source.file_url_regex:
-        return ("version", "file_pattern", "limit")
-    if source.source_type == "stac_collections":
-        return ("collection", "time", "bbox", "asset_role", "limit")
-    if source.source_type == "cmr_collections":
-        return ("collection", "time", "bbox", "granule_limit", "asset_role")
-    if source.source_type == "erddap_all_datasets":
-        return ("dataset", "columns", "time", "bbox", "limit")
-    if source.source_type == "ncei_search":
-        return ("dataset", "time", "bbox", "station", "format", "limit")
-    if source.source_type == "socrata_catalog_search":
-        return ("dataset", "columns", "where", "time", "limit")
-    if source.source_type == "ckan_package_search":
-        return ("package", "resource", "format", "limit")
-    if source.source_type in {"gbif_dataset_search", "dataverse_search", "zenodo_records_search", "datacite_dois", "openalex_works_search"}:
-        return ("dataset", "version", "format", "limit")
-    if source.source_type == "ogc_api_records":
-        return ("collection", "bbox", "time", "format", "limit")
-    return ("limit",)
 
 
 def status_label(status: str) -> str:

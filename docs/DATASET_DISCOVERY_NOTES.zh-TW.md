@@ -61,6 +61,8 @@ state/logs/launcher_events.jsonl
 
 2026-05-24 的硬化切片已把三個能力槽正式寫成 `api_launcher/crawler_asset_capabilities.py`：`fetch_metadata` 負責入口 metadata 與 audit summary，`list_datasets` 負責候選清單與 audit summary，`build_download_plan` 負責把候選資料集加上界域後產生下載計畫或 adapter review item。舊 UI 名稱 `download_selected` 只保留為相容別名。每個能力槽同時帶有 credential mode、terms risk、error buckets、rate-limit policy 與 bounds facets，讓 Tk/Qt/CLI 能共用同一份爬蟲能力護照，而不是各自猜測「資料庫可不可抓」。
 
+同日第二個切片把 bounds facets 正式提升為 `api_launcher/crawler_asset_bounds.py` 的前端中立 schema。每個 facet 會說明 group（TimeBounds、SpatialBounds、ColumnBounds、VersionBounds、LimitBounds、AuthBounds 等）、control、value type、maps_to 與是否需要 schema probe。這份 schema 是 Tk/Qt/CLI 產生界域表單的共同來源；現有 `api_launcher.bound_form` 與 `SourceDownloadBounds` 仍是實際下載界域的執行契約，不再另外造一套平行格式。
+
 `tem/ui-aseat-ui/HANDOFF.md` 可作為 UI 精神參考：一個入口爬蟲是一張可治理的資產卡片，預設畫面應清爽掃描，細節放在右側 passport 或設定視窗；齒輪、封存、健康狀態、信任分數、成熟度、風險與任務隊列是 crawler asset 的產品語言。`tem/` 本身不是正式來源，不應直接加入 commit；要抽取的是互動規則與資訊架構。
 
 ```mermaid

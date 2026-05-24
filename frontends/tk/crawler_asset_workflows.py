@@ -161,6 +161,10 @@ class CrawlerAssetWorkflowMixin:
         capability_lines = "\n".join(
             f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
         )
+        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
+        bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
+        bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
+        bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
         self.crawler_asset_detail_var.set(
             self.tr(
                 (
@@ -171,6 +175,7 @@ class CrawlerAssetWorkflowMixin:
                     f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
                     f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{capability_lines}\n\n"
+                    f"界域 schema：{bounds_summary_zh or '無'}\n\n"
                     "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
                 ),
                 (
@@ -181,6 +186,7 @@ class CrawlerAssetWorkflowMixin:
                     f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
                     f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{capability_lines}\n\n"
+                    f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
                     "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
                 ),
             )
