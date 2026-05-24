@@ -5,7 +5,7 @@ from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived
-from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets, status_label
+from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_service import run_crawler_asset_listing
 from api_launcher.event_log import log_exception
 
@@ -135,7 +135,7 @@ class CrawlerAssetWorkflowMixin:
             asset.source_type,
             status_label(asset.capability_status("fetch_metadata")),
             status_label(asset.capability_status("list_datasets")),
-            status_label(asset.capability_status("download_selected")),
+            status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
             asset.seed_summary,
             f"{asset.trust_score}%",
             asset.current_seed_scope,

@@ -59,6 +59,10 @@ state/logs/launcher_events.jsonl
 
 這也是 Crawler Asset 概念可以落地的位置：Crawler Asset 不是取代 Provider、Dataset 或 Adapter，而是包住一個可維護的資料取得能力，讓 UI 以「資產護照、任務隊列、健康狀態、修復流程」呈現它。短期仍以現有 crawler/source/resolver 檔案推進；中期才把它提升成獨立 registry 或操作艙。
 
+2026-05-24 的硬化切片已把三個能力槽正式寫成 `api_launcher/crawler_asset_capabilities.py`：`fetch_metadata` 負責入口 metadata 與 audit summary，`list_datasets` 負責候選清單與 audit summary，`build_download_plan` 負責把候選資料集加上界域後產生下載計畫或 adapter review item。舊 UI 名稱 `download_selected` 只保留為相容別名。每個能力槽同時帶有 credential mode、terms risk、error buckets、rate-limit policy 與 bounds facets，讓 Tk/Qt/CLI 能共用同一份爬蟲能力護照，而不是各自猜測「資料庫可不可抓」。
+
+`tem/ui-aseat-ui/HANDOFF.md` 可作為 UI 精神參考：一個入口爬蟲是一張可治理的資產卡片，預設畫面應清爽掃描，細節放在右側 passport 或設定視窗；齒輪、封存、健康狀態、信任分數、成熟度、風險與任務隊列是 crawler asset 的產品語言。`tem/` 本身不是正式來源，不應直接加入 commit；要抽取的是互動規則與資訊架構。
+
 ```mermaid
 flowchart LR
     Source[資料發現來源] --> Asset[爬蟲資產 / Crawler Asset]

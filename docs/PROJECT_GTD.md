@@ -32,7 +32,8 @@ Last updated: 2026-05-24
 - [x] 概念文件已補上「一個入口 source -> 一個 crawler asset -> 三個能力槽」：`fetch_metadata()`、`list_datasets(bounds?)`、`build_download_plan(dataset, bounds)`。
 - [x] 同步規則已回寫 handoff：K 槽是 commit/push 主工作區；本地 clone 是 GUI / showcase / full smoke 證明環境；本地修復必須回補 K 槽再 push。
 - [x] 將敏捷骨架硬化成後端 service：新增 `api_launcher/crawler_asset_service.py`，讓 Tk mixin 不再直接處理 repository / crawler 執行 / candidate upsert；封存阻擋與 candidate upsert 已有 regression 測試，未來 Qt 可消費同一個 service。
-- [ ] 將 capability contract 正式化：把 `fetch_metadata`、`list_datasets`、`build_download_plan` 的輸入、輸出、錯誤桶、credential mode、rate-limit 與 terms/license 訊號寫進 OpenSpec 或資料模型。
+- [x] 將 capability contract 正式化：新增 `api_launcher/crawler_asset_capabilities.py`，把 `fetch_metadata`、`list_datasets`、`build_download_plan` 的輸入、輸出、錯誤桶、credential mode、rate-limit、terms/license 與 bounds facets 寫進資料模型；舊 `download_selected` 保留為相容別名。
+- [ ] 將 `tem/ui-aseat-ui/HANDOFF.md` 的 Aseat 精神落成 UI 規則：爬蟲資產預設是卡片牆、右側 passport、狀態 chip、信任/風險/成熟度摘要、齒輪進設定、任務隊列另列；`tem/` 只作為參考，不搬入正式 commit。
 - [ ] 將界域 bounds 正式化：以 TimeBounds、SpatialBounds、ColumnBounds、VersionBounds、LimitBounds、AuthBounds 表示可組合條件；Tk/Qt/CLI 共用同一份 bounds schema，而不是各自寫表單邏輯。
 - [ ] 強化 source_id 同步：provider/source/catalog/local-source/repository/candidate/plan/UI row 必須能追回同一個入口，避免「資料庫可抓不可抓」被錯誤歸咎到 dataset row。
 - [ ] UIUX 後續重構：第一分頁是爬蟲資產與界域定義，第二分頁是下載器；開始/暫停/續傳應逐步收成像播放器一樣的單一主行動按鈕，降低心流負擔。

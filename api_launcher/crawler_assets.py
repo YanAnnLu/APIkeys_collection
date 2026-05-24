@@ -11,26 +11,16 @@ from api_launcher.crawlers.dataset_sources import (
 )
 from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.crawler_asset_profiles import CrawlerAssetProfile, crawler_asset_profile_for, load_crawler_asset_profiles
+from api_launcher.crawler_asset_capabilities import (
+    BUILD_DOWNLOAD_PLAN,
+    CrawlerAssetCapability,
+    access_requirement_for_source,
+    capability_status,
+    crawler_asset_capabilities,
+    status_label,
+)
 from api_launcher.dataset_seed_coverage import source_seed_coverage
 from api_launcher.paths import catalog_file, local_config_file
-
-
-@dataclass(frozen=True)
-class CrawlerAssetCapability:
-    """單一入口爬蟲可對外提供的能力槽。"""
-
-    capability_id: str
-    label: str
-    status: str
-    detail: str
-
-    def to_dict(self) -> dict[str, str]:
-        return {
-            "capability_id": self.capability_id,
-            "label": self.label,
-            "status": self.status,
-            "detail": self.detail,
-        }
 
 
 @dataclass(frozen=True)
@@ -64,10 +54,7 @@ class CrawlerAsset:
         return " / ".join(f"{item.label}:{status_label(item.status)}" for item in self.capabilities)
 
     def capability_status(self, capability_id: str) -> str:
-        for item in self.capabilities:
-            if item.capability_id == capability_id:
-                return item.status
-        return "unknown"
+        return capability_status(self.capabilities, capability_id)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -156,43 +143,6 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
     )
 
 
-def crawler_asset_capabilities(source: DatasetDiscoverySource, *, supported: bool) -> tuple[CrawlerAssetCapability, ...]:
-    """一個入口一隻蟲；蟲內用能力槽標示可做到哪一步。"""
-
-    if supported:
-        metadata_status = "ready"
-        metadata_detail = "已接到入口 handler，可抓取入口層 metadata。"
-    else:
-        metadata_status = "needs_handler"
-        metadata_detail = "尚未有對應 source_type handler，需先補 crawler。"
-
-    if supported and source.search_terms:
-        listing_status = "bounded"
-        listing_detail = "目前以 search_terms 做有界清單擷取，可再切到完整 seed。"
-    elif supported:
-        listing_status = "ready"
-        listing_detail = "可對入口執行清單擷取或完整 seed 嘗試。"
-    else:
-        listing_status = "needs_handler"
-        listing_detail = "清單擷取需要先建立入口 handler。"
-
-    if source.file_url_regex or source.source_type == "html_file_index":
-        download_status = "selectable"
-        download_detail = "入口可列出檔案 shard，下一步是選版本/界域後下載。"
-    elif supported:
-        download_status = "needs_bounds_or_adapter"
-        download_detail = "需要先看 schema/head，再由界域表單或 adapter 產生指定下載。"
-    else:
-        download_status = "needs_handler"
-        download_detail = "下載指定資料庫前需先補入口 handler 與資料集解析。"
-
-    return (
-        CrawlerAssetCapability("fetch_metadata", "元資料", metadata_status, metadata_detail),
-        CrawlerAssetCapability("list_datasets", "清單", listing_status, listing_detail),
-        CrawlerAssetCapability("download_selected", "下載", download_status, download_detail),
-    )
-
-
 def crawler_asset_maturity(complete_seed_ready: bool, supported: bool, source: DatasetDiscoverySource) -> str:
     if complete_seed_ready:
         return "ready"
@@ -236,15 +186,6 @@ def source_surface_label(source: DatasetDiscoverySource) -> str:
     return "catalog"
 
 
-def access_requirement_for_source(source: DatasetDiscoverySource) -> str:
-    # 帳號、token、rate limit 都是爬蟲能力的邊界，不放到資料庫本體上。
-    text = " ".join([source.source_id, source.provider_id, source.endpoint_url, source.docs_url, source.notes]).lower()
-    guarded_words = ("token", "api key", "apikey", "oauth", "login", "account", "earthdata", "kaggle", "cdsapi")
-    if any(word in text for word in guarded_words):
-        return "crawler_managed_auth"
-    return "public_or_review"
-
-
 def configured_seed_count(source: DatasetDiscoverySource) -> int:
     count = len(source.search_terms)
     if source.dataset_id:
@@ -261,15 +202,12 @@ def seed_summary_for_source(source: DatasetDiscoverySource, current_seed_scope: 
     return "none"
 
 
-def status_label(status: str) -> str:
-    labels = {
-        "ready": "可用",
-        "bounded": "有界",
-        "selectable": "可選",
-        "needs_bounds_or_adapter": "需界域",
-        "needs_handler": "待補",
-        "archived": "封存",
-        "disabled": "停用",
-        "active": "啟用",
-    }
-    return labels.get(status, status)
+__all__ = [
+    "BUILD_DOWNLOAD_PLAN",
+    "CrawlerAsset",
+    "CrawlerAssetCapability",
+    "crawler_asset_from_source",
+    "load_crawler_asset_source",
+    "load_crawler_assets",
+    "status_label",
+]

@@ -11,7 +11,14 @@ from api_launcher.crawler_asset_profiles import (
     set_crawler_asset_archived,
     toggle_crawler_asset_archived,
 )
-from api_launcher.crawler_assets import crawler_asset_from_source, load_crawler_asset_source, load_crawler_assets, status_label
+from api_launcher.crawler_asset_capabilities import bounds_facets_for_source
+from api_launcher.crawler_assets import (
+    BUILD_DOWNLOAD_PLAN,
+    crawler_asset_from_source,
+    load_crawler_asset_source,
+    load_crawler_assets,
+    status_label,
+)
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, DatasetSourceCrawlResult
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.db import connect_db
@@ -35,10 +42,14 @@ class CrawlerAssetTest(unittest.TestCase):
 
         self.assertEqual("demo_ckan", asset.asset_id)
         self.assertEqual("bounded", asset.maturity)
-        self.assertEqual(("fetch_metadata", "list_datasets", "download_selected"), tuple(item.capability_id for item in asset.capabilities))
+        self.assertEqual(("fetch_metadata", "list_datasets", BUILD_DOWNLOAD_PLAN), tuple(item.capability_id for item in asset.capabilities))
         self.assertEqual("ready", asset.capability_status("fetch_metadata"))
         self.assertEqual("bounded", asset.capability_status("list_datasets"))
+        self.assertEqual("needs_bounds_or_adapter", asset.capability_status(BUILD_DOWNLOAD_PLAN))
         self.assertEqual("needs_bounds_or_adapter", asset.capability_status("download_selected"))
+        self.assertEqual(("package", "resource", "format", "limit"), asset.capabilities[2].bounds_facets)
+        self.assertEqual("public_or_review", asset.capabilities[2].credential_mode)
+        self.assertIn("adapter_required", asset.capabilities[2].error_buckets)
         self.assertEqual(1, asset.seed_count)
         self.assertEqual("1 configured", asset.seed_summary)
         self.assertEqual("public_or_review", asset.access_requirement)
@@ -56,8 +67,9 @@ class CrawlerAssetTest(unittest.TestCase):
 
         asset = crawler_asset_from_source(source)
 
-        self.assertEqual("selectable", asset.capability_status("download_selected"))
-        self.assertIn("下載:可選", asset.capability_summary)
+        self.assertEqual("selectable", asset.capability_status(BUILD_DOWNLOAD_PLAN))
+        self.assertIn("下載計畫:可選", asset.capability_summary)
+        self.assertEqual(("version", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
         self.assertEqual("full entry", asset.seed_summary)
 
     def test_unsupported_source_is_visible_but_marked_as_handler_backlog(self) -> None:
@@ -89,6 +101,18 @@ class CrawlerAssetTest(unittest.TestCase):
         asset = crawler_asset_from_source(source)
 
         self.assertEqual("crawler_managed_auth", asset.access_requirement)
+        self.assertEqual("user_credential_required", asset.capabilities[0].credential_mode)
+
+    def test_source_type_drives_dynamic_bounds_facets(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+
+        self.assertEqual(("collection", "time", "bbox", "asset_role", "limit"), bounds_facets_for_source(source))
 
     def test_load_crawler_asset_source_finds_single_entry(self) -> None:
         with TemporaryDirectory() as tmp:
