@@ -93,6 +93,12 @@ from api_launcher.adapter_plan_resolvers.resource_formats import (
     normalize_resource_format as resolve_normalize_resource_format,
     source_format_from_url as resolve_source_format_from_url,
 )
+from api_launcher.adapter_plan_resolvers.resource_sizes import (
+    positive_int_from_resource_value as resolve_positive_int_from_resource_value,
+    positive_int_or_none as resolve_positive_int_or_none,
+    resource_exceeds_size_bound as resolve_resource_exceeds_size_bound,
+    resource_size_bytes as resolve_resource_size_bytes,
+)
 from api_launcher.adapter_plan_resolvers.socrata import (
     bounded_socrata_url,
     resource_is_socrata_api_url,
@@ -1222,8 +1228,11 @@ def tabledap_sample_variables(dimensions: list[str], variables: list[str]) -> li
 
 
 def resource_exceeds_size_bound(resource: dict[str, object]) -> bool:
-    size = resource_size_bytes(resource)
-    return size > DIRECT_RESOURCE_MAX_BYTES if size is not None else False
+    return resolve_resource_exceeds_size_bound(
+        resource,
+        DIRECT_RESOURCE_MAX_BYTES,
+        text_reader=first_resource_text,
+    )
 
 
 def resource_looks_downloadable(resource: dict[str, object], url: str) -> bool:
@@ -1237,62 +1246,15 @@ def resource_looks_downloadable(resource: dict[str, object], url: str) -> bool:
 
 
 def resource_size_bytes(resource: dict[str, object]) -> int | None:
-    # 不同 catalog 對檔案大小欄位命名不一致；統一在這裡吸收差異。
-    for key in (
-        "size",
-        "bytes",
-        "content_length",
-        "contentLength",
-        "file_size",
-        "fileSize",
-        "FileSize",
-        "size_bytes",
-        "sizeInBytes",
-        "SizeInBytes",
-        "byteSize",
-        "dcat:byteSize",
-        "http://www.w3.org/ns/dcat#byteSize",
-        "https://www.w3.org/ns/dcat#byteSize",
-        "contentSize",
-        "schema:contentSize",
-        "http://schema.org/contentSize",
-        "https://schema.org/contentSize",
-    ):
-        value = resource.get(key)
-        if value in ("", None):
-            continue
-        size = positive_int_from_resource_value(value)
-        if size is not None:
-            return size
-    return None
+    return resolve_resource_size_bytes(resource, text_reader=first_resource_text)
 
 
 def positive_int_from_resource_value(value: object) -> int | None:
-    if isinstance(value, (list, tuple)):
-        # JSON-LD 欄位可能是多值陣列；取第一個可解析的正整數。
-        for item in value:
-            size = positive_int_from_resource_value(item)
-            if size is not None:
-                return size
-        return None
-    if isinstance(value, dict):
-        return positive_int_from_resource_value(
-            first_resource_text(
-                value.get("@value"),
-                value.get("value"),
-                value.get("bytes"),
-                value.get("size"),
-            )
-        )
-    return positive_int_or_none(value)
+    return resolve_positive_int_from_resource_value(value, text_reader=first_resource_text)
 
 
 def positive_int_or_none(value: object) -> int | None:
-    try:
-        size = int(float(str(value)))
-    except (TypeError, ValueError):
-        return None
-    return size if size >= 0 else None
+    return resolve_positive_int_or_none(value)
 
 
 def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:
