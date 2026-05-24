@@ -1,6 +1,6 @@
 # 工作區分類與拆分規則
 
-最後更新：2026-05-19
+最後更新：2026-05-24
 
 這份文件用來回答三個問題：
 
@@ -70,6 +70,41 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 - `provider_candidates.discovered.json`
 
 它們不是原始碼，也不應提交。短期保留是為了相容舊路徑與目前使用者環境；新增功能產生的新狀態檔，預設應放進 `state/`。
+
+## 分艙整理節奏
+
+目前工作區不是災難，但已經進入 MVP 長大後需要分艙的階段。整理資料夾本身要當成獨立 checkpoint，不要混在 crawler、UI 或下載功能裡做。每次只搬一組，保留相容 import / wrapper，跑完整測試，再同步 `WORKSPACE_LAYOUT`、`CODE_RELATIONSHIP_MAP` 與必要 handoff。
+
+建議排序：
+
+1. 先收 runtime：新產物一律進 `state/`，不要再落根目錄；舊根目錄 runtime 只為相容保留。
+2. 再拆 `core.py` 的 CLI routing：未來目標是 `api_launcher/cli/`，但短期仍可用 `cli_*.py` 小切片。
+3. 再拆 discovery / crawler asset / database 三組，避免 `api_launcher/` 根層繼續平鋪膨脹。
+4. 最後整理 Tk UI 與 tests 結構，尤其是大 dialog 與 workflow；UI 整理要等後端 service 邊界足夠清楚。
+
+中期目標可以朝這種分艙靠攏，但不要一次搬完：
+
+```text
+api_launcher/
+  cli/
+  discovery/
+  crawler_assets/
+  database/
+  registry/
+  rendering/
+  crawlers/
+  downloads/
+  importers/
+  adapter_plan_resolvers/
+
+frontends/tk/
+  dialogs/
+  workflows/
+  models/
+  launcher_ui.py
+```
+
+原則：資料夾整理不是美化，而是降低爆炸半徑。只要搬檔會影響 import path、測試 patch 點、CLI entrypoint 或 UI workflow，就要把它視為重構任務，而不是順手整理。
 
 ## 本機暫存資料夾 `tem/`
 
