@@ -37,9 +37,9 @@ Last updated: 2026-05-24
 - [x] 將界域 bounds 正式化：新增 `api_launcher/crawler_asset_bounds.py`，以 TimeBounds、SpatialBounds、ColumnBounds、VersionBounds、LimitBounds、AuthBounds 等 group 表示可組合條件；`CrawlerAssetCapability.to_dict()` 會輸出 `bounds_schema`，Tk passport 已開始顯示同一份 schema。
 - [ ] 強化 source_id 同步：provider/source/catalog/local-source/repository/candidate/plan/UI row 必須能追回同一個入口，避免「資料庫可抓不可抓」被錯誤歸咎到 dataset row。
 - [ ] UIUX 後續重構：第一分頁是爬蟲資產與界域定義，第二分頁是下載器；開始/暫停/續傳應逐步收成像播放器一樣的單一主行動按鈕，降低心流負擔。
-- [ ] 補 crawler asset profile 設定檔：雙擊爬蟲資產應開啟設定視窗，可調整 credential profile、API key env var、帳號提示、排程、限流、重試、暫停、完整 seed / 有界 seed 等動態參數。
-- [ ] 補 crawler health model：後端保存穩定 `status_code`、`health_reason`、`warning_codes`、`last_success_at`、`last_failure_at`、`next_action`；UI 再映射成醒目的 emoji / 顏色 / 文字 / tooltip，避免只靠圖示判斷狀態。
-- [ ] 補 crawler logo profile：每個入口可有官方 logo / favicon / 本機自定義圖片 / generated placeholder；UI 用圖片協助辨識來源，但 metadata 要保留 `logo_source` 與授權備註，避免商標或快取來源混亂。
+- [x] 補 crawler asset profile 設定檔：`api_launcher/crawler_asset_profiles.py` 已提供 `update_crawler_asset_profile()`，可調整 credential profile、API key env var、帳號提示、排程、限流、重試、暫停、完整 seed / 有界 seed、Logo/favicon 參照等動態參數；`api_key_env_var` 只接受環境變數名稱，拒絕 raw secret。
+- [x] 補 crawler health model：`api_launcher/crawler_asset_health.py` 已收斂 `status_code`、`health_reason`、`warning_codes`、`last_success_at`、`last_failure_at`、`next_action`，Tk 爬蟲分頁先用這個模型顯示 emoji 狀態，Qt/CLI 後續共用同一契約。
+- [x] 補 crawler logo profile：profile 已有 official logo / favicon / 自訂本機圖片 / generated placeholder、`logo_source`、授權備註欄位，先作為後端契約與 UI card 資料來源；下一步再補實際圖片載入與 cache。
 - [ ] 將爬蟲分頁從表格導向卡片牆：預設用一格一格的 crawler card 呈現 logo、入口名稱、狀態 chip、seed/界域摘要；滑鼠指到卡片時浮出齒輪設定按鈕，雙擊進入 crawler asset edit/profile。Tk 先用簡單 Frame grid 與常駐/半浮出齒輪，Qt 再補真正 hover switch 與動畫。
 
 ## 目前展示線

@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable, Protocol
+
+
+class CrawlerAssetCapabilityLike(Protocol):
+    capability_id: str
+    status: str
+    next_action: str
+
+
+@dataclass(frozen=True)
+class CrawlerAssetHealth:
+    """爬蟲資產的 UI-neutral 健康狀態。
+
+    Tk/Qt 只應消費這個狀態，不要各自重新推斷哪些爬蟲失效、待審或可用。
+    """
+
+    asset_id: str
+    status_code: str
+    status_emoji: str
+    health_reason: str
+    warning_codes: tuple[str, ...] = ()
+    last_success_at: str = ""
+    last_failure_at: str = ""
+    next_action: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "asset_id": self.asset_id,
+            "status_code": self.status_code,
+            "status_emoji": self.status_emoji,
+            "health_reason": self.health_reason,
+            "warning_codes": list(self.warning_codes),
+            "last_success_at": self.last_success_at,
+            "last_failure_at": self.last_failure_at,
+            "next_action": self.next_action,
+        }
+
+
+def evaluate_crawler_asset_health(
+    *,
+    asset_id: str,
+    enabled: bool,
+    archived: bool,
+    risk_tier: str,
+    maturity: str,
+    capabilities: Iterable[CrawlerAssetCapabilityLike],
+    next_action: str,
+    warning_codes: Iterable[str] = (),
+    last_success_at: str = "",
+    last_failure_at: str = "",
+) -> CrawlerAssetHealth:
+    """把 profile、能力契約與稽核結果收斂成卡片可直接顯示的狀態。"""
+
+    warnings = tuple(str(code).strip() for code in warning_codes if str(code).strip())
+    if archived:
+        return _health(asset_id, "archived", "🗄", "crawler asset is archived", ("archived",), "unarchive_before_crawl")
+    if not enabled:
+        return _health(asset_id, "disabled", "⏸", "crawler asset is disabled", ("disabled",), "enable_before_crawl")
+    if risk_tier == "needs_handler":
+        return _health(
+            asset_id,
+            "missing_handler",
+            "🧩",
+            "source type has no crawler handler yet",
+            warnings or ("needs_handler",),
+            "implement_source_handler",
+        )
+    if any(item.status == "needs_bounds_or_adapter" for item in capabilities):
+        return _health(
+            asset_id,
+            "needs_bounds",
+            "🧭",
+            "schema probe or adapter mapping is required before download",
+            warnings or ("needs_bounds_or_adapter",),
+            "probe_schema_then_define_bounds",
+        )
+    if risk_tier == "needs_review":
+        return _health(
+            asset_id,
+            "review_needed",
+            "⚠",
+            "crawler output or seed coverage needs review",
+            warnings or ("needs_review",),
+            next_action or "review_candidates",
+        )
+    if maturity in {"ready", "bounded", "assembled"}:
+        return _health(
+            asset_id,
+            "healthy",
+            "✅",
+            "crawler asset is available for the current workflow",
+            warnings,
+            next_action or "list_datasets",
+            last_success_at=last_success_at,
+            last_failure_at=last_failure_at,
+        )
+    return _health(
+        asset_id,
+        "unknown",
+        "？",
+        "crawler asset state is not classified yet",
+        warnings or ("unknown_state",),
+        next_action or "review_crawler_asset",
+        last_success_at=last_success_at,
+        last_failure_at=last_failure_at,
+    )
+
+
+def _health(
+    asset_id: str,
+    status_code: str,
+    status_emoji: str,
+    health_reason: str,
+    warning_codes: tuple[str, ...],
+    next_action: str,
+    *,
+    last_success_at: str = "",
+    last_failure_at: str = "",
+) -> CrawlerAssetHealth:
+    return CrawlerAssetHealth(
+        asset_id=asset_id,
+        status_code=status_code,
+        status_emoji=status_emoji,
+        health_reason=health_reason,
+        warning_codes=warning_codes,
+        last_success_at=last_success_at,
+        last_failure_at=last_failure_at,
+        next_action=next_action,
+    )
+
+
+__all__ = ["CrawlerAssetHealth", "evaluate_crawler_asset_health"]

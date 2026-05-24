@@ -304,6 +304,18 @@ class CrawlerAssetWorkflowMixin:
 
 
 def crawler_asset_state_label(asset: CrawlerAsset) -> str:
+    if getattr(asset, "health", None) is not None:
+        code = asset.health.status_code
+        labels = {
+            "archived": "封存",
+            "disabled": "停用",
+            "missing_handler": "待實作",
+            "needs_bounds": "需界域",
+            "review_needed": "待審",
+            "healthy": "可用",
+            "unknown": "未知",
+        }
+        return f"{asset.health.status_emoji} {labels.get(code, code)}"
     if asset.archived:
         return "📦 封存"
     if not asset.enabled:

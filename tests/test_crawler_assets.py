@@ -10,6 +10,7 @@ from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
     set_crawler_asset_archived,
     toggle_crawler_asset_archived,
+    update_crawler_asset_profile,
 )
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source, bounds_schema_for_source
 from api_launcher.crawler_assets import (
@@ -185,6 +186,35 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertTrue(enabled.enabled)
         self.assertEqual("active", enabled.profile_state)
 
+    def test_profile_update_keeps_credentials_as_references(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+
+            updated = update_crawler_asset_profile(
+                "demo_index",
+                profile_path,
+                credential_profile_id="earthdata_default",
+                api_key_env_var="NASA_EARTHDATA_TOKEN",
+                account_hint="NASA Earthdata account",
+                schedule_policy="manual",
+                rate_limit_policy="polite_1rps",
+                retry_policy="retry_3_with_backoff",
+                seed_scope_policy="bounded",
+                status_note="needs account review",
+                local_logo_path="state/logos/demo.png",
+                logo_source="custom",
+                logo_license_note="local presentation asset",
+            )
+            profiles = load_crawler_asset_profiles(profile_path)
+
+            self.assertEqual("NASA_EARTHDATA_TOKEN", updated.api_key_env_var)
+            self.assertEqual("earthdata_default", profiles["demo_index"].credential_profile_id)
+            self.assertEqual("polite_1rps", profiles["demo_index"].rate_limit_policy)
+            self.assertEqual("bounded", profiles["demo_index"].seed_scope_policy)
+
+            with self.assertRaises(ValueError):
+                update_crawler_asset_profile("demo_index", profile_path, api_key_env_var="sk-secret")
+
     def test_loaded_assets_apply_archived_profile_without_changing_source(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path = Path(tmp) / "sources.json"
@@ -213,7 +243,49 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(1, len(assets))
         self.assertTrue(assets[0].archived)
         self.assertEqual("archived", assets[0].risk_tier)
-        self.assertEqual("archived_disabled", assets[0].next_action)
+        self.assertEqual("unarchive_before_crawl", assets[0].next_action)
+        self.assertEqual("archived", assets[0].health.status_code)
+        self.assertEqual("unarchive_before_crawl", assets[0].health.next_action)
+
+    def test_loaded_assets_expose_profile_and_health_for_ui_cards(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "demo_stac",
+      "provider_id": "demo_provider",
+      "name": "Demo STAC",
+      "source_type": "stac_collections",
+      "endpoint_url": "https://example.test/stac"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            update_crawler_asset_profile(
+                "demo_stac",
+                profile_path,
+                official_logo_url="https://example.test/logo.png",
+                favicon_url="https://example.test/favicon.ico",
+                schedule_policy="manual",
+                rate_limit_policy="polite_1rps",
+            )
+
+            assets = load_crawler_assets(source_path, None, profile_path)
+
+        self.assertEqual(1, len(assets))
+        self.assertEqual("https://example.test/logo.png", assets[0].official_logo_url)
+        self.assertEqual("manual", assets[0].schedule_policy)
+        self.assertEqual("polite_1rps", assets[0].rate_limit_policy)
+        self.assertEqual("needs_bounds", assets[0].health.status_code)
+        self.assertEqual("probe_schema_then_define_bounds", assets[0].health.next_action)
+        self.assertEqual("needs_bounds", assets[0].to_dict()["health"]["status_code"])
 
     def test_service_blocks_archived_asset_before_crawl(self) -> None:
         with TemporaryDirectory() as tmp:

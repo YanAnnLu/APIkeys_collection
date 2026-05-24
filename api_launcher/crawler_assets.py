@@ -19,6 +19,7 @@ from api_launcher.crawler_asset_capabilities import (
     crawler_asset_capabilities,
     status_label,
 )
+from api_launcher.crawler_asset_health import CrawlerAssetHealth, evaluate_crawler_asset_health
 from api_launcher.dataset_seed_coverage import source_seed_coverage
 from api_launcher.paths import catalog_file, local_config_file
 
@@ -47,6 +48,20 @@ class CrawlerAsset:
     enabled: bool
     archived: bool
     profile_state: str
+    credential_profile_id: str
+    api_key_env_var: str
+    account_hint: str
+    schedule_policy: str
+    rate_limit_policy: str
+    retry_policy: str
+    seed_scope_policy: str
+    status_note: str
+    local_logo_path: str
+    official_logo_url: str
+    favicon_url: str
+    logo_source: str
+    logo_license_note: str
+    health: CrawlerAssetHealth
     capabilities: tuple[CrawlerAssetCapability, ...]
 
     @property
@@ -78,6 +93,20 @@ class CrawlerAsset:
             "enabled": self.enabled,
             "archived": self.archived,
             "profile_state": self.profile_state,
+            "credential_profile_id": self.credential_profile_id,
+            "api_key_env_var": self.api_key_env_var,
+            "account_hint": self.account_hint,
+            "schedule_policy": self.schedule_policy,
+            "rate_limit_policy": self.rate_limit_policy,
+            "retry_policy": self.retry_policy,
+            "seed_scope_policy": self.seed_scope_policy,
+            "status_note": self.status_note,
+            "local_logo_path": self.local_logo_path,
+            "official_logo_url": self.official_logo_url,
+            "favicon_url": self.favicon_url,
+            "logo_source": self.logo_source,
+            "logo_license_note": self.logo_license_note,
+            "health": self.health.to_dict(),
             "capabilities": [item.to_dict() for item in self.capabilities],
         }
 
@@ -118,6 +147,16 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
     capabilities = crawler_asset_capabilities(source, supported=supported)
     maturity = crawler_asset_maturity(coverage.complete_seed_ready, supported, source)
     risk_tier = "archived" if profile.archived else crawler_asset_risk_tier(supported, coverage.complete_seed_ready, capabilities)
+    next_action = "archived_disabled" if profile.archived else coverage.next_action
+    health = evaluate_crawler_asset_health(
+        asset_id=source.source_id,
+        enabled=profile.enabled,
+        archived=profile.archived,
+        risk_tier=risk_tier,
+        maturity=maturity,
+        capabilities=capabilities,
+        next_action=next_action,
+    )
     return CrawlerAsset(
         asset_id=source.source_id,
         display_name=source.name or source.source_id,
@@ -135,10 +174,24 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
         seed_count=configured_seed_count(source),
         seed_summary=seed_summary_for_source(source, coverage.current_seed_scope),
         current_seed_scope=coverage.current_seed_scope,
-        next_action="archived_disabled" if profile.archived else coverage.next_action,
+        next_action=health.next_action or next_action,
         enabled=profile.enabled,
         archived=profile.archived,
         profile_state=profile.profile_state,
+        credential_profile_id=profile.credential_profile_id,
+        api_key_env_var=profile.api_key_env_var,
+        account_hint=profile.account_hint,
+        schedule_policy=profile.schedule_policy,
+        rate_limit_policy=profile.rate_limit_policy,
+        retry_policy=profile.retry_policy,
+        seed_scope_policy=profile.seed_scope_policy,
+        status_note=profile.status_note,
+        local_logo_path=profile.local_logo_path,
+        official_logo_url=profile.official_logo_url,
+        favicon_url=profile.favicon_url,
+        logo_source=profile.logo_source,
+        logo_license_note=profile.logo_license_note,
+        health=health,
         capabilities=capabilities,
     )
 
