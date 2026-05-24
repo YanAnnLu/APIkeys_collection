@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from api_launcher.paths import state_file
+from api_launcher.paths import default_local_curated_db_path
 from frontends.tk import ui_config
 
 
@@ -26,7 +26,7 @@ class TkUiConfigTests(unittest.TestCase):
         self.assertEqual("RuRuKa Asset Launcher", ui_config.PRODUCT_DISPLAY_NAME)
         self.assertEqual("RRKAL", ui_config.PRODUCT_SHORT_NAME)
         self.assertEqual("APIkeys_collection_download_plan.json", ui_config.DOWNLOAD_PLAN_NAME)
-        self.assertEqual(state_file("curated_imports.sqlite"), state_file(ui_config.CURATED_IMPORTS_NAME))
+        self.assertEqual(default_local_curated_db_path(), ui_config.curated_imports_path())
 
     def test_table_columns_keep_required_action_column(self) -> None:
         # 表格欄位設定被 resize / click routing 共用；action 欄要保留在最後，避免按鈕欄判斷錯位。

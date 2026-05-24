@@ -16,6 +16,7 @@ from api_launcher.downloads.http import (
     reusable_completed_download,
 )
 from api_launcher.manifests import build_asset_manifest, write_manifest
+from api_launcher.paths import default_local_downloads_root
 
 
 TEST_BYTES = b"0123456789abcdefghijklmnopqrstuvwxyz" * 128
@@ -73,7 +74,8 @@ class HTTPDownloadAdapterTests(unittest.TestCase):
         target = download_target_from_plan_entry(
             {"provider_id": "sample_provider", "download_url": "https://example.test/path/data.nc"}
         )
-        self.assertTrue(str(target.output_path).endswith(str(Path("downloads") / "sample_provider" / "data.nc")))
+        expected_suffix = default_local_downloads_root() / "sample_provider" / "data.nc"
+        self.assertTrue(str(target.output_path).endswith(str(expected_suffix)))
         self.assertTrue(str(target.part_path).endswith("data.nc.part"))
 
     def test_adapter_downloads_direct_url_with_progress(self) -> None:

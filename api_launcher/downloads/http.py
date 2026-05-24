@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterable
 
 from api_launcher.db import resolve_project_path
+from api_launcher.paths import default_local_downloads_root
 from api_launcher.downloads.jobs import DownloadJob, DownloadJobController, DownloadProgress, JobStatus
 from api_launcher.downloads.policy import HostThrottle, PoliteDownloadPolicy
 from api_launcher.manifests import manifest_matches_plan_entry, read_manifest
@@ -18,7 +19,7 @@ from api_launcher.downloads.staging import StagingPaths, promote_staged_payload,
 from api_launcher.downloads.transfer_tools import transfer_url_from_plan_entry
 
 
-DEFAULT_DOWNLOAD_DIR = "downloads"
+DEFAULT_DOWNLOAD_DIR = str(default_local_downloads_root())
 DEFAULT_CHUNK_SIZE = 1024 * 256
 
 

@@ -17,6 +17,7 @@ from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, t
 from api_launcher.importers.json_importer import import_json_manifest_to_sqlite
 from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
+from api_launcher.paths import default_local_curated_db_path
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -134,7 +135,7 @@ def run_download_plan_payload(
     timeout: float = 30.0,
     limit: int = 0,
     import_supported_results: bool = False,
-    import_sqlite_path: str | Path = "state/curated_imports.sqlite",
+    import_sqlite_path: str | Path = default_local_curated_db_path(),
     import_row_limit: int = 0,
     import_replace: bool = False,
     import_existing_table_policy: str = "skip",

@@ -127,7 +127,7 @@ from api_launcher.mvp_demo import (
     run_mvp_demo_offline_smoke,
     write_mvp_demo_flow as write_mvp_demo_flow_files,
 )
-from api_launcher.paths import catalog_file
+from api_launcher.paths import catalog_file, default_local_curated_db_path, default_local_downloads_root
 from api_launcher.plans import (
     build_dataset_download_plan,
     build_download_plan,
@@ -624,7 +624,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--self-check", action="store_true", help="refresh launcher remote/local status from crawl metadata")
     parser.add_argument("--verify-downloads", action="store_true", help="verify downloaded payloads against sidecar manifests")
     parser.add_argument("--verify-downloads-json", action="store_true", help="verify downloaded payloads and emit agent-readable JSON")
-    parser.add_argument("--downloads-root", default="downloads", help="directory containing download sidecar manifests")
+    parser.add_argument("--downloads-root", default=str(default_local_downloads_root()), help="directory containing download sidecar manifests")
     parser.add_argument("--run-download-plan", help="run direct HTTP downloads from a plan JSON and register completed assets")
     parser.add_argument("--run-download-plan-json", action="store_true", help="emit --run-download-plan result as agent-readable JSON")
     parser.add_argument("--download-plan-limit", type=int, default=0, help="maximum direct plan entries to run; 0 means all direct entries")
@@ -654,7 +654,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--local-file-version", default=DEFAULT_MANUAL_LOCAL_VERSION, help="version recorded in generated local-file manifests")
     parser.add_argument("--local-file-source-url", default="", help="optional original source URL for local-file provenance; defaults to file:// URI")
     parser.add_argument("--manual-import-json", action="store_true", help="emit local-file manifest/import results as agent-readable JSON")
-    parser.add_argument("--import-sqlite-db", default="state/curated_imports.sqlite", help="target SQLite database for manifest imports")
+    parser.add_argument("--import-sqlite-db", default=str(default_local_curated_db_path()), help="target SQLite database for manifest imports")
     parser.add_argument("--import-table", default="", help="target table name for single-manifest import; defaults to dataset/version")
     parser.add_argument("--import-row-limit", type=int, default=0, help="maximum rows to import from CSV/JSON/GeoJSON; 0 means all rows")
     parser.add_argument("--import-replace-table", action="store_true", help="drop and recreate the target table before manifest import")
@@ -855,6 +855,7 @@ class CatalogLauncherCli:
             or self.args.adapter_review_json
             or self.args.resolve_adapter_plan_json
             or self.args.manual_import_json
+            or self.args.dataset_discovery_seed_coverage_json
             or self.args.handoff_report_json
             or self.args.heartbeat_plan_json
             or self.args.library_actions_json

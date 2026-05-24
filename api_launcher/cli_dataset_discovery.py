@@ -13,6 +13,7 @@ from api_launcher.dataset_discovery import (
     dataset_with_candidate_metadata,
     load_all_dataset_discovery_sources,
 )
+from api_launcher.dataset_seed_coverage import build_dataset_seed_coverage_report, render_dataset_seed_coverage_markdown
 from api_launcher.db import resolve_project_path, utc_now_iso
 from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.paths import catalog_file, local_config_file, state_file
@@ -21,7 +22,7 @@ from api_launcher.repository import ApiCatalogRepository, load_providers
 
 
 def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
-    # dataset discovery CLI 是 crawler -> candidate -> plan 的主要開發入口。
+    # dataset discovery CLI 是 crawler -> candidate -> plan 的入口，不直接下載資料本體。
     parser.add_argument("--discover-dataset-candidates", action="store_true", help="crawl configured source catalogs into reviewable dataset candidates")
     parser.add_argument("--dataset-discovery-sources", default=DEFAULT_DATASET_DISCOVERY_SOURCES_NAME, help="JSON source list for dataset discovery")
     parser.add_argument("--dataset-discovery-local-sources", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local JSON source list for user-added dataset discovery sources")
@@ -33,6 +34,10 @@ def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dataset-discovery-workers", type=int, default=4, help="parallel source crawlers for dataset discovery")
     parser.add_argument("--dataset-discovery-min-candidates-per-source", type=int, default=-1, help="audit minimum candidates per source; -1 uses source config")
     parser.add_argument("--dataset-discovery-strict-audit", action="store_true", help="exit with failure when any crawler source has errors or audit warnings")
+    parser.add_argument("--dataset-discovery-complete-seed", action="store_true", help="attempt complete entry seed discovery by ignoring configured sample search terms and enabling full crawl")
+    parser.add_argument("--dataset-discovery-seed-coverage-json", action="store_true", help="emit dataset discovery source seed-coverage audit as JSON without crawling")
+    parser.add_argument("--write-dataset-seed-coverage", default="", help="write dataset discovery source seed-coverage audit JSON")
+    parser.add_argument("--write-dataset-seed-coverage-md", default="", help="write a human-readable Markdown seed-coverage showcase report")
     parser.add_argument("--write-dataset-candidates", default="dataset_candidates.discovered.json", help="output JSON for discovered dataset candidates")
     parser.add_argument("--upsert-dataset-candidates", action="store_true", help="upsert discovered dataset candidates into the datasets table for review")
     parser.add_argument("--list-dataset-candidates", action="store_true", help="list reviewable dataset candidates stored in the datasets table")
@@ -49,6 +54,9 @@ def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
 def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
     return bool(
         args.discover_dataset_candidates
+        or args.dataset_discovery_seed_coverage_json
+        or bool(args.write_dataset_seed_coverage)
+        or bool(args.write_dataset_seed_coverage_md)
         or args.list_dataset_candidates
         or args.review_dataset_candidate
         or args.promote_local_discovery_catalog
@@ -56,24 +64,19 @@ def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
 
 
 def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
-    # CLI 只把 crawler 結果寫成 candidate/review 資料，不直接下載或匯入。
+    sources = filtered_dataset_discovery_sources(args)
+    maybe_write_or_print_seed_coverage(args, sources)
+    if args.dataset_discovery_seed_coverage_json and not args.discover_dataset_candidates:
+        return
+
     if args.discover_dataset_candidates:
-        source_path = catalog_file(args.dataset_discovery_sources)
-        local_source_path = local_config_file(args.dataset_discovery_local_sources)
-        sources = load_all_dataset_discovery_sources(source_path, local_source_path)
-        if args.provider:
-            wanted_providers = set(args.provider)
-            sources = [source for source in sources if source.provider_id in wanted_providers]
-        if args.dataset_discovery_source:
-            wanted_sources = set(args.dataset_discovery_source)
-            sources = [source for source in sources if source.source_id in wanted_sources]
         crawl_result = crawl_dataset_sources(
             sources,
             DatasetCrawlOptions(
                 timeout=args.timeout,
                 max_results_override=args.dataset_discovery_limit,
-                search_terms_override=tuple(args.dataset_discovery_term),
-                full_crawl=args.dataset_discovery_full_crawl,
+                search_terms_override=dataset_discovery_search_terms(args),
+                full_crawl=args.dataset_discovery_full_crawl or args.dataset_discovery_complete_seed,
                 max_pages=args.dataset_discovery_max_pages,
                 max_workers=args.dataset_discovery_workers,
                 min_candidates_per_source_override=args.dataset_discovery_min_candidates_per_source,
@@ -93,7 +96,8 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             "warning_count": crawl_result.warning_count,
             "next_action": crawl_result.next_action,
             "audit_summary": crawl_result.audit_summary,
-            "full_crawl": args.dataset_discovery_full_crawl,
+            "full_crawl": args.dataset_discovery_full_crawl or args.dataset_discovery_complete_seed,
+            "complete_seed": args.dataset_discovery_complete_seed,
             "source_results": [
                 {
                     "source_id": result.source_id,
@@ -118,6 +122,7 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
             f"wrote {len(candidates)} dataset candidates to {output_path} "
             f"sources={len(sources)} errors={crawl_result.error_count} "
             f"warnings={crawl_result.warning_count} duplicates={crawl_result.duplicate_count} "
+            f"complete_seed={args.dataset_discovery_complete_seed} "
             f"next_action={crawl_result.next_action}"
         )
         for result in crawl_result.source_results:
@@ -140,6 +145,49 @@ def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Nam
     promote_local_discovery_catalog_cli(args)
 
 
+def dataset_discovery_search_terms(args: argparse.Namespace) -> tuple[str, ...]:
+    # complete_seed 是展示前的粗顆粒模式：忽略 catalog 內展示用 search_terms，讓支援分頁的入口嘗試列舉全入口。
+    if args.dataset_discovery_complete_seed:
+        return ("",)
+    return tuple(args.dataset_discovery_term)
+
+
+def filtered_dataset_discovery_sources(args: argparse.Namespace):
+    source_path = catalog_file(args.dataset_discovery_sources)
+    local_source_path = local_config_file(args.dataset_discovery_local_sources)
+    sources = load_all_dataset_discovery_sources(source_path, local_source_path)
+    if args.provider:
+        wanted_providers = set(args.provider)
+        sources = [source for source in sources if source.provider_id in wanted_providers]
+    if args.dataset_discovery_source:
+        wanted_sources = set(args.dataset_discovery_source)
+        sources = [source for source in sources if source.source_id in wanted_sources]
+    return sources
+
+
+def maybe_write_or_print_seed_coverage(args: argparse.Namespace, sources) -> None:
+    if (
+        not args.dataset_discovery_seed_coverage_json
+        and not args.write_dataset_seed_coverage
+        and not args.write_dataset_seed_coverage_md
+    ):
+        return
+    # seed coverage 不碰網路：用來告訴展示者哪些入口是完整列舉，哪些只是 search_terms 樣本。
+    payload = build_dataset_seed_coverage_report(sources, max_pages=args.dataset_discovery_max_pages)
+    if args.write_dataset_seed_coverage:
+        output_path = resolve_project_path(args.write_dataset_seed_coverage)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"[dataset-seed-coverage] wrote {output_path}")
+    if args.write_dataset_seed_coverage_md:
+        output_path = resolve_project_path(args.write_dataset_seed_coverage_md)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(render_dataset_seed_coverage_markdown(payload), encoding="utf-8")
+        print(f"[dataset-seed-coverage] wrote {output_path}")
+    if args.dataset_discovery_seed_coverage_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
 def promote_local_discovery_catalog_cli(args: argparse.Namespace) -> None:
     if not args.promote_local_discovery_catalog:
         return
@@ -151,8 +199,8 @@ def promote_local_discovery_catalog_cli(args: argparse.Namespace) -> None:
         options=DatasetCrawlOptions(
             timeout=args.timeout,
             max_results_override=args.dataset_discovery_limit,
-            search_terms_override=tuple(args.dataset_discovery_term),
-            full_crawl=args.dataset_discovery_full_crawl,
+            search_terms_override=dataset_discovery_search_terms(args),
+            full_crawl=args.dataset_discovery_full_crawl or args.dataset_discovery_complete_seed,
             max_pages=args.dataset_discovery_max_pages,
             max_workers=args.dataset_discovery_workers,
             min_candidates_per_source_override=args.dataset_discovery_min_candidates_per_source,

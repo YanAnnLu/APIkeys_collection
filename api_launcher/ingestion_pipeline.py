@@ -19,6 +19,7 @@ from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import download_target_from_plan_entry
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.importers.csv_importer import unique_table_name
+from api_launcher.paths import default_local_curated_db_path
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -32,7 +33,7 @@ class DownloadImportPipelineOptions:
     timeout: float = 30.0
     limit: int = 0
     import_supported_results: bool = False
-    import_sqlite_path: str | Path = "state/curated_imports.sqlite"
+    import_sqlite_path: str | Path = default_local_curated_db_path()
     import_row_limit: int = 0
     import_replace: bool = False
     import_existing_table_policy: str = "skip"

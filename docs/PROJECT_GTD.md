@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## 目前展示線
+
+| 區域 | 狀態 | 目前進度 | 下一步 |
+| --- | --- | --- | --- |
+| 中午展示 / 進度說明 | MVP 硬化 | 已新增可重跑的資料集 seed 覆蓋稽核。`--dataset-discovery-seed-coverage-json` 會輸出機器可讀 JSON；`--write-dataset-seed-coverage` 會寫出 JSON 報告；`--write-dataset-seed-coverage-md` 會把給人閱讀的 Markdown 報告寫到被忽略的 `state/showcase/`。目前 source catalog 可以回報所有已設定的 dataset discovery source 都有完整 seed 嘗試路徑；平常為安全抽樣而設定 `search_terms` 的 source，可透過 `--dataset-discovery-complete-seed` 搭配 `--dataset-discovery-max-pages` 的安全上限進行展示用完整 seed 嘗試。一般使用者的預設下載 / 匯入輸出已改到系統 Downloads 底下的 `RuRuKa Asset Launcher/downloads` 與 `RuRuKa Asset Launcher/curated_imports.db`；開發與 CI 仍可用 CLI flags 覆寫。 | 使用 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md` 作為本機展示講稿，保持忽略不提交；中午展示後再決定是否把 seed 覆蓋稽核放進 Tk UI dashboard。 |
+
 ## Product GTD
 
 | Area | Status | Current Progress | Next Step |

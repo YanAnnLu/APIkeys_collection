@@ -160,6 +160,7 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             native_format=str(item.get("native_format") or "").strip(),
             file_url_regex=str(item.get("file_url_regex") or "").strip(),
             min_expected_candidates=int(item.get("min_expected_candidates") if item.get("min_expected_candidates") is not None else 1),
+            seed_discovery_mode=str(item.get("seed_discovery_mode") or "auto").strip() or "auto",
             notes=str(item.get("notes") or "").strip(),
         )
         for item in data.get("sources", [])
@@ -203,7 +204,7 @@ def append_dataset_discovery_source(path: str | Path, source: DatasetDiscoverySo
 
 def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
     # 寫回 JSON 時保持欄位順序穩定，降低 git diff 與人工 review 成本。
-    return {
+    payload = {
         "source_id": source.source_id,
         "provider_id": source.provider_id,
         "name": source.name,
@@ -222,6 +223,9 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
         "min_expected_candidates": source.min_expected_candidates,
         "notes": source.notes,
     }
+    if source.seed_discovery_mode != "auto":
+        payload["seed_discovery_mode"] = source.seed_discovery_mode
+    return payload
 
 
 def discover_dataset_candidates(

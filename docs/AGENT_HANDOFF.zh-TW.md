@@ -322,3 +322,14 @@ push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file h
 
 注意：專案開發策略已改往 OpenSpec-aligned workflow。中大型改動請先建立或更新規格/變更說明，再實作；若 GUI/CLI OpenSpec 工具尚未完成配置，至少先在 handoff/GTD/相關 docs 留下 proposal、tasks、acceptance criteria。不要回到純聊天記憶式開發。
 ```
+## 展示模式交接備註
+
+中午展示與後續進度說明可重跑以下命令，產生被 `.gitignore` 排除的本機展示材料：
+
+```powershell
+py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
+```
+
+本機展示稿可放在 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md`；`state/` 已被 `.gitignore` 排除，不要把展示稿加入 Git。一般使用者預設下載位置已改到系統 Downloads 下的 `RuRuKa Asset Launcher/downloads`，預設 curated SQLite DB 是 `Downloads/RuRuKa Asset Launcher/curated_imports.db`；開發/CI 可以繼續用 `--downloads-root` 與 `--import-sqlite-db` 覆寫。
+
+若要粗顆粒展示「完整 seed 嘗試」而不是安全抽樣 `search_terms`，可加 `--dataset-discovery-complete-seed`，並用 `--dataset-discovery-max-pages` 控制頁數上限。這是 seed / candidate 探索，不是無限制下載。

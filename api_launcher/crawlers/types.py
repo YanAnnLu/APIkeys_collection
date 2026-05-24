@@ -24,6 +24,7 @@ class DatasetDiscoverySource:
     native_format: str = ""
     file_url_regex: str = ""
     min_expected_candidates: int = 1
+    seed_discovery_mode: str = "auto"
     notes: str = ""
 
 

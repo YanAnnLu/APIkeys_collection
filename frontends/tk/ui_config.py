@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import APIkeys_collection as core
 
-from api_launcher.paths import state_file
+from api_launcher.paths import default_local_curated_db_path, state_file
 
 
 DB_PATH = state_file(core.DB_NAME)
@@ -81,3 +81,8 @@ def configured_ui_language() -> str:
     # local config 可能由舊版本或人工編輯留下未知語言碼；UI 啟動時要保守 fallback。
     value = str(core.load_integration_config().get("ui_language") or DEFAULT_UI_LANGUAGE)
     return value if value in UI_LANGUAGES else DEFAULT_UI_LANGUAGE
+
+
+def curated_imports_path():
+    # 展示與一般使用者操作預設寫到 OS Downloads/RuRuKa Asset Launcher，避免把成果藏在 repo 的 state/。
+    return default_local_curated_db_path()

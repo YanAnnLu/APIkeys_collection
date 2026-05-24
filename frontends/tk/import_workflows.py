@@ -35,7 +35,7 @@ from api_launcher.manual_import import (
 from api_launcher.paths import state_file
 from frontends.tk.dialogs import ImportExistingTablePolicyDialog
 from frontends.tk.provider_models import ProviderRow
-from frontends.tk.ui_config import CURATED_IMPORTS_NAME, MANUAL_IMPORTS_DIR_NAME
+from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
 from frontends.tk.ui_helpers import local_file_import_error_message, local_file_provenance_review_message
 
 
@@ -77,7 +77,7 @@ class ImportWorkflowMixin:
         status = str(import_plan.get("status") or "").strip()
         table_hint = str(import_plan.get("table_hint") or "").strip()
         if status == "supported_after_download":
-            target_table = self.unique_import_table_name(state_file(CURATED_IMPORTS_NAME), table_hint) if table_hint else ""
+            target_table = self.unique_import_table_name(curated_imports_path(), table_hint) if table_hint else ""
             table_label = f" -> {target_table}" if target_table else ""
             manifest_status = self.plan_entry_manifest_status(entry)
             if manifest_status == "ok":
@@ -169,7 +169,7 @@ class ImportWorkflowMixin:
             )
             return
 
-        sqlite_path = state_file(CURATED_IMPORTS_NAME)
+        sqlite_path = curated_imports_path()
         existing_table_policy = self.ask_import_existing_table_policy()
         if existing_table_policy is None:
             return
@@ -310,7 +310,7 @@ class ImportWorkflowMixin:
         )
         if table_name is None:
             return
-        sqlite_path = state_file(CURATED_IMPORTS_NAME)
+        sqlite_path = curated_imports_path()
         confirmed = messagebox.askyesno(
             self.tr("匯入本機檔案", "Import local file"),
             self.tr(

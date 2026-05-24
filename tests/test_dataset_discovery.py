@@ -31,6 +31,11 @@ from api_launcher.dataset_discovery import (
     zenodo_candidates_from_payload,
 )
 from api_launcher.crawlers import dataset_sources
+from api_launcher.dataset_seed_coverage import (
+    build_dataset_seed_coverage_report,
+    render_dataset_seed_coverage_markdown,
+    source_seed_coverage,
+)
 from api_launcher.downloads.eligibility import looks_like_direct_download
 from api_launcher.models import Dataset
 
@@ -65,6 +70,93 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(1, len(sources))
         self.assertEqual("sample_ncei", sources[0].source_id)
         self.assertEqual(("ais",), sources[0].search_terms)
+
+    def test_source_loader_preserves_optional_seed_discovery_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "sources.json"
+            path.write_text(
+                """
+                {
+                  "schema_version": 1,
+                  "sources": [
+                    {
+                      "source_id": "sample_index",
+                      "provider_id": "sample_provider",
+                      "name": "Sample Index",
+                      "source_type": "html_file_index",
+                      "endpoint_url": "https://example.test/index.html",
+                      "seed_discovery_mode": "complete_entry_listing"
+                    }
+                  ]
+                }
+                """,
+                encoding="utf-8",
+            )
+
+            sources = load_dataset_discovery_sources(path)
+
+        self.assertEqual("complete_entry_listing", sources[0].seed_discovery_mode)
+
+    def test_seed_coverage_marks_search_terms_as_sample_scope(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_socrata",
+            provider_id="sample_provider",
+            name="Sample Socrata",
+            source_type="socrata_catalog_search",
+            endpoint_url="https://api.us.socrata.com/api/catalog/v1",
+            search_terms=("transportation",),
+        )
+
+        row = source_seed_coverage(source)
+
+        self.assertEqual("bounded_search_terms", row.current_seed_scope)
+        self.assertTrue(row.full_crawl_supported)
+        self.assertFalse(row.complete_seed_ready)
+        self.assertEqual("run_dataset_discovery_complete_seed_to_ignore_sample_terms", row.next_action)
+
+    def test_seed_coverage_report_counts_complete_entry_sources(self) -> None:
+        sources = [
+            DatasetDiscoverySource(
+                source_id="sample_index",
+                provider_id="sample_provider",
+                name="Sample Index",
+                source_type="html_file_index",
+                endpoint_url="https://example.test/index.html",
+            ),
+            DatasetDiscoverySource(
+                source_id="sample_cmr",
+                provider_id="sample_provider",
+                name="Sample CMR",
+                source_type="cmr_collections",
+                endpoint_url="https://example.test/cmr",
+                search_terms=("cloud",),
+            ),
+        ]
+
+        report = build_dataset_seed_coverage_report(sources, max_pages=3)
+
+        self.assertEqual(2, report["source_count"])
+        self.assertEqual("all_sources_have_complete_seed_attempt_path", report["showcase_status"])
+        self.assertEqual(2, report["complete_seed_capable_count"])
+        self.assertEqual(1, report["complete_seed_ready_count"])
+        self.assertEqual(3, report["max_pages_effective_cap"])
+        self.assertEqual(1, report["summary"]["by_current_seed_scope"]["entry_listing"])
+        self.assertEqual(1, report["summary"]["by_current_seed_scope"]["bounded_search_terms"])
+
+    def test_seed_coverage_markdown_renders_showcase_summary(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_index",
+            provider_id="sample_provider",
+            name="Sample Index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/index.html",
+        )
+
+        markdown = render_dataset_seed_coverage_markdown(build_dataset_seed_coverage_report([source], max_pages=2))
+
+        self.assertIn("資料集 seed 覆蓋展示報告", markdown)
+        self.assertIn("具備完整 seed 嘗試路徑", markdown)
+        self.assertIn("sample_index", markdown)
 
     def test_supported_source_types_match_catalog_and_portal_intake(self) -> None:
         from api_launcher.portal_intake import SUPPORTED_CRAWLER_TYPES

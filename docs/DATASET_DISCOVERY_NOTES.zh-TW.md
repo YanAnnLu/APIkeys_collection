@@ -313,3 +313,20 @@ python3 APIkeys_collection.py --import-verified-csv-manifests --import-sqlite-db
 - `data_quality_notes`
 
 這能避免 agent 或開發者誤把只能研究使用、只能本地分析、或需要標註來源的資料拿去訓練或重分發。
+## 展示用 seed 覆蓋稽核
+
+`dataset seed coverage` 是展示與交接用的純 metadata 稽核：它不執行網路爬取、不下載大量資料，只檢查目前 catalog 中每個 dataset discovery source 是否已經具備「完整 seed 嘗試路徑」。這讓中午展示或後續進度說明可以用一致的數字說明目前覆蓋度。
+
+建議展示命令：
+
+```powershell
+py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
+```
+
+若 source 平常為了安全只配置抽樣 `search_terms`，展示或審核時可使用：
+
+```powershell
+py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-complete-seed --dataset-discovery-max-pages 3
+```
+
+`--dataset-discovery-complete-seed` 會忽略 catalog 裡的抽樣 `search_terms`，並啟用有頁數上限的完整爬取嘗試；`--dataset-discovery-max-pages` 仍是安全上限，不代表無限制下載。這個模式的目標是「找到入口內可 seed 的資料庫 / 資料集候選」，後續仍需候選審核、adapter plan、download plan、manifest verification 與 import 才算進入資料資產生命週期。

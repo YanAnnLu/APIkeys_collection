@@ -412,3 +412,28 @@ K:\UnrealProjects\...
 - API endpoint 轉資料檔的流程還需要更多 adapter。
 - SQL/資料庫修復目前以診斷與安全建議為主；Repair / verify assets 的資料庫分頁可以調整單一資產的 data-store profile/schema，也可以把單一 database/table asset 停止追蹤並重新自檢。CLI/agent 流程可用 `--unmanage-database-asset ASSET_ID --database-repair-json` 做同一個 registry-only 停止追蹤動作，不會修改資料庫物件。若缺失的是先前由健康 CSV/JSON/GeoJSON 類 manifest 匯入的 SQLite table，也可以用「重新匯入資料表」從記錄的 sidecar manifest 重建它；CLI/agent 流程可用 `--reimport-missing-sqlite-table ASSET_ID --database-repair-json` 跑同一個 guard。重新匯入只會在 JSON 建議標成 `can_auto_repair=true` 的安全條件下啟用，不會 DROP 或覆蓋既有 table。若缺失的是 MySQL/PostgreSQL table，資料庫分頁可用「產生 dry-run SQL」寫出 `state/database_repair/*.dry_run.sql`；CLI 也可以用 `--write-database-repair-sql ASSET_ID` 做同一件事。這只是人工審核用 SQL，不會連線、不會執行 DDL/DML，也不會修改 registry。CLI/UI 修復成功後可用 `--show-logs 20` 查看最近的 `database_repair_completed` 紀錄；下載檔案分頁的重新排下載會寫入 `download_repair_requeue_requested`，方便從最近事件紀錄確認是否已排入佇列、被擋下或失敗。`--verify-downloads-json` 的 `repair_suggestion` 也會提供 `outcome_bucket` 與 `next_action`；例如可安全重排是 `requeue_ready` / `requeue_download`，manifest 無來源 URL 是 `source_url_missing` / `inspect_manifest_or_recreate_plan`，有 adapter 線索但不能直接重排時會回到 adapter review 或 adapter-specific repair。
 - AI OAuth refresh token 與過期刷新還需要強化；目前 access token 過期時通常要重新掃 QR。
+## 展示 / 進度說明模式
+
+這個模式用來在中午展示或後續進度說明時，快速證明「目前有哪些入口爬蟲已經具備完整 seed 嘗試路徑」。它是可重跑的展示流程，不是臨時註解掉開發路徑的分支。
+
+建議命令：
+
+```powershell
+py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
+```
+
+如果只需要給 agent 或自動化工具讀取的 JSON：
+
+```powershell
+py -3 -B APIkeys_collection.py --dataset-discovery-seed-coverage-json --dataset-discovery-max-pages 3
+```
+
+如果要做單一入口的完整 seed 嘗試示範：
+
+```powershell
+py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-complete-seed --dataset-discovery-source marinecadastre_ais_daily_index_2025 --write-dataset-candidates showcase/marinecadastre_seed_candidates.json --dataset-discovery-max-pages 1 --dataset-discovery-limit 0
+```
+
+展示材料可放在 `state/showcase/`。該目錄屬於 runtime 產物，已由 `.gitignore` 的 `/state/` 規則排除；其中的本機展示稿例如 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md` 不應提交到 Git。
+
+一般使用者路徑的預設值已改為系統 Downloads 下的 `RuRuKa Asset Launcher` 子資料夾：下載 payload/manifest 預設在 `Downloads/RuRuKa Asset Launcher/downloads`，匯入後的 SQLite curated database 預設在 `Downloads/RuRuKa Asset Launcher/curated_imports.db`。開發、測試或 CI 仍可用 `--downloads-root` 與 `--import-sqlite-db` 明確覆寫。
