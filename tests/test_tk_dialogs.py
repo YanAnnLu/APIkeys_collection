@@ -4,8 +4,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
+from api_launcher.source_download import SourceDownloadBounds
 from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
+from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
+from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
     AiModelSettingsDialog,
@@ -22,6 +26,7 @@ from frontends.tk.dialogs import (
     UiLanguageSettingsDialog,
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
+from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -58,6 +63,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
+        self.assertTrue(callable(DatasetBoundFormDialog))
         self.assertTrue(callable(DatasetCandidateReviewDialog))
         self.assertTrue(callable(DeveloperCliDialog))
         self.assertTrue(callable(GoogleGeminiSettingsDialog))
@@ -70,6 +76,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AppLifecycleWorkflowMixin.present_main_window))
         self.assertTrue(callable(AiSummaryWorkflowMixin))
         self.assertTrue(callable(AiSummaryWorkflowMixin.generate_active_summary))
+        self.assertTrue(callable(CrawlerAssetWorkflowMixin))
+        self.assertTrue(callable(CrawlerAssetWorkflowMixin.refresh_crawler_asset_tab))
         self.assertTrue(callable(DetailPanelWorkflowMixin))
         self.assertTrue(callable(DetailPanelWorkflowMixin.update_detail_panel))
         self.assertTrue(callable(DiscoveryWorkflowMixin))
@@ -86,6 +94,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(OAuthWorkflowMixin.open_ai_profile_browser_login_dialog))
         self.assertTrue(callable(PlanWorkflowMixin))
         self.assertTrue(callable(PlanWorkflowMixin.current_download_plan_payload))
+        self.assertTrue(callable(PlanWorkflowMixin.configure_selected_plan_bounds_from_ui))
         self.assertTrue(callable(ProviderSettingsWorkflowMixin))
         self.assertTrue(callable(ProviderSettingsWorkflowMixin.open_database_tool))
         self.assertTrue(callable(RepairWorkflowMixin))
@@ -94,6 +103,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(ResponsiveLayoutWorkflowMixin.open_detail_drawer))
         self.assertTrue(callable(ShowcaseWorkflowMixin))
         self.assertTrue(callable(ShowcaseWorkflowMixin.write_showcase_seed_coverage_from_ui))
+        self.assertTrue(callable(ShowcaseWorkflowMixin.run_showcase_download_from_ui))
+        self.assertTrue(callable(ShowcaseWorkflowMixin.start_showcase_resumable_download_from_ui))
         self.assertTrue(callable(SidebarWorkflowMixin))
         self.assertTrue(callable(SidebarWorkflowMixin.refresh_sidebar_filters))
         self.assertTrue(callable(SourceActionWorkflowMixin))
@@ -128,6 +139,80 @@ class TkDialogModuleTest(unittest.TestCase):
             dialog._profile_label(disabled_profile),
         )
         self.assertEqual("", dialog._profile_label(None))
+
+    def test_dataset_bound_form_dialog_values_convert_to_bounds_without_tk_mainloop(self) -> None:
+        probe = json_schema_probe(
+            "https://example.test/data.json",
+            "https://example.test/data.json",
+            b'[{"created_date":"2026-01-01T00:00:00","longitude":121.5,"latitude":25.0,"value":3}]',
+        )
+        dialog = object.__new__(DatasetBoundFormDialog)
+        dialog.vars = {
+            "sample_limit": _FakeVar("20"),
+            "time_field": _FakeVar("created_date"),
+            "start_date": _FakeVar("2026-01-01"),
+            "end_date": _FakeVar("2026-01-31"),
+            "longitude_field": _FakeVar("longitude"),
+            "latitude_field": _FakeVar("latitude"),
+            "bbox_west": _FakeVar("120.0"),
+            "bbox_south": _FakeVar("23.0"),
+            "bbox_east": _FakeVar("122.0"),
+            "bbox_north": _FakeVar("25.0"),
+        }
+        dialog.multi_vars = {"required_columns": {"created_date": SimpleNamespace(get=lambda: True), "value": SimpleNamespace(get=lambda: False)}}
+
+        bounds = source_download_bounds_from_form_values(dialog.form_values())
+
+        self.assertEqual(20, bounds.sample_limit)
+        self.assertEqual("created_date", bounds.time_field)
+        self.assertEqual((120.0, 23.0, 122.0, 25.0), bounds.bbox)
+        self.assertEqual(("created_date",), bounds.required_columns)
+
+    def test_dataset_bound_form_spec_can_feed_tk_dialog_fields(self) -> None:
+        probe = json_schema_probe(
+            "https://example.test/data.json",
+            "https://example.test/data.json",
+            b'[{"created_date":"2026-01-01T00:00:00","longitude":121.5,"latitude":25.0}]',
+        )
+
+        spec = build_bound_form_spec(probe)
+
+        self.assertTrue(any(field.field_id == "time_field" and field.default == "created_date" for field in spec.fields))
+        self.assertTrue(any(field.field_id == "required_columns" and field.control == "multiselect" for field in spec.fields))
+
+    def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
+        ui = object.__new__(PlanWorkflowMixin)
+        ui.download_plan_entries_by_provider = {}
+        ui.plan_version_by_provider = {}
+        ui.import_status_by_plan_key = {"plan-1": ("pending", "old")}
+        ui.updated = False
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda zh, _en: zh
+        ui.version_option_from_plan_entry = lambda _entry: None
+        ui.update_download_plan_panel = lambda: setattr(ui, "updated", True)
+        entry = {
+            "provider_id": "demo",
+            "download_url": "https://data.example.test/resource/demo.csv",
+            "dataset_version": {"metadata": {"columns": ["created_date", "longitude", "latitude"]}},
+        }
+        probe = SchemaProbeResult(
+            status="ok",
+            source_url=str(entry["download_url"]),
+            columns=(
+                SchemaProbeColumn("created_date", "2026-01-01T00:00:00", "datetime"),
+                SchemaProbeColumn("longitude", "121.5", "number"),
+                SchemaProbeColumn("latitude", "25.0", "number"),
+            ),
+            row_count=1,
+        )
+
+        with patch("frontends.tk.plan_workflows.DatasetBoundFormDialog", return_value=SimpleNamespace(result=SourceDownloadBounds(sample_limit=7, time_field="created_date", start_date="2026-01-01"))):
+            PlanWorkflowMixin._finish_plan_bounds_probe(ui, "plan-1", entry, probe)
+
+        self.assertTrue(ui.updated)
+        self.assertNotIn("plan-1", ui.import_status_by_plan_key)
+        self.assertEqual(7, ui.download_plan_entries_by_provider["plan-1"]["download_bounds"]["sample_limit"])
+        self.assertIn("已套用下載界域", ui.status_var.value)
 
     def test_database_client_selected_profile_reads_selected_id(self) -> None:
         # selected_profile 只依 combobox 標籤前段 id 配對，避免 label 變動影響 profile 選取。

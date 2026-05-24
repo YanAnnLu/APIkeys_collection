@@ -161,6 +161,108 @@ parser 版本
 
 這能避免每新增一個入口網站，就多出一支孤立腳本。新增資料入口時，應優先新增或配置 Discovery Tool，讓它接進既有 orchestrator、candidate review、adapter handoff、download plan 流程。
 
+## 入口爬蟲資產與界域能力
+
+2026-05-24 的展示壓力測試後，爬蟲資產的概念需要再收斂得更精準：
+
+```text
+一個入口 source
+-> 一個 crawler asset
+-> 多個能力槽 capability
+```
+
+這裡的「入口」不是單一資料庫，也不是單一下載 URL，而是一個資料門戶、API catalog、file index、STAC/CKAN/Socrata/CMR 類端點，或語言套件背後真正對接的 canonical source。資料庫本身只回答「目前有多少入口、入口裡有多少 seed、哪些 seed 可以進審核或下載序列」；真正決定能不能抓、怎麼抓、需不需要帳號、能不能續傳、能不能轉檔的，是對應 crawler asset 的能力。
+
+每個 crawler asset 至少應逐步收斂成三個標準能力槽：
+
+```text
+fetch_metadata()
+    取得入口本身的 metadata、terms、license、auth/rate-limit 訊號。
+
+list_datasets(bounds?)
+    擷取入口內可選資料集、版本、檔案、collection、resource 或 candidate 清單。
+
+build_download_plan(dataset, bounds)
+    針對使用者選定的資料集與界域，產生可下載、可驗證、可匯入的 plan。
+```
+
+「界域」是下載能力的修飾條件，不應寫死在 UI 或資料庫 row 裡。它可以被理解成能力裝飾器或 filter contract：
+
+```text
+TimeBounds       例如 start_date / end_date
+SpatialBounds    例如 bbox / point / region / station
+ColumnBounds     例如 fields / variables / attributes
+VersionBounds    例如 release / collection / dataset version
+LimitBounds      例如 sample rows / page size / max files / max bytes
+AuthBounds       例如 credential profile / account-required mode
+```
+
+動態界域表單的合理流程是：
+
+```text
+選入口
+-> probe schema 或 head sample
+-> 推論欄位、型別、時間/空間/版本候選
+-> 產生界域表單
+-> 使用者輸入界域
+-> crawler asset 產生 bounded download plan
+```
+
+重點不是 head 幾筆，而是能否把「資料集長什麼樣」轉成可互動的界域結構。Tk、Qt、CLI 或 Web UI 都只應消費同一份 bounds schema；表單長相可以換皮，但後端 crawler asset 與界域契約不應跟 Tk 綁死。這也是未來 `Tk Lite + Qt Pro` 能共用爬蟲資產的關鍵。
+
+帳號、API key、rate limit、robots、terms、license 與商業限制，應是 crawler asset capability 的 metadata，不應塞到「資料庫」本體上。很多公開資料源不需要帳號，只需要合理界域；需要帳號的來源，也應由 crawler asset 宣告 `credential_mode`、`credential_profile_id`、`requires_user_ack` 與 `next_action`，讓 UI 用一致方式引導使用者。
+
+爬蟲分頁的 UX 應把 crawler asset 當成可設定、可辨識、可監控的資產，而不是只把它當成一列文字：
+
+```text
+雙擊 crawler asset
+-> 開啟資產設定檔
+-> 調整 credential profile / API key env var / account hint
+-> 調整排程、限流、重試、暫停、完整 seed 或有界 seed
+-> 檢視最近成功、最近失敗、警告碼、下一步修復建議
+```
+
+狀態呈現可以用 emoji 或圖示做第一眼辨識，但後端不要把 emoji 當成真理來源。建議資料模型保存穩定代碼，UI 再映射成符號、顏色、文字與 tooltip：
+
+```text
+ready               -> 🟢 可用
+needs_bounds        -> 🟡 需要界域
+needs_credentials   -> 🔒 需要帳號 / 金鑰
+scheduled           -> 🔁 已排程
+paused              -> ⏸ 已暫停
+disabled            -> 💤 已停用
+experimental        -> 🧪 實驗中
+warning             -> 🟠 有警告
+failed              -> 🔴 失效
+needs_handler       -> ⚙️ 待補 handler
+```
+
+同一個狀態必須同時有文字標籤，不能只靠 emoji；這是為了截圖展示、色弱使用者、未來 Qt/Web accessibility，以及 agent-readable JSON。
+
+入口圖片也應是 crawler asset profile 的一部分。預設可從官方 favicon、網站 logo、provider catalog metadata 或本機快取取得，但必須允許使用者覆蓋成自定義圖片：
+
+```text
+official_logo_url
+favicon_url
+local_logo_path
+logo_source = official | favicon | user_override | generated
+logo_license_note
+```
+
+Logo 只用於辨識入口，不代表專案擁有商標權；如果官方 logo 不穩定、授權不明或抓不到，UI 應使用安全的 generated placeholder，並提供「自訂圖片」入口。
+
+爬蟲分頁的日常視覺應保持清爽，預設不應像資料庫表格一樣塞滿欄位。較合理的主視圖是卡片牆：
+
+```text
+卡片主體：logo / 入口名稱 / 狀態 chip / seed 或界域摘要
+卡片副資訊：最近成功、最近失敗、下一步、是否需要 credential
+滑鼠指到卡片：浮出齒輪設定按鈕、啟用/封存切換、查看 health
+雙擊卡片：進入 crawler asset edit / profile dialog
+進階模式：才切到表格或 JSON/detail view
+```
+
+Tk 版可以先用簡單 `Frame` grid、固定尺寸卡片與常駐小齒輪按鈕實作，不必強求手機等級動畫；Qt 版再補真正 hover reveal、switch control、動畫與 accessibility。核心原則是：卡片只消費 crawler asset profile / health / logo contract，不把 Tk widget 狀態當後端資料。
+
 ## 語言 API client-backed source
 
 使用者從 `yfinance` 延伸出的觀察很重要：許多 Python / R 套件，甚至 MATLAB toolbox / REST workflow，本質上不是普通工具函式，而是遠端資料庫或 Web API 的 client。這類入口也應被視為可追蹤的資料取得來源，只是它們的入口不是 URL catalog，而是「runtime / 語言套件 / 工具箱 + provider API」的組合。

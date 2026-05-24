@@ -26,6 +26,21 @@ Last updated: 2026-05-24
 - [ ] 將 PPT/講稿產生流程納入可重產交付物規則：忽略輸出可以留在 `state/showcase/`，但產生腳本需要能驗證繁中內容、頁數與關鍵流程文字。
 - [x] 用 OpenSpec 補一份「快速交付模式」工作流規格：`openspec/specs/development-workflow/spec.md` 已新增 `Development Mode Triage / 日常與快速交付分流` requirement，並通過 `npx.cmd -y @fission-ai/openspec@latest validate --all --no-interactive`。
 
+## 2026-05-24 瀑布式回收：爬蟲資產骨架與同步契約
+
+- [x] 敏捷骨架先收斂成可辯證架構：新增爬蟲資產 tab 的雛形，讓 UI 先從「入口 / crawler asset」看資料來源，再把可下載項目送進第二個下載器分頁。
+- [x] 概念文件已補上「一個入口 source -> 一個 crawler asset -> 三個能力槽」：`fetch_metadata()`、`list_datasets(bounds?)`、`build_download_plan(dataset, bounds)`。
+- [x] 同步規則已回寫 handoff：K 槽是 commit/push 主工作區；本地 clone 是 GUI / showcase / full smoke 證明環境；本地修復必須回補 K 槽再 push。
+- [x] 將敏捷骨架硬化成後端 service：新增 `api_launcher/crawler_asset_service.py`，讓 Tk mixin 不再直接處理 repository / crawler 執行 / candidate upsert；封存阻擋與 candidate upsert 已有 regression 測試，未來 Qt 可消費同一個 service。
+- [ ] 將 capability contract 正式化：把 `fetch_metadata`、`list_datasets`、`build_download_plan` 的輸入、輸出、錯誤桶、credential mode、rate-limit 與 terms/license 訊號寫進 OpenSpec 或資料模型。
+- [ ] 將界域 bounds 正式化：以 TimeBounds、SpatialBounds、ColumnBounds、VersionBounds、LimitBounds、AuthBounds 表示可組合條件；Tk/Qt/CLI 共用同一份 bounds schema，而不是各自寫表單邏輯。
+- [ ] 強化 source_id 同步：provider/source/catalog/local-source/repository/candidate/plan/UI row 必須能追回同一個入口，避免「資料庫可抓不可抓」被錯誤歸咎到 dataset row。
+- [ ] UIUX 後續重構：第一分頁是爬蟲資產與界域定義，第二分頁是下載器；開始/暫停/續傳應逐步收成像播放器一樣的單一主行動按鈕，降低心流負擔。
+- [ ] 補 crawler asset profile 設定檔：雙擊爬蟲資產應開啟設定視窗，可調整 credential profile、API key env var、帳號提示、排程、限流、重試、暫停、完整 seed / 有界 seed 等動態參數。
+- [ ] 補 crawler health model：後端保存穩定 `status_code`、`health_reason`、`warning_codes`、`last_success_at`、`last_failure_at`、`next_action`；UI 再映射成醒目的 emoji / 顏色 / 文字 / tooltip，避免只靠圖示判斷狀態。
+- [ ] 補 crawler logo profile：每個入口可有官方 logo / favicon / 本機自定義圖片 / generated placeholder；UI 用圖片協助辨識來源，但 metadata 要保留 `logo_source` 與授權備註，避免商標或快取來源混亂。
+- [ ] 將爬蟲分頁從表格導向卡片牆：預設用一格一格的 crawler card 呈現 logo、入口名稱、狀態 chip、seed/界域摘要；滑鼠指到卡片時浮出齒輪設定按鈕，雙擊進入 crawler asset edit/profile。Tk 先用簡單 Frame grid 與常駐/半浮出齒輪，Qt 再補真正 hover switch 與動畫。
+
 ## 目前展示線
 
 | 區域 | 狀態 | 目前進度 | 下一步 |

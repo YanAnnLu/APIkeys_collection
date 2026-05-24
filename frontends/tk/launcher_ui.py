@@ -38,6 +38,7 @@ from frontends.tk.ui_labels import (
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
+from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -62,6 +63,7 @@ from api_launcher.paths import PROJECT_ROOT
 class ApiCollectionUi(
     AppLifecycleWorkflowMixin,
     AiSummaryWorkflowMixin,
+    CrawlerAssetWorkflowMixin,
     DiscoveryWorkflowMixin,
     PlanWorkflowMixin,
     ProviderSettingsWorkflowMixin,
@@ -106,6 +108,7 @@ class ApiCollectionUi(
         self.plan_name_var = StringVar(value=self.tr("未命名下載計畫", "Untitled download plan"))
         self.plan_count_var = StringVar(value=self.tr("下載計畫：0 個項目", "Download Plan: 0 items"))
         self.download_plan_toggle_var = StringVar(value=self.tr("收合下載計畫", "Collapse plan"))
+        self.download_primary_action_var = StringVar(value=self.tr("開始", "Start"))
         self.preferred_import_existing_table_policy = self.load_import_existing_table_policy_preference()
         self.plan_import_policy_var = StringVar(value=self.import_existing_table_policy_status_label(self.preferred_import_existing_table_policy))
         active_ai = core.active_ai_profile()

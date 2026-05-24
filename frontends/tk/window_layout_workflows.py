@@ -72,6 +72,7 @@ class WindowLayoutWorkflowMixin:
         library_menu.add_command(label=self.tr("匯入本機 CSV/JSON 檔", "Import local CSV/JSON file"), command=self.import_local_file_from_ui)
         library_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         library_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
+        library_menu.add_command(label=self.tr("設定下載界域", "Configure download bounds"), command=self.configure_selected_plan_bounds_from_ui)
         library_menu.add_separator()
         library_menu.add_command(label=self.tr("納管目前資料源", "Manage active source"), command=self.manage_active_provider)
         library_menu.add_command(label=self.tr("解除納管目前資料源", "Unmanage active source"), command=self.unmanage_active_provider)
@@ -102,6 +103,8 @@ class WindowLayoutWorkflowMixin:
         tools_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
         tools_menu.add_command(label=self.tr("一鍵驗證 MVP Demo Flow", "Run MVP demo smoke"), command=self.run_mvp_demo_smoke_from_ui)
         tools_menu.add_command(label=self.tr("展示模式：產生 seed 覆蓋報告", "Showcase: create seed coverage report"), command=self.write_showcase_seed_coverage_from_ui)
+        tools_menu.add_command(label=self.tr("展示模式：下載資料到本機資料夾", "Showcase: download data to local folder"), command=self.run_showcase_download_from_ui)
+        tools_menu.add_command(label=self.tr("展示模式：大型 CSV 續傳下載", "Showcase: resumable large CSV download"), command=self.start_showcase_resumable_download_from_ui)
         tools_menu.add_command(label=self.tr("產生 yfinance 離線 Demo plan", "Create yfinance offline demo plan"), command=self.write_yfinance_demo_plan_from_ui)
         tools_menu.add_command(label=self.tr("建立 yfinance live plan（需確認）", "Create yfinance live plan (requires acknowledgement)"), command=self.open_yfinance_live_plan_dialog)
         tools_menu.add_command(label=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), command=self.open_yfinance_storage_review_dialog)
@@ -168,7 +171,15 @@ class WindowLayoutWorkflowMixin:
             style="Muted.TLabel",
         ).pack(anchor="w", pady=(8, 0))
 
-        controls = ttk.Frame(main, style="App.TFrame")
+        self.main_notebook = ttk.Notebook(main)
+        self.main_notebook.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
+        self.crawler_asset_tab = ttk.Frame(self.main_notebook, style="App.TFrame")
+        self.downloader_tab = ttk.Frame(self.main_notebook, style="App.TFrame")
+        self.main_notebook.add(self.crawler_asset_tab, text=self.tr("爬蟲資產", "Crawler Assets"))
+        self.main_notebook.add(self.downloader_tab, text=self.tr("下載器", "Downloader"))
+        self._build_crawler_asset_tab(self.crawler_asset_tab, outer_pad)
+
+        controls = ttk.Frame(self.downloader_tab, style="App.TFrame")
         controls.pack(fill=X, padx=outer_pad, pady=(0, max(12, outer_pad // 2)))
         ttk.Button(controls, text=self.tr("重新整理", "Refresh"), style="Action.TButton", command=self.reload_data).pack(side=LEFT, padx=(0, 10))
         ttk.Button(controls, text=self.tr("自檢", "Self-check"), style="Action.TButton", command=self.self_check_selected).pack(side=LEFT, padx=(0, 10))
@@ -184,9 +195,12 @@ class WindowLayoutWorkflowMixin:
         more_menu.add_command(label=self.tr("匯入本機 CSV/JSON 檔", "Import local CSV/JSON file"), command=self.import_local_file_from_ui)
         more_menu.add_command(label=self.tr("Adapter 待辦", "Adapter review queue"), command=self.open_adapter_review_panel)
         more_menu.add_command(label=self.tr("解析 Adapter 計畫", "Resolve adapter plan"), command=self.resolve_adapter_plan_from_ui)
+        more_menu.add_command(label=self.tr("設定下載界域", "Configure download bounds"), command=self.configure_selected_plan_bounds_from_ui)
         more_menu.add_command(label=self.tr("產生 MVP Demo Flow", "Create MVP demo flow"), command=self.write_mvp_demo_flow_from_ui)
         more_menu.add_command(label=self.tr("一鍵驗證 MVP Demo Flow", "Run MVP demo smoke"), command=self.run_mvp_demo_smoke_from_ui)
         more_menu.add_command(label=self.tr("展示模式：產生 seed 覆蓋報告", "Showcase: create seed coverage report"), command=self.write_showcase_seed_coverage_from_ui)
+        more_menu.add_command(label=self.tr("展示模式：下載資料到本機資料夾", "Showcase: download data to local folder"), command=self.run_showcase_download_from_ui)
+        more_menu.add_command(label=self.tr("展示模式：大型 CSV 續傳下載", "Showcase: resumable large CSV download"), command=self.start_showcase_resumable_download_from_ui)
         more_menu.add_command(label=self.tr("開啟官方文件", "Open official docs"), command=self.open_selected_docs)
         more_menu.add_separator()
         more_menu.add_command(label=self.tr("資料源詳情", "Dataset details"), command=self.open_detail_drawer)
@@ -201,7 +215,7 @@ class WindowLayoutWorkflowMixin:
         self.search_var.trace_add("write", lambda *_: self.apply_filter())
         self.set_search_placeholder()
 
-        self.content_frame = ttk.Frame(main, style="App.TFrame")
+        self.content_frame = ttk.Frame(self.downloader_tab, style="App.TFrame")
         self.content_frame.pack(fill=BOTH, expand=True, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))
 
         self.table_frame = ttk.Frame(self.content_frame, style="Panel.TFrame")
@@ -234,7 +248,7 @@ class WindowLayoutWorkflowMixin:
 
         self._build_detail_panel(self.content_frame)
 
-        self._build_download_plan_panel(main, outer_pad)
+        self._build_download_plan_panel(self.downloader_tab, outer_pad)
 
         bottom = ttk.Frame(main, style="App.TFrame")
         bottom.pack(fill=X, padx=outer_pad, pady=(0, max(14, outer_pad // 2)))

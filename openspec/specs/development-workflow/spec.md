@@ -81,6 +81,34 @@ The project SHALL keep its development workflow separable enough that the same g
 - WHEN introducing OpenSpec
 - THEN the agent SHOULD start with only a `development-workflow` capability and add domain-specific capabilities only after repeated or risky work justifies them.
 
+### Requirement: Development Mode Triage / 日常與快速交付分流
+
+The project SHALL distinguish routine defensive development from rapid delivery or showcase work before implementation begins.
+
+#### Scenario: Routine development request
+
+- GIVEN the user asks to continue normal development, refactor, harden, test, document, or reduce technical debt
+- WHEN the agent starts work
+- THEN the agent SHALL use daily development mode: small reviewable slices, durable contracts, tests, docs/GTD/handoff consistency, and low-risk integration.
+
+#### Scenario: Imminent showcase or human-facing delivery
+
+- GIVEN the user mentions a meeting, demo, showcase, team review, GUI operation, PPT/script, deadline such as "中午" or "只剩 X 分鐘/小時", or says the presenter must not edit code
+- WHEN the agent starts work
+- THEN the agent SHALL use rapid delivery / showcase mode: stable GUI path, truthful backend status, real output or explicitly labeled fixtures, bounded sample controls, fallback disclosure, and presenter-safe artifacts.
+
+#### Scenario: Rapid delivery is complete
+
+- GIVEN a rapid delivery slice has been demonstrated or the delivery window is over
+- WHEN returning to normal development
+- THEN the agent SHALL convert the useful slice into defensive-programming follow-up tasks, including tests, docs, OpenSpec/GTD updates, and clear boundaries between formal product behavior and showcase-only behavior.
+
+#### Scenario: Progress or output is uncertain
+
+- GIVEN the backend cannot provide a real percentage, total byte count, source availability, or SQL/import guarantee
+- WHEN presenting status to a user
+- THEN the agent SHALL state the uncertainty plainly instead of fabricating progress, completion, or production readiness.
+
 ### Requirement: MVP-First Process
 
 The workflow SHALL reduce rework and handoff cost without blocking the backend MVP loop.
@@ -118,6 +146,31 @@ OpenSpec, Spectra, Qt Creator, and Qt Designer setup SHALL respect the project e
 - GIVEN Spectra is installed for this workstation
 - WHEN an agent needs to inspect or organize OpenSpec artifacts
 - THEN the agent MAY use `C:\Users\lyn59\AppData\Local\Spectra\spectra.exe`, while keeping Git-tracked OpenSpec files as the authority.
+
+### Requirement: Canonical Cloud Workspace And Local Test Clone / 雲端正本與本地測試分流
+
+The project SHALL treat `K:\APIkeys_collection` as the canonical cloud workspace for IDE inspection, source edits, commits, and pushes, while using local-disk clones only as proof environments for GUI, showcase, and heavy smoke tests.
+
+#### Scenario: Daily source edit and commit
+
+- GIVEN an agent changes production source, docs, specs, or tests
+- WHEN the change is ready to commit
+- THEN the change SHALL be present in `K:\APIkeys_collection` before commit
+- AND the commit/push SHALL originate from `K:\APIkeys_collection` unless the user explicitly transfers ownership to another workspace.
+
+#### Scenario: Local clone finds a fix
+
+- GIVEN a local clone under `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\...` is used for GUI, showcase, or smoke testing
+- WHEN a bug is fixed or a useful change is discovered in that clone
+- THEN the agent SHALL port the change back to `K:\APIkeys_collection`
+- AND SHALL verify the K workspace before pushing to GitHub.
+
+#### Scenario: GitHub synchronization
+
+- GIVEN K workspace and GitHub differ
+- WHEN syncing project state
+- THEN the agent SHOULD first make the K workspace the reviewed source of truth, then push from K to GitHub and verify GitHub Actions.
+- AND the agent SHALL NOT treat a passing local clone as proof that the K workspace or GitHub has the same change.
 
 ### Requirement: Beginner-Friendly Progress Reporting
 

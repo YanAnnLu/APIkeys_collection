@@ -4,6 +4,18 @@
 
 這份文件是跨 Windows、macOS、不同 Agent 接力時的固定入口。每次切換機器或切換 Agent 前，請優先更新這份文件；下一位 Agent 應該先讀這份，再讀 `PROJECT_GTD.md`。
 
+## Git 維護路線
+
+固定維護順序如下：
+
+1. `K:\APIkeys_collection` 是雲端主工作區與提交正本。開發者日常在 IDE 看到的 Git 狀態，以這個資料夾為準。
+2. 需要 GUI、showcase、完整 smoke 或可能被雲端碟延遲影響的測試時，才從 GitHub 或 K 槽建立本地測試 clone，例如 `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\...`。
+3. 本地 clone 只作為測試跑道，不作為長期提交來源。測試中找到的修復，必須回補到 `K:\APIkeys_collection`。
+4. 回補完成後，先確認 K 槽工作樹，再從 K 槽 `commit` / `push` 到 GitHub。
+5. push 後仍需用 GitHub Actions 驗證。不要把「本地 clone 通過」誤當成「雲端正本已同步」。
+
+這條路線的目的，是讓 IDE / Git 面板永遠追蹤雲端正本，同時保留本地 clone 的高速、低鎖檔風險測試能力。
+
 ## 接手順序
 
 1. 同步 Git：
@@ -102,6 +114,15 @@ conda run -n metal_trade_312 python APIkeys_collection.py --init-db --seed --man
 - `.gitignore` 裡的 runtime 目錄要寫成 `/state/`、`/downloads/`，避免誤忽略 `api_launcher/downloads/` 原始碼。
 - 不要提交 `state/`、`downloads/`、`tem/`、`config/*.local.json`、真實 API key/token/cookie/OAuth secret、本機 SQLite runtime 檔。
 - `tem/` 是本機暫存資料夾，只用來放外部 agent 產物、概念 prototype、截圖、logs 與待評估素材。它已被 Git 忽略，其他團隊協作者從 GitHub clone 時看不到內容；若要交接其中資訊，請把重點寫進正式 docs/source，不要引用 `tem/` 路徑當成專案事實。
+
+K 槽、本地 clone 與 GitHub 同步規則：
+
+- `K:\APIkeys_collection` 是主工作區、日常閱讀資料夾、修復回補位置與 commit / push 來源。
+- GUI、showcase、完整 smoke、壓力測試，優先在本地磁碟 clone 執行：`C:\Users\lyn59\Documents\Codex\RRKAL_local_test\...`。這個 clone 是證明環境，不是隱藏主線。
+- 如果本地 clone 測到修復，必須把修復回補到 K 槽，再由 K 槽 commit / push。不要讓本地 clone 與 K 槽長期分岔。
+- 需要展示資產時，從 K 槽同步 `state/showcase/` 到本地 clone；DB、log、臨時依賴、runtime SQLite 仍維持忽略，不當成正式原始碼。
+- K 槽在雲端同步碟上，適合主工作區與資料潔癖管理，但可能遇到 pycache、SQLite、GUI 冷啟動或檔案鎖延遲。測試時使用本地 clone；若不得不在 K 槽跑測試，優先設定 `PYTHONPYCACHEPREFIX` 到 `%TEMP%`，避免 bytecode 鎖住雲端同步檔案。
+- GitHub 是跨機器同步與 CI 證據來源。push 後仍要追 `gh run watch --exit-status`；通過後再把 handoff/GTD/展示資產狀態視為可交接。
 
 切換平台或交給下一位 Agent 前，至少確認：測試通過、語法檢查通過、CLI smoke 通過、文件已更新、已 commit/push，並用 `gh run watch --exit-status` 確認 CI。
 
