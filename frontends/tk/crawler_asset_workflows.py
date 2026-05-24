@@ -6,8 +6,10 @@ from tkinter import messagebox, ttk
 
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
+from api_launcher.crawler_asset_bound_forms import build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_service import run_crawler_asset_listing
 from api_launcher.event_log import log_exception
+from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 
 
@@ -303,11 +305,24 @@ class CrawlerAssetWorkflowMixin:
         if asset.archived:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再送到下載器。", "This crawler is archived; unarchive it before sending it to Downloader."))
             return
+        bounds_payload_summary = ""
+        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
+        if plan_capability is not None and plan_capability.bounds_schema:
+            # 這裡只產生來源界域 payload，不直接下載。Tk/Qt 之後都應共用同一份 form spec。
+            spec = build_crawler_asset_bound_form_spec(asset.asset_id, plan_capability.bounds_schema)
+            dialog = CrawlerAssetBoundDialog(getattr(self, "root", None), spec, self.tr)
+            if dialog.result is None:
+                self.status_var.set(self.tr("界域設定已取消；尚未送進下載器。", "Bounds setup cancelled; crawler asset was not sent to Downloader."))
+                return
+            if not hasattr(self, "crawler_asset_bound_payloads"):
+                self.crawler_asset_bound_payloads = {}
+            self.crawler_asset_bound_payloads[asset.asset_id] = dialog.result.to_dict()
+            bounds_payload_summary = f" Bounds: {dialog.result.summary}."
         self.active_provider_id = asset.provider_id
         self.status_var.set(
             self.tr(
                 "下載指定資料庫需要先在下載器選定資料集/版本，再按「界域」產生動態表單。",
-                "Select a dataset/version in Downloader, then use Bounds to generate the dynamic form.",
+                "Select a dataset/version in Downloader, then use the crawler bounds payload when building the plan." + bounds_payload_summary,
             )
         )
         if hasattr(self, "main_notebook") and hasattr(self, "downloader_tab"):

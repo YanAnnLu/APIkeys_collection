@@ -6,11 +6,15 @@ from unittest.mock import patch
 
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
 from api_launcher.source_download import SourceDownloadBounds
+from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+from api_launcher.crawler_assets import crawler_asset_from_source
+from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.downloads.jobs import DownloadProgress, JobStatus
 from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
+from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
@@ -75,6 +79,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AdapterReviewDialog))
         self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
+        self.assertTrue(callable(CrawlerAssetBoundDialog))
         self.assertTrue(callable(CrawlerAssetProfileDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DatasetBoundFormDialog))
@@ -195,6 +200,55 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertTrue(any(field.field_id == "time_field" and field.default == "created_date" for field in spec.fields))
         self.assertTrue(any(field.field_id == "required_columns" and field.control == "multiselect" for field in spec.fields))
+
+    def test_crawler_asset_bound_dialog_values_without_tk_mainloop(self) -> None:
+        dialog = object.__new__(CrawlerAssetBoundDialog)
+        dialog.vars = {
+            "collection": _FakeVar("landsat-c2"),
+            "start_date": _FakeVar("2026-01-01"),
+            "limit": _FakeVar("10"),
+        }
+        dialog.multi_vars = {"columns": {"datetime": SimpleNamespace(get=lambda: True), "quality": SimpleNamespace(get=lambda: False)}}
+
+        values = dialog.form_values()
+
+        self.assertEqual("landsat-c2", values["collection"])
+        self.assertEqual("2026-01-01", values["start_date"])
+        self.assertEqual("10", values["limit"])
+        self.assertEqual(["datetime"], values["columns"])
+
+    def test_crawler_asset_workflow_stores_bounds_payload_before_switching_to_downloader(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = CrawlerAssetBoundPayload(
+            asset_id=asset.asset_id,
+            facet_values={"limit": 5},
+            field_values={"limit": 5},
+            maps_to_values={"SourceDownloadBounds.sample_limit": 5},
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        ui.root = object()
+        ui.downloader_tab = "downloader"
+        ui.main_notebook = SimpleNamespace(selected=None)
+        ui.main_notebook.select = lambda tab: setattr(ui.main_notebook, "selected", tab)
+
+        with patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class:
+            CrawlerAssetWorkflowMixin.prepare_selected_crawler_asset_download(ui)
+
+        dialog_class.assert_called_once()
+        self.assertEqual("demo_provider", ui.active_provider_id)
+        self.assertEqual(payload.to_dict(), ui.crawler_asset_bound_payloads["demo_stac"])
+        self.assertEqual("downloader", ui.main_notebook.selected)
+        self.assertIn("Bounds: limit=5", ui.status_var.value)
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

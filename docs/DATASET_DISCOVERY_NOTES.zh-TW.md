@@ -136,6 +136,41 @@ python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --d
 
 這只會產生候選 metadata，不會下載 AIS 大檔。
 
+## 來源介面類型與內容格式分層
+
+本專案不應把 `NASA`、`NOAA`、`World Bank` 這種機構名稱當成 crawler 類別。比較穩的抽象是先辨識「來源介面類型」（也可稱資料入口範式 / Source interface pattern），再交給對應 crawler adapter。入口辨識只回答「這個 URL 像哪種資料服務」，不負責下載或解析內容。
+
+第一版 detector registry 位於 `api_launcher/crawlers/source_patterns.py`，目標是把任意入口 URL 先歸類為：
+
+- `stac` -> `stac_collections`
+- `ckan` -> `ckan_package_search`
+- `erddap` -> `erddap_all_datasets`
+- `socrata` -> `socrata_catalog_search`
+- `ogc` -> `ogc_api_records`
+- `cmr` -> `cmr_collections`
+- `html_file_index` -> `html_file_index`
+- `unknown` -> detector 證據不足，保留人工補設定或新增 detector
+
+Detector 必須回傳信心分數與 evidence，例如 `json_contains_stac_version`、`erddap_info_index_table`、`html_contains_links`。這些 evidence 供 UI/agent 顯示與除錯，避免只用 URL 字串或品牌名稱猜測來源。
+
+分層原則如下：
+
+```text
+source URL
+  -> source detector: 判斷來源介面類型
+  -> source adapter: 依 STAC/CKAN/ERDDAP/CMR/... 列出 dataset/resource/asset URL
+  -> fetcher: 下載或分頁抓取
+  -> content detector: 判斷 CSV/JSON/NetCDF/HDF5/GeoTIFF/Zarr/Parquet/ZIP/XML/PDF/unknown
+  -> content parser: 能解析就抽 schema/metadata，不能解析就保留 raw artifact
+  -> normalizer/importer: 轉成 manifest、registry asset、SQLite/lakehouse/renderer 可用格式
+```
+
+入口範式標準化的是「資料在哪裡、怎麼查、怎麼列資源」；內容格式標準化的是「下載下來的東西怎麼讀」。STAC adapter 不應內建 GeoTIFF/NetCDF 解析；CKAN adapter 不應內建 CSV/ZIP/PDF parser。兩者中間的穩定交接物應是「資料資源清單」：URL、format/media type hint、role、license/provenance、bounds/版本 metadata。
+
+目前要先把 source detector 做成保守、可測、可擴充的服務。CMR detector 只能在 host/path 像 NASA CMR 時 probe CMR 固定端點，避免所有 URL 都被 NASA CMR 的成功回應污染。遇到 unknown 時，不自動下載，改回報 `source_pattern_unknown` 或引導人工補 source profile。
+
+K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案。可吸收的部分包含 HTTP header/timeout、HTML `href` 擷取、相對 URL 合併、Scrapy 分層思想、CSV/SQLite 清洗、rate limit/politeness、錯誤處理與 fixture 測試。落地時一律轉成 RRKAL 的 source pattern detector、crawler adapter、content parser、manifest/import pipeline 與 audit warning，不讓 crawler 直接寫 DB 或假裝未知格式已可解析。
+
 ## Dataset adapters
 
 Source-site discovery 和 dataset discovery 已經分開：

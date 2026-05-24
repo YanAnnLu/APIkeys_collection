@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-24
 
+## 2026-05-24 來源介面 detector / crawler asset 界域骨架
+
+- [x] 新增 `api_launcher/crawlers/source_patterns.py`，把「來源介面類型」從機構名稱中解耦，先用 detector registry 辨識 STAC / CKAN / ERDDAP / Socrata / OGC / CMR / HTML file index / unknown。
+- [x] 新增 detector 測試，鎖定 STAC JSON evidence、ERDDAP info/index probe、HTML file index fallback，以及 CMR 不污染非 CMR URL 的 guard。
+- [x] 新增 `api_launcher/crawler_asset_bound_forms.py` 與 Tk `CrawlerAssetBoundDialog`，讓 crawler asset 的 `bounds_schema` 可以動態生成前端中立表單與 payload。
+- [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
+- [ ] 下一輪：把 detector result 接入 source profile 草稿建立流程，讓使用者貼 URL 後可以得到 `source_type_hint` 與 evidence。
+- [ ] 下一輪：建立 content detector/parser registry 骨架，把來源介面類型與 CSV/JSON/NetCDF/GeoTIFF/ZIP 等下載內容格式完全分開。
+
 ## 2026-05-24 UI/UX 開發契約
 
 - [x] 固化 UI/UX 討論流程：新增 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md`，明確規定參照軟體只取互動精神，不自動沿用命名。

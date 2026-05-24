@@ -4,6 +4,26 @@
 
 這份文件是跨 Windows、macOS、不同 Agent 接力時的固定入口。每次切換機器或切換 Agent 前，請優先更新這份文件；下一位 Agent 應該先讀這份，再讀 `PROJECT_GTD.md`。
 
+## 2026-05-24 來源介面 detector 與界域表單交接
+
+- 本輪新增 `api_launcher/crawlers/source_patterns.py`，正式把 crawler 設計切成「來源介面類型」而不是機構名稱。Detector 只辨識 STAC / CKAN / ERDDAP / Socrata / OGC / CMR / HTML file index / unknown，輸出 confidence、evidence、`source_type_hint`，不下載資料。
+- 文件已在 `docs/DATASET_DISCOVERY_NOTES.zh-TW.md` 補上分層：`source detector -> source adapter -> fetcher -> content detector -> content parser -> normalizer/importer`。後續不要讓 STAC/CKAN/ERDDAP adapter 直接承擔 GeoTIFF/NetCDF/CSV/ZIP 的內容解析。
+- 本輪新增 `api_launcher/crawler_asset_bound_forms.py` 與 `frontends/tk/crawler_asset_bound_dialog.py`；Tk crawler asset 的「送進下載器 / 界域」會先依 `bounds_schema` 產生動態表單與 payload，再切到下載器。這還不是完整下載閉環，下一步是把 payload 正式交給 `build_download_plan()`。
+- 測試重點：`tests.test_source_patterns` 鎖定 detector 行為，`tests.test_crawler_assets` 鎖定 bounds schema/form payload，`tests.test_tk_dialogs` 鎖定 Tk dialog 與 workflow 儲存 payload。
+
+### K 槽爬蟲教材使用提醒
+
+`K:\` 裡的爬蟲教材不要當成「可直接搬進專案的站點爬蟲」。它們是技術參考，目標是幫 RRKAL 把 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 這條線補得更穩。
+
+- HTTP/header/timeout/HTML/JSON 判斷技巧：優先抽到 `api_launcher/crawlers/source_patterns.py`，用來辨識 STAC / CKAN / Socrata / OGC / CMR / ERDDAP / HTML file index / unknown，而不是判斷是不是 NASA/NOAA。
+- HTML 連結解析、相對 URL 合併、副檔名過濾：可強化 `html_file_index`，但要有 `max_pages`、allowed domain、URL 去重、zero candidate warning。
+- Scrapy 的 `Spider -> Item -> Pipeline -> Middleware` 是分層思想，可映射成 detector/crawler、`DatasetCandidate`、adapter review/download plan、manifest/import、rate-limit/auth/retry policy；先不要直接引入 Scrapy 依賴。
+- CSV/SQLite 清洗教材可用來強化 CSV/JSON manifest import：header 清理、type inference、日期解析、bad row warning、schema fingerprint、SQLite table import；crawler 仍不得直接寫 DB，必須維持 `download -> manifest -> import` 邊界。
+- rate limit / politeness 應轉成 source profile 的 `rate_limit_policy`、`timeout`、`max_pages`、`credential_mode`、`terms_risk`，不要在 parser 裡硬塞 `time.sleep()`。
+- 錯誤處理要升級成 machine-readable：`warning_codes`、`next_action`、`audit_summary`、`problem_sources`，例如 `zero_candidates`、`below_min_candidates`、`duplicate_heavy_output`、`candidate_metadata_issue`、`unsupported_payload_format`。
+- 內容格式 parser registry 要和 source detector 分開：CSV/JSON/GeoJSON 可 import；ZIP/TAR/NetCDF/HDF/GeoTIFF 先 manifest + adapter review；unknown 保留 raw artifact，不假裝可解析。
+- 測試使用 fake fetcher / fixture payload，不讓 CI 依賴 live NASA/NOAA/Socrata 網路結果。每新增 detector 至少要有正例 fixture、unknown fallback、不誤判其他範式的測試。
+
 ## Git 維護路線
 
 固定維護順序如下：

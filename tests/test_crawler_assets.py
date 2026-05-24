@@ -12,6 +12,10 @@ from api_launcher.crawler_asset_profiles import (
     toggle_crawler_asset_archived,
     update_crawler_asset_profile,
 )
+from api_launcher.crawler_asset_bound_forms import (
+    build_crawler_asset_bound_form_spec,
+    crawler_asset_bound_payload_from_form_values,
+)
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source, bounds_schema_for_source
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
@@ -140,6 +144,46 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertIn("bounds_schema", payload)
         self.assertEqual("columns", payload["bounds_schema"][1]["facet_id"])
         self.assertEqual("ColumnBounds", payload["bounds_schema"][1]["group"])
+
+    def test_bounds_schema_builds_frontend_neutral_form_and_payload(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema)
+
+        self.assertEqual("ready", form_spec.status)
+        self.assertIn("TimeBounds", form_spec.groups)
+        self.assertIn("SpatialBounds", form_spec.groups)
+        self.assertTrue(any(field.field_id == "start_date" for field in form_spec.fields))
+        self.assertTrue(any(field.field_id == "bbox_west" for field in form_spec.fields))
+        self.assertIn("schema_probe_recommended", form_spec.warning_codes)
+
+        payload = crawler_asset_bound_payload_from_form_values(
+            form_spec,
+            {
+                "collection": "landsat-c2",
+                "time_field": "datetime",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+                "bbox_west": "120",
+                "bbox_south": "22",
+                "bbox_east": "122",
+                "bbox_north": "25",
+                "asset_role": "data",
+                "limit": "10",
+            },
+        )
+
+        self.assertEqual("demo_stac", payload.asset_id)
+        self.assertEqual((120.0, 22.0, 122.0, 25.0), payload.facet_values["bbox"])
+        self.assertEqual("2026-01-01", payload.facet_values["time"]["start_date"])
+        self.assertEqual(10, payload.facet_values["limit"])
+        self.assertEqual((120.0, 22.0, 122.0, 25.0), payload.maps_to_values["SourceDownloadBounds.bbox"])
 
     def test_load_crawler_asset_source_finds_single_entry(self) -> None:
         with TemporaryDirectory() as tmp:
