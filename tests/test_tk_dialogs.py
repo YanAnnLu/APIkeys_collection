@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
 from api_launcher.source_download import SourceDownloadBounds
+from api_launcher.downloads.jobs import DownloadProgress, JobStatus
 from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
@@ -54,6 +55,17 @@ class _FakeVar:
     def get(self) -> str:
         return self.value
 
+    def set(self, value: str) -> None:
+        self.value = value
+
+
+class _FakeTree:
+    def __init__(self, selection: tuple[str, ...] = ()) -> None:
+        self._selection = selection
+
+    def selection(self) -> tuple[str, ...]:
+        return self._selection
+
 
 class TkDialogModuleTest(unittest.TestCase):
     def test_dialog_classes_are_importable(self) -> None:
@@ -86,6 +98,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DownloadPlanPanelWorkflowMixin.toggle_download_plan_panel))
         self.assertTrue(callable(DownloadWorkflowMixin))
         self.assertTrue(callable(DownloadWorkflowMixin.start_download_plan_items))
+        self.assertTrue(callable(DownloadWorkflowMixin.toggle_primary_download_action))
+        self.assertTrue(callable(DownloadWorkflowMixin.update_primary_download_action_label))
         self.assertTrue(callable(ImportWorkflowMixin))
         self.assertTrue(callable(ImportWorkflowMixin.import_supported_plan_results_from_ui))
         self.assertTrue(callable(MvpDemoWorkflowMixin))
@@ -213,6 +227,52 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertNotIn("plan-1", ui.import_status_by_plan_key)
         self.assertEqual(7, ui.download_plan_entries_by_provider["plan-1"]["download_bounds"]["sample_limit"])
         self.assertIn("已套用下載界域", ui.status_var.value)
+
+    def test_download_primary_action_label_reflects_selected_job_status(self) -> None:
+        ui = object.__new__(DownloadWorkflowMixin)
+        ui.download_primary_action_var = _FakeVar("")
+        ui.download_tree = _FakeTree(("plan-1",))
+        ui.cart_tree = _FakeTree(())
+        ui.active_provider_id = "provider-1"
+        ui.download_progress_by_provider = {}
+        ui.tr = lambda zh, _en: zh
+
+        DownloadWorkflowMixin.update_primary_download_action_label(ui)
+        self.assertEqual("開始", ui.download_primary_action_var.value)
+
+        ui.download_progress_by_provider["plan-1"] = DownloadProgress("job-1", "provider-1", JobStatus.RUNNING)
+        DownloadWorkflowMixin.update_primary_download_action_label(ui)
+        self.assertEqual("暫停", ui.download_primary_action_var.value)
+
+        ui.download_progress_by_provider["plan-1"] = DownloadProgress("job-1", "provider-1", JobStatus.PAUSED)
+        DownloadWorkflowMixin.update_primary_download_action_label(ui)
+        self.assertEqual("繼續", ui.download_primary_action_var.value)
+
+        ui.download_progress_by_provider["plan-1"] = DownloadProgress("job-1", "provider-1", JobStatus.COMPLETED)
+        DownloadWorkflowMixin.update_primary_download_action_label(ui)
+        self.assertEqual("開始", ui.download_primary_action_var.value)
+
+    def test_download_primary_action_routes_to_pause_resume_or_start(self) -> None:
+        ui = object.__new__(DownloadWorkflowMixin)
+        ui.download_tree = _FakeTree(("plan-1",))
+        ui.cart_tree = _FakeTree(())
+        ui.active_provider_id = "provider-1"
+        ui.download_progress_by_provider = {"plan-1": DownloadProgress("job-1", "provider-1", JobStatus.RUNNING)}
+        calls: list[str] = []
+        ui.pause_active_download = lambda: calls.append("pause")
+        ui.resume_active_download = lambda: calls.append("resume")
+        ui.start_download_plan = lambda: calls.append("start")
+
+        DownloadWorkflowMixin.toggle_primary_download_action(ui)
+        self.assertEqual(["pause"], calls)
+
+        ui.download_progress_by_provider["plan-1"] = DownloadProgress("job-1", "provider-1", JobStatus.PAUSED)
+        DownloadWorkflowMixin.toggle_primary_download_action(ui)
+        self.assertEqual(["pause", "resume"], calls)
+
+        ui.download_progress_by_provider.clear()
+        DownloadWorkflowMixin.toggle_primary_download_action(ui)
+        self.assertEqual(["pause", "resume", "start"], calls)
 
     def test_database_client_selected_profile_reads_selected_id(self) -> None:
         # selected_profile 只依 combobox 標籤前段 id 配對，避免 label 變動影響 profile 選取。

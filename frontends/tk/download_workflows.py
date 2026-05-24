@@ -56,11 +56,13 @@ class DownloadWorkflowMixin:
             self.tree.focus(self.active_provider_id)
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        self.update_primary_download_action_label()
 
     def on_download_select(self, _event: object) -> None:
         selection = self.download_tree.selection()
         if selection:
             self.active_provider_id = self.provider_id_for_plan_key(str(selection[0]))
+        self.update_primary_download_action_label()
 
     def start_download_plan(self) -> None:
         items = self.selected_plan_items()
@@ -68,6 +70,19 @@ class DownloadWorkflowMixin:
             messagebox.showinfo(self.tr("下載計畫是空的", "Download plan is empty"), self.tr("請先加入至少一個資料源。", "Add at least one source to the download plan first."))
             return
         self.start_download_plan_items(items)
+
+    def toggle_primary_download_action(self) -> None:
+        """用單一主按鈕承接開始/暫停/繼續，降低展示與日常操作的心智負擔。"""
+
+        plan_key = self.active_download_provider_id()
+        progress = self.download_progress_by_provider.get(plan_key)
+        if progress and progress.status in {JobStatus.QUEUED, JobStatus.RUNNING}:
+            self.pause_active_download()
+            return
+        if progress and progress.status == JobStatus.PAUSED:
+            self.resume_active_download()
+            return
+        self.start_download_plan()
 
     def start_download_rows(self, rows: list[ProviderRow]) -> None:
         self.start_download_plan_items([(row.provider_id, row, self.plan_version_by_provider.get(row.provider_id)) for row in rows])
@@ -243,8 +258,15 @@ class DownloadWorkflowMixin:
         self.start_download_plan_items([(plan_key, row, self.plan_version_by_provider.get(plan_key))])
 
     def active_download_provider_id(self) -> str:
-        selection = self.download_tree.selection()
-        return str(selection[0]) if selection else self.active_provider_id
+        if hasattr(self, "download_tree"):
+            selection = self.download_tree.selection()
+            if selection:
+                return str(selection[0])
+        if hasattr(self, "cart_tree"):
+            selection = self.cart_tree.selection()
+            if selection:
+                return str(selection[0])
+        return self.active_provider_id
 
     def on_download_progress_threadsafe(self, progress: DownloadProgress) -> None:
         # DownloadQueue callback 可能來自 worker thread；Tk 更新必須排到主 thread。
@@ -296,6 +318,20 @@ class DownloadWorkflowMixin:
                 iid=plan_key,
                 values=(self.plan_item_label(plan_key, row), status, progress, self.import_status_label(plan_key, row), target),
             )
+        self.update_primary_download_action_label()
+
+    def update_primary_download_action_label(self) -> None:
+        if not hasattr(self, "download_primary_action_var"):
+            return
+        plan_key = self.active_download_provider_id()
+        progress = self.download_progress_by_provider.get(plan_key)
+        if progress and progress.status in {JobStatus.QUEUED, JobStatus.RUNNING}:
+            label = self.tr("暫停", "Pause")
+        elif progress and progress.status == JobStatus.PAUSED:
+            label = self.tr("繼續", "Resume")
+        else:
+            label = self.tr("開始", "Start")
+        self.download_primary_action_var.set(label)
 
     def register_completed_download(self, plan_key: str, target: str) -> None:
         if plan_key in self.registered_completed_downloads:

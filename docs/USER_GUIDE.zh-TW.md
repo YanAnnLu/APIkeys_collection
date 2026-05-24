@@ -424,9 +424,18 @@ py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/data
 
 GUI 展示入口：
 
-- 啟動 `py -3 -B APIkeys_collection_ui.py`。
+- Windows 展示者可直接執行 `scripts\run_showcase_ui.cmd`，不需要打開程式碼或手動輸入 Python 指令；開發者仍可用 `py -3 -B APIkeys_collection_ui.py`。
 - 點選 `工具 > 展示模式：產生 seed 覆蓋報告`，或主畫面 `更多 > 展示模式：產生 seed 覆蓋報告`。
 - 完成後會顯示 source 數量、完整 seed 嘗試路徑數量、需要展示模式忽略 `search_terms` 的數量，並把 JSON/Markdown 寫到 `state/showcase/`。
+- 點選 `工具 > 展示模式：下載資料到本機資料夾`，選擇資料夾後輸入要展示的樣本筆數上限。系統會顯示「展示下載進行中」進度視窗，先嘗試從公開 Socrata demo source 下載 JSON payload；若該公開 API 逾時，會在進度中明確切換到備援公開 CSV，而不是偽裝 Socrata 成功。兩條路徑都會寫出 sidecar manifest，並在選定資料夾的 `RuRuKa Asset Launcher Showcase\curated_showcase.db` 建立本機 SQLite `.db`。進度視窗使用 0-100% 的真實流程百分比；下載階段若遠端提供 `Content-Length` 才顯示 byte 下載百分比，若遠端沒有提供總大小，會顯示已接收 bytes 並明確說明不顯示假的下載百分比。
+- 點選 `工具 > 展示模式：大型 CSV 續傳下載`，選擇資料夾後會把完整 CSV 匯出排入下方下載面板。展示時可選取該工作，按 `暫停`、等待狀態變成 `paused`，再按 `繼續`，用同一條正常下載佇列演示 `.part` 續傳能力。這條展示線只寫 CSV/manifest 到本機資料夾，刻意短路 SQL 匯入。
+
+展示模式分流原則：
+
+- 組員展示只走 GUI，不要求修改程式碼、註解路徑或執行開發 CLI。
+- 穩定可展示的功能放在 `展示模式` 選單；仍在實驗中的完整來源爬蟲、全量 seed、SQL/MySQL/PostgreSQL 對接與轉接器補齊，留在開發或審核流程。
+- 「小樣本」不是固定玩具資料，展示者可在 GUI 輸入筆數上限控制大小；真正大型或無界感的下載展示改走大型 CSV 續傳線。
+- 資料夾選擇預設會指到系統 Downloads；若展示者手動選擇雲端同步資料夾，系統不會阻擋。雲端資料夾可能較慢或有短暫鎖檔，因此展示時若遇到外部網路或同步延遲，可用同一個下載面板重試或續傳。
 
 如果只需要給 agent 或自動化工具讀取的 JSON：
 
@@ -440,6 +449,7 @@ py -3 -B APIkeys_collection.py --dataset-discovery-seed-coverage-json --dataset-
 py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-complete-seed --dataset-discovery-source marinecadastre_ais_daily_index_2025 --write-dataset-candidates showcase/marinecadastre_seed_candidates.json --dataset-discovery-max-pages 1 --dataset-discovery-limit 0
 ```
 
-展示材料可放在 `state/showcase/`。該目錄屬於 runtime 產物，已由 `.gitignore` 的 `/state/` 規則排除；其中的本機展示稿例如 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md` 不應提交到 Git。
+展示材料可放在 `state/showcase/`。這個資料夾現在是可追蹤的展示資產區：講稿、覆蓋率報告、樣本 CSV、簡報與截圖可以提交到 Git，方便小組展示與跨機器接力；但本機驗證下載資料、SQLite `.db`、`.log`、臨時依賴與大型 live output 仍由 `.gitignore` 排除，避免把 runtime 產物或私有資料推上去。
+若需要重產展示簡報，可執行 `py -3 -B scripts\build_showcase_presentation.py`。腳本會輸出 `state/showcase/RRKAL_Showcase_Guide.zh-TW.pptx`，並讀回投影片文字檢查是否出現亂碼或缺少關鍵繁中內容；不要只用檔案是否存在判定簡報可交付。
 
 一般使用者路徑的預設值已改為系統 Downloads 下的 `RuRuKa Asset Launcher` 子資料夾：下載 payload/manifest 預設在 `Downloads/RuRuKa Asset Launcher/downloads`，匯入後的 SQLite curated database 預設在 `Downloads/RuRuKa Asset Launcher/curated_imports.db`。開發、測試或 CI 仍可用 `--downloads-root` 與 `--import-sqlite-db` 明確覆寫。

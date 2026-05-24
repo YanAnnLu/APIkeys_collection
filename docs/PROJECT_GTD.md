@@ -23,7 +23,7 @@ Last updated: 2026-05-24
 - [ ] 補一條 GUI 啟動相容測試或啟動診斷：確認 `APIkeys_collection_ui.py`、`scripts\run_ui.cmd`、`scripts\run_showcase_ui.cmd` 都能走到同一個 Tk entrypoint，並記錄異常 stderr。
 - [x] 修正續傳展示入口過度依賴既有 catalog row：`大型 CSV 續傳下載` 現在會先從展示 plan 自動 seed 最小 provider/dataset 並 reload UI，再加入下載計畫，避免乾淨 catalog 或剛啟動 UI 時無法排入下載。
 - [ ] 把「展示者不能改程式碼」納入正式 UX 驗收：展示模式和未來正式功能都應提供 GUI 控制樣本大小、目標資料夾、開始/暫停/續傳與結果位置。
-- [ ] 將 PPT/講稿產生流程納入可重產交付物規則：忽略輸出可以留在 `state/showcase/`，但產生腳本需要能驗證繁中內容、頁數與關鍵流程文字。
+- [x] 將 PPT/講稿產生流程納入可重產交付物規則：`scripts/build_showcase_presentation.py` 會重產 `state/showcase/RRKAL_Showcase_Guide.zh-TW.pptx`，並讀回投影片文字驗證繁中內容、頁數與關鍵流程文字；`state/showcase/` 保留可追蹤展示資產，DB/log/live output/臨時依賴仍忽略。
 - [x] 用 OpenSpec 補一份「快速交付模式」工作流規格：`openspec/specs/development-workflow/spec.md` 已新增 `Development Mode Triage / 日常與快速交付分流` requirement，並通過 `npx.cmd -y @fission-ai/openspec@latest validate --all --no-interactive`。
 
 ## 2026-05-24 瀑布式回收：爬蟲資產骨架與同步契約
