@@ -330,8 +330,45 @@ push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file h
 py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
 ```
 
-GUI 可用 `py -3 -B APIkeys_collection_ui.py` 啟動，然後點選 `工具 > 展示模式：產生 seed 覆蓋報告` 或主畫面 `更多 > 展示模式：產生 seed 覆蓋報告`。這個展示入口只讀 source catalog metadata，不做網路爬蟲、下載或資料庫寫入；不穩定或仍在實驗中的完整 seed / 下載 / 匯入流程應留在開發或審核分流，不要混入穩定展示入口。
+GUI 可用 `scripts\run_showcase_ui.cmd` 啟動；開發者仍可用 `py -3 -B APIkeys_collection_ui.py`。展示者不需要修改程式碼或打 CLI。穩定展示入口包含：
 
-本機展示稿可放在 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md`；`state/` 已被 `.gitignore` 排除，不要把展示稿加入 Git。一般使用者預設下載位置已改到系統 Downloads 下的 `RuRuKa Asset Launcher/downloads`，預設 curated SQLite DB 是 `Downloads/RuRuKa Asset Launcher/curated_imports.db`；開發/CI 可以繼續用 `--downloads-root` 與 `--import-sqlite-db` 覆寫。
+- `工具 > 展示模式：產生 seed 覆蓋報告` 或主畫面 `更多 > 展示模式：產生 seed 覆蓋報告`：只讀 source catalog metadata，不做網路爬蟲、下載或資料庫寫入。
+- `工具 > 展示模式：下載資料到本機資料夾`：讓展示者選資料夾與樣本筆數上限，從公開 Socrata demo source 實際下載 payload/manifest，並在選定資料夾內建立 `RuRuKa Asset Launcher Showcase\curated_showcase.db`。
+- `工具 > 展示模式：大型 CSV 續傳下載`：把完整 CSV 匯出排入既有下載面板，展示者可用 `暫停` / `繼續` 演示 .part 續傳；這條線只寫 CSV/manifest 到本機資料夾，刻意短路 SQL 匯入。
+
+資料夾選擇預設導向系統 Downloads；若使用者手動選雲端同步資料夾，不要排除或阻擋，只要保留重試、manifest 與 .part 續傳行為。雲端資料夾可能比較慢或偶發鎖檔，因此展示/文件要說明它可用但不是速度假設。不穩定或仍在實驗中的完整 seed / 全來源下載 / SQL 匯入流程應留在開發或審核分流，不要混入穩定展示入口。
+
+`state/showcase/` 現在是可追蹤的展示資產資料夾，用來保存小組展示稿、PPT、樣本資料、截圖與壓力測試回顧；`pptx_deps/`、本機驗證下載輸出、SQLite、log 仍維持忽略。一般使用者預設下載位置已改到系統 Downloads 下的 `RuRuKa Asset Launcher/downloads`，預設 curated SQLite DB 是 `Downloads/RuRuKa Asset Launcher/curated_imports.db`；開發/CI 可以繼續用 `--downloads-root` 與 `--import-sqlite-db` 覆寫。
+
+Windows 上 `K:\APIkeys_collection` 是主工作區與提交來源；GUI、展示、完整 smoke、或任何容易受雲端同步碟影響的測試，應先 clone 到 `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\` 的地端副本，必要時再從 K 槽複製 `state/showcase` 展示資料。測試通過後，把確認過的修復回補 K 槽再提交與推送。
 
 若要粗顆粒展示「完整 seed 嘗試」而不是安全抽樣 `search_terms`，可加 `--dataset-discovery-complete-seed`，並用 `--dataset-discovery-max-pages` 控制頁數上限。這是 seed / candidate 探索，不是無限制下載。
+## 急改 / 壓力測試交付規則
+
+展示切片可以粗顆粒、短路到本機資料夾、先避開尚未穩定的 SQL/MySQL/PostgreSQL 或長期轉接器細節，但不能降低真實性。GUI 需要接實際 backend 狀態，不要用假的百分比或裝飾性進度條；簡報、講稿與輸出檔需要被程式讀回或人工打開驗證，不能只確認檔案存在。
+
+壓力測試結束後，需要把可重複的教訓回收進 skill / GTD / OpenSpec。這次展示急改的結論是：未來 Agent 要預期「現場快速交付」會發生，平常就要保持模組化與可組合的 service boundary，讓實驗性功能可以被包成可驗證的展示流程，而不是臨時塞進主程式。
+
+後續接力時請先分清兩條線：防禦性編程線負責穩健實現正式產品功能，包含完整 guard、測試、契約、文件與可維護邊界；快速交付線負責用最短且安全的 GUI 路徑重現已存在或可驗證的產品能力，服務現場說明、組員展示與壓力測試。快速交付可以降低功能顆粒度，但不能降低真實性；其產出應回頭變成防禦性編程的骨架與補強方向。
+
+未來 Agent 開工前要先判斷目前模式。日常開發模式以小切片、防禦性測試、文件一致性與低風險重構為主；快速交付 / 展示模式以穩定 GUI、真輸出、真進度、可操作流程、備援路徑與講稿/簡報可重產為主。使用者不一定會明說完整場景，因此若提到「中午展示、給組員看、現場操作、快速交付、只剩 X 分鐘」等語境，預設進入快速交付 / 展示模式。
+
+Agent 自我改進規則：每次壓力測試、壞假設、突發 timeout、簡報亂碼、UI 啟動失敗或使用者糾正後，都要在收尾前提取一條可重用教訓。格式是：明確命名漏掉的假設、把它轉成下次可觸發的 guardrail、更新最小耐久 artifact（測試、GTD、handoff、OpenSpec 或 skill）、能驗證就驗證，最後回報剩餘風險。這是 agent 執行品質的一部分，不算額外產品 scope。
+
+### 2026-05-24 壓力測試辯證摘要
+
+命題：快速交付容易污染主線。它會誘惑 Agent 把短路徑、展示文案、臨時 fallback、未完成的 UI 控制塞回正式程式，導致後續維護者分不清哪些是產品能力、哪些只是展示補丁。
+
+反命題：沒有快速交付壓力測試，主線會低估真實交付情境。這次展示前才暴露出 PPT 亂碼、GUI 實際啟動、真百分比、資料夾選擇、Socrata timeout、fallback 說明與「展示者不能改程式碼」等需求；這些不是枝節，而是正式產品遲早會遇到的使用者場景。
+
+合題：快速交付應被視為受控壓力測試，而不是例外流程。它的任務是在最短時間內重現已存在或可驗證的產品能力，並用真資料、真狀態、真輸出保住可信度；壓力測試後再把成功的短路徑拆回防禦性編程線，補上契約、測試、錯誤處理、文件、OpenSpec 與可維護邊界。
+
+未來 Agent 需要主動做的判斷：使用者在 vibe coding 時不一定會提供完整場景，因此只要出現展示、會議、組員、現場操作、PPT、GUI、時間倒數、快速交付等訊號，就先切換到「人類可操作交付」思維。此時最重要的問題不是「架構是否最漂亮」，而是「使用者能否在不改程式碼的情況下穩定演示真實能力」。
+
+這次得到的硬規則：
+
+- 展示模式可以縮小範圍，但不能造假；若遠端 API timeout，fallback 必須明示來源與原因。
+- 進度條必須接 backend 事件；無 `Content-Length` 時只能顯示已收 bytes 或流程階段，不能捏造下載百分比。
+- 簡報、講稿、GUI 啟動腳本與輸出檔都是交付物；產生後要能讀回或打開驗證。
+- 快速交付的服務函式要放在可回收的位置，避免藏在巨大 UI 檔或一次性腳本裡。
+- 壓力測試後要列出「要回收成正式功能」與「仍是展示分流」的邊界，讓下個 Agent 不會誤判進度。

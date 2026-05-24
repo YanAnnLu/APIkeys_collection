@@ -2,11 +2,35 @@
 
 Last updated: 2026-05-24
 
+## 2026-05-24 快速交付 / 防禦性編程分流規則
+
+- 防禦性編程線：穩健實作正式產品功能，包含 guard、測試、契約、文件、可維護邊界與後續 CI 證據。
+- 快速交付線：用最短且安全的 GUI 路徑，讓現場展示者不用改程式碼也能重現已存在或可驗證的產品能力。
+- 快速交付可以降低功能顆粒度，但不能降低真實性；必須使用真資料或明確標示的 fixture、真進度事件、可驗證輸出與已驗證簡報。
+- 快速交付不是一次性展示碼，而是壓力測試。其流程、狀態事件、輸出格式與操作稿，要回灌成防禦性編程的骨架、OpenSpec / GTD 任務與後續重構方向。
+- Agent 自我改進：每次壓力測試都要提取一條可重用教訓，並回寫到測試、handoff、GTD、OpenSpec 或 skill。這不是額外願景，而是避免下一次快速交付重複踩雷的基本維護工作。
+
+## 2026-05-24 展示急改壓力測試結論
+
+- 展示模式現在必須以「可快速交付但不造假」為原則：功能顆粒度可以粗，SQL/全來源/長期轉接器可先分流，但 GUI 進度、下載資料、輸出檔與簡報內容都必須可驗證。
+- `工具 > 展示模式：下載資料到本機資料夾` 已改為顯示真實 0-100% 流程百分比；下載階段只有在遠端提供 `Content-Length` 時才顯示 byte 下載百分比，否則顯示已接收 bytes 並明確說明總大小未知。
+- `scripts\build_showcase_presentation.py` 可重產 `state/showcase/RRKAL_Showcase_Guide.zh-TW.pptx`，並讀回投影片文字檢查繁中內容與亂碼標記。`state/showcase/` 已改為可追蹤展示資產資料夾；臨時依賴、本機驗證輸出、SQLite 與 log 仍忽略。這次壓力測試的後續重構方向是把展示切片逐步回收成正式 dashboard / library action，而不是維持一次性急改。
+
+## 2026-05-24 壓力測試回收任務
+
+- [ ] 將展示下載服務正式化為 library action / dashboard service：保留可控樣本大小、資料夾選擇、manifest、SQLite 匯入與 fallback 說明，但把展示文案和正式產品狀態分層。
+- [x] 修正 fallback 進度事件不可回退：主要來源切到 fallback 後，流程百分比保持單調遞增；2026-05-24 已用 service 重現確認 Socrata timeout -> Raw GitHub public CSV fallback -> SQLite 匯入成功。
+- [ ] 補一條 GUI 啟動相容測試或啟動診斷：確認 `APIkeys_collection_ui.py`、`scripts\run_ui.cmd`、`scripts\run_showcase_ui.cmd` 都能走到同一個 Tk entrypoint，並記錄異常 stderr。
+- [x] 修正續傳展示入口過度依賴既有 catalog row：`大型 CSV 續傳下載` 現在會先從展示 plan 自動 seed 最小 provider/dataset 並 reload UI，再加入下載計畫，避免乾淨 catalog 或剛啟動 UI 時無法排入下載。
+- [ ] 把「展示者不能改程式碼」納入正式 UX 驗收：展示模式和未來正式功能都應提供 GUI 控制樣本大小、目標資料夾、開始/暫停/續傳與結果位置。
+- [ ] 將 PPT/講稿產生流程納入可重產交付物規則：忽略輸出可以留在 `state/showcase/`，但產生腳本需要能驗證繁中內容、頁數與關鍵流程文字。
+- [x] 用 OpenSpec 補一份「快速交付模式」工作流規格：`openspec/specs/development-workflow/spec.md` 已新增 `Development Mode Triage / 日常與快速交付分流` requirement，並通過 `npx.cmd -y @fission-ai/openspec@latest validate --all --no-interactive`。
+
 ## 目前展示線
 
 | 區域 | 狀態 | 目前進度 | 下一步 |
 | --- | --- | --- | --- |
-| 中午展示 / 進度說明 | MVP 硬化 | 已新增可重跑的資料集 seed 覆蓋稽核。`--dataset-discovery-seed-coverage-json` 會輸出機器可讀 JSON；`--write-dataset-seed-coverage` 會寫出 JSON 報告；`--write-dataset-seed-coverage-md` 會把給人閱讀的 Markdown 報告寫到被忽略的 `state/showcase/`。Tk UI 現在也有 `工具/更多 > 展示模式：產生 seed 覆蓋報告`，讓展示者可以直接點擊產生同一份安全報告。這個入口只讀 metadata，不做網路爬取、下載或資料庫寫入，因此屬於穩定展示分流。一般使用者的預設下載 / 匯入輸出已改到系統 Downloads 底下的 `RuRuKa Asset Launcher/downloads` 與 `RuRuKa Asset Launcher/curated_imports.db`；開發與 CI 仍可用 CLI flags 覆寫。 | 使用 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md` 作為本機展示講稿，保持忽略不提交；中午展示後再把 seed 覆蓋稽核擴成正式 dashboard 的一個穩定卡片，並把實驗下載/完整 seed 操作留在開發或審核分流。 |
+| 中午展示 / 進度說明 | MVP 硬化 | 已新增可重跑的資料集 seed 覆蓋稽核。`--dataset-discovery-seed-coverage-json` 會輸出機器可讀 JSON；`--write-dataset-seed-coverage` 會寫出 JSON 報告；`--write-dataset-seed-coverage-md` 會把給人閱讀的 Markdown 報告寫到可追蹤的 `state/showcase/`。Tk UI 現在也有 `工具/更多 > 展示模式：產生 seed 覆蓋報告`，讓展示者可以直接點擊產生同一份安全報告。展示 GUI 已收成組員可操作路徑：Windows 可執行 `scripts\run_showcase_ui.cmd`，再用 `展示模式：下載資料到本機資料夾` 選資料夾與樣本筆數，實際下載公開 Socrata demo source 並建立本機 `curated_showcase.db`；也可用 `展示模式：大型 CSV 續傳下載` 把完整 CSV 匯出排入下方面板，演示暫停/繼續與 .part 續傳。一般使用者的預設下載 / 匯入輸出已改到系統 Downloads 底下的 `RuRuKa Asset Launcher/downloads` 與 `RuRuKa Asset Launcher/curated_imports.db`；開發與 CI 仍可用 CLI flags 覆寫。 | 使用 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md`、`SHOWCASE_RETROSPECTIVE.zh-TW.md` 與 PPT 作為可追蹤展示資產；中午展示後再把 seed 覆蓋、可控樣本下載、續傳展示逐步補細成正式 dashboard / library action 功能，完整全來源爬蟲、SQL/MySQL/PostgreSQL 對接與轉接器補齊仍留在開發或審核分流。 |
 
 ## Product GTD
 

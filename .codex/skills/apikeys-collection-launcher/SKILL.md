@@ -22,12 +22,41 @@ Classify the request before editing:
 - **Operate**: run the launcher/CLI, inspect UI, generate reports, run discovery, export/resolve/download/import plans. Prefer the client skill and do not change code.
 - **Repair**: fix a broken MVP path or CI/test failure. Keep the patch narrow and verify the affected path.
 - **Extend MVP**: add a bounded crawler/resolver/import/repair slice that advances `seed -> crawler -> candidate -> plan -> download -> import -> UI`.
+- **Daily development mode**: normal engineering work. Favor defensive programming, small reviewable slices, tests, docs/GTD/handoff consistency, and avoiding last-minute scope expansion.
+- **Rapid delivery / showcase mode**: a real human needs to demonstrate progress soon. Favor a stable GUI path, real output, truthful progress, bounded fallback behavior, and presenter-safe defaults; after delivery, convert the slice into defensive-programming tasks instead of leaving it as a one-off.
 - **Concept / roadmap**: record or route ideas such as Hadoop, K8S, Render Studio, ML registry, P2P, mobile, Qt, OAuth, or Notion sync. Do not implement a large stub unless it has a current MVP entrypoint.
 - **Docs/skill only**: if the user says documentation is read-only, read and extract rules without editing docs. If the user asks to organize/refactor `.md` files, use the documentation refactor workflow below and update repo skill references after the docs are reorganized.
+
+### Mode Selection Heuristics
+
+Default to **daily development mode** unless the conversation implies imminent human-facing delivery.
+
+Use **rapid delivery / showcase mode** when the user mentions a meeting, team demo, "show", "展示", "給組員看", "現場操作", "中午/今晚前", "只剩 X 分鐘/小時", or asks for a packaged GUI/PPT/script that they can operate without editing code. In this mode:
+
+- prioritize a stable, truthful end-to-end path over architectural completeness;
+- expose real status from backend events, never decorative progress;
+- prefer bounded sample size, explicit fallback, and local-folder short circuits over pretending full production coverage exists;
+- produce presenter-safe artifacts that can be opened/rebuilt, such as ignored PPT/script files;
+- after the pressure test, convert the delivery slice into daily-development tasks, tests, docs, and OpenSpec/GTD follow-ups.
+
+Return to **daily development mode** when the user says the delivery window is over, asks to resume normal development, or asks for refactor/hardening instead of live demonstration. Then stop adding showcase features and focus on consolidation, tests, docs, and reducing technical debt.
+
+### Retrospective Learning Loop
+
+After any stressful delivery, failed assumption, surprise timeout, broken deck, UI launch failure, or user correction, extract one reusable lesson before ending the session:
+
+1. Name the missed assumption in concrete terms.
+2. Convert it into a future trigger or guardrail.
+3. Add or update the smallest durable artifact: test, docs, GTD, handoff, OpenSpec task, or skill rule.
+4. Verify the artifact when practical.
+5. Report the remaining risk without exaggerating progress.
+
+This loop is part of agent quality, not product scope. Do it even when the code change itself is small.
 
 ## Workflow
 
 1. Start by checking `git status --short --branch`; never overwrite user changes.
+   The canonical project working folder is `K:\APIkeys_collection`. For GUI, showcase, full smoke, or any test likely to be affected by cloud-drive latency/locking, create a fresh local-disk test clone under `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\`, copy `state/showcase` from K drive only when the showcase artifacts are needed, and run the test from that local clone. Treat K drive as the source of truth for edits, but treat the local clone as the proof environment for launch/showcase stability; port confirmed fixes back to K drive before committing and pushing.
 2. Read `docs/AGENT_HANDOFF.zh-TW.md` and `docs/PROJECT_GTD.md` before making changes. These are the live handoff and progress sources.
 3. Read `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` when work touches long-term platform concepts such as data assets, Discovery Tools, lakehouse/K8S, renderer connectors, ML artifacts, Notion/TradingView connectors, or local-first product shape.
 4. Read `docs/PROJECT_STATE.md`, `docs/TECH_STACK.md`, and `docs/GIT_HANDOFF.md` before architectural, dependency, Docker, Git, or renderer changes.
@@ -182,6 +211,8 @@ For UI work, "done" means the visible text is Traditional Chinese by default, th
 - For repeatable MVP smoke checks, prefer `--run-mvp-demo-smoke-json state/mvp_demo/flow.json` when an agent needs one command that writes the canonical MVP demo artifacts, runs the offline `download -> manifest -> SQLite import` loop, emits machine-readable `stage`/`succeeded`/`row_count` JSON, and leaves a handoff-visible `mvp_demo_smoke_completed` event. After the smoke, `--handoff-report` / `--handoff-report-json` should show `MVP Readiness` / `mvp_readiness` as `ready_for_mvp_demo` when stage is `download_import_completed`, succeeded is true, and row_count is greater than zero. Use `--write-mvp-demo-flow state/mvp_demo/flow.json` or Tk `工具 > 產生 MVP Demo Flow` when the user only needs artifacts or a UI-loaded offline plan. All paths call `api_launcher.mvp_demo`; do not duplicate demo business logic inside `launcher_ui.py`.
 - For download/import orchestration, use `api_launcher.ingestion_pipeline.run_download_import_slice()` as the service boundary. For Tk/UI import of already-downloaded sidecar manifests, use `run_existing_download_import_slice()`. Do not make new UI panels, subcommands, or agents call `run_download_plan_payload()` directly unless they are intentionally testing the low-level runner.
 - Every significant code change should leave a beginner-friendly status: what changed, why it matters, what was tested, and roughly what MVP work remains.
+- For urgent demo / rapid delivery requests, lower feature granularity before lowering truthfulness. A demo slice may be coarse, bounded, and short-circuited to local folders, but it must use real data or clearly labeled fixtures, real progress/status from backend events, verified outputs, and a path that can be folded back into the product architecture. Do not ship decorative controls, fake percentages, unverified PPT/docs, or one-off code hidden in the main UI. After a pressure test, write down the reusable lesson in GTD/handoff/skill/OpenSpec so future sessions anticipate the same delivery mode.
+- Separate two tracks explicitly when the user asks for fast delivery. The defensive-programming track builds the durable product feature with full guards, tests, contracts, and maintainable boundaries. The rapid-delivery/showcase track reproduces that durable capability through the shortest safe GUI path for real humans: no code edits by the presenter, no hidden CLI-only assumptions, no fake status, and no unverified deck. Treat every urgent showcase as a pressure test that reveals which service boundaries, progress events, docs, and UI affordances must be strengthened later.
 - Every non-trivial code change should also leave maintainer comments near the logic that would be hard for a human to infer quickly. In this repository, use a slightly higher comment density than usual because human maintainers may be early-career or unfamiliar with the codebase. Write maintainer comments in Traditional Chinese by default; keep exact identifiers, file paths, CLI flags, API names, standards, and product names in their original spelling when precision matters. Prioritize comments for function intent, orchestration, safety guards, schema or provenance invariants, adapter assumptions, external API quirks, cross-module ownership, and data transformations. Explain why and what boundary is being protected; do not add purely mechanical comments that only restate obvious assignments.
 - Keep UI JSON formats shared through core modules such as `api_launcher/plans.py`.
 - Keep the default user-facing Tk UI in Traditional Chinese. When adding or touching visible UI text, prefer `ApiCollectionUi.tr("繁中", "English")` so `Settings > Interface language` can keep working.

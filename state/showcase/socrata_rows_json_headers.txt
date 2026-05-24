@@ -1,0 +1,15 @@
+HTTP/1.1 200 OK
+Server: nginx
+Date: Sun, 24 May 2026 02:08:59 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+ETag: W/"Zm94dHJvdC4xNTY1NV8xODNfMTkxODkxOGhvLV9LdWMwYThIUkI5RjdiQWdES0xsRjNN---gzipNzad7gsng67bhy8MGOzcxOSkOkI--gzip--gzip"
+Last-Modified: Sat, 23 May 2026 01:59:24 GMT
+X-SODA2-Data-Out-Of-Date: true
+X-SODA2-Truth-Last-Modified: Sat, 23 May 2026 01:59:24 GMT
+X-SODA2-Secondary-Last-Modified: Sat, 23 May 2026 01:59:24 GMT
+Vary: Accept-Encoding
+X-Socrata-Region: aws-us-east-1-fedramp-prod
+X-Socrata-RequestId: 0e847e67da5763d775384fb7e64dc5ba
