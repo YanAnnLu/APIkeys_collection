@@ -53,6 +53,7 @@ from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
+from frontends.tk.showcase_workflows import ShowcaseWorkflowMixin
 from frontends.tk.window_layout_workflows import WindowLayoutWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
 from api_launcher.paths import PROJECT_ROOT
@@ -77,6 +78,7 @@ class ApiCollectionUi(
     OAuthWorkflowMixin,
     RepairWorkflowMixin,
     MvpDemoWorkflowMixin,
+    ShowcaseWorkflowMixin,
     YfinanceWorkflowMixin,
 ):
     def __init__(self, root: Tk):

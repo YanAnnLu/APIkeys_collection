@@ -4,6 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
@@ -32,6 +33,7 @@ from frontends.tk.plan_workflows import PlanWorkflowMixin
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
+from frontends.tk.showcase_workflows import ShowcaseWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
 from frontends.tk.source_action_workflows import SourceActionWorkflowMixin
 from frontends.tk.table_data_workflows import TableDataWorkflowMixin
@@ -90,6 +92,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(RepairWorkflowMixin.open_repair_panel))
         self.assertTrue(callable(ResponsiveLayoutWorkflowMixin))
         self.assertTrue(callable(ResponsiveLayoutWorkflowMixin.open_detail_drawer))
+        self.assertTrue(callable(ShowcaseWorkflowMixin))
+        self.assertTrue(callable(ShowcaseWorkflowMixin.write_showcase_seed_coverage_from_ui))
         self.assertTrue(callable(SidebarWorkflowMixin))
         self.assertTrue(callable(SidebarWorkflowMixin.refresh_sidebar_filters))
         self.assertTrue(callable(SourceActionWorkflowMixin))
@@ -102,6 +106,12 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(WindowLayoutWorkflowMixin._build_layout))
         self.assertTrue(callable(YfinanceWorkflowMixin))
         self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
+
+    def test_detail_panel_module_keeps_widget_dependencies_local(self) -> None:
+        # launcher_ui.py 不再集中 import 所有 Tk 元件；detail panel mixin 自己要帶齊用到的 widget/helper。
+        self.assertTrue(callable(detail_panel_module.StringVar))
+        self.assertTrue(callable(detail_panel_module.Canvas))
+        self.assertIn("panel", detail_panel_module.COLORS)
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。

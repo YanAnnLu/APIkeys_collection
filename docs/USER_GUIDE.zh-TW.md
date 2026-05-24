@@ -422,6 +422,12 @@ K:\UnrealProjects\...
 py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
 ```
 
+GUI 展示入口：
+
+- 啟動 `py -3 -B APIkeys_collection_ui.py`。
+- 點選 `工具 > 展示模式：產生 seed 覆蓋報告`，或主畫面 `更多 > 展示模式：產生 seed 覆蓋報告`。
+- 完成後會顯示 source 數量、完整 seed 嘗試路徑數量、需要展示模式忽略 `search_terms` 的數量，並把 JSON/Markdown 寫到 `state/showcase/`。
+
 如果只需要給 agent 或自動化工具讀取的 JSON：
 
 ```powershell

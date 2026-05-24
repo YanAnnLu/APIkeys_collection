@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from tkinter import BOTH, END, WORD, X, Text
+from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, Canvas, StringVar, Text
 from tkinter import ttk
 
 from frontends.tk.provider_models import ProviderRow
+from frontends.tk.ui_config import COLORS
 
 
 class DetailPanelWorkflowMixin:

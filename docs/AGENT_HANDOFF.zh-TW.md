@@ -330,6 +330,8 @@ push 後請用 gh run watch 追 CI。Windows 失敗時優先檢查 SQLite/file h
 py -3 -B APIkeys_collection.py --write-dataset-seed-coverage state/showcase/dataset_seed_coverage.json --write-dataset-seed-coverage-md state/showcase/dataset_seed_coverage.md --dataset-discovery-max-pages 3
 ```
 
+GUI 可用 `py -3 -B APIkeys_collection_ui.py` 啟動，然後點選 `工具 > 展示模式：產生 seed 覆蓋報告` 或主畫面 `更多 > 展示模式：產生 seed 覆蓋報告`。這個展示入口只讀 source catalog metadata，不做網路爬蟲、下載或資料庫寫入；不穩定或仍在實驗中的完整 seed / 下載 / 匯入流程應留在開發或審核分流，不要混入穩定展示入口。
+
 本機展示稿可放在 `state/showcase/SHOWCASE_SCRIPT.zh-TW.md`；`state/` 已被 `.gitignore` 排除，不要把展示稿加入 Git。一般使用者預設下載位置已改到系統 Downloads 下的 `RuRuKa Asset Launcher/downloads`，預設 curated SQLite DB 是 `Downloads/RuRuKa Asset Launcher/curated_imports.db`；開發/CI 可以繼續用 `--downloads-root` 與 `--import-sqlite-db` 覆寫。
 
 若要粗顆粒展示「完整 seed 嘗試」而不是安全抽樣 `search_terms`，可加 `--dataset-discovery-complete-seed`，並用 `--dataset-discovery-max-pages` 控制頁數上限。這是 seed / candidate 探索，不是無限制下載。
