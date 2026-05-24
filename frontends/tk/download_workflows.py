@@ -71,6 +71,23 @@ class DownloadWorkflowMixin:
             return
         self.start_download_plan_items(items)
 
+    def start_selected_download_plan_item(self, _event: object | None = None) -> None:
+        """Double-click one row in the downloader list to queue that item."""
+
+        if not hasattr(self, "cart_tree"):
+            return
+        selection = self.cart_tree.selection()
+        if not selection:
+            self.status_var.set(self.tr("請先在下載器清單選擇一筆項目。", "Select one downloader item first."))
+            return
+        plan_key = str(selection[0])
+        for item_key, row, version in self.selected_plan_items():
+            if item_key == plan_key:
+                self.active_provider_id = plan_key
+                self.start_download_plan_items([(item_key, row, version)])
+                return
+        self.status_var.set(self.tr("下載器清單項目已經不存在，請重新整理計畫。", "Downloader item no longer exists; refresh the plan."))
+
     def toggle_primary_download_action(self) -> None:
         """用單一主按鈕承接開始/暫停/繼續，降低展示與日常操作的心智負擔。"""
 

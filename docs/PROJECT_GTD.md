@@ -40,7 +40,8 @@ Last updated: 2026-05-24
 - [x] 補 crawler asset profile 設定檔：`api_launcher/crawler_asset_profiles.py` 已提供 `update_crawler_asset_profile()`，可調整 credential profile、API key env var、帳號提示、排程、限流、重試、暫停、完整 seed / 有界 seed、Logo/favicon 參照等動態參數；`api_key_env_var` 只接受環境變數名稱，拒絕 raw secret。
 - [x] 補 crawler health model：`api_launcher/crawler_asset_health.py` 已收斂 `status_code`、`health_reason`、`warning_codes`、`last_success_at`、`last_failure_at`、`next_action`，Tk 爬蟲分頁先用這個模型顯示 emoji 狀態，Qt/CLI 後續共用同一契約。
 - [x] 補 crawler logo profile：profile 已有 official logo / favicon / 自訂本機圖片 / generated placeholder、`logo_source`、授權備註欄位，先作為後端契約與 UI card 資料來源；下一步再補實際圖片載入與 cache。
-- [ ] 將爬蟲分頁從表格導向卡片牆：預設用一格一格的 crawler card 呈現 logo、入口名稱、狀態 chip、seed/界域摘要；滑鼠指到卡片時浮出齒輪設定按鈕，雙擊進入 crawler asset edit/profile。Tk 先用簡單 Frame grid 與常駐/半浮出齒輪，Qt 再補真正 hover switch 與動畫。
+- [x] 補 Tk 爬蟲設定入口與下載器雙擊心流：`frontends/tk/crawler_asset_profile_dialog.py` 提供 profile 表單，Tk 爬蟲分頁以明確「爬蟲設定」按鈕進入，不把設定綁到雙擊；下載器清單的雙擊則只啟動選中 plan item，符合「資源清單 -> 下載隊列」心流。
+- [ ] 將爬蟲分頁從表格導向卡片牆：預設用一格一格的 crawler card 呈現 logo、入口名稱、狀態 chip、seed/界域摘要；滑鼠指到卡片時浮出齒輪設定按鈕，進入 crawler asset edit/profile。雙擊語意保留給下載器清單，不應拿來開設定。Tk 先用簡單 Frame grid 與常駐/半浮出齒輪，Qt 再補真正 hover switch 與動畫。
 
 ## 目前展示線
 

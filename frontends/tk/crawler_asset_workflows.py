@@ -4,10 +4,11 @@ import threading
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 
-from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived
+from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_service import run_crawler_asset_listing
 from api_launcher.event_log import log_exception
+from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 
 
 class CrawlerAssetWorkflowMixin:
@@ -45,6 +46,12 @@ class CrawlerAssetWorkflowMixin:
             text=self.tr("封存 / 啟用", "Archive / Enable"),
             style="Action.TButton",
             command=self.toggle_selected_crawler_asset_archive,
+        ).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(
+            toolbar,
+            text=self.tr("爬蟲設定", "Settings"),
+            style="Action.TButton",
+            command=self.open_selected_crawler_asset_profile_dialog,
         ).pack(side=RIGHT, padx=(8, 0))
 
         body = ttk.Frame(parent, style="App.TFrame")
@@ -101,6 +108,12 @@ class CrawlerAssetWorkflowMixin:
             textvariable=self.crawler_asset_archive_button_var,
             style="Action.TButton",
             command=self.toggle_selected_crawler_asset_archive,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
+        ttk.Button(
+            detail,
+            text=self.tr("爬蟲設定 / Logo", "Settings / logo"),
+            style="Action.TButton",
+            command=self.open_selected_crawler_asset_profile_dialog,
         ).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
@@ -194,6 +207,27 @@ class CrawlerAssetWorkflowMixin:
 
     def on_crawler_asset_double_click(self, _event: object | None = None) -> None:
         self.prepare_selected_crawler_asset_download()
+
+    def open_selected_crawler_asset_profile_dialog(self) -> None:
+        asset = self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return
+        dialog = CrawlerAssetProfileDialog(getattr(self, "root", None), asset)
+        if dialog.result is None:
+            return
+        try:
+            update_crawler_asset_profile(asset.asset_id, **dialog.result)
+        except Exception as exc:
+            log_exception("crawler_asset_profile_update_failed", exc, component="ui.crawler_assets", context={"asset_id": asset.asset_id})
+            messagebox.showerror(self.tr("爬蟲設定失敗", "Crawler settings failed"), str(exc), parent=getattr(self, "root", None))
+            return
+        self.refresh_crawler_asset_tab()
+        if hasattr(self, "crawler_asset_tree") and asset.asset_id in self.crawler_asset_tree.get_children():
+            self.crawler_asset_tree.selection_set(asset.asset_id)
+            self.crawler_asset_tree.focus(asset.asset_id)
+            self.on_crawler_asset_select()
+        self.status_var.set(self.tr(f"爬蟲設定已儲存：{asset.display_name}", f"Crawler settings saved: {asset.display_name}"))
 
     def run_selected_crawler_asset_metadata(self) -> None:
         asset = self.selected_crawler_asset()

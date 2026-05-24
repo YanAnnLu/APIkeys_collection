@@ -11,6 +11,7 @@ from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
+from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
     AiModelSettingsDialog,
@@ -74,6 +75,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AdapterReviewDialog))
         self.assertTrue(callable(AiModelSettingsDialog))
         self.assertTrue(callable(DatabaseClientSettingsDialog))
+        self.assertTrue(callable(CrawlerAssetProfileDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DatasetBoundFormDialog))
         self.assertTrue(callable(DatasetCandidateReviewDialog))
@@ -273,6 +275,48 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.download_progress_by_provider.clear()
         DownloadWorkflowMixin.toggle_primary_download_action(ui)
         self.assertEqual(["pause", "resume", "start"], calls)
+
+    def test_downloader_list_double_click_starts_selected_item_only(self) -> None:
+        ui = object.__new__(DownloadWorkflowMixin)
+        ui.cart_tree = _FakeTree(("plan-2",))
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda zh, _en: zh
+        row_1 = SimpleNamespace(provider_id="provider-1")
+        row_2 = SimpleNamespace(provider_id="provider-2")
+        submitted: list[list[tuple[str, object, object | None]]] = []
+        ui.selected_plan_items = lambda: [("plan-1", row_1, None), ("plan-2", row_2, "v2")]
+        ui.start_download_plan_items = lambda items: submitted.append(items)
+
+        DownloadWorkflowMixin.start_selected_download_plan_item(ui)
+
+        self.assertEqual("plan-2", ui.active_provider_id)
+        self.assertEqual([[("plan-2", row_2, "v2")]], submitted)
+
+    def test_crawler_asset_profile_dialog_form_values_preserve_references(self) -> None:
+        dialog = object.__new__(CrawlerAssetProfileDialog)
+        dialog.bool_vars = {"enabled": SimpleNamespace(get=lambda: True), "archived": SimpleNamespace(get=lambda: False)}
+        dialog.vars = {
+            "credential_profile_id": _FakeVar("nasa_personal"),
+            "api_key_env_var": _FakeVar("NASA_EARTHDATA_TOKEN"),
+            "account_hint": _FakeVar("Earthdata login"),
+            "schedule_policy": _FakeVar("manual"),
+            "rate_limit_policy": _FakeVar("polite_1rps"),
+            "retry_policy": _FakeVar("retry_3_backoff"),
+            "seed_scope_policy": _FakeVar("bounded"),
+            "status_note": _FakeVar("ready for bounded crawl"),
+            "local_logo_path": _FakeVar("K:/logos/nasa.png"),
+            "official_logo_url": _FakeVar("https://example.test/logo.png"),
+            "favicon_url": _FakeVar("https://example.test/favicon.ico"),
+            "logo_source": _FakeVar("official_site"),
+            "logo_license_note": _FakeVar("local presentation only"),
+        }
+
+        values = dialog.form_values()
+
+        self.assertTrue(values["enabled"])
+        self.assertFalse(values["archived"])
+        self.assertEqual("NASA_EARTHDATA_TOKEN", values["api_key_env_var"])
+        self.assertEqual("K:/logos/nasa.png", values["local_logo_path"])
 
     def test_database_client_selected_profile_reads_selected_id(self) -> None:
         # selected_profile 只依 combobox 標籤前段 id 配對，避免 label 變動影響 profile 選取。

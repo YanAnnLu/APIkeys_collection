@@ -48,6 +48,7 @@ class DownloadPlanPanelWorkflowMixin:
             self.cart_tree.column(name, width=width, anchor=anchor, stretch=True)
         self.cart_tree.pack(fill=X, padx=14, pady=(0, 12))
         self.cart_tree.bind("<<TreeviewSelect>>", self.on_cart_select)
+        self.cart_tree.bind("<Double-1>", self.start_selected_download_plan_item)
 
         job_columns = ("name", "status", "progress", "import", "target")
         self.download_tree = ttk.Treeview(body, columns=job_columns, show="headings", height=4, selectmode="browse")
