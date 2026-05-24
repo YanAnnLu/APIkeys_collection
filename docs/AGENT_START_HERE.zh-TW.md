@@ -41,6 +41,17 @@
 - 改工作流、OpenSpec、Spectra、跨 agent 規則：再讀 `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md`。
 - 想看完整文檔地圖：讀 `docs/DOCS_INDEX.zh-TW.md`。
 
+## 每輪固定治理機制
+
+這些機制是防止 agent 悶頭推進、誤判狀態或把快速交付變成一次性程式碼的最低成本護欄。
+
+- 開始前先跑 `git status --short --branch`，確認是否有其他 agent 或使用者的未提交改動；若有 dirty worktree，先保護現況，不要改同一批檔案。
+- 中大型跨 crawler、resolver、download plan、import、UI、database 的改動，先用 OpenSpec 或至少寫清 scope、tasks、acceptance criteria、risks；小修不必硬開厚規格。
+- 推進中卡住、工作時間拉長或需要外部 agent 接力時，先跑 `.\scripts\heartbeat_codex.cmd -DryRun`，讀 `state/heartbeat/heartbeat_plan.json` 與 `state/heartbeat/agent_prompt.md`，不要直接啟動自動 runner。
+- 需要 agent-readable 狀態時，優先用 JSON 入口，例如 `--handoff-report-json`、`--run-mvp-demo-smoke-json`、`--adapter-review-json`、`--run-download-plan-json`，不要解析人類文字輸出。
+- push 前先跑 `.\scripts\pre_push_smoke_brief.cmd`；等流程穩定後才考慮用 `.\scripts\install_pre_push_hook.cmd` 安裝本機 hook。
+- push 後必須看 GitHub Actions：`gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`，再用 `gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status` 等遠端 checkpoint 確認。
+
 ## K 槽參考邊界
 
 K 槽教材與 CODE_KM 是概念樣本庫，不是產品碼來源。

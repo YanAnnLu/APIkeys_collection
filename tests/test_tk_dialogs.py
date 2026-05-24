@@ -16,6 +16,7 @@ from api_launcher.bound_form import build_bound_form_spec, source_download_bound
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
     AiModelSettingsDialog,
@@ -81,6 +82,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(CrawlerAssetBoundDialog))
         self.assertTrue(callable(CrawlerAssetProfileDialog))
+        self.assertTrue(callable(SourcePatternDraftDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DatasetBoundFormDialog))
         self.assertTrue(callable(DatasetCandidateReviewDialog))
@@ -249,6 +251,59 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(payload.to_dict(), ui.crawler_asset_bound_payloads["demo_stac"])
         self.assertEqual("downloader", ui.main_notebook.selected)
         self.assertIn("Bounds: limit=5", ui.status_var.value)
+
+    def test_source_pattern_draft_dialog_form_values_without_tk_mainloop(self) -> None:
+        dialog = object.__new__(SourcePatternDraftDialog)
+        dialog.tr = lambda zh, _en: zh
+        dialog.vars = {
+            "url": _FakeVar(" https://example.test/stac "),
+            "provider_id": _FakeVar("demo_provider"),
+            "name": _FakeVar("Demo STAC"),
+            "source_id": _FakeVar("demo_stac"),
+            "categories": _FakeVar("raster, satellite\nscience"),
+            "geographic_scope": _FakeVar("global"),
+            "max_results": _FakeVar("25"),
+            "min_expected_candidates": _FakeVar("2"),
+            "timeout": _FakeVar("4.5"),
+            "minimum_confidence": _FakeVar("0.6"),
+        }
+
+        values = dialog.form_values()
+
+        self.assertEqual("https://example.test/stac", values["url"])
+        self.assertEqual(("raster", "satellite", "science"), values["categories"])
+        self.assertEqual(25, values["max_results"])
+        self.assertEqual(2, values["min_expected_candidates"])
+        self.assertEqual(4.5, values["timeout"])
+        self.assertEqual(0.6, values["minimum_confidence"])
+
+    def test_source_pattern_draft_message_keeps_audit_next_step_visible(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        summary = {
+            "dataset_source_path": "state/private/dataset_discovery_sources.local.json",
+            "audit_command": "python APIkeys_collection.py --promote-local-discovery-dry-run",
+            "source_pattern_detection": {
+                "pattern_id": "stac",
+                "confidence": 0.95,
+                "source_type_hint": "stac_collections",
+                "evidence": ("json_contains_stac_version", "json_references_collections"),
+            },
+            "sources": [
+                {
+                    "source_id": "demo_stac",
+                    "source_type": "stac_collections",
+                    "endpoint_url": "https://example.test/stac",
+                }
+            ],
+        }
+
+        message = CrawlerAssetWorkflowMixin.source_pattern_draft_message(ui, summary)
+
+        self.assertIn("不是正式 catalog promotion", message)
+        self.assertIn("Pattern：stac", message)
+        self.assertIn("Source ID：demo_stac", message)
+        self.assertIn("--promote-local-discovery-dry-run", message)
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

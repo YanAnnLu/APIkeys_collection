@@ -8,9 +8,13 @@ from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, u
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_service import run_crawler_asset_listing
-from api_launcher.event_log import log_exception
+from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
+from api_launcher.event_log import log_event, log_exception
+from api_launcher.paths import local_config_file
+from api_launcher.source_pattern_drafts import write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
 
 class CrawlerAssetWorkflowMixin:
@@ -54,6 +58,12 @@ class CrawlerAssetWorkflowMixin:
             text=self.tr("爬蟲設定", "Settings"),
             style="Action.TButton",
             command=self.open_selected_crawler_asset_profile_dialog,
+        ).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(
+            toolbar,
+            text=self.tr("貼 URL 建立來源草稿", "Draft source from URL"),
+            style="Action.TButton",
+            command=self.open_source_pattern_draft_dialog,
         ).pack(side=RIGHT, padx=(8, 0))
 
         body = ttk.Frame(parent, style="App.TFrame")
@@ -209,6 +219,105 @@ class CrawlerAssetWorkflowMixin:
 
     def on_crawler_asset_double_click(self, _event: object | None = None) -> None:
         self.prepare_selected_crawler_asset_download()
+
+    def open_source_pattern_draft_dialog(self) -> None:
+        dialog = SourcePatternDraftDialog(getattr(self, "root", None), self.tr)
+        if dialog.result is None:
+            return
+        url = str(dialog.result.get("url") or "")
+        self.status_var.set(self.tr(f"正在辨識來源 URL：{url}", f"Detecting source URL: {url}"))
+        threading.Thread(target=self._source_pattern_draft_worker, args=(dict(dialog.result),), daemon=True).start()
+
+    def _source_pattern_draft_worker(self, values: dict[str, object]) -> None:
+        # URL -> local source draft 仍走後端 detector/service；Tk 只負責輸入與呈現，
+        # 避免把 STAC/CKAN/ERDDAP 等範式規則重新寫進 UI 層。
+        output_path = local_config_file(LOCAL_DATASET_DISCOVERY_SOURCES_NAME)
+        url = str(values.get("url") or "")
+        try:
+            summary = write_source_draft_from_url(
+                url,
+                output_path,
+                provider_id=str(values.get("provider_id") or ""),
+                name=str(values.get("name") or ""),
+                source_id=str(values.get("source_id") or ""),
+                categories=tuple(values.get("categories") or ()),
+                geographic_scope=str(values.get("geographic_scope") or "global"),
+                max_results=int(values.get("max_results") or 10),
+                min_expected_candidates=int(values.get("min_expected_candidates") or 1),
+                timeout=float(values.get("timeout") or 8.0),
+                minimum_confidence=float(values.get("minimum_confidence") or 0.35),
+            )
+            log_event(
+                "source_pattern_source_draft_written",
+                "Tk crawler asset UI wrote a local source draft from a detected URL.",
+                component="ui.crawler_assets",
+                context={
+                    "source_url": url,
+                    "output_path": str(output_path),
+                    "audit_source_ids": summary.get("audit_source_ids", []),
+                    "source_pattern_detection": summary.get("source_pattern_detection", {}),
+                },
+            )
+        except Exception as exc:
+            log_exception("source_pattern_source_draft_failed", exc, component="ui.crawler_assets", context={"source_url": url})
+            self.root.after(0, lambda: messagebox.showerror(self.tr("來源草稿建立失敗", "Source draft failed"), str(exc), parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"來源草稿建立失敗：{exc}", f"Source draft failed: {exc}")))
+            return
+
+        def finish() -> None:
+            self.refresh_crawler_asset_tab()
+            source_ids = ", ".join(str(item) for item in summary.get("audit_source_ids", []) if item)
+            self.status_var.set(
+                self.tr(
+                    f"已建立本機來源草稿：{source_ids or url}；下一步請跑本機 discovery audit。",
+                    f"Local source draft created: {source_ids or url}; run local discovery audit next.",
+                )
+            )
+            messagebox.showinfo(
+                self.tr("來源草稿已建立", "Source draft created"),
+                self.source_pattern_draft_message(summary),
+                parent=getattr(self, "root", None),
+            )
+
+        self.root.after(0, finish)
+
+    def source_pattern_draft_message(self, summary: object) -> str:
+        data = summary if isinstance(summary, dict) else {}
+        detection = data.get("source_pattern_detection") if isinstance(data.get("source_pattern_detection"), dict) else {}
+        sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+        source = sources[0] if sources and isinstance(sources[0], dict) else {}
+        evidence = detection.get("evidence") if isinstance(detection.get("evidence"), list) else []
+        evidence_preview = "\n".join(f"- {item}" for item in evidence[:5]) or "-"
+        try:
+            confidence_text = f"{float(detection.get('confidence')):.2f}"
+        except (TypeError, ValueError):
+            confidence_text = "-"
+        return self.tr(
+            (
+                "已建立本機資料源草稿。\n\n"
+                "這不是正式 catalog promotion，也不會下載或匯入資料；下一步必須執行本機 discovery audit。\n\n"
+                f"Pattern：{detection.get('pattern_id') or '-'}\n"
+                f"信心：{confidence_text}\n"
+                f"Source type：{detection.get('source_type_hint') or source.get('source_type') or '-'}\n"
+                f"Source ID：{source.get('source_id') or '-'}\n"
+                f"Endpoint：{source.get('endpoint_url') or '-'}\n\n"
+                f"證據：\n{evidence_preview}\n\n"
+                f"Local draft：{data.get('dataset_source_path') or '-'}\n"
+                f"下一步：{data.get('audit_command') or data.get('next_action') or '-'}"
+            ),
+            (
+                "Local dataset source draft created.\n\n"
+                "This is not catalog promotion and does not download or import data; run local discovery audit next.\n\n"
+                f"Pattern: {detection.get('pattern_id') or '-'}\n"
+                f"Confidence: {confidence_text}\n"
+                f"Source type: {detection.get('source_type_hint') or source.get('source_type') or '-'}\n"
+                f"Source ID: {source.get('source_id') or '-'}\n"
+                f"Endpoint: {source.get('endpoint_url') or '-'}\n\n"
+                f"Evidence:\n{evidence_preview}\n\n"
+                f"Local draft: {data.get('dataset_source_path') or '-'}\n"
+                f"Next: {data.get('audit_command') or data.get('next_action') or '-'}"
+            ),
+        )
 
     def open_selected_crawler_asset_profile_dialog(self) -> None:
         asset = self.selected_crawler_asset()

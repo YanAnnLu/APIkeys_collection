@@ -4,6 +4,13 @@
 
 接手時先讀 `docs/AGENT_START_HERE.zh-TW.md`，再讀本文件與 `PROJECT_GTD.md`。這份文件是跨 Windows、macOS、不同 Agent 接力時的固定接力卡；每次切換機器或切換 Agent 前，請優先更新這份文件。
 
+## 2026-05-24 Tk 來源草稿入口與治理機制收斂
+
+- 已把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口。Tk 只收集 URL / provider / 類別 / 期望候選數等輸入；偵測、source draft 寫入、unsupported/unknown 擋下仍由 `api_launcher.source_pattern_drafts` 後端服務負責。
+- 新增 `frontends/tk/source_pattern_draft_dialog.py`，用動態表單收斂輸入，並在成功訊息中顯示 detector pattern、confidence、evidence、ignored local draft 路徑與下一步 discovery audit 指令。這不是 catalog promotion，也不會下載或匯入。
+- 新增/補強測試：`tests/test_source_pattern_drafts.py` 覆蓋 detected / unknown / unsupported；`tests/test_tk_dialogs.py` 覆蓋 headless form values 與 Tk workflow 成功訊息。已跑 `scripts/pre_push_smoke_brief.cmd`，574 tests 通過，MVP demo smoke `download_import_completed`、`row_count=3`。
+- `docs/AGENT_START_HERE.zh-TW.md` 已補上固定治理機制：小切片開始先看 git 狀態；中大型改動先寫 scope / acceptance / risks；卡住可跑 heartbeat dry-run；agent-readable 狀態優先用 JSON；push 前跑 pre-push smoke，push 後看 GitHub Actions。
+
 ## 2026-05-24 來源介面 detector 與界域表單交接
 
 - 本輪新增 `api_launcher/crawlers/source_patterns.py`，正式把 crawler 設計切成「來源介面類型」而不是機構名稱。Detector 只辨識 STAC / CKAN / ERDDAP / Socrata / OGC / CMR / HTML file index / unknown，輸出 confidence、evidence、`source_type_hint`，不下載資料。
