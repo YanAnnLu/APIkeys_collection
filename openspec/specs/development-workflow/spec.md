@@ -109,6 +109,23 @@ The project SHALL distinguish routine defensive development from rapid delivery 
 - WHEN presenting status to a user
 - THEN the agent SHALL state the uncertainty plainly instead of fabricating progress, completion, or production readiness.
 
+### Requirement: UI/UX Reference Contract / UIUX 參照契約
+The project SHALL convert UI/UX references into explicit interaction contracts before implementing non-trivial UI changes.
+
+#### Scenario: User cites another product as UX reference
+
+- GIVEN the user cites software such as Foxy, Steam, `tem/`, or another app as an example
+- WHEN an agent prepares a UI change
+- THEN the agent SHALL extract the behavioral intent, user flow, object model, trigger, state transition, backend service, error state, and acceptance criteria.
+- AND the agent SHALL NOT copy the reference product name into code, docs, or UI text unless the user explicitly approves that naming.
+
+#### Scenario: UI implementation starts
+
+- GIVEN a UI change alters information architecture, gestures, tabs, list behavior, cards, dynamic forms, or crawler/download workflows
+- WHEN the agent starts implementation
+- THEN the agent SHOULD first update `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md`, a relevant OpenSpec change, or both.
+- AND the implementation SHALL keep Tk/Qt as skins over backend contracts or view-models rather than embedding crawler/download business logic directly into a large UI file.
+
 ### Requirement: MVP-First Process
 
 The workflow SHALL reduce rework and handoff cost without blocking the backend MVP loop.

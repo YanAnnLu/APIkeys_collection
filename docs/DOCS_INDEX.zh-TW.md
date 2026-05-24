@@ -145,3 +145,6 @@
 ## Heartbeat Automation 補充入口
 
 `docs/HEARTBEAT_AUTOMATION.zh-TW.md` 記錄 heartbeat automation 的安全規則、CLI/script 入口、外部排程與後續 agent runner 邊界。更改 heartbeat CLI、scheduler、停止條件或自動推進規則時，請同步更新該文件、`PROJECT_GTD.md` 與 `AGENT_HANDOFF.zh-TW.md`。
+## UI/UX 開發契約
+
+`docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md` 是 UI/UX 需求進入實作前的契約文件。當使用者用 Foxy、Steam、tem 或其他軟體舉例時，Agent 必須先萃取「互動精神」與「心流」，不能把參照軟體名稱直接寫進正式命名、程式碼或 UI 文案。中大型 UI 變更應先整理操作對象、入口、觸發方式、狀態變化、後端服務、錯誤狀態與驗收方式，再進入 Tk / Qt 實作。
