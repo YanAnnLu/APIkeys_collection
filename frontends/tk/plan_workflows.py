@@ -7,13 +7,18 @@
 from __future__ import annotations
 
 import json
+import threading
 import urllib.parse
 from pathlib import Path
 from tkinter import BooleanVar, messagebox
 
 import APIkeys_collection as core
 from api_launcher.adapter_review import adapter_review_items
+from api_launcher.bound_form import build_bound_form_spec
 from api_launcher.paths import DOWNLOADS_DIR, state_file
+from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
+from api_launcher.source_download import apply_source_download_bounds
+from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
@@ -309,6 +314,80 @@ class PlanWorkflowMixin:
             if detail:
                 message += f"\n\n{detail}"
             messagebox.showinfo(self.tr("沒有可自動解析項目", "No automatic resolution"), message)
+
+    def configure_selected_plan_bounds_from_ui(self) -> None:
+        """先 probe 欄位，再用動態表單讓使用者輸入時間/空間/欄位界域。"""
+
+        selection = self.cart_tree.selection() if hasattr(self, "cart_tree") else ()
+        if not selection:
+            messagebox.showinfo(
+                self.tr("尚未選取下載項目", "No plan item selected"),
+                self.tr("請先在下方下載計畫選取一個資料集或資料源。", "Select a dataset or source in the download plan first."),
+            )
+            return
+        plan_key = str(selection[0])
+        provider_id = self.provider_id_for_plan_key(plan_key)
+        row = self.row_by_provider_id(provider_id)
+        if row is None:
+            messagebox.showinfo(self.tr("找不到資料源", "Source not found"), self.tr("這個下載計畫項目找不到對應資料源。", "This plan item has no matching source."))
+            return
+        entry, build_error = self.plan_entry_for_item(row, self.plan_version_by_provider.get(plan_key), plan_key=plan_key)
+        if entry is None:
+            messagebox.showinfo(self.tr("無法建立計畫", "Cannot build plan"), build_error or self.tr("缺少資料集 metadata。", "Dataset metadata is missing."))
+            return
+        source_url = str(entry.get("download_url") or entry.get("api_url") or "").strip()
+        if not source_url:
+            messagebox.showinfo(
+                self.tr("需要先解析來源", "Resolve source first"),
+                self.tr(
+                    "這個項目目前還沒有可 probe 的 API 或下載 URL。請先按「解析 Adapter 計畫」或開 Adapter 待辦，把入口頁轉成可檢查的資料端點。",
+                    "This item has no API or download URL to probe yet. Resolve the adapter plan or open the adapter queue first.",
+                ),
+            )
+            return
+        self.status_var.set(self.tr("正在探測資料集欄位，準備動態界域表單...", "Probing dataset fields for a dynamic bounds form..."))
+        threading.Thread(
+            target=self._probe_plan_bounds_worker,
+            args=(plan_key, entry),
+            daemon=True,
+        ).start()
+
+    def _probe_plan_bounds_worker(self, plan_key: str, entry: dict[str, object]) -> None:
+        # schema probe 會碰網路，必須離開 Tk 主執行緒；結果再用 root.after 回 UI。
+        probe = probe_plan_entry_schema(entry, row_limit=5)
+        self.root.after(0, lambda: self._finish_plan_bounds_probe(plan_key, entry, probe))
+
+    def _finish_plan_bounds_probe(self, plan_key: str, entry: dict[str, object], probe: SchemaProbeResult) -> None:
+        if not probe.succeeded or not probe.columns:
+            messagebox.showerror(
+                self.tr("欄位探測失敗", "Schema probe failed"),
+                self.tr(
+                    f"無法讀取資料集欄位，因此不能安全產生界域表單。\n\n{probe.error or probe.status}",
+                    f"Could not read dataset fields, so a bounds form cannot be generated safely.\n\n{probe.error or probe.status}",
+                ),
+            )
+            self.status_var.set(self.tr("界域設定未完成：欄位探測失敗。", "Bounds were not configured: schema probe failed."))
+            return
+        spec = build_bound_form_spec(probe)
+        dialog = DatasetBoundFormDialog(getattr(self, "root", None), spec, self.tr)
+        if dialog.result is None:
+            self.status_var.set(self.tr("已取消界域設定。", "Bounds configuration cancelled."))
+            return
+        bounded_entry = apply_source_download_bounds(entry, dialog.result)
+        self.download_plan_entries_by_provider[plan_key] = dict(bounded_entry)
+        option = self.version_option_from_plan_entry(bounded_entry)
+        if option is not None:
+            self.plan_version_by_provider[plan_key] = option
+        self.import_status_by_plan_key.pop(plan_key, None)
+        self.update_download_plan_panel()
+        status = bounded_entry.get("download_bound_status") if isinstance(bounded_entry.get("download_bound_status"), dict) else {}
+        applied = ", ".join(status.get("applied") or []) if isinstance(status.get("applied"), list) else ""
+        self.status_var.set(
+            self.tr(
+                f"已套用下載界域：{applied or '已記錄欄位界域'}。接下來可按主按鈕開始下載。",
+                f"Download bounds applied: {applied or 'field bounds recorded'}. Use the primary action button to download next.",
+            )
+        )
 
     def add_download_plan_entries_from_file(self, plan_path: Path) -> int:
         # 將 adapter 產生的 JSON plan 接回現有下載計畫模型，避免 UI 和 CLI 各自維護一套 plan schema。
