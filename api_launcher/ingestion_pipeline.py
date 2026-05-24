@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from api_launcher.downloads.jobs import ProgressCallback
 from api_launcher.downloads.plan_runner import (
     DownloadPlanRunResult,
     direct_download_entries,
@@ -37,6 +38,7 @@ class DownloadImportPipelineOptions:
     import_row_limit: int = 0
     import_replace: bool = False
     import_existing_table_policy: str = "skip"
+    download_progress_callback: ProgressCallback | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,7 @@ def run_download_import_slice(
         import_row_limit=active_options.import_row_limit,
         import_replace=active_options.import_replace,
         import_existing_table_policy=active_options.import_existing_table_policy,
+        progress_callback=active_options.download_progress_callback,
     )
     return DownloadImportPipelineRun(
         result=result,

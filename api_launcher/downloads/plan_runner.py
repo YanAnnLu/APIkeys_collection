@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue
+from api_launcher.downloads.jobs import JobStatus, NonBlockingDownloadQueue, ProgressCallback
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.importers.archive_importer import (
@@ -139,6 +139,7 @@ def run_download_plan_payload(
     import_row_limit: int = 0,
     import_replace: bool = False,
     import_existing_table_policy: str = "skip",
+    progress_callback: ProgressCallback | None = None,
 ) -> DownloadPlanRunResult:
     # runner 只處理 direct download entries；adapter review 項目必須先由 resolver 轉成可下載項。
     entries = plan_entries(plan_payload)
@@ -161,6 +162,10 @@ def run_download_plan_payload(
         HTTPDownloadAdapter(timeout=timeout, policy=active_policy),
         max_workers=active_policy.max_parallel_jobs,
     )
+    if progress_callback is not None:
+        # 展示模式與未來 UI 需要使用 downloader 實際 bytes_done/bytes_total；
+        # callback 只讀取進度，不改變 queue 的執行與錯誤語意。
+        queue.add_callback(progress_callback)
     jobs = []
     errors: list[str] = []
     completed = 0

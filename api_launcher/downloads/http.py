@@ -117,7 +117,7 @@ class HTTPDownloadAdapter:
             with target.part_path.open(mode + "") as handle:
                 while True:
                     controller.wait_if_paused()
-                    chunk = response.read(self.chunk_size)
+                    chunk = read_response_chunk(response, self.chunk_size)
                     if not chunk:
                         break
                     handle.write(chunk)
@@ -153,6 +153,15 @@ def build_download_request(url: str, resume_from: int = 0, user_agent: str | Non
         # Range header 是續傳契約；呼叫端仍需檢查回應碼是否為 206。
         headers["Range"] = f"bytes={resume_from}-"
     return urllib.request.Request(url, headers=headers)
+
+
+def read_response_chunk(response: object, chunk_size: int) -> bytes:
+    # 部分開放資料 API 會用 chunked / keep-alive 回應短資料；read(size) 可能等到填滿 size 才返回。
+    # read1(size) 會回傳目前可用的 socket 緩衝資料，能避免展示小樣本下載在少量 JSON 上被讀取逾時卡住。
+    read1 = getattr(response, "read1", None)
+    if callable(read1):
+        return read1(chunk_size)
+    return response.read(chunk_size)
 
 
 def infer_total_bytes(headers: object, existing_bytes: int) -> int | None:

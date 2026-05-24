@@ -13,6 +13,7 @@ from api_launcher.downloads.http import (
     HTTPDownloadAdapter,
     build_download_request,
     download_target_from_plan_entry,
+    read_response_chunk,
     reusable_completed_download,
 )
 from api_launcher.manifests import build_asset_manifest, write_manifest
@@ -66,6 +67,23 @@ class HTTPServerFixture:
 
 
 class HTTPDownloadAdapterTests(unittest.TestCase):
+    def test_read_response_chunk_prefers_read1_for_chunked_short_responses(self) -> None:
+        class ChunkedLikeResponse:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def read1(self, _size: int) -> bytes:
+                self.calls += 1
+                return b"short-json" if self.calls == 1 else b""
+
+            def read(self, _size: int) -> bytes:
+                raise AssertionError("chunked short responses should use read1 when available")
+
+        response = ChunkedLikeResponse()
+
+        self.assertEqual(b"short-json", read_response_chunk(response, 1024 * 256))
+        self.assertEqual(b"", read_response_chunk(response, 1024 * 256))
+
     def test_build_download_request_adds_range_header_for_resume(self) -> None:
         request = build_download_request("https://example.test/file.bin", resume_from=42)
         self.assertEqual("bytes=42-", request.headers["Range"])

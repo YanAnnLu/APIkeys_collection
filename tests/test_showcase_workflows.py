@@ -4,7 +4,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from frontends.tk.showcase_workflows import showcase_seed_coverage_message
+from api_launcher.showcase_download import build_showcase_resumable_download_plan
+from frontends.tk.showcase_workflows import (
+    showcase_download_progress_message,
+    showcase_resumable_plan_message,
+    showcase_seed_coverage_message,
+)
 
 
 class ShowcaseWorkflowHelperTests(unittest.TestCase):
@@ -36,6 +41,24 @@ class ShowcaseWorkflowHelperTests(unittest.TestCase):
         self.assertIn("已登錄入口 source：23", message)
         self.assertIn("具備完整 seed 嘗試路徑：23", message)
         self.assertIn("不會執行網路爬蟲、下載資料或寫入資料庫", message)
+
+    def test_showcase_resumable_message_guides_pause_resume_without_sql(self) -> None:
+        # 續傳展示是給人現場照著按的流程，文字必須同時說明 Pause/Resume 與 SQL 短路邊界。
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan = build_showcase_resumable_download_plan(tmpdir)
+            message = showcase_resumable_plan_message(plan, lambda zh, _en="": zh)
+
+        self.assertIn("續傳展示下載已加入下載面板", message)
+        self.assertIn("暫停", message)
+        self.assertIn("繼續", message)
+        self.assertIn("短路 SQL 匯入", message)
+
+    def test_showcase_progress_message_discloses_fallback_source(self) -> None:
+        message = showcase_download_progress_message("fallback_public_csv", {}, lambda zh, _en="": zh)
+
+        self.assertIn("備援公開 CSV", message)
+        self.assertIn("真下載", message)
+        self.assertIn("SQLite", message)
 
 
 if __name__ == "__main__":
