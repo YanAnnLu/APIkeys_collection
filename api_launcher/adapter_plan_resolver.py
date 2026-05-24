@@ -89,6 +89,10 @@ from api_launcher.adapter_plan_resolvers.metadata_guards import (
     resource_url_is_cmr_api_metadata as resolve_resource_url_is_cmr_api_metadata,
     resource_value_is_truthy as resolve_resource_value_is_truthy,
 )
+from api_launcher.adapter_plan_resolvers.resource_formats import (
+    normalize_resource_format as resolve_normalize_resource_format,
+    source_format_from_url as resolve_source_format_from_url,
+)
 from api_launcher.adapter_plan_resolvers.socrata import (
     bounded_socrata_url,
     resource_is_socrata_api_url,
@@ -1347,60 +1351,11 @@ def source_format_for_resource(resource: dict[str, object], url: str, fallback: 
 
 
 def normalize_resource_format(value: str) -> str:
-    normalized = value.strip().lower()
-    if not normalized:
-        return "unknown"
-    normalized = normalized.replace("application/", "").replace("text/", "")
-    normalized = normalized.replace("x-", "").replace(" ", "_")
-    if "csv" in normalized and ("zst" in normalized or "zstandard" in normalized):
-        return "csv.zst"
-    if "csv" in normalized and "gz" in normalized:
-        return "csv.gz"
-    if ("geojson" in normalized or "geo+json" in normalized) and "gz" in normalized:
-        return "geojson.gz"
-    if ("jsonl" in normalized or "ndjson" in normalized) and "gz" in normalized:
-        return "jsonl.gz" if "jsonl" in normalized else "ndjson.gz"
-    if "json" in normalized and "gz" in normalized:
-        return "json.gz"
-    if "geojson" in normalized or "geo+json" in normalized:
-        return "geojson"
-    if "jsonl" in normalized:
-        return "jsonl"
-    if "ndjson" in normalized:
-        return "ndjson"
-    if "json" in normalized:
-        return "json"
-    if "parquet" in normalized:
-        return "parquet"
-    if "netcdf" in normalized or normalized in {"nc", "cdf"}:
-        return "netcdf"
-    if "zip" in normalized:
-        return "zip"
-    if "tar" in normalized and "gz" in normalized:
-        return "tar.gz"
-    if "zst" in normalized or "zstandard" in normalized:
-        return "zst"
-    return normalized or "unknown"
+    return resolve_normalize_resource_format(value)
 
 
 def source_format_from_url(url: str) -> str:
-    suffixes = [suffix.lower().lstrip(".") for suffix in Path(urllib.parse.unquote(urllib.parse.urlparse(url).path)).suffixes]
-    if not suffixes:
-        return "unknown"
-    # compound suffix 會影響 importer policy，所以要先保留，再退回最後一個副檔名。
-    compound_suffixes = (
-        (("geojson", "gz"), "geojson.gz"),
-        (("jsonl", "gz"), "jsonl.gz"),
-        (("ndjson", "gz"), "ndjson.gz"),
-        (("json", "gz"), "json.gz"),
-        (("csv", "gz"), "csv.gz"),
-        (("csv", "zst"), "csv.zst"),
-        (("tar", "gz"), "tar.gz"),
-    )
-    for parts, source_format in compound_suffixes:
-        if len(suffixes) >= len(parts) and tuple(suffixes[-len(parts) :]) == parts:
-            return source_format
-    return suffixes[-1]
+    return resolve_source_format_from_url(url)
 
 
 def recompute_plan_summary(plan_payload: dict[str, Any], entries: Iterable[dict[str, object]]) -> dict[str, object]:
