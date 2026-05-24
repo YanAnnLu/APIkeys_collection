@@ -24,6 +24,18 @@
 - 內容格式 parser registry 要和 source detector 分開：CSV/JSON/GeoJSON 可 import；ZIP/TAR/NetCDF/HDF/GeoTIFF 先 manifest + adapter review；unknown 保留 raw artifact，不假裝可解析。
 - 測試使用 fake fetcher / fixture payload，不讓 CI 依賴 live NASA/NOAA/Socrata 網路結果。每新增 detector 至少要有正例 fixture、unknown fallback、不誤判其他範式的測試。
 
+### K 槽概念樣本庫與 CODE_KM 心法
+
+K 槽其他教材與 CODE_KM 不要當成可直接搬進 RRKAL 的程式碼來源，而要當成「概念樣本庫」：先判斷它補強的是 RRKAL 哪個 service boundary、哪個狀態閘門、哪個測試，再抽成小型、fixture-tested 的專案模組。
+
+- 金融與風控教材：補 time-series asset、OHLCV/tick/kbar、交易日曆、補資料策略、風險摘要與 storage review；對應 yfinance / financial provider / time-series import。
+- GIS、星圖、3D 與 antigravity_space：補 raster/tile/cache、bbox、projection、renderer-ready manifest、preview 與重型依賴 lazy import；對應 GEBCO/HYG、tile manifest、Taichi/Unreal bridge。
+- 數學與機械工程教材：補 bounds/geometry/affine transform、polygon/intersection、tile overlap 與 renderer coordinate conversion；對應 `bounds_schema` 與 GIS/renderer bridge。
+- Pandas / 資料清理教材：補 header normalize、missing value、type inference、schema fingerprint、bad row warning；對應 manual import 與 manifest importer。
+- Fluent Python / PyMOTW / 架構教材：補 ABC/protocol、streaming iterator、context manager、argparse subcommand、concurrent futures；對應 crawler registry、content parser registry、CLI split、download/import pipeline。
+- CODE_KM：最重要的是治理模型。`book/source provenance` 可映射為 dataset/source/file provenance；`OCR run` 可映射為 crawl/download/import run；`Notion staging/review/completed/restricted` 可映射為 candidate review、adapter review、curated asset promotion gate 與 rights/provenance gate；`local MySQL metadata` 可映射為 install registry / run registry / event log；`cleaner/reference skill` 可映射為 developer/client skill 分工。
+- 權利邊界要前置：外部教材、站點、API 或 wrapper 只能當 metadata clue 或合法來源的處理參考；任何內容 ingest / redistribution / training suitability 都要先有 provenance 與 rights status。
+
 ## Git 維護路線
 
 固定維護順序如下：

@@ -171,6 +171,8 @@ source URL
 
 K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案。可吸收的部分包含 HTTP header/timeout、HTML `href` 擷取、相對 URL 合併、Scrapy 分層思想、CSV/SQLite 清洗、rate limit/politeness、錯誤處理與 fixture 測試。落地時一律轉成 RRKAL 的 source pattern detector、crawler adapter、content parser、manifest/import pipeline 與 audit warning，不讓 crawler 直接寫 DB 或假裝未知格式已可解析。
 
+K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是程式碼來源。金融/風控教材補 time-series asset、交易日曆、補資料策略與 storage review；GIS、星圖與 3D 範例補 raster/tile/cache、bbox、projection 與 renderer-ready manifest；數學與機械工程教材補 bounds/geometry/transform；Pandas 與資料清理教材補 header normalize、type inference、schema fingerprint 與 bad-row warning；Fluent Python / PyMOTW 補 protocol、iterator、context manager、subcommand 與 concurrency 設計。CODE_KM 的價值在治理模型：來源 provenance、checksum、pipeline run state、rights/review gate、local metadata index 與人類可讀知識庫分離。RRKAL 應把這些概念收斂到 source profile、crawler run registry、manifest/import pipeline、install registry、adapter review、rights/provenance gate 與 agent skill 分工，而不是讓教材範例碼進入正式產品路徑。
+
 ## Dataset adapters
 
 Source-site discovery 和 dataset discovery 已經分開：
