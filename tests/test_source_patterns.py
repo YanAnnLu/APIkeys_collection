@@ -256,6 +256,26 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertEqual("html_file_index", result.source_type_hint)
         self.assertIn("html_contains_links", result.evidence)
 
+    def test_html_file_index_detects_compound_geospatial_file_links(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://geo-files.example.test/":
+                return PatternProbeResponse(
+                    url=url,
+                    text=(
+                        '<html><a href="boundary.geojson.gz">boundary.geojson.gz</a>'
+                        '<a href="tiles.gpkg">tiles.gpkg</a>'
+                        '<a href="notes.txt">notes.txt</a></html>'
+                    ),
+                    headers={"content-type": "text/html"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://geo-files.example.test/", fetcher=fetcher)
+
+        self.assertEqual("html_file_index", result.pattern_id)
+        self.assertEqual("html_file_index", result.source_type_hint)
+        self.assertIn("html_mentions_data_file_extensions:.geojson.gz,.gpkg", result.evidence)
+
     def test_ambiguous_collections_payload_stays_unknown_below_threshold(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://ambiguous.example.test/catalog":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
@@ -75,6 +76,13 @@ class SourcePatternDetection:
 
 PatternFetcher = Callable[[str, float], PatternProbeResponse | None]
 PatternDetector = Callable[[str, PatternFetcher, float], SourcePatternCandidate]
+
+HTML_DATA_FILE_PATTERN = re.compile(
+    r"\."
+    r"(csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|tar\.gz|zip|nc|hdf|h5|tiff|tif|gpkg|zarr|xml|parquet)"
+    r"(?=$|[?#\"'<>\\s])",
+    re.IGNORECASE,
+)
 
 
 def fetch_pattern_probe(url: str, timeout: float) -> PatternProbeResponse | None:
@@ -235,11 +243,23 @@ def detect_html_file_index(url: str, fetcher: PatternFetcher, timeout: float) ->
     text = response.text.lower()
     if "<a " in text and "href=" in text:
         evidence.append("html_contains_links")
-    file_extensions = (".csv", ".zip", ".nc", ".hdf", ".h5", ".tif", ".tiff", ".json", ".xml", ".parquet")
-    hits = tuple(extension for extension in file_extensions if extension in text)
+    hits = html_data_file_extension_hits(text)
     if hits:
         evidence.append("html_mentions_data_file_extensions:" + ",".join(hits[:5]))
     return score_pattern("html_file_index", evidence)
+
+
+def html_data_file_extension_hits(text: str) -> tuple[str, ...]:
+    # HTML index 是 fallback detector；這裡只辨識檔案線索，不解析下載內容。
+    seen: set[str] = set()
+    hits: list[str] = []
+    for match in HTML_DATA_FILE_PATTERN.finditer(text):
+        extension = "." + match.group(1).lower()
+        if extension in seen:
+            continue
+        seen.add(extension)
+        hits.append(extension)
+    return tuple(hits)
 
 
 def score_pattern(pattern_id: str, evidence: list[str] | tuple[str, ...]) -> SourcePatternCandidate:
