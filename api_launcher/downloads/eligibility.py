@@ -13,6 +13,7 @@ DIRECT_DOWNLOAD_EXTENSIONS = {
     ".bz2",
     ".csv",
     ".geojson",
+    ".gpkg",
     ".grb",
     ".grib",
     ".gz",
