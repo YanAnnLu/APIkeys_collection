@@ -4,6 +4,7 @@ import argparse
 import json
 import sqlite3
 
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.db import resolve_project_path, utc_now_iso
 from api_launcher.discovery import (
@@ -53,7 +54,12 @@ def add_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source-draft-min-expected-candidates", type=int, default=1, help="minimum expected candidates for crawler audit")
     parser.add_argument("--source-draft-local", default=LOCAL_DATASET_DISCOVERY_SOURCES_NAME, help="ignored local dataset discovery sources JSON to update")
     parser.add_argument("--source-draft-detector-timeout", type=float, default=8.0, help="seconds for source-pattern detector probes")
-    parser.add_argument("--source-draft-detector-min-confidence", type=float, default=0.35, help="minimum detector confidence before keeping the URL in review")
+    parser.add_argument(
+        "--source-draft-detector-min-confidence",
+        type=float,
+        default=DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
+        help="minimum detector confidence before keeping the URL in review",
+    )
     parser.add_argument("--write-source-draft-json", default="", help="optional JSON summary for --write-source-draft-from-url")
 
 

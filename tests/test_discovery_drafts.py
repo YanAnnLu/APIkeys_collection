@@ -7,6 +7,7 @@ from unittest.mock import patch
 from api_launcher.core import main
 from api_launcher.crawlers.dataset_sources import load_dataset_discovery_sources
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_drafts import infer_source_type
@@ -304,7 +305,7 @@ class DiscoveryDraftTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             local_sources_path = Path(tmpdir) / "dataset_discovery_sources.local.json"
             summary_path = Path(tmpdir) / "source_pattern_summary.json"
-            with patch("api_launcher.source_pattern_drafts.detect_source_interface_pattern", return_value=detection):
+            with patch("api_launcher.source_pattern_drafts.detect_source_interface_pattern", return_value=detection) as detector:
                 rc = main(
                     [
                         "--db",
@@ -325,6 +326,7 @@ class DiscoveryDraftTests(unittest.TestCase):
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
         self.assertEqual(0, rc)
+        self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, detector.call_args.kwargs["minimum_confidence"])
         self.assertEqual(1, len(sources))
         self.assertEqual("erddap_all_datasets", sources[0].source_type)
         self.assertIn("/erddap/tabledap/allDatasets.json", sources[0].endpoint_url)
