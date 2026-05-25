@@ -33,7 +33,7 @@ Last updated: 2026-05-25
 - [x] 把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口；UI 會顯示 detector evidence、信心分數、local draft 路徑與下一步 discovery audit 指令。`unknown` / unsupported source type 仍由後端拒絕並停在 review。
 - [x] 建立 `api_launcher/content_registry.py` 骨架，把來源介面類型與 CSV/JSON/NetCDF/GeoTIFF/ZIP 等下載內容格式完全分開；`dataset_import_plan_entry()` 已改用 content parser capability 判斷 CSV/JSON 目前可匯入、ZIP/壓縮檔需 transform review、NetCDF/HDF/Zarr/GeoTIFF/Parquet 等需 content parser review。
 - [x] Adapter resolver 產生 direct entry 時已寫入 `content_detection` / `content_parser` 摘要，UI/agent 現在不只看到 `source_format`，也能看到內容 parser 狀態、parser id、review bucket 與下一步。
-- [x] Content format 正規化已補 geospatial/scientific MIME：`image/tiff; application=geotiff`、HDF、GRIB 等不會被誤判成未知格式，而會進入正確 review bucket。
+- [x] Content format 正規化已補 geospatial/scientific MIME：`image/tiff; application=geotiff`、GeoPackage、HDF、GRIB 等不會被誤判成未知格式，而會進入正確 review bucket。
 - [x] Adapter resolver 已允許 GeoTIFF / COG / GeoPackage 這類 geospatial direct asset 先形成下載計畫，再停在 content parser review；extensionless GeoTIFF 會得到 `.tif` 目標檔名。
 - [ ] 下一輪：把 `content_detection` 摘要接進 adapter review / download plan JSON 的 UI 顯示層，讓使用者在送進下載器前就知道「可匯入、需解壓、需 parser review」。
 
