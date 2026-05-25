@@ -39,6 +39,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("Demo STAC", card["display_name"])
         self.assertEqual("stac_collections", card["source_type"])
         self.assertTrue(card["capabilities"])
+        self.assertEqual("抓取元資料", card["capabilities"][0]["display_label"])
 
     def test_detail_returns_dynamic_bounds_form(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -56,11 +57,15 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("start_date", field_ids)
         self.assertIn("bbox_west", field_ids)
         self.assertIn("limit", field_ids)
+        fields = {field["field_id"]: field for field in detail["bound_form"]["fields"]}
+        self.assertEqual("起始日期", fields["start_date"]["display_label"])
+        self.assertEqual("西界經度", fields["bbox_west"]["display_label"])
         flow_step_ids = [step["step_id"] for step in detail["flow_steps"]]
         self.assertEqual(
             ["seed", "source_pattern", "bounds", "download_plan", "review_gate"],
             flow_step_ids,
         )
+        self.assertEqual("Seed 註冊", detail["flow_steps"][0]["label"])
 
     def test_static_ui_uses_rrkal_product_vocabulary(self) -> None:
         web_root = Path(__file__).resolve().parents[1] / "frontends" / "web" / "static"

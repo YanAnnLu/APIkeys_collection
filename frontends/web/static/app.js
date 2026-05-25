@@ -485,6 +485,7 @@ function capabilityStatusText(capability) {
 }
 
 function capabilityLabel(capability) {
+  if (capability.display_label) return capability.display_label;
   const labels = {
     fetch_metadata: "抓取元資料",
     list_datasets: "擷取資料清單",
@@ -494,6 +495,7 @@ function capabilityLabel(capability) {
 }
 
 function fieldLabel(field) {
+  if (field.display_label) return field.display_label;
   const labels = {
     collection: "資料集合",
     time_field: "時間欄位",
@@ -514,6 +516,7 @@ function fieldLabel(field) {
 }
 
 function fieldHelp(field) {
+  if (field.display_help) return field.display_help;
   const help = {
     collection: "選擇或輸入資料集合；不同範式可能稱為 collection、package、dataset。",
     time_field: "資料集若有時間序列，請輸入對應時間欄位名稱。",

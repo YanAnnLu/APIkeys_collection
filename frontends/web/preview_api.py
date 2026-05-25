@@ -10,6 +10,11 @@ from api_launcher.crawler_asset_bound_forms import (
     build_crawler_asset_bound_form_spec,
     crawler_asset_bound_payload_from_form_values,
 )
+from api_launcher.crawler_asset_display import (
+    crawler_asset_bound_form_payload,
+    crawler_asset_card_capabilities,
+    crawler_asset_flow_steps,
+)
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
 from api_launcher.db import connect_db
@@ -70,15 +75,7 @@ def crawler_asset_card(asset: CrawlerAsset) -> dict[str, object]:
         "enabled": asset.enabled,
         "archived": asset.archived,
         "health": asset.health.to_dict(),
-        "capabilities": [
-            {
-                "capability_id": capability.capability_id,
-                "label": capability.label,
-                "status": capability.status,
-                "next_action": capability.next_action,
-            }
-            for capability in asset.capabilities
-        ],
+        "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "next_action": asset.next_action,
     }
 
@@ -100,68 +97,9 @@ def crawler_asset_detail(
     return {
         "asset": asset.to_dict(),
         "card": crawler_asset_card(asset),
-        "bound_form": form_spec.to_dict(),
+        "bound_form": crawler_asset_bound_form_payload(form_spec),
         "flow_steps": crawler_asset_flow_steps(asset, form_spec),
     }
-
-
-def crawler_asset_flow_steps(
-    asset: CrawlerAsset,
-    form_spec: CrawlerAssetBoundFormSpec,
-) -> list[dict[str, object]]:
-    """Build a backend-owned visual flow for Web/Tk/Qt surfaces.
-
-    The web preview should not infer crawler readiness from ad hoc UI strings.
-    This compact flow keeps the UI visual while still grounding every step in
-    crawler asset metadata, capabilities, and the dynamic bounds form contract.
-    """
-
-    plan_capability = next(
-        (capability for capability in asset.capabilities if capability.capability_id == BUILD_DOWNLOAD_PLAN),
-        None,
-    )
-    source_type_known = bool(asset.source_type and asset.source_type != "unknown")
-    has_bounds_form = bool(form_spec.fields)
-    plan_status = plan_capability.status if plan_capability is not None else "missing_handler"
-    review_needed = asset.health.status_code not in {"healthy", "ready"} or "review" in plan_status
-    return [
-        {
-            "step_id": "seed",
-            "label": "Seed 註冊",
-            "status": "complete" if asset.seed_count else "warning",
-            "summary": asset.seed_summary or f"{asset.seed_count} seed",
-            "evidence": asset.endpoint_url,
-        },
-        {
-            "step_id": "source_pattern",
-            "label": "來源範式",
-            "status": "complete" if source_type_known else "review",
-            "summary": asset.source_type or "unknown",
-            "evidence": asset.source_surface,
-        },
-        {
-            "step_id": "bounds",
-            "label": "界域表單",
-            "status": "complete" if has_bounds_form else "neutral",
-            "summary": f"{len(form_spec.fields)} 個欄位" if has_bounds_form else "不需或尚未定義界域",
-            "evidence": ", ".join(form_spec.groups),
-            "warning_codes": list(form_spec.warning_codes),
-        },
-        {
-            "step_id": "download_plan",
-            "label": "下載計畫",
-            "status": "complete" if plan_status in {"selectable", "ready", "bounded"} else "review",
-            "summary": plan_status,
-            "evidence": plan_capability.next_action if plan_capability is not None else "implement_source_handler",
-        },
-        {
-            "step_id": "review_gate",
-            "label": "審核門檻",
-            "status": "review" if review_needed else "complete",
-            "summary": asset.health.status_code,
-            "evidence": asset.next_action,
-        },
-    ]
 
 
 def crawler_asset_bound_form(

@@ -7,10 +7,10 @@
 ## 2026-05-26 Web Preview / 後端流程視覺化
 
 - Web Preview 目前已從 `tem/ui-aseat-ui` 只吸收構圖與互動節奏，產品語彙已收斂回 RRKAL：爬蟲資產、資產護照、界域輸入、下載計畫、本機互動紀錄、後端 JSON。
-- `frontends/web/preview_api.py` 的 crawler asset detail payload 現在包含 `flow_steps`，由後端根據 seed、source pattern、bound form、download plan capability、review gate 產生；Web 只視覺化，不自行推測 readiness。
-- `frontends/web/static/app.js` 針對 `field_id` / `capability_id` 做中文顯示對照，避免舊後端 label 的 mojibake 直接污染 UI；後端原始契約不變。
+- `api_launcher/crawler_asset_display.py` 現在負責 crawler asset 的 UI 共用顯示 schema：`flow_steps`、capability `display_label`、bound field `display_label` / `display_help` 都由後端產生；Web/Tk/Qt 只負責呈現，不自行推測 readiness。
+- `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
-- 下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 `flow_steps` / label mapping 抽成 shared display schema，再接 plan outcome / adapter review 的視覺化；不要把外部參考命名搬回 UI。
+- 下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 plan outcome / adapter review 的視覺化接到同一份 display schema；不要把外部參考命名搬回 UI。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 
@@ -19,7 +19,7 @@
 - 業務邏輯仍屬於 `api_launcher`。Web Preview 只經過 `frontends/web/preview_api.py` 呼叫 `load_crawler_assets()`、`build_crawler_asset_bound_form_spec()` 與 `build_crawler_asset_download_plan()` 等既有 service；不要在 `app.js` 裡重寫 crawler、resolver、downloader 或 importer 規則。
 - `execute=false` 的 plan preview 只驗證界域 payload，不觸發 live crawler；`execute=true` 才會呼叫後端建立下載計畫，結果仍會依 direct download / adapter review 規則處理。
 - 相關文件已新增 `docs/WEB_PREVIEW_UIUX.zh-TW.md`，並在 GTD / Docs Index 記錄這條開發路線。後續若同步 Tk 與 Web Preview，請先確認 service contract，再分別接 UI 外殼。Tk 可以維持穩定樸素的控制台語言；Web Preview 可以更自由地實驗視覺、卡片、Passport、任務佇列與未來 QSS token，但不得分叉後端規則。
-- Web Preview 靜態 UI 已改成 Aseat Inventory：左側來源範式、中央 inventory slot 卡片牆、右側 Aseat Passport / 界域表單、下方 Mission Queue / JSON Inspector。它已移除上一版 mojibake 文案，並以 Aseat 管理語彙承接 `tem/ui-aseat-ui/HANDOFF.md` 的精神；若後續要加互動，仍要先接 `frontends/web/preview_api.py` 或共享 service，不要在 `app.js` 重寫 crawler 規則。
+- Web Preview 靜態 UI 只保留 `tem/ui-aseat-ui` 的布局節奏：左側來源範式、中央爬蟲資產卡片牆、右側資產護照 / 界域表單、下方本機互動紀錄 / 後端 JSON。外部參考詞彙不再作為 RRKAL 可見語言；若後續要加互動，仍要先接 `frontends/web/preview_api.py` 或共享 service，不要在 `app.js` 重寫 crawler 規則。
 - Web Preview server 現在支援 port fallback：預設 `8765`，若被其他前端 agent、IDE Live Preview 或另一份 clone 占用，會依 `--port-scan` 往後找可用 port 並印出實際 URL。不要終止不明程序；不同專案資料夾用不同 port 即可並行。
 
 ## 2026-05-25 爬蟲資產 UI 狀態收斂
