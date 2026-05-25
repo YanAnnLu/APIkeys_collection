@@ -684,9 +684,32 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("bathymetry_2026", dataset.dataset_id)
         self.assertEqual("wms", dataset.native_format)
         self.assertEqual("gis", dataset.metadata["data_family"])
+        self.assertEqual("Sample WMS Service", dataset.metadata["service_title"])
         self.assertEqual("bathymetry_2026", dataset.metadata["wms_layer_name"])
         self.assertEqual("https://maps.example.test/wms?", dataset.metadata["wms_get_map_url"])
         self.assertEqual(-180.0, dataset.metadata["bbox"]["west"])
+        self.assertEqual(
+            1,
+            len(
+                ogc_wms_candidates_from_xml(
+                    source,
+                    xml,
+                    "https://maps.example.test/wms?service=WMS&request=GetCapabilities",
+                    5,
+                    search_terms=("bathymetry",),
+                )
+            ),
+        )
+        self.assertEqual(
+            [],
+            ogc_wms_candidates_from_xml(
+                source,
+                xml,
+                "https://maps.example.test/wms?service=WMS&request=GetCapabilities",
+                5,
+                search_terms=("roads",),
+            ),
+        )
 
     def test_ogc_wms_capabilities_url_preserves_explicit_request(self) -> None:
         explicit = "https://maps.example.test/wms?service=WMS&request=GetCapabilities"

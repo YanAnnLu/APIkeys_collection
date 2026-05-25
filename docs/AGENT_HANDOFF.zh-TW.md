@@ -14,6 +14,7 @@
 - `api_launcher/source_pattern_drafts.py` 已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL；測試確認 invalid URL 不會觸發 detector，也不會寫入 local source draft。
 - OGC detector 已把 WMS `GetCapabilities` XML 分流成 `ogc_wms` / `ogc_wms_capabilities`，並新增 `api_launcher/crawlers/ogc_wms.py` 從 capabilities layer 抽 dataset candidate。不要把 WMS 誤接到 `ogc_api_records`。
 - WMS parser 會優先使用 `Request/GetMap` 底下的 `OnlineResource` 作為 `api_url`，避免拿到 Service metadata 的介紹頁 URL。
+- WMS parser 也已補 `<Service><Title>` metadata 與 layer search-term 過濾測試，候選 passport 不再只依賴 source name 當服務標題。
 - Source pattern 的 WMS detector 也已接受大寫 `SERVICE` / `REQUEST` capabilities URL，不會在 detector probe 時重複追加小寫參數。
 - HTML file index detector 產生的 source draft 現在會帶保守資料檔副檔名 regex；測試確認草稿能直接交給 `html_file_index_candidates_from_text()` 抽出 CSV shard，而不是在 crawler audit 才因缺 `file_url_regex` 失敗。
 - CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。

@@ -49,7 +49,7 @@ def ogc_wms_candidates_from_xml(
     search_terms: tuple[str, ...] = (),
 ) -> list[DatasetCandidate]:
     root = ET.fromstring(text)
-    service_title = first_child_text(root, "Title") or source.name
+    service_title = wms_service_title(root) or source.name
     get_map_url = wms_get_map_url(root) or source_url
     candidates: list[DatasetCandidate] = []
     for layer in named_layers(root):
@@ -120,6 +120,13 @@ def first_child_text(element: ET.Element, child_name: str) -> str:
     for child in element:
         if local_name(child.tag) == child_name and child.text and child.text.strip():
             return child.text.strip()
+    return ""
+
+
+def wms_service_title(root: ET.Element) -> str:
+    for child in root:
+        if local_name(child.tag) == "Service":
+            return first_child_text(child, "Title")
     return ""
 
 

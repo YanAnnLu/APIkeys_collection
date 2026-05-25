@@ -16,6 +16,7 @@ Last updated: 2026-05-25
 - [x] 補強 detector 合約測試：CKAN `package_search`、Socrata `api/views.json`、OGC `conformsTo` / `collections`，以及 ambiguous collections payload 低信心時必須停在 `unknown`。
 - [x] 補強 OGC/WMS 老式入口：純 WMS `GetCapabilities` XML 現在會辨識為 `ogc_wms` / `ogc_wms_capabilities`，並由 `api_launcher/crawlers/ogc_wms.py` 從 capabilities layer 抽出 dataset candidate，不再誤走 OGC API Records handler。
 - [x] WMS parser 已優先取 `Request/GetMap` 的 `OnlineResource` 作為候選 `api_url`，避免誤用 Service metadata 連結。
+- [x] WMS parser 已補正 `<Service><Title>` metadata 與 layer search-term 過濾測試，讓 candidate passport 顯示的服務標題與搜尋範圍更可靠。
 - [x] WMS capabilities URL helper 已接受大寫 `SERVICE` / `REQUEST` query，不會對既有 GetCapabilities URL 重複追加參數。
 - [x] Source pattern 的 WMS detector 已同步使用 case-insensitive GetCapabilities probe，使用者貼大寫 query 的 WMS capabilities URL 時不會被 detector 追加第二組參數。
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
