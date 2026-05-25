@@ -19,6 +19,7 @@ from typing import Any
 import APIkeys_collection as core
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
 from api_launcher.adapter_review import AdapterReviewItem
+from api_launcher.crawler_asset_display import adapter_review_outcome_label
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, append_dataset_discovery_source
 from api_launcher.data_store_connections import (
     data_store_profiles_from_config,
@@ -1418,7 +1419,7 @@ class AdapterReviewDialog:
         return (
             item.adapter_id,
             item.required_action,
-            item.outcome_bucket,
+            adapter_review_outcome_label(str(item.outcome_bucket)),
             item.provider_id,
             item.dataset_id,
             item.version or "-",

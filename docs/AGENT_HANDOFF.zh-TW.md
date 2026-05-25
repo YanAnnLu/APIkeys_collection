@@ -11,6 +11,7 @@
 - `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help` / `display_tone` / `summary`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
 - Tk 的爬蟲資產分頁已開始使用同一份 display schema：表格短狀態改取 `plan_outcome.short_label`，避免 Tk/Web/Qt 各自維護 outcome bucket 文案。下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章；不要把外部參考命名搬回 UI。
+- Tk Adapter 待辦表格也已開始使用共用 display schema：表格 outcome 欄顯示 `adapter_review_outcome_label()` 的人類可讀短標籤，detail 仍保留 raw `outcome_bucket`，所以 UI 不再把 `source_resolution_required` 直接丟給使用者，但 agent 仍可複製細節比對 JSON。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

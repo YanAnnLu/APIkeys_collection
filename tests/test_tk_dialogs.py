@@ -736,11 +736,12 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("socrata", "resolve_api", "source_resolution_required", "nyc_open_data", "trees", "latest", "https://example.test/api"),
+            ("socrata", "resolve_api", "來源解析待辦", "nyc_open_data", "trees", "latest", "https://example.test/api"),
             AdapterReviewDialog.review_item_row_values(item),
         )
         detail = AdapterReviewDialog.review_item_detail_text(item)
         self.assertIn("adapter_id: socrata", detail)
+        self.assertIn("outcome_bucket: source_resolution_required", detail)
         self.assertIn("dataset_uid: abcd-1234", detail)
         self.assertIn("reason: selector", detail)
 

@@ -12,6 +12,7 @@ Last updated: 2026-05-26
 - [x] 把 Web 使用的 `flow_steps` / label 對照抽成 `api_launcher/crawler_asset_display.py`，讓 Web/Tk/Qt 以後共用 `display_label`、`display_help` 與流程條 payload。
 - [x] 將 plan outcome / Adapter review 摘要納入同一份 display schema：Web API 現在回傳 `plan_outcome` 與 `adapter_review` 顯示 payload，Web JS 只呈現後端 label/tone/summary，不自行推理業務分支。
 - [x] 讓 Tk 的爬蟲資產分頁改用同一份 display schema：表格短狀態現在取自 `plan_outcome.short_label`，不再在 Tk 內重寫 outcome bucket 分支。
+- [x] 讓 Tk Adapter 待辦表格也使用共用 display schema：表格顯示人類可讀 outcome label，detail 仍保留原始 `outcome_bucket` 給 agent / JSON 比對。
 - [ ] 下一步：把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
