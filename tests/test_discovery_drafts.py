@@ -9,8 +9,10 @@ from api_launcher.crawlers.dataset_sources import load_dataset_discovery_sources
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
+from api_launcher.discovery_drafts import infer_source_type
 from api_launcher.discovery_drafts import normalize_endpoint_for_source_type
 from api_launcher.discovery_drafts import SOURCE_ENDPOINT_NORMALIZERS
+from api_launcher.discovery_drafts import SOURCE_TYPE_INFERENCE_RULES
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.source_pattern_drafts import dataset_source_from_detected_url
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
@@ -277,6 +279,20 @@ class DiscoveryDraftTests(unittest.TestCase):
             "https://example.test/root?keep=true#raw",
             normalize_endpoint_for_source_type("unknown_source_type", "https://example.test/root?keep=true#raw"),
         )
+
+    def test_source_type_inference_registry_stays_inside_supported_source_types(self) -> None:
+        # URL 推斷只負責保守辨識已支援範式；未知來源必須留在 review，而不是硬猜。
+        inferred_types = [source_type for source_type, _matches in SOURCE_TYPE_INFERENCE_RULES]
+
+        self.assertEqual(len(inferred_types), len(set(inferred_types)))
+        self.assertLessEqual(set(inferred_types), set(SUPPORTED_DATASET_SOURCE_TYPES))
+        self.assertIn("ckan_package_search", inferred_types)
+        self.assertIn("cmr_collections", inferred_types)
+        self.assertEqual(
+            "cmr_collections",
+            infer_source_type("https://cmr.earthdata.nasa.gov/search/collections.json?page_size=1"),
+        )
+        self.assertEqual("", infer_source_type("https://example.test/about"))
 
     def test_cli_writes_detected_source_draft_from_url(self) -> None:
         detection = SourcePatternDetection(

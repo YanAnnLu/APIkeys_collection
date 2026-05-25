@@ -22,6 +22,7 @@ LOCAL_DISCOVERY_AUDIT_COMMAND = (
     "--promote-local-discovery-dry-run --write-local-discovery-audit-json state/local_discovery_audit.json"
 )
 SourceEndpointNormalizer = Callable[[urllib.parse.ParseResult], str]
+UrlSourceTypePredicate = Callable[[str], bool]
 
 
 def dataset_source_from_provider_candidate(candidate: Mapping[str, object]) -> DatasetDiscoverySource:
@@ -132,31 +133,74 @@ def first_supported_source_type(candidate: Mapping[str, object]) -> str:
 def infer_source_type(url: str) -> str:
     # 只處理穩定且已經有 crawler handler 的公開 API 形狀；未知入口不做猜測，避免假成功。
     normalized = url.lower()
-    if "package_search" in normalized or "/api/3/action" in normalized or "/api/action" in normalized:
-        return "ckan_package_search"
-    if "api.us.socrata.com/api/catalog" in normalized or "/api/catalog/v1" in normalized:
-        return "socrata_catalog_search"
-    if "api.gbif.org" in normalized and "/dataset" in normalized:
-        return "gbif_dataset_search"
-    if "cmr.earthdata.nasa.gov/search" in normalized:
-        return "cmr_collections"
-    if "stac" in normalized:
-        return "stac_collections"
-    if "erddap" in normalized:
-        return "erddap_all_datasets"
-    if "/api/search" in normalized and "dataverse" in normalized:
-        return "dataverse_search"
-    if "zenodo.org/api/records" in normalized:
-        return "zenodo_records_search"
-    if "api.datacite.org/dois" in normalized:
-        return "datacite_dois"
-    if "api.openalex.org/works" in normalized:
-        return "openalex_works_search"
-    if "collections" in normalized and "items" in normalized and normalized.startswith(("http://", "https://")):
-        return "ogc_api_records"
-    if "access/services/search/v1" in normalized and "ncei.noaa.gov" in normalized:
-        return "ncei_search"
+    for source_type, matches in SOURCE_TYPE_INFERENCE_RULES:
+        if matches(normalized):
+            return source_type
     return ""
+
+
+def url_matches_ckan_package_search(normalized_url: str) -> bool:
+    return "package_search" in normalized_url or "/api/3/action" in normalized_url or "/api/action" in normalized_url
+
+
+def url_matches_socrata_catalog_search(normalized_url: str) -> bool:
+    return "api.us.socrata.com/api/catalog" in normalized_url or "/api/catalog/v1" in normalized_url
+
+
+def url_matches_gbif_dataset_search(normalized_url: str) -> bool:
+    return "api.gbif.org" in normalized_url and "/dataset" in normalized_url
+
+
+def url_matches_cmr_collections(normalized_url: str) -> bool:
+    return "cmr.earthdata.nasa.gov/search" in normalized_url
+
+
+def url_matches_stac_collections(normalized_url: str) -> bool:
+    return "stac" in normalized_url
+
+
+def url_matches_erddap_all_datasets(normalized_url: str) -> bool:
+    return "erddap" in normalized_url
+
+
+def url_matches_dataverse_search(normalized_url: str) -> bool:
+    return "/api/search" in normalized_url and "dataverse" in normalized_url
+
+
+def url_matches_zenodo_records_search(normalized_url: str) -> bool:
+    return "zenodo.org/api/records" in normalized_url
+
+
+def url_matches_datacite_dois(normalized_url: str) -> bool:
+    return "api.datacite.org/dois" in normalized_url
+
+
+def url_matches_openalex_works_search(normalized_url: str) -> bool:
+    return "api.openalex.org/works" in normalized_url
+
+
+def url_matches_ogc_api_records(normalized_url: str) -> bool:
+    return "collections" in normalized_url and "items" in normalized_url and normalized_url.startswith(("http://", "https://"))
+
+
+def url_matches_ncei_search(normalized_url: str) -> bool:
+    return "access/services/search/v1" in normalized_url and "ncei.noaa.gov" in normalized_url
+
+
+SOURCE_TYPE_INFERENCE_RULES: tuple[tuple[str, UrlSourceTypePredicate], ...] = (
+    ("ckan_package_search", url_matches_ckan_package_search),
+    ("socrata_catalog_search", url_matches_socrata_catalog_search),
+    ("gbif_dataset_search", url_matches_gbif_dataset_search),
+    ("cmr_collections", url_matches_cmr_collections),
+    ("stac_collections", url_matches_stac_collections),
+    ("erddap_all_datasets", url_matches_erddap_all_datasets),
+    ("dataverse_search", url_matches_dataverse_search),
+    ("zenodo_records_search", url_matches_zenodo_records_search),
+    ("datacite_dois", url_matches_datacite_dois),
+    ("openalex_works_search", url_matches_openalex_works_search),
+    ("ogc_api_records", url_matches_ogc_api_records),
+    ("ncei_search", url_matches_ncei_search),
+)
 
 
 def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> str:
