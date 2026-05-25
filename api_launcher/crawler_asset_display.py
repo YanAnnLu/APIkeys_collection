@@ -235,6 +235,13 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
         "outcome_bucket": bucket,
         "display_label": display["display_label"],
         "display_tone": display["display_tone"],
+        "short_label": _plan_outcome_short_label(
+            bucket,
+            direct=direct,
+            review=review,
+            added_count=added_count,
+            blocked_reason=blocked_reason,
+        ),
         "summary": summary,
         "direct_download_count": direct,
         "review_required_count": review,
@@ -283,6 +290,16 @@ def plan_outcome_display_label(bucket: str) -> str:
     return str(display["display_label"])
 
 
+def plan_outcome_short_label(bucket: str, *, added_count: int = 0, review_count: int = 0) -> str:
+    return _plan_outcome_short_label(
+        bucket,
+        direct=0,
+        review=review_count,
+        added_count=added_count,
+        blocked_reason="",
+    )
+
+
 def _plan_outcome_summary(
     bucket: str,
     *,
@@ -305,6 +322,27 @@ def _plan_outcome_summary(
     return default_summary
 
 
+def _plan_outcome_short_label(
+    bucket: str,
+    *,
+    direct: int,
+    review: int,
+    added_count: int,
+    blocked_reason: str,
+) -> str:
+    if bucket == "ready_to_download":
+        return f"可下載 {added_count or direct}"
+    if bucket == "partial_review_required":
+        return f"可下載 {added_count} / 待辦 {review}"
+    if bucket == "review_required":
+        return f"待 Adapter {review}"
+    if bucket == "zero_candidates":
+        return "零候選"
+    if bucket == "blocked":
+        return f"已阻擋 {blocked_reason or 'blocked'}"
+    return "需檢查"
+
+
 def _safe_int(value: object) -> int:
     try:
         return int(value)  # type: ignore[arg-type]
@@ -324,4 +362,5 @@ __all__ = [
     "bound_field_display_label",
     "bound_field_display_help",
     "plan_outcome_display_label",
+    "plan_outcome_short_label",
 ]

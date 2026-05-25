@@ -388,11 +388,11 @@ class TkDialogModuleTest(unittest.TestCase):
         zero = SimpleNamespace(blocked=False, outcome_bucket="zero_candidates", review_required_count=0)
         blocked = SimpleNamespace(blocked=True, outcome_bucket="blocked", blocked_reason="missing_credentials")
 
-        self.assertEqual("🟢 已加入 3", crawler_asset_plan_outcome_label(ready, 3))
-        self.assertEqual("🟡 已加入 1 / 待辦 2", crawler_asset_plan_outcome_label(partial, 1))
-        self.assertEqual("🟡 待 Adapter 2", crawler_asset_plan_outcome_label(review, 0))
-        self.assertEqual("⚪ 零候選", crawler_asset_plan_outcome_label(zero, 0))
-        self.assertEqual("⛔ missing_credentials", crawler_asset_plan_outcome_label(blocked, 0))
+        self.assertEqual("可下載 3", crawler_asset_plan_outcome_label(ready, 3))
+        self.assertEqual("可下載 1 / 待辦 2", crawler_asset_plan_outcome_label(partial, 1))
+        self.assertEqual("待 Adapter 2", crawler_asset_plan_outcome_label(review, 0))
+        self.assertEqual("零候選", crawler_asset_plan_outcome_label(zero, 0))
+        self.assertEqual("已阻擋 missing_credentials", crawler_asset_plan_outcome_label(blocked, 0))
 
     def test_crawler_asset_row_values_use_last_plan_outcome(self) -> None:
         source = DatasetDiscoverySource(
@@ -404,11 +404,11 @@ class TkDialogModuleTest(unittest.TestCase):
         )
         asset = crawler_asset_from_source(source)
         ui = object.__new__(CrawlerAssetWorkflowMixin)
-        ui.crawler_asset_plan_outcomes = {"demo_index": "🟢 已加入 1"}
+        ui.crawler_asset_plan_outcomes = {"demo_index": "可下載 1"}
 
         values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
-        self.assertEqual("🟢 已加入 1", values[-1])
+        self.assertEqual("可下載 1", values[-1])
 
     def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
         payload = {
@@ -494,7 +494,7 @@ class TkDialogModuleTest(unittest.TestCase):
                     "event": "crawler_asset_plan_outcome_recorded",
                     "context": {
                         "asset_id": "demo_index",
-                        "outcome_label": "🟡 待 Adapter 1",
+                        "outcome_label": "待 Adapter 1",
                         "resolved_plan": plan_path,
                     },
                 }
@@ -503,7 +503,7 @@ class TkDialogModuleTest(unittest.TestCase):
             with patch("frontends.tk.crawler_asset_workflows.latest_events", return_value=events):
                 CrawlerAssetWorkflowMixin.load_crawler_asset_plan_outcomes_from_events(ui)
 
-        self.assertEqual("🟡 待 Adapter 1", ui.crawler_asset_plan_outcomes["demo_index"])
+        self.assertEqual("待 Adapter 1", ui.crawler_asset_plan_outcomes["demo_index"])
         self.assertEqual(1, crawler_asset_review_count_from_plan(ui.crawler_asset_resolved_plans["demo_index"]))
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:

@@ -11,6 +11,7 @@ from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
+from api_launcher.crawler_asset_display import crawler_asset_plan_outcome_payload
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
@@ -711,21 +712,10 @@ def crawler_asset_download_plan_summary_text(
 def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
     """產生表格用的短狀態；詳細說明仍由 summary text 負責。"""
 
-    bucket = str(getattr(result, "outcome_bucket", "") or "")
-    review = int(getattr(result, "review_required_count", 0) or 0)
-    blocked = bool(getattr(result, "blocked", False))
-    if blocked or bucket == "blocked":
-        reason = str(getattr(result, "blocked_reason", "") or "blocked")
-        return f"⛔ {reason}"
-    if bucket == "ready_to_download":
-        return f"🟢 已加入 {added_count}"
-    if bucket == "partial_review_required":
-        return f"🟡 已加入 {added_count} / 待辦 {review}"
-    if bucket == "review_required":
-        return f"🟡 待 Adapter {review}"
-    if bucket == "zero_candidates":
-        return "⚪ 零候選"
-    return "⚪ 無可執行"
+    # Tk 只取共用 display schema 的短標籤；完整 tone/summary 留給 Web/Qt 或詳情訊息使用。
+    payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
+    short_label = str(payload.get("short_label") or "").strip()
+    return short_label or str(payload.get("display_label") or "需檢查")
 
 
 def crawler_asset_review_count_from_plan(payload: object) -> int:

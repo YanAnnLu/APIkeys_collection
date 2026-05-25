@@ -132,6 +132,7 @@ class WebPreviewApiTest(unittest.TestCase):
 
         self.assertEqual("partial_review_required", payload["outcome_bucket"])
         self.assertEqual("部分可下載", payload["display_label"])
+        self.assertEqual("可下載 1 / 待辦 2", payload["short_label"])
         self.assertEqual("warning", payload["display_tone"])
         self.assertIn("仍有 2 筆需要 Adapter 審核", payload["summary"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
