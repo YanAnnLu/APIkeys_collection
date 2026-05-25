@@ -222,6 +222,9 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("csv", resolved_entry["source_format"])
         self.assertEqual("supported_after_download", resolved_entry["import_plan"]["status"])
         self.assertEqual("csv_to_sqlite", resolved_entry["import_plan"]["importer"])
+        self.assertEqual("csv", resolved_entry["content_detection"]["source_format"])
+        self.assertEqual("csv_to_sqlite", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("supported_after_download", resolved_entry["content_parser"]["import_status"])
         self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
 
     def test_dcat_distribution_object_promotes_direct_json_entry(self) -> None:
@@ -647,6 +650,9 @@ class AdapterPlanResolverTests(unittest.TestCase):
         )
         self.assertEqual("netcdf", resolved_entry["source_format"])
         self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("netcdf", resolved_entry["content_detection"]["source_format"])
+        self.assertEqual("scientific_grid_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
         self.assertEqual("generic_resource_direct_download_resolver", resolved_entry["adapter_resolution"]["resolver_id"])
         self.assertNotIn("adapter_review", resolved_entry)
 

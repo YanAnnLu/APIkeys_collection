@@ -169,6 +169,8 @@ source URL
 
 目前內容格式的第一層骨架在 `api_launcher/content_registry.py`。它只處理下載物格式與 parser capability，不處理 STAC/CKAN/ERDDAP 等來源入口。`dataset_import_plan_entry()` 已使用這層 registry：CSV/CSV.GZ 走 `csv_to_sqlite`，JSON/JSONL/NDJSON/GeoJSON 走 `json_to_sqlite`；ZIP/TAR/ZST 等壓縮或封包檔停在 `requires_unpack_or_adapter`；NetCDF/HDF/Zarr、GeoTIFF/COG/Shapefile/GeoPackage、Parquet/Arrow、PDF/XML/HTML/TXT 與 unknown 目前都停在 `manual_review_required`，等待專用 content parser 或 renderer/cache adapter。這個狀態是刻意保守，不代表不能下載，只代表不能假裝已能 curated import。
 
+Adapter resolver 產生 direct download entry 時，也會寫入 `content_detection` 與 `content_parser` 摘要。後續 UI/agent 應優先讀這些 machine-readable 欄位來判斷下一步，而不是只看 `source_format` 字串或人類文字 reason。
+
 目前要先把 source detector 做成保守、可測、可擴充的服務。CMR detector 只能在 host/path 像 NASA CMR 時 probe CMR 固定端點，避免所有 URL 都被 NASA CMR 的成功回應污染。遇到 unknown 時，不自動下載，改回報 `source_pattern_unknown` 或引導人工補 source profile。
 
 CLI/agent 若只是拿到一個入口 URL，可以先用 detector 產生 ignored local source draft，不直接改官方 catalog：

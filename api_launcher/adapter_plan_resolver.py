@@ -123,6 +123,7 @@ from api_launcher.db import utc_now_iso
 from api_launcher.downloads.eligibility import DownloadEligibility, looks_like_direct_download
 from api_launcher.downloads.plan_runner import plan_entries
 from api_launcher.downloads.staging import safe_path_part
+from api_launcher.content_registry import detect_content_format
 from api_launcher.models import Dataset
 from api_launcher.plans import (
     assess_dataset_version_download,
@@ -509,6 +510,13 @@ def direct_resource_entry(
     option_metadata = dict(version_meta.get("metadata") or {}) if isinstance(version_meta.get("metadata"), dict) else {}
     source_format = source_format_for_resource(resource, url, str(entry.get("source_format") or "unknown"))
     resource_name = first_text(resource.get("name"), resource.get("id"), resource.get("title"), resource.get("rel"), resource.get("group"), Path(urllib.parse.urlparse(url).path).name)
+    resource_format_hint = resource_format_text(resource)
+    content_detection = detect_content_format(
+        url=url,
+        media_type=resource_format_hint,
+        format_hint=source_format,
+        filename=resource_name,
+    )
     base_version = first_text(version_meta.get("version"), entry.get("version"), "resolved")
     resource_part = safe_path_part(resource_name or f"resource_{resource_index}")
     # version 需要混入 resource 名稱，避免同一 dataset 的多個檔案撞到同一個 target path。
@@ -574,6 +582,8 @@ def direct_resource_entry(
             "download_url": url,
             "target_path": dataset_download_target_path(provider_id, dataset, option, downloads_root).as_posix(),
             "import_plan": dataset_import_plan_entry(dataset, option, eligibility),
+            "content_detection": content_detection.to_dict(),
+            "content_parser": content_detection.capability.to_dict(),
             "plan_status": "planned",
             "adapter_resolution": {
                 # adapter_resolution 保留解析來源，讓日後出錯時能回查是哪個 resolver 做的判斷。
@@ -581,27 +591,7 @@ def direct_resource_entry(
                 "original_plan_index": plan_index,
                 "resource_index": resource_index,
                 "resource_name": resource_name,
-                "resource_format": first_resource_text(
-                    resource.get("format"),
-                    resource.get("dct:format"),
-                    resource.get("dc:format"),
-                    resource.get("http://purl.org/dc/terms/format"),
-                    resource.get("http://purl.org/dc/elements/1.1/format"),
-                    resource.get("mimetype"),
-                    resource.get("mimeType"),
-                    resource.get("media_type"),
-                    resource.get("mediaType"),
-                    resource.get("dcat:mediaType"),
-                    resource.get("http://www.w3.org/ns/dcat#mediaType"),
-                    resource.get("https://www.w3.org/ns/dcat#mediaType"),
-                    resource.get("content_type"),
-                    resource.get("contentType"),
-                    resource.get("encodingFormat"),
-                    resource.get("schema:encodingFormat"),
-                    resource.get("http://schema.org/encodingFormat"),
-                    resource.get("https://schema.org/encodingFormat"),
-                    resource.get("type"),
-                ),
+                "resource_format": resource_format_hint,
                 "resource_size_bytes": resource_size_bytes(resource),
                 "max_resource_size_bytes": DIRECT_RESOURCE_MAX_BYTES,
                 "source_url": first_text(
@@ -617,6 +607,30 @@ def direct_resource_entry(
     resolved.pop("adapter_review", None)
     resolved.pop("adapter_review_url", None)
     return resolved
+
+
+def resource_format_text(resource: dict[str, object]) -> str:
+    return first_resource_text(
+        resource.get("format"),
+        resource.get("dct:format"),
+        resource.get("dc:format"),
+        resource.get("http://purl.org/dc/terms/format"),
+        resource.get("http://purl.org/dc/elements/1.1/format"),
+        resource.get("mimetype"),
+        resource.get("mimeType"),
+        resource.get("media_type"),
+        resource.get("mediaType"),
+        resource.get("dcat:mediaType"),
+        resource.get("http://www.w3.org/ns/dcat#mediaType"),
+        resource.get("https://www.w3.org/ns/dcat#mediaType"),
+        resource.get("content_type"),
+        resource.get("contentType"),
+        resource.get("encodingFormat"),
+        resource.get("schema:encodingFormat"),
+        resource.get("http://schema.org/encodingFormat"),
+        resource.get("https://schema.org/encodingFormat"),
+        resource.get("type"),
+    )
 
 
 def ckan_package_show_resource_entries(

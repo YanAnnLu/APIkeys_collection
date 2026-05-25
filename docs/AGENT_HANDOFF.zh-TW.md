@@ -8,7 +8,8 @@
 
 - 新增 `api_launcher/content_registry.py`，把下載物內容格式與 STAC/CKAN/ERDDAP 等來源入口範式分開。它目前能回報 `source_format`、`content_family`、`import_status`、`parser_id`、`review_bucket` 與 evidence。
 - `api_launcher/plans.py::dataset_import_plan_entry()` 已改用 content registry：CSV/CSV.GZ 與 JSON/JSONL/NDJSON/GeoJSON 仍是 `supported_after_download`，ZIP/TAR/ZST 等封包停在 transform review，NetCDF/HDF/Zarr/GeoTIFF/Parquet/PDF/XML/unknown 停在 content parser review。
-- 新增 `tests/test_content_registry.py`，並已跑 `tests.test_content_registry`、`tests.test_dataset_download_plan`、`tests.test_adapter_plan_resolver`。下一步可把 adapter resolver 產生的 direct entry 也補上 `content_detection` 摘要，讓 UI/agent 看到內容 parser 狀態，而不只看 `source_format` 字串。
+- `api_launcher/adapter_plan_resolver.py` 產生 direct entry 時已補上 `content_detection` 與 `content_parser` 摘要，包含 parser id、import status 與 review bucket。下一步可把這些欄位接到 adapter review / download plan 的 UI 顯示層。
+- 新增 `tests/test_content_registry.py`，並已跑 `tests.test_content_registry`、`tests.test_dataset_download_plan`、`tests.test_adapter_plan_resolver`。測試也覆蓋 extensionless CSV 與 NetCDF direct asset 的 content parser 摘要。
 
 ## 2026-05-24 Tk 來源草稿入口與治理機制收斂
 
