@@ -8,6 +8,7 @@ from api_launcher.core import main
 from api_launcher.crawlers.dataset_sources import load_dataset_discovery_sources
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
+from api_launcher.discovery_drafts import normalize_endpoint_for_source_type
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.source_pattern_drafts import dataset_source_from_detected_url
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
@@ -199,6 +200,18 @@ class DiscoveryDraftTests(unittest.TestCase):
         self.assertIn("/erddap/tabledap/allDatasets.json", sources[0].endpoint_url)
         self.assertEqual("erddap", summary["source_pattern_detection"]["pattern_id"])
         self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
+
+    def test_erddap_deep_dataset_url_normalizes_to_all_datasets_endpoint(self) -> None:
+        endpoint = normalize_endpoint_for_source_type(
+            "erddap_all_datasets",
+            "https://coastwatch.example.test/erddap/griddap/jplMURSST41.html",
+        )
+
+        self.assertEqual(
+            "https://coastwatch.example.test/erddap/tabledap/allDatasets.json?"
+            "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl",
+            endpoint,
+        )
 
 
 def provider_candidate_payload() -> dict[str, object]:

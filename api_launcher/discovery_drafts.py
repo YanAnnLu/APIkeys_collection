@@ -174,7 +174,13 @@ def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> s
     if source_type == "cmr_collections" and not lowered.endswith(("collections.json", "collections")):
         return urllib.parse.urlunparse(parsed._replace(path="/search/collections.json", query=""))
     if source_type == "erddap_all_datasets" and "alldatasets" not in lowered:
-        path = parsed.path.rstrip("/") + "/tabledap/allDatasets.json"
+        path_lower = parsed.path.lower()
+        if "/erddap" in path_lower:
+            erddap_end = path_lower.index("/erddap") + len("/erddap")
+            erddap_root = parsed.path[:erddap_end]
+        else:
+            erddap_root = parsed.path.rstrip("/") + "/erddap"
+        path = erddap_root.rstrip("/") + "/tabledap/allDatasets.json"
         query = "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl"
         return urllib.parse.urlunparse(parsed._replace(path=path, query=query))
     return endpoint_url
