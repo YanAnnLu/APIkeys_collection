@@ -14,6 +14,7 @@
 - `api_launcher/source_pattern_drafts.py` 已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL；測試確認 invalid URL 不會觸發 detector，也不會寫入 local source draft。
 - OGC detector 已補 WMS `GetCapabilities` XML 證據權重：沒有 OGC API JSON 的老式 WMS 入口也能判成 `ogc`，避免地理資料入口被保守地退回 `unknown`。
 - HTML file index detector 產生的 source draft 現在會帶保守資料檔副檔名 regex；測試確認草稿能直接交給 `html_file_index_candidates_from_text()` 抽出 CSV shard，而不是在 crawler audit 才因缺 `file_url_regex` 失敗。
+- CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。
 
 ## 2026-05-24 Tk 來源草稿入口與治理機制收斂
 

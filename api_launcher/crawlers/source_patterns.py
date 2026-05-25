@@ -140,14 +140,16 @@ def detect_stac(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatt
 
 def detect_ckan(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
     evidence: list[str] = []
-    probe_url = join_url(url, "api/3/action/package_search?rows=1")
-    response = fetcher(probe_url, timeout)
-    data = json_from(response)
-    if isinstance(data, dict):
-        if data.get("success") is True and "result" in data:
-            evidence.append("ckan_package_search_success")
-        if response is not None and "/api/3/action/" in response.url:
-            evidence.append("ckan_api_action_endpoint")
+    for probe_url in ckan_probe_urls(url):
+        response = fetcher(probe_url, timeout)
+        data = json_from(response)
+        if isinstance(data, dict):
+            if data.get("success") is True and "result" in data:
+                evidence.append("ckan_package_search_success")
+            if response is not None and "/api/3/action/" in response.url:
+                evidence.append("ckan_api_action_endpoint")
+            if evidence:
+                break
     return score_pattern("ckan", evidence)
 
 
@@ -170,11 +172,14 @@ def detect_socrata(url: str, fetcher: PatternFetcher, timeout: float) -> SourceP
     parsed = urllib.parse.urlparse(url)
     if parsed.netloc.startswith("data.") or "socrata" in parsed.netloc:
         evidence.append("host_looks_like_socrata")
-    data = json_from(fetcher(url.rstrip("/") + "/api/views.json?limit=1", timeout))
-    if isinstance(data, list):
-        evidence.append("socrata_views_returns_list")
-    elif isinstance(data, dict) and "error" not in data:
-        evidence.append("socrata_views_json_response")
+    for probe_url in socrata_probe_urls(url):
+        data = json_from(fetcher(probe_url, timeout))
+        if isinstance(data, list):
+            evidence.append("socrata_views_returns_list")
+            break
+        if isinstance(data, dict) and "error" not in data:
+            evidence.append("socrata_views_json_response")
+            break
     return score_pattern("socrata", evidence)
 
 
@@ -242,6 +247,34 @@ def json_from(response: PatternProbeResponse | None) -> Any | None:
 
 def join_url(base: str, relative: str) -> str:
     return urllib.parse.urljoin(base.rstrip("/") + "/", relative)
+
+
+def origin_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return url.rstrip("/") + "/"
+    return f"{parsed.scheme}://{parsed.netloc}/"
+
+
+def unique_urls(*urls: str) -> tuple[str, ...]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for url in urls:
+        if url in seen:
+            continue
+        seen.add(url)
+        ordered.append(url)
+    return tuple(ordered)
+
+
+def ckan_probe_urls(url: str) -> tuple[str, ...]:
+    endpoint = "api/3/action/package_search?rows=1"
+    return unique_urls(join_url(url, endpoint), urllib.parse.urljoin(origin_url(url), endpoint))
+
+
+def socrata_probe_urls(url: str) -> tuple[str, ...]:
+    endpoint = "api/views.json?limit=1"
+    return unique_urls(join_url(url, endpoint), urllib.parse.urljoin(origin_url(url), endpoint))
 
 
 DETECTORS: tuple[PatternDetector, ...] = (

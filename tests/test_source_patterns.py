@@ -59,6 +59,25 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("ckan_package_search_success", result.evidence)
         self.assertIn("ckan_api_action_endpoint", result.evidence)
 
+    def test_ckan_pattern_falls_back_to_origin_probe_for_deep_urls(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://catalog.example.test/api/3/action/package_search?rows=1":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"success": true, "result": {"count": 1, "results": []}}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://catalog.example.test/dataset/roads", fetcher=fetcher)
+
+        self.assertEqual("ckan", result.pattern_id)
+        self.assertIn("https://catalog.example.test/dataset/roads/api/3/action/package_search?rows=1", calls)
+        self.assertIn("https://catalog.example.test/api/3/action/package_search?rows=1", calls)
+
     def test_socrata_pattern_uses_host_and_views_endpoint(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://data.city.example/api/views.json?limit=1":
@@ -75,6 +94,25 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertEqual("socrata_catalog_search", result.source_type_hint)
         self.assertIn("host_looks_like_socrata", result.evidence)
         self.assertIn("socrata_views_returns_list", result.evidence)
+
+    def test_socrata_pattern_falls_back_to_origin_probe_for_resource_urls(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://data.city.example/api/views.json?limit=1":
+                return PatternProbeResponse(
+                    url=url,
+                    text='[{"id":"abcd-1234","name":"Example Dataset"}]',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://data.city.example/resource/abcd-1234.json", fetcher=fetcher)
+
+        self.assertEqual("socrata", result.pattern_id)
+        self.assertIn("https://data.city.example/resource/abcd-1234.json/api/views.json?limit=1", calls)
+        self.assertIn("https://data.city.example/api/views.json?limit=1", calls)
 
     def test_ogc_pattern_detects_conformance_and_collections(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
