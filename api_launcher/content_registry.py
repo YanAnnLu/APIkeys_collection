@@ -21,7 +21,9 @@ SUPPORTED_SQLITE_IMPORTERS: dict[str, str] = {
 
 ARCHIVE_OR_COMPRESSED_FORMATS = frozenset({"csv.zst", "zst", "zip", "tar", "tar.gz", "7z", "bz2", "xz"})
 SCIENTIFIC_GRID_FORMATS = frozenset({"netcdf", "hdf", "hdf5", "zarr", "grib", "grb"})
-GEOSPATIAL_RASTER_FORMATS = frozenset({"geotiff", "cog", "shapefile", "geopackage"})
+GEOSPATIAL_RASTER_FORMATS = frozenset(
+    {"geotiff", "cog", "shapefile", "geopackage", "flatgeobuf", "mbtiles", "pmtiles"}
+)
 COLUMNAR_FORMATS = frozenset({"parquet", "arrow", "feather"})
 DATABASE_SNAPSHOT_FORMATS = frozenset({"sqlite"})
 DOCUMENT_FORMATS = frozenset({"pdf", "xml", "html", "txt"})
@@ -35,6 +37,7 @@ FORMAT_ALIASES = {
     "tiff": "geotiff",
     "gpkg": "geopackage",
     "shp": "shapefile",
+    "fgb": "flatgeobuf",
     "grb": "grib",
     "db": "sqlite",
     "sqlite3": "sqlite",
@@ -125,6 +128,7 @@ def format_from_path_or_url(value: str) -> str:
         return "unknown"
     compound = {
         ("geojson", "gz"): "geojson.gz",
+        ("shp", "zip"): "shapefile",
         ("jsonl", "gz"): "jsonl.gz",
         ("ndjson", "gz"): "ndjson.gz",
         ("json", "gz"): "json.gz",

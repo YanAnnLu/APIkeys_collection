@@ -161,14 +161,14 @@ source URL
   -> source detector: 判斷來源介面類型
   -> source adapter: 依 STAC/CKAN/ERDDAP/CMR/... 列出 dataset/resource/asset URL
   -> fetcher: 下載或分頁抓取
-  -> content detector: 判斷 CSV/JSON/NetCDF/HDF5/GeoTIFF/Zarr/Parquet/ZIP/XML/PDF/unknown
+  -> content detector: 判斷 CSV/JSON/NetCDF/HDF5/GeoTIFF/Shapefile/FlatGeobuf/PMTiles/MBTiles/Zarr/Parquet/ZIP/XML/PDF/unknown
   -> content parser: 能解析就抽 schema/metadata，不能解析就保留 raw artifact
   -> normalizer/importer: 轉成 manifest、registry asset、SQLite/lakehouse/renderer 可用格式
 ```
 
 入口範式標準化的是「資料在哪裡、怎麼查、怎麼列資源」；內容格式標準化的是「下載下來的東西怎麼讀」。STAC adapter 不應內建 GeoTIFF/NetCDF 解析；CKAN adapter 不應內建 CSV/ZIP/PDF parser。兩者中間的穩定交接物應是「資料資源清單」：URL、format/media type hint、role、license/provenance、bounds/版本 metadata。
 
-目前內容格式的第一層骨架在 `api_launcher/content_registry.py`。它只處理下載物格式與 parser capability，不處理 STAC/CKAN/ERDDAP 等來源入口。`dataset_import_plan_entry()` 已使用這層 registry：CSV/CSV.GZ 走 `csv_to_sqlite`，JSON/JSONL/NDJSON/GeoJSON 走 `json_to_sqlite`；ZIP/TAR/ZST 等壓縮或封包檔停在 `requires_unpack_or_adapter`；NetCDF/HDF/Zarr、GeoTIFF/COG/Shapefile/GeoPackage、Parquet/Arrow、PDF/XML/HTML/TXT 與 unknown 目前都停在 `manual_review_required`，等待專用 content parser 或 renderer/cache adapter。這個狀態是刻意保守，不代表不能下載，只代表不能假裝已能 curated import。
+目前內容格式的第一層骨架在 `api_launcher/content_registry.py`。它只處理下載物格式與 parser capability，不處理 STAC/CKAN/ERDDAP 等來源入口。`dataset_import_plan_entry()` 已使用這層 registry：CSV/CSV.GZ 走 `csv_to_sqlite`，JSON/JSONL/NDJSON/GeoJSON 走 `json_to_sqlite`；ZIP/TAR/ZST 等壓縮或封包檔停在 `requires_unpack_or_adapter`；NetCDF/HDF/Zarr、GeoTIFF/COG/Shapefile ZIP/GeoPackage/FlatGeobuf/PMTiles/MBTiles、Parquet/Arrow、PDF/XML/HTML/TXT 與 unknown 目前都停在 `manual_review_required`，等待專用 content parser 或 renderer/cache adapter。這個狀態是刻意保守，不代表不能下載，只代表不能假裝已能 curated import。
 
 Adapter resolver 產生 direct download entry 時，也會寫入 `content_detection` 與 `content_parser` 摘要。後續 UI/agent 應優先讀這些 machine-readable 欄位來判斷下一步，而不是只看 `source_format` 字串或人類文字 reason。
 
@@ -188,7 +188,7 @@ py -3 -B APIkeys_collection.py --write-source-draft-from-url https://example.org
 
 Source draft 入口只接受絕對 HTTP(S) URL，並會在 detector 前拒絕帶 username/password 的 URL。這是為了防止本機檔案路徑或 credential-bearing URL 被保存到 ignored local draft 後又被誤提升到 catalog。
 
-若 detector 判成 `html_file_index`，source draft 會自動帶保守資料檔副檔名 regex（CSV/CSV.GZ/CSV.ZST、GeoJSON/GeoJSON.GZ、ZIP/TAR.GZ、NetCDF/CDF、HDF/HDF5/H5、GeoTIFF、GeoPackage、SQLite DB、Zarr、GRIB/GRIB2、JSON/JSONL/NDJSON、XML、Parquet）。Detector 本身也會用同一類資料檔線索提高 HTML file index 信心分數。這是通用蟲的第一層接線：先讓 HTML 目錄 URL 能被後續 crawler audit 抽出候選檔案；真正是否下載仍要經過 candidate review / plan / content parser。
+若 detector 判成 `html_file_index`，source draft 會自動帶保守資料檔副檔名 regex（CSV/CSV.GZ/CSV.ZST、GeoJSON/GeoJSON.GZ、ZIP/TAR.GZ、NetCDF/CDF、HDF/HDF5/H5、GeoTIFF、GeoPackage、Shapefile ZIP、FlatGeobuf、PMTiles/MBTiles、SQLite DB、Zarr、GRIB/GRIB2、JSON/JSONL/NDJSON、XML、Parquet）。Detector 本身也會用同一類資料檔線索提高 HTML file index 信心分數。這是通用蟲的第一層接線：先讓 HTML 目錄 URL 能被後續 crawler audit 抽出候選檔案；真正是否下載仍要經過 candidate review / plan / content parser。
 
 K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案。可吸收的部分包含 HTTP header/timeout、HTML `href` 擷取、相對 URL 合併、Scrapy 分層思想、CSV/SQLite 清洗、rate limit/politeness、錯誤處理與 fixture 測試。落地時一律轉成 RRKAL 的 source pattern detector、crawler adapter、content parser、manifest/import pipeline 與 audit warning，不讓 crawler 直接寫 DB 或假裝未知格式已可解析。
 
@@ -314,7 +314,7 @@ python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json 
 
 若候選來自 DataCite 或 OpenAlex，DOI/OpenAlex URL 也會先留在 adapter review。白話說：DOI 像資料的門牌或索引卡，OpenAlex work 像研究記錄，不是檔案本身。DataCite metadata 若明確提供 `contentUrl`，crawler 會把它整理進 `resources`，讓 generic resolver 只挑已支援、可界定的檔案連結。若 plan 只有 DataCite DOI metadata，或 OpenAlex work 只有 DOI，resolver 現在也可以只查一次 DataCite DOI API，再從 `contentUrl` 裡挑支援格式、未宣告超過 100MB 的 direct file；但 DOI landing page 或 repository HTML 頁仍然不能直接當成下載檔，也不會被背景爬取。
 
-若 `adapter_required` 來自 CKAN/Data.gov 類平台，且 plan 只拿到 `package_show` URL，或只有 `package_search` URL 加 dataset id，`--resolve-adapter-plan` 現在可以只查一次單一 package metadata，再從 resources 裡挑安全的 direct file。這仍然是 bounded adapter：它不掃整個 CKAN catalog，也不下載 HTML 頁或大型未知資源。泛用 resource resolver 目前會辨識 `resources`、`distribution` / `distributions`、`dcat:distribution`、`links`、JSON-LD `@graph` 這些常見包裝，也會辨識 `download_url`、`downloadURL`、`contentUrl`、`fileUrl`、`url`、`href`、`dcat:downloadURL`、`schema:contentUrl` 這類明確下載欄位，欄位值可以是字串、list，或 `{"@id": "..."}` 這類 JSON-LD 物件；物件裡若只有 `label` 而沒有 URL，不會被當成下載連結。格式提示可用 `format`、`mediaType`、`contentType`、`encodingFormat`、`dct:format`、`dcat:mediaType` 等欄位；沒有格式提示時，URL suffix 也會經過同一套正規化，例如 `.nc` / `.cdf` 會變成 `netcdf`、`.hdf5` 會變成 `hdf5`、`.gpkg` 會變成 `geopackage`。大小可讀 `byteSize` / `contentSize`、`dcat:byteSize` 與 `{"@value": "..."}` 等提示。白話說，資料目錄欄位名稱或寫法不同時，也能先找出「看起來真的像檔案」的小樣本；`accessURL` 這類可能只是入口頁的欄位仍然不會被泛用 resolver 自動當成檔案。
+若 `adapter_required` 來自 CKAN/Data.gov 類平台，且 plan 只拿到 `package_show` URL，或只有 `package_search` URL 加 dataset id，`--resolve-adapter-plan` 現在可以只查一次單一 package metadata，再從 resources 裡挑安全的 direct file。這仍然是 bounded adapter：它不掃整個 CKAN catalog，也不下載 HTML 頁或大型未知資源。泛用 resource resolver 目前會辨識 `resources`、`distribution` / `distributions`、`dcat:distribution`、`links`、JSON-LD `@graph` 這些常見包裝，也會辨識 `download_url`、`downloadURL`、`contentUrl`、`fileUrl`、`url`、`href`、`dcat:downloadURL`、`schema:contentUrl` 這類明確下載欄位，欄位值可以是字串、list，或 `{"@id": "..."}` 這類 JSON-LD 物件；物件裡若只有 `label` 而沒有 URL，不會被當成下載連結。格式提示可用 `format`、`mediaType`、`contentType`、`encodingFormat`、`dct:format`、`dcat:mediaType` 等欄位；沒有格式提示時，URL suffix 也會經過同一套正規化，例如 `.nc` / `.cdf` 會變成 `netcdf`、`.hdf5` 會變成 `hdf5`、`.gpkg` 會變成 `geopackage`、`.shp.zip` 會變成 `shapefile`、`.fgb` 會變成 `flatgeobuf`、`.pmtiles` / `.mbtiles` 會變成 tile package review。大小可讀 `byteSize` / `contentSize`、`dcat:byteSize` 與 `{"@value": "..."}` 等提示。白話說，資料目錄欄位名稱或寫法不同時，也能先找出「看起來真的像檔案」的小樣本；`accessURL` 這類可能只是入口頁的欄位仍然不會被泛用 resolver 自動當成檔案。
 
 若候選來自 Socrata/SODA，`socrata_catalog_search` crawler 會刻意把候選的主要 API URL 設為 `/api/views/abcd-1234` 這種 metadata URL，而不是直接把 `/resource/abcd-1234.json` 交給下載器。resolver 目前只處理已能辨認的 v2-style resource 入口，例如 `/resource/abcd-1234.json`、`/resource/abcd-1234.csv`，或 metadata URL `/api/views/abcd-1234`。它會保留既有 `$select` 等查詢條件，再加上 `$limit=25`，產生一個小樣本 direct plan entry；泛用 direct-file resolver 會跳過這類 resource URL，避免把 `.json` API 當成完整檔案直接下載。SODA v3 token/query POST 形狀目前仍留在 adapter review，等 credential 與 query contract 明確後再做。
 

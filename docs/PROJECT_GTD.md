@@ -4,6 +4,7 @@ Last updated: 2026-05-25
 
 ## 2026-05-24 K 槽概念樣本庫 / CODE_KM 治理心法
 
+- [x] 固化 checkpoint 文檔規則：每個功能切片完成 commit / push / CI success 後，必須同步更新 `docs/DEVELOPMENT_LOG.zh-TW.md`；未測完或未推送的工作只能留在 GTD/handoff，不能冒充穩定 checkpoint。
 - [x] 將 K 槽教材定位為「概念樣本庫」，不是可直接搬進 RRKAL 的程式碼來源；落地時必須轉成小型、fixture-tested 的 RRKAL module。
 - [x] 將 CODE_KM 的治理模型映射到 RRKAL：source/file provenance、checksum、pipeline run state、rights/review gate、local metadata index、人類可讀內容與結構化 metadata 分離。
 - [ ] 下一輪：把 CODE_KM 式 status gate 草案映射到 RRKAL 的 crawler/source/asset 狀態，例如 `staged`、`adapter_review`、`curated`、`restricted`、`completed`。

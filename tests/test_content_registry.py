@@ -90,6 +90,21 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("geospatial_asset", detection.capability.content_family)
         self.assertEqual("geospatial_asset_review", detection.capability.parser_id)
 
+    def test_geospatial_vector_and_tile_formats_route_to_geospatial_review(self) -> None:
+        shapefile = detect_content_format(url="https://example.test/gis/boundaries.shp.zip")
+        flatgeobuf = detect_content_format(url="https://example.test/gis/roads.fgb")
+        pmtiles = detect_content_format(url="https://example.test/gis/basemap.pmtiles")
+        mbtiles = detect_content_format(url="https://example.test/gis/offline.mbtiles")
+
+        for detection in (shapefile, flatgeobuf, pmtiles, mbtiles):
+            self.assertEqual("geospatial_asset", detection.capability.content_family)
+            self.assertEqual("geospatial_asset_review", detection.capability.parser_id)
+            self.assertEqual("content_parser_required", detection.capability.review_bucket)
+        self.assertEqual("shapefile", shapefile.source_format)
+        self.assertEqual("flatgeobuf", flatgeobuf.source_format)
+        self.assertEqual("pmtiles", pmtiles.source_format)
+        self.assertEqual("mbtiles", mbtiles.source_format)
+
     def test_grib2_url_suffix_routes_to_scientific_grid_review(self) -> None:
         detection = detect_content_format(url="https://example.test/weather/forecast.grb2")
 

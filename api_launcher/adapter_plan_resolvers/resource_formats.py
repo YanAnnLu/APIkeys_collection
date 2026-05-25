@@ -37,6 +37,14 @@ def normalize_resource_format(value: str) -> str:
         return "geotiff"
     if "geopackage" in normalized or "gpkg" in normalized:
         return "geopackage"
+    if "flatgeobuf" in normalized or normalized == "fgb":
+        return "flatgeobuf"
+    if "pmtiles" in normalized:
+        return "pmtiles"
+    if "mbtiles" in normalized:
+        return "mbtiles"
+    if "shapefile" in normalized or normalized == "shp":
+        return "shapefile"
     if "sqlite" in normalized or normalized in {"db", "sqlite3"}:
         return "sqlite"
     if "hdf5" in normalized or normalized == "h5" or normalized.endswith("+h5"):
@@ -61,6 +69,7 @@ def source_format_from_url(url: str) -> str:
     # 複合副檔名會直接影響後續 importer 與 archive transform；必須優先於最後一段副檔名判斷。
     compound_suffixes = (
         (("geojson", "gz"), "geojson.gz"),
+        (("shp", "zip"), "shapefile"),
         (("jsonl", "gz"), "jsonl.gz"),
         (("ndjson", "gz"), "ndjson.gz"),
         (("json", "gz"), "json.gz"),
