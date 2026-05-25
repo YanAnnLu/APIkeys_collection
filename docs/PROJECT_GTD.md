@@ -47,6 +47,7 @@ Last updated: 2026-05-25
 - [x] HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.cdf`、`.hdf5`、`.gpkg`、`.sqlite3`、`.zarr`、`.grib2`、`.tar.gz` 等常見資料檔，避免 detector 判對但 crawler audit 零候選。
 - [x] HTML file index detector 與 source draft 現在共用同一份資料檔副檔名 vocabulary，避免日後新增格式時一層支援、一層漏掉。
 - [x] HTML file index crawler 已支援 bounded same-origin full crawl：`full_crawl=True` 時可在 `max_pages` 內追同網域索引頁，仍不追資料檔或跨網域頁。
+- [x] 共用 crawler query builder `search_endpoint_url()` 已改為用 URL parser 寫回 query，避免來源 URL 帶 `#fragment` 時把新增 query 接到 fragment 後面；新增 regression test 鎖住既有 query、fragment 與空參數行為。
 - [x] 把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口；UI 會顯示 detector evidence、信心分數、local draft 路徑與下一步 discovery audit 指令。`unknown` / unsupported source type 仍由後端拒絕並停在 review。
 - [x] 建立 `api_launcher/content_registry.py` 骨架，把來源介面類型與 CSV/JSON/NetCDF/GeoTIFF/ZIP 等下載內容格式完全分開；`dataset_import_plan_entry()` 已改用 content parser capability 判斷 CSV/JSON 目前可匯入、ZIP/壓縮檔需 transform review、NetCDF/HDF/Zarr/GeoTIFF/Parquet 等需 content parser review。
 - [x] Adapter resolver 產生 direct entry 時已寫入 `content_detection` / `content_parser` 摘要，UI/agent 現在不只看到 `source_format`，也能看到內容 parser 狀態、parser id、review bucket 與下一步。

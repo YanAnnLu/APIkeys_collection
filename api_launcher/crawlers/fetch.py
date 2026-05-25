@@ -12,8 +12,13 @@ USER_AGENT = "APIkeys_collection/0.4 (+dataset-discovery; metadata only)"
 def search_endpoint_url(endpoint_url: str, params: dict[str, str]) -> str:
     # 共用 query builder 只加入有值參數，避免 crawler 各自處理多餘空 query。
     clean_params = {key: value for key, value in params.items() if value}
-    separator = "&" if urllib.parse.urlparse(endpoint_url).query else "?"
-    return endpoint_url + separator + urllib.parse.urlencode(clean_params)
+    if not clean_params:
+        return endpoint_url
+    parsed = urllib.parse.urlparse(endpoint_url)
+    extra_query = urllib.parse.urlencode(clean_params)
+    query = parsed.query + ("&" if parsed.query else "") + extra_query
+    # URL 可能帶有 UI 或文件錨點；query 必須寫回 parsed 結構，避免接到 #fragment 後面。
+    return urllib.parse.urlunparse(parsed._replace(query=query))
 
 
 def fetch_json(url: str, timeout: float) -> dict[str, Any]:
