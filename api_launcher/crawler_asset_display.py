@@ -84,6 +84,12 @@ ADAPTER_REVIEW_OUTCOME_DISPLAY = {
     "adapter_review_required": ("Adapter 審核待辦", "review"),
 }
 
+CONTENT_REVIEW_BUCKET_DISPLAY = {
+    "content_parser_required": ("內容 Parser 待辦", "review"),
+    "downloaded_payload_transform": ("需解壓/轉換", "warning"),
+    "unsupported_payload_format": ("未支援格式", "danger"),
+}
+
 
 @dataclass(frozen=True)
 class CrawlerAssetFlowStep:
@@ -259,6 +265,10 @@ def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str,
     review_payload = adapter_review_agent_payload(plan_payload if isinstance(plan_payload, dict) else {})
     summary = review_payload.get("summary") if isinstance(review_payload.get("summary"), dict) else {}
     by_outcome = summary.get("by_outcome") if isinstance(summary.get("by_outcome"), dict) else {}
+    by_content_review_bucket = (
+        summary.get("by_content_review_bucket") if isinstance(summary.get("by_content_review_bucket"), dict) else {}
+    )
+    by_content_parser = summary.get("by_content_parser") if isinstance(summary.get("by_content_parser"), dict) else {}
     outcomes = [
         {
             "outcome_bucket": str(bucket),
@@ -268,11 +278,31 @@ def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str,
         }
         for bucket, count in sorted(by_outcome.items())
     ]
+    content_review_buckets = [
+        {
+            "review_bucket": str(bucket),
+            "display_label": content_review_bucket_label(str(bucket)),
+            "display_tone": content_review_bucket_tone(str(bucket)),
+            "count": _safe_int(count),
+        }
+        for bucket, count in sorted(by_content_review_bucket.items())
+    ]
+    content_parsers = [
+        {
+            "parser_id": str(parser_id),
+            "count": _safe_int(count),
+        }
+        for parser_id, count in sorted(by_content_parser.items())
+    ]
     return {
         "item_count": _safe_int(summary.get("item_count")),
         "adapter_count": _safe_int(summary.get("adapter_count")),
         "by_outcome": dict(by_outcome),
+        "by_content_review_bucket": dict(by_content_review_bucket),
+        "by_content_parser": dict(by_content_parser),
         "outcomes": outcomes,
+        "content_review_buckets": content_review_buckets,
+        "content_parsers": content_parsers,
         "items": review_payload.get("items", []),
     }
 
@@ -283,6 +313,14 @@ def adapter_review_outcome_label(bucket: str) -> str:
 
 def adapter_review_outcome_tone(bucket: str) -> str:
     return ADAPTER_REVIEW_OUTCOME_DISPLAY.get(bucket, (bucket or "unknown", "review"))[1]
+
+
+def content_review_bucket_label(bucket: str) -> str:
+    return CONTENT_REVIEW_BUCKET_DISPLAY.get(bucket, (bucket or "unknown", "review"))[0]
+
+
+def content_review_bucket_tone(bucket: str) -> str:
+    return CONTENT_REVIEW_BUCKET_DISPLAY.get(bucket, (bucket or "unknown", "review"))[1]
 
 
 def plan_outcome_display_label(bucket: str) -> str:
@@ -354,6 +392,8 @@ __all__ = [
     "adapter_review_display_payload",
     "adapter_review_outcome_label",
     "adapter_review_outcome_tone",
+    "content_review_bucket_label",
+    "content_review_bucket_tone",
     "crawler_asset_bound_form_payload",
     "crawler_asset_card_capabilities",
     "crawler_asset_flow_steps",

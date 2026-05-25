@@ -151,6 +151,15 @@ class WebPreviewApiTest(unittest.TestCase):
                         "source_url": "https://example.test/catalog",
                         "required_action": "resolve_source_to_direct_download_entries",
                     },
+                    "content_detection": {"source_format": "netcdf", "confidence": 0.8},
+                    "content_parser": {
+                        "source_format": "netcdf",
+                        "content_family": "scientific_grid_or_array",
+                        "import_status": "manual_review_required",
+                        "parser_id": "scientific_grid_review",
+                        "review_bucket": "content_parser_required",
+                        "reason": "NetCDF requires a dedicated parser.",
+                    },
                 }
             ]
         }
@@ -160,6 +169,10 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(1, payload["item_count"])
         self.assertEqual({"source_resolution_required": 1}, payload["by_outcome"])
         self.assertEqual("來源解析待辦", payload["outcomes"][0]["display_label"])
+        self.assertEqual({"content_parser_required": 1}, payload["by_content_review_bucket"])
+        self.assertEqual({"scientific_grid_review": 1}, payload["by_content_parser"])
+        self.assertEqual("內容 Parser 待辦", payload["content_review_buckets"][0]["display_label"])
+        self.assertEqual("scientific_grid_review", payload["content_parsers"][0]["parser_id"])
 
     def test_server_scans_next_port_when_preferred_port_is_busy(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:

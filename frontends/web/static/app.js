@@ -326,6 +326,9 @@ async function submitBounds(execute) {
     }
     if (payload.adapter_review?.item_count) {
       addMission("Adapter 待辦", `${payload.adapter_review.item_count} 筆 / ${adapterReviewOutcomeText(payload.adapter_review.outcomes || [])}`);
+      if (payload.adapter_review.content_review_buckets?.length) {
+        addMission("內容格式待辦", contentReviewText(payload.adapter_review.content_review_buckets || []));
+      }
     }
   } catch (error) {
     writeJson({ error: String(error), asset_id: selectedAssetId });
@@ -447,6 +450,11 @@ function toneClass(tone) {
 function adapterReviewOutcomeText(outcomes) {
   if (!outcomes.length) return "無待辦分類";
   return outcomes.map((outcome) => `${outcome.display_label || outcome.outcome_bucket} ${outcome.count}`).join(" / ");
+}
+
+function contentReviewText(buckets) {
+  if (!buckets.length) return "尚無內容格式待辦";
+  return buckets.map((bucket) => `${bucket.display_label || bucket.review_bucket} ${bucket.count}`).join(" / ");
 }
 
 function renderMissionQueue() {
