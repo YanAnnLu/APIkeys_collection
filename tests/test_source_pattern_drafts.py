@@ -145,6 +145,47 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertEqual("ogc_api_records", source.source_type)
         self.assertEqual("https://geo.example.test/api/collections", source.endpoint_url)
 
+    def test_ckan_detection_normalizes_portal_root_to_package_search_endpoint(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="ckan",
+                confidence=0.75,
+                evidence=("ckan_package_search_success", "ckan_api_action_endpoint"),
+                source_type_hint="ckan_package_search",
+            )
+
+        source, detection = dataset_source_from_detected_url(
+            "https://catalog.example.test/dataset/roads",
+            provider_id="sample_ckan",
+            detector=detector,
+        )
+
+        self.assertEqual("ckan", detection.pattern_id)
+        self.assertEqual("ckan_package_search", source.source_type)
+        self.assertEqual("https://catalog.example.test/api/3/action/package_search", source.endpoint_url)
+
+    def test_socrata_detection_normalizes_portal_root_to_catalog_endpoint(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="socrata",
+                confidence=0.75,
+                evidence=("host_looks_like_socrata", "socrata_views_returns_list"),
+                source_type_hint="socrata_catalog_search",
+            )
+
+        source, detection = dataset_source_from_detected_url(
+            "https://data.city.example/resource/abcd-1234.json",
+            provider_id="sample_socrata",
+            detector=detector,
+        )
+
+        self.assertEqual("socrata", detection.pattern_id)
+        self.assertEqual("socrata_catalog_search", source.source_type)
+        self.assertEqual(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            source.endpoint_url,
+        )
+
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(

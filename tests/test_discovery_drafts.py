@@ -164,6 +164,43 @@ class DiscoveryDraftTests(unittest.TestCase):
         self.assertEqual("ckan_package_search", sources[0].source_type)
         self.assertEqual("https://data.example.test/api/3/action/package_search", sources[0].endpoint_url)
 
+    def test_ckan_root_and_deep_urls_normalize_to_package_search(self) -> None:
+        self.assertEqual(
+            "https://catalog.example.test/api/3/action/package_search",
+            normalize_endpoint_for_source_type("ckan_package_search", "https://catalog.example.test"),
+        )
+        self.assertEqual(
+            "https://catalog.example.test/api/3/action/package_search",
+            normalize_endpoint_for_source_type("ckan_package_search", "https://catalog.example.test/dataset/roads"),
+        )
+        self.assertEqual(
+            "https://catalog.example.test/api/3/action/package_search",
+            normalize_endpoint_for_source_type(
+                "ckan_package_search",
+                "https://catalog.example.test/api/3/action/package_show?id=roads",
+            ),
+        )
+
+    def test_socrata_portal_urls_normalize_to_catalog_endpoint_with_domain(self) -> None:
+        self.assertEqual(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            normalize_endpoint_for_source_type("socrata_catalog_search", "https://data.city.example"),
+        )
+        self.assertEqual(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            normalize_endpoint_for_source_type(
+                "socrata_catalog_search",
+                "https://data.city.example/resource/abcd-1234.json",
+            ),
+        )
+        self.assertEqual(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            normalize_endpoint_for_source_type(
+                "socrata_catalog_search",
+                "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            ),
+        )
+
     def test_cli_writes_detected_source_draft_from_url(self) -> None:
         detection = SourcePatternDetection(
             pattern_id="erddap",

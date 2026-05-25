@@ -172,9 +172,9 @@ def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> s
     if source_type == "gbif_dataset_search" and "/dataset/search" not in lowered:
         return urllib.parse.urlunparse(parsed._replace(path="/v1/dataset/search", query=""))
     if source_type == "ckan_package_search" and "package_search" not in lowered:
-        path = parsed.path.rstrip("/")
-        if path.endswith("/api/3/action") or path.endswith("/api/action"):
-            return urllib.parse.urlunparse(parsed._replace(path=f"{path}/package_search"))
+        return normalize_ckan_package_search_endpoint(parsed)
+    if source_type == "socrata_catalog_search" and "/api/catalog/v1" not in lowered:
+        return normalize_socrata_catalog_endpoint(parsed)
     if source_type == "cmr_collections" and not lowered.endswith(("collections.json", "collections")):
         return urllib.parse.urlunparse(parsed._replace(path="/search/collections.json", query=""))
     if source_type == "erddap_all_datasets" and "alldatasets" not in lowered:
@@ -188,6 +188,34 @@ def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> s
         query = "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl"
         return urllib.parse.urlunparse(parsed._replace(path=path, query=query))
     return endpoint_url
+
+
+def normalize_ckan_package_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    for action_root in ("/api/3/action", "/api/action"):
+        marker = f"{action_root}/"
+        if path_lower == action_root:
+            return urllib.parse.urlunparse(parsed._replace(path=f"{path}/package_search", query="", fragment=""))
+        if marker in path_lower:
+            prefix = path[: path_lower.index(marker) + len(action_root)]
+            return urllib.parse.urlunparse(parsed._replace(path=f"{prefix}/package_search", query="", fragment=""))
+    return urllib.parse.urlunparse(parsed._replace(path="/api/3/action/package_search", query="", fragment=""))
+
+
+def normalize_socrata_catalog_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    host = parsed.netloc.split("@")[-1].split(":")[0].lower()
+    host = re.sub(r"^www\.", "", host)
+    query = urllib.parse.urlencode({"domains": host}) if host else ""
+    return urllib.parse.urlunparse(
+        parsed._replace(
+            scheme="https",
+            netloc="api.us.socrata.com",
+            path="/api/catalog/v1",
+            query=query,
+            fragment="",
+        )
+    )
 
 
 def clean_text(value: object) -> str:

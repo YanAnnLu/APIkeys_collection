@@ -202,6 +202,8 @@ OGC API detector 不只讀使用者貼上的 URL 本身，也會 bounded probe `
 
 CKAN / Socrata detector 不應假設使用者一定貼站台首頁。若收到深層 dataset/resource URL，detector 會先嘗試 path-local probe，再 fallback 到同 origin 的 canonical API probe；這可提升「貼入口頁、資料集頁、API resource 頁」三種常見操作的容錯率。
 
+CKAN / Socrata source draft 也必須把使用者貼入的首頁或深層頁面正規化成 crawler 可 audit 的 endpoint。CKAN source draft 會回到同 host 的 `/api/3/action/package_search`，即使使用者貼的是 `/dataset/...` 或 `/api/3/action/package_show?...`。Socrata source draft 會轉成 `https://api.us.socrata.com/api/catalog/v1?domains=<portal-host>`，讓後續 crawler 拿到 Discovery/Catalog API 的 `results` payload，而不是把 `/resource/...json` 或首頁直接當 catalog search endpoint。
+
 STAC detector 也不應假設使用者一定貼 root catalog；`/collections` endpoint 若回傳 collections payload，會以 `stac_collections_endpoint` evidence 判成 STAC，並交給既有 `stac_collections` crawler。
 
 ERDDAP detector 若從深層 dataset URL 辨識成功，source draft normalization 必須回到站台層 `allDatasets` endpoint，而不是把 `tabledap/allDatasets.json` 接在 dataset path 後面。這讓「貼 ERDDAP griddap/tabledap 單一資料集頁」仍可先回到目錄 crawler，再由後續界域/adapter 選指定資料集。
