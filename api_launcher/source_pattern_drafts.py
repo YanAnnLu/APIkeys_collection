@@ -16,6 +16,7 @@ from api_launcher.crawlers.source_patterns import (
     SourcePatternDetection,
     detect_source_interface_pattern,
 )
+from api_launcher.crawlers.source_type_registry import source_type_is_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.discovery_drafts import (
     LOCAL_DISCOVERY_AUDIT_COMMAND,
@@ -77,7 +78,7 @@ def dataset_source_from_detected_url(
         categories=tuple(part for part in categories if part.strip()) or ("detected_source", detection.pattern_id),
         geographic_scope=geographic_scope.strip() or "global",
         max_results=max(int(max_results or 10), 1),
-        file_url_regex=DEFAULT_HTML_FILE_INDEX_REGEX if source_type == "html_file_index" else "",
+        file_url_regex=DEFAULT_HTML_FILE_INDEX_REGEX if source_type_is_file_index(source_type) else "",
         min_expected_candidates=max(int(min_expected_candidates or 1), 1),
         notes=detection_notes(detection),
     )

@@ -24,6 +24,7 @@ from api_launcher.crawler_assets import (
     load_crawler_assets,
     status_label,
 )
+from api_launcher.crawlers.source_type_registry import source_uses_file_index
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, DatasetSourceCrawlResult
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
@@ -76,6 +77,7 @@ class CrawlerAssetTest(unittest.TestCase):
         asset = crawler_asset_from_source(source)
 
         self.assertEqual("selectable", asset.capability_status(BUILD_DOWNLOAD_PLAN))
+        self.assertTrue(source_uses_file_index(source))
         self.assertIn("下載計畫:可選", asset.capability_summary)
         self.assertEqual(("version", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
         self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[1].maps_to[0])

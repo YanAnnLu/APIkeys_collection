@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
+from api_launcher.crawlers.source_type_registry import source_type_is_file_index
 from api_launcher.source_pattern_drafts import (
     dataset_source_from_detected_url,
     write_source_draft_from_url,
@@ -82,6 +83,7 @@ class SourcePatternDraftTest(unittest.TestCase):
         )
 
         self.assertEqual("html_file_index", source.source_type)
+        self.assertTrue(source_type_is_file_index(source.source_type))
         self.assertIn("csv", source.file_url_regex)
         self.assertIn("cdf", source.file_url_regex)
         self.assertIn("hdf5", source.file_url_regex)

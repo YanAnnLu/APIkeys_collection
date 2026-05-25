@@ -8,6 +8,7 @@ from api_launcher.crawler_asset_bounds import (
     bounds_schema_for_facets,
     bounds_schema_for_source,
 )
+from api_launcher.crawlers.source_type_registry import source_uses_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
@@ -97,7 +98,7 @@ def crawler_asset_capabilities(source: DatasetDiscoverySource, *, supported: boo
         listing_detail = "清單擷取需要先建立入口 handler。"
         listing_next = "implement_source_handler"
 
-    if source.file_url_regex or source.source_type == "html_file_index":
+    if source_uses_file_index(source):
         plan_status = "selectable"
         plan_detail = "入口可列出檔案 shard，下一步是選版本/界域後建立下載計畫。"
         plan_next = "select_version_and_bounds"

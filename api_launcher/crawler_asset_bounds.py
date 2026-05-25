@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from api_launcher.crawlers.source_type_registry import HTML_FILE_INDEX_SOURCE_TYPE, source_uses_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
@@ -275,7 +276,7 @@ METADATA_DATASET_BOUND_FACETS = ("dataset", "version", "format", "limit")
 SOURCE_BOUND_FACETS: dict[str, tuple[str, ...]] = {
     # Frontend-neutral source of truth for crawler bounds forms.
     # UI layers render these facets instead of branching on source_type.
-    "html_file_index": FILE_INDEX_BOUND_FACETS,
+    HTML_FILE_INDEX_SOURCE_TYPE: FILE_INDEX_BOUND_FACETS,
     "stac_collections": ("collection", "time", "bbox", "asset_role", "limit"),
     "cmr_collections": ("collection", "time", "bbox", "granule_limit", "asset_role"),
     "erddap_all_datasets": ("dataset", "columns", "time", "bbox", "limit"),
@@ -337,7 +338,7 @@ def facet_definition(facet_id: str) -> CrawlerAssetBoundFacet:
 def bounds_facets_for_source(source: DatasetDiscoverySource) -> tuple[str, ...]:
     """推估建立下載計畫時需要的界域維度，供 UI 動態表單使用。"""
 
-    if source.file_url_regex:
+    if source_uses_file_index(source):
         return FILE_INDEX_BOUND_FACETS
     return SOURCE_BOUND_FACETS.get(source.source_type, DEFAULT_BOUND_FACETS)
 
