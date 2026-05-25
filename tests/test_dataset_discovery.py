@@ -146,6 +146,22 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(1, report["summary"]["by_current_seed_scope"]["entry_listing"])
         self.assertEqual(1, report["summary"]["by_current_seed_scope"]["bounded_search_terms"])
 
+    def test_seed_coverage_treats_wms_capabilities_as_complete_entry_listing(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_wms",
+            provider_id="sample_provider",
+            name="Sample WMS",
+            source_type="ogc_wms_capabilities",
+            endpoint_url="https://maps.example.test/wms?service=WMS&request=GetCapabilities",
+        )
+
+        row = source_seed_coverage(source)
+
+        self.assertEqual("entry_listing", row.current_seed_scope)
+        self.assertTrue(row.full_crawl_supported)
+        self.assertTrue(row.complete_seed_ready)
+        self.assertEqual("run_full_crawl_or_export_candidates", row.next_action)
+
     def test_seed_coverage_markdown_renders_showcase_summary(self) -> None:
         source = DatasetDiscoverySource(
             source_id="sample_index",

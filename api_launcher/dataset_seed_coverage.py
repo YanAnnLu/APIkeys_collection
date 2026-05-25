@@ -14,6 +14,7 @@ ENTRY_LISTING_SOURCE_TYPES = frozenset(
     {
         "erddap_all_datasets",
         "html_file_index",
+        "ogc_wms_capabilities",
         "stac_collections",
     }
 )
