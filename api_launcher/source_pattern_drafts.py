@@ -24,7 +24,11 @@ from api_launcher.discovery_drafts import (
 
 
 SourcePatternDraftDetector = Callable[[str], SourcePatternDetection]
-DEFAULT_HTML_FILE_INDEX_REGEX = r"(?i)\.(csv|zip|nc|hdf|h5|tif|tiff|json|xml|parquet)(?:$|[?#])"
+DEFAULT_HTML_FILE_INDEX_REGEX = (
+    r"(?i)\."
+    r"(csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|zip|tar\.gz|nc|hdf|h5|tif|tiff|xml|parquet)"
+    r"(?:$|[?#])"
+)
 
 
 def dataset_source_from_detected_url(

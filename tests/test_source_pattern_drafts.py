@@ -62,7 +62,10 @@ class SourcePatternDraftTest(unittest.TestCase):
         )
         candidates = html_file_index_candidates_from_text(
             source,
-            '<html><a href="dataset_2026.csv">dataset_2026.csv</a><a href="notes.txt">notes.txt</a></html>',
+            (
+                '<html><a href="dataset_2026.csv.zst">dataset_2026.csv.zst</a>'
+                '<a href="boundary.geojson.gz">boundary.geojson.gz</a><a href="notes.txt">notes.txt</a></html>'
+            ),
             "https://files.example.test/data/",
             10,
         )
@@ -71,7 +74,9 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertIn("csv", source.file_url_regex)
         self.assertEqual(1, len(candidates))
         versions = candidates[0].dataset.metadata["available_versions"]
-        self.assertEqual("dataset_2026.csv", versions[0]["label"])
+        self.assertEqual(2, len(versions))
+        self.assertEqual("dataset_2026.csv.zst", versions[0]["label"])
+        self.assertEqual("boundary.geojson.gz", versions[1]["label"])
 
     def test_ogc_wms_detection_creates_supported_wms_source_draft(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
