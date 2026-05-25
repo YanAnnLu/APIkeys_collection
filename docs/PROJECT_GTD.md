@@ -7,7 +7,9 @@ Last updated: 2026-05-25
 - [x] 新增 `build_crawler_asset_download_plan()` service：把爬蟲資產、`CrawlerAssetBoundPayload` 與既有 `build_source_download_plan()` 接起來，讓界域條件可以轉成 `SourceDownloadBounds`，並保留 direct download / adapter review 的後端判斷。
 - [x] Tk 爬蟲資產「送進下載器」不再只是存 payload；現在會在背景建立原始與解析後下載計畫，輸出到 `state/crawler_asset_plans/*.original.json` 與 `state/crawler_asset_plans/*.resolved.json`，並把可直接下載的項目加入下方下載器。
 - [x] 測試補上界域 payload 轉換與 service 產生 direct download plan 的 regression；Tk headless 測試也改成驗證它會啟動背景計畫建立工作。
-- [ ] 下一輪精修：把 plan 建立結果做成更清楚的爬蟲卡片狀態 / 待辦徽章，並讓 review-required entries 在 UI 上更容易被使用者理解與處理。
+- [x] 精修 plan 建立結果：`CrawlerAssetDownloadPlanResult` 現在提供 `outcome_bucket` / `user_next_action`，Tk 只依後端狀態顯示「可直接下載、部分待辦、需 Adapter review、零候選、被封存/停用」等結果，不再自行解析 resolved plan。
+- [x] Tk 成功/待辦訊息改為產品化摘要：直接可下載會提示去下載器使用開始 / 暫停；review-required 會明確說明要開 Adapter review 或調整界域；zero candidates 會提示放寬條件或重新擷取清單。
+- [ ] 下一輪：把同一組 `outcome_bucket` 顯示成爬蟲卡片 badge / 待辦徽章，並把 Adapter review 入口做成更直覺的使用者流程。
 
 ## 2026-05-24 K 槽概念樣本庫 / CODE_KM 治理心法
 

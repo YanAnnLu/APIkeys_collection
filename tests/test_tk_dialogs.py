@@ -34,7 +34,7 @@ from frontends.tk.dialogs import (
     UiLanguageSettingsDialog,
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
-from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
+from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin, crawler_asset_download_plan_summary_text
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -342,6 +342,37 @@ class TkDialogModuleTest(unittest.TestCase):
             CrawlerAssetWorkflowMixin._source_pattern_draft_worker(ui, {"url": "https://example.test/stac"})
 
         self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, writer.call_args.kwargs["minimum_confidence"])
+
+    def test_crawler_asset_download_plan_summary_guides_review_required(self) -> None:
+        result = SimpleNamespace(
+            blocked=False,
+            outcome_bucket="review_required",
+            direct_download_count=0,
+            review_required_count=2,
+            user_next_action="open_adapter_review_or_adjust_bounds",
+        )
+
+        message = crawler_asset_download_plan_summary_text(result, 0, "state/crawler_asset_plans/demo.resolved.json", lambda zh, _en: zh)
+
+        self.assertIn("目前沒有可直接下載項目", message)
+        self.assertIn("2 筆需要 Adapter 待辦", message)
+        self.assertIn("界域設定調整條件", message)
+        self.assertIn("state/crawler_asset_plans/demo.resolved.json", message)
+
+    def test_crawler_asset_download_plan_summary_guides_ready_queue(self) -> None:
+        result = SimpleNamespace(
+            blocked=False,
+            outcome_bucket="ready_to_download",
+            direct_download_count=3,
+            review_required_count=0,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+        )
+
+        message = crawler_asset_download_plan_summary_text(result, 3, "", lambda zh, _en: zh)
+
+        self.assertIn("直接下載 3 筆", message)
+        self.assertIn("已加入下載器 3 筆", message)
+        self.assertIn("開始 / 暫停", message)
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

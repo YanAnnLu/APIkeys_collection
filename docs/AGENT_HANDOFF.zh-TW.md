@@ -4,6 +4,12 @@
 
 接手時先讀 `docs/AGENT_START_HERE.zh-TW.md`，再讀本文件與 `PROJECT_GTD.md`。這份文件是跨 Windows、macOS、不同 Agent 接力時的固定接力卡；每次切換機器或切換 Agent 前，請優先更新這份文件。
 
+## 2026-05-25 爬蟲資產 UI 狀態收斂
+
+- 本輪在 `api_launcher/crawler_asset_service.py` 補上 `CrawlerAssetDownloadPlanResult.outcome_bucket` 與 `user_next_action`，把爬蟲資產送進下載器的結果固定成後端狀態桶：`ready_to_download`、`partial_review_required`、`review_required`、`zero_candidates`、`empty_plan`、`blocked`。
+- `frontends/tk/crawler_asset_workflows.py` 現在只顯示後端狀態，不再用 Tk 自己解析 resolved plan。可直接下載時會提示去下載器用開始 / 暫停；仍需 Adapter 待辦時會提示開 Adapter review 或調整界域；零候選會提示放寬時間 / 空間 / 筆數條件。
+- 新增 headless 測試鎖住 review-required 與 ready-to-download 的使用者提示，也補上 service outcome bucket 的 regression。下一輪若做 Qt 或卡片牆 badge，請沿用 `outcome_bucket`，不要重新寫一套 UI 判斷。
+
 ## 2026-05-25 Crawler asset / download plan registry 收斂
 
 - 最新穩定 checkpoint：`734deb1`（`Preserve fragments in crawler query URLs`），GitHub Actions run `26400477554` 已成功。

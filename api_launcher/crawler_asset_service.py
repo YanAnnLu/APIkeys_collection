@@ -100,14 +100,49 @@ class CrawlerAssetDownloadPlanResult:
             return 0
         return int(summary.get("review_required_count") or 0)
 
+    @property
+    def outcome_bucket(self) -> str:
+        """回傳穩定狀態桶，讓 Tk/Qt 顯示結果時不用重判下載政策。"""
+
+        if self.blocked:
+            return "blocked"
+        if self.plan_build is None:
+            return "empty_plan"
+        if self.direct_download_count > 0 and self.review_required_count > 0:
+            return "partial_review_required"
+        if self.direct_download_count > 0:
+            return "ready_to_download"
+        if self.review_required_count > 0:
+            return "review_required"
+        if self.plan_build.candidate_count == 0:
+            return "zero_candidates"
+        return "empty_plan"
+
+    @property
+    def user_next_action(self) -> str:
+        """給 UI 顯示下一步，避免畫面層解析 resolved plan 內部結構。"""
+
+        if self.blocked:
+            return self.next_action
+        bucket = self.outcome_bucket
+        if bucket in {"ready_to_download", "partial_review_required"}:
+            return "open_downloader_and_start_or_pause_queue"
+        if bucket == "review_required":
+            return "open_adapter_review_or_adjust_bounds"
+        if bucket == "zero_candidates":
+            return "adjust_bounds_or_refresh_source_listing"
+        return self.next_action or "review_resolved_download_plan"
+
     def to_dict(self) -> dict[str, object]:
         return {
             "asset_id": self.asset_id,
             "source_found": self.source_found,
             "blocked": self.blocked,
             "blocked_reason": self.blocked_reason,
+            "outcome_bucket": self.outcome_bucket,
             "bounds": self.bounds.to_dict(),
             "next_action": self.next_action,
+            "user_next_action": self.user_next_action,
             "plan_build": self.plan_build.to_dict() if self.plan_build is not None else {},
         }
 

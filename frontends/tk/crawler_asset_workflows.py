@@ -4,6 +4,7 @@ import json
 import threading
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
+from typing import Callable
 
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
@@ -486,11 +487,12 @@ class CrawlerAssetWorkflowMixin:
 
     def _finish_crawler_asset_download_plan(self, result, written_paths: dict[str, str]) -> None:
         if result.blocked:
-            self.status_var.set(
-                self.tr(
-                    f"爬蟲資產暫時不能建立下載計畫：{result.blocked_reason}；下一步：{result.next_action}",
-                    f"Crawler asset cannot build a plan: {result.blocked_reason}; next: {result.next_action}",
-                )
+            summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
+            self.status_var.set(summary.replace("\n", " "))
+            messagebox.showwarning(
+                self.tr("爬蟲下載計畫被擋下", "Crawler download plan blocked"),
+                summary,
+                parent=getattr(self, "root", None),
             )
             return
         added = self.add_download_plan_entries_from_payload(result.resolved_plan) if result.resolved_plan else 0
@@ -499,17 +501,8 @@ class CrawlerAssetWorkflowMixin:
         if added and hasattr(self, "main_notebook") and hasattr(self, "downloader_tab"):
             self.main_notebook.select(self.downloader_tab)
         resolved_path = written_paths.get("resolved", "")
-        summary = self.tr(
-            (
-                f"已建立爬蟲下載計畫：直接下載 {result.direct_download_count}，仍需 review {result.review_required_count}，"
-                f"已加入下載器 {added}。\n{resolved_path}"
-            ),
-            (
-                f"Crawler download plan built: direct {result.direct_download_count}, review {result.review_required_count}, "
-                f"added to downloader {added}.\n{resolved_path}"
-            ),
-        )
-        self.status_var.set(summary.replace("\n", " "))
+        summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
+        self.status_var.set(summary.splitlines()[0])
         messagebox.showinfo(self.tr("爬蟲下載計畫已建立", "Crawler download plan built"), summary, parent=getattr(self, "root", None))
 
     def toggle_selected_crawler_asset_archive(self) -> None:
@@ -534,6 +527,65 @@ class CrawlerAssetWorkflowMixin:
                 f"Crawler asset {'archived' if profile.archived else 'enabled'}: {asset.display_name}",
             )
         )
+
+
+def crawler_asset_download_plan_summary_text(
+    result: object,
+    added_count: int,
+    resolved_path: str,
+    tr: Callable[[str, str], str],
+) -> str:
+    """把 service outcome bucket 轉成人類可讀文字；Tk 不直接解析 resolved plan。"""
+
+    bucket = str(getattr(result, "outcome_bucket", "") or "")
+    direct = int(getattr(result, "direct_download_count", 0) or 0)
+    review = int(getattr(result, "review_required_count", 0) or 0)
+    blocked = bool(getattr(result, "blocked", False))
+    blocked_reason = str(getattr(result, "blocked_reason", "") or "-")
+    next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "-")
+
+    if blocked or bucket == "blocked":
+        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action}"
+        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action}"
+        return tr(zh, en)
+    if bucket == "partial_review_required":
+        zh = (
+            f"已加入下載器 {added_count} 筆，可先展示或開始下載；另有 {review} 筆需要 Adapter 待辦。\n"
+            "下一步：到下載器確認隊列，剩餘項目再進 Adapter review 或調整界域。"
+        )
+        en = (
+            f"Added {added_count} item(s) to Downloader; {review} item(s) still need Adapter review.\n"
+            "Next: confirm the queue in Downloader, then review adapters or adjust bounds."
+        )
+    elif bucket == "ready_to_download":
+        zh = (
+            f"已建立可下載計畫：直接下載 {direct} 筆，已加入下載器 {added_count} 筆。\n"
+            "下一步：到下載器使用開始 / 暫停控制隊列。"
+        )
+        en = (
+            f"Download plan is ready: direct {direct}, added {added_count} item(s) to Downloader.\n"
+            "Next: use start / pause in Downloader."
+        )
+    elif bucket == "review_required":
+        zh = (
+            f"已建立計畫，但目前沒有可直接下載項目；{review} 筆需要 Adapter 待辦。\n"
+            "下一步：開 Adapter review，或回到界域設定調整條件。"
+        )
+        en = (
+            f"Plan built, but no direct downloads are ready; {review} item(s) require Adapter review.\n"
+            "Next: open Adapter review or adjust bounds."
+        )
+    elif bucket == "zero_candidates":
+        zh = "沒有找到符合界域的候選資料。\n下一步：放寬時間 / 空間 / 筆數條件，或先重新擷取清單。"
+        en = "No candidates matched the selected bounds.\nNext: loosen time / spatial / limit bounds, or refresh the source listing."
+    else:
+        zh = "已建立下載計畫，但沒有可執行的下載項目。\n下一步：檢查 resolved plan，或調整界域後重試。"
+        en = "Plan built, but no executable download item was produced.\nNext: inspect the resolved plan, or adjust bounds and retry."
+
+    if resolved_path:
+        zh = f"{zh}\n\nResolved plan：{resolved_path}"
+        en = f"{en}\n\nResolved plan: {resolved_path}"
+    return tr(zh, en)
 
 
 def crawler_asset_state_label(asset: CrawlerAsset) -> str:

@@ -3,8 +3,10 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from api_launcher.crawler_asset_service import (
+    CrawlerAssetDownloadPlanResult,
     build_crawler_asset_download_plan,
     run_crawler_asset_listing,
     source_download_options_from_crawler_asset_payload,
@@ -536,6 +538,24 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("Dataset A", datasets[0].title)
         self.assertEqual("demo_index", datasets[0].metadata["discovery_source_id"])
 
+    def test_download_plan_result_routes_review_required_bucket(self) -> None:
+        plan_build = SimpleNamespace(
+            direct_download_count=0,
+            candidate_count=2,
+            resolved_plan={"summary": {"review_required_count": 2}},
+            to_dict=lambda: {},
+        )
+        result = CrawlerAssetDownloadPlanResult(
+            asset_id="demo_index",
+            source_found=True,
+            plan_build=plan_build,
+            next_action="adapter_review_required",
+        )
+
+        self.assertEqual("review_required", result.outcome_bucket)
+        self.assertEqual("open_adapter_review_or_adjust_bounds", result.user_next_action)
+        self.assertEqual("review_required", result.to_dict()["outcome_bucket"])
+
     def test_service_builds_download_plan_from_asset_bounds(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path = Path(tmp) / "sources.json"
@@ -625,6 +645,8 @@ class CrawlerAssetTest(unittest.TestCase):
                 conn.close()
 
         self.assertFalse(result.blocked)
+        self.assertEqual("ready_to_download", result.outcome_bucket)
+        self.assertEqual("open_downloader_and_start_or_pause_queue", result.user_next_action)
         self.assertEqual(1, result.direct_download_count)
         self.assertEqual(7, result.bounds.sample_limit)
         self.assertEqual("source_discovery_download_plan", result.original_plan["plan_name"])

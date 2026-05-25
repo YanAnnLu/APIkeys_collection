@@ -1,6 +1,6 @@
 # 使用者操作指南
 
-最後更新：2026-05-23
+最後更新：2026-05-25
 
 這份文件寫給第一次打開 launcher 的人。它用操作角度說明目前 UI 可以做什麼，以及哪些功能還是骨架。
 
@@ -461,7 +461,12 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 2. 按「送進下載器」或同等下載計畫動作。
 3. 如果該爬蟲支援界域，系統會依後端 `bounds_schema` 動態產生表單，例如 limit、bbox、time range、collection、format。
 4. 送出後，UI 會在背景建立下載計畫，並把可直接下載的項目加入下方下載器。
-5. 需要 Adapter review、內容 parser review、或無法直接下載的項目會保留在 resolved plan summary；這些不是失敗，而是下一步待辦。
+5. 建立結果會用明確狀態提示下一步：
+   - `可直接下載`：已加入下載器，可到下載器使用開始 / 暫停控制隊列。
+   - `部分待辦`：已有項目可下載，但仍有項目需要 Adapter review。
+   - `需 Adapter review`：目前沒有可直接下載項目，請開 Adapter review 或回到界域設定調整條件。
+   - `零候選`：沒有找到符合界域的資料，請放寬時間 / 空間 / 筆數條件或重新擷取清單。
+   - `被封存 / 停用`：必須先解除封存或啟用該爬蟲資產。
 
 系統會把計畫草稿寫到：
 
