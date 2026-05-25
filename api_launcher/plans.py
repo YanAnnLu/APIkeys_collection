@@ -14,6 +14,13 @@ from api_launcher.downloads.staging import safe_path_part
 from api_launcher.sql_assets import validate_sql_identifier
 
 
+CMR_COLLECTION_NATIVE_FORMATS = frozenset({"cmr_collection"})
+CMR_COLLECTION_SOURCE_TYPES = frozenset({"cmr_collections"})
+RESEARCH_METADATA_NATIVE_FORMATS = frozenset({"datacite_doi", "openalex_work"})
+RESEARCH_METADATA_SOURCE_TYPES = frozenset({"datacite_dois", "openalex_works_search"})
+RESEARCH_METADATA_HOSTS = frozenset({"doi.org", "dx.doi.org", "openalex.org"})
+
+
 def build_download_plan(
     providers: Iterable[Provider],
     plan_name: str,
@@ -218,7 +225,7 @@ def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEli
     metadata = option.metadata or {}
     native_format = str(metadata.get("native_format") or metadata.get("source_format") or "").strip().lower()
     source_type = str(metadata.get("discovery_source_type") or metadata.get("source_type") or "").strip().lower()
-    if native_format == "cmr_collection" or source_type == "cmr_collections":
+    if dataset_version_is_cmr_collection(native_format, source_type):
         return DownloadEligibility(
             status="adapter_required",
             label="Adapter",
@@ -247,13 +254,22 @@ def assess_dataset_version_download(option: DatasetVersionOption) -> DownloadEli
     )
 
 
+def dataset_version_is_cmr_collection(native_format: str, source_type: str) -> bool:
+    return (
+        native_format.strip().lower() in CMR_COLLECTION_NATIVE_FORMATS
+        or source_type.strip().lower() in CMR_COLLECTION_SOURCE_TYPES
+    )
+
+
 def dataset_version_is_research_metadata_landing(url: str, native_format: str, source_type: str) -> bool:
-    if native_format in {"datacite_doi", "openalex_work"}:
+    native_format = native_format.strip().lower()
+    source_type = source_type.strip().lower()
+    if native_format in RESEARCH_METADATA_NATIVE_FORMATS:
         return True
-    if source_type in {"datacite_dois", "openalex_works_search"}:
+    if source_type in RESEARCH_METADATA_SOURCE_TYPES:
         return True
     parsed = urllib.parse.urlparse(url)
-    return parsed.netloc.lower() in {"doi.org", "dx.doi.org", "openalex.org"} and bool(parsed.path.strip("/"))
+    return (parsed.hostname or parsed.netloc).lower() in RESEARCH_METADATA_HOSTS and bool(parsed.path.strip("/"))
 
 
 def dataset_download_target_path(

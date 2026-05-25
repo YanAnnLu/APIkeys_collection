@@ -17,7 +17,17 @@ from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.dataset_versions import version_options_for_dataset
 from api_launcher.models import Dataset, Provider
-from api_launcher.plans import build_dataset_download_plan, provider_dataset_version_plan_entry
+from api_launcher.plans import (
+    CMR_COLLECTION_NATIVE_FORMATS,
+    CMR_COLLECTION_SOURCE_TYPES,
+    RESEARCH_METADATA_HOSTS,
+    RESEARCH_METADATA_NATIVE_FORMATS,
+    RESEARCH_METADATA_SOURCE_TYPES,
+    build_dataset_download_plan,
+    dataset_version_is_cmr_collection,
+    dataset_version_is_research_metadata_landing,
+    provider_dataset_version_plan_entry,
+)
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.renderer_contracts import GEBCO_PROVIDER_ID, HYG_PROVIDER_ID
 
@@ -191,6 +201,22 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual("adapter_review_required", entry["import_plan"]["status"])
         self.assertEqual("needs_adapter_review", entry["adapter_review"]["status"])
         self.assertEqual("resolve_source_to_direct_download_entries", entry["adapter_review"]["required_action"])
+
+    def test_plan_source_type_registries_cover_research_metadata_and_cmr(self) -> None:
+        self.assertIn("cmr_collection", CMR_COLLECTION_NATIVE_FORMATS)
+        self.assertIn("cmr_collections", CMR_COLLECTION_SOURCE_TYPES)
+        self.assertIn("datacite_doi", RESEARCH_METADATA_NATIVE_FORMATS)
+        self.assertIn("openalex_work", RESEARCH_METADATA_NATIVE_FORMATS)
+        self.assertIn("datacite_dois", RESEARCH_METADATA_SOURCE_TYPES)
+        self.assertIn("openalex_works_search", RESEARCH_METADATA_SOURCE_TYPES)
+        self.assertIn("doi.org", RESEARCH_METADATA_HOSTS)
+        self.assertIn("openalex.org", RESEARCH_METADATA_HOSTS)
+
+        self.assertTrue(dataset_version_is_cmr_collection("cmr_collection", ""))
+        self.assertTrue(dataset_version_is_cmr_collection("", "cmr_collections"))
+        self.assertTrue(dataset_version_is_research_metadata_landing("https://doi.org/10.1234/example", "", ""))
+        self.assertTrue(dataset_version_is_research_metadata_landing("https://openalex.org/W1650569836", "", ""))
+        self.assertFalse(dataset_version_is_research_metadata_landing("https://example.test/files/sample.csv", "csv", "html_file_index"))
 
     def test_adapter_review_payload_collects_non_direct_entries(self) -> None:
         entry = {
