@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import json
 import threading
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
-from api_launcher.crawler_asset_bound_forms import build_crawler_asset_bound_form_spec
-from api_launcher.crawler_asset_service import run_crawler_asset_listing
+from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
+from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
+from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import log_event, log_exception
-from api_launcher.paths import local_config_file
+from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
@@ -415,7 +417,7 @@ class CrawlerAssetWorkflowMixin:
         if asset.archived:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再送到下載器。", "This crawler is archived; unarchive it before sending it to Downloader."))
             return
-        bounds_payload_summary = ""
+        bounds_payload = None
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         if plan_capability is not None and plan_capability.bounds_schema:
             # 這裡只產生來源界域 payload，不直接下載。Tk/Qt 之後都應共用同一份 form spec。
@@ -427,16 +429,88 @@ class CrawlerAssetWorkflowMixin:
             if not hasattr(self, "crawler_asset_bound_payloads"):
                 self.crawler_asset_bound_payloads = {}
             self.crawler_asset_bound_payloads[asset.asset_id] = dialog.result.to_dict()
-            bounds_payload_summary = f" Bounds: {dialog.result.summary}."
+            bounds_payload = dialog.result
         self.active_provider_id = asset.provider_id
         self.status_var.set(
             self.tr(
-                "下載指定資料庫需要先在下載器選定資料集/版本，再按「界域」產生動態表單。",
-                "Select a dataset/version in Downloader, then use the crawler bounds payload when building the plan." + bounds_payload_summary,
+                f"正在用爬蟲資產建立下載計畫：{asset.display_name}",
+                f"Building download plan from crawler asset: {asset.display_name}",
             )
         )
-        if hasattr(self, "main_notebook") and hasattr(self, "downloader_tab"):
+        threading.Thread(
+            target=self._crawler_asset_download_plan_worker,
+            args=(asset.asset_id, bounds_payload),
+            daemon=True,
+        ).start()
+
+    def _crawler_asset_download_plan_worker(self, asset_id: str, bounds_payload: CrawlerAssetBoundPayload | None) -> None:
+        # crawler asset -> bounds -> plan 的實作放在 service；Tk 只做顯示與 plan 匯入。
+        try:
+            conn = self._connect()
+            try:
+                result = build_crawler_asset_download_plan(
+                    asset_id,
+                    conn,
+                    bounds_payload=bounds_payload,
+                    downloads_root=DOWNLOADS_DIR,
+                )
+            finally:
+                conn.close()
+            written_paths: dict[str, str] = {}
+            if result.plan_build is not None:
+                slug = safe_path_part(asset_id)
+                original_path = state_file(f"crawler_asset_plans/{slug}.original.json")
+                resolved_path = state_file(f"crawler_asset_plans/{slug}.resolved.json")
+                original_path.parent.mkdir(parents=True, exist_ok=True)
+                original_path.write_text(json.dumps(result.original_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                resolved_path.write_text(json.dumps(result.resolved_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                written_paths = {"original": str(original_path), "resolved": str(resolved_path)}
+                log_event(
+                    "crawler_asset_download_plan_built",
+                    "Tk crawler asset workflow built a bounded download plan.",
+                    component="ui.crawler_assets",
+                    context={
+                        "asset_id": asset_id,
+                        "direct_download_count": result.direct_download_count,
+                        "review_required_count": result.review_required_count,
+                        "resolved_plan": str(resolved_path),
+                    },
+                )
+        except Exception as exc:
+            log_exception("crawler_asset_download_plan_failed", exc, component="ui.crawler_assets", context={"asset_id": asset_id})
+            self.root.after(0, lambda: messagebox.showerror(self.tr("建立下載計畫失敗", "Build download plan failed"), str(exc), parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"建立爬蟲下載計畫失敗：{exc}", f"Crawler download plan failed: {exc}")))
+            return
+
+        self.root.after(0, lambda: self._finish_crawler_asset_download_plan(result, written_paths))
+
+    def _finish_crawler_asset_download_plan(self, result, written_paths: dict[str, str]) -> None:
+        if result.blocked:
+            self.status_var.set(
+                self.tr(
+                    f"爬蟲資產暫時不能建立下載計畫：{result.blocked_reason}；下一步：{result.next_action}",
+                    f"Crawler asset cannot build a plan: {result.blocked_reason}; next: {result.next_action}",
+                )
+            )
+            return
+        added = self.add_download_plan_entries_from_payload(result.resolved_plan) if result.resolved_plan else 0
+        self.render_table()
+        self.update_download_plan_panel()
+        if added and hasattr(self, "main_notebook") and hasattr(self, "downloader_tab"):
             self.main_notebook.select(self.downloader_tab)
+        resolved_path = written_paths.get("resolved", "")
+        summary = self.tr(
+            (
+                f"已建立爬蟲下載計畫：直接下載 {result.direct_download_count}，仍需 review {result.review_required_count}，"
+                f"已加入下載器 {added}。\n{resolved_path}"
+            ),
+            (
+                f"Crawler download plan built: direct {result.direct_download_count}, review {result.review_required_count}, "
+                f"added to downloader {added}.\n{resolved_path}"
+            ),
+        )
+        self.status_var.set(summary.replace("\n", " "))
+        messagebox.showinfo(self.tr("爬蟲下載計畫已建立", "Crawler download plan built"), summary, parent=getattr(self, "root", None))
 
     def toggle_selected_crawler_asset_archive(self) -> None:
         asset = self.selected_crawler_asset()

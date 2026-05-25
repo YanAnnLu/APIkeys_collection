@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-25
 
+## 2026-05-25 爬蟲資產下載計畫閉環
+
+- [x] 新增 `build_crawler_asset_download_plan()` service：把爬蟲資產、`CrawlerAssetBoundPayload` 與既有 `build_source_download_plan()` 接起來，讓界域條件可以轉成 `SourceDownloadBounds`，並保留 direct download / adapter review 的後端判斷。
+- [x] Tk 爬蟲資產「送進下載器」不再只是存 payload；現在會在背景建立原始與解析後下載計畫，輸出到 `state/crawler_asset_plans/*.original.json` 與 `state/crawler_asset_plans/*.resolved.json`，並把可直接下載的項目加入下方下載器。
+- [x] 測試補上界域 payload 轉換與 service 產生 direct download plan 的 regression；Tk headless 測試也改成驗證它會啟動背景計畫建立工作。
+- [ ] 下一輪精修：把 plan 建立結果做成更清楚的爬蟲卡片狀態 / 待辦徽章，並讓 review-required entries 在 UI 上更容易被使用者理解與處理。
+
 ## 2026-05-24 K 槽概念樣本庫 / CODE_KM 治理心法
 
 - [x] 固化 checkpoint 文檔規則：每個功能切片完成 commit / push / CI success 後，必須同步更新 `docs/DEVELOPMENT_LOG.zh-TW.md`；未測完或未推送的工作只能留在 GTD/handoff，不能冒充穩定 checkpoint。

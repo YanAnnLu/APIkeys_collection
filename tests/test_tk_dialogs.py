@@ -220,7 +220,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("10", values["limit"])
         self.assertEqual(["datetime"], values["columns"])
 
-    def test_crawler_asset_workflow_stores_bounds_payload_before_switching_to_downloader(self) -> None:
+    def test_crawler_asset_workflow_stores_bounds_payload_before_building_plan(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_stac",
             provider_id="demo_provider",
@@ -243,15 +243,29 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.downloader_tab = "downloader"
         ui.main_notebook = SimpleNamespace(selected=None)
         ui.main_notebook.select = lambda tab: setattr(ui.main_notebook, "selected", tab)
+        thread_call = SimpleNamespace(target=None, args=None, started=False)
 
-        with patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class:
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.target = target
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class,
+            patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread),
+        ):
             CrawlerAssetWorkflowMixin.prepare_selected_crawler_asset_download(ui)
 
         dialog_class.assert_called_once()
         self.assertEqual("demo_provider", ui.active_provider_id)
         self.assertEqual(payload.to_dict(), ui.crawler_asset_bound_payloads["demo_stac"])
-        self.assertEqual("downloader", ui.main_notebook.selected)
-        self.assertIn("Bounds: limit=5", ui.status_var.value)
+        self.assertTrue(thread_call.started)
+        self.assertEqual(("demo_stac", payload), thread_call.args)
+        self.assertIn("Building download plan from crawler asset", ui.status_var.value)
 
     def test_source_pattern_draft_dialog_form_values_without_tk_mainloop(self) -> None:
         dialog = object.__new__(SourcePatternDraftDialog)

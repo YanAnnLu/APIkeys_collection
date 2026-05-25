@@ -483,3 +483,8 @@ Agent 自我改進規則：每次壓力測試、壞假設、突發 timeout、簡
 ## UI/UX 開發提醒
 
 UI/UX 需求不得只靠聊天比喻直接實作。若使用者提到 Foxy、Steam、tem 或其他軟體，先萃取互動精神與心流，不自動沿用其命名。中大型 UI 變更先查 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md`，把操作對象、入口、觸發方式、狀態變化、後端服務、錯誤狀態與驗收方式整理清楚，再進入 Tk / Qt 程式碼。當前雙擊語意保留給下載器清單項目啟動；爬蟲設定使用明確齒輪或「爬蟲設定」按鈕。
+## 2026-05-25 爬蟲資產下載計畫閉環
+
+- 本輪把 `api_launcher/crawler_asset_service.py` 往前推到可產生下載計畫：`build_crawler_asset_download_plan()` 會讀取 crawler asset source/profile，擋下 disabled/archived source，將 `CrawlerAssetBoundPayload` 轉成 `SourceDownloadBounds`，再呼叫既有 `build_source_download_plan()`。這保持邊界清楚：UI/Qt 不需要重寫 crawler、candidate、resolver 或 direct-download eligibility 規則。
+- Tk `frontends/tk/crawler_asset_workflows.py` 的「送進下載器」已接上背景工作：使用者填完動態界域表單後，會建立 `state/crawler_asset_plans/{asset}.original.json` 與 `{asset}.resolved.json`，把 resolved plan 中可直接下載的項目加入下方下載器；需要 adapter review 的項目仍留在 resolved plan summary，不假裝可下載。
+- 驗證已補到 `tests/test_crawler_assets.py` 與 `tests/test_tk_dialogs.py`：覆蓋界域 payload -> source-download options、service 產生 direct download plan、Tk workflow 啟動背景計畫工作。下一步可在 UI 上把 review-required 狀態做成更清楚的徽章/待辦。

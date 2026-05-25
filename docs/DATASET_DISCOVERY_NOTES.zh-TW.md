@@ -442,3 +442,25 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 ```
 
 `--dataset-discovery-complete-seed` 會忽略 catalog 裡的抽樣 `search_terms`，並啟用有頁數上限的完整爬取嘗試；`--dataset-discovery-max-pages` 仍是安全上限，不代表無限制下載。這個模式的目標是「找到入口內可 seed 的資料庫 / 資料集候選」，後續仍需候選審核、adapter plan、download plan、manifest verification 與 import 才算進入資料資產生命週期。
+## 2026-05-25 爬蟲資產到下載計畫的執行邊界
+
+本輪把爬蟲資產的「界域表單」正式接到下載計畫，而不是只停在 UI payload。新的邊界如下：
+
+```text
+CrawlerAsset + CrawlerAssetBoundPayload
+  -> source_download_options_from_crawler_asset_payload()
+  -> SourceDownloadBounds / SourceDownloadOptions
+  -> build_source_download_plan()
+  -> original plan + resolved plan
+  -> Tk/Qt/CLI consume resolved plan
+```
+
+重要原則：
+
+- `CrawlerAssetBoundPayload` 是前端中立輸入；Tk/Qt 只負責收集欄位。
+- `SourceDownloadBounds` 是下載服務真正理解的界域契約；例如 limit、bbox、time range、columns、search terms。
+- direct download / adapter review 的判斷仍由 `source_download` 與 resolver 管線負責，UI 不應自行猜測。
+- Tk 目前會把結果寫到 `state/crawler_asset_plans/*.original.json` 與 `*.resolved.json`，並只把 resolved plan 中可直接下載的項目加入下載器。
+- 若 source 被 disabled / archived，或 resolver 判斷仍需 adapter review，流程應清楚回報 `next_action`，不能裝作已可下載。
+
+下一步是把 `review_required_count`、blocked reason、content parser review 等結果做成更清楚的 UI 待辦狀態，而不是再增加新的 UI 判斷分支。

@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api_launcher.crawler_asset_service import run_crawler_asset_listing
+from api_launcher.crawler_asset_service import (
+    build_crawler_asset_download_plan,
+    run_crawler_asset_listing,
+    source_download_options_from_crawler_asset_payload,
+)
 from api_launcher.crawler_asset_profiles import (
     crawler_asset_profile_for,
     load_crawler_asset_profiles,
@@ -217,6 +221,40 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("2026-01-01", payload.facet_values["time"]["start_date"])
         self.assertEqual(10, payload.facet_values["limit"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), payload.maps_to_values["SourceDownloadBounds.bbox"])
+
+    def test_bounds_payload_converts_to_source_download_options(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema)
+        payload = crawler_asset_bound_payload_from_form_values(
+            form_spec,
+            {
+                "collection": "landsat-c2",
+                "time_field": "datetime",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+                "bbox_west": "120",
+                "bbox_south": "22",
+                "bbox_east": "122",
+                "bbox_north": "25",
+                "limit": "10",
+            },
+        )
+
+        options = source_download_options_from_crawler_asset_payload(payload, max_results=50, full_crawl=False)
+
+        self.assertEqual(10, options.bounds.sample_limit)
+        self.assertEqual("datetime", options.bounds.time_field)
+        self.assertEqual("2026-01-31", options.bounds.end_date)
+        self.assertEqual((120.0, 22.0, 122.0, 25.0), options.bounds.bbox)
+        self.assertEqual(("landsat-c2",), options.search_terms_override)
+        self.assertEqual(50, options.max_results_override)
 
     def test_load_crawler_asset_source_finds_single_entry(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -497,6 +535,102 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(1, len(datasets))
         self.assertEqual("Dataset A", datasets[0].title)
         self.assertEqual("demo_index", datasets[0].metadata["discovery_source_id"])
+
+    def test_service_builds_download_plan_from_asset_bounds(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            local_path = Path(tmp) / "local_sources.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "demo_index",
+      "provider_id": "demo_provider",
+      "name": "Demo Index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://example.test/index.html"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            conn = connect_db(Path(tmp) / "catalog.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                        auth_type="none",
+                    )
+                )
+                source = load_crawler_asset_source("demo_index", source_path, local_path)
+                self.assertIsNotNone(source)
+                assert source is not None
+                asset = crawler_asset_from_source(source)
+                spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema)
+                bounds_payload = crawler_asset_bound_payload_from_form_values(spec, {"limit": "7"})
+                candidate = DatasetCandidate(
+                    dataset=Dataset(
+                        dataset_uid="demo_provider:dataset_a",
+                        provider_id="demo_provider",
+                        dataset_id="dataset_a",
+                        title="Dataset A",
+                        categories=("demo",),
+                        native_format="csv",
+                        api_url="https://example.test/data.csv",
+                        metadata={"download_url": "https://example.test/data.csv"},
+                    ),
+                    source_id="demo_index",
+                    source_type="html_file_index",
+                    source_url="https://example.test/index.html",
+                    confidence=0.9,
+                    evidence=("unit-test",),
+                )
+
+                def fake_runner(_sources, _options):
+                    return DatasetCrawlResult(
+                        candidates=(candidate,),
+                        source_results=(
+                            DatasetSourceCrawlResult(
+                                source_id="demo_index",
+                                provider_id="demo_provider",
+                                source_type="html_file_index",
+                                candidate_count=1,
+                                candidates=(candidate,),
+                            ),
+                        ),
+                    )
+
+                from unittest.mock import patch
+
+                with patch("api_launcher.source_download.crawl_dataset_sources", fake_runner):
+                    result = build_crawler_asset_download_plan(
+                        "demo_index",
+                        conn,
+                        bounds_payload=bounds_payload,
+                        downloads_root=Path(tmp) / "downloads",
+                        primary_path=source_path,
+                        local_path=local_path,
+                    )
+            finally:
+                conn.close()
+
+        self.assertFalse(result.blocked)
+        self.assertEqual(1, result.direct_download_count)
+        self.assertEqual(7, result.bounds.sample_limit)
+        self.assertEqual("source_discovery_download_plan", result.original_plan["plan_name"])
+        entry = result.resolved_plan["providers"][0]
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual(7, entry["download_bounds"]["sample_limit"])
 
 
 if __name__ == "__main__":

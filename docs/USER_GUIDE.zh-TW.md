@@ -453,3 +453,21 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 若需要重產展示簡報，可執行 `py -3 -B scripts\build_showcase_presentation.py`。腳本會輸出 `state/showcase/RRKAL_Showcase_Guide.zh-TW.pptx`，並讀回投影片文字檢查是否出現亂碼或缺少關鍵繁中內容；不要只用檔案是否存在判定簡報可交付。
 
 一般使用者路徑的預設值已改為系統 Downloads 下的 `RuRuKa Asset Launcher` 子資料夾：下載 payload/manifest 預設在 `Downloads/RuRuKa Asset Launcher/downloads`，匯入後的 SQLite curated database 預設在 `Downloads/RuRuKa Asset Launcher/curated_imports.db`。開發、測試或 CI 仍可用 `--downloads-root` 與 `--import-sqlite-db` 明確覆寫。
+## 爬蟲資產送進下載器
+
+目前 Tk UI 已有第一版可操作閉環：
+
+1. 進入「爬蟲資產」分頁，選一張 crawler asset 卡片。
+2. 按「送進下載器」或同等下載計畫動作。
+3. 如果該爬蟲支援界域，系統會依後端 `bounds_schema` 動態產生表單，例如 limit、bbox、time range、collection、format。
+4. 送出後，UI 會在背景建立下載計畫，並把可直接下載的項目加入下方下載器。
+5. 需要 Adapter review、內容 parser review、或無法直接下載的項目會保留在 resolved plan summary；這些不是失敗，而是下一步待辦。
+
+系統會把計畫草稿寫到：
+
+```text
+state/crawler_asset_plans/{asset_id}.original.json
+state/crawler_asset_plans/{asset_id}.resolved.json
+```
+
+這條路徑的目的，是讓使用者先用「資料入口 -> 定義界域 -> 下載器」的心流操作；後續 Qt 介面也應呼叫同一個 service，而不是重寫另一套下載規則。
