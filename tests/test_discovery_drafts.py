@@ -6,9 +6,11 @@ from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.crawlers.dataset_sources import load_dataset_discovery_sources
+from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
 from api_launcher.discovery_drafts import normalize_endpoint_for_source_type
+from api_launcher.discovery_drafts import SOURCE_ENDPOINT_NORMALIZERS
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.source_pattern_drafts import dataset_source_from_detected_url
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
@@ -252,6 +254,28 @@ class DiscoveryDraftTests(unittest.TestCase):
                 "ncei_search",
                 "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=global-hourly&limit=1",
             ),
+        )
+        self.assertEqual(
+            "https://cmr.earthdata.nasa.gov/search/collections.json",
+            normalize_endpoint_for_source_type(
+                "cmr_collections",
+                "https://cmr.earthdata.nasa.gov/search/collections.json?page_size=1#probe",
+            ),
+        )
+
+    def test_endpoint_normalizer_registry_stays_inside_supported_source_types(self) -> None:
+        # Endpoint 正規化是 source draft 的第一道邊界；registry 必須只指向已接 crawler 的 source_type。
+        self.assertLessEqual(set(SOURCE_ENDPOINT_NORMALIZERS), set(SUPPORTED_DATASET_SOURCE_TYPES))
+        self.assertIn("ckan_package_search", SOURCE_ENDPOINT_NORMALIZERS)
+        self.assertIn("socrata_catalog_search", SOURCE_ENDPOINT_NORMALIZERS)
+        self.assertIn("erddap_all_datasets", SOURCE_ENDPOINT_NORMALIZERS)
+        self.assertEqual(
+            "https://example.test/files?keep=true#raw",
+            normalize_endpoint_for_source_type("html_file_index", "https://example.test/files?keep=true#raw"),
+        )
+        self.assertEqual(
+            "https://example.test/root?keep=true#raw",
+            normalize_endpoint_for_source_type("unknown_source_type", "https://example.test/root?keep=true#raw"),
         )
 
     def test_cli_writes_detected_source_draft_from_url(self) -> None:

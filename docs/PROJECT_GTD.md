@@ -24,6 +24,7 @@ Last updated: 2026-05-25
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
 - [x] CKAN / Socrata source draft normalization 已把入口首頁或深層 dataset/resource URL 轉成 crawler 可 audit 的 canonical endpoint：CKAN 轉到 `/api/3/action/package_search`，Socrata 轉到 `api.us.socrata.com/api/catalog/v1?domains=...`，避免 detector 辨識成功後 audit 又打回 landing/resource 頁。
 - [x] Search-style source draft endpoint hardening 已移除 probe/query/fragment 汙染：STAC、CKAN、GBIF、Dataverse、Zenodo、DataCite、OpenAlex、NCEI、ERDDAP 這類目錄搜尋型 source 現在會先正規化到乾淨 catalog/search endpoint，再由各 crawler 自己加上 bounded query，避免 `rows/limit/q/search` 等參數重複或被錯接到 path。
+- [x] Source draft endpoint normalizer 已收斂到 `api_launcher/discovery_drafts.py` 的 `SOURCE_ENDPOINT_NORMALIZERS` registry；`normalize_endpoint_for_source_type()` 不再維護長串 source_type if 鏈，新增範式時應新增具名 normalizer 並用測試確認只登記已接 crawler 的 source type。
 - [x] Socrata canonical endpoint 現在只保留 `domains` 查詢條件並移除 probe pagination / fragment，避免 `limit` 這類探測參數被寫進 local source draft；真正的頁數、limit 與 resource 查詢由 Socrata crawler/resolver 控制。
 - [x] STAC detector 已能接受 `/collections` endpoint 作為入口，避免使用者貼 STAC collections URL 時只因缺少 root `stac_version` 被判成 unknown。
 - [x] ERDDAP source draft normalization 已修正深層 dataset URL：`/erddap/griddap/...` 或 `/erddap/tabledap/...` 會回到 `/erddap/tabledap/allDatasets.json?...`，避免 audit 打到錯誤路徑。

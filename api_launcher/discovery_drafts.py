@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ LOCAL_DISCOVERY_AUDIT_COMMAND = (
     "python APIkeys_collection.py --promote-local-discovery-catalog "
     "--promote-local-discovery-dry-run --write-local-discovery-audit-json state/local_discovery_audit.json"
 )
+SourceEndpointNormalizer = Callable[[urllib.parse.ParseResult], str]
 
 
 def dataset_source_from_provider_candidate(candidate: Mapping[str, object]) -> DatasetDiscoverySource:
@@ -159,57 +160,87 @@ def infer_source_type(url: str) -> str:
 
 
 def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> str:
-    # 常見 provider API base 會停在 catalog root；這裡只補已知 crawler 需要的固定 endpoint。
+    # 保持這層很薄：UI/CLI 只丟 source_type，範式自己的 endpoint 規則留在 registry 內。
     parsed = urllib.parse.urlparse(endpoint_url)
-    lowered = endpoint_url.lower()
+    normalizer = SOURCE_ENDPOINT_NORMALIZERS.get(source_type)
+    if normalizer:
+        return normalizer(parsed)
+    return endpoint_url
+
+
+def normalize_stac_collections_endpoint(parsed: urllib.parse.ParseResult) -> str:
     path = parsed.path.rstrip("/")
     path_lower = path.lower()
-    if source_type == "stac_collections":
-        if not path_lower.endswith("/collections"):
-            path = f"{path}/collections"
+    if not path_lower.endswith("/collections"):
+        path = f"{path}/collections"
+    return endpoint_with_path(parsed, path)
+
+
+def normalize_ogc_api_records_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    if "/collections" not in path_lower:
+        path = f"{path}/collections"
+    return endpoint_with_path(parsed, path)
+
+
+def normalize_dataverse_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    if not path_lower.endswith("/api/search"):
+        path = f"{path}/api/search" if path else "/api/search"
+    return endpoint_with_path(parsed, path)
+
+
+def normalize_ncei_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    marker = "/access/services/search/v1"
+    if marker in path_lower:
+        prefix = path[: path_lower.index(marker) + len(marker)]
+        return endpoint_with_path(parsed, f"{prefix}/datasets")
+    return endpoint_with_path(parsed, "/access/services/search/v1/datasets")
+
+
+def normalize_cmr_collections_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    if path.lower().endswith(("collections.json", "collections")):
         return endpoint_with_path(parsed, path)
-    if source_type == "ogc_api_records":
-        if "/collections" not in path_lower:
-            path = f"{path}/collections"
-        return endpoint_with_path(parsed, path)
-    if source_type == "gbif_dataset_search":
-        return endpoint_with_path(parsed, "/v1/dataset/search")
-    if source_type == "dataverse_search":
-        if not path_lower.endswith("/api/search"):
-            path = f"{path}/api/search" if path else "/api/search"
-        return endpoint_with_path(parsed, path)
-    if source_type == "zenodo_records_search":
-        return endpoint_with_path(parsed, "/api/records")
-    if source_type == "datacite_dois":
-        return endpoint_with_path(parsed, "/dois")
-    if source_type == "openalex_works_search":
-        return endpoint_with_path(parsed, "/works")
-    if source_type == "ncei_search":
-        if "/access/services/search/v1" in path_lower:
-            prefix = path[: path_lower.index("/access/services/search/v1") + len("/access/services/search/v1")]
-            return endpoint_with_path(parsed, f"{prefix}/datasets")
-        return endpoint_with_path(parsed, "/access/services/search/v1/datasets")
-    if source_type == "ckan_package_search":
-        return normalize_ckan_package_search_endpoint(parsed)
-    if source_type == "socrata_catalog_search":
-        return normalize_socrata_catalog_endpoint(parsed)
-    if source_type == "cmr_collections" and not lowered.endswith(("collections.json", "collections")):
-        return endpoint_with_path(parsed, "/search/collections.json")
-    if source_type == "erddap_all_datasets":
-        if "/erddap" in path_lower:
-            erddap_end = path_lower.index("/erddap") + len("/erddap")
-            erddap_root = parsed.path[:erddap_end]
-        else:
-            erddap_root = path + "/erddap"
-        path = erddap_root.rstrip("/") + "/tabledap/allDatasets.json"
-        query = "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl"
-        return endpoint_with_path(parsed, path, query=query)
-    return endpoint_url
+    return endpoint_with_path(parsed, "/search/collections.json")
+
+
+def normalize_erddap_all_datasets_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    if "/erddap" in path_lower:
+        erddap_end = path_lower.index("/erddap") + len("/erddap")
+        erddap_root = parsed.path[:erddap_end]
+    else:
+        erddap_root = path + "/erddap"
+    normalized_path = erddap_root.rstrip("/") + "/tabledap/allDatasets.json"
+    query = "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl"
+    return endpoint_with_path(parsed, normalized_path, query=query)
 
 
 def endpoint_with_path(parsed: urllib.parse.ParseResult, path: str, query: str = "") -> str:
     normalized_path = path if path.startswith("/") else f"/{path}"
     return urllib.parse.urlunparse(parsed._replace(path=normalized_path, query=query, fragment=""))
+
+
+def normalize_gbif_dataset_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    return endpoint_with_path(parsed, "/v1/dataset/search")
+
+
+def normalize_zenodo_records_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    return endpoint_with_path(parsed, "/api/records")
+
+
+def normalize_datacite_dois_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    return endpoint_with_path(parsed, "/dois")
+
+
+def normalize_openalex_works_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    return endpoint_with_path(parsed, "/works")
 
 
 def normalize_ckan_package_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
@@ -242,6 +273,22 @@ def normalize_socrata_catalog_endpoint(parsed: urllib.parse.ParseResult) -> str:
             fragment="",
         )
     )
+
+
+SOURCE_ENDPOINT_NORMALIZERS: dict[str, SourceEndpointNormalizer] = {
+    "stac_collections": normalize_stac_collections_endpoint,
+    "ogc_api_records": normalize_ogc_api_records_endpoint,
+    "gbif_dataset_search": normalize_gbif_dataset_search_endpoint,
+    "dataverse_search": normalize_dataverse_search_endpoint,
+    "zenodo_records_search": normalize_zenodo_records_search_endpoint,
+    "datacite_dois": normalize_datacite_dois_endpoint,
+    "openalex_works_search": normalize_openalex_works_search_endpoint,
+    "ncei_search": normalize_ncei_search_endpoint,
+    "ckan_package_search": normalize_ckan_package_search_endpoint,
+    "socrata_catalog_search": normalize_socrata_catalog_endpoint,
+    "cmr_collections": normalize_cmr_collections_endpoint,
+    "erddap_all_datasets": normalize_erddap_all_datasets_endpoint,
+}
 
 
 def clean_text(value: object) -> str:
