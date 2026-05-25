@@ -227,6 +227,30 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("supported_after_download", resolved_entry["content_parser"]["import_status"])
         self.assertEqual("text/csv", resolved_entry["adapter_resolution"]["resource_format"])
 
+    def test_geotiff_media_type_promotes_direct_asset_for_parser_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "COG export",
+                "mediaType": "image/tiff; application=geotiff",
+                "downloadURL": "https://data.example.test/api/download?id=geotiff",
+                "byteSize": 2048,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/api/download?id=geotiff", resolved_entry["download_url"])
+        self.assertEqual("geotiff", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("geospatial_asset_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".tif"))
+
     def test_dcat_distribution_object_promotes_direct_json_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
