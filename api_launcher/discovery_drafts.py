@@ -161,33 +161,55 @@ def infer_source_type(url: str) -> str:
 def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> str:
     # 常見 provider API base 會停在 catalog root；這裡只補已知 crawler 需要的固定 endpoint。
     parsed = urllib.parse.urlparse(endpoint_url)
-    base = endpoint_url.rstrip("/")
     lowered = endpoint_url.lower()
-    if source_type == "stac_collections" and not lowered.rstrip("/").endswith("/collections"):
-        return f"{base}/collections"
+    path = parsed.path.rstrip("/")
+    path_lower = path.lower()
+    if source_type == "stac_collections":
+        if not path_lower.endswith("/collections"):
+            path = f"{path}/collections"
+        return endpoint_with_path(parsed, path)
     if source_type == "ogc_api_records":
-        path = parsed.path.rstrip("/")
-        if "/collections" not in path.lower():
-            return urllib.parse.urlunparse(parsed._replace(path=f"{path}/collections", query=""))
-    if source_type == "gbif_dataset_search" and "/dataset/search" not in lowered:
-        return urllib.parse.urlunparse(parsed._replace(path="/v1/dataset/search", query=""))
-    if source_type == "ckan_package_search" and "package_search" not in lowered:
+        if "/collections" not in path_lower:
+            path = f"{path}/collections"
+        return endpoint_with_path(parsed, path)
+    if source_type == "gbif_dataset_search":
+        return endpoint_with_path(parsed, "/v1/dataset/search")
+    if source_type == "dataverse_search":
+        if not path_lower.endswith("/api/search"):
+            path = f"{path}/api/search" if path else "/api/search"
+        return endpoint_with_path(parsed, path)
+    if source_type == "zenodo_records_search":
+        return endpoint_with_path(parsed, "/api/records")
+    if source_type == "datacite_dois":
+        return endpoint_with_path(parsed, "/dois")
+    if source_type == "openalex_works_search":
+        return endpoint_with_path(parsed, "/works")
+    if source_type == "ncei_search":
+        if "/access/services/search/v1" in path_lower:
+            prefix = path[: path_lower.index("/access/services/search/v1") + len("/access/services/search/v1")]
+            return endpoint_with_path(parsed, f"{prefix}/datasets")
+        return endpoint_with_path(parsed, "/access/services/search/v1/datasets")
+    if source_type == "ckan_package_search":
         return normalize_ckan_package_search_endpoint(parsed)
     if source_type == "socrata_catalog_search" and "/api/catalog/v1" not in lowered:
         return normalize_socrata_catalog_endpoint(parsed)
     if source_type == "cmr_collections" and not lowered.endswith(("collections.json", "collections")):
-        return urllib.parse.urlunparse(parsed._replace(path="/search/collections.json", query=""))
-    if source_type == "erddap_all_datasets" and "alldatasets" not in lowered:
-        path_lower = parsed.path.lower()
+        return endpoint_with_path(parsed, "/search/collections.json")
+    if source_type == "erddap_all_datasets":
         if "/erddap" in path_lower:
             erddap_end = path_lower.index("/erddap") + len("/erddap")
             erddap_root = parsed.path[:erddap_end]
         else:
-            erddap_root = parsed.path.rstrip("/") + "/erddap"
+            erddap_root = path + "/erddap"
         path = erddap_root.rstrip("/") + "/tabledap/allDatasets.json"
         query = "datasetID,title,summary,institution,cdm_data_type,griddap,tabledap,wms,fgdc,iso19115,infoUrl"
-        return urllib.parse.urlunparse(parsed._replace(path=path, query=query))
+        return endpoint_with_path(parsed, path, query=query)
     return endpoint_url
+
+
+def endpoint_with_path(parsed: urllib.parse.ParseResult, path: str, query: str = "") -> str:
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return urllib.parse.urlunparse(parsed._replace(path=normalized_path, query=query, fragment=""))
 
 
 def normalize_ckan_package_search_endpoint(parsed: urllib.parse.ParseResult) -> str:

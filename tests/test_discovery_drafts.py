@@ -201,6 +201,52 @@ class DiscoveryDraftTests(unittest.TestCase):
             ),
         )
 
+    def test_search_style_endpoints_strip_probe_query_before_crawler_adds_bounds(self) -> None:
+        self.assertEqual(
+            "https://planetarycomputer.microsoft.com/api/stac/v1/collections",
+            normalize_endpoint_for_source_type(
+                "stac_collections",
+                "https://planetarycomputer.microsoft.com/api/stac/v1?f=json#landing",
+            ),
+        )
+        self.assertEqual(
+            "https://catalog.example.test/api/3/action/package_search",
+            normalize_endpoint_for_source_type(
+                "ckan_package_search",
+                "https://catalog.example.test/api/3/action/package_search?rows=1#probe",
+            ),
+        )
+        self.assertEqual(
+            "https://api.gbif.org/v1/dataset/search",
+            normalize_endpoint_for_source_type(
+                "gbif_dataset_search",
+                "https://api.gbif.org/v1/dataset/search?limit=1",
+            ),
+        )
+        self.assertEqual(
+            "https://demo.dataverse.org/api/search",
+            normalize_endpoint_for_source_type("dataverse_search", "https://demo.dataverse.org"),
+        )
+        self.assertEqual(
+            "https://zenodo.org/api/records",
+            normalize_endpoint_for_source_type("zenodo_records_search", "https://zenodo.org/records?q=ocean"),
+        )
+        self.assertEqual(
+            "https://api.datacite.org/dois",
+            normalize_endpoint_for_source_type("datacite_dois", "https://api.datacite.org/dois?query=climate"),
+        )
+        self.assertEqual(
+            "https://api.openalex.org/works",
+            normalize_endpoint_for_source_type("openalex_works_search", "https://api.openalex.org/works?search=climate"),
+        )
+        self.assertEqual(
+            "https://www.ncei.noaa.gov/access/services/search/v1/datasets",
+            normalize_endpoint_for_source_type(
+                "ncei_search",
+                "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=global-hourly&limit=1",
+            ),
+        )
+
     def test_cli_writes_detected_source_draft_from_url(self) -> None:
         detection = SourcePatternDetection(
             pattern_id="erddap",
