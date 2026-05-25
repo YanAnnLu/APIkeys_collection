@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -468,6 +470,41 @@ class TkDialogModuleTest(unittest.TestCase):
         dialog_class.assert_called_once()
         self.assertIs(ui, dialog_class.call_args.args[0])
         self.assertEqual(1, len(dialog_class.call_args.args[1]))
+
+    def test_crawler_asset_plan_outcomes_restore_from_events(self) -> None:
+        payload = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "source_url": "https://example.test/catalog",
+                    },
+                    "download_eligibility": {"status": "adapter_required"},
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = f"{tmpdir}/resolved.json"
+            with open(plan_path, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+            events = [
+                {
+                    "event": "crawler_asset_plan_outcome_recorded",
+                    "context": {
+                        "asset_id": "demo_index",
+                        "outcome_label": "🟡 待 Adapter 1",
+                        "resolved_plan": plan_path,
+                    },
+                }
+            ]
+            ui = object.__new__(CrawlerAssetWorkflowMixin)
+            with patch("frontends.tk.crawler_asset_workflows.latest_events", return_value=events):
+                CrawlerAssetWorkflowMixin.load_crawler_asset_plan_outcomes_from_events(ui)
+
+        self.assertEqual("🟡 待 Adapter 1", ui.crawler_asset_plan_outcomes["demo_index"])
+        self.assertEqual(1, crawler_asset_review_count_from_plan(ui.crawler_asset_resolved_plans["demo_index"]))
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

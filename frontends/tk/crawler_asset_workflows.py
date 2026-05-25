@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 from typing import Callable
@@ -14,7 +15,7 @@ from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
-from api_launcher.event_log import log_event, log_exception
+from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
@@ -143,7 +144,32 @@ class CrawlerAssetWorkflowMixin:
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
         self.crawler_asset_resolved_plans: dict[str, dict[str, object]] = {}
+        self.load_crawler_asset_plan_outcomes_from_events()
         self.refresh_crawler_asset_tab()
+
+    def load_crawler_asset_plan_outcomes_from_events(self) -> None:
+        """從 structured event 恢復最近送進下載器的可視狀態，避免重開 UI 後全部消失。"""
+
+        self.crawler_asset_plan_outcomes = {}
+        self.crawler_asset_resolved_plans = {}
+        for event in latest_events(200):
+            if event.get("event") != "crawler_asset_plan_outcome_recorded":
+                continue
+            context = event.get("context") if isinstance(event.get("context"), dict) else {}
+            asset_id = str(context.get("asset_id") or "").strip()
+            outcome_label = str(context.get("outcome_label") or "").strip()
+            if not asset_id or not outcome_label:
+                continue
+            self.crawler_asset_plan_outcomes[asset_id] = outcome_label
+            resolved_plan_path = str(context.get("resolved_plan") or "").strip()
+            if not resolved_plan_path:
+                continue
+            try:
+                payload = json.loads(Path(resolved_plan_path).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict):
+                self.crawler_asset_resolved_plans[asset_id] = payload
 
     def refresh_crawler_asset_tab(self) -> None:
         if not hasattr(self, "crawler_asset_tree"):
@@ -515,6 +541,7 @@ class CrawlerAssetWorkflowMixin:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
             self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
             self.crawler_asset_resolved_plans.pop(result.asset_id, None)
+            self.record_crawler_asset_plan_outcome(result, 0, written_paths)
             self.refresh_crawler_asset_plan_row(result.asset_id)
             self.status_var.set(summary.replace("\n", " "))
             messagebox.showwarning(
@@ -535,9 +562,30 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_resolved_plans[result.asset_id] = result.resolved_plan
         else:
             self.crawler_asset_resolved_plans.pop(result.asset_id, None)
+        self.record_crawler_asset_plan_outcome(result, added, written_paths)
         self.refresh_crawler_asset_plan_row(result.asset_id)
         self.status_var.set(summary.splitlines()[0])
         messagebox.showinfo(self.tr("爬蟲下載計畫已建立", "Crawler download plan built"), summary, parent=getattr(self, "root", None))
+
+    def record_crawler_asset_plan_outcome(self, result: object, added_count: int, written_paths: dict[str, str]) -> None:
+        """把 UI 可見結果寫成事件，供 handoff、重開 UI 與後續 agent 讀取。"""
+
+        log_event(
+            "crawler_asset_plan_outcome_recorded",
+            "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",
+            component="ui.crawler_assets",
+            context={
+                "asset_id": str(getattr(result, "asset_id", "") or ""),
+                "outcome_bucket": str(getattr(result, "outcome_bucket", "") or ""),
+                "outcome_label": crawler_asset_plan_outcome_label(result, added_count),
+                "added_count": added_count,
+                "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
+                "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
+                "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
+                "resolved_plan": written_paths.get("resolved", ""),
+                "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
+            },
+        )
 
     def refresh_crawler_asset_plan_row(self, asset_id: str) -> None:
         """只更新單列結果，避免送進下載器後整張表閃動或失去選取。"""

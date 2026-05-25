@@ -472,6 +472,8 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 
 如果結果顯示 `待 Adapter` 或 `已加入 / 待辦`，右側 Crawler Passport 可以直接按 `開本次 Adapter 待辦`。這會打開剛才那一次爬蟲資產 resolved plan 裡的待辦清單，方便接著查看來源 URL、required action 與 outcome，而不必先到全域選單重新找目前下載計畫的 Adapter queue。
 
+Launcher 也會把這個短狀態寫進本機事件紀錄。只要對應的 resolved plan 檔案還在，重開 UI 後仍可在爬蟲資產分頁看到最近一次結果，並從 Crawler Passport 打開本次 Adapter 待辦。
+
 系統會把計畫草稿寫到：
 
 ```text
