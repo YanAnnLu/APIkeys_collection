@@ -97,6 +97,14 @@ CONTENT_IMPORT_STATUS_DISPLAY = {
     "adapter_review_required": ("需 Adapter", "review"),
 }
 
+TONE_SEVERITY = {
+    "neutral": 0,
+    "success": 0,
+    "review": 1,
+    "warning": 2,
+    "danger": 3,
+}
+
 
 @dataclass(frozen=True)
 class CrawlerAssetFlowStep:
@@ -238,6 +246,7 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
     resolved_plan = getattr(result, "resolved_plan", None)
     adapter_review = adapter_review_display_payload(resolved_plan) if isinstance(resolved_plan, dict) else {}
+    content_review = adapter_review_content_summary_payload(adapter_review)
     summary = _plan_outcome_summary(
         bucket,
         default_summary=str(display["summary"]),
@@ -266,7 +275,8 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
         "next_action": next_action,
         "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
         "adapter_review": adapter_review,
-        "content_review_label": adapter_review_content_summary_label(adapter_review),
+        "content_review": content_review,
+        "content_review_label": content_review["display_label"],
     }
 
 
@@ -365,12 +375,25 @@ def plan_entry_content_status_payload(entry: dict[str, object]) -> dict[str, obj
 def adapter_review_content_summary_label(adapter_review_payload: dict[str, object]) -> str:
     """Build a compact content-format review label from adapter-review display data."""
 
+    return str(adapter_review_content_summary_payload(adapter_review_payload)["display_label"])
+
+
+def adapter_review_content_summary_payload(adapter_review_payload: dict[str, object]) -> dict[str, object]:
+    """Return a compact badge payload for content parser review work.
+
+    The raw adapter-review payload keeps the full bucket list. This helper gives
+    UI layers one stable badge shape so Tk/Web/Qt do not need to reimplement
+    count aggregation or warning tone selection.
+    """
+
     buckets = (
         adapter_review_payload.get("content_review_buckets")
         if isinstance(adapter_review_payload.get("content_review_buckets"), list)
         else []
     )
     parts: list[str] = []
+    total = 0
+    display_tone = "neutral"
     for bucket in buckets:
         if not isinstance(bucket, dict):
             continue
@@ -378,7 +401,18 @@ def adapter_review_content_summary_label(adapter_review_payload: dict[str, objec
         count = _safe_int(bucket.get("count"))
         if label and count:
             parts.append(f"{label} {count}")
-    return " / ".join(parts)
+            total += count
+            tone = str(bucket.get("display_tone") or "review")
+            if TONE_SEVERITY.get(tone, 1) > TONE_SEVERITY.get(display_tone, 0):
+                display_tone = tone
+    display_label = " / ".join(parts)
+    return {
+        "display_label": display_label,
+        "display_tone": display_tone if display_label else "neutral",
+        "count": total,
+        "has_review": bool(display_label),
+        "buckets": buckets,
+    }
 
 
 def adapter_review_outcome_label(bucket: str) -> str:

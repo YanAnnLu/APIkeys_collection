@@ -160,6 +160,10 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("仍有 2 筆需要 Adapter 審核", payload["summary"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
         self.assertEqual("內容 Parser 待辦 1", payload["content_review_label"])
+        self.assertEqual("內容 Parser 待辦 1", payload["content_review"]["display_label"])
+        self.assertEqual("review", payload["content_review"]["display_tone"])
+        self.assertEqual(1, payload["content_review"]["count"])
+        self.assertTrue(payload["content_review"]["has_review"])
 
     def test_shared_display_schema_summarizes_adapter_review_outcomes(self) -> None:
         plan = {

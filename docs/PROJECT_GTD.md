@@ -18,6 +18,7 @@ Last updated: 2026-05-26
 - [x] 下載器面板的 import 欄位改用共用 `plan_entry_content_status_payload()`：`manual_review_required` 這類 raw 狀態會顯示為「內容 Parser 待辦 / Content parser needed」並附上 source format 與 parser id。
 - [x] 爬蟲資產表格與 Passport 會顯示 resolved plan 的 `content_review_label`，例如「內容 Parser 待辦 1」；事件恢復時也會從 resolved plan 回推內容格式待辦，不只恢復 Adapter count。
 - [x] 爬蟲資產送進下載器後的 popup 摘要也會附上 `content_review_label`，讓使用者在按下「建立下載計畫」當下就知道後續仍有內容 Parser 待辦，而不是只在表格或 Passport 看到。
+- [x] `crawler_asset_plan_outcome_payload()` 現在同時輸出 `content_review` badge payload（label / tone / count / has_review），保留 `content_review_label` 作為相容短文字，後續 Tk/Web/Qt 可直接共用同一份待辦徽章資料。
 - [ ] 下一步：把 Adapter resolving 結果回寫成更完整的卡片 badge / 待辦徽章樣式，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
