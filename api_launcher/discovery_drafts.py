@@ -165,6 +165,10 @@ def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> s
     lowered = endpoint_url.lower()
     if source_type == "stac_collections" and not lowered.rstrip("/").endswith("/collections"):
         return f"{base}/collections"
+    if source_type == "ogc_api_records":
+        path = parsed.path.rstrip("/")
+        if "/collections" not in path.lower():
+            return urllib.parse.urlunparse(parsed._replace(path=f"{path}/collections", query=""))
     if source_type == "gbif_dataset_search" and "/dataset/search" not in lowered:
         return urllib.parse.urlunparse(parsed._replace(path="/v1/dataset/search", query=""))
     if source_type == "ckan_package_search" and "package_search" not in lowered:

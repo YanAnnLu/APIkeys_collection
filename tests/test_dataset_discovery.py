@@ -582,6 +582,54 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("Polygon", dataset.metadata["geometry_type"])
         self.assertEqual("https://records.example.test/items/cloud-raster-record", dataset.api_url)
 
+    def test_ogc_api_collections_payload_becomes_collection_candidates(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="ogc_collections",
+            provider_id="sample_ogc_api",
+            name="Sample OGC API",
+            source_type="ogc_api_records",
+            endpoint_url="https://geo.example.test/collections",
+            docs_url="https://geo.example.test/docs",
+            categories=("ogc", "gis"),
+            geographic_scope="regional",
+        )
+        payload = {
+            "collections": [
+                {
+                    "id": "roads",
+                    "title": "Road centerlines",
+                    "description": "GIS vector road network features as GeoJSON.",
+                    "itemType": "feature",
+                    "formats": ["GeoJSON"],
+                    "extent": {"temporal": {"interval": [["2020-01-01T00:00:00Z", None]]}},
+                    "links": [
+                        {
+                            "rel": "items",
+                            "href": "https://geo.example.test/collections/roads/items",
+                            "type": "application/geo+json",
+                        },
+                        {
+                            "rel": "self",
+                            "href": "https://geo.example.test/collections/roads",
+                            "type": "application/json",
+                        },
+                    ],
+                }
+            ],
+        }
+
+        candidates = ogc_records_candidates_from_payload(source, payload, source.endpoint_url, 5)
+
+        dataset = candidates[0].dataset
+        self.assertEqual("roads", dataset.dataset_id)
+        self.assertEqual("gis", dataset.metadata["data_family"])
+        self.assertEqual("geojson", dataset.native_format)
+        self.assertEqual("https://geo.example.test/collections/roads/items", dataset.api_url)
+        self.assertEqual("https://geo.example.test/collections/roads", dataset.landing_url)
+        self.assertEqual("roads", dataset.metadata["ogc_collection_id"])
+        self.assertEqual("2020-01-01T00:00:00Z", dataset.temporal_coverage)
+        self.assertEqual(("OGC API collection", "collection: roads"), candidates[0].evidence)
+
     def test_ogc_api_records_keeps_non_http_broker_links_out_of_primary_api_url(self) -> None:
         source = DatasetDiscoverySource(
             source_id="wmo_wis2_gdc_records",

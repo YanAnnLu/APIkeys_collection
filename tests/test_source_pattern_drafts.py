@@ -126,6 +126,25 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertEqual("ogc_wms_capabilities", source.source_type)
         self.assertEqual("https://maps.example.test/wms", source.endpoint_url)
 
+    def test_ogc_api_detection_normalizes_base_url_to_collections_endpoint(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="ogc",
+                confidence=0.75,
+                evidence=("ogc_conformance", "json_contains_collections"),
+                source_type_hint="ogc_api_records",
+            )
+
+        source, detection = dataset_source_from_detected_url(
+            "https://geo.example.test/api",
+            provider_id="sample_ogc",
+            detector=detector,
+        )
+
+        self.assertEqual("ogc", detection.pattern_id)
+        self.assertEqual("ogc_api_records", source.source_type)
+        self.assertEqual("https://geo.example.test/api/collections", source.endpoint_url)
+
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(

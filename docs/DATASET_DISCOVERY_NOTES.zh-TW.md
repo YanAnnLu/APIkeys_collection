@@ -112,7 +112,7 @@ flowchart LR
 - `html_file_index`：讀簡單 HTML 檔案索引，用 regex 找出版本/檔案 shard，例如 MarineCadastre AIS daily CSV.ZST。
 - `cmr_collections`：查 NASA Earthdata CMR collection search，適合從 NASA/Earthdata 目錄找到可再審核的衛星、海洋、氣候資料集。
 - `stac_collections`：讀 STAC `/collections`，適合 Microsoft Planetary Computer、Earth Search 這類雲端地球觀測 catalog。
-- `ogc_api_records`：讀 OGC API Records `items` / FeatureCollection，適合從地理空間 metadata catalog 產生可審核資料集候選；只保留 record metadata，不直接下載背後的大型資料。若 record 連到 `mqtts://` 這類 broker/notification stream，crawler 會把它留在 metadata links，但不把它當成主要 `api_url` 或 direct download。
+- `ogc_api_records`：讀 OGC API `/collections` 清單或 OGC API Records `items` / FeatureCollection，適合從地理空間 metadata catalog 產生可審核資料集候選；`/collections` 會先產生 collection candidate 並把主要 `api_url` 指向該 collection 的 `/items`，FeatureCollection 則保留 record metadata，不直接下載背後的大型資料。若 record 連到 `mqtts://` 這類 broker/notification stream，crawler 會把它留在 metadata links，但不把它當成主要 `api_url` 或 direct download。
 - `ogc_wms_capabilities`：讀老式 WMS `GetCapabilities` XML layer 清單，適合先把 map service layer 變成可審核候選；它不等於已下載 raster，GetMap 的 bbox/time/style 參數化仍在後續 resolver。
 - `gbif_dataset_search`：查 GBIF registry dataset search，適合先發現生物多樣性資料集與 record count，再決定是否進入 GBIF download workflow。
 - `dataverse_search`：查 Dataverse search API，適合 Harvard Dataverse 這類研究資料平台，先取得可審核的 dataset metadata。
@@ -196,7 +196,7 @@ Sciverse / OpenDataLab 這類科學文獻 API 暫時不應打亂 geospatial asse
 
 Detector 測試目前已覆蓋 STAC、CKAN、Socrata、OGC API JSON、OGC/WMS `GetCapabilities` XML、ERDDAP、CMR guard、HTML file index、複合壓縮/地理資料檔線索，以及 ambiguous collections payload fallback。新增範式前應先補 fake fetcher fixture，確認正例、低信心 unknown、以及不污染其他範式三件事。
 
-OGC family 目前分兩條 source type：`ogc_api_records` 負責 OGC API Records / Features JSON 目錄，`ogc_wms_capabilities` 負責老式 WMS `GetCapabilities` XML layer 清單。WMS 只產生 layer candidate 與 map service metadata，並優先把 `Request/GetMap` 的 `OnlineResource` 當成候選 `api_url`；真正的 GetMap 影像下載、bbox/time/style 參數化仍需後續 adapter resolver / content parser 切片。
+OGC family 目前分兩條 source type：`ogc_api_records` 負責 OGC API `/collections` 與 Records / Features JSON 目錄，`ogc_wms_capabilities` 負責老式 WMS `GetCapabilities` XML layer 清單。source draft 會把 detector 找到的 OGC API base URL 正規化為 `/collections`，避免後續 audit 仍停在 root endpoint。WMS 只產生 layer candidate 與 map service metadata，並優先把 `Request/GetMap` 的 `OnlineResource` 當成候選 `api_url`；真正的 GetMap 影像下載、bbox/time/style 參數化仍需後續 adapter resolver / content parser 切片。
 
 OGC API detector 不只讀使用者貼上的 URL 本身，也會 bounded probe `conformance`、`collections` 以及 origin fallback 的同名端點；這讓 root endpoint 沒有直接回傳完整 JSON，但標準 `/conformance` 和 `/collections` 存在的 OGC API Features / Records 入口仍能被辨識。若只有單獨 `collections` 欄位、沒有 OGC/OpenGIS conformance evidence，仍保持低信心並退回 `unknown`，避免把一般 catalog 或 STAC-like payload 硬判成 OGC。
 
@@ -228,7 +228,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 - `api_launcher/crawlers/dataverse.py`：放 Dataverse search query URL builder、payload parser、source-level fetch/parse flow 與 Dataverse pagination flow，保留 global id、版本、dataverse alias 與 file count metadata。
 - `api_launcher/crawlers/zenodo.py`：放 Zenodo records query URL builder、payload parser、source-level fetch/parse flow、Zenodo pagination flow、檔案摘要 helper 與簡單 markup 清理 helper。
 - `api_launcher/crawlers/datacite.py`：放 DataCite `/dois` query URL builder、payload parser、source-level fetch/parse flow 與 DataCite pagination flow；保留 DOI、publisher、client id、subjects、formats、rights、usage count 與 `contentUrl` resource metadata。
-- `api_launcher/crawlers/ogc_records.py`：放 OGC API Records query URL builder、FeatureCollection payload parser、source-level fetch/parse flow 與 `next` link pagination flow；保留 record id、keywords/themes、formats、geometry type、links 與 temporal coverage metadata。primary `api_url` 只會選 HTTP(S) data/download/items/self links；非 HTTP broker links 只留 metadata，等待未來 WIS2/stream adapter。
+- `api_launcher/crawlers/ogc_records.py`：放 OGC API query URL builder、`/collections` payload parser、FeatureCollection payload parser、source-level fetch/parse flow 與 `next` link pagination flow；保留 collection id / record id、keywords/themes、formats、extent、geometry type、links 與 temporal coverage metadata。collection payload 會把 `items` rel 或 fallback `/collections/{id}/items` 當成可審核 API 入口；FeatureCollection primary `api_url` 只會選 HTTP(S) data/download/items/self links；非 HTTP broker links 只留 metadata，等待未來 WIS2/stream adapter。
 - `api_launcher/crawlers/socrata.py`：放 Socrata catalog query URL builder、payload parser、source-level fetch/parse flow 與 offset pagination flow；保留 Socrata domain、resource id、`api/views` metadata URL、bounded resolver 可用的 `/resource/{id}.json`、欄位摘要與 attribution/license metadata。
 - `api_launcher/crawlers/openalex.py`：放 OpenAlex Works search URL builder、payload parser、source-level fetch/parse flow 與 cursor pagination flow；保留 OpenAlex work id、DOI、primary location、open access metadata、作者/機構/concepts/keywords。
 - `api_launcher/crawlers/html_index.py`：放 HTML file index source-level fetch/parse flow，負責把簡單目錄頁裡符合 regex 的檔案連結整理成可審核版本 shards。
@@ -242,7 +242,7 @@ Source-site discovery 和 dataset discovery 已經分開：
 
 Crawler 不能只用「沒報錯」當成功標準。現在 orchestrator 會對每個 source 做基礎審核：
 
-- endpoint 回傳的資料結構若不像預期，例如 NCEI 沒有 `results`、STAC 沒有 `collections`、OGC API Records 沒有 `features`、Socrata 沒有 `results`、CKAN 沒有 `result.results`，解析器會直接報錯。
+- endpoint 回傳的資料結構若不像預期，例如 NCEI 沒有 `results`、STAC 沒有 `collections`、OGC API 沒有 `collections` 或 Records `features`、Socrata 沒有 `results`、CKAN 沒有 `result.results`，解析器會直接報錯。
 - source 成功跑完但回傳 0 筆，會標成 warning，因為這可能是搜尋詞、分頁、網頁結構或反爬規則失效。
 - 每個 source 可設定 `min_expected_candidates`；若候選數低於最低預期，也會標成 warning。
 - source 有回傳候選，但全部都是其他來源已經抓過的重複項，也會標成 warning，避免「看似有資料、其實沒有新增資訊」。
