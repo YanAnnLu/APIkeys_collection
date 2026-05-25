@@ -540,6 +540,27 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(7, ui.download_plan_entries_by_provider["plan-1"]["download_bounds"]["sample_limit"])
         self.assertIn("已套用下載界域", ui.status_var.value)
 
+    def test_import_status_label_surfaces_content_parser_review(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        ui.import_status_by_plan_key = {}
+        ui.download_plan_entries_by_provider = {
+            "plan-1": {
+                "source_format": "netcdf",
+                "import_plan": {
+                    "status": "manual_review_required",
+                    "source_format": "netcdf",
+                    "content_parser": "scientific_grid_review",
+                    "review_bucket": "content_parser_required",
+                },
+            }
+        }
+        ui.tr = lambda _zh, en: en
+
+        self.assertEqual(
+            "Content parser needed: netcdf / scientific_grid_review",
+            ImportWorkflowMixin.import_status_label(ui, "plan-1"),
+        )
+
     def test_download_primary_action_label_reflects_selected_job_status(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
         ui.download_primary_action_var = _FakeVar("")

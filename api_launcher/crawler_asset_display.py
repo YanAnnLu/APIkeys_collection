@@ -90,6 +90,13 @@ CONTENT_REVIEW_BUCKET_DISPLAY = {
     "unsupported_payload_format": ("未支援格式", "danger"),
 }
 
+CONTENT_IMPORT_STATUS_DISPLAY = {
+    "supported_after_download": ("下載後可匯入", "success"),
+    "requires_unpack_or_adapter": ("需解壓/轉換", "warning"),
+    "manual_review_required": ("需內容 Parser review", "review"),
+    "adapter_review_required": ("需 Adapter", "review"),
+}
+
 
 @dataclass(frozen=True)
 class CrawlerAssetFlowStep:
@@ -307,6 +314,50 @@ def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str,
     }
 
 
+def plan_entry_content_status_payload(entry: dict[str, object]) -> dict[str, object]:
+    """Return a UI-safe content/import status for one download plan entry.
+
+    Download-plan panels should not expose raw values such as
+    ``manual_review_required``.  Keep that machine contract in the payload, then
+    provide a small display layer that Tk/Web/Qt can share.
+    """
+
+    import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
+    content_parser = entry.get("content_parser") if isinstance(entry.get("content_parser"), dict) else {}
+    status = str(import_plan.get("status") or content_parser.get("import_status") or "").strip()
+    review_bucket = str(import_plan.get("review_bucket") or content_parser.get("review_bucket") or "").strip()
+    parser_id = str(
+        content_parser.get("parser_id")
+        or import_plan.get("content_parser")
+        or import_plan.get("importer")
+        or ""
+    ).strip()
+    source_format = str(
+        content_parser.get("source_format")
+        or import_plan.get("source_format")
+        or entry.get("source_format")
+        or ""
+    ).strip()
+    reason = str(import_plan.get("reason") or content_parser.get("reason") or "").strip()
+    if review_bucket:
+        display_label = content_review_bucket_label(review_bucket)
+        display_tone = content_review_bucket_tone(review_bucket)
+    else:
+        display_label, display_tone = CONTENT_IMPORT_STATUS_DISPLAY.get(status, (status or "未指定", "neutral"))
+    detail_parts = [part for part in (source_format, parser_id) if part]
+    summary = " / ".join(detail_parts) if detail_parts else reason
+    return {
+        "source_format": source_format,
+        "import_status": status,
+        "parser_id": parser_id,
+        "review_bucket": review_bucket,
+        "display_label": display_label,
+        "display_tone": display_tone,
+        "summary": summary,
+        "reason": reason,
+    }
+
+
 def adapter_review_outcome_label(bucket: str) -> str:
     return ADAPTER_REVIEW_OUTCOME_DISPLAY.get(bucket, (bucket or "unknown", "review"))[0]
 
@@ -398,6 +449,7 @@ __all__ = [
     "crawler_asset_card_capabilities",
     "crawler_asset_flow_steps",
     "crawler_asset_plan_outcome_payload",
+    "plan_entry_content_status_payload",
     "capability_display_label",
     "bound_field_display_label",
     "bound_field_display_help",

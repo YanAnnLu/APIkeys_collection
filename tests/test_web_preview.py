@@ -7,7 +7,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from api_launcher.crawler_asset_display import adapter_review_display_payload, crawler_asset_plan_outcome_payload
+from api_launcher.crawler_asset_display import (
+    adapter_review_display_payload,
+    crawler_asset_plan_outcome_payload,
+    plan_entry_content_status_payload,
+)
 from frontends.web.server import build_web_preview_server
 from frontends.web.preview_api import (
     crawler_asset_cards,
@@ -173,6 +177,25 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual({"scientific_grid_review": 1}, payload["by_content_parser"])
         self.assertEqual("內容 Parser 待辦", payload["content_review_buckets"][0]["display_label"])
         self.assertEqual("scientific_grid_review", payload["content_parsers"][0]["parser_id"])
+
+    def test_plan_entry_content_status_payload_labels_parser_review(self) -> None:
+        payload = plan_entry_content_status_payload(
+            {
+                "source_format": "netcdf",
+                "import_plan": {
+                    "status": "manual_review_required",
+                    "source_format": "netcdf",
+                    "content_parser": "scientific_grid_review",
+                    "review_bucket": "content_parser_required",
+                    "reason": "NetCDF requires a dedicated parser.",
+                },
+            }
+        )
+
+        self.assertEqual("內容 Parser 待辦", payload["display_label"])
+        self.assertEqual("review", payload["display_tone"])
+        self.assertEqual("netcdf", payload["source_format"])
+        self.assertEqual("scientific_grid_review", payload["parser_id"])
 
     def test_server_scans_next_port_when_preferred_port_is_busy(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:

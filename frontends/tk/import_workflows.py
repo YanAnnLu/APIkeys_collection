@@ -33,6 +33,7 @@ from api_launcher.manual_import import (
     write_local_file_manifest as write_local_file_manifest_file,
 )
 from api_launcher.paths import state_file
+from api_launcher.crawler_asset_display import plan_entry_content_status_payload
 from frontends.tk.dialogs import ImportExistingTablePolicyDialog
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
@@ -93,6 +94,16 @@ class ImportWorkflowMixin:
             adapter = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
             adapter_id = str(adapter.get("adapter_id") or "").strip()
             return self.tr(f"需解壓/adapter: {adapter_id}" if adapter_id else "需解壓/adapter", f"Unpack/adapter needed: {adapter_id}" if adapter_id else "Unpack/adapter needed")
+        if status == "manual_review_required":
+            content_status = plan_entry_content_status_payload(entry)
+            label = str(content_status.get("display_label") or status)
+            parser_id = str(content_status.get("parser_id") or "").strip()
+            source_format = str(content_status.get("source_format") or "").strip()
+            detail = " / ".join(part for part in (source_format, parser_id) if part)
+            return self.tr(
+                f"{label}: {detail}" if detail else label,
+                f"Content parser needed: {detail}" if detail else "Content parser needed",
+            )
         if status:
             return status
         return self.tr("未支援自動匯入", "No auto import")
