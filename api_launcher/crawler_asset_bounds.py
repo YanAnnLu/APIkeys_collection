@@ -269,6 +269,29 @@ FACET_DEFINITIONS: dict[str, CrawlerAssetBoundFacet] = {
 }
 
 
+DEFAULT_BOUND_FACETS = ("limit",)
+FILE_INDEX_BOUND_FACETS = ("version", "file_pattern", "limit")
+METADATA_DATASET_BOUND_FACETS = ("dataset", "version", "format", "limit")
+SOURCE_BOUND_FACETS: dict[str, tuple[str, ...]] = {
+    # Frontend-neutral source of truth for crawler bounds forms.
+    # UI layers render these facets instead of branching on source_type.
+    "html_file_index": FILE_INDEX_BOUND_FACETS,
+    "stac_collections": ("collection", "time", "bbox", "asset_role", "limit"),
+    "cmr_collections": ("collection", "time", "bbox", "granule_limit", "asset_role"),
+    "erddap_all_datasets": ("dataset", "columns", "time", "bbox", "limit"),
+    "ncei_search": ("dataset", "time", "bbox", "station", "format", "limit"),
+    "socrata_catalog_search": ("dataset", "columns", "where", "time", "limit"),
+    "ckan_package_search": ("package", "resource", "format", "limit"),
+    "gbif_dataset_search": METADATA_DATASET_BOUND_FACETS,
+    "dataverse_search": METADATA_DATASET_BOUND_FACETS,
+    "zenodo_records_search": METADATA_DATASET_BOUND_FACETS,
+    "datacite_dois": METADATA_DATASET_BOUND_FACETS,
+    "openalex_works_search": METADATA_DATASET_BOUND_FACETS,
+    "ogc_api_records": ("collection", "bbox", "time", "format", "limit"),
+    "ogc_wms_capabilities": ("collection", "bbox", "time", "format", "limit"),
+}
+
+
 def bounds_schema_for_facets(
     facets: tuple[str, ...],
     *,
@@ -314,29 +337,14 @@ def facet_definition(facet_id: str) -> CrawlerAssetBoundFacet:
 def bounds_facets_for_source(source: DatasetDiscoverySource) -> tuple[str, ...]:
     """推估建立下載計畫時需要的界域維度，供 UI 動態表單使用。"""
 
-    if source.source_type == "html_file_index" or source.file_url_regex:
-        return ("version", "file_pattern", "limit")
-    if source.source_type == "stac_collections":
-        return ("collection", "time", "bbox", "asset_role", "limit")
-    if source.source_type == "cmr_collections":
-        return ("collection", "time", "bbox", "granule_limit", "asset_role")
-    if source.source_type == "erddap_all_datasets":
-        return ("dataset", "columns", "time", "bbox", "limit")
-    if source.source_type == "ncei_search":
-        return ("dataset", "time", "bbox", "station", "format", "limit")
-    if source.source_type == "socrata_catalog_search":
-        return ("dataset", "columns", "where", "time", "limit")
-    if source.source_type == "ckan_package_search":
-        return ("package", "resource", "format", "limit")
-    if source.source_type in {"gbif_dataset_search", "dataverse_search", "zenodo_records_search", "datacite_dois", "openalex_works_search"}:
-        return ("dataset", "version", "format", "limit")
-    if source.source_type == "ogc_api_records":
-        return ("collection", "bbox", "time", "format", "limit")
-    return ("limit",)
+    if source.file_url_regex:
+        return FILE_INDEX_BOUND_FACETS
+    return SOURCE_BOUND_FACETS.get(source.source_type, DEFAULT_BOUND_FACETS)
 
 
 __all__ = [
     "CrawlerAssetBoundFacet",
+    "SOURCE_BOUND_FACETS",
     "bounds_facets_for_source",
     "bounds_schema_for_facets",
     "bounds_schema_for_source",

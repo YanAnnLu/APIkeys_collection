@@ -16,7 +16,7 @@ from api_launcher.crawler_asset_bound_forms import (
     build_crawler_asset_bound_form_spec,
     crawler_asset_bound_payload_from_form_values,
 )
-from api_launcher.crawler_asset_bounds import bounds_facets_for_source, bounds_schema_for_source
+from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     crawler_asset_from_source,
@@ -25,6 +25,7 @@ from api_launcher.crawler_assets import (
     status_label,
 )
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, DatasetSourceCrawlResult
+from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.db import connect_db
 from api_launcher.models import Dataset, Provider
@@ -128,6 +129,22 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(("SourceDownloadBounds.time_field", "SourceDownloadBounds.start_date", "SourceDownloadBounds.end_date"), schema[1].maps_to)
         self.assertEqual("SpatialBounds", schema[2].group)
         self.assertTrue(schema[2].requires_schema_probe)
+
+    def test_source_bounds_facet_registry_tracks_supported_crawlers(self) -> None:
+        self.assertLessEqual(set(SOURCE_BOUND_FACETS), set(SUPPORTED_DATASET_SOURCE_TYPES))
+        self.assertIn("ogc_wms_capabilities", SOURCE_BOUND_FACETS)
+        for source_type, facets in SOURCE_BOUND_FACETS.items():
+            self.assertEqual(len(facets), len(set(facets)), source_type)
+
+        source = DatasetDiscoverySource(
+            source_id="demo_wms",
+            provider_id="demo_provider",
+            name="Demo WMS",
+            source_type="ogc_wms_capabilities",
+            endpoint_url="https://example.test/wms?service=WMS&request=GetCapabilities",
+        )
+
+        self.assertEqual(("collection", "bbox", "time", "format", "limit"), bounds_facets_for_source(source))
 
     def test_capability_to_dict_includes_bounds_schema_for_frontends(self) -> None:
         source = DatasetDiscoverySource(
