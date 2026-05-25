@@ -17,6 +17,7 @@
 - CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。
 - STAC detector 已補 `/collections` endpoint 正例：使用者貼 STAC collections URL 時可直接判成 `stac_collections`，不必一定貼 root catalog。
 - ERDDAP source draft normalization 已修正深層 dataset URL：`/erddap/griddap/...` 或 `/erddap/tabledap/...` 會正規化回 allDatasets endpoint，避免 detector 正確、audit endpoint 錯誤的斷線。
+- ERDDAP detector 的 info/index probe 也已回到站台根 `/erddap/info/index.json`，可處理 `/ERDDAP/griddap/...` 這類深層或大小寫不同的 dataset URL。
 
 ## 2026-05-24 Tk 來源草稿入口與治理機制收斂
 

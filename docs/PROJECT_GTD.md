@@ -18,6 +18,7 @@ Last updated: 2026-05-25
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
 - [x] STAC detector 已能接受 `/collections` endpoint 作為入口，避免使用者貼 STAC collections URL 時只因缺少 root `stac_version` 被判成 unknown。
 - [x] ERDDAP source draft normalization 已修正深層 dataset URL：`/erddap/griddap/...` 或 `/erddap/tabledap/...` 會回到 `/erddap/tabledap/allDatasets.json?...`，避免 audit 打到錯誤路徑。
+- [x] ERDDAP detector probe 已改用站台根 `/erddap/info/index.json`，可處理 `/ERDDAP/griddap/...` 這類深層或大小寫不同的 dataset URL。
 - [x] 新增 `api_launcher/crawler_asset_bound_forms.py` 與 Tk `CrawlerAssetBoundDialog`，讓 crawler asset 的 `bounds_schema` 可以動態生成前端中立表單與 payload。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。

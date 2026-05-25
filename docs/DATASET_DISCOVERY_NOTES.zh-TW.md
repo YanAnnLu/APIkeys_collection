@@ -203,6 +203,8 @@ STAC detector 也不應假設使用者一定貼 root catalog；`/collections` en
 
 ERDDAP detector 若從深層 dataset URL 辨識成功，source draft normalization 必須回到站台層 `allDatasets` endpoint，而不是把 `tabledap/allDatasets.json` 接在 dataset path 後面。這讓「貼 ERDDAP griddap/tabledap 單一資料集頁」仍可先回到目錄 crawler，再由後續界域/adapter 選指定資料集。
 
+ERDDAP detector 的 probe endpoint 也必須以站台根 `/erddap/info/index.json` 為準；即使使用者貼 `/ERDDAP/griddap/...` 這類大小寫不同或深層資料集 URL，也不應把 probe 接在 dataset path 後面。
+
 K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是程式碼來源。金融/風控教材補 time-series asset、交易日曆、補資料策略與 storage review；GIS、星圖與 3D 範例補 raster/tile/cache、bbox、projection 與 renderer-ready manifest；數學與機械工程教材補 bounds/geometry/transform；Pandas 與資料清理教材補 header normalize、type inference、schema fingerprint 與 bad-row warning；Fluent Python / PyMOTW 補 protocol、iterator、context manager、subcommand 與 concurrency 設計。CODE_KM 的價值在治理模型：來源 provenance、checksum、pipeline run state、rights/review gate、local metadata index 與人類可讀知識庫分離。RRKAL 應把這些概念收斂到 source profile、crawler run registry、manifest/import pipeline、install registry、adapter review、rights/provenance gate 與 agent skill 分工，而不是讓教材範例碼進入正式產品路徑。
 
 ## Dataset adapters

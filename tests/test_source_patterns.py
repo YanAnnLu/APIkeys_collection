@@ -63,6 +63,28 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertEqual("erddap_all_datasets", result.source_type_hint)
         self.assertIn("erddap_info_index_table", result.evidence)
 
+    def test_erddap_pattern_uses_site_root_for_deep_dataset_urls(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://coastwatch.example.test/erddap/info/index.json":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"table":{"columnNames":["datasetID"]}}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern(
+            "https://coastwatch.example.test/ERDDAP/griddap/jplMURSST41.html",
+            fetcher=fetcher,
+        )
+
+        self.assertEqual("erddap", result.pattern_id)
+        self.assertEqual("erddap_all_datasets", result.source_type_hint)
+        self.assertIn("https://coastwatch.example.test/erddap/info/index.json", calls)
+
     def test_ckan_pattern_probes_package_search(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://catalog.example.test/api/3/action/package_search?rows=1":

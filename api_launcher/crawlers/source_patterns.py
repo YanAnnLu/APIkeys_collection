@@ -161,10 +161,10 @@ def detect_ckan(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatt
 
 def detect_erddap(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
     evidence: list[str] = []
-    if "/erddap" in urllib.parse.urlparse(url).path.lower():
+    parsed = urllib.parse.urlparse(url)
+    if "/erddap" in parsed.path.lower():
         evidence.append("url_path_contains_erddap")
-    base = url.split("/erddap", 1)[0] if "/erddap" in url else url.rstrip("/")
-    response = fetcher(base.rstrip("/") + "/erddap/info/index.json", timeout)
+    response = fetcher(erddap_info_index_url(url), timeout)
     data = json_from(response)
     if isinstance(data, dict) and "table" in data:
         evidence.append("erddap_info_index_table")
@@ -280,6 +280,18 @@ def unique_urls(*urls: str) -> tuple[str, ...]:
 
 def stac_probe_urls(url: str) -> tuple[str, ...]:
     return unique_urls(url, join_url(url, "collections"))
+
+
+def erddap_info_index_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    path_lower = parsed.path.lower()
+    if "/erddap" in path_lower:
+        erddap_start = path_lower.index("/erddap")
+        base_path = parsed.path[:erddap_start]
+        base = urllib.parse.urlunparse(parsed._replace(path=base_path, query="", fragment="")).rstrip("/")
+    else:
+        base = url.rstrip("/")
+    return base + "/erddap/info/index.json"
 
 
 def ckan_probe_urls(url: str) -> tuple[str, ...]:
