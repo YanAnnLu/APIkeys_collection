@@ -26,7 +26,7 @@ from api_launcher.discovery_drafts import (
 SourcePatternDraftDetector = Callable[[str], SourcePatternDetection]
 DEFAULT_HTML_FILE_INDEX_REGEX = (
     r"(?i)\."
-    r"(csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|zip|tar\.gz|nc|hdf|h5|tif|tiff|xml|parquet)"
+    r"(csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|zip|tar\.gz|nc|hdf|h5|tif|tiff|gpkg|zarr|xml|parquet)"
     r"(?:$|[?#])"
 )
 
