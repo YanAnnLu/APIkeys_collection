@@ -10,7 +10,8 @@ Last updated: 2026-05-25
 - [x] 精修 plan 建立結果：`CrawlerAssetDownloadPlanResult` 現在提供 `outcome_bucket` / `user_next_action`，Tk 只依後端狀態顯示「可直接下載、部分待辦、需 Adapter review、零候選、被封存/停用」等結果，不再自行解析 resolved plan。
 - [x] Tk 成功/待辦訊息改為產品化摘要：直接可下載會提示去下載器使用開始 / 暫停；review-required 會明確說明要開 Adapter review 或調整界域；zero candidates 會提示放寬條件或重新擷取清單。
 - [x] Tk 爬蟲資產表格與右側 passport 會保留「上次送進下載器」短狀態，`ready_to_download`、`partial_review_required`、`review_required`、`zero_candidates`、`blocked` 會被轉成表格可掃描的狀態標籤，讓使用者不用只靠一次性彈窗記憶結果。
-- [ ] 下一輪：把同一組 `outcome_bucket` 延伸成卡片牆 badge / 待辦徽章，並把 Adapter review 入口做成更直覺的使用者流程。
+- [x] Tk Crawler Passport 會保留本次 resolved plan，並提供「開本次 Adapter 待辦」入口；使用者不需要先理解下方下載計畫或全域 Adapter menu，就能從剛送出的爬蟲資產直接進入待辦清單。
+- [ ] 下一輪：把同一組 `outcome_bucket` 延伸成卡片牆 badge / 待辦徽章，並把 Adapter review 的 resolving 結果回寫到同一張爬蟲資產卡片。
 
 ## 2026-05-24 K 槽概念樣本庫 / CODE_KM 治理心法
 

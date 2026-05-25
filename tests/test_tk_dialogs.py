@@ -38,6 +38,7 @@ from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
+    crawler_asset_review_count_from_plan,
 )
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
@@ -406,6 +407,67 @@ class TkDialogModuleTest(unittest.TestCase):
         values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
         self.assertEqual("🟢 已加入 1", values[-1])
+
+    def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
+        payload = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "required_action": "resolve_source_to_direct_download_entries",
+                        "source_url": "https://example.test/catalog",
+                    },
+                    "download_eligibility": {"status": "adapter_required"},
+                },
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "direct_dataset",
+                    "download_url": "https://example.test/data.csv",
+                    "download_eligibility": {"status": "direct_download"},
+                    "import_plan": {"status": "ready"},
+                },
+            ]
+        }
+
+        self.assertEqual(1, crawler_asset_review_count_from_plan(payload))
+        self.assertEqual(0, crawler_asset_review_count_from_plan(None))
+
+    def test_open_selected_crawler_asset_adapter_review_uses_current_resolved_plan(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "required_action": "resolve_source_to_direct_download_entries",
+                        "source_url": "https://example.test/catalog",
+                    },
+                    "download_eligibility": {"status": "adapter_required"},
+                }
+            ]
+        }
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.crawler_asset_resolved_plans = {"demo_index": payload}
+        ui.tr = lambda zh, _en: zh
+
+        with patch("frontends.tk.crawler_asset_workflows.AdapterReviewDialog") as dialog_class:
+            CrawlerAssetWorkflowMixin.open_selected_crawler_asset_adapter_review(ui)
+
+        dialog_class.assert_called_once()
+        self.assertIs(ui, dialog_class.call_args.args[0])
+        self.assertEqual(1, len(dialog_class.call_args.args[1]))
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

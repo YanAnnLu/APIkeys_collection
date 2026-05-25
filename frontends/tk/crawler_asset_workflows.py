@@ -6,6 +6,7 @@ from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 from typing import Callable
 
+from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
@@ -18,6 +19,7 @@ from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
 
@@ -118,6 +120,12 @@ class CrawlerAssetWorkflowMixin:
             style="Action.TButton",
             command=self.prepare_selected_crawler_asset_download,
         ).pack(anchor="w", padx=14, pady=(16, 0))
+        ttk.Button(
+            detail,
+            text=self.tr("開本次 Adapter 待辦", "Open current adapter queue"),
+            style="Action.TButton",
+            command=self.open_selected_crawler_asset_adapter_review,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
         self.crawler_asset_archive_button_var = StringVar(value=self.tr("封存爬蟲", "Archive crawler"))
         ttk.Button(
             detail,
@@ -134,6 +142,7 @@ class CrawlerAssetWorkflowMixin:
 
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
+        self.crawler_asset_resolved_plans: dict[str, dict[str, object]] = {}
         self.refresh_crawler_asset_tab()
 
     def refresh_crawler_asset_tab(self) -> None:
@@ -195,6 +204,9 @@ class CrawlerAssetWorkflowMixin:
         last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id, "")
         last_plan_line_zh = f"\n上次送進下載器：{last_plan_outcome}\n" if last_plan_outcome else ""
         last_plan_line_en = f"\nLast send-to-downloader result: {last_plan_outcome}\n" if last_plan_outcome else ""
+        review_count = crawler_asset_review_count_from_plan(getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id))
+        review_line_zh = f"本次 Adapter 待辦：{review_count}\n" if review_count else ""
+        review_line_en = f"Current adapter queue: {review_count}\n" if review_count else ""
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
         bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
@@ -209,6 +221,7 @@ class CrawlerAssetWorkflowMixin:
                     f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
                     f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{last_plan_line_zh}"
+                    f"{review_line_zh}"
                     f"{capability_lines}\n\n"
                     f"界域 schema：{bounds_summary_zh or '無'}\n\n"
                     "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
@@ -221,6 +234,7 @@ class CrawlerAssetWorkflowMixin:
                     f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
                     f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{last_plan_line_en}"
+                    f"{review_line_en}"
                     f"{capability_lines}\n\n"
                     f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
                     "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
@@ -495,9 +509,12 @@ class CrawlerAssetWorkflowMixin:
     def _finish_crawler_asset_download_plan(self, result, written_paths: dict[str, str]) -> None:
         if not hasattr(self, "crawler_asset_plan_outcomes"):
             self.crawler_asset_plan_outcomes = {}
+        if not hasattr(self, "crawler_asset_resolved_plans"):
+            self.crawler_asset_resolved_plans = {}
         if result.blocked:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
             self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
+            self.crawler_asset_resolved_plans.pop(result.asset_id, None)
             self.refresh_crawler_asset_plan_row(result.asset_id)
             self.status_var.set(summary.replace("\n", " "))
             messagebox.showwarning(
@@ -514,6 +531,10 @@ class CrawlerAssetWorkflowMixin:
         resolved_path = written_paths.get("resolved", "")
         summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
         self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, added)
+        if result.resolved_plan:
+            self.crawler_asset_resolved_plans[result.asset_id] = result.resolved_plan
+        else:
+            self.crawler_asset_resolved_plans.pop(result.asset_id, None)
         self.refresh_crawler_asset_plan_row(result.asset_id)
         self.status_var.set(summary.splitlines()[0])
         messagebox.showinfo(self.tr("爬蟲下載計畫已建立", "Crawler download plan built"), summary, parent=getattr(self, "root", None))
@@ -530,6 +551,31 @@ class CrawlerAssetWorkflowMixin:
         self.crawler_asset_tree.selection_set(asset_id)
         self.crawler_asset_tree.focus(asset_id)
         self.on_crawler_asset_select()
+
+    def open_selected_crawler_asset_adapter_review(self) -> None:
+        """開啟同一輪 UI session 中由爬蟲資產產生的 adapter 待辦。"""
+
+        asset = self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return
+        resolved_plan = getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id)
+        if not isinstance(resolved_plan, dict):
+            messagebox.showinfo(
+                self.tr("沒有本次 Adapter 待辦", "No current adapter queue"),
+                self.tr("請先按「送到下載器 / 設定界域」建立本次下載計畫。", "Build a download plan from this crawler asset first."),
+                parent=getattr(self, "root", None),
+            )
+            return
+        review_items = adapter_review_items(resolved_plan)
+        if not review_items:
+            messagebox.showinfo(
+                self.tr("沒有 Adapter 待辦", "No adapter review items"),
+                self.tr("本次計畫沒有需要 Adapter 接手的項目。", "The current plan has no adapter-required items."),
+                parent=getattr(self, "root", None),
+            )
+            return
+        AdapterReviewDialog(self, review_items)
 
     def toggle_selected_crawler_asset_archive(self) -> None:
         asset = self.selected_crawler_asset()
@@ -632,6 +678,14 @@ def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
     if bucket == "zero_candidates":
         return "⚪ 零候選"
     return "⚪ 無可執行"
+
+
+def crawler_asset_review_count_from_plan(payload: object) -> int:
+    """計算 resolved plan 中仍需要 adapter 接手的項目數，供表格/passport 做短提示。"""
+
+    if not isinstance(payload, dict):
+        return 0
+    return len(adapter_review_items(payload))
 
 
 def crawler_asset_state_label(asset: CrawlerAsset) -> str:

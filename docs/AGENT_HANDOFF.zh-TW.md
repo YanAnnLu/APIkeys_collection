@@ -9,6 +9,7 @@
 - 本輪在 `api_launcher/crawler_asset_service.py` 補上 `CrawlerAssetDownloadPlanResult.outcome_bucket` 與 `user_next_action`，把爬蟲資產送進下載器的結果固定成後端狀態桶：`ready_to_download`、`partial_review_required`、`review_required`、`zero_candidates`、`empty_plan`、`blocked`。
 - `frontends/tk/crawler_asset_workflows.py` 現在只顯示後端狀態，不再用 Tk 自己解析 resolved plan。可直接下載時會提示去下載器用開始 / 暫停；仍需 Adapter 待辦時會提示開 Adapter review 或調整界域；零候選會提示放寬時間 / 空間 / 筆數條件。
 - Tk 爬蟲資產表格的「下一步」欄與右側 passport 現在會保留同一輪送進下載器的短狀態，例如 `已加入`、`待 Adapter`、`零候選` 或 blocked reason；這只是本次 UI session 的可視化回饋，長期跨 session 的狀態 persistence 仍留待後續 profile/event-log 收斂。
+- Crawler Passport 右側新增「開本次 Adapter 待辦」入口；它讀取同一輪爬蟲資產建立的 resolved plan 並交給既有 `AdapterReviewDialog`，不從 Tk 重新解析 plan，也不要求使用者先去全域 Adapter menu 找剛才那一批待辦。
 - 新增 headless 測試鎖住 review-required 與 ready-to-download 的使用者提示，也補上 service outcome bucket 的 regression。下一輪若做 Qt 或卡片牆 badge，請沿用 `outcome_bucket`，不要重新寫一套 UI 判斷。
 
 ## 2026-05-25 Crawler asset / download plan registry 收斂

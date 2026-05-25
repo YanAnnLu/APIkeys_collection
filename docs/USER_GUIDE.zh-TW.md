@@ -470,6 +470,8 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 
 送進下載器後，表格的「下一步」欄與右側 Crawler Passport 會留下本次結果的短標籤，例如 `已加入 3`、`已加入 1 / 待辦 2`、`待 Adapter 2`、`零候選` 或 blocked reason。這讓你回到爬蟲資產分頁時仍能看出剛剛按下動作後發生了什麼；目前這是本次 UI session 的狀態提示，正式跨 session 履歷會等後續 profile / event log 收斂。
 
+如果結果顯示 `待 Adapter` 或 `已加入 / 待辦`，右側 Crawler Passport 可以直接按 `開本次 Adapter 待辦`。這會打開剛才那一次爬蟲資產 resolved plan 裡的待辦清單，方便接著查看來源 URL、required action 與 outcome，而不必先到全域選單重新找目前下載計畫的 Adapter queue。
+
 系統會把計畫草稿寫到：
 
 ```text
