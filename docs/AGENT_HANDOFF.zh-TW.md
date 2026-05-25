@@ -4,6 +4,13 @@
 
 接手時先讀 `docs/AGENT_START_HERE.zh-TW.md`，再讀本文件與 `PROJECT_GTD.md`。這份文件是跨 Windows、macOS、不同 Agent 接力時的固定接力卡；每次切換機器或切換 Agent 前，請優先更新這份文件。
 
+## 2026-05-25 Crawler asset / download plan registry 收斂
+
+- 最新穩定 checkpoint：`490c75a`（`Centralize plan source type gates`），GitHub Actions run `26397393782` 已成功。
+- `api_launcher/plans.py` 已把 CMR collection 與 DataCite/OpenAlex research metadata 的 adapter-review 擋板命名成 `CMR_COLLECTION_*` 與 `RESEARCH_METADATA_*` registry/set；後續不要把 DOI/OpenAlex/NASA CMR 特例直接塞回 UI 或 resolver 分支。
+- 驗證紀錄：`tests.test_dataset_download_plan` 18 tests OK；完整 `unittest discover -s tests` 627 tests / 4 skipped OK；`scripts\pre_push_smoke_brief.cmd` 627 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions Ubuntu、`windows-2025-vs2026`、real DB smoke success。
+- 接下來仍維持 crawler 後端收斂主線：優先找 source_type 分支、URL/format 硬編碼與 UI 自行猜測的地方，轉成 registry/helper + regression test。每個 substantive checkpoint 必須先推送並確認 CI，再更新 `docs/DEVELOPMENT_LOG.zh-TW.md`。
+
 ## 2026-05-25 Content parser registry 骨架
 
 - Checkpoint 規則補強：每完成一個 commit / push / CI success 的功能切片，都要同步更新 `docs/DEVELOPMENT_LOG.zh-TW.md`。未推送或測試未綠的工作只能寫成 GTD/handoff 的「進行中/風險」，不能寫成 `**CHECKPOINT**`。
