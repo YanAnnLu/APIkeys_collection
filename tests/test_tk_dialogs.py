@@ -8,6 +8,7 @@ from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json
 from api_launcher.source_download import SourceDownloadBounds
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_assets import crawler_asset_from_source
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.downloads.jobs import DownloadProgress, JobStatus
 from frontends.tk import detail_panel_workflows as detail_panel_module
@@ -304,6 +305,29 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("Pattern：stac", message)
         self.assertIn("Source ID：demo_stac", message)
         self.assertIn("--promote-local-discovery-dry-run", message)
+
+    def test_source_pattern_draft_worker_uses_backend_default_confidence(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.refresh_crawler_asset_tab = lambda: None
+        summary = {
+            "dataset_source_path": "state/private/dataset_discovery_sources.local.json",
+            "audit_command": "python APIkeys_collection.py --promote-local-discovery-dry-run",
+            "source_pattern_detection": {"pattern_id": "stac", "confidence": 0.95, "source_type_hint": "stac_collections"},
+            "sources": [{"source_id": "demo_stac", "source_type": "stac_collections", "endpoint_url": "https://example.test/stac"}],
+            "audit_source_ids": ["demo_stac"],
+        }
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.write_source_draft_from_url", return_value=summary) as writer,
+            patch("frontends.tk.crawler_asset_workflows.log_event"),
+            patch("frontends.tk.crawler_asset_workflows.messagebox.showinfo"),
+        ):
+            CrawlerAssetWorkflowMixin._source_pattern_draft_worker(ui, {"url": "https://example.test/stac"})
+
+        self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, writer.call_args.kwargs["minimum_confidence"])
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

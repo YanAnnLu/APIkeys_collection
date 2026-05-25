@@ -4,6 +4,7 @@ from tkinter import BOTH, LEFT, RIGHT, X, StringVar, Toplevel, messagebox
 from tkinter import ttk
 from typing import Any, Callable
 
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from frontends.tk.ui_config import COLORS
 
 
@@ -38,7 +39,7 @@ class SourcePatternDraftDialog:
             "max_results": StringVar(value="10"),
             "min_expected_candidates": StringVar(value="1"),
             "timeout": StringVar(value="8.0"),
-            "minimum_confidence": StringVar(value="0.35"),
+            "minimum_confidence": StringVar(value=str(DEFAULT_PATTERN_MINIMUM_CONFIDENCE)),
         }
 
         self._build()

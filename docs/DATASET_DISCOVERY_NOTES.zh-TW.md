@@ -77,6 +77,8 @@ Source pattern detector 的 unknown fallback 與最低信心門檻已集中到 `
 
 Source draft writer 也會在寫入 local source draft 前重新檢查 detector confidence；即使注入的 detector 回傳非 unknown 且帶 `source_type_hint`，低於最低信心門檻仍必須停在 review。這是防止測試替身、外部 detector 或未來 plugin adapter 繞過 unknown fallback 的安全邊界。
 
+Tk 的 source draft dialog 與 crawler asset workflow 也改為讀取同一個最低信心門檻常數，而不是在 UI 層硬寫 `0.35`。UI 仍只負責收集輸入與呼叫 service；detector contract 的預設值由後端維護。
+
 同日第三個切片把 profile 與 health 從 UI 推回後端：`api_launcher/crawler_asset_profiles.py` 保存 crawler 的本機偏好與憑證參照，例如啟用/封存、credential profile、API key 環境變數名稱、帳號提示、排程、限流、重試、seed scope、官方 logo/favicon、本機自訂圖片與授權備註；`api_launcher/crawler_asset_health.py` 則把 profile、能力契約與風險層級收斂成 `status_code`、emoji、reason、warning codes 與 `next_action`。這讓未來 Tk 卡片牆、Qt 卡片牆、CLI 稽核報告都能看到同一個爬蟲健康狀態，而不是在不同前端各自判斷。
 
 `tem/ui-aseat-ui/HANDOFF.md` 可作為 UI 精神參考：一個入口爬蟲是一張可治理的資產卡片，預設畫面應清爽掃描，細節放在右側 passport 或設定視窗；齒輪、封存、健康狀態、信任分數、成熟度、風險與任務隊列是 crawler asset 的產品語言。`tem/` 本身不是正式來源，不應直接加入 commit；要抽取的是互動規則與資訊架構。

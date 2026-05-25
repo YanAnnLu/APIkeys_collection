@@ -8,6 +8,7 @@ from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, u
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_service import run_crawler_asset_listing
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.event_log import log_event, log_exception
 from api_launcher.paths import local_config_file
@@ -245,7 +246,7 @@ class CrawlerAssetWorkflowMixin:
                 max_results=int(values.get("max_results") or 10),
                 min_expected_candidates=int(values.get("min_expected_candidates") or 1),
                 timeout=float(values.get("timeout") or 8.0),
-                minimum_confidence=float(values.get("minimum_confidence") or 0.35),
+                minimum_confidence=float(values.get("minimum_confidence") or DEFAULT_PATTERN_MINIMUM_CONFIDENCE),
             )
             log_event(
                 "source_pattern_source_draft_written",
