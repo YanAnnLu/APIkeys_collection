@@ -11,6 +11,7 @@ from api_launcher.crawlers.dataset_sources import (
     append_dataset_discovery_source,
     source_to_dict,
 )
+from api_launcher.crawlers.ogc_wms import ogc_wms_capabilities_url
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
@@ -228,6 +229,10 @@ def normalize_ogc_api_records_endpoint(parsed: urllib.parse.ParseResult) -> str:
     return endpoint_with_path(parsed, path)
 
 
+def normalize_ogc_wms_capabilities_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    return ogc_wms_capabilities_url(urllib.parse.urlunparse(parsed))
+
+
 def normalize_dataverse_search_endpoint(parsed: urllib.parse.ParseResult) -> str:
     path = parsed.path.rstrip("/")
     path_lower = path.lower()
@@ -322,6 +327,7 @@ def normalize_socrata_catalog_endpoint(parsed: urllib.parse.ParseResult) -> str:
 SOURCE_ENDPOINT_NORMALIZERS: dict[str, SourceEndpointNormalizer] = {
     "stac_collections": normalize_stac_collections_endpoint,
     "ogc_api_records": normalize_ogc_api_records_endpoint,
+    "ogc_wms_capabilities": normalize_ogc_wms_capabilities_endpoint,
     "gbif_dataset_search": normalize_gbif_dataset_search_endpoint,
     "dataverse_search": normalize_dataverse_search_endpoint,
     "zenodo_records_search": normalize_zenodo_records_search_endpoint,

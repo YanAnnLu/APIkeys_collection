@@ -126,7 +126,29 @@ class SourcePatternDraftTest(unittest.TestCase):
 
         self.assertEqual("ogc_wms", detection.pattern_id)
         self.assertEqual("ogc_wms_capabilities", source.source_type)
-        self.assertEqual("https://maps.example.test/wms", source.endpoint_url)
+        self.assertEqual("https://maps.example.test/wms?service=WMS&request=GetCapabilities", source.endpoint_url)
+
+    def test_ogc_wms_detection_normalizes_conflicting_query_and_fragment(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="ogc_wms",
+                confidence=0.5,
+                evidence=("wms_get_capabilities_response", "wms_capabilities_document"),
+                source_type_hint="ogc_wms_capabilities",
+            )
+
+        source, detection = dataset_source_from_detected_url(
+            "https://maps.example.test/wms?layers=roads&service=WFS&request=GetCapabilities#preview",
+            provider_id="sample_maps",
+            detector=detector,
+        )
+
+        self.assertEqual("ogc_wms", detection.pattern_id)
+        self.assertEqual("ogc_wms_capabilities", source.source_type)
+        self.assertEqual(
+            "https://maps.example.test/wms?layers=roads&service=WMS&request=GetCapabilities",
+            source.endpoint_url,
+        )
 
     def test_ogc_api_detection_normalizes_base_url_to_collections_endpoint(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:

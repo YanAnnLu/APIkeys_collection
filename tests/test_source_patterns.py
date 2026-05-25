@@ -49,6 +49,28 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("stac_collections_endpoint", result.evidence)
         self.assertEqual("https://example.test/stac/collections", calls[0])
 
+    def test_stac_pattern_probes_path_collections_before_url_fragment(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://example.test/api/stac/collections":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[{"id":"example"}],"links":[{"rel":"root","href":"../"}]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://example.test/api/stac?f=json#preview", fetcher=fetcher)
+
+        self.assertEqual("stac", result.pattern_id)
+        self.assertIn("https://example.test/api/stac/collections", calls)
+        self.assertLess(
+            calls.index("https://example.test/api/stac/collections"),
+            calls.index("https://example.test/collections"),
+        )
+
     def test_erddap_pattern_probes_info_index(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://coastwatch.example.test/erddap/info/index.json":
@@ -209,6 +231,32 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("json_contains_collections", result.evidence)
         self.assertIn("conforms_to_mentions_ogc", result.evidence)
 
+    def test_ogc_pattern_probes_path_endpoints_before_url_fragment(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://geo.example.test/api/conformance":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"conformsTo":["http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"]}',
+                    headers={"content-type": "application/json"},
+                )
+            if url == "https://geo.example.test/api/collections":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[{"id":"roads"}]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://geo.example.test/api?f=json#preview", fetcher=fetcher)
+
+        self.assertEqual("ogc", result.pattern_id)
+        self.assertIn("https://geo.example.test/api/conformance", calls)
+        self.assertIn("https://geo.example.test/api/collections", calls)
+        self.assertNotIn("https://geo.example.test/collections", calls)
+
     def test_ogc_pattern_dedupes_repeated_probe_evidence(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url in {"https://geo.example.test/api", "https://geo.example.test/api/conformance"}:
@@ -278,6 +326,31 @@ class SourcePatternDetectorTest(unittest.TestCase):
             "https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities&service=WMS&request=GetCapabilities",
             calls,
         )
+
+    def test_ogc_wms_probe_adds_query_before_url_fragment(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://maps.example.test/wms?layers=roads&service=WMS&request=GetCapabilities":
+                return PatternProbeResponse(
+                    url=url,
+                    text=(
+                        '<WMS_Capabilities xmlns="http://www.opengis.net/wms">'
+                        "<Service><Name>WMS</Name></Service></WMS_Capabilities>"
+                    ),
+                    headers={"content-type": "text/xml"},
+                )
+            return None
+
+        result = detect_source_interface_pattern(
+            "https://maps.example.test/wms?layers=roads#preview",
+            fetcher=fetcher,
+        )
+
+        self.assertEqual("ogc_wms", result.pattern_id)
+        self.assertIn("https://maps.example.test/wms?layers=roads&service=WMS&request=GetCapabilities", calls)
+        self.assertFalse(any("#preview&service=WMS" in url or "#preview?service=WMS" in url for url in calls))
 
     def test_cmr_detector_does_not_pollute_non_cmr_urls(self) -> None:
         calls: list[str] = []
@@ -353,6 +426,21 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertLess(result.confidence, DEFAULT_PATTERN_MINIMUM_CONFIDENCE)
         self.assertEqual("", result.source_type_hint)
         self.assertEqual("stac", result.candidates[0].pattern_id)
+
+    def test_collections_endpoint_without_stac_links_stays_unknown_below_threshold(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://ambiguous.example.test/collections":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://ambiguous.example.test/collections", fetcher=fetcher)
+
+        self.assertEqual(UNKNOWN_PATTERN_ID, result.pattern_id)
+        self.assertLess(result.confidence, DEFAULT_PATTERN_MINIMUM_CONFIDENCE)
 
 
 if __name__ == "__main__":

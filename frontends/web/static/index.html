@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RRKAL 爬蟲資產庫</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="RRKAL navigation">
+        <div class="brand">
+          <div class="brand-mark">RR</div>
+          <div>
+            <strong>RRKAL</strong>
+            <span>爬蟲資產庫</span>
+          </div>
+        </div>
+
+        <nav class="rail-nav" aria-label="工作區">
+          <button class="active" type="button">爬蟲資產</button>
+          <button type="button" disabled>下載器</button>
+          <button type="button" disabled>匯入審核</button>
+          <button type="button" disabled>事件紀錄</button>
+        </nav>
+
+        <section class="sidebar-panel">
+          <div class="sidebar-heading">
+            <span>來源範式</span>
+            <strong id="sourceTypeCount">0</strong>
+          </div>
+          <div id="sourceTypeFilters" class="filter-stack"></div>
+        </section>
+
+        <section class="sidebar-panel compact">
+            <span class="mini-label">後端契約</span>
+            <p>Web 只收集輸入、呼叫 service、呈現 JSON。下載與匯入規則仍由 <code>api_launcher</code> 管理。</p>
+        </section>
+      </aside>
+
+      <main class="main-stage">
+        <header class="topbar">
+          <div class="title-block">
+            <span class="eyebrow">Crawler Asset Management</span>
+            <h1>爬蟲資產庫</h1>
+            <p>把每個資料入口視為可治理、可審核、可送入下載計畫的爬蟲資產。</p>
+          </div>
+
+          <div class="top-actions">
+            <label class="search-control">
+              <span>搜尋</span>
+              <input id="assetFilter" type="search" placeholder="名稱、provider、範式、endpoint" />
+            </label>
+            <label class="select-control">
+              <span>狀態</span>
+              <select id="healthFilter">
+                <option value="all">全部</option>
+              </select>
+            </label>
+            <button id="refreshButton" class="ghost-button" type="button">重新讀取</button>
+          </div>
+        </header>
+
+        <section class="overview-grid" aria-label="資產總覽">
+          <div class="metric-card">
+            <span>資產數</span>
+            <strong id="assetCount">0</strong>
+          </div>
+          <div class="metric-card">
+            <span>可直接工作</span>
+            <strong id="healthyCount">0</strong>
+          </div>
+          <div class="metric-card">
+            <span>需要界域</span>
+            <strong id="needsBoundsCount">0</strong>
+          </div>
+          <div class="metric-card">
+            <span>目前狀態</span>
+            <strong id="serverState">初始化</strong>
+          </div>
+        </section>
+
+        <section id="selectedHero" class="selected-hero" aria-label="目前選取的爬蟲資產">
+          <div class="hero-empty">
+            <strong>等待載入爬蟲資產</strong>
+            <span>選取資產後，這裡會顯示來源範式、界域能力、後端動作與審核路徑。</span>
+          </div>
+        </section>
+
+        <section class="workbench">
+          <section class="inventory-panel" aria-label="爬蟲資產庫">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Crawler Assets</span>
+                <h2>資料入口爬蟲</h2>
+              </div>
+              <span id="visibleCount" class="count-pill">0</span>
+            </div>
+            <div id="assetGrid" class="asset-grid"></div>
+          </section>
+
+          <aside class="passport-panel" aria-label="資產護照">
+            <section id="passport" class="passport-card">
+              <div class="empty-state">
+                <strong>選擇一個爬蟲資產</strong>
+                <p>點選資產卡片後，這裡會顯示來源、能力、風險、界域表單與後端 plan preview。</p>
+              </div>
+            </section>
+
+            <section class="bounds-card">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">Boundary Form</span>
+                  <h2>界域輸入</h2>
+                </div>
+                <span id="formState" class="state-pill neutral">等待選擇</span>
+              </div>
+              <form id="boundsForm" class="bounds-form"></form>
+              <div class="button-row">
+                <button id="payloadPreviewButton" class="secondary-button" type="button" disabled>只產生 payload</button>
+                <button id="buildPlanButton" class="primary-button" type="button" disabled>建立下載計畫</button>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <section class="bottom-grid">
+          <section class="mission-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Operation Log</span>
+                <h2>本機互動紀錄</h2>
+              </div>
+              <span id="missionCount" class="count-pill">0</span>
+            </div>
+            <div id="missionQueue" class="mission-list"></div>
+          </section>
+
+          <section class="json-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Backend JSON</span>
+                <h2>JSON 回應</h2>
+              </div>
+              <button id="copyJsonButton" class="ghost-button small" type="button">複製</button>
+            </div>
+            <pre id="resultJson">{}</pre>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

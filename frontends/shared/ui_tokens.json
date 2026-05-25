@@ -1,0 +1,41 @@
+{
+  "intent": "Shared visual-token seed for Tk, Web Preview, and future Qt/QSS.",
+  "palette": {
+    "ink950": "#101623",
+    "ink900": "#182131",
+    "ink800": "#253145",
+    "ink700": "#38465b",
+    "ink500": "#68758a",
+    "ink300": "#aeb8c7",
+    "ink200": "#d8dee7",
+    "ink100": "#edf1f6",
+    "paper": "#fbfcfe",
+    "panel": "#ffffff",
+    "panelTint": "#f4f7fb",
+    "cyan": "#0d7f97",
+    "cyanStrong": "#075f73",
+    "green": "#18805c",
+    "amber": "#b56b13",
+    "red": "#b4232c",
+    "violet": "#7157d9"
+  },
+  "radius": {
+    "xs": 6,
+    "sm": 8,
+    "md": 12,
+    "lg": 18
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 22,
+    "xxl": 30
+  },
+  "componentIntent": {
+    "tk": "Stable and plain control-panel shell.",
+    "webPreview": "More expressive UIUX laboratory that still calls backend contracts only.",
+    "qtFuture": "Translate the proven Web Preview visual language into QSS and Qt widgets."
+  }
+}

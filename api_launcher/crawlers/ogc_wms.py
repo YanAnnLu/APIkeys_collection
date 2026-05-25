@@ -4,7 +4,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 
 from api_launcher.adapters.base import dataset_uid
-from api_launcher.crawlers.fetch import fetch_text, search_endpoint_url
+from api_launcher.crawlers.fetch import fetch_text
 from api_launcher.crawlers.metadata import (
     analysis_hint_for_family,
     merge_categories,
@@ -19,13 +19,21 @@ from api_launcher.models import Dataset
 
 def ogc_wms_capabilities_url(endpoint_url: str) -> str:
     parsed = urllib.parse.urlparse(endpoint_url)
-    query = urllib.parse.parse_qs(parsed.query)
-    query_lower = {key.lower(): value for key, value in query.items()}
-    service = query_lower.get("service", [""])[0].lower()
-    request = query_lower.get("request", [""])[0].lower()
+    query_pairs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    query_lower = {key.lower(): value for key, value in query_pairs}
+    service = query_lower.get("service", "").lower()
+    request = query_lower.get("request", "").lower()
     if service == "wms" and request == "getcapabilities":
-        return endpoint_url
-    return search_endpoint_url(endpoint_url, {"service": "WMS", "request": "GetCapabilities"})
+        return urllib.parse.urlunparse(parsed._replace(fragment="")) if parsed.fragment else endpoint_url
+    # WMS crawler must replace conflicting service/request pairs instead of appending duplicates.
+    filtered_pairs = [(key, value) for key, value in query_pairs if key.lower() not in {"service", "request"}]
+    filtered_pairs.extend([("service", "WMS"), ("request", "GetCapabilities")])
+    return urllib.parse.urlunparse(
+        parsed._replace(
+            query=urllib.parse.urlencode(filtered_pairs),
+            fragment="",
+        )
+    )
 
 
 def ogc_wms_candidates_for_source(

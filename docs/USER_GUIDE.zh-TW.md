@@ -36,6 +36,32 @@ python APIkeys_collection.py --init-db --seed --manifest-health --summary
 python -m unittest discover -s tests
 ```
 
+## Web Preview / UIUX 對照層
+
+目前主要操作入口仍是 Tk 桌面 UI。若要用瀏覽器討論介面心流、CSS 視覺語言或未來 Qt/QSS 參照，可以啟動 Web Preview：
+
+```powershell
+scripts\run_web_preview.cmd
+```
+
+或：
+
+```powershell
+py -B -m frontends.web.server --host 127.0.0.1 --port 8765 --port-scan 20 --open
+```
+
+接著開啟：
+
+```text
+http://127.0.0.1:8765/
+```
+
+Web Preview 會顯示 crawler asset 清單、Crawler Passport、動態界域表單、任務互動紀錄與後端 JSON 結果。這不是另一套後端，也不會重寫 crawler；它只呼叫 `api_launcher` 的既有 JSON contract。Tk 可以維持樸素穩定的控制台語言，Web Preview 則可以用更完整的視覺和互動設計來討論 UIUX、響應式版面與未來 QSS token。
+
+若 8765 已經被其他前端工具或另一份本地 clone 使用，Web Preview 會自動改用下一個可用 port，終端機會印出實際網址。不要為了預覽 UI 去終止不明程序。
+
+如果只用 IDE Live Preview 直接開 `frontends/web/static/index.html`，可以看見靜態版面，但 `/api/...` endpoints 不會存在，因此看不到真實 crawler asset 清單與動態界域表單。要看完整互動，請使用上面的 `frontends.web.server` 啟動方式。
+
 ## 主畫面
 
 主畫面可以先理解成「科學資料集的 Steam 收藏庫」：

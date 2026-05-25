@@ -1,6 +1,27 @@
 # RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
+
+## 2026-05-26 Web Preview / 後端視覺化閉環
+
+- [x] 將 `tem/ui-aseat-ui` 的設計參考收斂為 RRKAL 本專案語彙：Web Preview 可見文字使用「爬蟲資產、資產護照、界域輸入、下載計畫、本機互動紀錄、後端 JSON」，不直接搬用參考專案的 Aseat / Mission / Workshop 等外部命名。
+- [x] `frontends/web/preview_api.py` 在 crawler asset detail payload 加入後端產生的 `flow_steps`，讓 Web 以真實後端狀態視覺化 `seed -> source_pattern -> bounds -> download_plan -> review_gate`，避免 JS 自行推測 crawler readiness。
+- [x] Web Preview 主視覺區新增「目前選取的爬蟲資產」，顯示 provider、source pattern、health、trust、bounds/capability counts、下一步與後端流程條。
+- [x] Web 顯示層用穩定 `field_id` / `capability_id` 對照中文標籤，避免舊後端 label 亂碼或平台差異直接進入 UI；後端原始契約仍保留。
+- [x] 驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke 均通過。
+- [ ] 下一步：把穩定的 Web `flow_steps` / label 對照抽成可供 Tk/Qt 共用的顯示 schema，並補更多 plan outcome / adapter review 狀態視覺化。
+
+## 2026-05-25 Web Preview / UIUX 對照層
+
+- [x] 新增 `frontends/web/` stdlib Web Preview：以 `frontends/web/server.py` 提供 `/api/health`、crawler asset list/detail、bounds form、payload preview 與 plan preview endpoint。
+- [x] 新增 HTML/CSS/JS 薄層：`frontends/web/static/` 目前可呈現 crawler asset 清單、Crawler Passport、動態界域表單與後端 JSON 結果。
+- [x] Web Preview 已改成 Aseat Inventory 方向：左側來源範式、中央資產卡片牆、右側 Aseat Passport / 動態界域表單、下方 Mission Queue / JSON Inspector；這是未來 Qt/QSS 的視覺前導，不改後端規則。
+- [x] 新增 `frontends/shared/ui_tokens.json`，作為 Web CSS 與未來 Qt/QSS 視覺 token 對照的第一版。
+- [x] 新增 `scripts/run_web_preview.cmd`，讓本機可用 `http://127.0.0.1:8765/` 進行 UIUX 討論。
+- [x] 新增 `docs/WEB_PREVIEW_UIUX.zh-TW.md`，明確規定 Web Preview 只呼叫後端 JSON contract，不重新實作 crawler/downloader/importer。
+- [x] 確立雙 UI 同步規則：後端功能先進 `api_launcher` service / JSON contract；Tk 用穩定樸素控制台承接，Web Preview 用較自由的視覺與互動設計承接，兩者不得分叉後端規則。
+- [x] Web Preview server 已支援 port fallback：預設 8765，若被其他前端 agent 或另一份本地 clone 占用，會依 `--port-scan` 往後找可用 port，不需要停止對方程序。
+- [ ] 下一步：以瀏覽器檢查桌面與窄版寬度，繼續補下載器心流與 card hover 設定入口，但仍共用 `api_launcher` service。
 
 ## 2026-05-25 爬蟲資產下載計畫閉環
 
@@ -33,6 +54,8 @@ Last updated: 2026-05-25
 - [x] WMS parser 已補正 `<Service><Title>` metadata 與 layer search-term 過濾測試，讓 candidate passport 顯示的服務標題與搜尋範圍更可靠。
 - [x] WMS capabilities URL helper 已接受大寫 `SERVICE` / `REQUEST` query，不會對既有 GetCapabilities URL 重複追加參數。
 - [x] Source pattern 的 WMS detector 已同步使用 case-insensitive GetCapabilities probe，使用者貼大寫 query 的 WMS capabilities URL 時不會被 detector 追加第二組參數。
+- [x] WMS capabilities URL helper 與 detector probe 已改用 URL parser 正規化 query：會移除 fragment、替換衝突的 `service/request`，並保留其他 query 參數，避免 `#preview?service=...` 或 WFS/WMS 參數重複造成 audit 卡住。
+- [x] STAC detector 已收斂 `/collections` 判斷：只有具備 STAC-like link relation 時才給 `stac_collections_endpoint` evidence，避免一般 OGC/ambiguous `collections` payload 被誤判成 STAC。
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
 - [x] CKAN / Socrata source draft normalization 已把入口首頁或深層 dataset/resource URL 轉成 crawler 可 audit 的 canonical endpoint：CKAN 轉到 `/api/3/action/package_search`，Socrata 轉到 `api.us.socrata.com/api/catalog/v1?domains=...`，避免 detector 辨識成功後 audit 又打回 landing/resource 頁。
 - [x] Search-style source draft endpoint hardening 已移除 probe/query/fragment 汙染：STAC、CKAN、GBIF、Dataverse、Zenodo、DataCite、OpenAlex、NCEI、ERDDAP 這類目錄搜尋型 source 現在會先正規化到乾淨 catalog/search endpoint，再由各 crawler 自己加上 bounded query，避免 `rows/limit/q/search` 等參數重複或被錯接到 path。

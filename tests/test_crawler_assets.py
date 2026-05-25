@@ -40,6 +40,24 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 class CrawlerAssetTest(unittest.TestCase):
+    @staticmethod
+    def _plan_build_stub(
+        *,
+        direct_download_count: int,
+        candidate_count: int,
+        review_required_count: int,
+        payload_kind: str,
+    ) -> SimpleNamespace:
+        def to_dict() -> dict[str, object]:
+            return {"kind": payload_kind}
+
+        return SimpleNamespace(
+            direct_download_count=direct_download_count,
+            candidate_count=candidate_count,
+            resolved_plan={"summary": {"review_required_count": review_required_count}},
+            to_dict=to_dict,
+        )
+
     def test_supported_source_exposes_three_capability_slots(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_ckan",
@@ -539,11 +557,11 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("demo_index", datasets[0].metadata["discovery_source_id"])
 
     def test_download_plan_result_routes_review_required_bucket(self) -> None:
-        plan_build = SimpleNamespace(
+        plan_build = self._plan_build_stub(
             direct_download_count=0,
             candidate_count=2,
-            resolved_plan={"summary": {"review_required_count": 2}},
-            to_dict=lambda: {},
+            review_required_count=2,
+            payload_kind="review_plan",
         )
         result = CrawlerAssetDownloadPlanResult(
             asset_id="demo_index",
@@ -555,6 +573,62 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("review_required", result.outcome_bucket)
         self.assertEqual("open_adapter_review_or_adjust_bounds", result.user_next_action)
         self.assertEqual("review_required", result.to_dict()["outcome_bucket"])
+
+    def test_download_plan_result_routes_partial_review_bucket(self) -> None:
+        plan_build = self._plan_build_stub(
+            direct_download_count=1,
+            candidate_count=3,
+            review_required_count=2,
+            payload_kind="mixed_plan",
+        )
+        result = CrawlerAssetDownloadPlanResult(
+            asset_id="demo_index",
+            source_found=True,
+            plan_build=plan_build,
+            next_action="adapter_review_required",
+        )
+
+        self.assertEqual("partial_review_required", result.outcome_bucket)
+        self.assertEqual("open_downloader_and_start_or_pause_queue", result.user_next_action)
+        payload = result.to_dict()
+        self.assertEqual("partial_review_required", payload["outcome_bucket"])
+        self.assertEqual("mixed_plan", payload["plan_build"]["kind"])
+
+    def test_download_plan_result_routes_zero_candidates_bucket(self) -> None:
+        plan_build = self._plan_build_stub(
+            direct_download_count=0,
+            candidate_count=0,
+            review_required_count=0,
+            payload_kind="empty_candidates",
+        )
+        result = CrawlerAssetDownloadPlanResult(
+            asset_id="demo_index",
+            source_found=True,
+            plan_build=plan_build,
+            next_action="inspect_crawler_audit",
+        )
+
+        self.assertEqual("zero_candidates", result.outcome_bucket)
+        self.assertEqual("adjust_bounds_or_refresh_source_listing", result.user_next_action)
+        payload = result.to_dict()
+        self.assertEqual("zero_candidates", payload["outcome_bucket"])
+        self.assertEqual("adjust_bounds_or_refresh_source_listing", payload["user_next_action"])
+
+    def test_download_plan_result_routes_blocked_bucket(self) -> None:
+        result = CrawlerAssetDownloadPlanResult(
+            asset_id="",
+            source_found=False,
+            blocked_reason="missing_asset_id",
+            next_action="select_crawler_asset",
+        )
+
+        self.assertTrue(result.blocked)
+        self.assertEqual("blocked", result.outcome_bucket)
+        self.assertEqual("select_crawler_asset", result.user_next_action)
+        payload = result.to_dict()
+        self.assertTrue(payload["blocked"])
+        self.assertEqual("missing_asset_id", payload["blocked_reason"])
+        self.assertEqual({}, payload["plan_build"])
 
     def test_service_builds_download_plan_from_asset_bounds(self) -> None:
         with TemporaryDirectory() as tmp:

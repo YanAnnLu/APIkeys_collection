@@ -146,11 +146,15 @@ def detect_stac(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatt
             if "stac_version" in data:
                 evidence.append("json_contains_stac_version")
             links = [link for link in data.get("links", []) if isinstance(link, dict)]
+            stac_like_link = any(
+                str(link.get("rel", "")).lower() in {"root", "self", "parent", "search", "child", "collection"}
+                for link in links
+            )
             if any(link.get("rel") == "search" for link in links):
                 evidence.append("json_has_search_link")
             if "collections" in data or any("collections" in str(link.get("href", "")) for link in links):
                 evidence.append("json_references_collections")
-            if "collections" in data and probe_url.rstrip("/").endswith("/collections"):
+            if "collections" in data and probe_url.rstrip("/").endswith("/collections") and stac_like_link:
                 evidence.append("stac_collections_endpoint")
             if evidence:
                 break
@@ -287,7 +291,9 @@ def json_from(response: PatternProbeResponse | None) -> Any | None:
 
 
 def join_url(base: str, relative: str) -> str:
-    return urllib.parse.urljoin(base.rstrip("/") + "/", relative)
+    parsed = urllib.parse.urlparse(base)
+    clean_base = urllib.parse.urlunparse(parsed._replace(query="", fragment=""))
+    return urllib.parse.urljoin(clean_base.rstrip("/") + "/", relative)
 
 
 def origin_url(url: str) -> str:
@@ -350,13 +356,21 @@ def ogc_api_probe_urls(url: str) -> tuple[str, ...]:
 
 def wms_capabilities_probe_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
-    query = urllib.parse.parse_qs(parsed.query)
-    query_lower = {key.lower(): value for key, value in query.items()}
-    service = query_lower.get("service", [""])[0].lower()
-    request = query_lower.get("request", [""])[0].lower()
+    query_pairs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    query_lower = {key.lower(): value for key, value in query_pairs}
+    service = query_lower.get("service", "").lower()
+    request = query_lower.get("request", "").lower()
     if service == "wms" and request == "getcapabilities":
-        return url
-    return url + ("&" if parsed.query else "?") + "service=WMS&request=GetCapabilities"
+        return urllib.parse.urlunparse(parsed._replace(fragment="")) if parsed.fragment else url
+    # URL fragment 不會送到伺服器；先用 parser 合成 query，避免產生 /wms#x?service=...
+    filtered_pairs = [(key, value) for key, value in query_pairs if key.lower() not in {"service", "request"}]
+    filtered_pairs.extend([("service", "WMS"), ("request", "GetCapabilities")])
+    return urllib.parse.urlunparse(
+        parsed._replace(
+            query=urllib.parse.urlencode(filtered_pairs),
+            fragment="",
+        )
+    )
 
 
 DETECTORS: tuple[PatternDetector, ...] = (

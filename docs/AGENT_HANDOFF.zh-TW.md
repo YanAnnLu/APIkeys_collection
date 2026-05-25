@@ -1,8 +1,26 @@
 # Agent 接力卡
 
-最後更新：2026-05-25
+最後更新：2026-05-26
 
 接手時先讀 `docs/AGENT_START_HERE.zh-TW.md`，再讀本文件與 `PROJECT_GTD.md`。這份文件是跨 Windows、macOS、不同 Agent 接力時的固定接力卡；每次切換機器或切換 Agent 前，請優先更新這份文件。
+
+## 2026-05-26 Web Preview / 後端流程視覺化
+
+- Web Preview 目前已從 `tem/ui-aseat-ui` 只吸收構圖與互動節奏，產品語彙已收斂回 RRKAL：爬蟲資產、資產護照、界域輸入、下載計畫、本機互動紀錄、後端 JSON。
+- `frontends/web/preview_api.py` 的 crawler asset detail payload 現在包含 `flow_steps`，由後端根據 seed、source pattern、bound form、download plan capability、review gate 產生；Web 只視覺化，不自行推測 readiness。
+- `frontends/web/static/app.js` 針對 `field_id` / `capability_id` 做中文顯示對照，避免舊後端 label 的 mojibake 直接污染 UI；後端原始契約不變。
+- 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
+- 下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 `flow_steps` / label mapping 抽成 shared display schema，再接 plan outcome / adapter review 的視覺化；不要把外部參考命名搬回 UI。
+
+## 2026-05-25 Web Preview / UIUX 對照層
+
+- 本輪新增 `frontends/web/`，作為 HTML/CSS UIUX 對照層。它不是第二套 Web 版後端，也不是要取代 Tk；目前只用 stdlib HTTP server 暴露 crawler asset JSON endpoints，讓瀏覽器能呈現來源清單、Crawler Passport、動態界域表單與後端 JSON 結果。
+- 啟動方式：`scripts\run_web_preview.cmd`，或手動執行 `py -B -m frontends.web.server --host 127.0.0.1 --port 8765 --open`，然後開 `http://127.0.0.1:8765/`。
+- 業務邏輯仍屬於 `api_launcher`。Web Preview 只經過 `frontends/web/preview_api.py` 呼叫 `load_crawler_assets()`、`build_crawler_asset_bound_form_spec()` 與 `build_crawler_asset_download_plan()` 等既有 service；不要在 `app.js` 裡重寫 crawler、resolver、downloader 或 importer 規則。
+- `execute=false` 的 plan preview 只驗證界域 payload，不觸發 live crawler；`execute=true` 才會呼叫後端建立下載計畫，結果仍會依 direct download / adapter review 規則處理。
+- 相關文件已新增 `docs/WEB_PREVIEW_UIUX.zh-TW.md`，並在 GTD / Docs Index 記錄這條開發路線。後續若同步 Tk 與 Web Preview，請先確認 service contract，再分別接 UI 外殼。Tk 可以維持穩定樸素的控制台語言；Web Preview 可以更自由地實驗視覺、卡片、Passport、任務佇列與未來 QSS token，但不得分叉後端規則。
+- Web Preview 靜態 UI 已改成 Aseat Inventory：左側來源範式、中央 inventory slot 卡片牆、右側 Aseat Passport / 界域表單、下方 Mission Queue / JSON Inspector。它已移除上一版 mojibake 文案，並以 Aseat 管理語彙承接 `tem/ui-aseat-ui/HANDOFF.md` 的精神；若後續要加互動，仍要先接 `frontends/web/preview_api.py` 或共享 service，不要在 `app.js` 重寫 crawler 規則。
+- Web Preview server 現在支援 port fallback：預設 `8765`，若被其他前端 agent、IDE Live Preview 或另一份 clone 占用，會依 `--port-scan` 往後找可用 port 並印出實際 URL。不要終止不明程序；不同專案資料夾用不同 port 即可並行。
 
 ## 2026-05-25 爬蟲資產 UI 狀態收斂
 
@@ -357,6 +375,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 2026-05-24 第二個切片新增 `api_launcher/crawler_asset_bounds.py`，將 facets 提升為 bounds schema：每個 facet 有 group/control/value type/maps_to/required/options/help，並對應 TimeBounds、SpatialBounds、ColumnBounds、VersionBounds、LimitBounds、AuthBounds 等概念。請優先重用這份 schema 與既有 `api_launcher.bound_form` / `SourceDownloadBounds`，不要為 crawler card、Qt 或 CLI wizard 重寫另一套界域表單規則。
 - 2026-05-24 Tk 已有第一版 crawler asset profile 編輯入口：`frontends/tk/crawler_asset_profile_dialog.py` 只收集 profile reference（credential profile、API key env var、帳號提示、排程、限流、重試、Logo/favicon 等），實際驗證與保存交給 `update_crawler_asset_profile()`。UX 規則：爬蟲分頁用明確「爬蟲設定」按鈕或未來齒輪進設定；下載器清單雙擊才代表把選中項目啟動/送入下載，不要把雙擊拿去開設定。
 - 近期 GTD 加入 Notion-backed seed intake：使用者打算開一個 Notion 分頁/資料庫給組員維護入口網站清單。Notion 應視為雲端 intake/staging，不是正式 catalog 權威；未來 sync 指令應把 Notion rows 轉成與 `docs/DATABASE_PORTAL_INTAKE.zh-TW.md` 相同的 review JSON / local seed / local dataset source，再跑 crawler audit，通過後才提升正式 catalog。注意 sync 要記 provenance，避免不清楚 seed 從哪列 Notion 來。
+- WMS/OGC URL guard 已再補一輪：`api_launcher/crawlers/source_patterns.py` 與 `api_launcher/crawlers/ogc_wms.py` 現在會用 URL parser 產生 GetCapabilities probe，移除 fragment、替換衝突 `service/request`、保留其他 query；source draft normalization 也會把 `ogc_wms_capabilities` endpoint 正規化成可 audit 的 WMS capabilities URL。STAC `/collections` 誤判也已降低，沒有 STAC-like link relation 的 generic collections payload 會停在 unknown/review。
 - 工作區分類已新增 `docs/WORKSPACE_LAYOUT.zh-TW.md`，並提供 CLI `--workspace-inventory --write-workspace-inventory-json state/workspace_inventory.json`。這是盤點工具，不會自動搬檔或刪檔；下一位 Agent 整理 `.py` 前請先用它看大檔案、分類與 root runtime files。`api_launcher/cli_flags.py` 已先把 CLI command-detection 從 `core.py` 拆出來，後續 core 瘦身要沿用這種小步、可測、保守拆分方式。
 - `tem/` 已正式定義成本機暫存資料夾，並由 `.gitignore` 排除。它可以保存外部 agent 交接包或概念素材，但不是 canonical source of truth；團隊協作者與 CI 都不會看到本機 `tem/` 內容。下一位 Agent 若從 `tem/` 讀到有用資料，應把摘要或正式檔案搬進文件/原始碼後再提交。
 - Crawler 共用資料結構已從 `api_launcher/crawlers/dataset_sources.py` 拆到 `api_launcher/crawlers/types.py`。舊的 `dataset_sources.py` 匯入路徑仍可用，這是為了相容既有 CLI/UI/測試；新程式若只需要 `DatasetDiscoverySource` 或 `DatasetCandidate`，優先從 `api_launcher.crawlers.types` 匯入。

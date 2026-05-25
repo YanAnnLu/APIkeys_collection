@@ -786,6 +786,16 @@ class DatasetDiscoveryTests(unittest.TestCase):
             "https://maps.example.test/wms?service=WMS&request=GetCapabilities",
             ogc_wms_capabilities_url("https://maps.example.test/wms"),
         )
+        self.assertEqual(
+            "https://maps.example.test/wms?layers=roads&service=WMS&request=GetCapabilities",
+            ogc_wms_capabilities_url("https://maps.example.test/wms?layers=roads#preview"),
+        )
+        self.assertEqual(
+            "https://maps.example.test/wms?layers=roads&service=WMS&request=GetCapabilities",
+            ogc_wms_capabilities_url(
+                "https://maps.example.test/wms?layers=roads&service=WFS&request=GetCapabilities#preview"
+            ),
+        )
 
     def test_socrata_catalog_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(

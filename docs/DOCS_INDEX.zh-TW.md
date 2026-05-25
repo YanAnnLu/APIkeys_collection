@@ -39,6 +39,7 @@
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `MVP_FLOW_AUDIT.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first，並確認候選、resolver、下載與匯入是否真的閉環。 |
+| 要改 Web Preview / UIUX 對照層 | `WEB_PREVIEW_UIUX.zh-TW.md` -> `UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md` -> `USER_GUIDE.zh-TW.md` | Web Preview 只做瀏覽器可檢查的 UIUX 薄層，必須共用後端 JSON contract，不得重寫 crawler/downloader/importer。 |
 | 要改下載 / 匯入 / repair | `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` -> `PROJECT_GTD.md` | 先確認 manifest、registry、SQLite 匯入和修復邊界。 |
 | 要整理檔案或重構 | `CODE_RELATIONSHIP_MAP.zh-TW.md` -> `WORKSPACE_LAYOUT.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先看程式調度關係、檔案分類、路徑規則與拆分優先順序。 |
 | 要檢查 Demo 閉環 | `MVP_FLOW_AUDIT.zh-TW.md` -> `USER_MANUAL.zh-TW.md` -> `PROJECT_GTD.md` | 先確認按鈕、CLI、下載、匯入、repair、MySQL 哪些真的閉環，哪些仍是骨架。 |
@@ -70,6 +71,7 @@
 | `DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md` | OpenSpec / Spectra / Qt Designer 開發流程，定義中大型改動的規格化習慣。 | 開發流程、OpenSpec 工具、Spectra GUI、Qt/PySide6 工具位置或規格門檻改變時更新。 |
 | `WORKSPACE_LAYOUT.zh-TW.md` | 工作區分類、檔案責任、`.py` 拆分優先順序、路徑規則，以及 `tem/` 本機暫存區的使用規則。 | 新增資料夾、搬檔、拆大型模組、改 runtime/暫存目錄時更新。 |
 | `USER_GUIDE.zh-TW.md` | 使用者操作指南，保留較完整背景、操作說明與開發者 CLI 指令索引。 | UI/CLI 操作、選單名稱、使用流程改變時更新；Demo 快速手冊同步看 `USER_MANUAL.zh-TW.md`。 |
+| `WEB_PREVIEW_UIUX.zh-TW.md` | HTML/CSS Web Preview 的定位、啟動方式與 Tk/Qt/QSS 對照規則。 | Web Preview endpoint、UIUX 對照流程、CSS/QSS token 或瀏覽器驗證方式改變時更新。 |
 | `SETUP.zh-TW.md` | 安裝與啟動說明。 | Python/Conda/Docker/GitHub CLI/跨平台設定改變時更新。 |
 | `TECH_STACK.md` | 技術棧與依賴邊界，目前偏工程英文。 | 依賴、CI、Docker、optional renderer stack 改變時更新，並同步補繁中摘要或對應文件。 |
 | `PROJECT_STATE.md` | 較完整的狀態快照與歷史脈絡，目前偏英文。 | 大型里程碑或需要保留歷史狀態時更新；平常優先更新 GTD/handoff，若大改要補繁中入口。 |
