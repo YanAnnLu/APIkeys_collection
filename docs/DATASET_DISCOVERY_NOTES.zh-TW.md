@@ -189,6 +189,8 @@ K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案
 
 Sciverse / OpenDataLab 這類科學文獻 API 暫時不應打亂 geospatial asset downloader 主線。對地理資料下載來說，它不是 STAC / OGC / CMR / ERDDAP 等資料本體入口；比較合理的定位是低優先級 `literature_discovery_api` 或 `vendor_science_api`，用來搜尋地理資料相關論文、DOI、方法、資料集名稱與引用片段，產生 provenance 線索後再交給真正的資料入口 detector 判斷。第一階段仍優先穩住 STAC、OGC、CMR、ERDDAP、CKAN、Socrata、HTML file index 與 unknown fallback。
 
+Detector 測試目前已覆蓋 STAC、CKAN、Socrata、OGC、ERDDAP、CMR guard、HTML file index 與 ambiguous collections payload fallback。新增範式前應先補 fake fetcher fixture，確認正例、低信心 unknown、以及不污染其他範式三件事。
+
 K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是程式碼來源。金融/風控教材補 time-series asset、交易日曆、補資料策略與 storage review；GIS、星圖與 3D 範例補 raster/tile/cache、bbox、projection 與 renderer-ready manifest；數學與機械工程教材補 bounds/geometry/transform；Pandas 與資料清理教材補 header normalize、type inference、schema fingerprint 與 bad-row warning；Fluent Python / PyMOTW 補 protocol、iterator、context manager、subcommand 與 concurrency 設計。CODE_KM 的價值在治理模型：來源 provenance、checksum、pipeline run state、rights/review gate、local metadata index 與人類可讀知識庫分離。RRKAL 應把這些概念收斂到 source profile、crawler run registry、manifest/import pipeline、install registry、adapter review、rights/provenance gate 與 agent skill 分工，而不是讓教材範例碼進入正式產品路徑。
 
 ## Dataset adapters

@@ -42,6 +42,61 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertEqual("erddap_all_datasets", result.source_type_hint)
         self.assertIn("erddap_info_index_table", result.evidence)
 
+    def test_ckan_pattern_probes_package_search(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://catalog.example.test/api/3/action/package_search?rows=1":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"success": true, "result": {"count": 1, "results": []}}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://catalog.example.test", fetcher=fetcher)
+
+        self.assertEqual("ckan", result.pattern_id)
+        self.assertEqual("ckan_package_search", result.source_type_hint)
+        self.assertIn("ckan_package_search_success", result.evidence)
+        self.assertIn("ckan_api_action_endpoint", result.evidence)
+
+    def test_socrata_pattern_uses_host_and_views_endpoint(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://data.city.example/api/views.json?limit=1":
+                return PatternProbeResponse(
+                    url=url,
+                    text='[{"id":"abcd-1234","name":"Example Dataset"}]',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://data.city.example", fetcher=fetcher)
+
+        self.assertEqual("socrata", result.pattern_id)
+        self.assertEqual("socrata_catalog_search", result.source_type_hint)
+        self.assertIn("host_looks_like_socrata", result.evidence)
+        self.assertIn("socrata_views_returns_list", result.evidence)
+
+    def test_ogc_pattern_detects_conformance_and_collections(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://geo.example.test/ogc":
+                return PatternProbeResponse(
+                    url=url,
+                    text=(
+                        '{"conformsTo":["http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"],'
+                        '"collections":[]}'
+                    ),
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://geo.example.test/ogc", fetcher=fetcher)
+
+        self.assertEqual("ogc", result.pattern_id)
+        self.assertEqual("ogc_api_records", result.source_type_hint)
+        self.assertIn("json_contains_conforms_to", result.evidence)
+        self.assertIn("json_contains_collections", result.evidence)
+        self.assertIn("conforms_to_mentions_ogc", result.evidence)
+
     def test_cmr_detector_does_not_pollute_non_cmr_urls(self) -> None:
         calls: list[str] = []
 
@@ -71,6 +126,23 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertEqual("html_file_index", result.pattern_id)
         self.assertEqual("html_file_index", result.source_type_hint)
         self.assertIn("html_contains_links", result.evidence)
+
+    def test_ambiguous_collections_payload_stays_unknown_below_threshold(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://ambiguous.example.test/catalog":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://ambiguous.example.test/catalog", fetcher=fetcher)
+
+        self.assertEqual("unknown", result.pattern_id)
+        self.assertLess(result.confidence, 0.35)
+        self.assertEqual("", result.source_type_hint)
+        self.assertEqual("stac", result.candidates[0].pattern_id)
 
 
 if __name__ == "__main__":
