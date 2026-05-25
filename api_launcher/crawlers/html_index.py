@@ -14,6 +14,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.pagination import discovery_page_cap
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.discovery import extract_links
 from api_launcher.models import Dataset
@@ -26,18 +27,29 @@ def html_file_index_candidates_from_text(
     limit: int,
 ) -> list[DatasetCandidate]:
     # HTML index crawler 只接受明確檔案連結；一般 landing page 不在這裡硬猜。
+    versions = html_file_index_versions_from_text(source, text, source_url, limit)
+    return html_file_index_candidates_from_versions(source, source_url, versions)
+
+
+def html_file_index_versions_from_text(
+    source: DatasetDiscoverySource,
+    text: str,
+    source_url: str,
+    limit: int,
+    seen: set[str] | None = None,
+) -> list[dict[str, object]]:
     if not source.file_url_regex:
         raise ValueError("HTML file index source missing file_url_regex")
     pattern = re.compile(source.file_url_regex)
     versions: list[dict[str, object]] = []
-    seen: set[str] = set()
+    seen_links = seen if seen is not None else set()
     for link in extract_links(text, source_url):
         # regex 可比對檔名或完整 URL，支援把 shard/version 從命名規則抓出來。
         filename = Path(urllib.parse.urlparse(link).path).name
         match = pattern.search(filename) or pattern.search(link)
-        if not match or link in seen:
+        if not match or link in seen_links:
             continue
-        seen.add(link)
+        seen_links.add(link)
         version = match.groupdict().get("version") if match.groupdict() else ""
         versions.append(
             {
@@ -52,6 +64,14 @@ def html_file_index_candidates_from_text(
         )
         if limit > 0 and len(versions) >= limit:
             break
+    return versions
+
+
+def html_file_index_candidates_from_versions(
+    source: DatasetDiscoverySource,
+    source_url: str,
+    versions: list[dict[str, object]],
+) -> list[DatasetCandidate]:
     if not versions:
         return []
     # HTML index 通常代表「同一資料集的多個檔案 shard」，所以輸出單一 Dataset + available_versions。
@@ -102,7 +122,39 @@ def html_file_index_candidates_for_source(
     timeout: float,
     limit: int,
     full_crawl: bool,
+    max_pages: int = 0,
 ) -> list[DatasetCandidate]:
-    # full_crawl 時 limit=0 代表收集同頁所有匹配檔案，仍不追外部分頁。
     text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
-    return html_file_index_candidates_from_text(source, text, final_url, 0 if full_crawl else limit)
+    if not full_crawl:
+        return html_file_index_candidates_from_text(source, text, final_url, limit)
+
+    page_cap = discovery_page_cap(max_pages)
+    seen_pages = {final_url}
+    seen_files: set[str] = set()
+    versions = html_file_index_versions_from_text(source, text, final_url, 0, seen_files)
+    page_queue = [
+        link
+        for link in extract_links(text, final_url)
+        if should_follow_html_index_page(final_url, link, source.file_url_regex)
+    ]
+    for page_url in page_queue:
+        if len(seen_pages) >= page_cap:
+            break
+        if page_url in seen_pages:
+            continue
+        seen_pages.add(page_url)
+        page_text, page_final_url = fetch_text(page_url, timeout=timeout)
+        versions.extend(html_file_index_versions_from_text(source, page_text, page_final_url, 0, seen_files))
+    return html_file_index_candidates_from_versions(source, final_url, versions)
+
+
+def should_follow_html_index_page(base_url: str, link: str, file_url_regex: str) -> bool:
+    parsed_base = urllib.parse.urlparse(base_url)
+    parsed_link = urllib.parse.urlparse(link)
+    if parsed_link.scheme not in ("http", "https") or parsed_link.netloc.lower() != parsed_base.netloc.lower():
+        return False
+    filename = Path(parsed_link.path).name
+    if re.search(file_url_regex, filename) or re.search(file_url_regex, link):
+        return False
+    suffix = Path(parsed_link.path).suffix.lower()
+    return suffix in ("", ".html", ".htm", ".txt")

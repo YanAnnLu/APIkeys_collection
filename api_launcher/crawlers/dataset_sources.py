@@ -119,10 +119,10 @@ def _html_file_index_source_crawler(
     limit: int,
     _search_terms: tuple[str, ...],
     full_crawl: bool,
-    _max_pages: int,
+    max_pages: int,
 ) -> list[DatasetCandidate]:
-    # HTML index 沒有標準分頁；full_crawl 表示放寬同頁可收集的檔案數。
-    return html_file_index_candidates_for_source(source, timeout, limit, full_crawl)
+    # HTML index 沒有標準分頁；只在 full_crawl 時用 max_pages 跟同網域索引頁。
+    return html_file_index_candidates_for_source(source, timeout, limit, full_crawl, max_pages=max_pages)
 
 
 SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {

@@ -32,6 +32,7 @@ from api_launcher.dataset_discovery import (
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
+from api_launcher.crawlers import html_index
 from api_launcher.crawlers import dataset_sources
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
@@ -848,6 +849,54 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("csv.zst", dataset.native_format)
         self.assertEqual(2, len(dataset.metadata["available_versions"]))
         self.assertTrue(looks_like_direct_download(dataset.metadata["available_versions"][0]["download_url"]))
+
+    def test_html_file_index_full_crawl_follows_bounded_same_origin_index_pages(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_html_index",
+            provider_id="sample_provider",
+            name="Sample HTML index",
+            source_type="html_file_index",
+            endpoint_url="https://files.example.test/index.html",
+            dataset_id="sample_shards",
+            dataset_title="Sample shards",
+            native_format="csv",
+            file_url_regex=r"sample-(?P<version>\d{4}-\d{2}-\d{2})\.csv$",
+        )
+        pages = {
+            "https://files.example.test/index.html": (
+                """
+                <a href="sample-2025-01-01.csv">sample-2025-01-01.csv</a>
+                <a href="2025/">2025 folder</a>
+                <a href="https://other.example.test/2025/">other domain</a>
+                """,
+                "https://files.example.test/index.html",
+            ),
+            "https://files.example.test/2025/": (
+                """
+                <a href="sample-2025-01-02.csv">sample-2025-01-02.csv</a>
+                <a href="sample-2025-01-03.csv">sample-2025-01-03.csv</a>
+                """,
+                "https://files.example.test/2025/",
+            ),
+        }
+        calls: list[str] = []
+        original_fetch_text = html_index.fetch_text
+
+        def fake_fetch_text(url: str, *, timeout: float) -> tuple[str, str]:
+            calls.append(url)
+            return pages[url]
+
+        html_index.fetch_text = fake_fetch_text
+        try:
+            candidates = html_index.html_file_index_candidates_for_source(source, timeout=1.0, limit=1, full_crawl=True, max_pages=2)
+        finally:
+            html_index.fetch_text = original_fetch_text
+
+        self.assertEqual(["https://files.example.test/index.html", "https://files.example.test/2025/"], calls)
+        versions = candidates[0].dataset.metadata["available_versions"]
+        self.assertEqual(3, len(versions))
+        self.assertEqual("2025-01-01", versions[0]["version"])
+        self.assertEqual("2025-01-03", versions[2]["version"])
 
     def test_dataset_crawler_orchestrator_dedupes_and_captures_errors(self) -> None:
         sources = [

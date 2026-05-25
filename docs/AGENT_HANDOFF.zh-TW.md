@@ -17,6 +17,7 @@
 - WMS parser 也已補 `<Service><Title>` metadata 與 layer search-term 過濾測試，候選 passport 不再只依賴 source name 當服務標題。
 - Source pattern 的 WMS detector 也已接受大寫 `SERVICE` / `REQUEST` capabilities URL，不會在 detector probe 時重複追加小寫參數。
 - HTML file index detector 產生的 source draft 現在會帶保守資料檔副檔名 regex；測試確認草稿能直接交給 `html_file_index_candidates_from_text()` 抽出 CSV shard，而不是在 crawler audit 才因缺 `file_url_regex` 失敗。
+- HTML file index crawler 現在支援 bounded same-origin full crawl：`full_crawl=True` 時會在 `max_pages` 內追同網域索引頁，但不追資料檔或跨網域頁。
 - CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。
 - STAC detector 已補 `/collections` endpoint 正例：使用者貼 STAC collections URL 時可直接判成 `stac_collections`，不必一定貼 root catalog。
 - ERDDAP source draft normalization 已修正深層 dataset URL：`/erddap/griddap/...` 或 `/erddap/tabledap/...` 會正規化回 allDatasets endpoint，避免 detector 正確、audit endpoint 錯誤的斷線。
