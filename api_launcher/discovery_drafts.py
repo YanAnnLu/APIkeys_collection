@@ -191,7 +191,7 @@ def normalize_endpoint_for_source_type(source_type: str, endpoint_url: str) -> s
         return endpoint_with_path(parsed, "/access/services/search/v1/datasets")
     if source_type == "ckan_package_search":
         return normalize_ckan_package_search_endpoint(parsed)
-    if source_type == "socrata_catalog_search" and "/api/catalog/v1" not in lowered:
+    if source_type == "socrata_catalog_search":
         return normalize_socrata_catalog_endpoint(parsed)
     if source_type == "cmr_collections" and not lowered.endswith(("collections.json", "collections")):
         return endpoint_with_path(parsed, "/search/collections.json")
@@ -226,9 +226,13 @@ def normalize_ckan_package_search_endpoint(parsed: urllib.parse.ParseResult) -> 
 
 
 def normalize_socrata_catalog_endpoint(parsed: urllib.parse.ParseResult) -> str:
+    query_values = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    domain = clean_text((query_values.get("domains") or [""])[0])
     host = parsed.netloc.split("@")[-1].split(":")[0].lower()
     host = re.sub(r"^www\.", "", host)
-    query = urllib.parse.urlencode({"domains": host}) if host else ""
+    if not domain and host != "api.us.socrata.com":
+        domain = host
+    query = urllib.parse.urlencode({"domains": domain}) if domain else ""
     return urllib.parse.urlunparse(
         parsed._replace(
             scheme="https",

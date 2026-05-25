@@ -200,6 +200,13 @@ class DiscoveryDraftTests(unittest.TestCase):
                 "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
             ),
         )
+        self.assertEqual(
+            "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example",
+            normalize_endpoint_for_source_type(
+                "socrata_catalog_search",
+                "https://api.us.socrata.com/api/catalog/v1?domains=data.city.example&limit=1#probe",
+            ),
+        )
 
     def test_search_style_endpoints_strip_probe_query_before_crawler_adds_bounds(self) -> None:
         self.assertEqual(
