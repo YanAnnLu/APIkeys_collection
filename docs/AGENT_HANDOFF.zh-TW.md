@@ -6,10 +6,11 @@
 
 ## 2026-05-25 Crawler asset / download plan registry 收斂
 
-- 最新穩定 checkpoint：`dcbee41`（`Centralize file index source type checks`），GitHub Actions run `26397913391` 已成功。
+- 最新穩定 checkpoint：`5733891`（`Centralize source pattern unknown threshold`），GitHub Actions run `26398548754` 已成功。
+- `api_launcher/crawlers/source_patterns.py` 現在集中 unknown fallback 與最低信心門檻為 `UNKNOWN_PATTERN_ID` / `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`；`source_pattern_drafts.py` 與 detector regression tests 已共用同一契約，後續不要在 adapter、UI 或 source draft 裡硬寫 `"unknown"` / `0.35`。
 - `api_launcher/crawlers/source_type_registry.py` 現在集中 HTML/file-index 來源類型判斷，提供 `source_type_is_file_index()` 與 `source_uses_file_index()`；bounds facet、crawler asset capability 與 source draft 都應共用這組 helper。
 - `api_launcher/plans.py` 已把 CMR collection 與 DataCite/OpenAlex research metadata 的 adapter-review 擋板命名成 `CMR_COLLECTION_*` 與 `RESEARCH_METADATA_*` registry/set；後續不要把 DOI/OpenAlex/NASA CMR 特例直接塞回 UI 或 resolver 分支。
-- 驗證紀錄：`tests.test_source_pattern_drafts tests.test_crawler_assets` 26 tests OK；完整 `unittest discover -s tests` 627 tests / 4 skipped OK；`scripts\pre_push_smoke_brief.cmd` 627 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions Ubuntu、`windows-2025-vs2026`、real DB smoke success。
+- 驗證紀錄：`tests.test_source_patterns tests.test_source_pattern_drafts` 27 tests OK；完整 `unittest discover -s tests` 627 tests / 4 skipped OK；`scripts\pre_push_smoke_brief.cmd` 627 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions Ubuntu、`windows-2025-vs2026`、real DB smoke success。
 - 接下來仍維持 crawler 後端收斂主線：優先找 source_type 分支、URL/format 硬編碼與 UI 自行猜測的地方，轉成 registry/helper + regression test。每個 substantive checkpoint 必須先推送並確認 CI，再更新 `docs/DEVELOPMENT_LOG.zh-TW.md`。
 
 ## 2026-05-25 Content parser registry 骨架
