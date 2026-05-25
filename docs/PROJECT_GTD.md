@@ -16,6 +16,7 @@ Last updated: 2026-05-25
 - [x] 補強 detector 合約測試：CKAN `package_search`、Socrata `api/views.json`、OGC `conformsTo` / `collections`，以及 ambiguous collections payload 低信心時必須停在 `unknown`。
 - [x] 補強 OGC/WMS 老式入口：純 WMS `GetCapabilities` XML 現在會辨識為 `ogc_wms` / `ogc_wms_capabilities`，並由 `api_launcher/crawlers/ogc_wms.py` 從 capabilities layer 抽出 dataset candidate，不再誤走 OGC API Records handler。
 - [x] WMS parser 已優先取 `Request/GetMap` 的 `OnlineResource` 作為候選 `api_url`，避免誤用 Service metadata 連結。
+- [x] WMS capabilities URL helper 已接受大寫 `SERVICE` / `REQUEST` query，不會對既有 GetCapabilities URL 重複追加參數。
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
 - [x] STAC detector 已能接受 `/collections` endpoint 作為入口，避免使用者貼 STAC collections URL 時只因缺少 root `stac_version` 被判成 unknown。
 - [x] ERDDAP source draft normalization 已修正深層 dataset URL：`/erddap/griddap/...` 或 `/erddap/tabledap/...` 會回到 `/erddap/tabledap/allDatasets.json?...`，避免 audit 打到錯誤路徑。

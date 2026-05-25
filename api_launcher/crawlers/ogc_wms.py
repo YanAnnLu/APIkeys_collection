@@ -20,8 +20,9 @@ from api_launcher.models import Dataset
 def ogc_wms_capabilities_url(endpoint_url: str) -> str:
     parsed = urllib.parse.urlparse(endpoint_url)
     query = urllib.parse.parse_qs(parsed.query)
-    service = query.get("service", [""])[0].lower()
-    request = query.get("request", [""])[0].lower()
+    query_lower = {key.lower(): value for key, value in query.items()}
+    service = query_lower.get("service", [""])[0].lower()
+    request = query_lower.get("request", [""])[0].lower()
     if service == "wms" and request == "getcapabilities":
         return endpoint_url
     return search_endpoint_url(endpoint_url, {"service": "WMS", "request": "GetCapabilities"})

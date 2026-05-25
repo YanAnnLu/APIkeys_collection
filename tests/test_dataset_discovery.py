@@ -690,8 +690,10 @@ class DatasetDiscoveryTests(unittest.TestCase):
 
     def test_ogc_wms_capabilities_url_preserves_explicit_request(self) -> None:
         explicit = "https://maps.example.test/wms?service=WMS&request=GetCapabilities"
+        uppercase = "https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities"
 
         self.assertEqual(explicit, ogc_wms_capabilities_url(explicit))
+        self.assertEqual(uppercase, ogc_wms_capabilities_url(uppercase))
         self.assertEqual(
             "https://maps.example.test/wms?service=WMS&request=GetCapabilities",
             ogc_wms_capabilities_url("https://maps.example.test/wms"),
