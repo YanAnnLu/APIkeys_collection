@@ -381,6 +381,38 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("已加入下載器 3 筆", message)
         self.assertIn("開始 / 暫停", message)
 
+    def test_crawler_asset_download_plan_summary_mentions_content_review(self) -> None:
+        result = SimpleNamespace(
+            blocked=False,
+            outcome_bucket="review_required",
+            direct_download_count=0,
+            review_required_count=1,
+            user_next_action="open_adapter_review_or_adjust_bounds",
+            resolved_plan={
+                "providers": [
+                    {
+                        "provider_id": "demo_provider",
+                        "dataset_id": "demo_dataset",
+                        "download_eligibility": {"status": "adapter_required"},
+                        "adapter_review": {
+                            "adapter_id": "demo_adapter",
+                            "source_url": "https://example.test/catalog",
+                        },
+                        "content_parser": {
+                            "source_format": "netcdf",
+                            "parser_id": "scientific_grid_review",
+                            "import_status": "manual_review_required",
+                            "review_bucket": "content_parser_required",
+                        },
+                    }
+                ]
+            },
+        )
+
+        message = crawler_asset_download_plan_summary_text(result, 0, "", lambda zh, _en: zh)
+
+        self.assertIn("內容格式待辦：內容 Parser 待辦 1", message)
+
     def test_crawler_asset_plan_outcome_label_shortens_common_buckets(self) -> None:
         ready = SimpleNamespace(blocked=False, outcome_bucket="ready_to_download", review_required_count=0)
         partial = SimpleNamespace(blocked=False, outcome_bucket="partial_review_required", review_required_count=2)

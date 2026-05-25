@@ -736,6 +736,11 @@ def crawler_asset_download_plan_summary_text(
         zh = "已建立下載計畫，但沒有可執行的下載項目。\n下一步：檢查 resolved plan，或調整界域後重試。"
         en = "Plan built, but no executable download item was produced.\nNext: inspect the resolved plan, or adjust bounds and retry."
 
+    content_review_label = str(crawler_asset_plan_outcome_payload(result, added_count=added_count).get("content_review_label") or "").strip()
+    if content_review_label:
+        zh = f"{zh}\n內容格式待辦：{content_review_label}"
+        en = f"{en}\nContent review: {content_review_label}"
+
     if resolved_path:
         zh = f"{zh}\n\nResolved plan：{resolved_path}"
         en = f"{en}\n\nResolved plan: {resolved_path}"
