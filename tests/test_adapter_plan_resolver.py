@@ -367,6 +367,32 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
         self.assertTrue(resolved_entry["target_path"].endswith(".gpkg"))
 
+    def test_gis_archive_and_tile_suffixes_promote_direct_assets_for_parser_review(self) -> None:
+        cases = [
+            ("Shapefile ZIP", "https://data.example.test/gis/boundaries.shp.zip", "shapefile", ".shp.zip"),
+            ("FlatGeobuf", "https://data.example.test/gis/roads.fgb", "flatgeobuf", ".fgb"),
+            ("PMTiles", "https://data.example.test/gis/basemap.pmtiles", "pmtiles", ".pmtiles"),
+            ("MBTiles", "https://data.example.test/gis/offline.mbtiles", "mbtiles", ".mbtiles"),
+        ]
+
+        for name, url, expected_format, expected_suffix in cases:
+            with self.subTest(source_format=expected_format):
+                entry = ckan_review_entry()
+                metadata = entry["dataset_version"]["metadata"]
+                metadata["resources"] = [{"name": name, "downloadURL": url, "byteSize": 4096}]
+                metadata.pop("links", None)
+
+                resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+                self.assertEqual(1, result.direct_entries_added)
+                resolved_entry = resolved["providers"][0]
+                self.assertEqual(url, resolved_entry["download_url"])
+                self.assertEqual(expected_format, resolved_entry["source_format"])
+                self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+                self.assertEqual("geospatial_asset_review", resolved_entry["content_parser"]["parser_id"])
+                self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+                self.assertTrue(resolved_entry["target_path"].endswith(expected_suffix))
+
     def test_sqlite_url_suffix_promotes_direct_asset_for_database_review(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
