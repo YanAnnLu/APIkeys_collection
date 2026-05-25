@@ -73,6 +73,25 @@ class SourcePatternDraftTest(unittest.TestCase):
         versions = candidates[0].dataset.metadata["available_versions"]
         self.assertEqual("dataset_2026.csv", versions[0]["label"])
 
+    def test_ogc_wms_detection_creates_supported_wms_source_draft(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="ogc_wms",
+                confidence=0.5,
+                evidence=("wms_get_capabilities_response", "wms_capabilities_document"),
+                source_type_hint="ogc_wms_capabilities",
+            )
+
+        source, detection = dataset_source_from_detected_url(
+            "https://maps.example.test/wms",
+            provider_id="sample_maps",
+            detector=detector,
+        )
+
+        self.assertEqual("ogc_wms", detection.pattern_id)
+        self.assertEqual("ogc_wms_capabilities", source.source_type)
+        self.assertEqual("https://maps.example.test/wms", source.endpoint_url)
+
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(

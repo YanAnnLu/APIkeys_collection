@@ -53,6 +53,11 @@ from api_launcher.crawlers.ogc_records import (
     ogc_records_search_url,
     paginated_ogc_records_candidates,
 )
+from api_launcher.crawlers.ogc_wms import (
+    ogc_wms_candidates_for_source,
+    ogc_wms_candidates_from_xml,
+    ogc_wms_capabilities_url,
+)
 from api_launcher.crawlers.openalex import (
     openalex_candidates_for_source,
     openalex_candidates_from_payload,
@@ -133,6 +138,7 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
     "ckan_package_search": ckan_candidates_for_source,
     "datacite_dois": datacite_candidates_for_source,
     "ogc_api_records": ogc_records_candidates_for_source,
+    "ogc_wms_capabilities": ogc_wms_candidates_for_source,
     "socrata_catalog_search": socrata_catalog_candidates_for_source,
     "openalex_works_search": openalex_candidates_for_source,
 }

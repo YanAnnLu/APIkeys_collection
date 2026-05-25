@@ -16,6 +16,7 @@ SOURCE_TYPE_HINTS: dict[str, str] = {
     "erddap": "erddap_all_datasets",
     "socrata": "socrata_catalog_search",
     "ogc": "ogc_api_records",
+    "ogc_wms": "ogc_wms_capabilities",
     "cmr": "cmr_collections",
     "html_file_index": "html_file_index",
 }
@@ -184,22 +185,27 @@ def detect_socrata(url: str, fetcher: PatternFetcher, timeout: float) -> SourceP
 
 
 def detect_ogc(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
-    evidence: list[str] = []
+    api_evidence: list[str] = []
+    wms_evidence: list[str] = []
     data = json_from(fetcher(url, timeout))
     if isinstance(data, dict):
         conforms_to = data.get("conformsTo", [])
         if "conformsTo" in data:
-            evidence.append("json_contains_conforms_to")
+            api_evidence.append("json_contains_conforms_to")
         if "collections" in data:
-            evidence.append("json_contains_collections")
+            api_evidence.append("json_contains_collections")
         if any("ogcapi" in str(item).lower() or "opengis" in str(item).lower() for item in conforms_to):
-            evidence.append("conforms_to_mentions_ogc")
+            api_evidence.append("conforms_to_mentions_ogc")
     cap_response = fetcher(url + ("&" if urllib.parse.urlparse(url).query else "?") + "service=WMS&request=GetCapabilities", timeout)
     if cap_response is not None and ("GetCapabilities" in cap_response.text[:8000] or "WMS_Capabilities" in cap_response.text[:8000]):
-        evidence.append("wms_get_capabilities_response")
+        wms_evidence.append("wms_get_capabilities_response")
         if "WMS_Capabilities" in cap_response.text[:8000] or "opengis.net/wms" in cap_response.text[:8000].lower():
-            evidence.append("wms_capabilities_document")
-    return score_pattern("ogc", evidence)
+            wms_evidence.append("wms_capabilities_document")
+    if api_evidence:
+        return score_pattern("ogc", api_evidence + wms_evidence)
+    if wms_evidence:
+        return score_pattern("ogc_wms", wms_evidence)
+    return score_pattern("ogc", ())
 
 
 def detect_cmr(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:

@@ -150,8 +150,8 @@ class SourcePatternDetectorTest(unittest.TestCase):
 
         result = detect_source_interface_pattern("https://maps.example.test/wms", fetcher=fetcher)
 
-        self.assertEqual("ogc", result.pattern_id)
-        self.assertEqual("ogc_api_records", result.source_type_hint)
+        self.assertEqual("ogc_wms", result.pattern_id)
+        self.assertEqual("ogc_wms_capabilities", result.source_type_hint)
         self.assertIn("wms_get_capabilities_response", result.evidence)
         self.assertIn("wms_capabilities_document", result.evidence)
 

@@ -23,6 +23,8 @@ from api_launcher.dataset_discovery import (
     ncei_search_url,
     ogc_records_candidates_from_payload,
     ogc_records_search_url,
+    ogc_wms_candidates_from_xml,
+    ogc_wms_capabilities_url,
     openalex_candidates_from_payload,
     openalex_works_search_url,
     socrata_catalog_candidates_from_payload,
@@ -633,6 +635,64 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertIn("f=json", url)
         self.assertIn("limit=25", url)
         self.assertIn("q=cloud+imagery", url)
+
+    def test_ogc_wms_capabilities_xml_becomes_layer_candidates(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_wms",
+            provider_id="sample_geo",
+            name="Sample WMS",
+            source_type="ogc_wms_capabilities",
+            endpoint_url="https://maps.example.test/wms",
+            categories=("gis", "wms"),
+            geographic_scope="global",
+        )
+        xml = """
+        <WMS_Capabilities xmlns="http://www.opengis.net/wms"
+          xmlns:xlink="http://www.w3.org/1999/xlink">
+          <Service><Title>Sample WMS Service</Title></Service>
+          <Capability>
+            <Request><GetMap><DCPType><HTTP><Get>
+              <OnlineResource xlink:href="https://maps.example.test/wms?"/>
+            </Get></HTTP></DCPType></GetMap></Request>
+            <Layer>
+              <Title>Root</Title>
+              <Layer>
+                <Name>bathymetry_2026</Name>
+                <Title>Bathymetry 2026</Title>
+                <Abstract>Global ocean bathymetry layer</Abstract>
+                <KeywordList><Keyword>bathymetry</Keyword><Keyword>raster</Keyword></KeywordList>
+                <EX_GeographicBoundingBox>
+                  <westBoundLongitude>-180</westBoundLongitude>
+                  <eastBoundLongitude>180</eastBoundLongitude>
+                  <southBoundLatitude>-90</southBoundLatitude>
+                  <northBoundLatitude>90</northBoundLatitude>
+                </EX_GeographicBoundingBox>
+              </Layer>
+            </Layer>
+          </Capability>
+        </WMS_Capabilities>
+        """
+
+        candidates = ogc_wms_candidates_from_xml(source, xml, "https://maps.example.test/wms?service=WMS&request=GetCapabilities", 5)
+
+        self.assertEqual(1, len(candidates))
+        dataset = candidates[0].dataset
+        self.assertEqual("sample_geo", dataset.provider_id)
+        self.assertEqual("bathymetry_2026", dataset.dataset_id)
+        self.assertEqual("wms", dataset.native_format)
+        self.assertEqual("gis", dataset.metadata["data_family"])
+        self.assertEqual("bathymetry_2026", dataset.metadata["wms_layer_name"])
+        self.assertEqual("https://maps.example.test/wms?", dataset.metadata["wms_get_map_url"])
+        self.assertEqual(-180.0, dataset.metadata["bbox"]["west"])
+
+    def test_ogc_wms_capabilities_url_preserves_explicit_request(self) -> None:
+        explicit = "https://maps.example.test/wms?service=WMS&request=GetCapabilities"
+
+        self.assertEqual(explicit, ogc_wms_capabilities_url(explicit))
+        self.assertEqual(
+            "https://maps.example.test/wms?service=WMS&request=GetCapabilities",
+            ogc_wms_capabilities_url("https://maps.example.test/wms"),
+        )
 
     def test_socrata_catalog_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(
