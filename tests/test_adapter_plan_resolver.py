@@ -367,6 +367,29 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
         self.assertTrue(resolved_entry["target_path"].endswith(".gpkg"))
 
+    def test_sqlite_url_suffix_promotes_direct_asset_for_database_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "SQLite catalog",
+                "downloadURL": "https://data.example.test/database/catalog.sqlite3",
+                "byteSize": 4096,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/database/catalog.sqlite3", resolved_entry["download_url"])
+        self.assertEqual("sqlite", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("database_snapshot_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".sqlite3"))
+
     def test_dcat_distribution_object_promotes_direct_json_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]

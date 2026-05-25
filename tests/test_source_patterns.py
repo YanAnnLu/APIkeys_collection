@@ -267,6 +267,7 @@ class SourcePatternDetectorTest(unittest.TestCase):
                         '<a href="orbit_swath.hdf5">orbit_swath.hdf5</a>'
                         '<a href="tiles.gpkg">tiles.gpkg</a>'
                         '<a href="forecast.grib2">forecast.grib2</a>'
+                        '<a href="catalog.sqlite3">catalog.sqlite3</a>'
                         '<a href="notes.txt">notes.txt</a></html>'
                     ),
                     headers={"content-type": "text/html"},

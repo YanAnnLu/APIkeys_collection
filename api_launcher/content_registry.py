@@ -23,6 +23,7 @@ ARCHIVE_OR_COMPRESSED_FORMATS = frozenset({"csv.zst", "zst", "zip", "tar", "tar.
 SCIENTIFIC_GRID_FORMATS = frozenset({"netcdf", "hdf", "hdf5", "zarr", "grib", "grb"})
 GEOSPATIAL_RASTER_FORMATS = frozenset({"geotiff", "cog", "shapefile", "geopackage"})
 COLUMNAR_FORMATS = frozenset({"parquet", "arrow", "feather"})
+DATABASE_SNAPSHOT_FORMATS = frozenset({"sqlite"})
 DOCUMENT_FORMATS = frozenset({"pdf", "xml", "html", "txt"})
 
 FORMAT_ALIASES = {
@@ -35,6 +36,8 @@ FORMAT_ALIASES = {
     "gpkg": "geopackage",
     "shp": "shapefile",
     "grb": "grib",
+    "db": "sqlite",
+    "sqlite3": "sqlite",
 }
 
 
@@ -196,6 +199,15 @@ def content_parser_capability(source_format: str) -> ContentParserCapability:
             parser_id="columnar_table_review",
             review_bucket="content_parser_required",
             reason="Columnar payloads need a Parquet/Arrow parser before curated SQLite or lakehouse import.",
+        )
+    if normalized in DATABASE_SNAPSHOT_FORMATS:
+        return ContentParserCapability(
+            source_format=normalized,
+            content_family="database_snapshot",
+            import_status="manual_review_required",
+            parser_id="database_snapshot_review",
+            review_bucket="content_parser_required",
+            reason="Database snapshots are downloaded as raw artifacts first; opening or importing them requires ownership, provenance, and schema review.",
         )
     if normalized in DOCUMENT_FORMATS:
         return ContentParserCapability(

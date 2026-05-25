@@ -106,6 +106,14 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("scientific_grid_review", detection.capability.parser_id)
         self.assertEqual("content_parser_required", detection.capability.review_bucket)
 
+    def test_sqlite_database_snapshot_routes_to_database_review(self) -> None:
+        detection = detect_content_format(url="https://example.test/database/catalog.sqlite3")
+
+        self.assertEqual("sqlite", detection.source_format)
+        self.assertEqual("database_snapshot", detection.capability.content_family)
+        self.assertEqual("database_snapshot_review", detection.capability.parser_id)
+        self.assertEqual("content_parser_required", detection.capability.review_bucket)
+
 
 if __name__ == "__main__":
     unittest.main()

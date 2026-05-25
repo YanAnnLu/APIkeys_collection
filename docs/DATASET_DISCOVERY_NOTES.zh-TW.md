@@ -188,7 +188,7 @@ py -3 -B APIkeys_collection.py --write-source-draft-from-url https://example.org
 
 Source draft 入口只接受絕對 HTTP(S) URL，並會在 detector 前拒絕帶 username/password 的 URL。這是為了防止本機檔案路徑或 credential-bearing URL 被保存到 ignored local draft 後又被誤提升到 catalog。
 
-若 detector 判成 `html_file_index`，source draft 會自動帶保守資料檔副檔名 regex（CSV/CSV.GZ/CSV.ZST、GeoJSON/GeoJSON.GZ、ZIP/TAR.GZ、NetCDF/CDF、HDF/HDF5/H5、GeoTIFF、GeoPackage、Zarr、GRIB/GRIB2、JSON/JSONL/NDJSON、XML、Parquet）。Detector 本身也會用同一類資料檔線索提高 HTML file index 信心分數。這是通用蟲的第一層接線：先讓 HTML 目錄 URL 能被後續 crawler audit 抽出候選檔案；真正是否下載仍要經過 candidate review / plan / content parser。
+若 detector 判成 `html_file_index`，source draft 會自動帶保守資料檔副檔名 regex（CSV/CSV.GZ/CSV.ZST、GeoJSON/GeoJSON.GZ、ZIP/TAR.GZ、NetCDF/CDF、HDF/HDF5/H5、GeoTIFF、GeoPackage、SQLite DB、Zarr、GRIB/GRIB2、JSON/JSONL/NDJSON、XML、Parquet）。Detector 本身也會用同一類資料檔線索提高 HTML file index 信心分數。這是通用蟲的第一層接線：先讓 HTML 目錄 URL 能被後續 crawler audit 抽出候選檔案；真正是否下載仍要經過 candidate review / plan / content parser。
 
 K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案。可吸收的部分包含 HTTP header/timeout、HTML `href` 擷取、相對 URL 合併、Scrapy 分層思想、CSV/SQLite 清洗、rate limit/politeness、錯誤處理與 fixture 測試。落地時一律轉成 RRKAL 的 source pattern detector、crawler adapter、content parser、manifest/import pipeline 與 audit warning，不讓 crawler 直接寫 DB 或假裝未知格式已可解析。
 
