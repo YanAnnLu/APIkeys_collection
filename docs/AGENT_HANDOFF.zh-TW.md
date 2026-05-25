@@ -22,6 +22,7 @@
 - HTML file index detector 產生的 source draft 現在會帶保守資料檔副檔名 regex；測試確認草稿能直接交給 `html_file_index_candidates_from_text()` 抽出 CSV shard，而不是在 crawler audit 才因缺 `file_url_regex` 失敗。
 - HTML file index detector 本身也已同步辨識複合壓縮與地理資料檔連結，例如 `.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz`、`.csv.zst`；只有這類檔案的入口頁不應再因舊副檔名清單而掉到低信心 `unknown`。
 - HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz` 等常見資料檔，避免 source draft 後續 audit 只因壓縮副檔名回傳零候選。
+- HTML file index detector 與 source draft 已共用同一份資料檔副檔名 vocabulary；後續新增格式時先改 `source_patterns.py` 的 vocabulary，再用 detector 與 source-draft 測試一起鎖住。
 - HTML file index crawler 現在支援 bounded same-origin full crawl：`full_crawl=True` 時會在 `max_pages` 內追同網域索引頁，但不追資料檔或跨網域頁。
 - CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。
 - STAC detector 已補 `/collections` endpoint 正例：使用者貼 STAC collections URL 時可直接判成 `stac_collections`，不必一定貼 root catalog。

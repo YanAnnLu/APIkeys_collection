@@ -11,6 +11,7 @@ from api_launcher.crawlers.dataset_sources import (
     source_to_dict,
 )
 from api_launcher.crawlers.source_patterns import (
+    HTML_DATA_FILE_EXTENSION_ALTERNATION,
     PatternFetcher,
     SourcePatternDetection,
     detect_source_interface_pattern,
@@ -25,9 +26,7 @@ from api_launcher.discovery_drafts import (
 
 SourcePatternDraftDetector = Callable[[str], SourcePatternDetection]
 DEFAULT_HTML_FILE_INDEX_REGEX = (
-    r"(?i)\."
-    r"(csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|zip|tar\.gz|nc|hdf|h5|tif|tiff|gpkg|zarr|xml|parquet)"
-    r"(?:$|[?#])"
+    rf"(?i)\.({HTML_DATA_FILE_EXTENSION_ALTERNATION})(?:$|[?#])"
 )
 
 
