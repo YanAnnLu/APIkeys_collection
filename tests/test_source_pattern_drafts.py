@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
 from api_launcher.crawlers.source_patterns import SourcePatternDetection
 from api_launcher.source_pattern_drafts import (
     dataset_source_from_detected_url,
@@ -43,6 +44,34 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertEqual(["satellite", "raster"], source["categories"])
         self.assertEqual(5, source["max_results"])
         self.assertIn("--promote-local-discovery-dry-run", str(summary["audit_command"]))
+
+    def test_html_file_index_draft_gets_default_file_regex_for_followup_audit(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="html_file_index",
+                confidence=0.5,
+                evidence=("html_contains_links", "html_mentions_data_file_extensions:.csv"),
+                source_type_hint="html_file_index",
+            )
+
+        source, _detection = dataset_source_from_detected_url(
+            "https://files.example.test/data/",
+            provider_id="sample_files",
+            name="Sample files",
+            detector=detector,
+        )
+        candidates = html_file_index_candidates_from_text(
+            source,
+            '<html><a href="dataset_2026.csv">dataset_2026.csv</a><a href="notes.txt">notes.txt</a></html>',
+            "https://files.example.test/data/",
+            10,
+        )
+
+        self.assertEqual("html_file_index", source.source_type)
+        self.assertIn("csv", source.file_url_regex)
+        self.assertEqual(1, len(candidates))
+        versions = candidates[0].dataset.metadata["available_versions"]
+        self.assertEqual("dataset_2026.csv", versions[0]["label"])
 
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:

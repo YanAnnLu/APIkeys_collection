@@ -24,6 +24,7 @@ from api_launcher.discovery_drafts import (
 
 
 SourcePatternDraftDetector = Callable[[str], SourcePatternDetection]
+DEFAULT_HTML_FILE_INDEX_REGEX = r"(?i)\.(csv|zip|nc|hdf|h5|tif|tiff|json|xml|parquet)(?:$|[?#])"
 
 
 def dataset_source_from_detected_url(
@@ -73,6 +74,7 @@ def dataset_source_from_detected_url(
         categories=tuple(part for part in categories if part.strip()) or ("detected_source", detection.pattern_id),
         geographic_scope=geographic_scope.strip() or "global",
         max_results=max(int(max_results or 10), 1),
+        file_url_regex=DEFAULT_HTML_FILE_INDEX_REGEX if source_type == "html_file_index" else "",
         min_expected_candidates=max(int(min_expected_candidates or 1), 1),
         notes=detection_notes(detection),
     )
