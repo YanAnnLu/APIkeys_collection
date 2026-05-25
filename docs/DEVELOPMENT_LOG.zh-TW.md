@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-24
+最後更新：2026-05-25
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,6 +14,43 @@
 - 每筆使用表格欄位：`時間`、`開發階段`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
+
+### 2026-05-25
+
+目前開發階段：**Discovery / Crawler Backend Hardening**。主線從昨天晚間的 source pattern detector 與 crawler asset contract，推進到常見資料入口範式的穩定化：補強 ERDDAP/STAC/OGC WMS/HTML file index 的 detector 與 source draft 行為，讓 HTML index 可 bounded crawl 巢狀頁面並抽出更多資料檔案候選；接著把下載後內容格式判斷收斂進 content parser registry 與 adapter plan resolver，讓 GeoTIFF/COG/GeoPackage、GRIB/GRIB2、CDF/HDF/HDF5、SQLite/DB snapshot 等非表格資產先進 parser review，不再被假裝成可直接匯入的 CSV/JSON。今日所有列出的 checkpoint 均已由 GitHub Actions 驗證成功；尚未 push/CI 驗證的後續工作不列為 checkpoint。
+
+| 時間 | 開發階段 | 標記 | SHA | Run | 原始標題 | 中文說明 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 11:59 | Content Parser / Database Snapshot | **CHECKPOINT** | `7fbfd9a` | `26382438059` | Route database snapshots through parser review | 將 `.db`、`.sqlite`、`.sqlite3` 這類資料庫快照辨識為可下載 raw artifact，但下載後路由到 `database_snapshot_review`，保留 source URL、格式與 parser review 狀態，不把外部資料庫檔直接當成 curated table 匯入。 |
+| 11:49 | Content Parser / Scientific Grid | **CHECKPOINT** | `daca822` | `26382172324` | Support CDF and HDF5 crawler asset links | 補強 CDF/HDF/HDF5/H5 連結辨識、direct eligibility、format normalization 與 content parser review，讓科學陣列資料可進 plan/review 流程，但仍不自動解析或匯入。 |
+| 11:37 | Content Parser / Scientific Grid | **CHECKPOINT** | `3ae733a` | `26381854086` | Support GRIB2 crawler asset links | 補上 GRIB/GRIB2/GRB2 從 detector、source draft、direct download eligibility、content registry 到 adapter resolver 的支援，天氣/氣象格點資料會被標成 scientific grid review。 |
+| 11:26 | Adapter Resolver | **CHECKPOINT** | `c92646f` | `26381573507` | Normalize URL suffixes for resource resolution | 強化 URL suffix 推論與 compound suffix normalization，讓 resolver 即使缺少 media type / format metadata，也能從檔名安全推斷 source format。 |
+| 11:18 | Discovery / HTML Pattern | **CHECKPOINT** | `880cde0` | `26381353429` | Share HTML data file pattern vocabulary | 把 HTML file index detector 與 source draft 的資料副檔名 vocabulary 合併，避免 detector 看得到的格式在 draft/audit 端漏掉。 |
+| 11:09 | Discovery / HTML Source Draft | **CHECKPOINT** | `ed4855e` | `26381124089` | Align HTML source drafts with geospatial file links | 讓 HTML source draft 的 follow-up audit regex 同步支援 geospatial / scientific / archive 格式，source draft 能把更多真實資料檔候選交給 crawler audit。 |
+| 11:02 | Download Eligibility / Geospatial | **CHECKPOINT** | `e842679` | `26380954416` | Treat GeoPackage URLs as downloadable assets | 將 GeoPackage URL 視為可下載 geospatial asset，並保持下載後進 geospatial parser review，不走 CSV/JSON importer。 |
+| 10:53 | Discovery / HTML Pattern | **CHECKPOINT** | `411a21b` | `26380711784` | Detect compound HTML index data links | HTML file index detector 開始辨識 compound extensions，例如 `.geojson.gz`、`.tar.gz`、`.csv.zst`，降低壓縮/複合資料檔被漏抓的機率。 |
+| 10:42 | Content Parser / Geospatial | **CHECKPOINT** | `7d99e71` | `26380431949` | Recognize GeoPackage media types | Content registry 補 GeoPackage MIME / format 判斷，讓 media type 或副檔名任一線索都能落到 geospatial parser review。 |
+| 10:35 | Discovery / HTML Source Draft | **CHECKPOINT** | `cfb96f5` | `26380247707` | Broaden HTML index draft file matching | 擴大 HTML source draft 的檔案 regex，支援更多壓縮、科學與 GIS 資產副檔名，讓後續 crawler audit 有足夠候選。 |
+| 10:28 | Adapter Resolver / Geospatial | **CHECKPOINT** | `a37e73c` | `26380072877` | Promote geospatial assets to parser review plans | Adapter resolver 可把 GeoTIFF/COG/GeoPackage 等 geospatial direct assets 推入 download plan，但 import status 仍標示 parser review required。 |
+| 10:20 | Content Parser / Geospatial | **CHECKPOINT** | `6e93020` | `26379867289` | Recognize geospatial content media types | Content registry 補 geospatial MIME / format normalization，建立 `geospatial_asset_review` 入口，避免 raster/vector 資產被誤當表格。 |
+| 10:13 | Discovery / HTML Crawler | **CHECKPOINT** | `1a84655` | `26379682913` | Traverse nested HTML index pages | HTML file index crawler 支援 bounded nested traversal，搭配 same-origin、seen set、max pages 等限制，讓舊式目錄頁可往下一層找資料檔。 |
+| 10:08 | Discovery / HTML Crawler | **CHECKPOINT** | `fbaaf3e` | `26379543771` | Follow bounded HTML index pages | HTML file index crawler 從單頁抽連結前進到 bounded full crawl 模式，補上 page limit 與安全 guard，避免無界網站探索。 |
+| 09:57 | Discovery / OGC WMS | **CHECKPOINT** | `fce7967` | `26379287898` | Preserve WMS service metadata | WMS capabilities parser 保留 service title / metadata URL 等資訊，候選 dataset 不再只剩 layer id。 |
+| 09:51 | Discovery / OGC WMS | **CHECKPOINT** | `a237821` | `26379124943` | Avoid duplicate WMS detector capabilities probes | 修正 WMS detector 對 capabilities URL 的重複 probe，降低不必要網路請求與重複 evidence。 |
+| 09:43 | Discovery / OGC WMS | **CHECKPOINT** | `c5e49ff` | `26378925918` | Handle uppercase WMS capabilities queries | WMS detector 能處理大小寫混用的 `SERVICE` / `REQUEST` query，讓真實入口 URL 不因大小寫差異被判 unknown。 |
+| 09:38 | Discovery / OGC WMS | **CHECKPOINT** | `77a1e55` | `26378795499` | Prefer WMS GetMap resources for layer candidates | WMS layer candidate 優先保存可用的 GetMap resource URL，讓後續 plan/review 有更接近實際資產的 evidence。 |
+| 09:32 | Discovery / ERDDAP | **CHECKPOINT** | `72e340d` | `26378640023` | Normalize ERDDAP detector probes | ERDDAP detector probe 正規化，能從 deeper dataset URL 回到站台 root 探測 `info/index.json`。 |
+| 09:30 | Discovery / ERDDAP | **CHECKPOINT** | `b605c09` | `26378585684` | Probe ERDDAP info from site root | ERDDAP detector 增加 site-root info probe，避免只在 dataset URL 上探測而漏判。 |
+| 09:24 | Discovery / ERDDAP | **CHECKPOINT** | `b0ea24e` | `26378428029` | Normalize ERDDAP deep source URLs | ERDDAP source draft 能把 `/griddap/`、`/tabledap/` 等 deep URL 正規化到可 audit 的 allDatasets endpoint。 |
+| 09:17 | Discovery / STAC | **CHECKPOINT** | `cc73074` | `26378266034` | Accept STAC collections endpoints in detector | STAC detector 接受 `/collections` endpoint 作為 STAC evidence，不再只依賴 root catalog 的 `stac_version`。 |
+| 09:11 | Discovery / OGC WMS | **CHECKPOINT** | `7de569b` | `26378120876` | Add OGC WMS crawler support | 新增 OGC WMS capabilities parser/crawler，能從 WMS XML capabilities 產生 layer dataset candidates，補上 OGC WMS 這條常見 GIS 來源範式。 |
+| 09:01 | Discovery / Source Pattern | **CHECKPOINT** | `9fa2592` | `26377877861` | Probe source pattern APIs from origin URLs | Source pattern detector 會從 origin URL 推導常見 API probe endpoint，不再只看使用者輸入的完整 URL 字串。 |
+| 08:54 | Discovery / HTML Source Draft | **CHECKPOINT** | `16b278c` | `26377717492` | Connect HTML source drafts to file index crawling | HTML source draft 可接回 file index crawling，讓 detector 判成 HTML index 後能自動產生後續 audit 所需 regex/source config。 |
+| 08:48 | Discovery / OGC WMS | **CHECKPOINT** | `94954e8` | `26377574124` | Recognize WMS capabilities as OGC sources | Source pattern detector 能把 WMS GetCapabilities XML 判成 OGC/WMS source，而非 generic HTML/XML 或 unknown。 |
+| 08:43 | Discovery / Source Draft Safety | **CHECKPOINT** | `2bd6fd4` | `26377439451` | Guard source pattern draft URLs | Source draft creation 加入 URL guard，拒絕 credential-bearing、非 HTTP(S) 或不適合 promotion 的 URL，避免把危險入口寫進 local source config。 |
+| 08:37 | Discovery / Source Pattern Tests | **CHECKPOINT** | `54f086d` | `26377306364` | Harden source pattern detector coverage | 補強 CKAN/Socrata/OGC/ambiguous/unknown 等 detector 測試，讓通用蟲不只在 happy path 上通過。 |
+| 08:30 | Adapter Resolver / Content Detection | **CHECKPOINT** | `602cb50` | `26377145294` | Add content detection to resolved plan entries | Adapter resolver direct entry 會附上 `content_detection` / `content_parser`，UI/agent 不必重新猜 source format、parser id、review bucket 或 import status。 |
+| 08:20 | Content Parser Registry | **CHECKPOINT** | `191a2cc` | `26376895930` | Add content parser capability registry | 新增 `api_launcher/content_registry.py` 作為下載後內容格式分流層，將 CSV/JSON 類表格格式、ZIP/Archive transform review、NetCDF/HDF/Zarr/GeoTIFF/Parquet/PDF/XML/unknown 等分配到明確 import 或 review bucket。 |
 
 ## 2026-05-17 至 2026-05-24 回補流水帳
 
