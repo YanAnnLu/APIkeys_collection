@@ -64,6 +64,7 @@ class DownloadEligibilityTests(unittest.TestCase):
         self.assertTrue(looks_like_direct_download("https://example.test/data.geojson"))
         self.assertTrue(looks_like_direct_download("https://example.test/boundaries.gpkg"))
         self.assertTrue(looks_like_direct_download("https://example.test/weather/forecast.grib2"))
+        self.assertTrue(looks_like_direct_download("https://example.test/ocean/legacy_grid.cdf"))
         self.assertFalse(looks_like_direct_download("https://example.test/api/datasets"))
 
 

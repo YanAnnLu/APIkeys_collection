@@ -11,6 +11,7 @@ DIRECT_DOWNLOAD_EXTENSIONS = {
     ".7z",
     ".bin",
     ".bz2",
+    ".cdf",
     ".csv",
     ".geojson",
     ".gpkg",

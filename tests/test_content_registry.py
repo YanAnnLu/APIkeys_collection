@@ -98,6 +98,14 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("scientific_grid_review", detection.capability.parser_id)
         self.assertEqual("content_parser_required", detection.capability.review_bucket)
 
+    def test_legacy_cdf_url_suffix_routes_to_netcdf_review(self) -> None:
+        detection = detect_content_format(url="https://example.test/ocean/legacy_grid.cdf")
+
+        self.assertEqual("netcdf", detection.source_format)
+        self.assertEqual("scientific_grid_or_array", detection.capability.content_family)
+        self.assertEqual("scientific_grid_review", detection.capability.parser_id)
+        self.assertEqual("content_parser_required", detection.capability.review_bucket)
+
 
 if __name__ == "__main__":
     unittest.main()

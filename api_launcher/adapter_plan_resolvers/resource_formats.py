@@ -37,7 +37,7 @@ def normalize_resource_format(value: str) -> str:
         return "geotiff"
     if "geopackage" in normalized or "gpkg" in normalized:
         return "geopackage"
-    if "hdf5" in normalized:
+    if "hdf5" in normalized or normalized == "h5" or normalized.endswith("+h5"):
         return "hdf5"
     if normalized == "hdf" or normalized.endswith("+hdf"):
         return "hdf"

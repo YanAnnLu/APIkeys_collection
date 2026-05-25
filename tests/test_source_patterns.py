@@ -263,6 +263,8 @@ class SourcePatternDetectorTest(unittest.TestCase):
                     url=url,
                     text=(
                         '<html><a href="boundary.geojson.gz">boundary.geojson.gz</a>'
+                        '<a href="legacy_grid.cdf">legacy_grid.cdf</a>'
+                        '<a href="orbit_swath.hdf5">orbit_swath.hdf5</a>'
                         '<a href="tiles.gpkg">tiles.gpkg</a>'
                         '<a href="forecast.grib2">forecast.grib2</a>'
                         '<a href="notes.txt">notes.txt</a></html>'
@@ -275,7 +277,7 @@ class SourcePatternDetectorTest(unittest.TestCase):
 
         self.assertEqual("html_file_index", result.pattern_id)
         self.assertEqual("html_file_index", result.source_type_hint)
-        self.assertIn("html_mentions_data_file_extensions:.geojson.gz,.gpkg,.grib2", result.evidence)
+        self.assertIn("html_mentions_data_file_extensions:.geojson.gz,.cdf,.hdf5,.gpkg,.grib2", result.evidence)
 
     def test_ambiguous_collections_payload_stays_unknown_below_threshold(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:

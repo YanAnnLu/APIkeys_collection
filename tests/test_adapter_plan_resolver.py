@@ -321,6 +321,29 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
         self.assertTrue(resolved_entry["target_path"].endswith(".grib2"))
 
+    def test_h5_url_suffix_promotes_direct_asset_as_hdf5_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "HDF5 swath",
+                "downloadURL": "https://data.example.test/science/orbit_swath.h5",
+                "byteSize": 4096,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/science/orbit_swath.h5", resolved_entry["download_url"])
+        self.assertEqual("hdf5", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("scientific_grid_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".h5"))
+
     def test_geopackage_url_suffix_promotes_direct_asset_for_parser_review(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]
