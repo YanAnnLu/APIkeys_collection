@@ -6,10 +6,10 @@ from pathlib import Path
 
 def normalize_resource_format(value: str) -> str:
     # 各入口的 format/mediaType 寫法很不一致，先壓成 importer 與 manifest 共同理解的穩定格式代號。
-    normalized = value.strip().lower()
+    normalized = value.strip().lower().split(";", 1)[0].strip()
     if not normalized:
         return "unknown"
-    normalized = normalized.replace("application/", "").replace("text/", "")
+    normalized = normalized.replace("application/", "").replace("text/", "").replace("image/", "")
     normalized = normalized.replace("x-", "").replace(" ", "_")
     if "csv" in normalized and ("zst" in normalized or "zstandard" in normalized):
         return "csv.zst"
@@ -33,6 +33,14 @@ def normalize_resource_format(value: str) -> str:
         return "parquet"
     if "netcdf" in normalized or normalized in {"nc", "cdf"}:
         return "netcdf"
+    if "geotiff" in normalized or "tiff" in normalized:
+        return "geotiff"
+    if "hdf5" in normalized:
+        return "hdf5"
+    if normalized == "hdf" or normalized.endswith("+hdf"):
+        return "hdf"
+    if "grib" in normalized:
+        return "grib"
     if "zip" in normalized:
         return "zip"
     if "tar" in normalized and "gz" in normalized:

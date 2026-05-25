@@ -75,6 +75,14 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("csv.gz", normalize_content_format("text/csv+gzip"))
         self.assertEqual("geotiff", normalize_content_format("tif"))
 
+    def test_geospatial_image_media_types_route_to_geospatial_review(self) -> None:
+        detection = detect_content_format(media_type="image/tiff; application=geotiff")
+
+        self.assertEqual("geotiff", detection.source_format)
+        self.assertEqual("geospatial_asset", detection.capability.content_family)
+        self.assertEqual("geospatial_asset_review", detection.capability.parser_id)
+        self.assertEqual("content_parser_required", detection.capability.review_bucket)
+
 
 if __name__ == "__main__":
     unittest.main()
