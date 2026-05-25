@@ -127,15 +127,20 @@ def detect_source_interface_pattern(
 
 def detect_stac(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
     evidence: list[str] = []
-    data = json_from(fetcher(url, timeout))
-    if isinstance(data, dict):
-        if "stac_version" in data:
-            evidence.append("json_contains_stac_version")
-        links = [link for link in data.get("links", []) if isinstance(link, dict)]
-        if any(link.get("rel") == "search" for link in links):
-            evidence.append("json_has_search_link")
-        if "collections" in data or any("collections" in str(link.get("href", "")) for link in links):
-            evidence.append("json_references_collections")
+    for probe_url in stac_probe_urls(url):
+        data = json_from(fetcher(probe_url, timeout))
+        if isinstance(data, dict):
+            if "stac_version" in data:
+                evidence.append("json_contains_stac_version")
+            links = [link for link in data.get("links", []) if isinstance(link, dict)]
+            if any(link.get("rel") == "search" for link in links):
+                evidence.append("json_has_search_link")
+            if "collections" in data or any("collections" in str(link.get("href", "")) for link in links):
+                evidence.append("json_references_collections")
+            if "collections" in data and probe_url.rstrip("/").endswith("/collections"):
+                evidence.append("stac_collections_endpoint")
+            if evidence:
+                break
     return score_pattern("stac", evidence)
 
 
@@ -271,6 +276,10 @@ def unique_urls(*urls: str) -> tuple[str, ...]:
         seen.add(url)
         ordered.append(url)
     return tuple(ordered)
+
+
+def stac_probe_urls(url: str) -> tuple[str, ...]:
+    return unique_urls(url, join_url(url, "collections"))
 
 
 def ckan_probe_urls(url: str) -> tuple[str, ...]:

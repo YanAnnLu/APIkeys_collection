@@ -199,6 +199,8 @@ OGC family 目前分兩條 source type：`ogc_api_records` 負責 OGC API Record
 
 CKAN / Socrata detector 不應假設使用者一定貼站台首頁。若收到深層 dataset/resource URL，detector 會先嘗試 path-local probe，再 fallback 到同 origin 的 canonical API probe；這可提升「貼入口頁、資料集頁、API resource 頁」三種常見操作的容錯率。
 
+STAC detector 也不應假設使用者一定貼 root catalog；`/collections` endpoint 若回傳 collections payload，會以 `stac_collections_endpoint` evidence 判成 STAC，並交給既有 `stac_collections` crawler。
+
 K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是程式碼來源。金融/風控教材補 time-series asset、交易日曆、補資料策略與 storage review；GIS、星圖與 3D 範例補 raster/tile/cache、bbox、projection 與 renderer-ready manifest；數學與機械工程教材補 bounds/geometry/transform；Pandas 與資料清理教材補 header normalize、type inference、schema fingerprint 與 bad-row warning；Fluent Python / PyMOTW 補 protocol、iterator、context manager、subcommand 與 concurrency 設計。CODE_KM 的價值在治理模型：來源 provenance、checksum、pipeline run state、rights/review gate、local metadata index 與人類可讀知識庫分離。RRKAL 應把這些概念收斂到 source profile、crawler run registry、manifest/import pipeline、install registry、adapter review、rights/provenance gate 與 agent skill 分工，而不是讓教材範例碼進入正式產品路徑。
 
 ## Dataset adapters

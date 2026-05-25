@@ -26,6 +26,27 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertGreaterEqual(result.confidence, 0.75)
         self.assertIn("json_contains_stac_version", result.evidence)
 
+    def test_stac_pattern_accepts_collections_endpoint(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://example.test/stac/collections":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[{"id":"example"}],"links":[{"rel":"root","href":"../"}]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://example.test/stac/collections", fetcher=fetcher)
+
+        self.assertEqual("stac", result.pattern_id)
+        self.assertEqual("stac_collections", result.source_type_hint)
+        self.assertIn("json_references_collections", result.evidence)
+        self.assertIn("stac_collections_endpoint", result.evidence)
+        self.assertEqual("https://example.test/stac/collections", calls[0])
+
     def test_erddap_pattern_probes_info_index(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://coastwatch.example.test/erddap/info/index.json":

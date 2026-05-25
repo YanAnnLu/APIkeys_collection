@@ -16,6 +16,7 @@ Last updated: 2026-05-25
 - [x] 補強 detector 合約測試：CKAN `package_search`、Socrata `api/views.json`、OGC `conformsTo` / `collections`，以及 ambiguous collections payload 低信心時必須停在 `unknown`。
 - [x] 補強 OGC/WMS 老式入口：純 WMS `GetCapabilities` XML 現在會辨識為 `ogc_wms` / `ogc_wms_capabilities`，並由 `api_launcher/crawlers/ogc_wms.py` 從 capabilities layer 抽出 dataset candidate，不再誤走 OGC API Records handler。
 - [x] CKAN / Socrata detector 已能在使用者貼深層 dataset/resource URL 時 fallback 到站台根目錄 API probe，降低「入口 URL 不是首頁」造成的誤判。
+- [x] STAC detector 已能接受 `/collections` endpoint 作為入口，避免使用者貼 STAC collections URL 時只因缺少 root `stac_version` 被判成 unknown。
 - [x] 新增 `api_launcher/crawler_asset_bound_forms.py` 與 Tk `CrawlerAssetBoundDialog`，讓 crawler asset 的 `bounds_schema` 可以動態生成前端中立表單與 payload。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
