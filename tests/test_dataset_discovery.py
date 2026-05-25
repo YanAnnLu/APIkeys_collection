@@ -649,7 +649,10 @@ class DatasetDiscoveryTests(unittest.TestCase):
         xml = """
         <WMS_Capabilities xmlns="http://www.opengis.net/wms"
           xmlns:xlink="http://www.w3.org/1999/xlink">
-          <Service><Title>Sample WMS Service</Title></Service>
+          <Service>
+            <Title>Sample WMS Service</Title>
+            <OnlineResource xlink:href="https://maps.example.test/service-info"/>
+          </Service>
           <Capability>
             <Request><GetMap><DCPType><HTTP><Get>
               <OnlineResource xlink:href="https://maps.example.test/wms?"/>

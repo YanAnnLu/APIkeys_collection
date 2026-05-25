@@ -124,16 +124,32 @@ def first_child_text(element: ET.Element, child_name: str) -> str:
 
 def wms_get_map_url(root: ET.Element) -> str:
     for element in root.iter():
+        if local_name(element.tag) != "GetMap":
+            continue
+        for child in element.iter():
+            if local_name(child.tag) != "OnlineResource":
+                continue
+            href = online_resource_href(child)
+            if href:
+                return href
+    for element in root.iter():
         if local_name(element.tag) != "OnlineResource":
             continue
-        href = (
-            element.attrib.get("{http://www.w3.org/1999/xlink}href")
-            or element.attrib.get("xlink:href")
-            or element.attrib.get("href")
-            or ""
-        ).strip()
-        if href.startswith(("http://", "https://")):
+        href = online_resource_href(element)
+        if href:
             return href
+    return ""
+
+
+def online_resource_href(element: ET.Element) -> str:
+    href = (
+        element.attrib.get("{http://www.w3.org/1999/xlink}href")
+        or element.attrib.get("xlink:href")
+        or element.attrib.get("href")
+        or ""
+    ).strip()
+    if href.startswith(("http://", "https://")):
+        return href
     return ""
 
 
