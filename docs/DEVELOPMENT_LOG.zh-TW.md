@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-25
+最後更新：2026-05-26
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,6 +14,14 @@
 - 每筆使用表格欄位：`時間`、`開發階段`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
+
+### 2026-05-26
+
+今日主要開發階段：**Web Preview / Crawler Asset Visualization**。把 `tem/ui-aseat-ui` 的設計節奏收斂成 RRKAL 可用的 Web Preview，而不是照搬 Aseat/Steam 詞彙；新增後端 detail payload 的 `flow_steps`，讓 Web/Tk/Qt 以後能共用「seed -> source pattern -> bounds -> download plan -> review gate」這條流程狀態。此 checkpoint 同時補強 OGC/WMS 與 source pattern draft 測試，維持 crawler/source-pattern 主線的 registry 化方向。
+
+| 時間 | 開發階段 | 狀態 | SHA | Run | Commit | 主要內容 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:33 | Web Preview / Crawler Asset Visualization | **CHECKPOINT** | `a23d1f9` | `26410424306` | Add web preview flow visualization | 新增 `frontends/web/` stdlib Web Preview、`frontends/shared/ui_tokens.json`、`scripts/run_web_preview.cmd` 與 `docs/WEB_PREVIEW_UIUX.zh-TW.md`，將爬蟲資產清單、資產護照、界域表單、下載計畫預覽、後端 JSON 與新 `flow_steps` 視覺化接到 `api_launcher` service。Web 端以 RRKAL 詞彙顯示 `爬蟲資產`、`資產護照`、`後端流程狀態`、`界域輸入`，並用 `field_id` / `capability_id` 映射乾淨的繁中 UI label，避免後端舊 mojibake 字串外漏。補強 `tests/test_web_preview.py`，並延伸 source pattern / source draft / OGC WMS / crawler asset 測試；本機 `scripts\pre_push_smoke_brief.cmd` 通過 656 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions Ubuntu、`windows-2025-vs2026`、real DB smoke 全部 success。剩餘風險：Web Preview 尚是 UIUX lab，不是正式生產前端；下一步應把 `flow_steps` / label mapping 抽成 shared display schema，讓 Tk/Qt 也能共用。 |
 
 ### 2026-05-25
 
