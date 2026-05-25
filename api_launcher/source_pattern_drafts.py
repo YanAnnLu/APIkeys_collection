@@ -61,9 +61,13 @@ def dataset_source_from_detected_url(
         fetcher=fetcher,
         detector=detector,
     )
-    source_type = detection.source_type_hint.strip()
-    if detection.pattern_id == UNKNOWN_PATTERN_ID or not source_type:
+    if detection.pattern_id == UNKNOWN_PATTERN_ID:
         raise ValueError("source pattern detector returned unknown; keep this URL in review")
+    if detection.confidence < minimum_confidence:
+        raise ValueError("source pattern detector confidence is below minimum; keep this URL in review")
+    source_type = detection.source_type_hint.strip()
+    if not source_type:
+        raise ValueError("source pattern detector returned no supported source type; keep this URL in review")
     if source_type not in SUPPORTED_DATASET_SOURCE_TYPES:
         raise ValueError(f"detected source type is not supported by a dataset crawler: {source_type}")
 

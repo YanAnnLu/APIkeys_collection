@@ -200,6 +200,18 @@ class SourcePatternDraftTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown"):
             dataset_source_from_detected_url("https://example.test/landing", detector=detector)
 
+    def test_low_confidence_detector_stays_in_review_even_with_source_hint(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="stac",
+                confidence=0.25,
+                evidence=("weak_collections_hint",),
+                source_type_hint="stac_collections",
+            )
+
+        with self.assertRaisesRegex(ValueError, "below minimum"):
+            dataset_source_from_detected_url("https://example.test/landing", detector=detector)
+
     def test_unsupported_source_type_is_rejected_before_local_draft(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(
