@@ -211,13 +211,15 @@ def detect_ogc(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatte
                 api_evidence.append("json_contains_collections")
             if any("ogcapi" in str(item).lower() or "opengis" in str(item).lower() for item in conforms_to):
                 api_evidence.append("conforms_to_mentions_ogc")
-        if len(api_evidence) >= 3:
+        if len(unique_evidence(api_evidence)) >= 3:
             break
     cap_response = fetcher(wms_capabilities_probe_url(url), timeout)
     if cap_response is not None and ("GetCapabilities" in cap_response.text[:8000] or "WMS_Capabilities" in cap_response.text[:8000]):
         wms_evidence.append("wms_get_capabilities_response")
         if "WMS_Capabilities" in cap_response.text[:8000] or "opengis.net/wms" in cap_response.text[:8000].lower():
             wms_evidence.append("wms_capabilities_document")
+    api_evidence = unique_evidence(api_evidence)
+    wms_evidence = unique_evidence(wms_evidence)
     if api_evidence:
         return score_pattern("ogc", api_evidence + wms_evidence)
     if wms_evidence:
@@ -300,6 +302,10 @@ def unique_urls(*urls: str) -> tuple[str, ...]:
         seen.add(url)
         ordered.append(url)
     return tuple(ordered)
+
+
+def unique_evidence(evidence: list[str]) -> list[str]:
+    return list(dict.fromkeys(evidence))
 
 
 def stac_probe_urls(url: str) -> tuple[str, ...]:

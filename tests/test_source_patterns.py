@@ -207,6 +207,28 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("json_contains_collections", result.evidence)
         self.assertIn("conforms_to_mentions_ogc", result.evidence)
 
+    def test_ogc_pattern_dedupes_repeated_probe_evidence(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url in {"https://geo.example.test/api", "https://geo.example.test/api/conformance"}:
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"conformsTo":["http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"]}',
+                    headers={"content-type": "application/json"},
+                )
+            if url == "https://geo.example.test/api/collections":
+                return PatternProbeResponse(
+                    url=url,
+                    text='{"collections":[{"id":"roads"}]}',
+                    headers={"content-type": "application/json"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://geo.example.test/api", fetcher=fetcher)
+
+        self.assertEqual("ogc", result.pattern_id)
+        self.assertEqual(1, result.evidence.count("json_contains_conforms_to"))
+        self.assertEqual(1, result.evidence.count("conforms_to_mentions_ogc"))
+
     def test_ogc_wms_capabilities_xml_is_enough_for_pattern_detection(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://maps.example.test/wms?service=WMS&request=GetCapabilities":
