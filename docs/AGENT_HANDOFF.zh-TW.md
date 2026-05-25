@@ -4,6 +4,12 @@
 
 接手時先讀 `docs/AGENT_START_HERE.zh-TW.md`，再讀本文件與 `PROJECT_GTD.md`。這份文件是跨 Windows、macOS、不同 Agent 接力時的固定接力卡；每次切換機器或切換 Agent 前，請優先更新這份文件。
 
+## 2026-05-25 Content parser registry 骨架
+
+- 新增 `api_launcher/content_registry.py`，把下載物內容格式與 STAC/CKAN/ERDDAP 等來源入口範式分開。它目前能回報 `source_format`、`content_family`、`import_status`、`parser_id`、`review_bucket` 與 evidence。
+- `api_launcher/plans.py::dataset_import_plan_entry()` 已改用 content registry：CSV/CSV.GZ 與 JSON/JSONL/NDJSON/GeoJSON 仍是 `supported_after_download`，ZIP/TAR/ZST 等封包停在 transform review，NetCDF/HDF/Zarr/GeoTIFF/Parquet/PDF/XML/unknown 停在 content parser review。
+- 新增 `tests/test_content_registry.py`，並已跑 `tests.test_content_registry`、`tests.test_dataset_download_plan`、`tests.test_adapter_plan_resolver`。下一步可把 adapter resolver 產生的 direct entry 也補上 `content_detection` 摘要，讓 UI/agent 看到內容 parser 狀態，而不只看 `source_format` 字串。
+
 ## 2026-05-24 Tk 來源草稿入口與治理機制收斂
 
 - 已把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口。Tk 只收集 URL / provider / 類別 / 期望候選數等輸入；偵測、source draft 寫入、unsupported/unknown 擋下仍由 `api_launcher.source_pattern_drafts` 後端服務負責。

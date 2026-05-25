@@ -8,6 +8,7 @@ from typing import Iterable
 from api_launcher.db import utc_now_iso
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
+from api_launcher.content_registry import content_parser_capability, normalize_content_format
 from api_launcher.models import Dataset, Provider
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.sql_assets import validate_sql_identifier
@@ -165,12 +166,15 @@ def dataset_import_plan_entry(
     option: DatasetVersionOption,
     eligibility: DownloadEligibility,
 ) -> dict[str, object]:
-    source_format = (dataset.native_format or str((option.metadata or {}).get("native_format") or "")).strip().lower()
+    source_format = normalize_content_format(dataset.native_format or str((option.metadata or {}).get("native_format") or ""))
+    capability = content_parser_capability(source_format)
     data_family = str(dataset.metadata.get("data_family") or dataset.data_type or "").strip()
     base = {
         "target_engine": "sqlite_mvp",
         "source_format": source_format or "unknown",
         "data_family": data_family or "unknown",
+        "content_family": capability.content_family,
+        "content_parser": capability.parser_id,
         "table_hint": sql_table_hint(f"{dataset.provider_id}_{dataset.dataset_id}"),
         "post_download": True,
     }
@@ -180,30 +184,25 @@ def dataset_import_plan_entry(
             "status": "adapter_review_required",
             "reason": "Download/import must wait until an adapter turns this catalog/API/landing URL into bounded files.",
         }
-    if source_format in {"csv", "csv.gz"}:
+    if capability.import_status == "supported_after_download":
         return {
             **base,
-            "status": "supported_after_download",
-            "importer": "csv_to_sqlite",
-            "reason": "CSV/CSV.GZ manifests can be imported by the current SQLite MVP importer after download verification.",
+            "status": capability.import_status,
+            "importer": capability.parser_id,
+            "reason": capability.reason,
         }
-    if source_format in {"json", "json.gz", "jsonl", "jsonl.gz", "ndjson", "ndjson.gz", "geojson", "geojson.gz"}:
+    if capability.import_status == "requires_unpack_or_adapter":
         return {
             **base,
-            "status": "supported_after_download",
-            "importer": "json_to_sqlite",
-            "reason": "JSON/JSONL/NDJSON/GeoJSON manifests, including gzip variants, can be imported by the current SQLite MVP importer after download verification.",
-        }
-    if source_format in {"csv.zst", "zst", "zip", "tar", "tar.gz", "7z", "bz2", "xz"}:
-        return {
-            **base,
-            "status": "requires_unpack_or_adapter",
-            "reason": "The file can be downloaded, but the MVP importer needs a decompression/extraction step before curated SQLite import.",
+            "status": capability.import_status,
+            "review_bucket": capability.review_bucket,
+            "reason": capability.reason,
         }
     return {
         **base,
-        "status": "manual_review_required",
-        "reason": "The file can be downloaded, but no MVP importer is registered for this source format yet.",
+        "status": capability.import_status,
+        "review_bucket": capability.review_bucket,
+        "reason": capability.reason,
     }
 
 

@@ -17,7 +17,8 @@ Last updated: 2026-05-24
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
 - [x] 把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口；UI 會顯示 detector evidence、信心分數、local draft 路徑與下一步 discovery audit 指令。`unknown` / unsupported source type 仍由後端拒絕並停在 review。
-- [ ] 下一輪：建立 content detector/parser registry 骨架，把來源介面類型與 CSV/JSON/NetCDF/GeoTIFF/ZIP 等下載內容格式完全分開。
+- [x] 建立 `api_launcher/content_registry.py` 骨架，把來源介面類型與 CSV/JSON/NetCDF/GeoTIFF/ZIP 等下載內容格式完全分開；`dataset_import_plan_entry()` 已改用 content parser capability 判斷 CSV/JSON 目前可匯入、ZIP/壓縮檔需 transform review、NetCDF/HDF/Zarr/GeoTIFF/Parquet 等需 content parser review。
+- [ ] 下一輪：讓 adapter resolver 產生 direct entry 時也寫入 `content_detection` / `content_parser` 摘要，讓 UI/agent 不只看到 `source_format`，也能看到內容 parser 狀態與下一步。
 
 ## 2026-05-24 UI/UX 開發契約
 

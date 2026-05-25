@@ -24,6 +24,7 @@ provider_candidates.discovered.json
 *.sqlite-shm
 *.sqlite-wal
 .venv/
+.vscode/
 __pycache__/
 *.pyc
 .DS_Store

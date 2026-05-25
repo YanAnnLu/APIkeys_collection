@@ -167,6 +167,8 @@ source URL
 
 入口範式標準化的是「資料在哪裡、怎麼查、怎麼列資源」；內容格式標準化的是「下載下來的東西怎麼讀」。STAC adapter 不應內建 GeoTIFF/NetCDF 解析；CKAN adapter 不應內建 CSV/ZIP/PDF parser。兩者中間的穩定交接物應是「資料資源清單」：URL、format/media type hint、role、license/provenance、bounds/版本 metadata。
 
+目前內容格式的第一層骨架在 `api_launcher/content_registry.py`。它只處理下載物格式與 parser capability，不處理 STAC/CKAN/ERDDAP 等來源入口。`dataset_import_plan_entry()` 已使用這層 registry：CSV/CSV.GZ 走 `csv_to_sqlite`，JSON/JSONL/NDJSON/GeoJSON 走 `json_to_sqlite`；ZIP/TAR/ZST 等壓縮或封包檔停在 `requires_unpack_or_adapter`；NetCDF/HDF/Zarr、GeoTIFF/COG/Shapefile/GeoPackage、Parquet/Arrow、PDF/XML/HTML/TXT 與 unknown 目前都停在 `manual_review_required`，等待專用 content parser 或 renderer/cache adapter。這個狀態是刻意保守，不代表不能下載，只代表不能假裝已能 curated import。
+
 目前要先把 source detector 做成保守、可測、可擴充的服務。CMR detector 只能在 host/path 像 NASA CMR 時 probe CMR 固定端點，避免所有 URL 都被 NASA CMR 的成功回應污染。遇到 unknown 時，不自動下載，改回報 `source_pattern_unknown` 或引導人工補 source profile。
 
 CLI/agent 若只是拿到一個入口 URL，可以先用 detector 產生 ignored local source draft，不直接改官方 catalog：
