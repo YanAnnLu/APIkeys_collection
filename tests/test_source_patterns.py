@@ -198,6 +198,34 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("wms_get_capabilities_response", result.evidence)
         self.assertIn("wms_capabilities_document", result.evidence)
 
+    def test_ogc_wms_detector_preserves_explicit_uppercase_capabilities_query(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            calls.append(url)
+            if url == "https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities":
+                return PatternProbeResponse(
+                    url=url,
+                    text=(
+                        '<WMS_Capabilities xmlns="http://www.opengis.net/wms">'
+                        "<Service><Name>WMS</Name></Service></WMS_Capabilities>"
+                    ),
+                    headers={"content-type": "text/xml"},
+                )
+            return None
+
+        result = detect_source_interface_pattern(
+            "https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities",
+            fetcher=fetcher,
+        )
+
+        self.assertEqual("ogc_wms", result.pattern_id)
+        self.assertIn("https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities", calls)
+        self.assertNotIn(
+            "https://maps.example.test/wms?SERVICE=WMS&REQUEST=GetCapabilities&service=WMS&request=GetCapabilities",
+            calls,
+        )
+
     def test_cmr_detector_does_not_pollute_non_cmr_urls(self) -> None:
         calls: list[str] = []
 

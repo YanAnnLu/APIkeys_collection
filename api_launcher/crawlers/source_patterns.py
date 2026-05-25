@@ -201,7 +201,7 @@ def detect_ogc(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatte
             api_evidence.append("json_contains_collections")
         if any("ogcapi" in str(item).lower() or "opengis" in str(item).lower() for item in conforms_to):
             api_evidence.append("conforms_to_mentions_ogc")
-    cap_response = fetcher(url + ("&" if urllib.parse.urlparse(url).query else "?") + "service=WMS&request=GetCapabilities", timeout)
+    cap_response = fetcher(wms_capabilities_probe_url(url), timeout)
     if cap_response is not None and ("GetCapabilities" in cap_response.text[:8000] or "WMS_Capabilities" in cap_response.text[:8000]):
         wms_evidence.append("wms_get_capabilities_response")
         if "WMS_Capabilities" in cap_response.text[:8000] or "opengis.net/wms" in cap_response.text[:8000].lower():
@@ -302,6 +302,17 @@ def ckan_probe_urls(url: str) -> tuple[str, ...]:
 def socrata_probe_urls(url: str) -> tuple[str, ...]:
     endpoint = "api/views.json?limit=1"
     return unique_urls(join_url(url, endpoint), urllib.parse.urljoin(origin_url(url), endpoint))
+
+
+def wms_capabilities_probe_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    query = urllib.parse.parse_qs(parsed.query)
+    query_lower = {key.lower(): value for key, value in query.items()}
+    service = query_lower.get("service", [""])[0].lower()
+    request = query_lower.get("request", [""])[0].lower()
+    if service == "wms" and request == "getcapabilities":
+        return url
+    return url + ("&" if parsed.query else "?") + "service=WMS&request=GetCapabilities"
 
 
 DETECTORS: tuple[PatternDetector, ...] = (
