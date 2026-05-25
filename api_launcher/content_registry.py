@@ -21,7 +21,7 @@ SUPPORTED_SQLITE_IMPORTERS: dict[str, str] = {
 
 ARCHIVE_OR_COMPRESSED_FORMATS = frozenset({"csv.zst", "zst", "zip", "tar", "tar.gz", "7z", "bz2", "xz"})
 SCIENTIFIC_GRID_FORMATS = frozenset({"netcdf", "hdf", "hdf5", "zarr", "grib", "grb"})
-GEOSPATIAL_RASTER_FORMATS = frozenset(
+GEOSPATIAL_ASSET_FORMATS = frozenset(
     {"geotiff", "cog", "shapefile", "geopackage", "flatgeobuf", "mbtiles", "pmtiles"}
 )
 COLUMNAR_FORMATS = frozenset({"parquet", "arrow", "feather"})
@@ -186,14 +186,14 @@ def content_parser_capability(source_format: str) -> ContentParserCapability:
             review_bucket="content_parser_required",
             reason="Scientific grid/array payloads need a dedicated NetCDF/HDF/Zarr parser before curated import.",
         )
-    if normalized in GEOSPATIAL_RASTER_FORMATS:
+    if normalized in GEOSPATIAL_ASSET_FORMATS:
         return ContentParserCapability(
             source_format=normalized,
             content_family="geospatial_asset",
             import_status="manual_review_required",
             parser_id="geospatial_asset_review",
             review_bucket="content_parser_required",
-            reason="Geospatial raster/vector payloads should first become manifests or renderer-ready assets.",
+            reason="Geospatial raster, vector, and tile payloads should first become manifests or renderer-ready assets.",
         )
     if normalized in COLUMNAR_FORMATS:
         return ContentParserCapability(
