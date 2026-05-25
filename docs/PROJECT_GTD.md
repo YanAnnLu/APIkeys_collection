@@ -37,6 +37,7 @@ Last updated: 2026-05-25
 - [x] Adapter resolver 產生 direct entry 時已寫入 `content_detection` / `content_parser` 摘要，UI/agent 現在不只看到 `source_format`，也能看到內容 parser 狀態、parser id、review bucket 與下一步。
 - [x] Content format 正規化已補 geospatial/scientific MIME：`image/tiff; application=geotiff`、GeoPackage、HDF、GRIB 等不會被誤判成未知格式，而會進入正確 review bucket。
 - [x] Adapter resolver 已允許 GeoTIFF / COG / GeoPackage 這類 geospatial direct asset 先形成下載計畫，再停在 content parser review；extensionless GeoTIFF 會得到 `.tif` 目標檔名。
+- [x] Generic resource resolver 的 URL suffix 推論已改用同一套 format 正規化；沒有 mediaType/format hint 的 `.nc` / `.gpkg` URL 也能形成 direct plan entry，但仍停在 scientific/geospatial parser review。
 - [x] Direct download eligibility 已補 `.gpkg`，避免已經是 GeoPackage 檔案的來源在舊 provider/direct URL 路徑被誤標成 adapter required。
 - [ ] 下一輪：把 `content_detection` 摘要接進 adapter review / download plan JSON 的 UI 顯示層，讓使用者在送進下載器前就知道「可匯入、需解壓、需 parser review」。
 

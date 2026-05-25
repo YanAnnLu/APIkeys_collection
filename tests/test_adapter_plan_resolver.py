@@ -275,6 +275,52 @@ class AdapterPlanResolverTests(unittest.TestCase):
         self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
         self.assertTrue(resolved_entry["target_path"].endswith(".gpkg"))
 
+    def test_netcdf_url_suffix_promotes_direct_asset_for_parser_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "NetCDF export",
+                "downloadURL": "https://data.example.test/ocean/sample.nc",
+                "byteSize": 4096,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/ocean/sample.nc", resolved_entry["download_url"])
+        self.assertEqual("netcdf", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("scientific_grid_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".nc"))
+
+    def test_geopackage_url_suffix_promotes_direct_asset_for_parser_review(self) -> None:
+        entry = ckan_review_entry()
+        metadata = entry["dataset_version"]["metadata"]
+        metadata["resources"] = [
+            {
+                "name": "GeoPackage export",
+                "downloadURL": "https://data.example.test/gis/boundaries.gpkg",
+                "byteSize": 4096,
+            }
+        ]
+        metadata.pop("links", None)
+
+        resolved, result = resolve_adapter_review_plan_payload({"providers": [entry]})
+
+        self.assertEqual(1, result.direct_entries_added)
+        resolved_entry = resolved["providers"][0]
+        self.assertEqual("https://data.example.test/gis/boundaries.gpkg", resolved_entry["download_url"])
+        self.assertEqual("geopackage", resolved_entry["source_format"])
+        self.assertEqual("manual_review_required", resolved_entry["import_plan"]["status"])
+        self.assertEqual("geospatial_asset_review", resolved_entry["content_parser"]["parser_id"])
+        self.assertEqual("content_parser_required", resolved_entry["content_parser"]["review_bucket"])
+        self.assertTrue(resolved_entry["target_path"].endswith(".gpkg"))
+
     def test_dcat_distribution_object_promotes_direct_json_entry(self) -> None:
         entry = ckan_review_entry()
         metadata = entry["dataset_version"]["metadata"]

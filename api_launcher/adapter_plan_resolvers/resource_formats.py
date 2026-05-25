@@ -69,4 +69,4 @@ def source_format_from_url(url: str) -> str:
     for parts, source_format in compound_suffixes:
         if len(suffixes) >= len(parts) and tuple(suffixes[-len(parts) :]) == parts:
             return source_format
-    return suffixes[-1]
+    return normalize_resource_format(suffixes[-1])
