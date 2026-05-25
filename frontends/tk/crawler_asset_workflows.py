@@ -133,6 +133,7 @@ class CrawlerAssetWorkflowMixin:
         ).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
+        self.crawler_asset_plan_outcomes: dict[str, str] = {}
         self.refresh_crawler_asset_tab()
 
     def refresh_crawler_asset_tab(self) -> None:
@@ -157,6 +158,7 @@ class CrawlerAssetWorkflowMixin:
         self.status_var.set(self.tr(f"已載入 {len(assets)} 個爬蟲資產。", f"Loaded {len(assets)} crawler assets."))
 
     def crawler_asset_row_values(self, asset: CrawlerAsset) -> tuple[object, ...]:
+        last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id) or asset.next_action
         return (
             asset.display_name,
             crawler_asset_state_label(asset),
@@ -168,7 +170,7 @@ class CrawlerAssetWorkflowMixin:
             asset.seed_summary,
             f"{asset.trust_score}%",
             asset.current_seed_scope,
-            asset.next_action,
+            last_plan_outcome,
         )
 
     def selected_crawler_asset(self) -> CrawlerAsset | None:
@@ -190,6 +192,9 @@ class CrawlerAssetWorkflowMixin:
         capability_lines = "\n".join(
             f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
         )
+        last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id, "")
+        last_plan_line_zh = f"\n上次送進下載器：{last_plan_outcome}\n" if last_plan_outcome else ""
+        last_plan_line_en = f"\nLast send-to-downloader result: {last_plan_outcome}\n" if last_plan_outcome else ""
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
         bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
@@ -203,6 +208,7 @@ class CrawlerAssetWorkflowMixin:
                     f"存取邊界：{asset.access_requirement}\n"
                     f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
                     f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
+                    f"{last_plan_line_zh}"
                     f"{capability_lines}\n\n"
                     f"界域 schema：{bounds_summary_zh or '無'}\n\n"
                     "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
@@ -214,6 +220,7 @@ class CrawlerAssetWorkflowMixin:
                     f"Access: {asset.access_requirement}\n"
                     f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
                     f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
+                    f"{last_plan_line_en}"
                     f"{capability_lines}\n\n"
                     f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
                     "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
@@ -486,8 +493,12 @@ class CrawlerAssetWorkflowMixin:
         self.root.after(0, lambda: self._finish_crawler_asset_download_plan(result, written_paths))
 
     def _finish_crawler_asset_download_plan(self, result, written_paths: dict[str, str]) -> None:
+        if not hasattr(self, "crawler_asset_plan_outcomes"):
+            self.crawler_asset_plan_outcomes = {}
         if result.blocked:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
+            self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
+            self.refresh_crawler_asset_plan_row(result.asset_id)
             self.status_var.set(summary.replace("\n", " "))
             messagebox.showwarning(
                 self.tr("爬蟲下載計畫被擋下", "Crawler download plan blocked"),
@@ -502,8 +513,23 @@ class CrawlerAssetWorkflowMixin:
             self.main_notebook.select(self.downloader_tab)
         resolved_path = written_paths.get("resolved", "")
         summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
+        self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, added)
+        self.refresh_crawler_asset_plan_row(result.asset_id)
         self.status_var.set(summary.splitlines()[0])
         messagebox.showinfo(self.tr("爬蟲下載計畫已建立", "Crawler download plan built"), summary, parent=getattr(self, "root", None))
+
+    def refresh_crawler_asset_plan_row(self, asset_id: str) -> None:
+        """只更新單列結果，避免送進下載器後整張表閃動或失去選取。"""
+
+        if not hasattr(self, "crawler_asset_tree"):
+            return
+        asset = getattr(self, "crawler_assets_by_id", {}).get(asset_id)
+        if asset is None or asset_id not in self.crawler_asset_tree.get_children():
+            return
+        self.crawler_asset_tree.item(asset_id, values=self.crawler_asset_row_values(asset))
+        self.crawler_asset_tree.selection_set(asset_id)
+        self.crawler_asset_tree.focus(asset_id)
+        self.on_crawler_asset_select()
 
     def toggle_selected_crawler_asset_archive(self) -> None:
         asset = self.selected_crawler_asset()
@@ -586,6 +612,26 @@ def crawler_asset_download_plan_summary_text(
         zh = f"{zh}\n\nResolved plan：{resolved_path}"
         en = f"{en}\n\nResolved plan: {resolved_path}"
     return tr(zh, en)
+
+
+def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
+    """產生表格用的短狀態；詳細說明仍由 summary text 負責。"""
+
+    bucket = str(getattr(result, "outcome_bucket", "") or "")
+    review = int(getattr(result, "review_required_count", 0) or 0)
+    blocked = bool(getattr(result, "blocked", False))
+    if blocked or bucket == "blocked":
+        reason = str(getattr(result, "blocked_reason", "") or "blocked")
+        return f"⛔ {reason}"
+    if bucket == "ready_to_download":
+        return f"🟢 已加入 {added_count}"
+    if bucket == "partial_review_required":
+        return f"🟡 已加入 {added_count} / 待辦 {review}"
+    if bucket == "review_required":
+        return f"🟡 待 Adapter {review}"
+    if bucket == "zero_candidates":
+        return "⚪ 零候選"
+    return "⚪ 無可執行"
 
 
 def crawler_asset_state_label(asset: CrawlerAsset) -> str:

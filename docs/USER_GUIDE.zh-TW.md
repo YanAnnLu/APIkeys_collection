@@ -468,6 +468,8 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
    - `零候選`：沒有找到符合界域的資料，請放寬時間 / 空間 / 筆數條件或重新擷取清單。
    - `被封存 / 停用`：必須先解除封存或啟用該爬蟲資產。
 
+送進下載器後，表格的「下一步」欄與右側 Crawler Passport 會留下本次結果的短標籤，例如 `已加入 3`、`已加入 1 / 待辦 2`、`待 Adapter 2`、`零候選` 或 blocked reason。這讓你回到爬蟲資產分頁時仍能看出剛剛按下動作後發生了什麼；目前這是本次 UI session 的狀態提示，正式跨 session 履歷會等後續 profile / event log 收斂。
+
 系統會把計畫草稿寫到：
 
 ```text

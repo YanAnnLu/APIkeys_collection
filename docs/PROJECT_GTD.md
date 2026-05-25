@@ -9,7 +9,8 @@ Last updated: 2026-05-25
 - [x] 測試補上界域 payload 轉換與 service 產生 direct download plan 的 regression；Tk headless 測試也改成驗證它會啟動背景計畫建立工作。
 - [x] 精修 plan 建立結果：`CrawlerAssetDownloadPlanResult` 現在提供 `outcome_bucket` / `user_next_action`，Tk 只依後端狀態顯示「可直接下載、部分待辦、需 Adapter review、零候選、被封存/停用」等結果，不再自行解析 resolved plan。
 - [x] Tk 成功/待辦訊息改為產品化摘要：直接可下載會提示去下載器使用開始 / 暫停；review-required 會明確說明要開 Adapter review 或調整界域；zero candidates 會提示放寬條件或重新擷取清單。
-- [ ] 下一輪：把同一組 `outcome_bucket` 顯示成爬蟲卡片 badge / 待辦徽章，並把 Adapter review 入口做成更直覺的使用者流程。
+- [x] Tk 爬蟲資產表格與右側 passport 會保留「上次送進下載器」短狀態，`ready_to_download`、`partial_review_required`、`review_required`、`zero_candidates`、`blocked` 會被轉成表格可掃描的狀態標籤，讓使用者不用只靠一次性彈窗記憶結果。
+- [ ] 下一輪：把同一組 `outcome_bucket` 延伸成卡片牆 badge / 待辦徽章，並把 Adapter review 入口做成更直覺的使用者流程。
 
 ## 2026-05-24 K 槽概念樣本庫 / CODE_KM 治理心法
 

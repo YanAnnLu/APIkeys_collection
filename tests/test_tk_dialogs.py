@@ -34,7 +34,11 @@ from frontends.tk.dialogs import (
     UiLanguageSettingsDialog,
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
-from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin, crawler_asset_download_plan_summary_text
+from frontends.tk.crawler_asset_workflows import (
+    CrawlerAssetWorkflowMixin,
+    crawler_asset_download_plan_summary_text,
+    crawler_asset_plan_outcome_label,
+)
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -373,6 +377,35 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("直接下載 3 筆", message)
         self.assertIn("已加入下載器 3 筆", message)
         self.assertIn("開始 / 暫停", message)
+
+    def test_crawler_asset_plan_outcome_label_shortens_common_buckets(self) -> None:
+        ready = SimpleNamespace(blocked=False, outcome_bucket="ready_to_download", review_required_count=0)
+        partial = SimpleNamespace(blocked=False, outcome_bucket="partial_review_required", review_required_count=2)
+        review = SimpleNamespace(blocked=False, outcome_bucket="review_required", review_required_count=2)
+        zero = SimpleNamespace(blocked=False, outcome_bucket="zero_candidates", review_required_count=0)
+        blocked = SimpleNamespace(blocked=True, outcome_bucket="blocked", blocked_reason="missing_credentials")
+
+        self.assertEqual("🟢 已加入 3", crawler_asset_plan_outcome_label(ready, 3))
+        self.assertEqual("🟡 已加入 1 / 待辦 2", crawler_asset_plan_outcome_label(partial, 1))
+        self.assertEqual("🟡 待 Adapter 2", crawler_asset_plan_outcome_label(review, 0))
+        self.assertEqual("⚪ 零候選", crawler_asset_plan_outcome_label(zero, 0))
+        self.assertEqual("⛔ missing_credentials", crawler_asset_plan_outcome_label(blocked, 0))
+
+    def test_crawler_asset_row_values_use_last_plan_outcome(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.crawler_asset_plan_outcomes = {"demo_index": "🟢 已加入 1"}
+
+        values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
+
+        self.assertEqual("🟢 已加入 1", values[-1])
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)
