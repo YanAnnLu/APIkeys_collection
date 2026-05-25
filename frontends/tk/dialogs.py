@@ -1443,7 +1443,13 @@ class AdapterReviewDialog:
                 f"landing_url: {item.landing_url or '-'}",
                 f"download_status: {item.download_status or '-'}",
                 f"import_status: {item.import_status or '-'}",
+                f"content_source_format: {getattr(item, 'content_source_format', '') or '-'}",
+                f"content_family: {getattr(item, 'content_family', '') or '-'}",
+                f"content_parser_id: {getattr(item, 'content_parser_id', '') or '-'}",
+                f"content_import_status: {getattr(item, 'content_import_status', '') or '-'}",
+                f"content_review_bucket: {getattr(item, 'content_review_bucket', '') or '-'}",
                 f"reason: {item.reason or '-'}",
+                f"content_reason: {getattr(item, 'content_reason', '') or '-'}",
             ]
         )
 

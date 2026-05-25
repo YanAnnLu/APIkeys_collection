@@ -231,6 +231,15 @@ class DatasetDownloadPlanTests(unittest.TestCase):
                 "source_url": "https://example.test/select",
                 "required_action": "resolve_source_to_direct_download_entries",
             },
+            "content_detection": {"source_format": "netcdf", "confidence": 0.8},
+            "content_parser": {
+                "source_format": "netcdf",
+                "content_family": "scientific_grid_or_array",
+                "import_status": "manual_review_required",
+                "parser_id": "scientific_grid_review",
+                "review_bucket": "content_parser_required",
+                "reason": "NetCDF requires a dedicated parser.",
+            },
         }
 
         payload = adapter_review_agent_payload({"providers": [entry]})
@@ -243,6 +252,11 @@ class DatasetDownloadPlanTests(unittest.TestCase):
         self.assertEqual("ExampleSelectorAdapter", items[0].adapter_id)
         self.assertEqual("resolve_source_to_direct_download_entries", items[0].required_action)
         self.assertEqual("source_resolution_required", items[0].outcome_bucket)
+        self.assertEqual({"content_parser_required": 1}, payload["summary"]["by_content_review_bucket"])
+        self.assertEqual({"scientific_grid_review": 1}, payload["summary"]["by_content_parser"])
+        self.assertEqual("netcdf", items[0].content_source_format)
+        self.assertEqual("scientific_grid_review", items[0].to_dict()["content_parser_id"])
+        self.assertEqual("content_parser_required", items[0].to_dict()["content_review_bucket"])
 
     def test_adapter_review_payload_marks_downloaded_transform_outcome(self) -> None:
         entry = {

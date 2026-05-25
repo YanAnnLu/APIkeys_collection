@@ -35,6 +35,12 @@ class AdapterReviewItem:
     download_status: str
     import_status: str
     plan_status: str
+    content_source_format: str = ""
+    content_family: str = ""
+    content_parser_id: str = ""
+    content_import_status: str = ""
+    content_review_bucket: str = ""
+    content_reason: str = ""
 
     def to_dict(self) -> dict[str, object]:
         # 輸出欄位維持扁平結構，讓 CLI JSON、Tk table 與 agent prompt 都容易消費。
@@ -57,6 +63,12 @@ class AdapterReviewItem:
             "download_status": self.download_status,
             "import_status": self.import_status,
             "plan_status": self.plan_status,
+            "content_source_format": self.content_source_format,
+            "content_family": self.content_family,
+            "content_parser_id": self.content_parser_id,
+            "content_import_status": self.content_import_status,
+            "content_review_bucket": self.content_review_bucket,
+            "content_reason": self.content_reason,
         }
 
 
@@ -75,6 +87,8 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
     eligibility = entry.get("download_eligibility") if isinstance(entry.get("download_eligibility"), dict) else {}
     import_plan = entry.get("import_plan") if isinstance(entry.get("import_plan"), dict) else {}
     review = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
+    content_detection = entry.get("content_detection") if isinstance(entry.get("content_detection"), dict) else {}
+    content_parser = entry.get("content_parser") if isinstance(entry.get("content_parser"), dict) else {}
     download_status = str(eligibility.get("status") or "")
     import_status = str(import_plan.get("status") or "")
     needs_review = bool(review) or download_status == "adapter_required" or import_status in REVIEW_IMPORT_STATUSES
@@ -120,6 +134,16 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
         download_status=download_status,
         import_status=import_status,
         plan_status=str(entry.get("plan_status") or ""),
+        content_source_format=first_text(
+            content_detection.get("source_format"),
+            content_parser.get("source_format"),
+            entry.get("source_format"),
+        ),
+        content_family=first_text(content_parser.get("content_family")),
+        content_parser_id=first_text(content_parser.get("parser_id")),
+        content_import_status=first_text(content_parser.get("import_status")),
+        content_review_bucket=first_text(content_parser.get("review_bucket")),
+        content_reason=first_text(content_parser.get("reason")),
     )
 
 
@@ -158,11 +182,17 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
     by_adapter: dict[str, int] = {}
     by_action: dict[str, int] = {}
     by_outcome: dict[str, int] = {}
+    by_content_review_bucket: dict[str, int] = {}
+    by_content_parser: dict[str, int] = {}
     for item in items:
         # 同時統計 adapter 與 action，可以看出是同一來源缺 resolver，還是多種轉換工作混在一起。
         by_adapter[item.adapter_id] = by_adapter.get(item.adapter_id, 0) + 1
         by_action[item.required_action] = by_action.get(item.required_action, 0) + 1
         by_outcome[item.outcome_bucket] = by_outcome.get(item.outcome_bucket, 0) + 1
+        if item.content_review_bucket:
+            by_content_review_bucket[item.content_review_bucket] = by_content_review_bucket.get(item.content_review_bucket, 0) + 1
+        if item.content_parser_id:
+            by_content_parser[item.content_parser_id] = by_content_parser.get(item.content_parser_id, 0) + 1
     return {
         "summary": {
             "item_count": len(items),
@@ -170,6 +200,8 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
             "by_adapter": by_adapter,
             "by_action": by_action,
             "by_outcome": by_outcome,
+            "by_content_review_bucket": by_content_review_bucket,
+            "by_content_parser": by_content_parser,
         },
         "items": [item.to_dict() for item in items],
     }
