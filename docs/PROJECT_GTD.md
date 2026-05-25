@@ -14,6 +14,7 @@ Last updated: 2026-05-25
 - [x] 新增 `api_launcher/crawlers/source_patterns.py`，把「來源介面類型」從機構名稱中解耦，先用 detector registry 辨識 STAC / CKAN / ERDDAP / Socrata / OGC / CMR / HTML file index / unknown。
 - [x] 新增 detector 測試，鎖定 STAC JSON evidence、ERDDAP info/index probe、HTML file index fallback，以及 CMR 不污染非 CMR URL 的 guard。
 - [x] 補強 detector 合約測試：CKAN `package_search`、Socrata `api/views.json`、OGC `conformsTo` / `collections`，以及 ambiguous collections payload 低信心時必須停在 `unknown`。
+- [x] 補強 OGC/WMS 老式入口辨識：純 WMS `GetCapabilities` XML 現在能提供足夠 evidence 進入 OGC pattern，不會因缺少 OGC API JSON 而被誤判為 `unknown`。
 - [x] 新增 `api_launcher/crawler_asset_bound_forms.py` 與 Tk `CrawlerAssetBoundDialog`，讓 crawler asset 的 `bounds_schema` 可以動態生成前端中立表單與 payload。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。

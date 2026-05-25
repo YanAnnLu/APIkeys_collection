@@ -97,6 +97,26 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertIn("json_contains_collections", result.evidence)
         self.assertIn("conforms_to_mentions_ogc", result.evidence)
 
+    def test_ogc_wms_capabilities_xml_is_enough_for_pattern_detection(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            if url == "https://maps.example.test/wms?service=WMS&request=GetCapabilities":
+                return PatternProbeResponse(
+                    url=url,
+                    text=(
+                        '<WMS_Capabilities xmlns="http://www.opengis.net/wms">'
+                        "<Service><Name>WMS</Name></Service></WMS_Capabilities>"
+                    ),
+                    headers={"content-type": "text/xml"},
+                )
+            return None
+
+        result = detect_source_interface_pattern("https://maps.example.test/wms", fetcher=fetcher)
+
+        self.assertEqual("ogc", result.pattern_id)
+        self.assertEqual("ogc_api_records", result.source_type_hint)
+        self.assertIn("wms_get_capabilities_response", result.evidence)
+        self.assertIn("wms_capabilities_document", result.evidence)
+
     def test_cmr_detector_does_not_pollute_non_cmr_urls(self) -> None:
         calls: list[str] = []
 

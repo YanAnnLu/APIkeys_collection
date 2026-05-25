@@ -192,6 +192,8 @@ def detect_ogc(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatte
     cap_response = fetcher(url + ("&" if urllib.parse.urlparse(url).query else "?") + "service=WMS&request=GetCapabilities", timeout)
     if cap_response is not None and ("GetCapabilities" in cap_response.text[:8000] or "WMS_Capabilities" in cap_response.text[:8000]):
         evidence.append("wms_get_capabilities_response")
+        if "WMS_Capabilities" in cap_response.text[:8000] or "opengis.net/wms" in cap_response.text[:8000].lower():
+            evidence.append("wms_capabilities_document")
     return score_pattern("ogc", evidence)
 
 
