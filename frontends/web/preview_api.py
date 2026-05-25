@@ -11,9 +11,11 @@ from api_launcher.crawler_asset_bound_forms import (
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_display import (
+    adapter_review_display_payload,
     crawler_asset_bound_form_payload,
     crawler_asset_card_capabilities,
     crawler_asset_flow_steps,
+    crawler_asset_plan_outcome_payload,
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
@@ -187,6 +189,8 @@ def crawler_asset_plan_preview(
         )
         conn.commit()
     response["plan_result"] = result.to_dict()
+    response["plan_outcome"] = crawler_asset_plan_outcome_payload(result)
+    response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
     response["next_action"] = result.user_next_action
     return response
 

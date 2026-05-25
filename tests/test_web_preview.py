@@ -5,7 +5,9 @@ import socket
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
+from api_launcher.crawler_asset_display import adapter_review_display_payload, crawler_asset_plan_outcome_payload
 from frontends.web.server import build_web_preview_server
 from frontends.web.preview_api import (
     crawler_asset_cards,
@@ -114,6 +116,49 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("landsat-c2", bounds["facet_values"]["collection"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), bounds["facet_values"]["bbox"])
         self.assertEqual(10, bounds["facet_values"]["limit"])
+
+    def test_shared_display_schema_describes_plan_outcome(self) -> None:
+        result = SimpleNamespace(
+            blocked=False,
+            outcome_bucket="partial_review_required",
+            direct_download_count=1,
+            review_required_count=2,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            next_action="adapter_review_required",
+            blocked_reason="",
+        )
+
+        payload = crawler_asset_plan_outcome_payload(result, added_count=1)
+
+        self.assertEqual("partial_review_required", payload["outcome_bucket"])
+        self.assertEqual("部分可下載", payload["display_label"])
+        self.assertEqual("warning", payload["display_tone"])
+        self.assertIn("仍有 2 筆需要 Adapter 審核", payload["summary"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+
+    def test_shared_display_schema_summarizes_adapter_review_outcomes(self) -> None:
+        plan = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "dataset_title": "Demo Dataset",
+                    "download_eligibility": {"status": "adapter_required"},
+                    "import_plan": {"status": "adapter_review_required"},
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "source_url": "https://example.test/catalog",
+                        "required_action": "resolve_source_to_direct_download_entries",
+                    },
+                }
+            ]
+        }
+
+        payload = adapter_review_display_payload(plan)
+
+        self.assertEqual(1, payload["item_count"])
+        self.assertEqual({"source_resolution_required": 1}, payload["by_outcome"])
+        self.assertEqual("來源解析待辦", payload["outcomes"][0]["display_label"])
 
     def test_server_scans_next_port_when_preferred_port_is_busy(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:

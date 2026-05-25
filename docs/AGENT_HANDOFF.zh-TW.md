@@ -7,10 +7,10 @@
 ## 2026-05-26 Web Preview / 後端流程視覺化
 
 - Web Preview 目前已從 `tem/ui-aseat-ui` 只吸收構圖與互動節奏，產品語彙已收斂回 RRKAL：爬蟲資產、資產護照、界域輸入、下載計畫、本機互動紀錄、後端 JSON。
-- `api_launcher/crawler_asset_display.py` 現在負責 crawler asset 的 UI 共用顯示 schema：`flow_steps`、capability `display_label`、bound field `display_label` / `display_help` 都由後端產生；Web/Tk/Qt 只負責呈現，不自行推測 readiness。
-- `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
+- `api_launcher/crawler_asset_display.py` 現在負責 crawler asset 的 UI 共用顯示 schema：`flow_steps`、capability `display_label`、bound field `display_label` / `display_help`、`plan_outcome` 與 Adapter review `by_outcome` 顯示摘要都由後端產生；Web/Tk/Qt 只負責呈現，不自行推測 readiness。
+- `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help` / `display_tone` / `summary`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
-- 下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 plan outcome / adapter review 的視覺化接到同一份 display schema；不要把外部參考命名搬回 UI。
+- 下一位 agent 若繼續 Web/Tk/Qt 對齊，優先讓 Tk 的爬蟲資產分頁改用同一份 display schema，並把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章；不要把外部參考命名搬回 UI。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

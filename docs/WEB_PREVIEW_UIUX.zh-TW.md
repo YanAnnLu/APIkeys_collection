@@ -40,6 +40,7 @@ Web Preview 不做的事：
 - `frontends/web/static/app.js`：呼叫 JSON endpoint 並渲染互動。
 - `frontends/shared/ui_tokens.json`：Tk / Web / 未來 Qt 可共用的設計 token 種子。
 - `scripts/run_web_preview.cmd`：本機啟動入口。
+- `api_launcher/crawler_asset_display.py`：Web/Tk/Qt 共用的顯示 schema。它把 `field_id`、`capability_id`、`outcome_bucket`、Adapter review `by_outcome` 轉成 `display_label`、`display_help`、`display_tone`、`summary` 與 `next_action_label`，避免每個 UI 外殼自行推理後端狀態。
 
 資料流：
 
@@ -106,6 +107,7 @@ http://127.0.0.1:8765/
 - 上方「目前選取的爬蟲資產」主視覺區承接 `tem` 的 hero/operation rail 精神，但只顯示真實後端欄位與真實操作入口。
 - 選取資產後的流程條由 `api_launcher/crawler_asset_display.py` 產生 `flow_steps`，Web/Tk/Qt 只負責視覺化 `seed -> source_pattern -> bounds -> download_plan -> review_gate`，避免各 UI 自己推測 crawler readiness。
 - 表單欄位與能力列表的顯示文字由同一個 display schema 依 `field_id` / `capability_id` 產生 `display_label` / `display_help`，避免舊後端 label 的亂碼或平台差異直接進入 UI；後端契約仍保留原始欄位。
+- 下載計畫結果與 Adapter 待辦摘要也由同一個 display schema 產生：`plan_outcome` 會帶 `outcome_bucket`、`display_label`、`display_tone`、`summary`、`next_action_label`；`adapter_review` 會帶 `item_count`、`by_outcome` 與可顯示的 outcome 分組。Web 只呈現這份 payload，不在 `app.js` 裡重寫業務分支。
 - 下方「本機互動紀錄」只記錄本機互動與後端回應，不偽造下載進度。
 - 「後端 JSON」保留完整 payload，讓 agent 與人類都能追查 service contract。
 

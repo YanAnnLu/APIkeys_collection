@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
+from api_launcher.adapter_review import adapter_review_agent_payload
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundFormField, CrawlerAssetBoundFormSpec
 from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, CrawlerAssetCapability
 from api_launcher.crawler_assets import CrawlerAsset
@@ -29,6 +30,58 @@ FIELD_DISPLAY_TEXT = {
     "search_terms": ("搜尋關鍵字", "用逗號分隔多個搜尋詞。"),
     "format": ("輸出格式", "指定偏好的資料格式；未知格式會留在 adapter review。"),
     "credential_profile": ("憑證設定檔", "需要 API key 或帳號時，由爬蟲資產讀取對應的本機私有設定。"),
+}
+
+PLAN_OUTCOME_DISPLAY = {
+    "ready_to_download": {
+        "display_label": "可開始下載",
+        "display_tone": "success",
+        "summary": "已建立可直接下載的計畫。",
+    },
+    "partial_review_required": {
+        "display_label": "部分可下載",
+        "display_tone": "warning",
+        "summary": "部分項目已可下載，仍有項目需要 Adapter 審核。",
+    },
+    "review_required": {
+        "display_label": "待 Adapter 審核",
+        "display_tone": "review",
+        "summary": "目前沒有可直接下載項目，需要先審核或調整界域。",
+    },
+    "zero_candidates": {
+        "display_label": "零候選",
+        "display_tone": "neutral",
+        "summary": "本次界域沒有抓到候選資料。",
+    },
+    "empty_plan": {
+        "display_label": "空計畫",
+        "display_tone": "neutral",
+        "summary": "後端沒有產生可執行的下載計畫。",
+    },
+    "blocked": {
+        "display_label": "已阻擋",
+        "display_tone": "danger",
+        "summary": "此爬蟲資產目前被設定或狀態擋下。",
+    },
+}
+
+NEXT_ACTION_DISPLAY_LABELS = {
+    "open_downloader_and_start_or_pause_queue": "前往下載器開始或暫停佇列",
+    "open_adapter_review_or_adjust_bounds": "開啟 Adapter 審核或調整界域",
+    "adjust_bounds_or_refresh_source_listing": "放寬界域或重新抓取清單",
+    "review_resolved_download_plan": "檢查後端 resolved plan",
+    "select_crawler_asset": "先選擇一個爬蟲資產",
+    "enable_before_building_download_plan": "先啟用爬蟲資產",
+    "unarchive_before_building_download_plan": "先解除封存",
+    "refresh_or_repair_crawler_source_catalog": "重新整理或修復來源設定",
+}
+
+ADAPTER_REVIEW_OUTCOME_DISPLAY = {
+    "source_resolution_required": ("來源解析待辦", "review"),
+    "downloaded_payload_transform": ("下載後轉換待辦", "warning"),
+    "import_transform_required": ("匯入轉換待辦", "warning"),
+    "import_adapter_required": ("匯入 Adapter 待辦", "review"),
+    "adapter_review_required": ("Adapter 審核待辦", "review"),
 }
 
 
@@ -156,11 +209,119 @@ def crawler_asset_flow_steps(
     return [step.to_dict() for step in steps]
 
 
+def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) -> dict[str, object]:
+    """Return a frontend-neutral display payload for one crawler-asset plan result.
+
+    Tk/Web/Qt should render this payload instead of rebuilding outcome labels from
+    ``outcome_bucket``.  The bucket remains the stable machine-readable contract;
+    display strings here are only the shared presentation layer.
+    """
+
+    bucket = str(getattr(result, "outcome_bucket", "") or "empty_plan")
+    direct = _safe_int(getattr(result, "direct_download_count", 0))
+    review = _safe_int(getattr(result, "review_required_count", 0))
+    blocked_reason = str(getattr(result, "blocked_reason", "") or "")
+    next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "")
+    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
+    summary = _plan_outcome_summary(
+        bucket,
+        default_summary=str(display["summary"]),
+        direct=direct,
+        review=review,
+        added_count=added_count,
+        blocked_reason=blocked_reason,
+    )
+    return {
+        "outcome_bucket": bucket,
+        "display_label": display["display_label"],
+        "display_tone": display["display_tone"],
+        "summary": summary,
+        "direct_download_count": direct,
+        "review_required_count": review,
+        "added_count": added_count,
+        "blocked": bool(getattr(result, "blocked", False)) or bucket == "blocked",
+        "blocked_reason": blocked_reason,
+        "next_action": next_action,
+        "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
+    }
+
+
+def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str, object]:
+    """Summarize adapter-review work for UI surfaces without parsing prose."""
+
+    review_payload = adapter_review_agent_payload(plan_payload if isinstance(plan_payload, dict) else {})
+    summary = review_payload.get("summary") if isinstance(review_payload.get("summary"), dict) else {}
+    by_outcome = summary.get("by_outcome") if isinstance(summary.get("by_outcome"), dict) else {}
+    outcomes = [
+        {
+            "outcome_bucket": str(bucket),
+            "display_label": adapter_review_outcome_label(str(bucket)),
+            "display_tone": adapter_review_outcome_tone(str(bucket)),
+            "count": _safe_int(count),
+        }
+        for bucket, count in sorted(by_outcome.items())
+    ]
+    return {
+        "item_count": _safe_int(summary.get("item_count")),
+        "adapter_count": _safe_int(summary.get("adapter_count")),
+        "by_outcome": dict(by_outcome),
+        "outcomes": outcomes,
+        "items": review_payload.get("items", []),
+    }
+
+
+def adapter_review_outcome_label(bucket: str) -> str:
+    return ADAPTER_REVIEW_OUTCOME_DISPLAY.get(bucket, (bucket or "unknown", "review"))[0]
+
+
+def adapter_review_outcome_tone(bucket: str) -> str:
+    return ADAPTER_REVIEW_OUTCOME_DISPLAY.get(bucket, (bucket or "unknown", "review"))[1]
+
+
+def plan_outcome_display_label(bucket: str) -> str:
+    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
+    return str(display["display_label"])
+
+
+def _plan_outcome_summary(
+    bucket: str,
+    *,
+    default_summary: str,
+    direct: int,
+    review: int,
+    added_count: int,
+    blocked_reason: str,
+) -> str:
+    if bucket == "ready_to_download":
+        return f"直接下載 {direct} 筆；已加入下載器 {added_count} 筆。"
+    if bucket == "partial_review_required":
+        return f"已加入下載器 {added_count} 筆；仍有 {review} 筆需要 Adapter 審核。"
+    if bucket == "review_required":
+        return f"{review} 筆需要 Adapter 審核；目前沒有可直接下載項目。"
+    if bucket == "zero_candidates":
+        return "本次界域沒有候選資料；請放寬時間、空間或查詢條件。"
+    if bucket == "blocked" and blocked_reason:
+        return f"被阻擋：{blocked_reason}。"
+    return default_summary
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0
+
+
 __all__ = [
+    "adapter_review_display_payload",
+    "adapter_review_outcome_label",
+    "adapter_review_outcome_tone",
     "crawler_asset_bound_form_payload",
     "crawler_asset_card_capabilities",
     "crawler_asset_flow_steps",
+    "crawler_asset_plan_outcome_payload",
     "capability_display_label",
     "bound_field_display_label",
     "bound_field_display_help",
+    "plan_outcome_display_label",
 ]

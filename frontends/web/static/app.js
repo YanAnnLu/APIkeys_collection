@@ -317,7 +317,16 @@ async function submitBounds(execute) {
   try {
     const payload = await postJson(url, values);
     writeJson(payload);
-    addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
+    if (payload.plan_outcome) {
+      formState.textContent = payload.plan_outcome.display_label || payload.next_action || "review";
+      formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
+      addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action || "review");
+    } else {
+      addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
+    }
+    if (payload.adapter_review?.item_count) {
+      addMission("Adapter 待辦", `${payload.adapter_review.item_count} 筆 / ${adapterReviewOutcomeText(payload.adapter_review.outcomes || [])}`);
+    }
   } catch (error) {
     writeJson({ error: String(error), asset_id: selectedAssetId });
   }
@@ -426,6 +435,18 @@ function flowStatusClass(status) {
   if (["complete", "ready", "bounded", "selectable"].includes(status)) return "complete";
   if (["warning", "neutral"].includes(status)) return "warning";
   return "review";
+}
+
+function toneClass(tone) {
+  if (["success", "complete", "ready"].includes(tone)) return "success";
+  if (["warning", "review"].includes(tone)) return "warning";
+  if (["danger", "blocked"].includes(tone)) return "danger";
+  return "neutral";
+}
+
+function adapterReviewOutcomeText(outcomes) {
+  if (!outcomes.length) return "無待辦分類";
+  return outcomes.map((outcome) => `${outcome.display_label || outcome.outcome_bucket} ${outcome.count}`).join(" / ");
 }
 
 function renderMissionQueue() {
