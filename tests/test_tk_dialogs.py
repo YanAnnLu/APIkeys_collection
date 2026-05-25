@@ -546,6 +546,46 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("內容 Parser 待辦 1", ui.crawler_asset_content_review_outcomes["demo_index"])
         self.assertEqual(1, crawler_asset_review_count_from_plan(ui.crawler_asset_resolved_plans["demo_index"]))
 
+    def test_crawler_asset_plan_outcome_event_records_content_review_badge(self) -> None:
+        result = SimpleNamespace(
+            asset_id="demo_index",
+            blocked=False,
+            outcome_bucket="review_required",
+            direct_download_count=0,
+            review_required_count=1,
+            user_next_action="open_adapter_review_or_adjust_bounds",
+            resolved_plan={
+                "providers": [
+                    {
+                        "provider_id": "demo_provider",
+                        "dataset_id": "demo_dataset",
+                        "adapter_review": {
+                            "adapter_id": "demo_adapter",
+                            "source_url": "https://example.test/catalog",
+                        },
+                        "content_parser": {
+                            "source_format": "netcdf",
+                            "parser_id": "scientific_grid_review",
+                            "import_status": "manual_review_required",
+                            "review_bucket": "content_parser_required",
+                        },
+                        "download_eligibility": {"status": "adapter_required"},
+                    }
+                ]
+            },
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+
+        with patch("frontends.tk.crawler_asset_workflows.log_event") as event_log:
+            CrawlerAssetWorkflowMixin.record_crawler_asset_plan_outcome(ui, result, 0, {"resolved": "state/demo.resolved.json"})
+
+        context = event_log.call_args.kwargs["context"]
+        self.assertEqual("內容 Parser 待辦 1", context["content_review_label"])
+        self.assertEqual("內容 Parser 待辦 1", context["content_review"]["display_label"])
+        self.assertEqual("review", context["content_review"]["display_tone"])
+        self.assertEqual(1, context["content_review"]["count"])
+        self.assertTrue(context["content_review"]["has_review"])
+
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)
         ui.download_plan_entries_by_provider = {}

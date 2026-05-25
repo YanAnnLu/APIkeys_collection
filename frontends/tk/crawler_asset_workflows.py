@@ -169,6 +169,9 @@ class CrawlerAssetWorkflowMixin:
                 continue
             self.crawler_asset_plan_outcomes[asset_id] = outcome_label
             content_review_label = str(context.get("content_review_label") or "").strip()
+            content_review_payload = context.get("content_review") if isinstance(context.get("content_review"), dict) else {}
+            if not content_review_label and isinstance(content_review_payload, dict):
+                content_review_label = str(content_review_payload.get("display_label") or "").strip()
             if content_review_label:
                 self.crawler_asset_content_review_outcomes[asset_id] = content_review_label
             resolved_plan_path = str(context.get("resolved_plan") or "").strip()
@@ -601,6 +604,10 @@ class CrawlerAssetWorkflowMixin:
     def record_crawler_asset_plan_outcome(self, result: object, added_count: int, written_paths: dict[str, str]) -> None:
         """把 UI 可見結果寫成事件，供 handoff、重開 UI 與後續 agent 讀取。"""
 
+        outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
+        content_review_payload = (
+            outcome_payload.get("content_review") if isinstance(outcome_payload.get("content_review"), dict) else {}
+        )
         log_event(
             "crawler_asset_plan_outcome_recorded",
             "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",
@@ -613,9 +620,8 @@ class CrawlerAssetWorkflowMixin:
                 "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
                 "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
                 "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
-                "content_review_label": str(
-                    crawler_asset_plan_outcome_payload(result, added_count=added_count).get("content_review_label") or ""
-                ),
+                "content_review_label": str(outcome_payload.get("content_review_label") or ""),
+                "content_review": content_review_payload,
                 "resolved_plan": written_paths.get("resolved", ""),
                 "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
             },
