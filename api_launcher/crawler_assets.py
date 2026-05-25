@@ -24,6 +24,18 @@ from api_launcher.dataset_seed_coverage import source_seed_coverage
 from api_launcher.paths import catalog_file, local_config_file
 
 
+SOURCE_SURFACE_LABELS: dict[str, str] = {
+    # UI card/passport labels should come from this registry instead of
+    # branching on source_type. Unknown API-like endpoints still fall back to
+    # endpoint shape detection in source_surface_label().
+    "html_file_index": "file_index",
+    "ogc_wms_capabilities": "map_service",
+    "ncei_search": "api",
+    "cmr_collections": "api",
+    "ckan_package_search": "api",
+}
+
+
 @dataclass(frozen=True)
 class CrawlerAsset:
     """把一個資料入口視為可治理的爬蟲資產，而不是單次工作。"""
@@ -231,11 +243,12 @@ def trust_score_for_asset(maturity: str, risk_tier: str, complete_seed_ready: bo
 
 
 def source_surface_label(source: DatasetDiscoverySource) -> str:
+    known = SOURCE_SURFACE_LABELS.get(source.source_type)
+    if known is not None:
+        return known
     endpoint = source.endpoint_url.lower()
-    if endpoint.endswith(".json") or "api" in endpoint or source.source_type in {"ncei_search", "cmr_collections", "ckan_package_search"}:
+    if endpoint.endswith(".json") or "api" in endpoint:
         return "api"
-    if source.source_type == "html_file_index":
-        return "file_index"
     return "catalog"
 
 
@@ -259,6 +272,7 @@ __all__ = [
     "BUILD_DOWNLOAD_PLAN",
     "CrawlerAsset",
     "CrawlerAssetCapability",
+    "SOURCE_SURFACE_LABELS",
     "crawler_asset_from_source",
     "load_crawler_asset_source",
     "load_crawler_assets",

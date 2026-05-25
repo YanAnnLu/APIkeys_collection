@@ -67,6 +67,8 @@ state/logs/launcher_events.jsonl
 
 同一輪也修正 seed coverage 對 WMS 的理解：`ogc_wms_capabilities` 已接 crawler，且 capabilities XML 本身就是可列 layer 的入口清單，因此應歸入 entry-listing seed capability。這避免展示或 crawler asset 卡片把 WMS 誤標成 `add_or_repair_supported_crawler_handler`。
 
+Crawler asset 的入口表面標籤也應該由後端 registry 提供，而不是 UI 自己猜。`SOURCE_SURFACE_LABELS` 目前負責 file index、WMS map service 與少數 API catalog 標籤；未知 endpoint 仍由 endpoint shape fallback 成 `api` 或 `catalog`。未來卡片牆、Logo、狀態 chip 與篩選器應優先讀 `asset.source_surface`。
+
 同日第三個切片把 profile 與 health 從 UI 推回後端：`api_launcher/crawler_asset_profiles.py` 保存 crawler 的本機偏好與憑證參照，例如啟用/封存、credential profile、API key 環境變數名稱、帳號提示、排程、限流、重試、seed scope、官方 logo/favicon、本機自訂圖片與授權備註；`api_launcher/crawler_asset_health.py` 則把 profile、能力契約與風險層級收斂成 `status_code`、emoji、reason、warning codes 與 `next_action`。這讓未來 Tk 卡片牆、Qt 卡片牆、CLI 稽核報告都能看到同一個爬蟲健康狀態，而不是在不同前端各自判斷。
 
 `tem/ui-aseat-ui/HANDOFF.md` 可作為 UI 精神參考：一個入口爬蟲是一張可治理的資產卡片，預設畫面應清爽掃描，細節放在右側 passport 或設定視窗；齒輪、封存、健康狀態、信任分數、成熟度、風險與任務隊列是 crawler asset 的產品語言。`tem/` 本身不是正式來源，不應直接加入 commit；要抽取的是互動規則與資訊架構。

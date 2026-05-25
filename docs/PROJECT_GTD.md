@@ -33,6 +33,7 @@ Last updated: 2026-05-25
 - [x] 新增 `api_launcher/crawler_asset_bound_forms.py` 與 Tk `CrawlerAssetBoundDialog`，讓 crawler asset 的 `bounds_schema` 可以動態生成前端中立表單與 payload。
 - [x] Crawler asset 界域 facet 分派已收斂到 `SOURCE_BOUND_FACETS` registry；`bounds_facets_for_source()` 不再維護 source_type if 鏈，且已補上 `ogc_wms_capabilities` 的 collection / bbox / time / format / limit 界域，避免已接 crawler 的 WMS 入口退回只有 limit。
 - [x] Seed coverage 已把 `ogc_wms_capabilities` 歸入 entry-listing 類型；WMS capabilities 來源現在會被標示為可完整列出 layer seed，而不是被誤導成需要補 crawler handler。
+- [x] Crawler asset 的入口表面標籤已收斂到 `SOURCE_SURFACE_LABELS` registry；WMS capabilities 在 UI 卡片/passport 中會標示為 `map_service`，file index 仍標示為 `file_index`，其餘未知 API-like endpoint 保留 endpoint shape fallback。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
 - [x] Source draft 服務層已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL，避免 local source draft 保存本機路徑或 credential-bearing URL。

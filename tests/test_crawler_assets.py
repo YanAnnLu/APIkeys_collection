@@ -80,6 +80,20 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(("version", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
         self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[1].maps_to[0])
         self.assertEqual("full entry", asset.seed_summary)
+        self.assertEqual("file_index", asset.source_surface)
+
+    def test_wms_source_surface_is_map_service_for_ui_cards(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_wms",
+            provider_id="demo_provider",
+            name="Demo WMS",
+            source_type="ogc_wms_capabilities",
+            endpoint_url="https://example.test/wms?service=WMS&request=GetCapabilities",
+        )
+
+        asset = crawler_asset_from_source(source)
+
+        self.assertEqual("map_service", asset.source_surface)
 
     def test_unsupported_source_is_visible_but_marked_as_handler_backlog(self) -> None:
         source = DatasetDiscoverySource(
