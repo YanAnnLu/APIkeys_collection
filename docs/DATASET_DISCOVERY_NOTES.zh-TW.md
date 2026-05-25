@@ -198,6 +198,8 @@ Detector 測試目前已覆蓋 STAC、CKAN、Socrata、OGC API JSON、OGC/WMS `G
 
 OGC family 目前分兩條 source type：`ogc_api_records` 負責 OGC API Records / Features JSON 目錄，`ogc_wms_capabilities` 負責老式 WMS `GetCapabilities` XML layer 清單。WMS 只產生 layer candidate 與 map service metadata，並優先把 `Request/GetMap` 的 `OnlineResource` 當成候選 `api_url`；真正的 GetMap 影像下載、bbox/time/style 參數化仍需後續 adapter resolver / content parser 切片。
 
+OGC API detector 不只讀使用者貼上的 URL 本身，也會 bounded probe `conformance`、`collections` 以及 origin fallback 的同名端點；這讓 root endpoint 沒有直接回傳完整 JSON，但標準 `/conformance` 和 `/collections` 存在的 OGC API Features / Records 入口仍能被辨識。若只有單獨 `collections` 欄位、沒有 OGC/OpenGIS conformance evidence，仍保持低信心並退回 `unknown`，避免把一般 catalog 或 STAC-like payload 硬判成 OGC。
+
 CKAN / Socrata detector 不應假設使用者一定貼站台首頁。若收到深層 dataset/resource URL，detector 會先嘗試 path-local probe，再 fallback 到同 origin 的 canonical API probe；這可提升「貼入口頁、資料集頁、API resource 頁」三種常見操作的容錯率。
 
 STAC detector 也不應假設使用者一定貼 root catalog；`/collections` endpoint 若回傳 collections payload，會以 `stac_collections_endpoint` evidence 判成 STAC，並交給既有 `stac_collections` crawler。

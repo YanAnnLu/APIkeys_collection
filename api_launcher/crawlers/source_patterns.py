@@ -201,15 +201,18 @@ def detect_socrata(url: str, fetcher: PatternFetcher, timeout: float) -> SourceP
 def detect_ogc(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
     api_evidence: list[str] = []
     wms_evidence: list[str] = []
-    data = json_from(fetcher(url, timeout))
-    if isinstance(data, dict):
-        conforms_to = data.get("conformsTo", [])
-        if "conformsTo" in data:
-            api_evidence.append("json_contains_conforms_to")
-        if "collections" in data:
-            api_evidence.append("json_contains_collections")
-        if any("ogcapi" in str(item).lower() or "opengis" in str(item).lower() for item in conforms_to):
-            api_evidence.append("conforms_to_mentions_ogc")
+    for probe_url in ogc_api_probe_urls(url):
+        data = json_from(fetcher(probe_url, timeout))
+        if isinstance(data, dict):
+            conforms_to = data.get("conformsTo", [])
+            if "conformsTo" in data:
+                api_evidence.append("json_contains_conforms_to")
+            if "collections" in data:
+                api_evidence.append("json_contains_collections")
+            if any("ogcapi" in str(item).lower() or "opengis" in str(item).lower() for item in conforms_to):
+                api_evidence.append("conforms_to_mentions_ogc")
+        if len(api_evidence) >= 3:
+            break
     cap_response = fetcher(wms_capabilities_probe_url(url), timeout)
     if cap_response is not None and ("GetCapabilities" in cap_response.text[:8000] or "WMS_Capabilities" in cap_response.text[:8000]):
         wms_evidence.append("wms_get_capabilities_response")
@@ -323,6 +326,16 @@ def ckan_probe_urls(url: str) -> tuple[str, ...]:
 def socrata_probe_urls(url: str) -> tuple[str, ...]:
     endpoint = "api/views.json?limit=1"
     return unique_urls(join_url(url, endpoint), urllib.parse.urljoin(origin_url(url), endpoint))
+
+
+def ogc_api_probe_urls(url: str) -> tuple[str, ...]:
+    return unique_urls(
+        url,
+        join_url(url, "conformance"),
+        join_url(url, "collections"),
+        urllib.parse.urljoin(origin_url(url), "conformance"),
+        urllib.parse.urljoin(origin_url(url), "collections"),
+    )
 
 
 def wms_capabilities_probe_url(url: str) -> str:
