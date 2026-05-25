@@ -68,6 +68,20 @@ class SourcePatternDraftTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not supported"):
             dataset_source_from_detected_url("https://example.test/api", detector=detector)
 
+    def test_non_http_source_url_is_rejected_before_detection(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            raise AssertionError("detector should not run for invalid source URL")
+
+        with self.assertRaisesRegex(ValueError, "absolute http"):
+            dataset_source_from_detected_url("file:///K:/private/source.json", detector=detector)
+
+    def test_source_url_with_embedded_credentials_is_rejected_before_detection(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            raise AssertionError("detector should not run for credential-bearing source URL")
+
+        with self.assertRaisesRegex(ValueError, "must not embed credentials"):
+            dataset_source_from_detected_url("https://user:secret@example.test/catalog", detector=detector)
+
 
 if __name__ == "__main__":
     unittest.main()

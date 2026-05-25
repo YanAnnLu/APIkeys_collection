@@ -45,6 +45,7 @@ def dataset_source_from_detected_url(
     normalized_url = url.strip()
     if not normalized_url:
         raise ValueError("source URL is required")
+    validate_source_url(normalized_url)
 
     detection = detect_url_pattern(
         normalized_url,
@@ -146,6 +147,14 @@ def detect_url_pattern(
             minimum_confidence=minimum_confidence,
         )
     return detect_source_interface_pattern(url, timeout=timeout, minimum_confidence=minimum_confidence)
+
+
+def validate_source_url(url: str) -> None:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("source URL must be an absolute http(s) URL")
+    if parsed.username or parsed.password:
+        raise ValueError("source URL must not embed credentials")
 
 
 def provider_id_from_url(parsed: urllib.parse.ParseResult) -> str:

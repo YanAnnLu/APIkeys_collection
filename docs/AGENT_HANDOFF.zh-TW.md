@@ -11,6 +11,7 @@
 - `api_launcher/adapter_plan_resolver.py` 產生 direct entry 時已補上 `content_detection` 與 `content_parser` 摘要，包含 parser id、import status 與 review bucket。下一步可把這些欄位接到 adapter review / download plan 的 UI 顯示層。
 - 新增 `tests/test_content_registry.py`，並已跑 `tests.test_content_registry`、`tests.test_dataset_download_plan`、`tests.test_adapter_plan_resolver`。測試也覆蓋 extensionless CSV 與 NetCDF direct asset 的 content parser 摘要。
 - Source pattern detector 測試已補 CKAN、Socrata、OGC 正例與 ambiguous collections payload 的 `unknown` fallback，避免通用蟲看起來支援多範式但缺少合約防線。
+- `api_launcher/source_pattern_drafts.py` 已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL；測試確認 invalid URL 不會觸發 detector，也不會寫入 local source draft。
 
 ## 2026-05-24 Tk 來源草稿入口與治理機制收斂
 
