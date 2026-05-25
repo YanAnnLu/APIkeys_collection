@@ -145,6 +145,11 @@ def html_file_index_candidates_for_source(
         seen_pages.add(page_url)
         page_text, page_final_url = fetch_text(page_url, timeout=timeout)
         versions.extend(html_file_index_versions_from_text(source, page_text, page_final_url, 0, seen_files))
+        for link in extract_links(page_text, page_final_url):
+            if link in seen_pages or link in page_queue:
+                continue
+            if should_follow_html_index_page(page_final_url, link, source.file_url_regex):
+                page_queue.append(link)
     return html_file_index_candidates_from_versions(source, final_url, versions)
 
 

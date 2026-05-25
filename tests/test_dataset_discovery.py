@@ -874,9 +874,15 @@ class DatasetDiscoveryTests(unittest.TestCase):
             "https://files.example.test/2025/": (
                 """
                 <a href="sample-2025-01-02.csv">sample-2025-01-02.csv</a>
-                <a href="sample-2025-01-03.csv">sample-2025-01-03.csv</a>
+                <a href="01/">January folder</a>
                 """,
                 "https://files.example.test/2025/",
+            ),
+            "https://files.example.test/2025/01/": (
+                """
+                <a href="sample-2025-01-03.csv">sample-2025-01-03.csv</a>
+                """,
+                "https://files.example.test/2025/01/",
             ),
         }
         calls: list[str] = []
@@ -888,11 +894,14 @@ class DatasetDiscoveryTests(unittest.TestCase):
 
         html_index.fetch_text = fake_fetch_text
         try:
-            candidates = html_index.html_file_index_candidates_for_source(source, timeout=1.0, limit=1, full_crawl=True, max_pages=2)
+            candidates = html_index.html_file_index_candidates_for_source(source, timeout=1.0, limit=1, full_crawl=True, max_pages=3)
         finally:
             html_index.fetch_text = original_fetch_text
 
-        self.assertEqual(["https://files.example.test/index.html", "https://files.example.test/2025/"], calls)
+        self.assertEqual(
+            ["https://files.example.test/index.html", "https://files.example.test/2025/", "https://files.example.test/2025/01/"],
+            calls,
+        )
         versions = candidates[0].dataset.metadata["available_versions"]
         self.assertEqual(3, len(versions))
         self.assertEqual("2025-01-01", versions[0]["version"])
