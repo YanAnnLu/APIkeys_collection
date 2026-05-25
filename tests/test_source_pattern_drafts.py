@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
-from api_launcher.crawlers.source_patterns import SourcePatternDetection
+from api_launcher.crawlers.source_patterns import SourcePatternDetection, UNKNOWN_PATTERN_ID
 from api_launcher.crawlers.source_type_registry import source_type_is_file_index
 from api_launcher.source_pattern_drafts import (
     dataset_source_from_detected_url,
@@ -191,7 +191,7 @@ class SourcePatternDraftTest(unittest.TestCase):
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(
-                pattern_id="unknown",
+                pattern_id=UNKNOWN_PATTERN_ID,
                 confidence=0.25,
                 evidence=("below_minimum_confidence",),
                 candidates=(),

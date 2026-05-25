@@ -11,9 +11,11 @@ from api_launcher.crawlers.dataset_sources import (
     source_to_dict,
 )
 from api_launcher.crawlers.source_patterns import (
+    DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
     HTML_DATA_FILE_EXTENSION_ALTERNATION,
     PatternFetcher,
     SourcePatternDetection,
+    UNKNOWN_PATTERN_ID,
     detect_source_interface_pattern,
 )
 from api_launcher.crawlers.source_type_registry import source_type_is_file_index
@@ -42,7 +44,7 @@ def dataset_source_from_detected_url(
     max_results: int = 10,
     min_expected_candidates: int = 1,
     timeout: float = 8.0,
-    minimum_confidence: float = 0.35,
+    minimum_confidence: float = DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
     fetcher: PatternFetcher | None = None,
     detector: SourcePatternDraftDetector | None = None,
 ) -> tuple[DatasetDiscoverySource, SourcePatternDetection]:
@@ -60,7 +62,7 @@ def dataset_source_from_detected_url(
         detector=detector,
     )
     source_type = detection.source_type_hint.strip()
-    if detection.pattern_id == "unknown" or not source_type:
+    if detection.pattern_id == UNKNOWN_PATTERN_ID or not source_type:
         raise ValueError("source pattern detector returned unknown; keep this URL in review")
     if source_type not in SUPPORTED_DATASET_SOURCE_TYPES:
         raise ValueError(f"detected source type is not supported by a dataset crawler: {source_type}")
@@ -97,7 +99,7 @@ def write_source_draft_from_url(
     max_results: int = 10,
     min_expected_candidates: int = 1,
     timeout: float = 8.0,
-    minimum_confidence: float = 0.35,
+    minimum_confidence: float = DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
     fetcher: PatternFetcher | None = None,
     detector: SourcePatternDraftDetector | None = None,
 ) -> dict[str, object]:

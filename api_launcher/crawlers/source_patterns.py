@@ -11,6 +11,10 @@ from typing import Any
 from api_launcher.crawlers.fetch import USER_AGENT
 
 
+UNKNOWN_PATTERN_ID = "unknown"
+DEFAULT_PATTERN_MINIMUM_CONFIDENCE = 0.35
+
+
 SOURCE_TYPE_HINTS: dict[str, str] = {
     "stac": "stac_collections",
     "ckan": "ckan_package_search",
@@ -108,7 +112,7 @@ def detect_source_interface_pattern(
     *,
     fetcher: PatternFetcher = fetch_pattern_probe,
     timeout: float = 8.0,
-    minimum_confidence: float = 0.35,
+    minimum_confidence: float = DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
 ) -> SourcePatternDetection:
     """辨識資料入口範式，只回答「這個 URL 像哪種來源介面」。
 
@@ -117,10 +121,10 @@ def detect_source_interface_pattern(
     """
 
     candidates = tuple(sorted((detector(url, fetcher, timeout) for detector in DETECTORS), key=lambda item: item.confidence, reverse=True))
-    best = candidates[0] if candidates else score_pattern("unknown", ())
+    best = candidates[0] if candidates else score_pattern(UNKNOWN_PATTERN_ID, ())
     if best.confidence < minimum_confidence:
         return SourcePatternDetection(
-            pattern_id="unknown",
+            pattern_id=UNKNOWN_PATTERN_ID,
             confidence=best.confidence,
             evidence=best.evidence,
             candidates=candidates[:3],
@@ -367,10 +371,12 @@ DETECTORS: tuple[PatternDetector, ...] = (
 
 
 __all__ = [
+    "DEFAULT_PATTERN_MINIMUM_CONFIDENCE",
     "HTML_DATA_FILE_EXTENSION_ALTERNATION",
     "PatternProbeResponse",
     "SourcePatternCandidate",
     "SourcePatternDetection",
+    "UNKNOWN_PATTERN_ID",
     "detect_source_interface_pattern",
     "fetch_pattern_probe",
 ]

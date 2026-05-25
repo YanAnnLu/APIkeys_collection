@@ -35,6 +35,7 @@ Last updated: 2026-05-25
 - [x] Seed coverage 已把 `ogc_wms_capabilities` 歸入 entry-listing 類型；WMS capabilities 來源現在會被標示為可完整列出 layer seed，而不是被誤導成需要補 crawler handler。
 - [x] Crawler asset 的入口表面標籤已收斂到 `SOURCE_SURFACE_LABELS` registry；WMS capabilities 在 UI 卡片/passport 中會標示為 `map_service`，file index 仍標示為 `file_index`，其餘未知 API-like endpoint 保留 endpoint shape fallback。
 - [x] HTML file index 的來源類型判斷已收斂到 `api_launcher/crawlers/source_type_registry.py`；bounds facet、capability 狀態與 source draft 會共用 `source_uses_file_index()` / `source_type_is_file_index()`，避免 `source_type == "html_file_index"` 裸字串分支再擴散。
+- [x] Source pattern detector 的 unknown fallback 與最低信心門檻已收斂到 `UNKNOWN_PATTERN_ID` / `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`；source draft 與 detector 測試共用同一組契約，避免 `"unknown"` / `0.35` 魔法值在後續 crawler adapter 擴散。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
 - [x] Source draft 服務層已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL，避免 local source draft 保存本機路徑或 credential-bearing URL。

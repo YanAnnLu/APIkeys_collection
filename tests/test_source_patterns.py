@@ -3,7 +3,9 @@ from __future__ import annotations
 import unittest
 
 from api_launcher.crawlers.source_patterns import (
+    DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
     PatternProbeResponse,
+    UNKNOWN_PATTERN_ID,
     detect_source_interface_pattern,
 )
 
@@ -347,8 +349,8 @@ class SourcePatternDetectorTest(unittest.TestCase):
 
         result = detect_source_interface_pattern("https://ambiguous.example.test/catalog", fetcher=fetcher)
 
-        self.assertEqual("unknown", result.pattern_id)
-        self.assertLess(result.confidence, 0.35)
+        self.assertEqual(UNKNOWN_PATTERN_ID, result.pattern_id)
+        self.assertLess(result.confidence, DEFAULT_PATTERN_MINIMUM_CONFIDENCE)
         self.assertEqual("", result.source_type_hint)
         self.assertEqual("stac", result.candidates[0].pattern_id)
 
