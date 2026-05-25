@@ -67,6 +67,7 @@ class SourcePatternDraftTest(unittest.TestCase):
                 '<a href="boundary.geojson.gz">boundary.geojson.gz</a>'
                 '<a href="tiles.gpkg">tiles.gpkg</a>'
                 '<a href="archive.zarr">archive.zarr</a>'
+                '<a href="forecast.grib2">forecast.grib2</a>'
                 '<a href="notes.txt">notes.txt</a></html>'
             ),
             "https://files.example.test/data/",
@@ -78,11 +79,12 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertIn("gpkg", source.file_url_regex)
         self.assertEqual(1, len(candidates))
         versions = candidates[0].dataset.metadata["available_versions"]
-        self.assertEqual(4, len(versions))
+        self.assertEqual(5, len(versions))
         self.assertEqual("dataset_2026.csv.zst", versions[0]["label"])
         self.assertEqual("boundary.geojson.gz", versions[1]["label"])
         self.assertEqual("tiles.gpkg", versions[2]["label"])
         self.assertEqual("archive.zarr", versions[3]["label"])
+        self.assertEqual("forecast.grib2", versions[4]["label"])
 
     def test_ogc_wms_detection_creates_supported_wms_source_draft(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:

@@ -310,6 +310,7 @@ def extension_for_native_format(native_format: str) -> str:
         "ndjson": ".ndjson",
         "ndjson.gz": ".ndjson.gz",
         "netcdf": ".nc",
+        "grib": ".grib",
         "sqlite": ".sqlite",
         "sqlite3": ".sqlite",
         "parquet": ".parquet",

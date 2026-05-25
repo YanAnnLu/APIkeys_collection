@@ -12,6 +12,7 @@
 - Content format 正規化已補 geospatial/scientific MIME：`image/tiff; application=geotiff` 與 GeoPackage 會進入 `geospatial_asset_review`，HDF / GRIB 類型也會進入 scientific/grid review，而不是掉到 unknown。
 - Adapter resolver 已允許 GeoTIFF / COG / GeoPackage 這類 geospatial direct asset 先形成下載計畫，再停在 content parser review；extensionless GeoTIFF 會得到 `.tif` 目標檔名。
 - Generic resource resolver 的 URL suffix 推論已改用 format 正規化；即使 metadata 沒有 mediaType/format hint，`.nc` 與 `.gpkg` 這類清楚檔案 URL 也可進 direct plan，再由 content parser review 擋住 curated import。
+- GRIB/GRIB2 已補齊 detector/source draft/direct eligibility/content registry/resolver/target extension 合約；`.grib2` 可以形成 direct plan，但仍會停在 `scientific_grid_review`，不會假裝可 curated import。
 - Direct download eligibility 已補 `.gpkg`，所以 GeoPackage 檔案型 URL 不會在舊 provider/direct URL 判斷路徑被誤導成 adapter required。
 - 新增 `tests/test_content_registry.py`，並已跑 `tests.test_content_registry`、`tests.test_dataset_download_plan`、`tests.test_adapter_plan_resolver`。測試也覆蓋 extensionless CSV 與 NetCDF direct asset 的 content parser 摘要。
 - Source pattern detector 測試已補 CKAN、Socrata、OGC 正例與 ambiguous collections payload 的 `unknown` fallback，避免通用蟲看起來支援多範式但缺少合約防線。
@@ -21,8 +22,8 @@
 - WMS parser 也已補 `<Service><Title>` metadata 與 layer search-term 過濾測試，候選 passport 不再只依賴 source name 當服務標題。
 - Source pattern 的 WMS detector 也已接受大寫 `SERVICE` / `REQUEST` capabilities URL，不會在 detector probe 時重複追加小寫參數。
 - HTML file index detector 產生的 source draft 現在會帶保守資料檔副檔名 regex；測試確認草稿能直接交給 `html_file_index_candidates_from_text()` 抽出 CSV shard，而不是在 crawler audit 才因缺 `file_url_regex` 失敗。
-- HTML file index detector 本身也已同步辨識複合壓縮與地理資料檔連結，例如 `.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz`、`.csv.zst`；只有這類檔案的入口頁不應再因舊副檔名清單而掉到低信心 `unknown`。
-- HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz` 等常見資料檔，避免 source draft 後續 audit 只因壓縮副檔名回傳零候選。
+- HTML file index detector 本身也已同步辨識複合壓縮與地理/氣象資料檔連結，例如 `.geojson.gz`、`.gpkg`、`.zarr`、`.grib2`、`.tar.gz`、`.csv.zst`；只有這類檔案的入口頁不應再因舊副檔名清單而掉到低信心 `unknown`。
+- HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.gpkg`、`.zarr`、`.grib2`、`.tar.gz` 等常見資料檔，避免 source draft 後續 audit 只因壓縮副檔名回傳零候選。
 - HTML file index detector 與 source draft 已共用同一份資料檔副檔名 vocabulary；後續新增格式時先改 `source_patterns.py` 的 vocabulary，再用 detector 與 source-draft 測試一起鎖住。
 - HTML file index crawler 現在支援 bounded same-origin full crawl：`full_crawl=True` 時會在 `max_pages` 內追同網域索引頁，但不追資料檔或跨網域頁。
 - CKAN / Socrata detector 已補深層 URL fallback：若使用者貼 dataset/resource 頁，會再 probe 同 origin 的 canonical API endpoint，避免把可辨識來源誤判為 `unknown`。

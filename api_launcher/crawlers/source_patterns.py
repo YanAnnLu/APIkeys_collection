@@ -78,7 +78,7 @@ PatternFetcher = Callable[[str, float], PatternProbeResponse | None]
 PatternDetector = Callable[[str, PatternFetcher, float], SourcePatternCandidate]
 
 HTML_DATA_FILE_EXTENSION_ALTERNATION = (
-    r"csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|tar\.gz|zip|nc|hdf|h5|tiff|tif|gpkg|zarr|xml|parquet"
+    r"csv(?:\.(?:gz|zst))?|geojson(?:\.gz)?|json(?:l|\.gz)?|ndjson(?:\.gz)?|tar\.gz|zip|nc|hdf|h5|tiff|tif|gpkg|zarr|grib2?|grb2?|xml|parquet"
 )
 HTML_DATA_FILE_PATTERN = re.compile(
     r"\.(" + HTML_DATA_FILE_EXTENSION_ALTERNATION + r")(?=$|[?#\"'<>\\s])",

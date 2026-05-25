@@ -41,7 +41,7 @@ def normalize_resource_format(value: str) -> str:
         return "hdf5"
     if normalized == "hdf" or normalized.endswith("+hdf"):
         return "hdf"
-    if "grib" in normalized:
+    if "grib" in normalized or normalized in {"grb", "grb2"}:
         return "grib"
     if "zip" in normalized:
         return "zip"

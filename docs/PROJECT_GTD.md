@@ -28,8 +28,8 @@ Last updated: 2026-05-25
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
 - [x] Source draft 服務層已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL，避免 local source draft 保存本機路徑或 credential-bearing URL。
 - [x] HTML file index source draft 已補保守資料檔副檔名 regex，讓 detector 建出的本機草稿能直接交給 HTML crawler audit，不會因缺少 `file_url_regex` 斷在後續清單擷取。
-- [x] HTML file index detector 已同步辨識複合壓縮與地理資料連結，例如 `.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz`、`.csv.zst`，避免入口頁只有這類檔案時被低信心判成 `unknown`。
-- [x] HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.gpkg`、`.zarr`、`.tar.gz` 等常見資料檔，避免 detector 判對但 crawler audit 零候選。
+- [x] HTML file index detector 已同步辨識複合壓縮與地理/氣象資料連結，例如 `.geojson.gz`、`.gpkg`、`.zarr`、`.grib2`、`.tar.gz`、`.csv.zst`，避免入口頁只有這類檔案時被低信心判成 `unknown`。
+- [x] HTML file index 預設 regex 已覆蓋 `.csv.gz`、`.csv.zst`、`.geojson.gz`、`.gpkg`、`.zarr`、`.grib2`、`.tar.gz` 等常見資料檔，避免 detector 判對但 crawler audit 零候選。
 - [x] HTML file index detector 與 source draft 現在共用同一份資料檔副檔名 vocabulary，避免日後新增格式時一層支援、一層漏掉。
 - [x] HTML file index crawler 已支援 bounded same-origin full crawl：`full_crawl=True` 時可在 `max_pages` 內追同網域索引頁，仍不追資料檔或跨網域頁。
 - [x] 把 `--write-source-draft-from-url` 接到 Tk crawler asset 分頁的「貼 URL 建立來源草稿」入口；UI 會顯示 detector evidence、信心分數、local draft 路徑與下一步 discovery audit 指令。`unknown` / unsupported source type 仍由後端拒絕並停在 review。
@@ -38,6 +38,7 @@ Last updated: 2026-05-25
 - [x] Content format 正規化已補 geospatial/scientific MIME：`image/tiff; application=geotiff`、GeoPackage、HDF、GRIB 等不會被誤判成未知格式，而會進入正確 review bucket。
 - [x] Adapter resolver 已允許 GeoTIFF / COG / GeoPackage 這類 geospatial direct asset 先形成下載計畫，再停在 content parser review；extensionless GeoTIFF 會得到 `.tif` 目標檔名。
 - [x] Generic resource resolver 的 URL suffix 推論已改用同一套 format 正規化；沒有 mediaType/format hint 的 `.nc` / `.gpkg` URL 也能形成 direct plan entry，但仍停在 scientific/geospatial parser review。
+- [x] GRIB/GRIB2 氣象格點檔已補齊 detector、source draft、direct eligibility、content registry、resolver 與 target extension 合約；`.grib2` 會形成 direct plan 並停在 scientific parser review。
 - [x] Direct download eligibility 已補 `.gpkg`，避免已經是 GeoPackage 檔案的來源在舊 provider/direct URL 路徑被誤標成 adapter required。
 - [ ] 下一輪：把 `content_detection` 摘要接進 adapter review / download plan JSON 的 UI 顯示層，讓使用者在送進下載器前就知道「可匯入、需解壓、需 parser review」。
 
