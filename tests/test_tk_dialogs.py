@@ -405,10 +405,11 @@ class TkDialogModuleTest(unittest.TestCase):
         asset = crawler_asset_from_source(source)
         ui = object.__new__(CrawlerAssetWorkflowMixin)
         ui.crawler_asset_plan_outcomes = {"demo_index": "可下載 1"}
+        ui.crawler_asset_content_review_outcomes = {"demo_index": "內容 Parser 待辦 1"}
 
         values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
-        self.assertEqual("可下載 1", values[-1])
+        self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
 
     def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
         payload = {
@@ -481,6 +482,12 @@ class TkDialogModuleTest(unittest.TestCase):
                         "adapter_id": "demo_adapter",
                         "source_url": "https://example.test/catalog",
                     },
+                    "content_parser": {
+                        "source_format": "netcdf",
+                        "parser_id": "scientific_grid_review",
+                        "import_status": "manual_review_required",
+                        "review_bucket": "content_parser_required",
+                    },
                     "download_eligibility": {"status": "adapter_required"},
                 }
             ]
@@ -504,6 +511,7 @@ class TkDialogModuleTest(unittest.TestCase):
                 CrawlerAssetWorkflowMixin.load_crawler_asset_plan_outcomes_from_events(ui)
 
         self.assertEqual("待 Adapter 1", ui.crawler_asset_plan_outcomes["demo_index"])
+        self.assertEqual("內容 Parser 待辦 1", ui.crawler_asset_content_review_outcomes["demo_index"])
         self.assertEqual(1, crawler_asset_review_count_from_plan(ui.crawler_asset_resolved_plans["demo_index"]))
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:

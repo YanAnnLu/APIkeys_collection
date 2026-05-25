@@ -236,6 +236,8 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     blocked_reason = str(getattr(result, "blocked_reason", "") or "")
     next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "")
     display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
+    resolved_plan = getattr(result, "resolved_plan", None)
+    adapter_review = adapter_review_display_payload(resolved_plan) if isinstance(resolved_plan, dict) else {}
     summary = _plan_outcome_summary(
         bucket,
         default_summary=str(display["summary"]),
@@ -263,6 +265,8 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
         "blocked_reason": blocked_reason,
         "next_action": next_action,
         "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
+        "adapter_review": adapter_review,
+        "content_review_label": adapter_review_content_summary_label(adapter_review),
     }
 
 
@@ -358,6 +362,25 @@ def plan_entry_content_status_payload(entry: dict[str, object]) -> dict[str, obj
     }
 
 
+def adapter_review_content_summary_label(adapter_review_payload: dict[str, object]) -> str:
+    """Build a compact content-format review label from adapter-review display data."""
+
+    buckets = (
+        adapter_review_payload.get("content_review_buckets")
+        if isinstance(adapter_review_payload.get("content_review_buckets"), list)
+        else []
+    )
+    parts: list[str] = []
+    for bucket in buckets:
+        if not isinstance(bucket, dict):
+            continue
+        label = str(bucket.get("display_label") or bucket.get("review_bucket") or "").strip()
+        count = _safe_int(bucket.get("count"))
+        if label and count:
+            parts.append(f"{label} {count}")
+    return " / ".join(parts)
+
+
 def adapter_review_outcome_label(bucket: str) -> str:
     return ADAPTER_REVIEW_OUTCOME_DISPLAY.get(bucket, (bucket or "unknown", "review"))[0]
 
@@ -441,6 +464,7 @@ def _safe_int(value: object) -> int:
 
 __all__ = [
     "adapter_review_display_payload",
+    "adapter_review_content_summary_label",
     "adapter_review_outcome_label",
     "adapter_review_outcome_tone",
     "content_review_bucket_label",

@@ -130,6 +130,25 @@ class WebPreviewApiTest(unittest.TestCase):
             user_next_action="open_downloader_and_start_or_pause_queue",
             next_action="adapter_review_required",
             blocked_reason="",
+            resolved_plan={
+                "providers": [
+                    {
+                        "provider_id": "demo_provider",
+                        "dataset_id": "demo_dataset",
+                        "download_eligibility": {"status": "adapter_required"},
+                        "adapter_review": {
+                            "adapter_id": "demo_adapter",
+                            "source_url": "https://example.test/catalog",
+                        },
+                        "content_parser": {
+                            "source_format": "netcdf",
+                            "parser_id": "scientific_grid_review",
+                            "import_status": "manual_review_required",
+                            "review_bucket": "content_parser_required",
+                        },
+                    }
+                ]
+            },
         )
 
         payload = crawler_asset_plan_outcome_payload(result, added_count=1)
@@ -140,6 +159,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("warning", payload["display_tone"])
         self.assertIn("仍有 2 筆需要 Adapter 審核", payload["summary"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+        self.assertEqual("內容 Parser 待辦 1", payload["content_review_label"])
 
     def test_shared_display_schema_summarizes_adapter_review_outcomes(self) -> None:
         plan = {

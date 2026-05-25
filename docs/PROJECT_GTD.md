@@ -16,7 +16,8 @@ Last updated: 2026-05-26
 - [x] 把 `content_detection` / `content_parser` 摘要接進 Adapter review：JSON item 與 summary 現在會帶出 `content_source_format`、`content_parser_id`、`content_review_bucket` 等欄位，Tk detail 也能直接看到內容格式與 parser review 下一步。
 - [x] Web Preview 的 Adapter review display payload 也會帶出 `content_review_buckets` 與 `content_parsers`，Web JS 任務列會顯示「內容格式待辦」，讓瀏覽器預覽與 Tk detail 共用同一組 content parser 狀態。
 - [x] 下載器面板的 import 欄位改用共用 `plan_entry_content_status_payload()`：`manual_review_required` 這類 raw 狀態會顯示為「內容 Parser 待辦 / Content parser needed」並附上 source format 與 parser id。
-- [ ] 下一步：把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
+- [x] 爬蟲資產表格與 Passport 會顯示 resolved plan 的 `content_review_label`，例如「內容 Parser 待辦 1」；事件恢復時也會從 resolved plan 回推內容格式待辦，不只恢復 Adapter count。
+- [ ] 下一步：把 Adapter resolving 結果回寫成更完整的卡片 badge / 待辦徽章樣式，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 
@@ -99,7 +100,7 @@ Last updated: 2026-05-26
 - [x] GRIB/GRIB2 氣象格點檔已補齊 detector、source draft、direct eligibility、content registry、resolver 與 target extension 合約；`.grib2` 會形成 direct plan 並停在 scientific parser review。
 - [x] Direct download eligibility 已補 `.gpkg`、`.cdf`、`.sqlite` / `.sqlite3` / `.db`，避免已經是 GeoPackage、舊式 NetCDF 或 raw database snapshot 的來源在舊 provider/direct URL 路徑被誤標成 adapter required。
 - [x] 把 `content_detection` 摘要接進 adapter review JSON 與 Tk detail：Adapter review item 現在能顯示內容格式、內容家族、parser id、parser import status、review bucket 與 parser reason，使用者在 Adapter 待辦中能看出「需 parser review」的原因。
-- [ ] 下一輪：把同一組 content parser 摘要延伸到 crawler asset 卡片 badge / resolved-plan passport，讓使用者在送進下載器前就能看到「可匯入、需解壓、需 parser review」。
+- [ ] 下一輪：把同一組 content parser 摘要延伸成正式 card badge / resolved-plan passport 元件，讓使用者在送進下載器前就能看到「可匯入、需解壓、需 parser review」。
 
 ## 2026-05-24 UI/UX 開發契約
 

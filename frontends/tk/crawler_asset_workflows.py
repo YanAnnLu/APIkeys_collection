@@ -11,7 +11,11 @@ from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
-from api_launcher.crawler_asset_display import crawler_asset_plan_outcome_payload
+from api_launcher.crawler_asset_display import (
+    adapter_review_content_summary_label,
+    adapter_review_display_payload,
+    crawler_asset_plan_outcome_payload,
+)
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
@@ -144,6 +148,7 @@ class CrawlerAssetWorkflowMixin:
 
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
+        self.crawler_asset_content_review_outcomes: dict[str, str] = {}
         self.crawler_asset_resolved_plans: dict[str, dict[str, object]] = {}
         self.load_crawler_asset_plan_outcomes_from_events()
         self.refresh_crawler_asset_tab()
@@ -152,6 +157,7 @@ class CrawlerAssetWorkflowMixin:
         """從 structured event 恢復最近送進下載器的可視狀態，避免重開 UI 後全部消失。"""
 
         self.crawler_asset_plan_outcomes = {}
+        self.crawler_asset_content_review_outcomes = {}
         self.crawler_asset_resolved_plans = {}
         for event in latest_events(200):
             if event.get("event") != "crawler_asset_plan_outcome_recorded":
@@ -162,6 +168,9 @@ class CrawlerAssetWorkflowMixin:
             if not asset_id or not outcome_label:
                 continue
             self.crawler_asset_plan_outcomes[asset_id] = outcome_label
+            content_review_label = str(context.get("content_review_label") or "").strip()
+            if content_review_label:
+                self.crawler_asset_content_review_outcomes[asset_id] = content_review_label
             resolved_plan_path = str(context.get("resolved_plan") or "").strip()
             if not resolved_plan_path:
                 continue
@@ -171,6 +180,10 @@ class CrawlerAssetWorkflowMixin:
                 continue
             if isinstance(payload, dict):
                 self.crawler_asset_resolved_plans[asset_id] = payload
+                if not content_review_label:
+                    label = adapter_review_content_summary_label(adapter_review_display_payload(payload))
+                    if label:
+                        self.crawler_asset_content_review_outcomes[asset_id] = label
 
     def refresh_crawler_asset_tab(self) -> None:
         if not hasattr(self, "crawler_asset_tree"):
@@ -195,6 +208,9 @@ class CrawlerAssetWorkflowMixin:
 
     def crawler_asset_row_values(self, asset: CrawlerAsset) -> tuple[object, ...]:
         last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id) or asset.next_action
+        content_review = getattr(self, "crawler_asset_content_review_outcomes", {}).get(asset.asset_id, "")
+        if content_review:
+            last_plan_outcome = f"{last_plan_outcome} / {content_review}"
         return (
             asset.display_name,
             crawler_asset_state_label(asset),
@@ -229,8 +245,11 @@ class CrawlerAssetWorkflowMixin:
             f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
         )
         last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id, "")
+        content_review = getattr(self, "crawler_asset_content_review_outcomes", {}).get(asset.asset_id, "")
         last_plan_line_zh = f"\n上次送進下載器：{last_plan_outcome}\n" if last_plan_outcome else ""
         last_plan_line_en = f"\nLast send-to-downloader result: {last_plan_outcome}\n" if last_plan_outcome else ""
+        content_review_line_zh = f"內容格式待辦：{content_review}\n" if content_review else ""
+        content_review_line_en = f"Content review: {content_review}\n" if content_review else ""
         review_count = crawler_asset_review_count_from_plan(getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id))
         review_line_zh = f"本次 Adapter 待辦：{review_count}\n" if review_count else ""
         review_line_en = f"Current adapter queue: {review_count}\n" if review_count else ""
@@ -248,6 +267,7 @@ class CrawlerAssetWorkflowMixin:
                     f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
                     f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{last_plan_line_zh}"
+                    f"{content_review_line_zh}"
                     f"{review_line_zh}"
                     f"{capability_lines}\n\n"
                     f"界域 schema：{bounds_summary_zh or '無'}\n\n"
@@ -261,6 +281,7 @@ class CrawlerAssetWorkflowMixin:
                     f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
                     f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
                     f"{last_plan_line_en}"
+                    f"{content_review_line_en}"
                     f"{review_line_en}"
                     f"{capability_lines}\n\n"
                     f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
@@ -538,9 +559,12 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_plan_outcomes = {}
         if not hasattr(self, "crawler_asset_resolved_plans"):
             self.crawler_asset_resolved_plans = {}
+        if not hasattr(self, "crawler_asset_content_review_outcomes"):
+            self.crawler_asset_content_review_outcomes = {}
         if result.blocked:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
             self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
+            self.crawler_asset_content_review_outcomes.pop(result.asset_id, None)
             self.crawler_asset_resolved_plans.pop(result.asset_id, None)
             self.record_crawler_asset_plan_outcome(result, 0, written_paths)
             self.refresh_crawler_asset_plan_row(result.asset_id)
@@ -559,6 +583,12 @@ class CrawlerAssetWorkflowMixin:
         resolved_path = written_paths.get("resolved", "")
         summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
         self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, added)
+        outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added)
+        content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
+        if content_review_label:
+            self.crawler_asset_content_review_outcomes[result.asset_id] = content_review_label
+        else:
+            self.crawler_asset_content_review_outcomes.pop(result.asset_id, None)
         if result.resolved_plan:
             self.crawler_asset_resolved_plans[result.asset_id] = result.resolved_plan
         else:
@@ -583,6 +613,9 @@ class CrawlerAssetWorkflowMixin:
                 "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
                 "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
                 "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
+                "content_review_label": str(
+                    crawler_asset_plan_outcome_payload(result, added_count=added_count).get("content_review_label") or ""
+                ),
                 "resolved_plan": written_paths.get("resolved", ""),
                 "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
             },
