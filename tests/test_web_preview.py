@@ -482,6 +482,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("font-size: 0", styles)
         self.assertIn("assetPlanPassports", combined)
         self.assertIn("plan_passport", combined)
+        self.assertIn("candidate_snapshot_changed", combined)
+        self.assertIn("候選快照已變更", combined)
         self.assertNotIn("Mission Queue", combined)
         self.assertNotIn("Season Pass", combined)
         self.assertNotIn("Workshop", combined)

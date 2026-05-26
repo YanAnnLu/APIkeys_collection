@@ -215,6 +215,9 @@ function downloaderRowHtml(asset) {
   const staleChip = passport.stale
     ? `<span class="context-chip warning">${escapeHtml(passport.stale_label || passport.stale_reason || "計畫需重建")}</span>`
     : "";
+  const snapshotChip = passport.candidate_snapshot_changed
+    ? `<span class="context-chip warning">候選快照已變更</span>`
+    : "";
   return `
     <article class="download-row ${tone}">
       <div class="download-row-head">
@@ -235,6 +238,7 @@ function downloaderRowHtml(asset) {
         <span class="context-chip">${escapeHtml(asset.provider_id || "provider unknown")}</span>
         ${contentReview}
         ${staleChip}
+        ${snapshotChip}
       </div>
       <p>${escapeHtml(nextAction)}</p>
       <div class="download-row-actions">
@@ -795,6 +799,7 @@ function planPassportPanelHtml(asset) {
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
     : "內容待辦 0";
+  const snapshotLabel = passport.candidate_snapshot_changed ? "候選快照已變更" : "候選快照未標記變更";
   const gateLabel = [
     passport.blocked_credential_count ? `憑證阻擋 ${passport.blocked_credential_count}` : "",
     passport.missing_provider_count ? `缺 Provider ${passport.missing_provider_count}` : "",
@@ -814,6 +819,7 @@ function planPassportPanelHtml(asset) {
       </div>
       <div class="plan-passport-foot">
         <span>${escapeHtml(staleLabel)}</span>
+        <span>${escapeHtml(snapshotLabel)}</span>
         <span>${escapeHtml(contentReviewLabel)}</span>
         <span>${escapeHtml(gateLabel || "憑證 / Provider OK")}</span>
       </div>
