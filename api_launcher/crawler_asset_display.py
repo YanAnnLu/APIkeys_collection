@@ -336,6 +336,12 @@ def crawler_asset_plan_passport_payload(
         "short_label": str(outcome.get("short_label") or ""),
         "display_tone": str(outcome.get("display_tone") or "neutral"),
         "candidate_count": _safe_int(getattr(plan_build, "candidate_count", 0)) if plan_build is not None else 0,
+        "candidate_snapshot_signature": str(getattr(plan_build, "candidate_snapshot_signature", "") or "")
+        if plan_build is not None
+        else "",
+        "candidate_snapshot_count": _safe_int(getattr(plan_build, "candidate_snapshot_count", 0))
+        if plan_build is not None
+        else 0,
         "upserted_candidate_count": _safe_int(getattr(plan_build, "upserted_candidate_count", 0)) if plan_build is not None else 0,
         "selected_version_count": _safe_int(getattr(plan_build, "selected_version_count", 0)) if plan_build is not None else 0,
         "filtered_version_count": _safe_int(getattr(plan_build, "filtered_version_count", 0)) if plan_build is not None else 0,

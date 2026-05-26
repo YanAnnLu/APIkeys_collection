@@ -8,6 +8,7 @@
 - Web Preview 讀取的 `latest_plan_passport` 是後端判斷過的 display-safe payload，不是單純的上次結果快照。
 - `api_launcher/crawler_asset_profiles.py` 會比較 profile state、source signature 與 bounds signature；當 crawler asset 被停用、封存、來源 endpoint/source type 變更，或界域表單範式改變時，後端輸出 `stale=true` / `stale_reason`。
 - Web/Tk/未來 Qt 只顯示後端給的 `stale_label` / `stale_next_action`，例如「資產已停用，啟用後重新建立下載計畫」或「來源設定已改變，請重新建立下載計畫」，不在 UI 端翻譯 raw `stale_reason` 或重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
+- `plan_passport` 會保存 `candidate_snapshot_signature` 與 `candidate_snapshot_count`，表示本次下載計畫由哪一批 crawler candidate 形成。這是追溯資訊，不是 live freshness check；Web/Tk/Qt 不應在沒有 fresh crawl 的情況下自行宣稱遠端候選清單已改變。
 
 ## 定位
 
@@ -101,6 +102,7 @@ http://127.0.0.1:8765/
 - 右側資產護照已可在本頁 session 內顯示 `plan_passport` 面板：顯示 resolved-plan presence、candidate/direct/review/adapter counts、內容格式待辦與 credential/provider gate 摘要。這個面板只吃後端 compact payload；完整 plan 仍留在 JSON inspector 與 review/download path。
 - Web Preview 側欄四個工作區已啟用：`爬蟲資產` 保留主要界域與資產護照心流；`下載器` 顯示已建立的 `plan_outcome` / `plan_passport` 摘要；`匯入審核` 顯示最近一次 plan build 回傳的 Adapter review 與 content parser 待辦；`事件紀錄` 讀取 `/api/events/recent` 的 structured event 摘要。這些分頁都只視覺化後端契約，不在 JS 裡重寫下載、匯入或審核規則。
 - Web Preview 的 crawler asset card/detail 會優先讀 asset profile 裡的 compact `latest_plan_passport`，再退回近期 `crawler_asset_plan_outcome_recorded` event。兩條路徑都只保留 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/provider gate、簡化 bounds 與 next action 等白名單欄位；完整 `providers` / resolved plan body 不會進入 profile 或事件還原 payload。這讓頁面重載後的「下載器」分頁與資產護照仍能顯示真實後端狀態，而不是依賴 JS localStorage。
+- 其中 `candidate_snapshot_signature` / `candidate_snapshot_count` 是後端 plan build 的候選快照摘要。前端可以顯示或保留它，但不能把它當成遠端自動更新通知；要判斷候選清單是否變動，必須讓使用者明確重跑 crawl / rebuild plan 後由後端比較新舊 digest。
 
 ## 下一步
 
@@ -126,7 +128,7 @@ http://127.0.0.1:8765/
 - 卡片牆的 plan badge 先呈現目前 Web session 剛建立的 plan outcome；若頁面重載或剛開啟，則讀取 Web API 從 structured event log 彙整出的 `latest_plan_outcome`。Web Preview 自己建立下載計畫時也會寫同一種 event，但只保存 compact context，不把完整 resolved plan 塞進 JSONL。文字使用 `short_label`，色調使用 `display_tone`，若有 `content_review.has_review`，會再顯示內容格式待辦徽章。不要在 CSS/JS 裡新增 outcome bucket 分支。
 - 資產護照的 plan outcome panel 與上方 selected hero 都只視覺化同一份 `latest_plan_outcome`：顯示最近計畫短標、summary、direct/review counts 與 content-review badge，讓使用者點進資產後仍能看到後端狀態，而不是只靠卡片牆小徽章。
 - `plan_passport` 是比 `plan_outcome` 更完整、但仍然 compact 的 service payload；它要給卡片護照、Tk panel、未來 Qt sidebar 使用，不能把 full resolved plan 當 UI state。若需要完整 plan，仍應走既有 review/download path。
-- Web Preview 已將 `plan_passport` 顯示在資產護照內，作為 Qt sidebar / Tk panel 的前導樣式。此狀態現在會以 compact `latest_plan_passport` 回寫 asset profile，Web reload 後優先讀 profile，再以 structured event 作為舊資料 fallback。下一步不是保存更多 plan body，而是定義何時把舊 passport 標成 stale。
+- Web Preview 已將 `plan_passport` 顯示在資產護照內，作為 Qt sidebar / Tk panel 的前導樣式。此狀態現在會以 compact `latest_plan_passport` 回寫 asset profile，Web reload 後優先讀 profile，再以 structured event 作為舊資料 fallback。下一步不是保存更多 plan body，而是在 explicit fresh crawl / rebuild plan 流程中比較候選 snapshot digest，讓「遠端候選已改變」成為真實後端事件。
 - 下方「本機互動紀錄」只記錄本機互動與後端回應，不偽造下載進度。
 - 「後端 JSON」保留完整 payload，讓 agent 與人類都能追查 service contract。
 

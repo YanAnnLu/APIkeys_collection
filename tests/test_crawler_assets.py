@@ -384,6 +384,8 @@ class CrawlerAssetTest(unittest.TestCase):
                 {
                     "asset_id": "demo_index",
                     "candidate_count": 5,
+                    "candidate_snapshot_signature": "abcdef0123456789",
+                    "candidate_snapshot_count": 5,
                     "direct_download_count": 2,
                     "adapter_review_count": 3,
                     "next_action": "open_downloader_and_start_or_pause_queue",
@@ -401,6 +403,8 @@ class CrawlerAssetTest(unittest.TestCase):
 
         passport = updated.latest_plan_passport
         self.assertEqual(5, passport["candidate_count"])
+        self.assertEqual("abcdef0123456789", passport["candidate_snapshot_signature"])
+        self.assertEqual(5, passport["candidate_snapshot_count"])
         self.assertEqual(2, profiles["demo_index"].latest_plan_passport["direct_download_count"])
         self.assertEqual([120.0, 22.0, 122.0, 25.0], passport["bounds"]["bbox"])
         self.assertEqual("demo_index", passport["asset_id"])

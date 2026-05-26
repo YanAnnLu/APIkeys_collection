@@ -16,6 +16,7 @@ from api_launcher.source_download import (
     SourceDownloadOptions,
     build_source_download_plan,
     credential_gate_for_provider,
+    source_candidate_snapshot_signature,
 )
 
 
@@ -83,6 +84,8 @@ class SourceDownloadTests(unittest.TestCase):
                 conn.close()
 
         entry = plan.original_plan["providers"][0]
+        self.assertEqual(1, plan.to_dict()["candidate_snapshot_count"])
+        self.assertRegex(str(plan.to_dict()["candidate_snapshot_signature"]), r"^[0-9a-f]{16}$")
         self.assertEqual("run_schema_probe_before_precise_bounded_download", entry["download_bound_status"]["next_action"])
         self.assertIn("time_range", entry["download_bound_status"]["needs_schema_probe"])
         self.assertIn("bbox", entry["download_bound_status"]["needs_schema_probe"])
@@ -183,6 +186,72 @@ class SourceDownloadTests(unittest.TestCase):
         self.assertFalse(gate.allows_download)
         self.assertEqual("missing", gate.status)
         self.assertEqual(("RRKAL_TEST_SOURCE_KEY",), gate.required_env_vars)
+
+    def test_candidate_snapshot_signature_is_order_stable_and_plan_relevant(self) -> None:
+        first = DatasetCandidate(
+            dataset=Dataset(
+                dataset_uid="provider:a",
+                provider_id="provider",
+                dataset_id="a",
+                title="A",
+                categories=("sample",),
+                native_format="csv",
+                api_url="https://example.test/a.csv",
+                version="2026-01",
+                remote_etag="etag-a",
+                metadata={"resources": [{"url": "https://example.test/a.csv"}]},
+            ),
+            source_id="source",
+            source_type="html_file_index",
+            source_url="https://example.test/index.html",
+            confidence=0.9,
+            evidence=("https://example.test/a.csv",),
+        )
+        second = DatasetCandidate(
+            dataset=Dataset(
+                dataset_uid="provider:b",
+                provider_id="provider",
+                dataset_id="b",
+                title="B",
+                categories=("sample",),
+                native_format="csv",
+                api_url="https://example.test/b.csv",
+                version="2026-01",
+                remote_etag="etag-b",
+                metadata={"resources": [{"url": "https://example.test/b.csv"}]},
+            ),
+            source_id="source",
+            source_type="html_file_index",
+            source_url="https://example.test/index.html",
+            confidence=0.9,
+            evidence=("https://example.test/b.csv",),
+        )
+        changed_second = DatasetCandidate(
+            dataset=Dataset(
+                dataset_uid="provider:b",
+                provider_id="provider",
+                dataset_id="b",
+                title="B",
+                categories=("sample",),
+                native_format="csv",
+                api_url="https://example.test/b.csv",
+                version="2026-02",
+                remote_etag="etag-b2",
+                metadata={"resources": [{"url": "https://example.test/b-v2.csv"}]},
+            ),
+            source_id="source",
+            source_type="html_file_index",
+            source_url="https://example.test/index.html",
+            confidence=0.9,
+            evidence=("https://example.test/b-v2.csv",),
+        )
+
+        original = source_candidate_snapshot_signature((first, second))
+        reversed_order = source_candidate_snapshot_signature((second, first))
+        changed = source_candidate_snapshot_signature((first, changed_second))
+
+        self.assertEqual(original, reversed_order)
+        self.assertNotEqual(original, changed)
 
     def test_schema_probe_url_adds_head5_limit_for_known_api_shapes(self) -> None:
         self.assertIn("$limit=5", schema_probe_url("https://data.example.test/resource/abcd-1234.json?$limit=99", 5))

@@ -7,7 +7,8 @@ Last updated: 2026-05-26
 - [x] 後端判斷集中在 `api_launcher/crawler_asset_profiles.py`，`crawler_assets` 只取 display-safe payload，Web/Tk 只呈現結果，避免把 stale 規則散落到 UI。
 - [x] stale guard 已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type、dataset/file regex 等來源本體變更，或界域表單 facets 變更時，既有 plan passport 會標記 `source_changed` / `bounds_schema_changed`。
 - [x] stale reason 已補上後端 display-safe 文案：`latest_plan_passport` 會帶 `stale_label` 與 `stale_next_action`，Web/Tk/未來 Qt 只呈現「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，不在前端翻譯 raw reason。
-- [ ] 下一步可以再補候選版本 / source revision 指紋，讓來源回傳清單內容大幅變動時也能提示重新建立計畫；目前先鎖住 profile/source/bounds schema 三個高風險變更。
+- [x] `SourceDownloadPlanBuild` 現在會計算 `candidate_snapshot_signature` / `candidate_snapshot_count`，並讓 `plan_passport` 以 compact 欄位保存這份候選清單 digest。這能記錄「本次計畫是由哪一批候選版本/metadata/source URL 形成」，但不在沒有重新 crawl 時假裝知道遠端已改。
+- [ ] 下一步若要真正標記 `candidate_snapshot_changed`，必須在使用者按「重新擷取 / 重建計畫」時先跑 fresh crawl，再把新舊 digest 比較；不要讓 UI 或 profile loader 自行推測遠端清單變化。
 
 ## 2026-05-26 Web Preview / 後端視覺化閉環
 
@@ -41,7 +42,8 @@ Last updated: 2026-05-26
 - [x] Web Preview 側欄工作區已從單一爬蟲資產頁擴成四分頁：`爬蟲資產`、`下載器`、`匯入審核`、`事件紀錄`。下載器分頁只顯示後端 `plan_outcome` / `plan_passport`；匯入審核只顯示最近 adapter/content review payload；事件紀錄讀 `/api/events/recent` 的 bounded structured event 摘要，不在 Web JS 內重寫下載或匯入規則。
 - [x] Web Preview 現在會從 structured event 讀回 compact `plan_passport`，並透過白名單欄位灌回 crawler asset card/detail；頁面重載後的資產護照與下載器分頁仍能顯示 Candidates、Direct、Review、Adapter、內容待辦與 gate 摘要，但不把完整 resolved plan body 複製成前端狀態。
 - [x] `plan_passport` 已收斂為 asset profile 的 compact 欄位：Tk 與 Web 建立下載計畫後會只保存白名單狀態欄位與簡化 bounds，不保存完整 `providers` 或 resolved plan body。Web card/detail 會優先讀 profile passport，再退回近期 event；這讓跨 session 狀態比單純 event fallback 更穩。
-- [ ] 下一步：評估候選版本 / source revision 指紋，讓來源回傳清單內容大幅變動時也能提示重新建立計畫；目前 profile/source/bounds schema 變更已可標記 passport stale。
+- [x] 下載計畫護照已包含候選 snapshot digest，讓 Web/Tk/Qt 能追溯本次 plan 來自哪一批候選資料。
+- [ ] 下一步：在 explicit fresh crawl / rebuild plan 流程中比較 `candidate_snapshot_signature`，再決定是否顯示 candidate list 已改變；目前 profile/source/bounds schema 變更已可立即標記 passport stale。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

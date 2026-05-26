@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
+from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from api_launcher.adapter_plan_resolver import AdapterPlanResolution, resolve_adapter_review_plan_payload
@@ -120,6 +122,8 @@ class SourceDownloadPlanBuild:
     missing_provider_ids: tuple[str, ...] = ()
     selected_version_count: int = 0
     filtered_version_count: int = 0
+    candidate_snapshot_signature: str = ""
+    candidate_snapshot_count: int = 0
 
     @property
     def direct_download_count(self) -> int:
@@ -136,6 +140,8 @@ class SourceDownloadPlanBuild:
             "upserted_candidate_count": self.upserted_candidate_count,
             "selected_version_count": self.selected_version_count,
             "filtered_version_count": self.filtered_version_count,
+            "candidate_snapshot_signature": self.candidate_snapshot_signature,
+            "candidate_snapshot_count": self.candidate_snapshot_count,
             "direct_download_count": self.direct_download_count,
             "blocked_credential_count": self.blocked_credential_count,
             "missing_provider_ids": list(self.missing_provider_ids),
@@ -183,6 +189,9 @@ def build_source_download_plan(
 
     active_options = options or SourceDownloadOptions()
     crawl_result = crawl_dataset_sources(sources, active_options.crawl_options())
+    crawled_candidates = tuple(crawl_result.candidates)
+    candidate_snapshot_signature = source_candidate_snapshot_signature(crawled_candidates)
+    candidate_snapshot_count = len(crawled_candidates)
     provider_map = {provider.provider_id: provider for provider in repository.load_providers()}
     entries: list[dict[str, object]] = []
     credential_gates: dict[str, CredentialGate] = {}
@@ -191,7 +200,7 @@ def build_source_download_plan(
     selected_version_count = 0
     filtered_version_count = 0
 
-    for candidate in crawl_result.candidates:
+    for candidate in crawled_candidates:
         dataset = dataset_with_candidate_metadata(candidate)
         provider = provider_map.get(dataset.provider_id)
         if provider is None:
@@ -238,7 +247,57 @@ def build_source_download_plan(
         missing_provider_ids=tuple(sorted(missing_provider_ids)),
         selected_version_count=selected_version_count,
         filtered_version_count=filtered_version_count,
+        candidate_snapshot_signature=candidate_snapshot_signature,
+        candidate_snapshot_count=candidate_snapshot_count,
     )
+
+
+def source_candidate_snapshot_signature(candidates: Iterable[DatasetCandidate]) -> str:
+    """Return a stable digest for the crawl candidates that shaped a plan.
+
+    This is intentionally a snapshot of the candidates already returned by a
+    crawl.  It does not claim to know whether the remote catalog changed later;
+    callers need a fresh crawl before comparing this digest against a new one.
+    """
+
+    normalized = [_candidate_snapshot_payload(candidate) for candidate in candidates]
+    normalized.sort(
+        key=lambda item: (
+            str(item.get("provider_id") or ""),
+            str(item.get("dataset_uid") or ""),
+            str(item.get("dataset_id") or ""),
+            str(item.get("version") or ""),
+            str(item.get("source_id") or ""),
+            str(item.get("source_url") or ""),
+        )
+    )
+    return _stable_digest({"candidates": normalized})
+
+
+def _candidate_snapshot_payload(candidate: DatasetCandidate) -> dict[str, object]:
+    dataset = candidate.dataset
+    return {
+        "source_id": candidate.source_id,
+        "source_type": candidate.source_type,
+        "source_url": candidate.source_url,
+        "dataset_uid": dataset.dataset_uid,
+        "provider_id": dataset.provider_id,
+        "dataset_id": dataset.dataset_id,
+        "title": dataset.title,
+        "native_format": dataset.native_format,
+        "api_url": dataset.api_url,
+        "landing_url": dataset.landing_url,
+        "version": dataset.version,
+        "remote_updated_at": dataset.remote_updated_at,
+        "remote_etag": dataset.remote_etag,
+        "remote_hash": dataset.remote_hash,
+        "metadata_signature": _stable_digest(dataset.metadata),
+    }
+
+
+def _stable_digest(payload: object) -> str:
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    return sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def run_source_download_to_folder(

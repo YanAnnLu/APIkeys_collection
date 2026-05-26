@@ -529,6 +529,8 @@ class WebPreviewApiTest(unittest.TestCase):
             bounds=SimpleNamespace(to_dict=lambda: {"candidate_limit": 1}),
             plan_build=SimpleNamespace(
                 candidate_count=1,
+                candidate_snapshot_signature="candidate-demo",
+                candidate_snapshot_count=1,
                 upserted_candidate_count=1,
                 selected_version_count=1,
                 filtered_version_count=0,
@@ -558,9 +560,13 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("demo_stac", passport["asset_id"])
         self.assertTrue(passport["has_resolved_plan"])
         self.assertEqual(1, passport["candidate_count"])
+        self.assertEqual("candidate-demo", passport["candidate_snapshot_signature"])
+        self.assertEqual(1, passport["candidate_snapshot_count"])
         self.assertEqual(1, passport["direct_download_count"])
         self.assertNotIn("providers", passport)
         self.assertEqual(1, persisted_passport["candidate_count"])
+        self.assertEqual("candidate-demo", persisted_passport["candidate_snapshot_signature"])
+        self.assertEqual(1, persisted_passport["candidate_snapshot_count"])
         self.assertEqual(1, persisted_passport["direct_download_count"])
         self.assertEqual("source-demo", persisted_passport["source_signature"])
         self.assertEqual("bounds-demo", persisted_passport["bounds_signature"])
