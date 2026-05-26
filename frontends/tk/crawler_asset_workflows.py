@@ -819,6 +819,8 @@ def crawler_asset_plan_passport_summary_text(
     is_stale = bool(plan_passport.get("stale"))
     snapshot_changed = bool(plan_passport.get("candidate_snapshot_changed"))
     stale_reason = str(plan_passport.get("stale_reason") or "profile_changed").strip()
+    stale_label = str(plan_passport.get("stale_label") or "").strip()
+    stale_next_action = str(plan_passport.get("stale_next_action") or "").strip()
     state_zh = "resolved plan 已建立" if has_plan else "resolved plan 尚未建立"
     state_en = "resolved plan available" if has_plan else "resolved plan unavailable"
     zh = (
@@ -833,8 +835,8 @@ def crawler_asset_plan_passport_summary_text(
         zh = f"{zh}；憑證阻擋 {credentials}；缺 Provider {missing}"
         en = f"{en}; credentials blocked {credentials}; missing providers {missing}"
     if is_stale:
-        zh = f"{zh}；狀態可能過期：{stale_reason}"
-        en = f"{en}; stale {stale_reason}"
+        zh = f"{zh}；狀態可能過期：{stale_label or stale_reason}"
+        en = f"{en}; stale {stale_next_action or stale_reason}"
     if snapshot_changed:
         zh = f"{zh}；候選快照已變更"
         en = f"{en}; candidate snapshot changed"

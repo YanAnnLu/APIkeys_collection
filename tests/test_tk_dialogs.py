@@ -570,6 +570,8 @@ class TkDialogModuleTest(unittest.TestCase):
                 "missing_provider_count": 1,
                 "stale": True,
                 "stale_reason": "asset_disabled",
+                "stale_label": "資產已停用，啟用後重新建立下載計畫",
+                "stale_next_action": "enable_before_building_download_plan",
                 "candidate_snapshot_changed": True,
             },
             lambda _zh, en: en,
@@ -581,8 +583,23 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("review 2", text)
         self.assertIn("content 1", text)
         self.assertIn("missing providers 1", text)
-        self.assertIn("stale asset_disabled", text)
+        self.assertIn("stale enable_before_building_download_plan", text)
         self.assertIn("candidate snapshot changed", text)
+
+        zh_text = crawler_asset_plan_passport_summary_text(
+            {
+                "has_resolved_plan": True,
+                "candidate_count": 3,
+                "direct_download_count": 1,
+                "review_required_count": 2,
+                "stale": True,
+                "stale_reason": "asset_disabled",
+                "stale_label": "資產已停用，啟用後重新建立下載計畫",
+            },
+            lambda zh, _en: zh,
+        )
+        self.assertIn("資產已停用，啟用後重新建立下載計畫", zh_text)
+        self.assertNotIn("asset_disabled", zh_text)
 
     def test_crawler_asset_plan_passport_summary_tolerates_bad_event_counts(self) -> None:
         text = crawler_asset_plan_passport_summary_text(

@@ -5,6 +5,7 @@
 - `load_crawler_assets()` 現在回傳 display-safe passport；Web/Tk 只呈現 stale 狀態，不自行判斷規則。這是之後 Qt 換皮時可共用的 payload。
 - stale 判斷已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type/file regex 等欄位改變會輸出 `source_changed`，界域 facets 改變會輸出 `bounds_schema_changed`。這些簽名由後端生成，UI 不應自行重算。
 - stale payload 已補 `stale_label` 與 `stale_next_action`，讓 Web/Tk/未來 Qt 顯示「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，而不是把 raw `source_changed` 丟給使用者。
+- Tk Crawler Passport 摘要已改成優先呈現同一份 `stale_label` / `stale_next_action`；若後續改 Qt 或 Web，不要直接顯示 raw `stale_reason`，它只保留給 agent/debug 對照。
 - `SourceDownloadPlanBuild` 現在會在每次建立 plan 時保存候選清單 snapshot digest：`candidate_snapshot_signature` / `candidate_snapshot_count` 會進入 compact `plan_passport`，用來追溯本次計畫由哪一批 candidate metadata / version / source URL 形成。
 - 重要邊界：候選 digest 只代表「當次 crawl 的快照」。`load_crawler_assets()` 不會重爬遠端；`candidate_snapshot_changed` 只會在使用者 explicit fresh crawl / rebuild plan 時，由 `build_crawler_asset_download_plan()` 比較上一版 profile 護照與本次 digest 後輸出。
 - Web Preview 下載器列與 Plan Passport 面板、Tk Crawler Passport 摘要已接上 `candidate_snapshot_changed` 顯示。後續 Qt 只需要呈現這個 compact passport 欄位，不要在 Qt 端重跑 crawl 或自行比較 digest。
