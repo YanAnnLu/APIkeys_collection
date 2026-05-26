@@ -71,7 +71,11 @@ def crawler_run_record_from_result(result: object) -> dict[str, object]:
     to_dict = getattr(result, "to_dict", None)
     if not callable(to_dict):
         return {}
-    payload = to_dict()
+    try:
+        payload = to_dict()
+    except Exception:
+        # 事件紀錄不能因單一 result 的序列化錯誤而拖垮 Tk/Web 回報路徑。
+        return {}
     if not isinstance(payload, dict):
         return {}
     run_record = payload.get("run_record")
