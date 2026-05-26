@@ -714,6 +714,52 @@ p {
   background: rgba(147, 170, 187, 0.11);
 }
 
+.form-status-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.content-review-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  min-height: 24px;
+  padding: 3px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 151, 181, 0.22);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-review-badge.success {
+  color: var(--green);
+  background: rgba(107, 229, 133, 0.11);
+  border-color: rgba(107, 229, 133, 0.22);
+}
+
+.content-review-badge.warning,
+.content-review-badge.review {
+  color: var(--yellow);
+  background: rgba(242, 200, 75, 0.12);
+  border-color: rgba(242, 200, 75, 0.24);
+}
+
+.content-review-badge.danger {
+  color: var(--red);
+  background: rgba(255, 107, 112, 0.12);
+  border-color: rgba(255, 107, 112, 0.24);
+}
+
+.content-review-badge.neutral {
+  color: var(--muted);
+  background: rgba(147, 170, 187, 0.1);
+}
+
 .slot-emblem {
   width: 70px;
   height: 70px;

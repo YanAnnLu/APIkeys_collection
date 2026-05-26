@@ -20,6 +20,7 @@ Last updated: 2026-05-26
 - [x] 爬蟲資產送進下載器後的 popup 摘要也會附上 `content_review_label`，讓使用者在按下「建立下載計畫」當下就知道後續仍有內容 Parser 待辦，而不是只在表格或 Passport 看到。
 - [x] `crawler_asset_plan_outcome_payload()` 現在同時輸出 `content_review` badge payload（label / tone / count / has_review），保留 `content_review_label` 作為相容短文字，後續 Tk/Web/Qt 可直接共用同一份待辦徽章資料。
 - [x] Tk `crawler_asset_plan_outcome_recorded` structured event 也會寫入 `content_review` badge payload；重開 UI 時可優先讀事件中的 badge label，舊事件仍可從 resolved plan 回推。
+- [x] Web Preview 的界域表單狀態列已接上 `plan_outcome.content_review`：建立下載計畫後若仍有內容 Parser / 內容格式待辦，畫面會顯示同一份 backend badge，而不是只把訊息藏在任務列或 JSON。
 - [ ] 下一步：把 Adapter resolving 結果回寫成更完整的卡片 badge / 待辦徽章樣式，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
 
 ## 2026-05-25 Web Preview / UIUX 對照層

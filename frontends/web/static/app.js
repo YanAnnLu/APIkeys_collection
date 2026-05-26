@@ -11,6 +11,7 @@ const sourceTypeCount = document.querySelector("#sourceTypeCount");
 const passport = document.querySelector("#passport");
 const boundsForm = document.querySelector("#boundsForm");
 const formState = document.querySelector("#formState");
+const contentReviewBadge = document.querySelector("#contentReviewBadge");
 const resultJson = document.querySelector("#resultJson");
 const serverState = document.querySelector("#serverState");
 const assetCount = document.querySelector("#assetCount");
@@ -243,6 +244,7 @@ function renderPassport(card, asset) {
 
 function renderBoundsForm(spec) {
   boundsForm.innerHTML = "";
+  setContentReviewBadge(null);
   const fields = spec.fields || [];
   if (!fields.length) {
     formState.textContent = "不需界域";
@@ -320,8 +322,10 @@ async function submitBounds(execute) {
     if (payload.plan_outcome) {
       formState.textContent = payload.plan_outcome.display_label || payload.next_action || "review";
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
+      setContentReviewBadge(payload.plan_outcome.content_review);
       addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action || "review");
     } else {
+      setContentReviewBadge(null);
       addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
     }
     if (payload.adapter_review?.item_count) {
@@ -455,6 +459,24 @@ function adapterReviewOutcomeText(outcomes) {
 function contentReviewText(buckets) {
   if (!buckets.length) return "尚無內容格式待辦";
   return buckets.map((bucket) => `${bucket.display_label || bucket.review_bucket} ${bucket.count}`).join(" / ");
+}
+
+function setContentReviewBadge(contentReview) {
+  if (!contentReviewBadge) return;
+  const hasReview = Boolean(contentReview?.has_review);
+  contentReviewBadge.hidden = !hasReview;
+  if (!hasReview) {
+    contentReviewBadge.textContent = "";
+    contentReviewBadge.className = "content-review-badge neutral";
+    contentReviewBadge.removeAttribute("title");
+    return;
+  }
+
+  const label = contentReview.display_label || "內容格式待辦";
+  contentReviewBadge.textContent = label;
+  contentReviewBadge.className = `content-review-badge ${toneClass(contentReview.display_tone)}`;
+  const bucketSummary = contentReviewText(contentReview.buckets || []);
+  contentReviewBadge.title = bucketSummary === "尚無內容格式待辦" ? label : bucketSummary;
 }
 
 function renderMissionQueue() {

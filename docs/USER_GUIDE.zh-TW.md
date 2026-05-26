@@ -56,7 +56,7 @@ py -B -m frontends.web.server --host 127.0.0.1 --port 8765 --port-scan 20 --open
 http://127.0.0.1:8765/
 ```
 
-Web Preview 會顯示 crawler asset 清單、Crawler Passport、動態界域表單、任務互動紀錄與後端 JSON 結果。這不是另一套後端，也不會重寫 crawler；它只呼叫 `api_launcher` 的既有 JSON contract。Tk 可以維持樸素穩定的控制台語言，Web Preview 則可以用更完整的視覺和互動設計來討論 UIUX、響應式版面與未來 QSS token。
+Web Preview 會顯示 crawler asset 清單、Crawler Passport、動態界域表單、任務互動紀錄與後端 JSON 結果。建立下載計畫後，如果後端回報仍有內容 Parser / 內容格式待辦，界域表單狀態列會用同一份 `plan_outcome.content_review` 顯示待辦徽章。這不是另一套後端，也不會重寫 crawler；它只呼叫 `api_launcher` 的既有 JSON contract。Tk 可以維持樸素穩定的控制台語言，Web Preview 則可以用更完整的視覺和互動設計來討論 UIUX、響應式版面與未來 QSS token。
 
 若 8765 已經被其他前端工具或另一份本地 clone 使用，Web Preview 會自動改用下一個可用 port，終端機會印出實際網址。不要為了預覽 UI 去終止不明程序。
 

@@ -81,12 +81,16 @@ class WebPreviewApiTest(unittest.TestCase):
                 (web_root / "app.js").read_text(encoding="utf-8"),
             ]
         )
+        styles = (web_root / "styles.css").read_text(encoding="utf-8")
 
         self.assertIn("爬蟲資產", combined)
         self.assertIn("資產護照", combined)
         self.assertIn("後端流程狀態", combined)
         self.assertIn("抓取元資料", combined)
         self.assertIn("西界經度", combined)
+        self.assertIn("contentReviewBadge", combined)
+        self.assertIn("setContentReviewBadge", combined)
+        self.assertIn("content-review-badge", styles)
         self.assertNotIn("Mission Queue", combined)
         self.assertNotIn("Season Pass", combined)
         self.assertNotIn("Workshop", combined)
