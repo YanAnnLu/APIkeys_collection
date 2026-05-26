@@ -17,6 +17,10 @@
 
 ### 2026-05-26
 
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 08:58 | Discovery / Detector Robustness | **CHECKPOINT** | `f01fa99` | `26426273093` | Guard source pattern fetcher failures | Source pattern detector 入口加上 guarded fetcher。自訂 fetcher、plugin probe 或測試替身在 timeout、HTTP、JSON 或實作錯誤時會回傳 `None` probe result，安全降級成 `unknown` / review，不會中止整段 discovery；新增 fetcher exception 與 malformed JSON regression tests，並同步 GTD、handoff、discovery notes 的 detector contract。驗證：`py -3 -B -m py_compile api_launcher\crawlers\source_patterns.py tests\test_source_patterns.py` OK；`py -3 -B -m unittest tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery` 67 tests OK；`git diff --check` OK（僅 docs CRLF warning）；`scripts\pre_push_smoke_brief.cmd` 664 tests / 4 skipped + MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions Ubuntu、`windows-2025-vs2026`、real DB smoke success。殘餘風險：detector 只收斂 probe failure，不負責產生 warning bucket；較細錯誤說明仍應留給 crawler audit / source profile 層。 |
+
 今日主要開發階段：**Web Preview / Crawler Asset Visualization**。把 `tem/ui-aseat-ui` 的設計節奏收斂成 RRKAL 可用的 Web Preview，而不是照搬 Aseat/Steam 詞彙；新增後端 detail payload 的 `flow_steps`，讓 Web/Tk/Qt 以後能共用「seed -> source pattern -> bounds -> download plan -> review gate」這條流程狀態。此 checkpoint 同時補強 OGC/WMS 與 source pattern draft 測試，維持 crawler/source-pattern 主線的 registry 化方向。
 
 | 時間 | 開發階段 | 狀態 | SHA | Run | Commit | 主要內容 |
