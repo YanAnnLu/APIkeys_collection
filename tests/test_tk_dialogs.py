@@ -40,6 +40,7 @@ from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
+    crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
 )
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
@@ -534,6 +535,15 @@ class TkDialogModuleTest(unittest.TestCase):
                     "context": {
                         "asset_id": "demo_index",
                         "outcome_label": "待 Adapter 1",
+                        "plan_passport": {
+                            "asset_id": "demo_index",
+                            "has_resolved_plan": True,
+                            "candidate_count": 3,
+                            "direct_download_count": 1,
+                            "review_required_count": 1,
+                            "adapter_review_count": 1,
+                            "content_review_count": 1,
+                        },
                         "resolved_plan": plan_path,
                     },
                 }
@@ -545,6 +555,47 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("待 Adapter 1", ui.crawler_asset_plan_outcomes["demo_index"])
         self.assertEqual("內容 Parser 待辦 1", ui.crawler_asset_content_review_outcomes["demo_index"])
         self.assertEqual(1, crawler_asset_review_count_from_plan(ui.crawler_asset_resolved_plans["demo_index"]))
+        self.assertEqual(3, ui.crawler_asset_plan_passports["demo_index"]["candidate_count"])
+
+    def test_crawler_asset_plan_passport_summary_uses_compact_counts(self) -> None:
+        text = crawler_asset_plan_passport_summary_text(
+            {
+                "has_resolved_plan": True,
+                "candidate_count": 3,
+                "direct_download_count": 1,
+                "review_required_count": 2,
+                "adapter_review_count": 2,
+                "content_review_count": 1,
+                "blocked_credential_count": 0,
+                "missing_provider_count": 1,
+            },
+            lambda _zh, en: en,
+        )
+
+        self.assertIn("Plan Passport", text)
+        self.assertIn("candidates 3", text)
+        self.assertIn("direct 1", text)
+        self.assertIn("review 2", text)
+        self.assertIn("content 1", text)
+        self.assertIn("missing providers 1", text)
+
+    def test_crawler_asset_plan_passport_summary_tolerates_bad_event_counts(self) -> None:
+        text = crawler_asset_plan_passport_summary_text(
+            {
+                "has_resolved_plan": False,
+                "candidate_count": "not-a-number",
+                "direct_download_count": None,
+                "review_required_count": "2",
+                "adapter_review_count": object(),
+                "content_review_count": "",
+            },
+            lambda _zh, en: en,
+        )
+
+        self.assertIn("resolved plan unavailable", text)
+        self.assertIn("candidates 0", text)
+        self.assertIn("review 2", text)
+        self.assertIn("adapter 0", text)
 
     def test_crawler_asset_plan_outcome_event_records_content_review_badge(self) -> None:
         result = SimpleNamespace(
@@ -585,6 +636,10 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("review", context["content_review"]["display_tone"])
         self.assertEqual(1, context["content_review"]["count"])
         self.assertTrue(context["content_review"]["has_review"])
+        self.assertEqual("demo_index", context["plan_passport"]["asset_id"])
+        self.assertTrue(context["plan_passport"]["has_resolved_plan"])
+        self.assertEqual(1, context["plan_passport"]["adapter_review_count"])
+        self.assertEqual(1, context["plan_passport"]["content_review_count"])
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

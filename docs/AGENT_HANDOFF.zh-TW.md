@@ -14,6 +14,7 @@
 - 選中資產的 hero 與右側資產護照也會呈現 `latest_plan_outcome` 摘要；JS 只渲染後端的 label/tone/counts/content-review badge，不依 outcome bucket 寫前端業務分支。
 - `frontends/web/preview_api.py` 的 `execute=true` plan preview 現在會回傳 compact `plan_passport`，由 `api_launcher/crawler_asset_display.py::crawler_asset_plan_passport_payload()` 產生。它整理 resolved-plan presence、candidate/direct/review/content-review counts、credential/missing-provider counts、bounds 與 next action，但刻意不包含完整 `providers` / resolved plan body。下一步若要更正式，應把這份 passport 視覺化到 Web/Tk/Qt 卡片護照，或評估回寫 asset profile；不要在 Web session 裡累積完整 plan 狀態。
 - Web Preview 右側資產護照已顯示 session-local `plan_passport` 面板。瀏覽器驗證時 8765 被占用，server 透過 `--port-scan` 自動使用 `http://127.0.0.1:8766/`；建立 NOAA NCEI plan 後，護照面板顯示 `PLAN PASSPORT`、Candidates 49、Direct 69、Review 0、Adapter 39、內容待辦 39，JSON inspector 也含 `plan_passport`。測試時只停止本次啟動的 PID，不要終止未知 port 使用者。
+- Tk Crawler Passport 也已接上同一份 compact `plan_passport`：送進下載器後會記在 `crawler_asset_plan_passports` 與 `crawler_asset_plan_outcome_recorded` event context，重開 UI 可從最近事件還原，右側 passport 顯示候選、可下載、待 Adapter、內容待辦、憑證阻擋與缺 Provider 摘要。完整 resolved plan 仍只留在 review/download path；後續若要長期保存，只評估回寫 compact 欄位到 asset profile。
 - `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help` / `display_tone` / `summary`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
 - Tk 的爬蟲資產分頁已開始使用同一份 display schema：表格短狀態改取 `plan_outcome.short_label`，避免 Tk/Web/Qt 各自維護 outcome bucket 文案。下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章；不要把外部參考命名搬回 UI。
@@ -34,9 +35,9 @@
 
 - 本輪在 `api_launcher/crawler_asset_service.py` 補上 `CrawlerAssetDownloadPlanResult.outcome_bucket` 與 `user_next_action`，把爬蟲資產送進下載器的結果固定成後端狀態桶：`ready_to_download`、`partial_review_required`、`review_required`、`zero_candidates`、`empty_plan`、`blocked`。
 - `frontends/tk/crawler_asset_workflows.py` 現在只顯示後端狀態，不再用 Tk 自己解析 resolved plan。可直接下載時會提示去下載器用開始 / 暫停；仍需 Adapter 待辦時會提示開 Adapter review 或調整界域；零候選會提示放寬時間 / 空間 / 筆數條件。
-- Tk 爬蟲資產表格的「下一步」欄與右側 passport 現在會保留同一輪送進下載器的短狀態，例如 `已加入`、`待 Adapter`、`零候選` 或 blocked reason；這只是本次 UI session 的可視化回饋，長期跨 session 的狀態 persistence 仍留待後續 profile/event-log 收斂。
+- Tk 爬蟲資產表格的「下一步」欄與右側 passport 現在會保留同一輪送進下載器的短狀態，例如 `已加入`、`待 Adapter`、`零候選` 或 blocked reason；compact `plan_passport` 也會寫入 structured event，重開 UI 後可從 event-log 還原顯示。長期跨 session 的正式 asset profile persistence 仍留待後續收斂。
 - Crawler Passport 右側新增「開本次 Adapter 待辦」入口；它讀取同一輪爬蟲資產建立的 resolved plan 並交給既有 `AdapterReviewDialog`，不從 Tk 重新解析 plan，也不要求使用者先去全域 Adapter menu 找剛才那一批待辦。
-- Tk 會寫入 `crawler_asset_plan_outcome_recorded` structured event，內容含 `asset_id`、`outcome_bucket`、`outcome_label`、`review_queue_count`、`resolved_plan` 與 `user_next_action`；重開 UI 後 crawler asset 分頁會從最近事件恢復短狀態與 resolved plan，這是後續卡片 badge / event-log persistence 的基礎。
+- Tk 會寫入 `crawler_asset_plan_outcome_recorded` structured event，內容含 `asset_id`、`outcome_bucket`、`outcome_label`、`review_queue_count`、`content_review`、compact `plan_passport`、`resolved_plan` 與 `user_next_action`；重開 UI 後 crawler asset 分頁會從最近事件恢復短狀態、passport 摘要與 resolved plan，這是後續卡片 badge / event-log persistence 的基礎。
 - 新增 headless 測試鎖住 review-required 與 ready-to-download 的使用者提示，也補上 service outcome bucket 的 regression。下一輪若做 Qt 或卡片牆 badge，請沿用 `outcome_bucket`，不要重新寫一套 UI 判斷。
 
 ## 2026-05-25 Crawler asset / download plan registry 收斂

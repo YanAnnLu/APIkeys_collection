@@ -29,7 +29,8 @@ Last updated: 2026-05-26
 - [x] Web Preview 選中資產的 hero 與右側資產護照已顯示 `latest_plan_outcome` 摘要：最近計畫短標、summary、direct/review counts 與 content-review badge 都來自後端 payload。
 - [x] Web API 建立下載計畫時已回傳 compact `plan_passport`：它整理 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/missing-provider counts、bounds 與 next action，但不把完整 resolved plan body 複製到 UI 狀態。
 - [x] Web Preview 右側資產護照已視覺化 `plan_passport`：建立下載計畫後會顯示 resolved-plan presence、Candidates、Direct、Review、Adapter、內容待辦與 credential/provider gate 摘要；瀏覽器驗證使用 port-scan 自動避開 8765，實際跑在 `127.0.0.1:8766`。
-- [ ] 下一步：把同一份 `plan_passport` 延伸到 Tk 卡片護照，並評估哪些欄位需要回寫成 asset profile；完整 resolved plan 仍留在 review/download path。
+- [x] 同一份 `plan_passport` 已延伸到 Tk 卡片護照：送進下載器後會寫入 compact passport、重開 UI 後可從 structured event 還原，右側 Crawler Passport 會顯示候選、可下載、待 Adapter、內容待辦、憑證與缺 Provider 摘要；完整 resolved plan 仍留在 review/download path。
+- [ ] 下一步：評估哪些 `plan_passport` 欄位需要長期回寫成 asset profile，避免只依賴最近事件，但不要複製完整 resolved plan。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

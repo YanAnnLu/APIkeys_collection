@@ -14,6 +14,7 @@ from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, bui
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
     adapter_review_display_payload,
+    crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
@@ -150,6 +151,7 @@ class CrawlerAssetWorkflowMixin:
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
         self.crawler_asset_content_review_outcomes: dict[str, str] = {}
         self.crawler_asset_resolved_plans: dict[str, dict[str, object]] = {}
+        self.crawler_asset_plan_passports: dict[str, dict[str, object]] = {}
         self.load_crawler_asset_plan_outcomes_from_events()
         self.refresh_crawler_asset_tab()
 
@@ -159,6 +161,7 @@ class CrawlerAssetWorkflowMixin:
         self.crawler_asset_plan_outcomes = {}
         self.crawler_asset_content_review_outcomes = {}
         self.crawler_asset_resolved_plans = {}
+        self.crawler_asset_plan_passports = {}
         for event in latest_events(200):
             if event.get("event") != "crawler_asset_plan_outcome_recorded":
                 continue
@@ -174,6 +177,9 @@ class CrawlerAssetWorkflowMixin:
                 content_review_label = str(content_review_payload.get("display_label") or "").strip()
             if content_review_label:
                 self.crawler_asset_content_review_outcomes[asset_id] = content_review_label
+            plan_passport = context.get("plan_passport") if isinstance(context.get("plan_passport"), dict) else {}
+            if isinstance(plan_passport, dict) and plan_passport:
+                self.crawler_asset_plan_passports[asset_id] = dict(plan_passport)
             resolved_plan_path = str(context.get("resolved_plan") or "").strip()
             if not resolved_plan_path:
                 continue
@@ -256,6 +262,11 @@ class CrawlerAssetWorkflowMixin:
         review_count = crawler_asset_review_count_from_plan(getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id))
         review_line_zh = f"本次 Adapter 待辦：{review_count}\n" if review_count else ""
         review_line_en = f"Current adapter queue: {review_count}\n" if review_count else ""
+        plan_passport_summary = crawler_asset_plan_passport_summary_text(
+            getattr(self, "crawler_asset_plan_passports", {}).get(asset.asset_id),
+            self.tr,
+        )
+        plan_passport_line = f"{plan_passport_summary}\n" if plan_passport_summary else ""
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
         bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
@@ -272,6 +283,7 @@ class CrawlerAssetWorkflowMixin:
                     f"{last_plan_line_zh}"
                     f"{content_review_line_zh}"
                     f"{review_line_zh}"
+                    f"{plan_passport_line}"
                     f"{capability_lines}\n\n"
                     f"界域 schema：{bounds_summary_zh or '無'}\n\n"
                     "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
@@ -286,6 +298,7 @@ class CrawlerAssetWorkflowMixin:
                     f"{last_plan_line_en}"
                     f"{content_review_line_en}"
                     f"{review_line_en}"
+                    f"{plan_passport_line}"
                     f"{capability_lines}\n\n"
                     f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
                     "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
@@ -564,11 +577,17 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_resolved_plans = {}
         if not hasattr(self, "crawler_asset_content_review_outcomes"):
             self.crawler_asset_content_review_outcomes = {}
+        if not hasattr(self, "crawler_asset_plan_passports"):
+            self.crawler_asset_plan_passports = {}
         if result.blocked:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
             self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
             self.crawler_asset_content_review_outcomes.pop(result.asset_id, None)
             self.crawler_asset_resolved_plans.pop(result.asset_id, None)
+            self.crawler_asset_plan_passports[result.asset_id] = crawler_asset_plan_passport_payload(
+                result,
+                plan_outcome=crawler_asset_plan_outcome_payload(result, added_count=0),
+            )
             self.record_crawler_asset_plan_outcome(result, 0, written_paths)
             self.refresh_crawler_asset_plan_row(result.asset_id)
             self.status_var.set(summary.replace("\n", " "))
@@ -587,6 +606,10 @@ class CrawlerAssetWorkflowMixin:
         summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
         self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, added)
         outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added)
+        self.crawler_asset_plan_passports[result.asset_id] = crawler_asset_plan_passport_payload(
+            result,
+            plan_outcome=outcome_payload,
+        )
         content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
         if content_review_label:
             self.crawler_asset_content_review_outcomes[result.asset_id] = content_review_label
@@ -608,6 +631,7 @@ class CrawlerAssetWorkflowMixin:
         content_review_payload = (
             outcome_payload.get("content_review") if isinstance(outcome_payload.get("content_review"), dict) else {}
         )
+        plan_passport_payload = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
         log_event(
             "crawler_asset_plan_outcome_recorded",
             "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",
@@ -622,6 +646,7 @@ class CrawlerAssetWorkflowMixin:
                 "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
                 "content_review_label": str(outcome_payload.get("content_review_label") or ""),
                 "content_review": content_review_payload,
+                "plan_passport": plan_passport_payload,
                 "resolved_plan": written_paths.get("resolved", ""),
                 "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
             },
@@ -760,6 +785,47 @@ def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
     payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
     short_label = str(payload.get("short_label") or "").strip()
     return short_label or str(payload.get("display_label") or "需檢查")
+
+
+def crawler_asset_plan_passport_summary_text(
+    plan_passport: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """把共用的 compact plan passport 轉成 Tk 側欄短摘要。"""
+
+    if not isinstance(plan_passport, dict) or not plan_passport:
+        return ""
+    candidates = _plan_passport_count(plan_passport.get("candidate_count"))
+    direct = _plan_passport_count(plan_passport.get("direct_download_count"))
+    review = _plan_passport_count(plan_passport.get("review_required_count"))
+    adapter = _plan_passport_count(plan_passport.get("adapter_review_count"))
+    content = _plan_passport_count(plan_passport.get("content_review_count"))
+    credentials = _plan_passport_count(plan_passport.get("blocked_credential_count"))
+    missing = _plan_passport_count(plan_passport.get("missing_provider_count"))
+    has_plan = bool(plan_passport.get("has_resolved_plan"))
+    state_zh = "resolved plan 已建立" if has_plan else "resolved plan 尚未建立"
+    state_en = "resolved plan available" if has_plan else "resolved plan unavailable"
+    zh = (
+        f"Plan Passport：{state_zh}；候選 {candidates}；可下載 {direct}；待 Adapter {review}；"
+        f"Adapter 佇列 {adapter}；內容待辦 {content}"
+    )
+    en = (
+        f"Plan Passport: {state_en}; candidates {candidates}; direct {direct}; review {review}; "
+        f"adapter {adapter}; content {content}"
+    )
+    if credentials or missing:
+        zh = f"{zh}；憑證阻擋 {credentials}；缺 Provider {missing}"
+        en = f"{en}; credentials blocked {credentials}; missing providers {missing}"
+    return tr(zh, en)
+
+
+def _plan_passport_count(value: object) -> int:
+    """事件紀錄可能來自舊版或外部工具，Tk 顯示層要容忍非數字欄位。"""
+
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def crawler_asset_review_count_from_plan(payload: object) -> int:
