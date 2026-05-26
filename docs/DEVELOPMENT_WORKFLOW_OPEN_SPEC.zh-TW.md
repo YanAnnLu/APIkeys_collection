@@ -159,6 +159,16 @@ npx -y @fission-ai/openspec@latest validate --all --no-interactive
 
 pre-push hook 是 `.git/hooks/` 內的本機設定，不會被 Git 追蹤；它負責把錯誤盡量擋在 push 前。push 後仍要跑 `gh run watch --exit-status`，讓遠端 checkpoint 留下可回溯 CI 紀錄。
 
+若 push 已抵達 `origin/main`，但幾分鐘內 `gh run list` 沒有出現對應 SHA 的 GitHub Actions run，視為 CI 排隊異常而不是 checkpoint 完成。此時可用手動 dispatch 補證據：
+
+```powershell
+gh workflow run CI --repo kagamihara-rururka/APIkeys_collection --ref main
+gh run list --repo kagamihara-rururka/APIkeys_collection --limit 8
+gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
+```
+
+手動 dispatch 只補遠端驗證，不取代本機 `pre_push_smoke`、commit 訊息、handoff 或 development log。
+
 若 agent 對話的 token 成本太高，優先使用簡報版預檢：
 
 ```powershell

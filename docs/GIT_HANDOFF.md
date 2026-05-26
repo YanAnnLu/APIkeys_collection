@@ -48,6 +48,16 @@ gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
 git status --short
 ```
 
+If the push reaches `origin/main` but no GitHub Actions run appears for the pushed SHA after a few minutes, manually dispatch CI and then watch that run:
+
+```bash
+gh workflow run CI --repo kagamihara-rururka/APIkeys_collection --ref main
+gh run list --repo kagamihara-rururka/APIkeys_collection --limit 8
+gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
+```
+
+Manual dispatch is only a fallback for CI enqueue anomalies. It does not replace local smoke checks or the normal push-triggered CI evidence.
+
 After switching machines:
 
 ```bash
@@ -115,6 +125,7 @@ platform-specific `.pyc` lock issues. The Windows label is pinned to the Visual 
 the same Windows image GitHub is migrating `windows-latest` toward, instead of waiting for an implicit label switch.
 On macOS, `gh` is installed; the account was renamed from `YanAnnLu` to `kagamihara-rururka`, so use `kagamihara-rururka/APIkeys_collection` after push to confirm CI, because GitHub mobile
 notifications report workflow status, not whether `git push` reached the remote.
+The workflow also supports `workflow_dispatch` so an agent can manually rerun CI when push-event enqueueing does not happen.
 
 If Windows CI fails with `PermissionError: [WinError 32]` around `*.sqlite` in a temp directory, check for unclosed
 SQLite connections. Python's `with sqlite3.connect(...)` manages transactions but does not close the connection; use
