@@ -264,19 +264,88 @@ function renderBoundsForm(spec) {
   formState.className = "state-pill success";
   payloadPreviewButton.disabled = !selectedAssetId;
   buildPlanButton.disabled = !selectedAssetId;
-  for (const field of fields) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "form-field";
-    const label = document.createElement("label");
-    label.htmlFor = field.field_id;
-    label.textContent = fieldLabel(field);
-    wrapper.appendChild(label);
-    wrapper.appendChild(inputForField(field));
-    const help = document.createElement("p");
-    help.textContent = fieldHelp(field);
-    wrapper.appendChild(help);
-    boundsForm.appendChild(wrapper);
+  for (const group of groupedBoundFields(spec, fields)) {
+    const section = document.createElement("section");
+    section.className = "bounds-group";
+    section.dataset.group = group.group;
+
+    const heading = document.createElement("div");
+    heading.className = "bounds-group-head";
+    const title = document.createElement("strong");
+    title.textContent = group.label;
+    const count = document.createElement("span");
+    count.textContent = `${group.fields.length} 欄位`;
+    heading.append(title, count);
+    section.appendChild(heading);
+
+    if (group.help) {
+      const help = document.createElement("p");
+      help.className = "bounds-group-help";
+      help.textContent = group.help;
+      section.appendChild(help);
+    }
+
+    const fieldGrid = document.createElement("div");
+    fieldGrid.className = "bounds-group-fields";
+    for (const field of group.fields) {
+      fieldGrid.appendChild(boundFieldElement(field));
+    }
+    section.appendChild(fieldGrid);
+    boundsForm.appendChild(section);
   }
+}
+
+function groupedBoundFields(spec, fields) {
+  const displayByGroup = new Map(
+    (spec.group_display || []).map((item) => [
+      item.group,
+      {
+        label: item.display_label || item.group,
+        help: item.display_help || "",
+      },
+    ]),
+  );
+  const orderedGroups = [];
+  const seen = new Set();
+  for (const group of spec.groups || []) {
+    if (!seen.has(group)) {
+      orderedGroups.push(group);
+      seen.add(group);
+    }
+  }
+  for (const field of fields) {
+    const group = field.group || "OtherBounds";
+    if (!seen.has(group)) {
+      orderedGroups.push(group);
+      seen.add(group);
+    }
+  }
+  return orderedGroups
+    .map((group) => {
+      const groupFields = fields.filter((field) => (field.group || "OtherBounds") === group);
+      const display = displayByGroup.get(group) || { label: group, help: "" };
+      return {
+        group,
+        label: display.label,
+        help: display.help,
+        fields: groupFields,
+      };
+    })
+    .filter((group) => group.fields.length);
+}
+
+function boundFieldElement(field) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-field";
+  const label = document.createElement("label");
+  label.htmlFor = field.field_id;
+  label.textContent = fieldLabel(field);
+  wrapper.appendChild(label);
+  wrapper.appendChild(inputForField(field));
+  const help = document.createElement("p");
+  help.textContent = fieldHelp(field);
+  wrapper.appendChild(help);
+  return wrapper;
 }
 
 function inputForField(field) {

@@ -66,12 +66,38 @@ class WebPreviewApiTest(unittest.TestCase):
         fields = {field["field_id"]: field for field in detail["bound_form"]["fields"]}
         self.assertEqual("起始日期", fields["start_date"]["display_label"])
         self.assertEqual("西界經度", fields["bbox_west"]["display_label"])
+        group_display = {item["group"]: item for item in detail["bound_form"]["group_display"]}
+        self.assertEqual("資料集選擇", group_display["DatasetBounds"]["display_label"])
+        self.assertEqual("時間界域", group_display["TimeBounds"]["display_label"])
+        self.assertEqual("空間界域", group_display["SpatialBounds"]["display_label"])
         flow_step_ids = [step["step_id"] for step in detail["flow_steps"]]
         self.assertEqual(
             ["seed", "source_pattern", "bounds", "download_plan", "review_gate"],
             flow_step_ids,
         )
         self.assertEqual("Seed 註冊", detail["flow_steps"][0]["label"])
+
+    def test_detail_returns_separate_version_and_version_limit_form_fields(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_file_index_source(tmp)
+
+            detail = crawler_asset_detail(
+                "demo_file_index",
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+
+        fields = {field["field_id"]: field for field in detail["bound_form"]["fields"]}
+        self.assertIn("version", fields)
+        self.assertIn("version_limit", fields)
+        self.assertEqual("", fields["version"]["default"])
+        self.assertEqual(1, fields["version_limit"]["default"])
+        self.assertEqual(("SourceDownloadOptions.selected_versions",), tuple(fields["version"]["maps_to"]))
+        self.assertEqual(("SourceDownloadBounds.version_limit",), tuple(fields["version_limit"]["maps_to"]))
+        group_display = {item["group"]: item for item in detail["bound_form"]["group_display"]}
+        self.assertEqual("版本控制", group_display["VersionBounds"]["display_label"])
+        self.assertIn("留空", group_display["VersionBounds"]["display_help"])
 
     def test_static_ui_uses_rrkal_product_vocabulary(self) -> None:
         web_root = Path(__file__).resolve().parents[1] / "frontends" / "web" / "static"
@@ -90,7 +116,9 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("西界經度", combined)
         self.assertIn("contentReviewBadge", combined)
         self.assertIn("setContentReviewBadge", combined)
+        self.assertIn("groupedBoundFields", combined)
         self.assertIn("content-review-badge", styles)
+        self.assertIn("bounds-group", styles)
         self.assertNotIn("Mission Queue", combined)
         self.assertNotIn("Season Pass", combined)
         self.assertNotIn("Workshop", combined)
@@ -255,6 +283,34 @@ def write_preview_source(tmpdir: str) -> tuple[Path, Path, Path]:
                         "source_type": "stac_collections",
                         "endpoint_url": "https://example.test/stac",
                         "search_terms": ["landsat"],
+                        "categories": ["geospatial"],
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return source_path, local_path, profile_path
+
+
+def write_preview_file_index_source(tmpdir: str) -> tuple[Path, Path, Path]:
+    root = Path(tmpdir)
+    source_path = root / "sources.json"
+    local_path = root / "missing-local-sources.json"
+    profile_path = root / "missing-profiles.json"
+    source_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "sources": [
+                    {
+                        "source_id": "demo_file_index",
+                        "provider_id": "demo_provider",
+                        "name": "Demo File Index",
+                        "source_type": "html_file_index",
+                        "endpoint_url": "https://example.test/files/",
+                        "search_terms": ["csv"],
                         "categories": ["geospatial"],
                     }
                 ],

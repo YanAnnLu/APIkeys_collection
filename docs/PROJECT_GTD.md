@@ -8,6 +8,7 @@ Last updated: 2026-05-26
 - [x] `frontends/web/preview_api.py` 在 crawler asset detail payload 加入後端產生的 `flow_steps`，讓 Web 以真實後端狀態視覺化 `seed -> source_pattern -> bounds -> download_plan -> review_gate`，避免 JS 自行推測 crawler readiness。
 - [x] Web Preview 主視覺區新增「目前選取的爬蟲資產」，顯示 provider、source pattern、health、trust、bounds/capability counts、下一步與後端流程條。
 - [x] Web 顯示層用穩定 `field_id` / `capability_id` 對照中文標籤，避免舊後端 label 亂碼或平台差異直接進入 UI；後端原始契約仍保留。
+- [x] Web Preview 動態界域表單已改成後端 `group_display` 驅動的分組表單；`api_launcher/crawler_asset_display.py` 統一提供「版本控制、資料集選擇、時間界域、空間界域、擷取上限」等群組文案，Web/Tk/Qt 不需要各自推理 bounds group。
 - [x] 驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke 均通過。
 - [x] 把 Web 使用的 `flow_steps` / label 對照抽成 `api_launcher/crawler_asset_display.py`，讓 Web/Tk/Qt 以後共用 `display_label`、`display_help` 與流程條 payload。
 - [x] 將 plan outcome / Adapter review 摘要納入同一份 display schema：Web API 現在回傳 `plan_outcome` 與 `adapter_review` 顯示 payload，Web JS 只呈現後端 label/tone/summary，不自行推理業務分支。

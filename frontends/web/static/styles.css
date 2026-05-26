@@ -981,6 +981,46 @@ p {
 
 .bounds-form {
   display: grid;
+  gap: 12px;
+}
+
+.bounds-group {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(72, 186, 255, 0.08), transparent 46%),
+    rgba(8, 18, 28, 0.58);
+}
+
+.bounds-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bounds-group-head strong {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.bounds-group-head span {
+  flex: 0 0 auto;
+  color: var(--cyan);
+  font-size: 11px;
+}
+
+.bounds-group-help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.bounds-group-fields {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
@@ -1165,6 +1205,7 @@ pre {
   .hero-health,
   .flow-strip,
   .bounds-form,
+  .bounds-group-fields,
   .trust-radar {
     grid-template-columns: 1fr;
   }
