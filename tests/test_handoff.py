@@ -187,6 +187,26 @@ class HandoffTests(unittest.TestCase):
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())
 
+    def test_cli_emits_crawler_run_summary_json_without_human_setup_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                rc = main(
+                    [
+                        "--db",
+                        str(Path(tmpdir) / "launcher.sqlite"),
+                        "--crawler-run-summary-json",
+                    ]
+                )
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertIn("latest_listing", payload)
+        self.assertIn("latest_download_plan_build", payload)
+        self.assertIn("event_limit", payload)
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
     def test_open_gtd_parser_keeps_code_span_pipes_inside_cells(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "PROJECT_GTD.md"

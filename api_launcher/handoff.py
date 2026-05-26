@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from api_launcher.crawler_run_records import crawler_run_event_summary
+from api_launcher.crawler_run_records import crawler_run_summary_from_events
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.db import utc_now_iso
@@ -301,12 +301,7 @@ def crawler_run_handoff_summary(events: list[dict[str, object]]) -> dict[str, An
     payload 帶進 agent 接力資料。
     """
 
-    latest_listing = latest_event_by_name(events, "crawler_asset_listing_recorded")
-    latest_plan_build = latest_event_by_name(events, "crawler_asset_plan_outcome_recorded")
-    return {
-        "latest_listing": crawler_run_event_summary(latest_listing),
-        "latest_download_plan_build": crawler_run_event_summary(latest_plan_build),
-    }
+    return crawler_run_summary_from_events(events)
 
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:

@@ -60,6 +60,9 @@ RUN_COUNT_KEYS = (
     "candidate_snapshot_count",
 )
 
+CRAWLER_RUN_LISTING_EVENT = "crawler_asset_listing_recorded"
+CRAWLER_RUN_PLAN_EVENT = "crawler_asset_plan_outcome_recorded"
+
 
 def crawler_run_record(
     *,
@@ -194,6 +197,24 @@ def crawler_run_event_summary(event: Mapping[str, object]) -> dict[str, object]:
     return summary
 
 
+def crawler_run_summary_from_events(events: list[dict[str, object]]) -> dict[str, object]:
+    """Return the latest crawler listing/plan summaries without replaying crawlers."""
+
+    latest_listing = latest_crawler_run_event(events, CRAWLER_RUN_LISTING_EVENT)
+    latest_plan_build = latest_crawler_run_event(events, CRAWLER_RUN_PLAN_EVENT)
+    return {
+        "latest_listing": crawler_run_event_summary(latest_listing),
+        "latest_download_plan_build": crawler_run_event_summary(latest_plan_build),
+    }
+
+
+def latest_crawler_run_event(events: list[dict[str, object]], event_name: str) -> dict[str, object]:
+    for event in reversed(events):
+        if event.get("event") == event_name:
+            return event
+    return {}
+
+
 def crawler_run_event_counts(
     context: Mapping[str, object],
     run_record: Mapping[str, object],
@@ -212,10 +233,14 @@ def compact_crawler_run_record(run_record: Mapping[str, object]) -> dict[str, ob
 
 
 __all__ = [
+    "CRAWLER_RUN_LISTING_EVENT",
+    "CRAWLER_RUN_PLAN_EVENT",
     "compact_crawler_run_record",
     "crawler_run_context_summary",
     "crawler_run_event_summary",
     "crawler_run_record",
     "crawler_run_record_from_result",
     "crawler_run_record_key",
+    "crawler_run_summary_from_events",
+    "latest_crawler_run_event",
 ]

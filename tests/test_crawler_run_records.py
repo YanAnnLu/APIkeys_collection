@@ -7,6 +7,7 @@ from api_launcher.crawler_run_records import (
     crawler_run_context_summary,
     crawler_run_event_summary,
     crawler_run_record_from_result,
+    crawler_run_summary_from_events,
 )
 
 
@@ -78,6 +79,37 @@ class CrawlerRunRecordTest(unittest.TestCase):
         self.assertEqual(2, summary["direct_download_count"])
         self.assertTrue(summary["resolved_plan_available"])
         self.assertNotIn("resolved_plan", summary)
+
+    def test_summary_from_events_uses_latest_listing_and_plan_events(self) -> None:
+        summary = crawler_run_summary_from_events(
+            [
+                {
+                    "timestamp": "old",
+                    "event": "crawler_asset_listing_recorded",
+                    "context": {"asset_id": "old_asset", "candidate_count": 1},
+                },
+                {
+                    "timestamp": "latest-listing",
+                    "event": "crawler_asset_listing_recorded",
+                    "context": {"asset_id": "new_asset", "candidate_count": 5},
+                },
+                {
+                    "timestamp": "latest-plan",
+                    "event": "crawler_asset_plan_outcome_recorded",
+                    "context": {
+                        "asset_id": "new_asset",
+                        "direct_download_count": 2,
+                        "resolved_plan": {"providers": [{"large": "payload"}]},
+                    },
+                },
+            ]
+        )
+
+        self.assertEqual("new_asset", summary["latest_listing"]["asset_id"])
+        self.assertEqual(5, summary["latest_listing"]["candidate_count"])
+        self.assertEqual(2, summary["latest_download_plan_build"]["direct_download_count"])
+        self.assertTrue(summary["latest_download_plan_build"]["resolved_plan_available"])
+        self.assertNotIn("resolved_plan", summary["latest_download_plan_build"])
 
 
 if __name__ == "__main__":
