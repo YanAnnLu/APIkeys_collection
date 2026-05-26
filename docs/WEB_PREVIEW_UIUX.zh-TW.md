@@ -89,6 +89,7 @@ http://127.0.0.1:8765/
 - Web Preview 第一版已改成較完整的 console 佈局，作為未來 QSS 參照。
 - `/api/health` 會回報實際綁定的 `host`、`port`、`url`、原請求 port 與是否經過 port scan；前端總覽與本機互動紀錄會顯示實際 `host:port`，避免多個 agent / clone 同時開 Web Preview 時混淆。
 - Web session 內建立下載計畫後，卡片牆會用後端 `plan_outcome.short_label` / `display_tone` / `content_review` 顯示即時徽章，並同步寫入 compact `crawler_asset_plan_outcome_recorded` structured event；重新載入頁面時，也會從近期 event 讀取同一份 badge payload 作為後端狀態提示。這不是 JS localStorage 持久化；長期資產狀態仍應由 event log / asset profile / service contract 接手。
+- 選中爬蟲資產後，hero 與右側資產護照會顯示最近計畫結果摘要；這仍只呈現 `latest_plan_outcome` / session payload，不在前端判斷 direct/review/blocked 的業務規則。
 
 ## 下一步
 
@@ -112,6 +113,7 @@ http://127.0.0.1:8765/
 - 界域表單會依後端 `group_display` 分組渲染，例如「版本控制、資料集選擇、時間界域、空間界域、擷取上限」。Web 只呈現這份 schema；分組語彙由 `api_launcher/crawler_asset_display.py` 統一提供，未來 Tk/Qt 可沿用同一份 contract。
 - 下載計畫結果與 Adapter 待辦摘要也由同一個 display schema 產生：`plan_outcome` 會帶 `outcome_bucket`、`display_label`、`display_tone`、`short_label`、`summary`、`next_action_label`；`adapter_review` 會帶 `item_count`、`by_outcome` 與可顯示的 outcome 分組。Web 只呈現這份 payload，不在 `app.js` 裡重寫業務分支；Tk 表格短狀態也沿用 `short_label`。
 - 卡片牆的 plan badge 先呈現目前 Web session 剛建立的 plan outcome；若頁面重載或剛開啟，則讀取 Web API 從 structured event log 彙整出的 `latest_plan_outcome`。Web Preview 自己建立下載計畫時也會寫同一種 event，但只保存 compact context，不把完整 resolved plan 塞進 JSONL。文字使用 `short_label`，色調使用 `display_tone`，若有 `content_review.has_review`，會再顯示內容格式待辦徽章。不要在 CSS/JS 裡新增 outcome bucket 分支。
+- 資產護照的 plan outcome panel 與上方 selected hero 都只視覺化同一份 `latest_plan_outcome`：顯示最近計畫短標、summary、direct/review counts 與 content-review badge，讓使用者點進資產後仍能看到後端狀態，而不是只靠卡片牆小徽章。
 - 下方「本機互動紀錄」只記錄本機互動與後端回應，不偽造下載進度。
 - 「後端 JSON」保留完整 payload，讓 agent 與人類都能追查 service contract。
 

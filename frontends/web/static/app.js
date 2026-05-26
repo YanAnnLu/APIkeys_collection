@@ -1,5 +1,6 @@
 let assets = [];
 let selectedAssetId = "";
+let selectedAssetDetail = null;
 let selectedSourceType = "all";
 let missions = [];
 const assetPlanOutcomes = new Map();
@@ -201,12 +202,14 @@ async function selectAsset(assetId) {
   renderAssetGrid();
   try {
     const detail = await getJson(`/api/crawler-assets/${encodeURIComponent(assetId)}`);
+    selectedAssetDetail = detail;
     renderPassport(detail.card, detail.asset);
     renderSelectedHero(detail.card, detail.flow_steps || []);
     renderBoundsForm(detail.bound_form);
     writeJson(detail.bound_form);
     addMission("載入資產護照", detail.card.display_name);
   } catch (error) {
+    selectedAssetDetail = null;
     writeJson({ error: String(error), asset_id: assetId });
   }
 }
@@ -244,6 +247,8 @@ function renderPassport(card, asset) {
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
       <div><dt>下一步</dt><dd>${escapeHtml(card.next_action || "檢查界域或審核結果")}</dd></div>
     </dl>
+
+    ${planOutcomePanelHtml(card)}
 
     <div class="trust-radar">
       <div><span>Trust</span><strong>${escapeHtml(String(boundedPercent(card.trust_score)))}</strong></div>
@@ -416,6 +421,7 @@ async function submitBounds(execute) {
       setContentReviewBadge(payload.plan_outcome.content_review);
       addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action || "review");
       renderAssetGrid();
+      refreshSelectedAssetOutcomeViews();
     } else {
       setContentReviewBadge(null);
       addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
@@ -438,6 +444,15 @@ function rememberAssetPlanOutcome(assetId, planOutcome) {
   if (asset) {
     asset.latest_plan_outcome = planOutcome;
   }
+  if (selectedAssetDetail?.card?.asset_id === assetId) {
+    selectedAssetDetail.card.latest_plan_outcome = planOutcome;
+  }
+}
+
+function refreshSelectedAssetOutcomeViews() {
+  if (!selectedAssetDetail) return;
+  renderPassport(selectedAssetDetail.card, selectedAssetDetail.asset);
+  renderSelectedHero(selectedAssetDetail.card, selectedAssetDetail.flow_steps || []);
 }
 
 function prepareOpenCommand(asset) {
@@ -491,6 +506,7 @@ function renderSelectedHero(card, flowSteps = []) {
         <span>${escapeHtml(shortPattern(card.source_type))}</span>
         ${statePill(status)}
       </div>
+      ${planOutcomeHeroHtml(card)}
       <div class="hero-actions">
         <button type="button" class="primary-button" onclick="document.querySelector('#payloadPreviewButton')?.click()">預覽界域 payload</button>
         <button type="button" class="secondary-button" onclick="document.querySelector('#buildPlanButton')?.click()">建立下載計畫</button>
@@ -510,6 +526,44 @@ function renderSelectedHero(card, flowSteps = []) {
       </div>
     </div>
     ${renderFlowSteps(flowSteps)}
+  `;
+}
+
+function planOutcomePanelHtml(asset) {
+  const outcome = latestPlanOutcomeForAsset(asset);
+  if (!outcome) return "";
+  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const summary = outcome.summary || outcome.next_action_label || "最近一次計畫結果可供檢視。";
+  const tone = toneClass(outcome.display_tone);
+  const contentReview = outcome.content_review?.has_review
+    ? `<span class="plan-outcome-review ${toneClass(outcome.content_review.display_tone)}">${escapeHtml(outcome.content_review.display_label || "內容待辦")}</span>`
+    : "";
+  return `
+    <section class="plan-outcome-panel ${tone}">
+      <div>
+        <span class="eyebrow">Plan Outcome</span>
+        <strong>${escapeHtml(label)}</strong>
+        <p>${escapeHtml(summary)}</p>
+      </div>
+      <div class="plan-outcome-metrics">
+        ${heroMetric("Direct", outcome.direct_download_count || 0)}
+        ${heroMetric("Review", outcome.review_required_count || 0)}
+      </div>
+      ${contentReview}
+    </section>
+  `;
+}
+
+function planOutcomeHeroHtml(asset) {
+  const outcome = latestPlanOutcomeForAsset(asset);
+  if (!outcome) return "";
+  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const tone = toneClass(outcome.display_tone);
+  return `
+    <div class="hero-plan-outcome ${tone}" title="${escapeAttr(outcome.summary || outcome.next_action_label || label)}">
+      <span>最近計畫</span>
+      <strong>${escapeHtml(label)}</strong>
+    </div>
   `;
 }
 

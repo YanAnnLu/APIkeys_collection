@@ -26,6 +26,7 @@ Last updated: 2026-05-26
 - [x] Web Preview 卡片牆已可顯示本次 session 建立下載計畫後的 `plan_outcome` 徽章：文字吃 `short_label`，色調吃 `display_tone`，內容格式待辦吃 `content_review`；這是 session-local UIUX preview，不做跨 session 持久化。
 - [x] Web Preview 卡片牆現在會從近期 `crawler_asset_plan_outcome_recorded` structured event 補上 `latest_plan_outcome`，頁面重載後仍能看到最近後端計畫結果徽章；Web session 內新建結果仍優先顯示，避免用 stale event 蓋掉最新操作。
 - [x] Web Preview 建立下載計畫時也會寫入 compact `crawler_asset_plan_outcome_recorded` event；事件只保留 badge/context 欄位與是否有 resolved plan，不把完整 plan JSON 塞進 event log。
+- [x] Web Preview 選中資產的 hero 與右側資產護照已顯示 `latest_plan_outcome` 摘要：最近計畫短標、summary、direct/review counts 與 content-review badge 都來自後端 payload。
 - [ ] 下一步：把 Adapter resolving 結果回寫成更完整的 resolved-plan passport / 資產 profile 狀態，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract，而不是只依賴近期 event。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
