@@ -8,6 +8,7 @@ Last updated: 2026-05-26
 - [x] `CrawlerAssetDownloadPlanResult.to_dict()` 現在會輸出 `run_record.stage=download_plan_build`、`outcome_bucket`、direct/review counts、source/bounds signature 與 candidate snapshot digest。
 - [x] 目前 `run_record.storage_lane=structured_event_log`，`future_sqlite_table=crawler_run_registry` 只是後續 SQLite registry 欄位對齊提示；本切片不建立新資料表，也不改匯入/下載行為。
 - [x] 測試已鎖住 zero-candidate、blocked plan 與 listing warning 的 `run_record` payload，避免 UI/agent 再從分散 count 自行重建 crawler run 狀態。
+- [x] Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在也會保存 compact `run_record`；Web `/api/events/recent` 只回傳 bounded summary，避免前端或 agent 重新推理 crawler run 狀態。
 
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。

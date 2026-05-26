@@ -2,6 +2,8 @@
 
 ## 2026-05-26 Crawler run record / registry handoff
 
+- Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在會保存同一份 compact `run_record`。Web `/api/events/recent` 只暴露 `record_key`、`stage`、`status`、`outcome_bucket`、`next_action` 等 bounded summary，讓 agent 可以從事件紀錄讀狀態，但不會把完整 plan 或候選清單塞進 event log。
+- `crawler_run_record_from_result()` 是前端中立 helper：Tk/Web/未來 Qt 不應知道每個 result 如何計算 run status，只從 `result.to_dict()["run_record"]` 取 compact payload；沒有這個 contract 的 result 會回傳空 payload。
 - `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 現在都會輸出 `run_record`，作為 crawler run registry 正式落地前的 structured handoff payload。
 - `run_record` 目前固定帶 `stage`、`status`、`outcome_bucket`、候選/下載/review/error/warning/duplicate counts、`source_signature`、`bounds_signature`、`candidate_snapshot_signature`、`next_action` 與 16 字元 `record_key`。
 - 這個 payload 的用途是讓 UI、Web Preview、Qt 前導與 agent 能讀同一份 crawler run 狀態；不要在前端或 handoff 腳本中重新用分散欄位推理 listing / plan build 結果。

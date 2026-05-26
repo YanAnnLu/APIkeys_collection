@@ -60,7 +60,26 @@ def crawler_run_record_key(payload: Mapping[str, object]) -> str:
     return sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+def crawler_run_record_from_result(result: object) -> dict[str, object]:
+    """Extract the compact run record from a result object when available.
+
+    Tk/Web/Qt should not know how every crawler result calculates status.  They
+    can call this helper and keep the event context bounded; objects without a
+    ``to_dict().run_record`` contract simply return an empty payload.
+    """
+
+    to_dict = getattr(result, "to_dict", None)
+    if not callable(to_dict):
+        return {}
+    payload = to_dict()
+    if not isinstance(payload, dict):
+        return {}
+    run_record = payload.get("run_record")
+    return dict(run_record) if isinstance(run_record, dict) else {}
+
+
 __all__ = [
     "crawler_run_record",
+    "crawler_run_record_from_result",
     "crawler_run_record_key",
 ]

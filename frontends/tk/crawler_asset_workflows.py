@@ -22,6 +22,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
+from api_launcher.crawler_run_records import crawler_run_record_from_result
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
@@ -724,6 +725,7 @@ class CrawlerAssetWorkflowMixin:
                 "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
                 "content_review_label": str(outcome_payload.get("content_review_label") or ""),
                 "content_review": content_review_payload,
+                "run_record": crawler_run_record_from_result(result),
                 "plan_passport": plan_passport_payload,
                 "resolved_plan": written_paths.get("resolved", ""),
                 "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),

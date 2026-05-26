@@ -25,6 +25,7 @@ from api_launcher.crawler_asset_profiles import (
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
+from api_launcher.crawler_run_records import crawler_run_record_from_result
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.paths import default_local_downloads_root, state_file
@@ -226,6 +227,15 @@ def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
             "count": content_review.get("count", 0),
             "has_review": bool(content_review.get("has_review")),
         }
+    if isinstance(context.get("run_record"), dict):
+        run_record = context["run_record"]
+        context_summary["run_record"] = {
+            "record_key": run_record.get("record_key", ""),
+            "stage": run_record.get("stage", ""),
+            "status": run_record.get("status", ""),
+            "outcome_bucket": run_record.get("outcome_bucket", ""),
+            "next_action": run_record.get("next_action", ""),
+        }
     return {
         "timestamp": str(event.get("timestamp") or ""),
         "level": str(event.get("level") or "info"),
@@ -366,6 +376,7 @@ def crawler_asset_plan_event_context(
         "review_queue_count": int(getattr(result, "review_required_count", 0) or 0),
         "content_review_label": str(plan_outcome.get("content_review_label") or ""),
         "content_review": content_review if isinstance(content_review, dict) else {},
+        "run_record": crawler_run_record_from_result(result),
         "resolved_plan": "",
         "resolved_plan_available": bool(getattr(result, "resolved_plan", None)),
         "plan_passport": compact_web_plan_passport_payload(plan_passport),

@@ -703,6 +703,15 @@ class TkDialogModuleTest(unittest.TestCase):
                 ]
             },
         )
+        result.to_dict = lambda: {
+            "run_record": {
+                "record_key": "abc123def4567890",
+                "stage": "download_plan_build",
+                "status": "review",
+                "outcome_bucket": "review_required",
+                "next_action": "open_adapter_review_or_adjust_bounds",
+            }
+        }
         ui = object.__new__(CrawlerAssetWorkflowMixin)
 
         with patch("frontends.tk.crawler_asset_workflows.log_event") as event_log:
@@ -718,6 +727,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(context["plan_passport"]["has_resolved_plan"])
         self.assertEqual(1, context["plan_passport"]["adapter_review_count"])
         self.assertEqual(1, context["plan_passport"]["content_review_count"])
+        self.assertEqual("download_plan_build", context["run_record"]["stage"])
+        self.assertEqual("review", context["run_record"]["status"])
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

@@ -252,6 +252,15 @@ class WebPreviewApiTest(unittest.TestCase):
             user_next_action="open_adapter_review_or_adjust_bounds",
             resolved_plan={"providers": [{"provider_id": "demo"}]},
         )
+        result.to_dict = lambda: {
+            "run_record": {
+                "record_key": "abc123def4567890",
+                "stage": "download_plan_build",
+                "status": "review",
+                "outcome_bucket": "review_required",
+                "next_action": "open_adapter_review_or_adjust_bounds",
+            }
+        }
 
         context = crawler_asset_plan_event_context(
             result,
@@ -277,6 +286,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("", context["resolved_plan"])
         self.assertTrue(context["resolved_plan_available"])
         self.assertEqual({}, context["plan_passport"])
+        self.assertEqual("download_plan_build", context["run_record"]["stage"])
+        self.assertEqual("review", context["run_record"]["status"])
 
         context_with_passport = crawler_asset_plan_event_context(
             result,
@@ -313,6 +324,13 @@ class WebPreviewApiTest(unittest.TestCase):
                         "count": 1,
                         "has_review": True,
                     },
+                    "run_record": {
+                        "record_key": "abc123def4567890",
+                        "stage": "download_plan_build",
+                        "status": "review",
+                        "outcome_bucket": "review_required",
+                        "next_action": "open_adapter_review_or_adjust_bounds",
+                    },
                 },
             }
         ]
@@ -328,6 +346,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("demo_stac", event["context_summary"]["asset_id"])
         self.assertEqual("review_required", event["context_summary"]["outcome_bucket"])
         self.assertNotIn("resolved_plan", event["context_summary"])
+        self.assertEqual("download_plan_build", event["context_summary"]["run_record"]["stage"])
+        self.assertEqual("review", event["context_summary"]["run_record"]["status"])
         self.assertEqual("內容 Parser 待辦 1", event["context_summary"]["content_review"]["display_label"])
 
     def test_plan_passport_summarizes_resolved_plan_without_copying_body(self) -> None:
