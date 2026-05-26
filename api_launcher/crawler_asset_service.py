@@ -14,6 +14,7 @@ from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
 )
 from api_launcher.crawler_assets import load_crawler_asset_source
+from api_launcher.crawler_run_records import crawler_run_record
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, crawl_dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource, dataset_with_candidate_metadata
 from api_launcher.repository import ApiCatalogRepository, load_providers
@@ -49,7 +50,7 @@ class CrawlerAssetListingResult:
         return bool(self.blocked_reason)
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        payload = {
             "asset_id": self.asset_id,
             "source_found": self.source_found,
             "blocked": self.blocked,
@@ -63,6 +64,17 @@ class CrawlerAssetListingResult:
             "next_action": self.next_action,
             "audit_summary": self.audit_summary,
         }
+        payload["run_record"] = crawler_run_record(
+            stage="crawler_listing",
+            asset_id=self.asset_id,
+            status=crawler_listing_record_status(self),
+            next_action=self.next_action,
+            candidate_count=self.candidate_count,
+            error_count=self.error_count,
+            warning_count=self.warning_count,
+            duplicate_count=self.duplicate_count,
+        )
+        return payload
 
 
 @dataclass(frozen=True)
@@ -144,7 +156,7 @@ class CrawlerAssetDownloadPlanResult:
         return self.next_action or "review_resolved_download_plan"
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        payload = {
             "asset_id": self.asset_id,
             "source_found": self.source_found,
             "blocked": self.blocked,
@@ -159,6 +171,43 @@ class CrawlerAssetDownloadPlanResult:
             "user_next_action": self.user_next_action,
             "plan_build": self.plan_build.to_dict() if self.plan_build is not None else {},
         }
+        payload["run_record"] = crawler_run_record(
+            stage="download_plan_build",
+            asset_id=self.asset_id,
+            status=crawler_plan_record_status(self),
+            outcome_bucket=self.outcome_bucket,
+            next_action=self.user_next_action,
+            candidate_count=self.plan_build.candidate_count if self.plan_build is not None else 0,
+            direct_download_count=self.direct_download_count,
+            review_required_count=self.review_required_count,
+            source_signature=self.source_signature,
+            bounds_signature=self.bounds_signature,
+            candidate_snapshot_signature=(
+                self.plan_build.candidate_snapshot_signature if self.plan_build is not None else ""
+            ),
+            candidate_snapshot_count=self.plan_build.candidate_snapshot_count if self.plan_build is not None else 0,
+        )
+        return payload
+
+
+def crawler_listing_record_status(result: CrawlerAssetListingResult) -> str:
+    if result.blocked:
+        return "blocked"
+    if result.error_count:
+        return "error"
+    if result.warning_count:
+        return "warning"
+    return "completed"
+
+
+def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
+    if result.blocked:
+        return "blocked"
+    if result.outcome_bucket in {"ready_to_download", "partial_review_required"}:
+        return "ready"
+    if result.outcome_bucket in {"review_required", "zero_candidates"}:
+        return "review"
+    return "empty"
 
 
 def run_crawler_asset_listing(

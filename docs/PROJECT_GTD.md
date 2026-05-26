@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-26
 
+## 2026-05-26 Crawler Run Registry Handoff Payload
+- [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。
+- [x] `CrawlerAssetListingResult.to_dict()` 現在會輸出 `run_record.stage=crawler_listing`、候選數、warning/error/duplicate counts、`next_action` 與穩定 `record_key`。
+- [x] `CrawlerAssetDownloadPlanResult.to_dict()` 現在會輸出 `run_record.stage=download_plan_build`、`outcome_bucket`、direct/review counts、source/bounds signature 與 candidate snapshot digest。
+- [x] 目前 `run_record.storage_lane=structured_event_log`，`future_sqlite_table=crawler_run_registry` 只是後續 SQLite registry 欄位對齊提示；本切片不建立新資料表，也不改匯入/下載行為。
+- [x] 測試已鎖住 zero-candidate、blocked plan 與 listing warning 的 `run_record` payload，避免 UI/agent 再從分散 count 自行重建 crawler run 狀態。
+
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。
 - [x] `--write-source-draft-from-url ... --write-source-draft-json ...` 在 unknown / low-confidence / missing source type / unsupported source type 時會先寫出 blocked summary JSON，再讓 CLI 失敗；這讓 agent/Tk/Web/Qt 可以讀 structured result，而不是只看到 traceback。

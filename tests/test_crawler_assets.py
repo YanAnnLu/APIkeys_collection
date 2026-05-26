@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from api_launcher.crawler_asset_service import (
     CrawlerAssetDownloadPlanResult,
+    CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
     run_crawler_asset_listing,
     source_download_options_from_crawler_asset_payload,
@@ -61,6 +62,8 @@ class CrawlerAssetTest(unittest.TestCase):
             direct_download_count=direct_download_count,
             candidate_count=candidate_count,
             resolved_plan={"summary": {"review_required_count": review_required_count}},
+            candidate_snapshot_signature="snapshot-a",
+            candidate_snapshot_count=candidate_count,
             to_dict=to_dict,
         )
 
@@ -799,6 +802,12 @@ class CrawlerAssetTest(unittest.TestCase):
         payload = result.to_dict()
         self.assertEqual("zero_candidates", payload["outcome_bucket"])
         self.assertEqual("adjust_bounds_or_refresh_source_listing", payload["user_next_action"])
+        self.assertEqual("download_plan_build", payload["run_record"]["stage"])
+        self.assertEqual("review", payload["run_record"]["status"])
+        self.assertEqual("zero_candidates", payload["run_record"]["outcome_bucket"])
+        self.assertEqual("structured_event_log", payload["run_record"]["storage_lane"])
+        self.assertEqual("crawler_run_registry", payload["run_record"]["future_sqlite_table"])
+        self.assertRegex(str(payload["run_record"]["record_key"]), r"^[0-9a-f]{16}$")
 
     def test_download_plan_result_routes_blocked_bucket(self) -> None:
         result = CrawlerAssetDownloadPlanResult(
@@ -815,6 +824,30 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertTrue(payload["blocked"])
         self.assertEqual("missing_asset_id", payload["blocked_reason"])
         self.assertEqual({}, payload["plan_build"])
+        self.assertEqual("download_plan_build", payload["run_record"]["stage"])
+        self.assertEqual("blocked", payload["run_record"]["status"])
+
+    def test_listing_result_includes_run_registry_handoff_payload(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_index",
+            source_found=True,
+            candidate_count=3,
+            upserted_count=2,
+            duplicate_count=1,
+            warning_count=1,
+            next_action="review_candidates",
+            audit_summary={"status": "warning"},
+        )
+
+        payload = result.to_dict()
+
+        self.assertEqual("crawler_listing", payload["run_record"]["stage"])
+        self.assertEqual("warning", payload["run_record"]["status"])
+        self.assertEqual(3, payload["run_record"]["candidate_count"])
+        self.assertEqual(1, payload["run_record"]["duplicate_count"])
+        self.assertEqual("structured_event_log", payload["run_record"]["storage_lane"])
+        self.assertEqual("crawler_run_registry", payload["run_record"]["future_sqlite_table"])
+        self.assertRegex(str(payload["run_record"]["record_key"]), r"^[0-9a-f]{16}$")
 
     def test_service_builds_download_plan_from_asset_bounds(self) -> None:
         with TemporaryDirectory() as tmp:

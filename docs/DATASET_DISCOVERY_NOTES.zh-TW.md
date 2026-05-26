@@ -1,5 +1,12 @@
 # Dataset Discovery 補充說明
 
+## 2026-05-26 Crawler run record / registry handoff
+
+- `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 現在都會輸出 `run_record`，作為 crawler run registry 正式落地前的 structured handoff payload。
+- `run_record` 目前固定帶 `stage`、`status`、`outcome_bucket`、候選/下載/review/error/warning/duplicate counts、`source_signature`、`bounds_signature`、`candidate_snapshot_signature`、`next_action` 與 16 字元 `record_key`。
+- 這個 payload 的用途是讓 UI、Web Preview、Qt 前導與 agent 能讀同一份 crawler run 狀態；不要在前端或 handoff 腳本中重新用分散欄位推理 listing / plan build 結果。
+- 目前 storage lane 仍是 `structured_event_log`；`future_sqlite_table=crawler_run_registry` 只是下一步資料表設計提示。等 run registry 表定案後，再把這組欄位映射進 SQLite registry，不要在本切片直接新增 migration。
+
 更新日期：2026-05-23
 
 ## 文件角色
