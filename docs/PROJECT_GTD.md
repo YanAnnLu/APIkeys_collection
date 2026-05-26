@@ -8,6 +8,7 @@ Last updated: 2026-05-26
 - [x] stale guard 已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type、dataset/file regex 等來源本體變更，或界域表單 facets 變更時，既有 plan passport 會標記 `source_changed` / `bounds_schema_changed`。
 - [x] stale reason 已補上後端 display-safe 文案：`latest_plan_passport` 會帶 `stale_label` 與 `stale_next_action`，Web/Tk/未來 Qt 只呈現「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，不在前端翻譯 raw reason。
 - [x] Tk Crawler Passport 摘要現在也優先使用 `stale_label` / `stale_next_action`，不再把 `asset_disabled`、`source_changed` 這類 raw stale reason 當作主要使用者提示。
+- [x] Web Preview 的下載器列與 Plan Passport 面板也已收斂 stale 顯示 fallback：缺少 `stale_label` 時只顯示中性「計畫需重建」提示，`stale_reason` 保留給 JSON / agent debug，不作為主要 UI 文案。
 - [x] `SourceDownloadPlanBuild` 現在會計算 `candidate_snapshot_signature` / `candidate_snapshot_count`，並讓 `plan_passport` 以 compact 欄位保存這份候選清單 digest。這能記錄「本次計畫是由哪一批候選版本/metadata/source URL 形成」，但不在沒有重新 crawl 時假裝知道遠端已改。
 - [x] `build_crawler_asset_download_plan()` 現在會在 explicit fresh crawl / rebuild plan 後比較上一版 profile 護照與本次 `candidate_snapshot_signature`，並輸出 `candidate_snapshot_changed`。這個旗標只在重新建立計畫後更新，不由 UI 或 profile loader 被動推測遠端清單變化。
 - [x] Web Preview 下載器列與 Plan Passport 面板、Tk Crawler Passport 摘要都會顯示 `candidate_snapshot_changed`，但顯示層只吃後端 compact passport，不自行判斷遠端 freshness。

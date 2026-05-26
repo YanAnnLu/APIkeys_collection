@@ -213,7 +213,7 @@ function downloaderRowHtml(asset) {
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
     : "";
   const staleChip = passport.stale
-    ? `<span class="context-chip warning">${escapeHtml(passport.stale_label || passport.stale_reason || "計畫需重建")}</span>`
+    ? `<span class="context-chip warning">${escapeHtml(stalePassportLabel(passport))}</span>`
     : "";
   const snapshotChip = passport.candidate_snapshot_changed
     ? `<span class="context-chip warning">候選快照已變更</span>`
@@ -794,8 +794,9 @@ function planPassportPanelHtml(asset) {
   const tone = toneClass(isStale ? "warning" : passport.display_tone || "neutral");
   const resolvedLabel = passport.has_resolved_plan ? "Resolved plan 已建立" : "Resolved plan 待建立";
   const staleLabel = isStale
-    ? (passport.stale_label || `計畫需重建：${passport.stale_reason || "profile_changed"}`)
+    ? stalePassportLabel(passport)
     : "profile 已同步";
+  const nextAction = isStale ? stalePassportNextAction(passport) : passport.next_action;
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
     : "內容待辦 0";
@@ -809,7 +810,7 @@ function planPassportPanelHtml(asset) {
       <div>
         <span class="eyebrow">Plan Passport</span>
         <strong>${escapeHtml(passport.short_label || passport.outcome_bucket || "計畫護照")}</strong>
-        <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(passport.stale_next_action || passport.next_action || "等待下一步")}</p>
+        <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(nextAction || "等待下一步")}</p>
       </div>
       <div class="plan-outcome-metrics">
         ${heroMetric("Candidates", passport.candidate_count || 0)}
@@ -915,6 +916,21 @@ function toneClass(tone) {
   if (["warning", "review"].includes(tone)) return "warning";
   if (["danger", "blocked"].includes(tone)) return "danger";
   return "neutral";
+}
+
+function stalePassportLabel(passport) {
+  const label = String(passport?.stale_label || "").trim();
+  if (label) return label;
+  if (stalePassportNextAction(passport)) return "計畫需重建，請依下一步處理";
+  return "計畫需重建";
+}
+
+function stalePassportNextAction(passport) {
+  const nextAction = String(passport?.stale_next_action || "").trim();
+  if (nextAction) return nextAction;
+
+  // stale_reason 是 agent/debug 用的內部代碼；Web UI 缺 display label 時仍退到中性操作提示。
+  return passport?.stale ? "refresh_or_rebuild_plan_passport" : "";
 }
 
 function adapterReviewOutcomeText(outcomes) {
