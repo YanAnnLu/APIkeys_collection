@@ -10,10 +10,13 @@ from api_launcher.crawlers.dataset_sources import (
     load_all_dataset_discovery_sources,
 )
 from api_launcher.crawlers.types import DatasetDiscoverySource
+from api_launcher.crawler_asset_bounds import bounds_facets_for_source
 from api_launcher.crawler_asset_profiles import (
     CrawlerAssetProfile,
+    crawler_asset_bounds_signature,
     crawler_asset_plan_passport_for_profile,
     crawler_asset_profile_for,
+    crawler_asset_source_signature,
     load_crawler_asset_profiles,
 )
 from api_launcher.crawler_asset_capabilities import (
@@ -210,7 +213,11 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
         favicon_url=profile.favicon_url,
         logo_source=profile.logo_source,
         logo_license_note=profile.logo_license_note,
-        latest_plan_passport=crawler_asset_plan_passport_for_profile(profile),
+        latest_plan_passport=crawler_asset_plan_passport_for_profile(
+            profile,
+            source_signature=crawler_asset_source_signature(source),
+            bounds_signature=crawler_asset_bounds_signature(bounds_facets_for_source(source)),
+        ),
         health=health,
         capabilities=capabilities,
     )

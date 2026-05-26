@@ -5,7 +5,8 @@ Last updated: 2026-05-26
 ## 2026-05-26 Plan Passport stale guard
 - [x] `latest_plan_passport` 現在會保存 `saved_at`、`profile_state`、`stale` 與 `stale_reason`。當 crawler asset profile 被停用或封存後，Web/Tk 會把既有 plan passport 標成需要重建，而不是讓舊下載計畫看起來仍然可用。
 - [x] 後端判斷集中在 `api_launcher/crawler_asset_profiles.py`，`crawler_assets` 只取 display-safe payload，Web/Tk 只呈現結果，避免把 stale 規則散落到 UI。
-- [ ] 下一步可以再補 source/bounds signature，讓來源 endpoint、bounds schema 或版本選項變更時也能標記 stale；本輪先鎖住 profile state 變更。
+- [x] stale guard 已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type、dataset/file regex 等來源本體變更，或界域表單 facets 變更時，既有 plan passport 會標記 `source_changed` / `bounds_schema_changed`。
+- [ ] 下一步可以再補候選版本 / source revision 指紋，讓來源回傳清單內容大幅變動時也能提示重新建立計畫；目前先鎖住 profile/source/bounds schema 三個高風險變更。
 
 ## 2026-05-26 Web Preview / 後端視覺化閉環
 

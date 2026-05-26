@@ -522,6 +522,8 @@ class WebPreviewApiTest(unittest.TestCase):
             review_required_count=0,
             user_next_action="open_downloader_and_start_or_pause_queue",
             next_action="download_ready",
+            source_signature="source-demo",
+            bounds_signature="bounds-demo",
             bounds=SimpleNamespace(to_dict=lambda: {"candidate_limit": 1}),
             plan_build=SimpleNamespace(
                 candidate_count=1,
@@ -558,6 +560,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("providers", passport)
         self.assertEqual(1, persisted_passport["candidate_count"])
         self.assertEqual(1, persisted_passport["direct_download_count"])
+        self.assertEqual("source-demo", persisted_passport["source_signature"])
+        self.assertEqual("bounds-demo", persisted_passport["bounds_signature"])
         self.assertNotIn("providers", persisted_passport)
         self.assertNotIn("resolved_plan", persisted_passport)
 

@@ -6,7 +6,13 @@ from pathlib import Path
 from typing import Callable
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
-from api_launcher.crawler_asset_profiles import crawler_asset_profile_for, load_crawler_asset_profiles
+from api_launcher.crawler_asset_bounds import bounds_facets_for_source
+from api_launcher.crawler_asset_profiles import (
+    crawler_asset_bounds_signature,
+    crawler_asset_profile_for,
+    crawler_asset_source_signature,
+    load_crawler_asset_profiles,
+)
 from api_launcher.crawler_assets import load_crawler_asset_source
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, crawl_dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource, dataset_with_candidate_metadata
@@ -73,6 +79,8 @@ class CrawlerAssetDownloadPlanResult:
     blocked_reason: str = ""
     bounds: SourceDownloadBounds = field(default_factory=SourceDownloadBounds)
     plan_build: SourceDownloadPlanBuild | None = None
+    source_signature: str = ""
+    bounds_signature: str = ""
     next_action: str = ""
 
     @property
@@ -141,6 +149,8 @@ class CrawlerAssetDownloadPlanResult:
             "blocked_reason": self.blocked_reason,
             "outcome_bucket": self.outcome_bucket,
             "bounds": self.bounds.to_dict(),
+            "source_signature": self.source_signature,
+            "bounds_signature": self.bounds_signature,
             "next_action": self.next_action,
             "user_next_action": self.user_next_action,
             "plan_build": self.plan_build.to_dict() if self.plan_build is not None else {},
@@ -299,6 +309,8 @@ def build_crawler_asset_download_plan(
         source_found=True,
         bounds=options.bounds,
         plan_build=plan_build,
+        source_signature=crawler_asset_source_signature(source),
+        bounds_signature=crawler_asset_bounds_signature(bounds_facets_for_source(source)),
         next_action=plan_build.crawl_result.next_action,
     )
 

@@ -347,6 +347,8 @@ def crawler_asset_plan_passport_payload(
         "credential_gate_count": len(tuple(credential_gates)),
         "missing_provider_count": len(tuple(missing_provider_ids)),
         "next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
+        "source_signature": str(getattr(result, "source_signature", "") or ""),
+        "bounds_signature": str(getattr(result, "bounds_signature", "") or ""),
         "bounds": bounds.to_dict() if hasattr(bounds, "to_dict") else {},
     }
 

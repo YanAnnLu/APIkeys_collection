@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from hashlib import sha256
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,8 @@ CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
         "profile_state",
         "stale",
         "stale_reason",
+        "source_signature",
+        "bounds_signature",
     }
 )
 
@@ -259,7 +262,12 @@ def compact_crawler_asset_plan_passport(plan_passport: object) -> dict[str, obje
     return dict(payload)
 
 
-def crawler_asset_plan_passport_for_profile(profile: CrawlerAssetProfile) -> dict[str, object]:
+def crawler_asset_plan_passport_for_profile(
+    profile: CrawlerAssetProfile,
+    *,
+    source_signature: str = "",
+    bounds_signature: str = "",
+) -> dict[str, object]:
     """Return a display-safe passport and flag it stale when profile state changed."""
 
     payload = compact_crawler_asset_plan_passport(profile.latest_plan_passport)
@@ -267,6 +275,8 @@ def crawler_asset_plan_passport_for_profile(profile: CrawlerAssetProfile) -> dic
         return {}
 
     saved_profile_state = str(payload.get("profile_state") or "").strip()
+    saved_source_signature = str(payload.get("source_signature") or "").strip()
+    saved_bounds_signature = str(payload.get("bounds_signature") or "").strip()
     stale_reason = ""
     if profile.archived:
         stale_reason = "asset_archived"
@@ -274,6 +284,10 @@ def crawler_asset_plan_passport_for_profile(profile: CrawlerAssetProfile) -> dic
         stale_reason = "asset_disabled"
     elif saved_profile_state and saved_profile_state != profile.profile_state:
         stale_reason = "profile_state_changed"
+    elif source_signature and saved_source_signature and saved_source_signature != source_signature:
+        stale_reason = "source_changed"
+    elif bounds_signature and saved_bounds_signature and saved_bounds_signature != bounds_signature:
+        stale_reason = "bounds_schema_changed"
 
     if stale_reason:
         payload["stale"] = True
@@ -283,6 +297,38 @@ def crawler_asset_plan_passport_for_profile(profile: CrawlerAssetProfile) -> dic
         payload["stale"] = False
         payload["stale_reason"] = ""
     return payload
+
+
+def crawler_asset_source_signature(source: object) -> str:
+    """Build a stable signature for the source fields that make a saved plan current."""
+
+    return _stable_signature(
+        {
+            "source_id": str(getattr(source, "source_id", "") or ""),
+            "provider_id": str(getattr(source, "provider_id", "") or ""),
+            "source_type": str(getattr(source, "source_type", "") or ""),
+            "endpoint_url": str(getattr(source, "endpoint_url", "") or ""),
+            "dataset_id": str(getattr(source, "dataset_id", "") or ""),
+            "file_url_regex": str(getattr(source, "file_url_regex", "") or ""),
+            "seed_discovery_mode": str(getattr(source, "seed_discovery_mode", "") or ""),
+            "max_results": int(getattr(source, "max_results", 0) or 0),
+        }
+    )
+
+
+def crawler_asset_bounds_signature(facets: object) -> str:
+    """Build a stable signature for the backend bounds form shape."""
+
+    if isinstance(facets, (list, tuple)):
+        normalized = [str(item) for item in facets]
+    else:
+        normalized = [str(facets or "")]
+    return _stable_signature({"facets": normalized})
+
+
+def _stable_signature(payload: dict[str, object]) -> str:
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def _compact_plan_passport_bounds(bounds: object) -> dict[str, object]:
@@ -362,9 +408,11 @@ def toggle_crawler_asset_archived(
 __all__ = [
     "CrawlerAssetProfile",
     "compact_crawler_asset_plan_passport",
+    "crawler_asset_bounds_signature",
     "crawler_asset_plan_passport_for_profile",
     "crawler_asset_profile_for",
     "crawler_asset_profiles_path",
+    "crawler_asset_source_signature",
     "default_crawler_asset_profile",
     "load_crawler_asset_profiles",
     "save_crawler_asset_profiles",

@@ -12,8 +12,12 @@ from api_launcher.crawler_asset_service import (
     source_download_options_from_crawler_asset_payload,
 )
 from api_launcher.crawler_asset_profiles import (
+    CrawlerAssetProfile,
     compact_crawler_asset_plan_passport,
+    crawler_asset_bounds_signature,
+    crawler_asset_plan_passport_for_profile,
     crawler_asset_profile_for,
+    crawler_asset_source_signature,
     load_crawler_asset_profiles,
     set_crawler_asset_archived,
     toggle_crawler_asset_archived,
@@ -451,6 +455,75 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("asset_disabled", passport["stale_reason"])
         self.assertEqual("warning", passport["display_tone"])
         self.assertEqual(3, passport["candidate_count"])
+
+    def test_loaded_assets_mark_profile_plan_passport_stale_when_source_changes(self) -> None:
+        original_source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo Index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/index.html",
+            file_url_regex=r"\.csv$",
+        )
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "demo_index",
+      "provider_id": "demo_provider",
+      "name": "Demo Index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://example.test/files-v2/index.html",
+      "file_url_regex": "\\\\.csv$"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            update_crawler_asset_plan_passport(
+                "demo_index",
+                {
+                    "asset_id": "demo_index",
+                    "candidate_count": 3,
+                    "source_signature": crawler_asset_source_signature(original_source),
+                    "bounds_signature": crawler_asset_bounds_signature(bounds_facets_for_source(original_source)),
+                },
+                profile_path,
+            )
+
+            assets = load_crawler_assets(source_path, None, profile_path)
+
+        passport = assets[0].latest_plan_passport
+        self.assertTrue(passport["stale"])
+        self.assertEqual("source_changed", passport["stale_reason"])
+        self.assertEqual("warning", passport["display_tone"])
+
+    def test_profile_plan_passport_marks_stale_when_bounds_schema_changes(self) -> None:
+        profile = CrawlerAssetProfile(
+            asset_id="demo_index",
+            latest_plan_passport={
+                "asset_id": "demo_index",
+                "candidate_count": 3,
+                "source_signature": "same-source",
+                "bounds_signature": crawler_asset_bounds_signature(("limit",)),
+            },
+        )
+
+        passport = crawler_asset_plan_passport_for_profile(
+            profile,
+            source_signature="same-source",
+            bounds_signature=crawler_asset_bounds_signature(("dataset", "limit")),
+        )
+
+        self.assertTrue(passport["stale"])
+        self.assertEqual("bounds_schema_changed", passport["stale_reason"])
+        self.assertEqual("warning", passport["display_tone"])
 
     def test_loaded_assets_apply_archived_profile_without_changing_source(self) -> None:
         with TemporaryDirectory() as tmp:
