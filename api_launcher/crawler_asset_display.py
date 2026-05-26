@@ -342,6 +342,7 @@ def crawler_asset_plan_passport_payload(
         "candidate_snapshot_count": _safe_int(getattr(plan_build, "candidate_snapshot_count", 0))
         if plan_build is not None
         else 0,
+        "candidate_snapshot_changed": bool(getattr(result, "candidate_snapshot_changed", False)),
         "upserted_candidate_count": _safe_int(getattr(plan_build, "upserted_candidate_count", 0)) if plan_build is not None else 0,
         "selected_version_count": _safe_int(getattr(plan_build, "selected_version_count", 0)) if plan_build is not None else 0,
         "filtered_version_count": _safe_int(getattr(plan_build, "filtered_version_count", 0)) if plan_build is not None else 0,

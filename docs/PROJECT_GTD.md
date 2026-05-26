@@ -8,7 +8,7 @@ Last updated: 2026-05-26
 - [x] stale guard 已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type、dataset/file regex 等來源本體變更，或界域表單 facets 變更時，既有 plan passport 會標記 `source_changed` / `bounds_schema_changed`。
 - [x] stale reason 已補上後端 display-safe 文案：`latest_plan_passport` 會帶 `stale_label` 與 `stale_next_action`，Web/Tk/未來 Qt 只呈現「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，不在前端翻譯 raw reason。
 - [x] `SourceDownloadPlanBuild` 現在會計算 `candidate_snapshot_signature` / `candidate_snapshot_count`，並讓 `plan_passport` 以 compact 欄位保存這份候選清單 digest。這能記錄「本次計畫是由哪一批候選版本/metadata/source URL 形成」，但不在沒有重新 crawl 時假裝知道遠端已改。
-- [ ] 下一步若要真正標記 `candidate_snapshot_changed`，必須在使用者按「重新擷取 / 重建計畫」時先跑 fresh crawl，再把新舊 digest 比較；不要讓 UI 或 profile loader 自行推測遠端清單變化。
+- [x] `build_crawler_asset_download_plan()` 現在會在 explicit fresh crawl / rebuild plan 後比較上一版 profile 護照與本次 `candidate_snapshot_signature`，並輸出 `candidate_snapshot_changed`。這個旗標只在重新建立計畫後更新，不由 UI 或 profile loader 被動推測遠端清單變化。
 
 ## 2026-05-26 Web Preview / 後端視覺化閉環
 
@@ -43,7 +43,7 @@ Last updated: 2026-05-26
 - [x] Web Preview 現在會從 structured event 讀回 compact `plan_passport`，並透過白名單欄位灌回 crawler asset card/detail；頁面重載後的資產護照與下載器分頁仍能顯示 Candidates、Direct、Review、Adapter、內容待辦與 gate 摘要，但不把完整 resolved plan body 複製成前端狀態。
 - [x] `plan_passport` 已收斂為 asset profile 的 compact 欄位：Tk 與 Web 建立下載計畫後會只保存白名單狀態欄位與簡化 bounds，不保存完整 `providers` 或 resolved plan body。Web card/detail 會優先讀 profile passport，再退回近期 event；這讓跨 session 狀態比單純 event fallback 更穩。
 - [x] 下載計畫護照已包含候選 snapshot digest，讓 Web/Tk/Qt 能追溯本次 plan 來自哪一批候選資料。
-- [ ] 下一步：在 explicit fresh crawl / rebuild plan 流程中比較 `candidate_snapshot_signature`，再決定是否顯示 candidate list 已改變；目前 profile/source/bounds schema 變更已可立即標記 passport stale。
+- [x] explicit fresh crawl / rebuild plan 流程已可比較 `candidate_snapshot_signature` 並保存 `candidate_snapshot_changed`，讓 Web/Tk/未來 Qt 只在後端真的重跑候選清單後顯示候選快照變更。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

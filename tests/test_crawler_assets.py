@@ -386,6 +386,7 @@ class CrawlerAssetTest(unittest.TestCase):
                     "candidate_count": 5,
                     "candidate_snapshot_signature": "abcdef0123456789",
                     "candidate_snapshot_count": 5,
+                    "candidate_snapshot_changed": True,
                     "direct_download_count": 2,
                     "adapter_review_count": 3,
                     "next_action": "open_downloader_and_start_or_pause_queue",
@@ -405,6 +406,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(5, passport["candidate_count"])
         self.assertEqual("abcdef0123456789", passport["candidate_snapshot_signature"])
         self.assertEqual(5, passport["candidate_snapshot_count"])
+        self.assertTrue(passport["candidate_snapshot_changed"])
         self.assertEqual(2, profiles["demo_index"].latest_plan_passport["direct_download_count"])
         self.assertEqual([120.0, 22.0, 122.0, 25.0], passport["bounds"]["bbox"])
         self.assertEqual("demo_index", passport["asset_id"])
@@ -813,6 +815,7 @@ class CrawlerAssetTest(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             source_path = Path(tmp) / "sources.json"
             local_path = Path(tmp) / "local_sources.json"
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
             source_path.write_text(
                 """
 {
@@ -829,6 +832,15 @@ class CrawlerAssetTest(unittest.TestCase):
 }
 """.strip(),
                 encoding="utf-8",
+            )
+            update_crawler_asset_plan_passport(
+                "demo_index",
+                {
+                    "asset_id": "demo_index",
+                    "candidate_snapshot_signature": "oldcandidate0001",
+                    "candidate_snapshot_count": 1,
+                },
+                profile_path,
             )
             conn = connect_db(Path(tmp) / "catalog.sqlite")
             try:
@@ -893,11 +905,16 @@ class CrawlerAssetTest(unittest.TestCase):
                         downloads_root=Path(tmp) / "downloads",
                         primary_path=source_path,
                         local_path=local_path,
+                        profile_path=profile_path,
                     )
             finally:
                 conn.close()
 
         self.assertFalse(result.blocked)
+        self.assertTrue(result.candidate_snapshot_changed)
+        self.assertEqual("oldcandidate0001", result.previous_candidate_snapshot_signature)
+        self.assertRegex(result.plan_build.candidate_snapshot_signature, r"^[0-9a-f]{16}$")
+        self.assertTrue(result.to_dict()["candidate_snapshot_changed"])
         self.assertEqual("ready_to_download", result.outcome_bucket)
         self.assertEqual("open_downloader_and_start_or_pause_queue", result.user_next_action)
         self.assertEqual(1, result.direct_download_count)
@@ -1019,6 +1036,7 @@ class CrawlerAssetTest(unittest.TestCase):
         version = entry["dataset_version"]
         self.assertEqual("2025-01-02", version["version"])
         self.assertEqual("https://example.test/data-2025-01-02.csv", entry["download_url"])
+        self.assertFalse(result.candidate_snapshot_changed)
 
 
 if __name__ == "__main__":

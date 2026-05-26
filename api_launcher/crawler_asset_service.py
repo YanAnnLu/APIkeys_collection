@@ -81,6 +81,8 @@ class CrawlerAssetDownloadPlanResult:
     plan_build: SourceDownloadPlanBuild | None = None
     source_signature: str = ""
     bounds_signature: str = ""
+    previous_candidate_snapshot_signature: str = ""
+    candidate_snapshot_changed: bool = False
     next_action: str = ""
 
     @property
@@ -151,6 +153,8 @@ class CrawlerAssetDownloadPlanResult:
             "bounds": self.bounds.to_dict(),
             "source_signature": self.source_signature,
             "bounds_signature": self.bounds_signature,
+            "previous_candidate_snapshot_signature": self.previous_candidate_snapshot_signature,
+            "candidate_snapshot_changed": self.candidate_snapshot_changed,
             "next_action": self.next_action,
             "user_next_action": self.user_next_action,
             "plan_build": self.plan_build.to_dict() if self.plan_build is not None else {},
@@ -304,6 +308,16 @@ def build_crawler_asset_download_plan(
         downloads_root,
         options,
     )
+    # 只在 explicit rebuild 後比較候選 digest；讀取 profile 時不得假裝知道遠端是否更新。
+    previous_candidate_snapshot_signature = str(
+        profile.latest_plan_passport.get("candidate_snapshot_signature") if profile.latest_plan_passport else ""
+    ).strip()
+    current_candidate_snapshot_signature = str(plan_build.candidate_snapshot_signature or "").strip()
+    candidate_snapshot_changed = bool(
+        previous_candidate_snapshot_signature
+        and current_candidate_snapshot_signature
+        and previous_candidate_snapshot_signature != current_candidate_snapshot_signature
+    )
     return CrawlerAssetDownloadPlanResult(
         asset_id=asset_key,
         source_found=True,
@@ -311,6 +325,8 @@ def build_crawler_asset_download_plan(
         plan_build=plan_build,
         source_signature=crawler_asset_source_signature(source),
         bounds_signature=crawler_asset_bounds_signature(bounds_facets_for_source(source)),
+        previous_candidate_snapshot_signature=previous_candidate_snapshot_signature,
+        candidate_snapshot_changed=candidate_snapshot_changed,
         next_action=plan_build.crawl_result.next_action,
     )
 

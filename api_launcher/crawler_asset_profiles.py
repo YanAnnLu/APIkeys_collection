@@ -22,6 +22,7 @@ CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
         "candidate_count",
         "candidate_snapshot_signature",
         "candidate_snapshot_count",
+        "candidate_snapshot_changed",
         "upserted_candidate_count",
         "selected_version_count",
         "filtered_version_count",

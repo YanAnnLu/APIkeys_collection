@@ -6,7 +6,7 @@
 - stale 判斷已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type/file regex 等欄位改變會輸出 `source_changed`，界域 facets 改變會輸出 `bounds_schema_changed`。這些簽名由後端生成，UI 不應自行重算。
 - stale payload 已補 `stale_label` 與 `stale_next_action`，讓 Web/Tk/未來 Qt 顯示「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，而不是把 raw `source_changed` 丟給使用者。
 - `SourceDownloadPlanBuild` 現在會在每次建立 plan 時保存候選清單 snapshot digest：`candidate_snapshot_signature` / `candidate_snapshot_count` 會進入 compact `plan_passport`，用來追溯本次計畫由哪一批 candidate metadata / version / source URL 形成。
-- 重要邊界：候選 digest 只代表「當次 crawl 的快照」。`load_crawler_assets()` 不會重爬遠端，所以目前不會標記 `candidate_snapshot_changed`；未來只有 explicit fresh crawl / rebuild plan 後，才應比較新舊 digest 並提示使用者重建。
+- 重要邊界：候選 digest 只代表「當次 crawl 的快照」。`load_crawler_assets()` 不會重爬遠端；`candidate_snapshot_changed` 只會在使用者 explicit fresh crawl / rebuild plan 時，由 `build_crawler_asset_download_plan()` 比較上一版 profile 護照與本次 digest 後輸出。
 - 已補測試：profile compact persistence、disabled asset stale、source_changed stale、bounds_schema_changed stale、candidate snapshot digest stability、Web persisted signature payload、Tk summary stale text、Web stale display label。
 
 最後更新：2026-05-26
