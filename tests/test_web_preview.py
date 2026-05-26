@@ -17,6 +17,7 @@ from api_launcher.crawler_asset_display import (
 from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
     update_crawler_asset_plan_passport,
+    update_crawler_asset_profile,
 )
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
@@ -210,8 +211,35 @@ class WebPreviewApiTest(unittest.TestCase):
         passport = payload["assets"][0]["latest_plan_passport"]
         self.assertEqual(7, passport["candidate_count"])
         self.assertEqual(2, passport["direct_download_count"])
+        self.assertFalse(passport["stale"])
+        self.assertEqual("active", passport["profile_state"])
         self.assertEqual(5, detail["card"]["latest_plan_passport"]["adapter_review_count"])
         self.assertNotIn("providers", passport)
+
+    def test_crawler_asset_cards_surface_stale_profile_plan_passport(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            update_crawler_asset_plan_passport(
+                "demo_stac",
+                {
+                    "asset_id": "demo_stac",
+                    "candidate_count": 3,
+                    "direct_download_count": 1,
+                },
+                profile_path,
+            )
+            update_crawler_asset_profile("demo_stac", profile_path, enabled=False)
+
+            payload = crawler_asset_cards(
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+
+        passport = payload["assets"][0]["latest_plan_passport"]
+        self.assertTrue(passport["stale"])
+        self.assertEqual("asset_disabled", passport["stale_reason"])
+        self.assertEqual("warning", passport["display_tone"])
 
     def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:
         result = SimpleNamespace(

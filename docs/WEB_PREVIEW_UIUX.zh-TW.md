@@ -1,10 +1,14 @@
-# Web Preview UI/UX 對照層
+﻿# Web Preview UI/UX 對照層
 最後更新：2026-05-26
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
 ## 定位
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 Tk 與 Web Preview 的分工如下：
 
 - Tk：穩定、樸素、可操作的 MVP 控制台。它應該優先保守、清楚、低風險。
@@ -15,6 +19,10 @@ Tk 與 Web Preview 的分工如下：
 
 ## Web Preview 責任
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 Web Preview 的責任：
 
 - 讀取 `api_launcher` 既有 service / JSON contract。
@@ -31,6 +39,10 @@ Web Preview 不做的事：
 
 ## 檔案結構
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 目前檔案：
 
 - `frontends/web/server.py`：stdlib HTTP server，只負責 API routing 與 static file serving。
@@ -54,6 +66,10 @@ flowchart LR
 
 ## 啟動方式
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 ```powershell
 scripts\run_web_preview.cmd
 ```
@@ -74,6 +90,10 @@ http://127.0.0.1:8765/
 
 ## 開發規則
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 1. Web Preview 只能呼叫 backend service，不複製後端規則。
 2. 每個 Web 動作要能對應既有 JSON contract。
 3. UI 顯示可以有設計感，但狀態文字不能亂猜 `source_type`、`outcome_bucket` 或下載能力。
@@ -83,6 +103,10 @@ http://127.0.0.1:8765/
 
 ## 目前狀態
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 - 已接 crawler asset 清單、資產護照、動態界域表單、payload preview、下載計畫 preview endpoint。
 - `execute=false` 只做界域 payload 與 plan preview，不觸發 live crawler。
 - `execute=true` 會呼叫現有 crawler asset download plan service，仍會進入 adapter review / direct plan 規則，不繞過後端。
@@ -98,6 +122,10 @@ http://127.0.0.1:8765/
 
 ## 下一步
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 - 將 Web `下載器` / `匯入審核` 從狀態預覽逐步接到正式 library action，但仍共用後端 JSON contract，不在 JS 內直接執行下載或匯入。
 - 讓狀態與錯誤提示更接近使用者語言，而不是只顯示原始 JSON。
 - 將穩定的 CSS token 映射成 Qt/QSS 草稿。
@@ -105,6 +133,10 @@ http://127.0.0.1:8765/
 
 ## 2026-05-25 爬蟲資產庫視覺方向
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 這一輪 Web Preview 已把 `tem/ui-aseat-ui` 的核心精神收進正式預覽層，但沒有搬入 React/Vite 依賴：
 
 - `tem` 只提供構圖、密度、互動節奏與卡片牆精神；可見語彙必須改回 RRKAL 本專案語言，不直接搬用 Aseat、Season Pass、Workshop、Mission 等外部概念。
@@ -128,6 +160,10 @@ http://127.0.0.1:8765/
 
 ## Port 使用規則
 
+## Plan Passport stale guard
+- Web Preview 讀取的 `latest_plan_passport` 現在不是單純的上次結果快照，而是後端判斷過的 display-safe payload。
+- 當 crawler asset 被停用或封存後，後端會輸出 `stale=true` / `stale_reason`，Web 下載隊列與 Passport 面板只負責顯示「計畫需重建」，不在 JS 裡重做業務判斷。
+- 這個規則同時供 Tk 使用，未來 Qt/QSS 版也應吃同一個 payload；若要擴充 stale 判斷，應優先加在 `api_launcher/crawler_asset_profiles.py` 或相關 service，而不是前端。
 Web Preview 預設使用 `127.0.0.1:8765`。啟動時會先嘗試 8765；如果該 port 已被其他前端 agent、IDE Live Preview 或另一份本地 clone 使用，server 會自動掃描後續 port，例如 8766、8767，一直到 `--port-scan` 指定的範圍。
 
 ```powershell

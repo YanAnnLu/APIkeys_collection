@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
@@ -30,6 +31,10 @@ CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
         "missing_provider_count",
         "next_action",
         "bounds",
+        "saved_at",
+        "profile_state",
+        "stale",
+        "stale_reason",
     }
 )
 
@@ -246,8 +251,38 @@ def compact_crawler_asset_plan_passport(plan_passport: object) -> dict[str, obje
         for key, value in plan_passport.items()
         if key in CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS
     }
-    payload["bounds"] = _compact_plan_passport_bounds(payload.get("bounds"))
+    compact_bounds = _compact_plan_passport_bounds(payload.get("bounds"))
+    if compact_bounds:
+        payload["bounds"] = compact_bounds
+    else:
+        payload.pop("bounds", None)
     return dict(payload)
+
+
+def crawler_asset_plan_passport_for_profile(profile: CrawlerAssetProfile) -> dict[str, object]:
+    """Return a display-safe passport and flag it stale when profile state changed."""
+
+    payload = compact_crawler_asset_plan_passport(profile.latest_plan_passport)
+    if not payload:
+        return {}
+
+    saved_profile_state = str(payload.get("profile_state") or "").strip()
+    stale_reason = ""
+    if profile.archived:
+        stale_reason = "asset_archived"
+    elif not profile.enabled:
+        stale_reason = "asset_disabled"
+    elif saved_profile_state and saved_profile_state != profile.profile_state:
+        stale_reason = "profile_state_changed"
+
+    if stale_reason:
+        payload["stale"] = True
+        payload["stale_reason"] = stale_reason
+        payload["display_tone"] = "warning"
+    else:
+        payload["stale"] = False
+        payload["stale_reason"] = ""
+    return payload
 
 
 def _compact_plan_passport_bounds(bounds: object) -> dict[str, object]:
@@ -281,10 +316,21 @@ def update_crawler_asset_plan_passport(
         raise ValueError("crawler asset id is required")
     profiles = load_crawler_asset_profiles(path)
     current = profiles.get(asset_key) or default_crawler_asset_profile(asset_key)
-    updated = replace(current, latest_plan_passport=compact_crawler_asset_plan_passport(plan_passport))
+    compact = compact_crawler_asset_plan_passport(plan_passport)
+    if compact:
+        compact["asset_id"] = str(compact.get("asset_id") or asset_key)
+        compact["saved_at"] = _utc_timestamp()
+        compact["profile_state"] = current.profile_state
+        compact["stale"] = False
+        compact["stale_reason"] = ""
+    updated = replace(current, latest_plan_passport=compact)
     profiles[asset_key] = updated
     save_crawler_asset_profiles(profiles, path)
     return updated
+
+
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def set_crawler_asset_archived(
@@ -316,6 +362,7 @@ def toggle_crawler_asset_archived(
 __all__ = [
     "CrawlerAssetProfile",
     "compact_crawler_asset_plan_passport",
+    "crawler_asset_plan_passport_for_profile",
     "crawler_asset_profile_for",
     "crawler_asset_profiles_path",
     "default_crawler_asset_profile",

@@ -10,7 +10,12 @@ from api_launcher.crawlers.dataset_sources import (
     load_all_dataset_discovery_sources,
 )
 from api_launcher.crawlers.types import DatasetDiscoverySource
-from api_launcher.crawler_asset_profiles import CrawlerAssetProfile, crawler_asset_profile_for, load_crawler_asset_profiles
+from api_launcher.crawler_asset_profiles import (
+    CrawlerAssetProfile,
+    crawler_asset_plan_passport_for_profile,
+    crawler_asset_profile_for,
+    load_crawler_asset_profiles,
+)
 from api_launcher.crawler_asset_capabilities import (
     BUILD_DOWNLOAD_PLAN,
     CrawlerAssetCapability,
@@ -205,7 +210,7 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
         favicon_url=profile.favicon_url,
         logo_source=profile.logo_source,
         logo_license_note=profile.logo_license_note,
-        latest_plan_passport=dict(profile.latest_plan_passport),
+        latest_plan_passport=crawler_asset_plan_passport_for_profile(profile),
         health=health,
         capabilities=capabilities,
     )

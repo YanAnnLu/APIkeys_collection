@@ -212,6 +212,9 @@ function downloaderRowHtml(asset) {
   const contentReview = outcome.content_review?.has_review || passport.content_review_count
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
     : "";
+  const staleChip = passport.stale
+    ? `<span class="context-chip warning">計畫需重建 ${escapeHtml(passport.stale_reason || "profile_changed")}</span>`
+    : "";
   return `
     <article class="download-row ${tone}">
       <div class="download-row-head">
@@ -231,6 +234,7 @@ function downloaderRowHtml(asset) {
         <span class="context-chip">${escapeHtml(shortPattern(asset.source_type))}</span>
         <span class="context-chip">${escapeHtml(asset.provider_id || "provider unknown")}</span>
         ${contentReview}
+        ${staleChip}
       </div>
       <p>${escapeHtml(nextAction)}</p>
       <div class="download-row-actions">
@@ -782,8 +786,12 @@ function planOutcomePanelHtml(asset) {
 function planPassportPanelHtml(asset) {
   const passport = latestPlanPassportForAsset(asset);
   if (!hasPlanPassport(passport)) return "";
-  const tone = toneClass(passport.display_tone || "neutral");
+  const isStale = Boolean(passport.stale);
+  const tone = toneClass(isStale ? "warning" : passport.display_tone || "neutral");
   const resolvedLabel = passport.has_resolved_plan ? "Resolved plan 已建立" : "Resolved plan 待建立";
+  const staleLabel = isStale
+    ? `狀態可能過期：${passport.stale_reason || "profile_changed"}`
+    : "profile 已同步";
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
     : "內容待辦 0";
@@ -805,6 +813,7 @@ function planPassportPanelHtml(asset) {
         ${heroMetric("Adapter", passport.adapter_review_count || 0)}
       </div>
       <div class="plan-passport-foot">
+        <span>${escapeHtml(staleLabel)}</span>
         <span>${escapeHtml(contentReviewLabel)}</span>
         <span>${escapeHtml(gateLabel || "憑證 / Provider OK")}</span>
       </div>

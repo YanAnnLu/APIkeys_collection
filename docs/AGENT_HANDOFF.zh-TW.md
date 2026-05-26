@@ -1,4 +1,9 @@
-# Agent 接力卡
+﻿# Agent 接力卡
+
+## 2026-05-26 Plan Passport stale guard
+- 本輪新增 profile-backed plan passport stale 判斷：`update_crawler_asset_plan_passport()` 會保存 `saved_at`、`profile_state`、`stale=false`，`crawler_asset_plan_passport_for_profile()` 會在 asset 停用、封存或 profile state 改變時輸出 `stale=true` 與 `stale_reason`。
+- `load_crawler_assets()` 現在回傳 display-safe passport；Web/Tk 只呈現 stale 狀態，不自行判斷規則。這是之後 Qt 換皮時可共用的 payload。
+- 已補測試：profile compact persistence、disabled asset stale、Web cards stale payload、Tk summary stale text。下一步若要更嚴格，可增加 source endpoint / bounds signature stale guard。
 
 最後更新：2026-05-26
 

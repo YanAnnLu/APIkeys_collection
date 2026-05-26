@@ -568,6 +568,8 @@ class TkDialogModuleTest(unittest.TestCase):
                 "content_review_count": 1,
                 "blocked_credential_count": 0,
                 "missing_provider_count": 1,
+                "stale": True,
+                "stale_reason": "asset_disabled",
             },
             lambda _zh, en: en,
         )
@@ -578,6 +580,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("review 2", text)
         self.assertIn("content 1", text)
         self.assertIn("missing providers 1", text)
+        self.assertIn("stale asset_disabled", text)
 
     def test_crawler_asset_plan_passport_summary_tolerates_bad_event_counts(self) -> None:
         text = crawler_asset_plan_passport_summary_text(

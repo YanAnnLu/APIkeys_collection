@@ -399,12 +399,58 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(5, passport["candidate_count"])
         self.assertEqual(2, profiles["demo_index"].latest_plan_passport["direct_download_count"])
         self.assertEqual([120.0, 22.0, 122.0, 25.0], passport["bounds"]["bbox"])
+        self.assertEqual("demo_index", passport["asset_id"])
+        self.assertEqual("active", passport["profile_state"])
+        self.assertFalse(passport["stale"])
+        self.assertEqual("", passport["stale_reason"])
+        self.assertRegex(str(passport["saved_at"]), r"^\d{4}-\d{2}-\d{2}T")
         self.assertNotIn("unsafe_nested", passport["bounds"])
         self.assertNotIn("providers", passport)
         self.assertNotIn("resolved_plan", passport)
 
     def test_compact_plan_passport_rejects_non_mapping(self) -> None:
         self.assertEqual({}, compact_crawler_asset_plan_passport(["not", "a", "mapping"]))
+
+    def test_loaded_assets_mark_profile_plan_passport_stale_when_asset_disabled(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "demo_index",
+      "provider_id": "demo_provider",
+      "name": "Demo Index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://example.test/index.html"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            update_crawler_asset_plan_passport(
+                "demo_index",
+                {
+                    "asset_id": "demo_index",
+                    "has_resolved_plan": True,
+                    "candidate_count": 3,
+                    "direct_download_count": 1,
+                },
+                profile_path,
+            )
+            update_crawler_asset_profile("demo_index", profile_path, enabled=False)
+
+            assets = load_crawler_assets(source_path, None, profile_path)
+
+        passport = assets[0].latest_plan_passport
+        self.assertTrue(passport["stale"])
+        self.assertEqual("asset_disabled", passport["stale_reason"])
+        self.assertEqual("warning", passport["display_tone"])
+        self.assertEqual(3, passport["candidate_count"])
 
     def test_loaded_assets_apply_archived_profile_without_changing_source(self) -> None:
         with TemporaryDirectory() as tmp:

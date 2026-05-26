@@ -816,6 +816,8 @@ def crawler_asset_plan_passport_summary_text(
     credentials = _plan_passport_count(plan_passport.get("blocked_credential_count"))
     missing = _plan_passport_count(plan_passport.get("missing_provider_count"))
     has_plan = bool(plan_passport.get("has_resolved_plan"))
+    is_stale = bool(plan_passport.get("stale"))
+    stale_reason = str(plan_passport.get("stale_reason") or "profile_changed").strip()
     state_zh = "resolved plan 已建立" if has_plan else "resolved plan 尚未建立"
     state_en = "resolved plan available" if has_plan else "resolved plan unavailable"
     zh = (
@@ -829,6 +831,9 @@ def crawler_asset_plan_passport_summary_text(
     if credentials or missing:
         zh = f"{zh}；憑證阻擋 {credentials}；缺 Provider {missing}"
         en = f"{en}; credentials blocked {credentials}; missing providers {missing}"
+    if is_stale:
+        zh = f"{zh}；狀態可能過期：{stale_reason}"
+        en = f"{en}; stale {stale_reason}"
     return tr(zh, en)
 
 
