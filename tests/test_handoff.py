@@ -150,6 +150,9 @@ class HandoffTests(unittest.TestCase):
         )
 
         self.assertEqual(2, summary["summary_scope"]["event_scan_count"])
+        self.assertEqual("complete", summary["summary_scope"]["status"])
+        self.assertEqual("read_latest_crawler_run_summary", summary["summary_scope"]["next_action"])
+        self.assertEqual([], summary["summary_scope"]["missing_event_names"])
         self.assertEqual("2026-05-26T12:00:00+00:00", summary["summary_scope"]["latest_listing_event_at"])
         self.assertEqual(
             "2026-05-26T12:10:00+00:00",

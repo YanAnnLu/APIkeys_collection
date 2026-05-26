@@ -2,7 +2,7 @@
 
 ## 2026-05-26 Crawler run record / registry handoff
 
-- `crawler_run_summary.summary_scope` 會描述摘要掃描範圍與 latest listing / plan build event timestamp；它只用來讓 agent 判斷這份 handoff 來自哪個事件視窗，不代表來源 freshness 或遠端資料是否已變更。
+- `crawler_run_summary.summary_scope` 會描述摘要掃描範圍、latest listing / plan build event timestamp、`status`、`missing_event_names` 與 `next_action`；它只用來讓 agent 判斷這份 handoff 來自哪個事件視窗，不代表來源 freshness 或遠端資料是否已變更。
 
 - `--handoff-report` / `--handoff-report-json` 現在會輸出 `crawler_run_summary`：最新 listing 與 download-plan build 的 counts、compact `run_record`、`next_action`、`resolved_plan_available` 都會以白名單摘要呈現，不帶完整 resolved plan 或候選清單。接手 agent 應先讀 handoff，再視需要查 Web `/api/events/recent` 或完整 JSONL。
 - `--crawler-run-summary-json` 是 crawler run 狀態的輕量 CLI：預設掃描最近 500 筆 structured event，不重跑 crawler，不讀完整 resolved plan，輸出與 handoff / Web Preview 共用的 latest listing / plan build summary。需要更窄或更廣時可用 `--crawler-run-summary-limit` 明確覆寫。

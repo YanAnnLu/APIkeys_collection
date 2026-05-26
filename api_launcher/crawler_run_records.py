@@ -227,15 +227,49 @@ def crawler_run_summary_scope(
     時間戳。後續若要做 stale policy，應在 service 層另行定義。
     """
 
+    latest_listing_found = bool(latest_listing)
+    latest_plan_build_found = bool(latest_plan_build)
+    missing_event_names: list[str] = []
+    if not latest_listing_found:
+        missing_event_names.append(CRAWLER_RUN_LISTING_EVENT)
+    if not latest_plan_build_found:
+        missing_event_names.append(CRAWLER_RUN_PLAN_EVENT)
+    status, next_action = crawler_run_summary_scope_status(
+        event_scan_count=len(events),
+        latest_listing_found=latest_listing_found,
+        latest_plan_build_found=latest_plan_build_found,
+    )
     return {
+        "status": status,
+        "next_action": next_action,
         "event_scan_count": len(events),
-        "latest_listing_found": bool(latest_listing),
+        "missing_event_names": missing_event_names,
+        "latest_listing_found": latest_listing_found,
         "latest_listing_event_at": str(latest_listing.get("timestamp") or "") if latest_listing else "",
-        "latest_download_plan_build_found": bool(latest_plan_build),
+        "latest_download_plan_build_found": latest_plan_build_found,
         "latest_download_plan_build_event_at": str(latest_plan_build.get("timestamp") or "")
         if latest_plan_build
         else "",
     }
+
+
+def crawler_run_summary_scope_status(
+    *,
+    event_scan_count: int,
+    latest_listing_found: bool,
+    latest_plan_build_found: bool,
+) -> tuple[str, str]:
+    """Return a small machine-readable status for the crawler summary window."""
+
+    if latest_listing_found and latest_plan_build_found:
+        return "complete", "read_latest_crawler_run_summary"
+    if event_scan_count <= 0:
+        return "empty", "run_crawler_listing_or_build_download_plan"
+    if latest_listing_found:
+        return "missing_download_plan_build", "build_download_plan_from_latest_listing"
+    if latest_plan_build_found:
+        return "missing_listing", "run_crawler_listing_to_refresh_candidate_counts"
+    return "missing_crawler_run_events", "run_crawler_listing_or_build_download_plan"
 
 
 def latest_crawler_run_event(events: list[dict[str, object]], event_name: str) -> dict[str, object]:
@@ -273,6 +307,7 @@ __all__ = [
     "crawler_run_record_from_result",
     "crawler_run_record_key",
     "crawler_run_summary_scope",
+    "crawler_run_summary_scope_status",
     "crawler_run_summary_from_events",
     "latest_crawler_run_event",
 ]

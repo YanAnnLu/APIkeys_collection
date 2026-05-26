@@ -4,6 +4,8 @@ import unittest
 from types import SimpleNamespace
 
 from api_launcher.crawler_run_records import (
+    CRAWLER_RUN_LISTING_EVENT,
+    CRAWLER_RUN_PLAN_EVENT,
     crawler_run_context_summary,
     crawler_run_event_summary,
     crawler_run_record_from_result,
@@ -106,6 +108,9 @@ class CrawlerRunRecordTest(unittest.TestCase):
         )
 
         self.assertEqual(3, summary["summary_scope"]["event_scan_count"])
+        self.assertEqual("complete", summary["summary_scope"]["status"])
+        self.assertEqual("read_latest_crawler_run_summary", summary["summary_scope"]["next_action"])
+        self.assertEqual([], summary["summary_scope"]["missing_event_names"])
         self.assertTrue(summary["summary_scope"]["latest_listing_found"])
         self.assertEqual("latest-listing", summary["summary_scope"]["latest_listing_event_at"])
         self.assertTrue(summary["summary_scope"]["latest_download_plan_build_found"])
@@ -120,12 +125,51 @@ class CrawlerRunRecordTest(unittest.TestCase):
         summary = crawler_run_summary_from_events([])
 
         self.assertEqual(0, summary["summary_scope"]["event_scan_count"])
+        self.assertEqual("empty", summary["summary_scope"]["status"])
+        self.assertEqual("run_crawler_listing_or_build_download_plan", summary["summary_scope"]["next_action"])
+        self.assertEqual(
+            [CRAWLER_RUN_LISTING_EVENT, CRAWLER_RUN_PLAN_EVENT],
+            summary["summary_scope"]["missing_event_names"],
+        )
         self.assertFalse(summary["summary_scope"]["latest_listing_found"])
         self.assertEqual("", summary["summary_scope"]["latest_listing_event_at"])
         self.assertFalse(summary["summary_scope"]["latest_download_plan_build_found"])
         self.assertEqual("", summary["summary_scope"]["latest_download_plan_build_event_at"])
         self.assertEqual({}, summary["latest_listing"])
         self.assertEqual({}, summary["latest_download_plan_build"])
+
+    def test_summary_scope_guides_missing_plan_build(self) -> None:
+        summary = crawler_run_summary_from_events(
+            [
+                {
+                    "timestamp": "listing-only",
+                    "event": "crawler_asset_listing_recorded",
+                    "context": {"asset_id": "sample_asset", "candidate_count": 3},
+                }
+            ]
+        )
+
+        self.assertEqual("missing_download_plan_build", summary["summary_scope"]["status"])
+        self.assertEqual("build_download_plan_from_latest_listing", summary["summary_scope"]["next_action"])
+        self.assertEqual([CRAWLER_RUN_PLAN_EVENT], summary["summary_scope"]["missing_event_names"])
+
+    def test_summary_scope_guides_missing_listing(self) -> None:
+        summary = crawler_run_summary_from_events(
+            [
+                {
+                    "timestamp": "plan-only",
+                    "event": "crawler_asset_plan_outcome_recorded",
+                    "context": {"asset_id": "sample_asset", "direct_download_count": 1},
+                }
+            ]
+        )
+
+        self.assertEqual("missing_listing", summary["summary_scope"]["status"])
+        self.assertEqual(
+            "run_crawler_listing_to_refresh_candidate_counts",
+            summary["summary_scope"]["next_action"],
+        )
+        self.assertEqual([CRAWLER_RUN_LISTING_EVENT], summary["summary_scope"]["missing_event_names"])
 
 
 if __name__ == "__main__":
