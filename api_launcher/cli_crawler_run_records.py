@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from api_launcher.crawler_run_records import crawler_run_summary_from_events
+from api_launcher.crawler_run_records import DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, crawler_run_summary_from_events
 from api_launcher.event_log import latest_events
-
-
-DEFAULT_CRAWLER_RUN_SUMMARY_LIMIT = 50
 
 
 def add_crawler_run_record_args(parser: argparse.ArgumentParser) -> None:
@@ -19,7 +16,7 @@ def add_crawler_run_record_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--crawler-run-summary-limit",
         type=int,
-        default=DEFAULT_CRAWLER_RUN_SUMMARY_LIMIT,
+        default=DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT,
         help="structured event count to scan for --crawler-run-summary-json",
     )
 
@@ -41,7 +38,6 @@ def run_crawler_run_record_cli(args: argparse.Namespace) -> None:
 
 
 __all__ = [
-    "DEFAULT_CRAWLER_RUN_SUMMARY_LIMIT",
     "add_crawler_run_record_args",
     "crawler_run_record_command_active",
     "run_crawler_run_record_cli",

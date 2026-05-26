@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
+from api_launcher.crawler_run_records import DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT
 from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.handoff import (
@@ -190,12 +192,93 @@ class HandoffTests(unittest.TestCase):
     def test_cli_emits_crawler_run_summary_json_without_human_setup_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             stdout = io.StringIO()
+            with patch("api_launcher.cli_crawler_run_records.latest_events", return_value=[]) as event_reader:
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--crawler-run-summary-json",
+                        ]
+                    )
+            payload = json.loads(stdout.getvalue())
+
+        event_reader.assert_called_once_with(DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT)
+        self.assertEqual(0, rc)
+        self.assertEqual(DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, payload["event_limit"])
+        self.assertIn("latest_listing", payload)
+        self.assertIn("latest_download_plan_build", payload)
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+    def test_handoff_snapshot_scans_beyond_display_log_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            conn = connect_db(Path(tmpdir) / "test.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                with patch("api_launcher.handoff.latest_events", return_value=[]) as event_reader:
+                    build_handoff_snapshot(repo, log_limit=5)
+            finally:
+                conn.close()
+
+        event_reader.assert_called_once_with(DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT)
+
+    def test_cli_crawler_run_summary_limit_can_be_overridden(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with patch("api_launcher.cli_crawler_run_records.latest_events", return_value=[]) as event_reader:
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--crawler-run-summary-json",
+                            "--crawler-run-summary-limit",
+                            "7",
+                        ]
+                    )
+            payload = json.loads(stdout.getvalue())
+
+        event_reader.assert_called_once_with(7)
+        self.assertEqual(0, rc)
+        self.assertEqual(7, payload["event_limit"])
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+    def test_cli_crawler_run_summary_limit_has_minimum_one(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with patch("api_launcher.cli_crawler_run_records.latest_events", return_value=[]) as event_reader:
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--crawler-run-summary-json",
+                            "--crawler-run-summary-limit",
+                            "0",
+                        ]
+                    )
+            payload = json.loads(stdout.getvalue())
+
+        event_reader.assert_called_once_with(1)
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["event_limit"])
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+    def test_cli_emits_crawler_run_summary_json_with_larger_window(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
             with redirect_stdout(stdout):
                 rc = main(
                     [
                         "--db",
                         str(Path(tmpdir) / "launcher.sqlite"),
                         "--crawler-run-summary-json",
+                        "--crawler-run-summary-limit",
+                        "500",
                     ]
                 )
             payload = json.loads(stdout.getvalue())

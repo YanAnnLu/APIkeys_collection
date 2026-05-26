@@ -60,6 +60,7 @@ RUN_COUNT_KEYS = (
     "candidate_snapshot_count",
 )
 
+DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT = 500
 CRAWLER_RUN_LISTING_EVENT = "crawler_asset_listing_recorded"
 CRAWLER_RUN_PLAN_EVENT = "crawler_asset_plan_outcome_recorded"
 
@@ -235,6 +236,7 @@ def compact_crawler_run_record(run_record: Mapping[str, object]) -> dict[str, ob
 __all__ = [
     "CRAWLER_RUN_LISTING_EVENT",
     "CRAWLER_RUN_PLAN_EVENT",
+    "DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT",
     "compact_crawler_run_record",
     "crawler_run_context_summary",
     "crawler_run_event_summary",

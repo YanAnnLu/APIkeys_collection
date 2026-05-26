@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from api_launcher.crawler_run_records import crawler_run_summary_from_events
+from api_launcher.crawler_run_records import DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, crawler_run_summary_from_events
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.db import utc_now_iso
@@ -44,7 +44,7 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
     dataset_count = repository.conn.execute("SELECT COUNT(*) AS n FROM datasets").fetchone()["n"]
     display_log_limit = max(0, log_limit)
     # 讀取比顯示更多的事件，讓時間摘要仍能找到最近的修復或驗證事件。
-    recent_logs = latest_events(max(display_log_limit, 50))
+    recent_logs = latest_events(max(display_log_limit, DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT))
     open_gtd_items = parse_open_gtd_items(project_path("docs/PROJECT_GTD.md"))
     manifest_health = repository.dataset_asset_manifest_health_summary()
     verification = verification_summary(repository, recent_logs)
