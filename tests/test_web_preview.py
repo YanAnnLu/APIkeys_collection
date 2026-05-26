@@ -67,6 +67,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(card["capabilities"])
         self.assertEqual("抓取元資料", card["capabilities"][0]["display_label"])
         self.assertEqual({}, card["latest_plan_outcome"])
+        self.assertEqual({}, card["latest_plan_passport"])
 
     def test_crawler_asset_cards_include_recent_plan_outcome_event(self) -> None:
         events = [
@@ -105,6 +106,62 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("review", outcome["display_tone"])
         self.assertEqual("內容 Parser 待辦 1", outcome["content_review"]["display_label"])
 
+    def test_crawler_asset_cards_include_recent_compact_plan_passport_event(self) -> None:
+        events = [
+            {
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "outcome_bucket": "partial_review_required",
+                    "outcome_label": "可下載 1 / 待辦 1",
+                    "plan_passport": {
+                        "asset_id": "demo_stac",
+                        "has_resolved_plan": True,
+                        "outcome_bucket": "partial_review_required",
+                        "short_label": "可下載 1 / 待辦 1",
+                        "candidate_count": 3,
+                        "direct_download_count": 1,
+                        "review_required_count": 1,
+                        "adapter_review_count": 1,
+                        "content_review_count": 1,
+                        "next_action": "open_downloader_and_start_or_pause_queue",
+                        "bounds": {"candidate_limit": 3},
+                        "providers": [{"provider_id": "demo"}],
+                        "resolved_plan": {"providers": [{"provider_id": "demo"}]},
+                    },
+                },
+            }
+        ]
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+
+            with patch("frontends.web.preview_api.latest_events", return_value=events):
+                payload = crawler_asset_cards(
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                )
+                detail = crawler_asset_detail(
+                    "demo_stac",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                )
+
+        passport = payload["assets"][0]["latest_plan_passport"]
+        detail_passport = detail["card"]["latest_plan_passport"]
+        self.assertEqual("demo_stac", passport["asset_id"])
+        self.assertTrue(passport["has_resolved_plan"])
+        self.assertEqual(3, passport["candidate_count"])
+        self.assertEqual(1, passport["direct_download_count"])
+        self.assertEqual(1, passport["review_required_count"])
+        self.assertEqual(1, passport["adapter_review_count"])
+        self.assertEqual(1, passport["content_review_count"])
+        self.assertEqual({"candidate_limit": 3}, passport["bounds"])
+        self.assertEqual(passport, detail_passport)
+        self.assertNotIn("providers", passport)
+        self.assertNotIn("resolved_plan", passport)
+
     def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:
         result = SimpleNamespace(
             asset_id="demo_stac",
@@ -138,6 +195,22 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("內容 Parser 待辦 1", context["content_review"]["display_label"])
         self.assertEqual("", context["resolved_plan"])
         self.assertTrue(context["resolved_plan_available"])
+        self.assertEqual({}, context["plan_passport"])
+
+        context_with_passport = crawler_asset_plan_event_context(
+            result,
+            {"outcome_bucket": "review_required", "short_label": "待 Adapter 1"},
+            plan_passport={
+                "asset_id": "demo_stac",
+                "candidate_count": 3,
+                "providers": [{"provider_id": "demo"}],
+                "resolved_plan": {"providers": []},
+            },
+        )
+
+        self.assertEqual(3, context_with_passport["plan_passport"]["candidate_count"])
+        self.assertNotIn("providers", context_with_passport["plan_passport"])
+        self.assertNotIn("resolved_plan", context_with_passport["plan_passport"])
 
     def test_web_preview_recent_events_returns_bounded_summaries(self) -> None:
         events = [

@@ -29,6 +29,28 @@ from api_launcher.repository import ApiCatalogRepository
 
 WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
 WEB_PREVIEW_EVENT_LIMIT = 80
+WEB_PREVIEW_PLAN_PASSPORT_KEYS = frozenset(
+    {
+        "asset_id",
+        "has_resolved_plan",
+        "outcome_bucket",
+        "short_label",
+        "display_tone",
+        "candidate_count",
+        "upserted_candidate_count",
+        "selected_version_count",
+        "filtered_version_count",
+        "direct_download_count",
+        "review_required_count",
+        "adapter_review_count",
+        "content_review_count",
+        "blocked_credential_count",
+        "credential_gate_count",
+        "missing_provider_count",
+        "next_action",
+        "bounds",
+    }
+)
 
 
 def web_preview_status() -> dict[str, object]:
@@ -57,15 +79,26 @@ def crawler_asset_cards(
 
     assets = load_crawler_assets(primary_path, local_path, profile_path)
     latest_plan_outcomes = recent_crawler_asset_plan_outcomes()
+    latest_plan_passports = recent_crawler_asset_plan_passports()
     return {
         "count": len(assets),
         "assets": [
-            crawler_asset_card(asset, latest_plan_outcome=latest_plan_outcomes.get(asset.asset_id)) for asset in assets
+            crawler_asset_card(
+                asset,
+                latest_plan_outcome=latest_plan_outcomes.get(asset.asset_id),
+                latest_plan_passport=latest_plan_passports.get(asset.asset_id),
+            )
+            for asset in assets
         ],
     }
 
 
-def crawler_asset_card(asset: CrawlerAsset, *, latest_plan_outcome: dict[str, object] | None = None) -> dict[str, object]:
+def crawler_asset_card(
+    asset: CrawlerAsset,
+    *,
+    latest_plan_outcome: dict[str, object] | None = None,
+    latest_plan_passport: dict[str, object] | None = None,
+) -> dict[str, object]:
     return {
         "asset_id": asset.asset_id,
         "display_name": asset.display_name,
@@ -87,6 +120,7 @@ def crawler_asset_card(asset: CrawlerAsset, *, latest_plan_outcome: dict[str, ob
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "next_action": asset.next_action,
         "latest_plan_outcome": latest_plan_outcome or {},
+        "latest_plan_passport": latest_plan_passport or {},
     }
 
 
@@ -109,6 +143,7 @@ def crawler_asset_detail(
         "card": crawler_asset_card(
             asset,
             latest_plan_outcome=recent_crawler_asset_plan_outcomes().get(asset.asset_id),
+            latest_plan_passport=recent_crawler_asset_plan_passports().get(asset.asset_id),
         ),
         "bound_form": crawler_asset_bound_form_payload(form_spec),
         "flow_steps": crawler_asset_flow_steps(asset, form_spec),
@@ -134,6 +169,46 @@ def recent_crawler_asset_plan_outcomes(*, limit: int = 200) -> dict[str, dict[st
             continue
         outcomes[asset_id] = crawler_asset_plan_event_badge_payload(context)
     return outcomes
+
+
+def recent_crawler_asset_plan_passports(*, limit: int = 200) -> dict[str, dict[str, object]]:
+    """Return the newest compact plan passport recorded for each asset.
+
+    Event logs may outlive the browser session, but they must not become a
+    second resolved-plan store.  Only the compact passport keys needed by
+    Web/Tk/Qt status panels are allowed through this boundary.
+    """
+
+    passports: dict[str, dict[str, object]] = {}
+    for event in latest_events(limit):
+        if event.get("event") != "crawler_asset_plan_outcome_recorded":
+            continue
+        context = event.get("context")
+        if not isinstance(context, dict):
+            continue
+        asset_id = str(context.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        passport = compact_web_plan_passport_payload(context.get("plan_passport"))
+        if passport:
+            passports[asset_id] = passport
+    return passports
+
+
+def compact_web_plan_passport_payload(plan_passport: object) -> dict[str, object]:
+    """Keep event-backed plan passports bounded and UI-safe."""
+
+    if not isinstance(plan_passport, Mapping):
+        return {}
+    payload = {
+        key: value
+        for key, value in plan_passport.items()
+        if key in WEB_PREVIEW_PLAN_PASSPORT_KEYS
+    }
+    bounds = payload.get("bounds")
+    if "bounds" in payload and not isinstance(bounds, Mapping):
+        payload["bounds"] = {}
+    return dict(payload)
 
 
 def web_preview_recent_events(*, limit: int = 50) -> dict[str, object]:
@@ -275,14 +350,15 @@ def crawler_asset_plan_preview(
     response["plan_result"] = result.to_dict()
     plan_outcome = crawler_asset_plan_outcome_payload(result)
     response["plan_outcome"] = plan_outcome
-    response["plan_passport"] = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
+    plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
+    response["plan_passport"] = plan_passport
     response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
     response["next_action"] = result.user_next_action
     log_event(
         "crawler_asset_plan_outcome_recorded",
         "Web Preview crawler asset workflow recorded the visible plan outcome.",
         component="web.crawler_assets",
-        context=crawler_asset_plan_event_context(result, plan_outcome),
+        context=crawler_asset_plan_event_context(result, plan_outcome, plan_passport=plan_passport),
     )
     return response
 
@@ -292,6 +368,7 @@ def crawler_asset_plan_event_context(
     plan_outcome: Mapping[str, object],
     *,
     added_count: int = 0,
+    plan_passport: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Build the shared event context used by Tk/Web/Qt plan-outcome badges.
 
@@ -317,6 +394,7 @@ def crawler_asset_plan_event_context(
         "content_review": content_review if isinstance(content_review, dict) else {},
         "resolved_plan": "",
         "resolved_plan_available": bool(getattr(result, "resolved_plan", None)),
+        "plan_passport": compact_web_plan_passport_payload(plan_passport),
         "user_next_action": str(
             getattr(result, "user_next_action", "")
             or getattr(result, "next_action", "")
