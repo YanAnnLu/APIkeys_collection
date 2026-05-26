@@ -14,7 +14,7 @@ Last updated: 2026-05-26
 - [x] Web Preview `/api/events/recent` 現在會把 `crawler_asset_listing_recorded` 的候選、upsert、skip、duplicate、warning/error counts 與 compact `run_record` counts 一起納入 bounded summary；事件分頁也會優先顯示 `run_record` 與核心 counts，方便 agent/人類不用重新跑 crawler 就能接手上一輪清單擷取結果。
 - [x] `--handoff-report` / `--handoff-report-json` 現在會輸出 `crawler_run_summary`，把最近一次 listing 與 plan build 的 counts、`run_record`、`next_action` 與是否存在 resolved plan 壓成白名單摘要；接手 agent 可先讀 handoff，不必為了理解上一輪 crawler 狀態重跑遠端來源。
 - [x] Web Preview 與 handoff 的 crawler event 壓縮規則已收斂到 `api_launcher/crawler_run_records.py` 的 `crawler_run_context_summary()` / `crawler_run_event_summary()`；後續 Tk/Qt/agent 若需要 event 摘要，應重用這組 helper，不要在前端各自重寫白名單。
-- [x] 新增輕量 CLI `--crawler-run-summary-json`，只讀 structured event log 並輸出最新 listing / download-plan build 的同一份 bounded summary；預設掃描最近 500 筆事件，避免 CI/smoke/log-only 事件把 crawler run 擠出 50 筆視窗。agent 若只需要 crawler run 狀態，不必解析完整 handoff snapshot。
+- [x] 新增輕量 CLI `--crawler-run-summary-json`，只讀 structured event log 並輸出最新 listing / download-plan build 的同一份 bounded summary；預設掃描最近 5000 筆事件，避免 CI/smoke/log-only 事件把 crawler run 擠出較窄視窗。agent 若只需要 crawler run 狀態，不必解析完整 handoff snapshot。
 - [x] Crawler run summary 現在帶 `summary_scope`，明確寫出本次掃描多少 structured events、是否找到 listing / plan build、兩個 latest event timestamp、`status`、`missing_event_names` 與 `next_action`；這只描述 handoff 視窗，不代表 freshness/stale policy。
 
 ## 2026-05-26 Source Pattern Draft Review Payload

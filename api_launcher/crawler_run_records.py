@@ -60,7 +60,10 @@ RUN_COUNT_KEYS = (
     "candidate_snapshot_count",
 )
 
-DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT = 500
+# Smoke / CI / log-only commits can add hundreds of structured events quickly.
+# Keep the crawler handoff lookup bounded, but wide enough that real listing and
+# plan-build events are not crowded out by workflow noise during active sessions.
+DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT = 5000
 CRAWLER_RUN_LISTING_EVENT = "crawler_asset_listing_recorded"
 CRAWLER_RUN_PLAN_EVENT = "crawler_asset_plan_outcome_recorded"
 
