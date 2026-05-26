@@ -17,6 +17,7 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
+    web_preview_recent_events,
     web_preview_status,
 )
 
@@ -37,6 +38,11 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
             if path == "/api/crawler-assets":
                 self.write_json(crawler_asset_cards())
                 return
+            if path == "/api/events/recent":
+                query = parse_qs(parsed.query)
+                limit = int(first_query_value(query, "limit") or "50")
+                self.write_json(web_preview_recent_events(limit=limit))
+                return
             if path.startswith("/api/crawler-assets/"):
                 asset_id, suffix = self.parse_asset_route(path)
                 if suffix == "":
@@ -48,6 +54,8 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
             self.serve_static(path)
         except KeyError as exc:
             self.write_error(HTTPStatus.NOT_FOUND, str(exc))
+        except ValueError as exc:
+            self.write_error(HTTPStatus.BAD_REQUEST, str(exc))
         except Exception as exc:  # pragma: no cover - local preview guard
             self.write_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(exc).__name__}: {exc}")
 

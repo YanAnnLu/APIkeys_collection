@@ -18,10 +18,10 @@
         </div>
 
         <nav class="rail-nav" aria-label="工作區">
-          <button class="active" type="button">爬蟲資產</button>
-          <button type="button" disabled>下載器</button>
-          <button type="button" disabled>匯入審核</button>
-          <button type="button" disabled>事件紀錄</button>
+          <button class="active" type="button" data-workspace="assets">爬蟲資產</button>
+          <button type="button" data-workspace="downloader">下載器</button>
+          <button type="button" data-workspace="review">匯入審核</button>
+          <button type="button" data-workspace="events">事件紀錄</button>
         </nav>
 
         <section class="sidebar-panel">
@@ -61,33 +61,34 @@
           </div>
         </header>
 
-        <section class="overview-grid" aria-label="資產總覽">
-          <div class="metric-card">
-            <span>資產數</span>
-            <strong id="assetCount">0</strong>
-          </div>
-          <div class="metric-card">
-            <span>可直接工作</span>
-            <strong id="healthyCount">0</strong>
-          </div>
-          <div class="metric-card">
-            <span>需要界域</span>
-            <strong id="needsBoundsCount">0</strong>
-          </div>
-          <div class="metric-card">
-            <span>目前狀態</span>
-            <strong id="serverState">初始化</strong>
-          </div>
-        </section>
+        <section id="assetWorkspace" class="workspace-surface" data-workspace-panel="assets">
+          <section class="overview-grid" aria-label="資產總覽">
+            <div class="metric-card">
+              <span>資產數</span>
+              <strong id="assetCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>可直接工作</span>
+              <strong id="healthyCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>需要界域</span>
+              <strong id="needsBoundsCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>目前狀態</span>
+              <strong id="serverState">初始化</strong>
+            </div>
+          </section>
 
-        <section id="selectedHero" class="selected-hero" aria-label="目前選取的爬蟲資產">
+          <section id="selectedHero" class="selected-hero" aria-label="目前選取的爬蟲資產">
           <div class="hero-empty">
             <strong>等待載入爬蟲資產</strong>
             <span>選取資產後，這裡會顯示來源範式、界域能力、後端動作與審核路徑。</span>
           </div>
-        </section>
+          </section>
 
-        <section class="workbench">
+          <section class="workbench">
           <section class="inventory-panel" aria-label="爬蟲資產庫">
             <div class="panel-head">
               <div>
@@ -125,9 +126,9 @@
               </div>
             </section>
           </aside>
-        </section>
+          </section>
 
-        <section class="bottom-grid">
+          <section class="bottom-grid">
           <section class="mission-panel">
             <div class="panel-head">
               <div>
@@ -149,6 +150,43 @@
             </div>
             <pre id="resultJson">{}</pre>
           </section>
+          </section>
+        </section>
+
+        <section id="downloaderWorkspace" class="workspace-surface workspace-panel hidden" data-workspace-panel="downloader" aria-label="下載器">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">Downloader</span>
+              <h2>下載器</h2>
+            </div>
+            <button id="downloaderRefreshButton" class="ghost-button small" type="button">刷新狀態</button>
+          </div>
+          <p class="workspace-note">這裡只呈現後端已建立的 plan outcome / plan passport。真正下載與匯入仍走既有下載計畫與 adapter review，不在 Web 端重寫規則。</p>
+          <div id="downloaderQueue" class="queue-grid"></div>
+        </section>
+
+        <section id="reviewWorkspace" class="workspace-surface workspace-panel hidden" data-workspace-panel="review" aria-label="匯入審核">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">Adapter / Content Review</span>
+              <h2>匯入審核</h2>
+            </div>
+            <button id="reviewReturnButton" class="ghost-button small" type="button">回到爬蟲資產</button>
+          </div>
+          <p class="workspace-note">審核分頁顯示最近一次建立下載計畫所回傳的 adapter review 與 content parser 待辦，避免把審核資訊藏在 JSON 區。</p>
+          <div id="reviewSummary" class="review-summary"></div>
+        </section>
+
+        <section id="eventWorkspace" class="workspace-surface workspace-panel hidden" data-workspace-panel="events" aria-label="事件紀錄">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">Structured Events</span>
+              <h2>事件紀錄</h2>
+            </div>
+            <button id="eventRefreshButton" class="ghost-button small" type="button">讀取事件</button>
+          </div>
+          <p class="workspace-note">這裡讀取後端 JSONL structured event 的摘要。完整事件仍保留在本機 state/logs，Web 只做可掃描檢視。</p>
+          <div id="eventList" class="event-list"></div>
         </section>
       </main>
     </div>

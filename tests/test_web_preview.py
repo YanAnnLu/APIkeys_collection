@@ -20,6 +20,7 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
+    web_preview_recent_events,
     web_preview_status,
 )
 
@@ -137,6 +138,43 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("內容 Parser 待辦 1", context["content_review"]["display_label"])
         self.assertEqual("", context["resolved_plan"])
         self.assertTrue(context["resolved_plan_available"])
+
+    def test_web_preview_recent_events_returns_bounded_summaries(self) -> None:
+        events = [
+            {
+                "timestamp": "2026-05-26T10:00:00+08:00",
+                "level": "info",
+                "event": "crawler_asset_plan_outcome_recorded",
+                "component": "crawler_asset_service",
+                "message": "plan outcome recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "outcome_bucket": "review_required",
+                    "direct_download_count": 0,
+                    "review_required_count": 1,
+                    "resolved_plan": {"providers": [{"provider_id": "demo"}]},
+                    "content_review": {
+                        "display_label": "內容 Parser 待辦 1",
+                        "display_tone": "review",
+                        "count": 1,
+                        "has_review": True,
+                    },
+                },
+            }
+        ]
+
+        with patch("frontends.web.preview_api.latest_events", return_value=events) as latest_events:
+            payload = web_preview_recent_events(limit=999)
+
+        latest_events.assert_called_once_with(80)
+        self.assertEqual(1, payload["count"])
+        self.assertEqual(80, payload["limit"])
+        event = payload["events"][0]
+        self.assertEqual("crawler_asset_plan_outcome_recorded", event["event"])
+        self.assertEqual("demo_stac", event["context_summary"]["asset_id"])
+        self.assertEqual("review_required", event["context_summary"]["outcome_bucket"])
+        self.assertNotIn("resolved_plan", event["context_summary"])
+        self.assertEqual("內容 Parser 待辦 1", event["context_summary"]["content_review"]["display_label"])
 
     def test_plan_passport_summarizes_resolved_plan_without_copying_body(self) -> None:
         result = SimpleNamespace(
@@ -265,11 +303,23 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("planOutcomePanelHtml", combined)
         self.assertIn("refreshSelectedAssetOutcomeViews", combined)
         self.assertIn("selectedAssetDetail.card.latest_plan_outcome", combined)
+        self.assertIn('data-workspace="downloader"', combined)
+        self.assertIn("downloaderQueue", combined)
+        self.assertIn("reviewSummary", combined)
+        self.assertIn("eventList", combined)
+        self.assertIn("eventRefreshButton", combined)
+        self.assertIn("showWorkspace", combined)
+        self.assertIn("renderDownloaderWorkspace", combined)
+        self.assertIn("loadRecentEvents", combined)
+        self.assertIn("/api/events/recent", combined)
         self.assertIn("content-review-badge", styles)
         self.assertIn("bounds-group", styles)
         self.assertIn("plan-badge", styles)
         self.assertIn("plan-outcome-panel", styles)
         self.assertIn("plan-passport-panel", styles)
+        self.assertIn("queue-grid", styles)
+        self.assertIn("review-summary", styles)
+        self.assertIn("event-row", styles)
         self.assertIn("@media (max-width: 980px)", styles)
         self.assertIn("中寬度仍要保留中文標籤", styles)
         self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", styles)

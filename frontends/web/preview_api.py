@@ -28,6 +28,7 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
+WEB_PREVIEW_EVENT_LIMIT = 80
 
 
 def web_preview_status() -> dict[str, object]:
@@ -133,6 +134,58 @@ def recent_crawler_asset_plan_outcomes(*, limit: int = 200) -> dict[str, dict[st
             continue
         outcomes[asset_id] = crawler_asset_plan_event_badge_payload(context)
     return outcomes
+
+
+def web_preview_recent_events(*, limit: int = 50) -> dict[str, object]:
+    """Return bounded structured events for the Web Preview event workspace.
+
+    Web 只顯示可閱讀摘要，不把可能很大的 plan/context 原文搬進 UI 狀態；
+    agent 若需要完整事件，仍應讀 `state/logs/launcher_events.jsonl`。
+    """
+
+    clamped_limit = max(1, min(int(limit), WEB_PREVIEW_EVENT_LIMIT))
+    events = [web_preview_event_payload(event) for event in latest_events(clamped_limit)]
+    events.reverse()
+    return {
+        "count": len(events),
+        "limit": clamped_limit,
+        "events": events,
+    }
+
+
+def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
+    context = event.get("context") if isinstance(event.get("context"), dict) else {}
+    assert isinstance(context, dict)
+    summary_keys = (
+        "asset_id",
+        "outcome_bucket",
+        "outcome_label",
+        "direct_download_count",
+        "review_required_count",
+        "review_queue_count",
+        "stage",
+        "succeeded",
+        "row_count",
+        "next_action",
+        "user_next_action",
+    )
+    context_summary = {key: context[key] for key in summary_keys if key in context}
+    if isinstance(context.get("content_review"), dict):
+        content_review = context["content_review"]
+        context_summary["content_review"] = {
+            "display_label": content_review.get("display_label", ""),
+            "display_tone": content_review.get("display_tone", ""),
+            "count": content_review.get("count", 0),
+            "has_review": bool(content_review.get("has_review")),
+        }
+    return {
+        "timestamp": str(event.get("timestamp") or ""),
+        "level": str(event.get("level") or "info"),
+        "event": str(event.get("event") or ""),
+        "component": str(event.get("component") or ""),
+        "message": str(event.get("message") or ""),
+        "context_summary": context_summary,
+    }
 
 
 def crawler_asset_bound_form(

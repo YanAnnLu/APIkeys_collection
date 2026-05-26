@@ -2,6 +2,9 @@ let assets = [];
 let selectedAssetId = "";
 let selectedAssetDetail = null;
 let selectedSourceType = "all";
+let activeWorkspace = "assets";
+let latestAdapterReview = null;
+let recentEvents = [];
 let missions = [];
 const assetPlanOutcomes = new Map();
 const assetPlanPassports = new Map();
@@ -28,6 +31,14 @@ const payloadPreviewButton = document.querySelector("#payloadPreviewButton");
 const buildPlanButton = document.querySelector("#buildPlanButton");
 const refreshButton = document.querySelector("#refreshButton");
 const copyJsonButton = document.querySelector("#copyJsonButton");
+const workspaceButtons = document.querySelectorAll("[data-workspace]");
+const workspacePanels = document.querySelectorAll("[data-workspace-panel]");
+const downloaderRefreshButton = document.querySelector("#downloaderRefreshButton");
+const downloaderQueue = document.querySelector("#downloaderQueue");
+const reviewReturnButton = document.querySelector("#reviewReturnButton");
+const reviewSummary = document.querySelector("#reviewSummary");
+const eventRefreshButton = document.querySelector("#eventRefreshButton");
+const eventList = document.querySelector("#eventList");
 
 refreshButton.addEventListener("click", loadAssets);
 assetFilter.addEventListener("input", renderAssetGrid);
@@ -35,9 +46,14 @@ healthFilter.addEventListener("change", renderAssetGrid);
 payloadPreviewButton.addEventListener("click", () => submitBounds(false));
 buildPlanButton.addEventListener("click", () => submitBounds(true));
 copyJsonButton.addEventListener("click", copyJson);
+workspaceButtons.forEach((button) => button.addEventListener("click", () => showWorkspace(button.dataset.workspace)));
+downloaderRefreshButton.addEventListener("click", renderDownloaderWorkspace);
+reviewReturnButton.addEventListener("click", () => showWorkspace("assets"));
+eventRefreshButton.addEventListener("click", () => loadRecentEvents());
 
 loadAssets();
 renderMissionQueue();
+showWorkspace(activeWorkspace);
 
 async function loadAssets() {
   setServerState("讀取中", "neutral");
@@ -50,6 +66,8 @@ async function loadAssets() {
     renderHealthFilter();
     renderSourceTypeFilters();
     renderAssetGrid();
+    renderDownloaderWorkspace();
+    renderReviewWorkspace();
     addMission("Web Preview 已連線", `讀取 ${assets.length} 個 crawler asset / ${serverRuntimeLabel(health)}`);
     if (!selectedAssetId && assets.length) {
       await selectAsset(assets[0].asset_id);
@@ -149,6 +167,190 @@ function renderAssetGrid() {
     button.innerHTML = assetSlotHtml(asset);
     assetGrid.appendChild(button);
   }
+}
+
+function showWorkspace(name) {
+  activeWorkspace = name || "assets";
+  workspaceButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.workspace === activeWorkspace);
+  });
+  workspacePanels.forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.workspacePanel !== activeWorkspace);
+  });
+  if (activeWorkspace === "downloader") {
+    renderDownloaderWorkspace();
+  } else if (activeWorkspace === "review") {
+    renderReviewWorkspace();
+  } else if (activeWorkspace === "events") {
+    loadRecentEvents({ quiet: true });
+  }
+}
+
+function renderDownloaderWorkspace() {
+  if (!downloaderQueue) return;
+  const queueAssets = assets.filter((asset) => (
+    hasPlanOutcomeBadge(latestPlanOutcomeForAsset(asset)) || hasPlanPassport(latestPlanPassportForAsset(asset))
+  ));
+  if (!queueAssets.length) {
+    downloaderQueue.innerHTML = `
+      <div class="empty-state wide">
+        <strong>尚無下載計畫結果</strong>
+        <p>先在爬蟲資產分頁輸入界域並建立下載計畫；這裡會顯示後端回傳的 plan outcome / passport。</p>
+      </div>
+    `;
+    return;
+  }
+  downloaderQueue.innerHTML = queueAssets.map((asset) => downloaderRowHtml(asset)).join("");
+}
+
+function downloaderRowHtml(asset) {
+  const outcome = latestPlanOutcomeForAsset(asset) || {};
+  const passport = latestPlanPassportForAsset(asset) || {};
+  const tone = toneClass(outcome.display_tone || passport.display_tone);
+  const label = outcome.short_label || outcome.display_label || passport.short_label || passport.outcome_bucket || "計畫結果";
+  const nextAction = outcome.next_action_label || passport.next_action || asset.next_action || "等待後端下一步";
+  const contentReview = outcome.content_review?.has_review || passport.content_review_count
+    ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
+    : "";
+  return `
+    <article class="download-row ${tone}">
+      <div class="download-row-head">
+        <div>
+          <span class="eyebrow">Download Plan</span>
+          <strong>${escapeHtml(asset.display_name)}</strong>
+        </div>
+        <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
+      </div>
+      <div class="queue-metrics">
+        ${heroMetric("Candidates", passport.candidate_count || 0)}
+        ${heroMetric("Direct", passport.direct_download_count || outcome.direct_download_count || 0)}
+        ${heroMetric("Review", passport.review_required_count || outcome.review_required_count || 0)}
+        ${heroMetric("Adapter", passport.adapter_review_count || 0)}
+      </div>
+      <div class="context-chip-row">
+        <span class="context-chip">${escapeHtml(shortPattern(asset.source_type))}</span>
+        <span class="context-chip">${escapeHtml(asset.provider_id || "provider unknown")}</span>
+        ${contentReview}
+      </div>
+      <p>${escapeHtml(nextAction)}</p>
+      <div class="download-row-actions">
+        <button type="button" class="secondary-button" onclick="focusAssetFromWorkspace('${escapeAttr(asset.asset_id)}')">檢視資產</button>
+      </div>
+    </article>
+  `;
+}
+
+async function focusAssetFromWorkspace(assetId) {
+  await selectAsset(assetId);
+  showWorkspace("assets");
+}
+
+function renderReviewWorkspace() {
+  if (!reviewSummary) return;
+  if (!latestAdapterReview?.item_count) {
+    reviewSummary.innerHTML = `
+      <div class="empty-state wide">
+        <strong>尚無匯入審核結果</strong>
+        <p>建立下載計畫後，如果後端判斷需要 adapter 或 content parser review，摘要會出現在這裡。</p>
+      </div>
+    `;
+    return;
+  }
+  const outcomes = latestAdapterReview.outcomes || [];
+  const buckets = latestAdapterReview.content_review_buckets || [];
+  const parsers = latestAdapterReview.content_parsers || [];
+  reviewSummary.innerHTML = `
+    <section class="review-card">
+      <span class="eyebrow">Adapter Review</span>
+      <strong>${escapeHtml(String(latestAdapterReview.item_count))} 筆需要審核</strong>
+      <div class="context-chip-row">
+        ${outcomes.map((outcome) => `<span class="context-chip">${escapeHtml(outcome.display_label || outcome.outcome_bucket)} ${escapeHtml(String(outcome.count || 0))}</span>`).join("")}
+      </div>
+    </section>
+    <section class="review-card">
+      <span class="eyebrow">Content Parser</span>
+      <strong>${escapeHtml(contentReviewText(buckets))}</strong>
+      <div class="context-chip-row">
+        ${buckets.map((bucket) => `<span class="context-chip warning">${escapeHtml(bucket.display_label || bucket.review_bucket)} ${escapeHtml(String(bucket.count || 0))}</span>`).join("") || '<span class="context-chip">無內容格式待辦</span>'}
+      </div>
+    </section>
+    <section class="review-card">
+      <span class="eyebrow">Parser Registry</span>
+      <strong>${escapeHtml(String(parsers.length))} 種 parser 線索</strong>
+      <div class="context-chip-row">
+        ${parsers.slice(0, 8).map((parser) => `<span class="context-chip">${escapeHtml(parser.parser_id || parser.source_format || "parser")}</span>`).join("") || '<span class="context-chip">等待後端提供 parser 線索</span>'}
+      </div>
+    </section>
+  `;
+}
+
+async function loadRecentEvents(options = {}) {
+  if (!eventList) return;
+  eventList.innerHTML = `
+    <div class="empty-state wide">
+      <strong>讀取事件中</strong>
+      <p>正在讀取 structured event 摘要。</p>
+    </div>
+  `;
+  try {
+    const payload = await getJson("/api/events/recent?limit=40");
+    recentEvents = payload.events || [];
+    renderEventWorkspace();
+    if (!options.quiet) {
+      addMission("事件紀錄已更新", `${recentEvents.length} 筆 structured event`);
+    }
+  } catch (error) {
+    eventList.innerHTML = `
+      <div class="empty-state wide">
+        <strong>事件讀取失敗</strong>
+        <p>${escapeHtml(String(error))}</p>
+      </div>
+    `;
+  }
+}
+
+function renderEventWorkspace() {
+  if (!eventList) return;
+  if (!recentEvents.length) {
+    eventList.innerHTML = `
+      <div class="empty-state wide">
+        <strong>尚無事件紀錄</strong>
+        <p>建立下載計畫或執行 smoke 後，後端 structured event 摘要會出現在這裡。</p>
+      </div>
+    `;
+    return;
+  }
+  eventList.innerHTML = recentEvents.map((event) => `
+    <article class="event-row ${toneClass(event.level)}">
+      <div class="event-row-head">
+        <div>
+          <span class="eyebrow">${escapeHtml(event.component || "rrkal")}</span>
+          <strong>${escapeHtml(event.event || "event")}</strong>
+        </div>
+        <time>${escapeHtml(event.timestamp || "")}</time>
+      </div>
+      <p>${escapeHtml(event.message || "")}</p>
+      ${contextChipsHtml(event.context_summary || {})}
+    </article>
+  `).join("");
+}
+
+function contextChipsHtml(context) {
+  const entries = Object.entries(context)
+    .filter(([, value]) => value !== "" && value !== null && value !== undefined)
+    .slice(0, 10);
+  if (!entries.length) return "";
+  return `
+    <div class="context-chip-row">
+      ${entries.map(([key, value]) => {
+        if (typeof value === "object") {
+          const label = value.display_label || value.review_bucket || JSON.stringify(value);
+          return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(label)}</span>`;
+        }
+        return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(String(value))}</span>`;
+      }).join("")}
+    </div>
+  `;
 }
 
 function filteredAssets() {
@@ -429,11 +631,19 @@ async function submitBounds(execute) {
       setContentReviewBadge(null);
       addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
     }
+    if (payload.adapter_review) {
+      latestAdapterReview = payload.adapter_review;
+      renderReviewWorkspace();
+    }
     if (payload.adapter_review?.item_count) {
       addMission("Adapter 待辦", `${payload.adapter_review.item_count} 筆 / ${adapterReviewOutcomeText(payload.adapter_review.outcomes || [])}`);
       if (payload.adapter_review.content_review_buckets?.length) {
         addMission("內容格式待辦", contentReviewText(payload.adapter_review.content_review_buckets || []));
       }
+    }
+    renderDownloaderWorkspace();
+    if (execute) {
+      loadRecentEvents({ quiet: true });
     }
   } catch (error) {
     writeJson({ error: String(error), asset_id: selectedAssetId });
