@@ -89,6 +89,8 @@ CLI `--source-draft-detector-min-confidence` 的預設值同樣引用 `DEFAULT_P
 
 同日第三個切片把 profile 與 health 從 UI 推回後端：`api_launcher/crawler_asset_profiles.py` 保存 crawler 的本機偏好與憑證參照，例如啟用/封存、credential profile、API key 環境變數名稱、帳號提示、排程、限流、重試、seed scope、官方 logo/favicon、本機自訂圖片與授權備註；`api_launcher/crawler_asset_health.py` 則把 profile、能力契約與風險層級收斂成 `status_code`、emoji、reason、warning codes 與 `next_action`。這讓未來 Tk 卡片牆、Qt 卡片牆、CLI 稽核報告都能看到同一個爬蟲健康狀態，而不是在不同前端各自判斷。
 
+Crawler asset health 現在也帶 `status_gate`，把 CODE_KM 式 gate 概念映射到資料入口：`restricted` 表示封存不可用、`staged` 表示停用或未知狀態、`adapter_review` 表示缺 handler、`review` 表示需要界域/adapter/seed review、`completed` 表示目前工作流可用。前端與 agent 應用這個 gate 做分流，不要各自從 source type 或 provider 名稱猜狀態。
+
 Crawler 查詢 URL 一律應透過共用 helper 或範式專屬 normalizer 組裝，不要用手寫字串相加。`api_launcher/crawlers/fetch.py::search_endpoint_url()` 會保留既有 query，並把新增 query 寫在 `#fragment` 前面；這保護 CKAN、CMR、Dataverse、GBIF、OGC、OpenAlex、Zenodo、WMS 等共用 query builder 的 crawler，不會在使用者貼含文件錨點的 URL 時產生錯誤 endpoint。
 
 `tem/ui-aseat-ui/HANDOFF.md` 可作為 UI 精神參考：一個入口爬蟲是一張可治理的資產卡片，預設畫面應清爽掃描，細節放在右側 passport 或設定視窗；齒輪、封存、健康狀態、信任分數、成熟度、風險與任務隊列是 crawler asset 的產品語言。`tem/` 本身不是正式來源，不應直接加入 commit；要抽取的是互動規則與資訊架構。

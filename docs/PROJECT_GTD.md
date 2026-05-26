@@ -85,7 +85,7 @@ Last updated: 2026-05-26
 - [x] 固化 checkpoint 文檔規則：每個功能切片完成 commit / push / CI success 後，必須同步更新 `docs/DEVELOPMENT_LOG.zh-TW.md`；未測完或未推送的工作只能留在 GTD/handoff，不能冒充穩定 checkpoint。
 - [x] 將 K 槽教材定位為「概念樣本庫」，不是可直接搬進 RRKAL 的程式碼來源；落地時必須轉成小型、fixture-tested 的 RRKAL module。
 - [x] 將 CODE_KM 的治理模型映射到 RRKAL：source/file provenance、checksum、pipeline run state、rights/review gate、local metadata index、人類可讀內容與結構化 metadata 分離。
-- [ ] 下一輪：把 CODE_KM 式 status gate 草案映射到 RRKAL 的 crawler/source/asset 狀態，例如 `staged`、`adapter_review`、`curated`、`restricted`、`completed`。
+- [x] CODE_KM 式 status gate 已先落到 crawler asset health payload：後端 `CrawlerAssetHealth` 會輸出 `status_gate`，把 archived/disabled/missing handler/needs bounds/review/healthy 收斂成 `restricted`、`staged`、`adapter_review`、`review`、`completed` 等 UI-neutral gate，供 Tk/Web/Qt/agent 共用。
 - [ ] 下一輪：整理 `source profile -> crawler run -> candidate -> plan -> manifest -> import -> registry asset` 的 run registry 欄位，確定哪些放 SQLite registry，哪些只放 structured event log。
 
 ## 2026-05-24 來源介面 detector / crawler asset 界域骨架

@@ -113,6 +113,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[2].maps_to[0])
         self.assertEqual("full entry", asset.seed_summary)
         self.assertEqual("file_index", asset.source_surface)
+        self.assertEqual("completed", asset.health.status_gate)
 
     def test_wms_source_surface_is_map_service_for_ui_cards(self) -> None:
         source = DatasetDiscoverySource(
@@ -141,6 +142,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("unbuilt", asset.maturity)
         self.assertEqual("needs_handler", asset.risk_tier)
         self.assertEqual("needs_handler", asset.capability_status("fetch_metadata"))
+        self.assertEqual("adapter_review", asset.health.status_gate)
         self.assertEqual("待補", status_label("needs_handler"))
 
     def test_account_requirement_is_assigned_to_crawler_asset(self) -> None:
@@ -561,6 +563,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("archived", assets[0].risk_tier)
         self.assertEqual("unarchive_before_crawl", assets[0].next_action)
         self.assertEqual("archived", assets[0].health.status_code)
+        self.assertEqual("restricted", assets[0].health.status_gate)
         self.assertEqual("unarchive_before_crawl", assets[0].health.next_action)
 
     def test_loaded_assets_expose_profile_and_health_for_ui_cards(self) -> None:
@@ -600,8 +603,10 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("manual", assets[0].schedule_policy)
         self.assertEqual("polite_1rps", assets[0].rate_limit_policy)
         self.assertEqual("needs_bounds", assets[0].health.status_code)
+        self.assertEqual("review", assets[0].health.status_gate)
         self.assertEqual("probe_schema_then_define_bounds", assets[0].health.next_action)
         self.assertEqual("needs_bounds", assets[0].to_dict()["health"]["status_code"])
+        self.assertEqual("review", assets[0].to_dict()["health"]["status_gate"])
 
     def test_service_blocks_archived_asset_before_crawl(self) -> None:
         with TemporaryDirectory() as tmp:

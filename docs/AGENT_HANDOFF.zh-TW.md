@@ -5,6 +5,10 @@
 - UI/Tk/Web/Qt 若接這個路徑，應呈現 `review_reason` 與 `next_action`，並把 `source_pattern_detection.evidence` 作為診斷細節；不要把 unknown/low-confidence URL 硬寫進 catalog 或下載器。
 - Tk 爬蟲資產分頁已接上這個 structured review：`SourcePatternDraftError` 會顯示 warning dialog 與 status，並寫 `source_pattern_source_draft_blocked` warning event；只有真正未預期例外才走 `showerror` / `log_exception`。
 
+## 2026-05-26 Crawler Asset status gates
+- `api_launcher.crawler_asset_health.CrawlerAssetHealth` 現在帶 `status_gate`，把 crawler asset 狀態收斂成 UI-neutral gate：archived -> `restricted`、disabled/unknown -> `staged`、missing handler -> `adapter_review`、needs bounds/review-needed -> `review`、healthy -> `completed`。
+- Tk/Web/Qt/agent 後續應讀 `asset.health.status_gate` 做任務分流，不要各自從 `status_code`、`risk_tier`、`maturity` 或 capability status 重建 gate。`status_code` 仍保留給細節與 debug。
+
 ## 2026-05-26 Plan Passport stale guard
 - 本輪新增 profile-backed plan passport stale 判斷：`update_crawler_asset_plan_passport()` 會保存 `saved_at`、`profile_state`、`stale=false`，`crawler_asset_plan_passport_for_profile()` 會在 asset 停用、封存或 profile state 改變時輸出 `stale=true` 與 `stale_reason`。
 - `load_crawler_assets()` 現在回傳 display-safe passport；Web/Tk 只呈現 stale 狀態，不自行判斷規則。這是之後 Qt 換皮時可共用的 payload。

@@ -19,6 +19,7 @@ class CrawlerAssetHealth:
 
     asset_id: str
     status_code: str
+    status_gate: str
     status_emoji: str
     health_reason: str
     warning_codes: tuple[str, ...] = ()
@@ -30,6 +31,7 @@ class CrawlerAssetHealth:
         return {
             "asset_id": self.asset_id,
             "status_code": self.status_code,
+            "status_gate": self.status_gate,
             "status_emoji": self.status_emoji,
             "health_reason": self.health_reason,
             "warning_codes": list(self.warning_codes),
@@ -56,13 +58,14 @@ def evaluate_crawler_asset_health(
 
     warnings = tuple(str(code).strip() for code in warning_codes if str(code).strip())
     if archived:
-        return _health(asset_id, "archived", "🗄", "crawler asset is archived", ("archived",), "unarchive_before_crawl")
+        return _health(asset_id, "archived", "restricted", "🗄", "crawler asset is archived", ("archived",), "unarchive_before_crawl")
     if not enabled:
-        return _health(asset_id, "disabled", "⏸", "crawler asset is disabled", ("disabled",), "enable_before_crawl")
+        return _health(asset_id, "disabled", "staged", "⏸", "crawler asset is disabled", ("disabled",), "enable_before_crawl")
     if risk_tier == "needs_handler":
         return _health(
             asset_id,
             "missing_handler",
+            "adapter_review",
             "🧩",
             "source type has no crawler handler yet",
             warnings or ("needs_handler",),
@@ -72,6 +75,7 @@ def evaluate_crawler_asset_health(
         return _health(
             asset_id,
             "needs_bounds",
+            "review",
             "🧭",
             "schema probe or adapter mapping is required before download",
             warnings or ("needs_bounds_or_adapter",),
@@ -81,6 +85,7 @@ def evaluate_crawler_asset_health(
         return _health(
             asset_id,
             "review_needed",
+            "review",
             "⚠",
             "crawler output or seed coverage needs review",
             warnings or ("needs_review",),
@@ -90,6 +95,7 @@ def evaluate_crawler_asset_health(
         return _health(
             asset_id,
             "healthy",
+            "completed",
             "✅",
             "crawler asset is available for the current workflow",
             warnings,
@@ -100,6 +106,7 @@ def evaluate_crawler_asset_health(
     return _health(
         asset_id,
         "unknown",
+        "staged",
         "？",
         "crawler asset state is not classified yet",
         warnings or ("unknown_state",),
@@ -112,6 +119,7 @@ def evaluate_crawler_asset_health(
 def _health(
     asset_id: str,
     status_code: str,
+    status_gate: str,
     status_emoji: str,
     health_reason: str,
     warning_codes: tuple[str, ...],
@@ -123,6 +131,7 @@ def _health(
     return CrawlerAssetHealth(
         asset_id=asset_id,
         status_code=status_code,
+        status_gate=status_gate,
         status_emoji=status_emoji,
         health_reason=health_reason,
         warning_codes=warning_codes,
