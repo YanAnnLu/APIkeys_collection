@@ -285,6 +285,7 @@ Last updated: 2026-05-26
 ## Discovery Handoff Notes
 
 - `--write-provider-candidate-source-drafts` 產出的 summary 現在會帶 `next_action`、`audit_command` 與 `audit_source_ids`，CLI 也會留下 `provider_candidate_source_drafts_written` structured event；`--handoff-report` / `--handoff-report-json` 會把最近一次 source draft 寫入與下一步 dry-run audit 指令列出，供 Mac 與 heartbeat agent 接力。
+- `scripts/pre_push_smoke_brief.ps1` / `.cmd` 現在支援 `-Help` 與 `--help` 快速列出用法，不會誤啟動完整 smoke；若只想確認參數，先跑 help，再用正式 smoke 做 checkpoint 驗證。
 
 ## Status Legend
 

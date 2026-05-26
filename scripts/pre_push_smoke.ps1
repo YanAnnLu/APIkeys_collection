@@ -3,13 +3,30 @@ param(
     [switch] $SkipTests,
     [switch] $SkipSummary,
     [switch] $SkipDiffCheck,
-    [switch] $SkipMvpSmoke
+    [switch] $SkipMvpSmoke,
+    [switch] $Help
 )
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..")
+
+if ($Help) {
+    Write-Host "Usage: scripts\pre_push_smoke.ps1 [options]"
+    Write-Host ""
+    Write-Host "Runs repository validation before pushing."
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  -Python <cmd>    Python launcher command, default: py."
+    Write-Host "  -SkipTests       Skip unittest discovery."
+    Write-Host "  -SkipSummary     Skip CLI summary."
+    Write-Host "  -SkipDiffCheck   Skip git diff --check checks."
+    Write-Host "  -SkipMvpSmoke    Skip MVP demo offline smoke."
+    Write-Host "  -Help            Show this help and exit."
+    exit 0
+}
+
 Set-Location $ProjectRoot
 
 # Git hook 會在不同 shell 裡啟動；先固定 pycache 位置，避免 Windows/RaiDrive 鎖住 repo 內 __pycache__。

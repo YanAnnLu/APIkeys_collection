@@ -7,6 +7,22 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..")
+$CleanForwardArgs = @($ForwardArgs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+if ($CleanForwardArgs | Where-Object { $_ -in @("-Help", "--help", "-?", "/?", "/h") }) {
+    Write-Host "Usage: scripts\pre_push_smoke_brief.ps1 [pre_push_smoke.ps1 options]"
+    Write-Host ""
+    Write-Host "Runs the full pre-push smoke suite and writes a summarized log under state/logs."
+    Write-Host ""
+    Write-Host "Common options forwarded to pre_push_smoke.ps1:"
+    Write-Host "  -SkipTests       Skip unittest discovery."
+    Write-Host "  -SkipSummary     Skip CLI summary."
+    Write-Host "  -SkipDiffCheck   Skip git diff --check checks."
+    Write-Host "  -SkipMvpSmoke    Skip MVP demo offline smoke."
+    Write-Host "  -Python <cmd>    Python launcher command, default: py."
+    exit 0
+}
+
 $LogDir = Join-Path $ProjectRoot "state/logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -15,7 +31,6 @@ $LogPath = Join-Path $LogDir "pre_push_smoke_$Stamp.log"
 $StdoutPath = "$LogPath.stdout"
 $StderrPath = "$LogPath.stderr"
 $PrePushScript = Join-Path $ScriptDir "pre_push_smoke.ps1"
-$CleanForwardArgs = @($ForwardArgs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 Write-Host "[pre-push-smoke-brief] writing full log to $LogPath"
 

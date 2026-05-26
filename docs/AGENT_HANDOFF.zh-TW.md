@@ -338,6 +338,7 @@ Renderer bridge 也應被視為可管理資產，不只是程式碼。Tile manif
 - 匯報要面向初學者：少用抽象工程術語，多用白話說明「這一步解決什麼、還差什麼、為什麼重要」。每次中途或最後匯報，順手說明距離 MVP 還剩哪些大塊。
 - 做到一個穩定節點就要 commit/push，並用 `gh run watch` 或 `gh run list` 確認 CI。使用者手機會收到 GitHub Actions 通知，所以不要只說 push 成功。若 push 已抵達 `origin/main` 但數分鐘內沒有對應 SHA 的 Actions run，改用 `gh workflow run CI --repo kagamihara-rururka/APIkeys_collection --ref main` 手動 dispatch，再用 `gh run watch RUN_ID --exit-status` 追結果；這是排隊異常的補證據流程，不代表可以跳過本機 smoke。
 - 為了降低 token 用量，長輸出請優先用 repo-owned 簡報入口，例如 `.\scripts\pre_push_smoke_brief.cmd`。完整 log 會寫到 `state/logs/pre_push_smoke_*.log`，對話中只貼關鍵行與失敗尾端。外部 `distill` 只能當可選後處理；不要用它取代 raw log、JSON、SQL、CI、測試證據，也不要把可能含 secrets/env/credential 的輸出送去未知 provider。Windows 上若要用 `distill`，必須先確認 `distill.cmd --version` 成功；2026-05-22 實測 `@samuelfaj/distill@1.5.2` 缺 `@samuelfaj/distill-win32-x64` 平台包，尚不能視為可用。
+- `.\scripts\pre_push_smoke_brief.cmd -Help` 或 `--help` 只會列出 brief smoke 用法並立即退出，不會建立 log 或啟動完整 unittest；正式 checkpoint 仍要不加 help 跑完整 `pre_push_smoke_brief`。
 - 不要在 base/system Python 裝套件；目前 macOS 主要使用 `conda run -n metal_trade_312 ...`。
 - 遇到環境差異先配置，不要假設 Windows 路徑可在 Mac 用。尤其 Mac 啟動時要依系統選路徑分隔符與平台路徑，不要讓 Windows `K:\...` 類路徑阻擋 UI。
 - 不要硬編碼代表資料集。使用者反覆強調 crawler-first：先找供應商/目錄，解析目錄，再產生候選；adapter 只處理 bounded query、auth、轉換、匯入等必要邏輯。
