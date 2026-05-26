@@ -10,6 +10,7 @@ Last updated: 2026-05-26
 - [x] `SourceDownloadPlanBuild` 現在會計算 `candidate_snapshot_signature` / `candidate_snapshot_count`，並讓 `plan_passport` 以 compact 欄位保存這份候選清單 digest。這能記錄「本次計畫是由哪一批候選版本/metadata/source URL 形成」，但不在沒有重新 crawl 時假裝知道遠端已改。
 - [x] `build_crawler_asset_download_plan()` 現在會在 explicit fresh crawl / rebuild plan 後比較上一版 profile 護照與本次 `candidate_snapshot_signature`，並輸出 `candidate_snapshot_changed`。這個旗標只在重新建立計畫後更新，不由 UI 或 profile loader 被動推測遠端清單變化。
 - [x] Web Preview 下載器列與 Plan Passport 面板、Tk Crawler Passport 摘要都會顯示 `candidate_snapshot_changed`，但顯示層只吃後端 compact passport，不自行判斷遠端 freshness。
+- [x] 補上同候選快照重建的 regression：同一批 candidate metadata/version/source URL 重新建立計畫時，`candidate_snapshot_changed` 必須維持 `false`；只有 digest 確實不同才提示候選快照已變更。
 
 ## 2026-05-26 Web Preview / 後端視覺化閉環
 
