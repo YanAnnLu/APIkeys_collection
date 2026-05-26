@@ -150,10 +150,21 @@ FACET_DEFINITIONS: dict[str, CrawlerAssetBoundFacet] = {
         group="VersionBounds",
         control="select_or_text",
         value_type="version",
-        maps_to=("SourceDownloadOptions.selected_versions", "SourceDownloadBounds.version_limit"),
+        maps_to=("SourceDownloadOptions.selected_versions",),
+        help_zh_TW="明確指定資料版本；留空時不選版本，改由版本數上限控制。",
+        help_en="Explicit dataset version selector; leave blank to use version limit instead.",
+    ),
+    "version_limit": CrawlerAssetBoundFacet(
+        facet_id="version_limit",
+        label_zh_TW="版本數上限",
+        label_en="Version limit",
+        group="VersionBounds",
+        control="integer",
+        value_type="integer",
+        maps_to=("SourceDownloadBounds.version_limit",),
         default=1,
-        help_zh_TW="版本選擇屬於 plan options；沒有明確版本時先保留版本上限。",
-        help_en="Version selection belongs to plan options; fallback to version limit.",
+        help_zh_TW="沒有指定版本時，下載計畫最多採用幾個版本；預設只取第一個安全版本。",
+        help_en="Maximum versions to plan when no explicit version is selected.",
     ),
     "file_pattern": CrawlerAssetBoundFacet(
         facet_id="file_pattern",
@@ -271,8 +282,8 @@ FACET_DEFINITIONS: dict[str, CrawlerAssetBoundFacet] = {
 
 
 DEFAULT_BOUND_FACETS = ("limit",)
-FILE_INDEX_BOUND_FACETS = ("version", "file_pattern", "limit")
-METADATA_DATASET_BOUND_FACETS = ("dataset", "version", "format", "limit")
+FILE_INDEX_BOUND_FACETS = ("version", "version_limit", "file_pattern", "limit")
+METADATA_DATASET_BOUND_FACETS = ("dataset", "version", "version_limit", "format", "limit")
 SOURCE_BOUND_FACETS: dict[str, tuple[str, ...]] = {
     # Frontend-neutral source of truth for crawler bounds forms.
     # UI layers render these facets instead of branching on source_type.

@@ -103,8 +103,8 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("selectable", asset.capability_status(BUILD_DOWNLOAD_PLAN))
         self.assertTrue(source_uses_file_index(source))
         self.assertIn("下載計畫:可選", asset.capability_summary)
-        self.assertEqual(("version", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
-        self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[1].maps_to[0])
+        self.assertEqual(("version", "version_limit", "file_pattern", "limit"), asset.capabilities[2].bounds_facets)
+        self.assertEqual("DatasetDiscoverySource.file_url_regex", asset.capabilities[2].bounds_schema[2].maps_to[0])
         self.assertEqual("full entry", asset.seed_summary)
         self.assertEqual("file_index", asset.source_surface)
 
@@ -275,6 +275,25 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual((120.0, 22.0, 122.0, 25.0), options.bounds.bbox)
         self.assertEqual(("landsat-c2",), options.search_terms_override)
         self.assertEqual(50, options.max_results_override)
+
+    def test_blank_version_keeps_limit_without_selecting_fake_version(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo Index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/files/index.html",
+            file_url_regex=r"demo-(?P<version>\d{4})\.csv$",
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema)
+
+        payload = crawler_asset_bound_payload_from_form_values(form_spec, {})
+        options = source_download_options_from_crawler_asset_payload(payload)
+
+        self.assertEqual(1, options.bounds.version_limit)
+        self.assertEqual({}, options.selected_versions)
+        self.assertNotIn("SourceDownloadOptions.selected_versions", payload.maps_to_values)
 
     def test_load_crawler_asset_source_finds_single_entry(self) -> None:
         with TemporaryDirectory() as tmp:
