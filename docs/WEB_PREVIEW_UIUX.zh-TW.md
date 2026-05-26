@@ -91,6 +91,7 @@ http://127.0.0.1:8765/
 - Web session 內建立下載計畫後，卡片牆會用後端 `plan_outcome.short_label` / `display_tone` / `content_review` 顯示即時徽章，並同步寫入 compact `crawler_asset_plan_outcome_recorded` structured event；重新載入頁面時，也會從近期 event 讀取同一份 badge payload 作為後端狀態提示。這不是 JS localStorage 持久化；長期資產狀態仍應由 event log / asset profile / service contract 接手。
 - 選中爬蟲資產後，hero 與右側資產護照會顯示最近計畫結果摘要；這仍只呈現 `latest_plan_outcome` / session payload，不在前端判斷 direct/review/blocked 的業務規則。
 - `execute=true` 建立下載計畫時，Web API 會另外回傳 compact `plan_passport`：包含 asset id、是否已有 resolved plan、candidate/direct/review/content-review counts、credential/missing-provider counts、bounds 與 next action，但不複製完整 `providers` / resolved plan body。這是 Tk/Web/Qt 共用「計畫護照」契約的第一步，避免 UI 為了顯示狀態而持有大包 plan。
+- 中寬度響應式版面必須保留中文標籤。不要再用 `font-size: 0` 把側欄壓成只有圖示的空按鈕；若 viewport 不夠寬，側欄應變成頁首控制區，來源篩選以多欄與高度限制處理，讓主工作區在第一屏可見。
 - 右側資產護照已可在本頁 session 內顯示 `plan_passport` 面板：顯示 resolved-plan presence、candidate/direct/review/adapter counts、內容格式待辦與 credential/provider gate 摘要。這個面板只吃後端 compact payload；完整 plan 仍留在 JSON inspector 與 review/download path。
 
 ## 下一步

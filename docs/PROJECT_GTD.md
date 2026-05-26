@@ -10,7 +10,8 @@ Last updated: 2026-05-26
 - [x] Web 顯示層用穩定 `field_id` / `capability_id` 對照中文標籤，避免舊後端 label 亂碼或平台差異直接進入 UI；後端原始契約仍保留。
 - [x] Web Preview 動態界域表單已改成後端 `group_display` 驅動的分組表單；`api_launcher/crawler_asset_display.py` 統一提供「版本控制、資料集選擇、時間界域、空間界域、擷取上限」等群組文案，Web/Tk/Qt 不需要各自推理 bounds group。
 - [x] Web Preview `/api/health` 現在會回報實際綁定的 `host:port`、原請求 port 與 `port_scanned`；前端總覽與互動紀錄會顯示實際服務位置，讓多個 agent / clone 同時開 Web Preview 時不必互相關閉程序。
-- [x] 驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke 均通過。
+- [x] Web Preview 中寬度響應式版面已改成保留側欄中文標籤；來源篩選區改為多欄並限制高度，避免 1260px 以下把按鈕文字藏成空框或把主工作區推到第一屏外。
+- [x] 驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke；另用 Browser 驗證 `127.0.0.1:8766` 在 849x910 viewport 下 nav 文字可見、來源篩選高度受控、搜尋 `stac` 會把可見卡片收斂為 2 張。
 - [x] 把 Web 使用的 `flow_steps` / label 對照抽成 `api_launcher/crawler_asset_display.py`，讓 Web/Tk/Qt 以後共用 `display_label`、`display_help` 與流程條 payload。
 - [x] 將 plan outcome / Adapter review 摘要納入同一份 display schema：Web API 現在回傳 `plan_outcome` 與 `adapter_review` 顯示 payload，Web JS 只呈現後端 label/tone/summary，不自行推理業務分支。
 - [x] 讓 Tk 的爬蟲資產分頁改用同一份 display schema：表格短狀態現在取自 `plan_outcome.short_label`，不再在 Tk 內重寫 outcome bucket 分支。
