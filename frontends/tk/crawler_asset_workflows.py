@@ -27,7 +27,7 @@ from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCE
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
-from api_launcher.source_pattern_drafts import write_source_draft_from_url
+from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.dialogs import AdapterReviewDialog
@@ -351,10 +351,45 @@ class CrawlerAssetWorkflowMixin:
                     "source_pattern_detection": summary.get("source_pattern_detection", {}),
                 },
             )
+        except SourcePatternDraftError as exc:
+            summary = exc.to_dict()
+            log_event(
+                "source_pattern_source_draft_blocked",
+                "Tk crawler asset UI kept a detected source URL in review.",
+                level="warning",
+                component="ui.crawler_assets",
+                context={
+                    "source_url": url,
+                    "review_reason": summary.get("review_reason", ""),
+                    "source_pattern_detection": summary.get("source_pattern_detection", {}),
+                    "next_action": summary.get("next_action", ""),
+                },
+            )
+            review_message = self.source_pattern_draft_review_message(summary)
+            review_reason = str(summary.get("review_reason") or exc.reason_code)
+            self.root.after(
+                0,
+                lambda: messagebox.showwarning(
+                    self.tr("來源草稿保留審核", "Source draft kept in review"),
+                    review_message,
+                    parent=getattr(self, "root", None),
+                ),
+            )
+            self.root.after(
+                0,
+                lambda: self.status_var.set(
+                    self.tr(
+                        f"來源草稿保留審核：{review_reason}",
+                        f"Source draft kept in review: {review_reason}",
+                    )
+                ),
+            )
+            return
         except Exception as exc:
+            error_message = str(exc)
             log_exception("source_pattern_source_draft_failed", exc, component="ui.crawler_assets", context={"source_url": url})
-            self.root.after(0, lambda: messagebox.showerror(self.tr("來源草稿建立失敗", "Source draft failed"), str(exc), parent=getattr(self, "root", None)))
-            self.root.after(0, lambda: self.status_var.set(self.tr(f"來源草稿建立失敗：{exc}", f"Source draft failed: {exc}")))
+            self.root.after(0, lambda: messagebox.showerror(self.tr("來源草稿建立失敗", "Source draft failed"), error_message, parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"來源草稿建立失敗：{error_message}", f"Source draft failed: {error_message}")))
             return
 
         def finish() -> None:
@@ -409,6 +444,36 @@ class CrawlerAssetWorkflowMixin:
                 f"Evidence:\n{evidence_preview}\n\n"
                 f"Local draft: {data.get('dataset_source_path') or '-'}\n"
                 f"Next: {data.get('audit_command') or data.get('next_action') or '-'}"
+            ),
+        )
+
+    def source_pattern_draft_review_message(self, summary: object) -> str:
+        data = summary if isinstance(summary, dict) else {}
+        detection = data.get("source_pattern_detection") if isinstance(data.get("source_pattern_detection"), dict) else {}
+        evidence = detection.get("evidence") if isinstance(detection.get("evidence"), list) else []
+        evidence_preview = "\n".join(f"- {item}" for item in evidence[:5]) or "-"
+        try:
+            confidence_text = f"{float(detection.get('confidence')):.2f}"
+        except (TypeError, ValueError):
+            confidence_text = "-"
+        return self.tr(
+            (
+                "來源草稿已保留在人工審核，沒有寫入本機 source draft。\n\n"
+                f"審核原因：{data.get('review_reason') or '-'}\n"
+                f"Pattern：{detection.get('pattern_id') or '-'}\n"
+                f"信心分數：{confidence_text}\n"
+                f"Source type hint：{detection.get('source_type_hint') or '-'}\n\n"
+                f"證據：\n{evidence_preview}\n\n"
+                f"下一步：{data.get('next_action') or '-'}"
+            ),
+            (
+                "Source draft was kept in review; no local source draft was written.\n\n"
+                f"Review reason: {data.get('review_reason') or '-'}\n"
+                f"Pattern: {detection.get('pattern_id') or '-'}\n"
+                f"Confidence: {confidence_text}\n"
+                f"Source type hint: {detection.get('source_type_hint') or '-'}\n\n"
+                f"Evidence:\n{evidence_preview}\n\n"
+                f"Next: {data.get('next_action') or '-'}"
             ),
         )
 

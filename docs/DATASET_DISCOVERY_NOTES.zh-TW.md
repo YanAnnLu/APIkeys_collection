@@ -81,6 +81,8 @@ Source draft writer 也會在寫入 local source draft 前重新檢查 detector 
 
 Source draft writer 的 review 擋板現在會輸出結構化失敗 payload：`source_pattern_unknown`、`source_pattern_below_minimum_confidence`、`source_pattern_missing_source_type`、`source_pattern_unsupported_source_type` 都會保留 `source_pattern_detection`、`minimum_confidence`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。CLI 指定 `--write-source-draft-json` 時，即使 URL 被擋在 review，也會先寫出 blocked summary JSON，供 Tk、Web、Qt 或下一位 agent 判斷是要人工補 source profile，還是新增 detector/adapter；不得把這類失敗只當成普通 traceback。
 
+Tk 爬蟲資產分頁現在已消費這份 structured review payload：被擋下的 URL 會顯示「保留審核」警告，列出 `review_reason`、pattern、confidence、evidence 與 `next_action`，並寫入 `source_pattern_source_draft_blocked` warning event。這條 UI 路徑不得把 unknown / low-confidence 當成 generic error，也不得在前端繞過後端擋板寫 local source draft。
+
 Tk 的 source draft dialog 與 crawler asset workflow 也改為讀取同一個最低信心門檻常數，而不是在 UI 層硬寫 `0.35`。UI 仍只負責收集輸入與呼叫 service；detector contract 的預設值由後端維護。
 
 CLI `--source-draft-detector-min-confidence` 的預設值同樣引用 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`。這代表命令列、Tk 表單與後端 detector 共用同一個 review 門檻；若未來調整信心門檻，應先更新 `source_patterns.py` 的契約與 regression tests，不要在不同入口各自改數字。

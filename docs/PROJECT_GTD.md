@@ -5,6 +5,7 @@ Last updated: 2026-05-26
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。
 - [x] `--write-source-draft-from-url ... --write-source-draft-json ...` 在 unknown / low-confidence / missing source type / unsupported source type 時會先寫出 blocked summary JSON，再讓 CLI 失敗；這讓 agent/Tk/Web/Qt 可以讀 structured result，而不是只看到 traceback。
+- [x] Tk 爬蟲資產分頁現在會把 `SourcePatternDraftError` 呈現成「保留審核」警告，顯示 `review_reason`、pattern、confidence、evidence 與 `next_action`；真正未預期例外才走 error dialog 與 traceback log。
 - [x] 測試已覆蓋 unknown、低信心、缺 source type、unsupported source type，以及 CLI blocked JSON handoff；成功寫入 local source draft 的既有路徑不變。
 
 ## 2026-05-26 Plan Passport stale guard

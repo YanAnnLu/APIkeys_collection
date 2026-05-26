@@ -10,9 +10,10 @@ from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json
 from api_launcher.source_download import SourceDownloadBounds
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_assets import crawler_asset_from_source
-from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE, SourcePatternDetection
 from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.downloads.jobs import DownloadProgress, JobStatus
+from api_launcher.source_pattern_drafts import SourcePatternDraftError
 from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
@@ -350,6 +351,61 @@ class TkDialogModuleTest(unittest.TestCase):
             CrawlerAssetWorkflowMixin._source_pattern_draft_worker(ui, {"url": "https://example.test/stac"})
 
         self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, writer.call_args.kwargs["minimum_confidence"])
+
+    def test_source_pattern_draft_review_message_keeps_next_action_visible(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        summary = {
+            "review_reason": "source_pattern_unknown",
+            "next_action": "review_source_profile_or_add_detector",
+            "source_pattern_detection": {
+                "pattern_id": "unknown",
+                "confidence": 0.1,
+                "source_type_hint": "",
+                "evidence": ["below_minimum_confidence"],
+            },
+        }
+
+        message = CrawlerAssetWorkflowMixin.source_pattern_draft_review_message(ui, summary)
+
+        self.assertIn("kept in review", message)
+        self.assertIn("source_pattern_unknown", message)
+        self.assertIn("unknown", message)
+        self.assertIn("0.10", message)
+        self.assertIn("review_source_profile_or_add_detector", message)
+
+    def test_source_pattern_draft_worker_shows_review_warning_for_structured_block(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.refresh_crawler_asset_tab = lambda: (_ for _ in ()).throw(AssertionError("should not refresh"))
+        error = SourcePatternDraftError(
+            "source_pattern_unknown",
+            "source pattern detector returned unknown; keep this URL in review",
+            source_url="https://example.test/landing",
+            detection=SourcePatternDetection(
+                pattern_id="unknown",
+                confidence=0.1,
+                evidence=("below_minimum_confidence",),
+            ),
+        )
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.write_source_draft_from_url", side_effect=error),
+            patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+            patch("frontends.tk.crawler_asset_workflows.log_exception") as exception_log,
+            patch("frontends.tk.crawler_asset_workflows.messagebox.showwarning") as showwarning,
+            patch("frontends.tk.crawler_asset_workflows.messagebox.showerror") as showerror,
+        ):
+            CrawlerAssetWorkflowMixin._source_pattern_draft_worker(ui, {"url": "https://example.test/landing"})
+
+        showwarning.assert_called_once()
+        showerror.assert_not_called()
+        exception_log.assert_not_called()
+        event_log.assert_called_once()
+        self.assertIn("source_pattern_unknown", ui.status_var.value)
+        self.assertIn("source_pattern_unknown", showwarning.call_args.args[1])
 
     def test_crawler_asset_download_plan_summary_guides_review_required(self) -> None:
         result = SimpleNamespace(
