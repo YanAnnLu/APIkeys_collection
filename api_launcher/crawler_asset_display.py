@@ -303,6 +303,54 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     }
 
 
+def crawler_asset_plan_passport_payload(
+    result: object,
+    *,
+    plan_outcome: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Summarize one resolved plan without copying the full plan into UI state.
+
+    The passport is meant for Tk/Web/Qt status panels: it gives users and agents
+    enough evidence to decide the next action while keeping the bulky resolved
+    plan in the backend review/download path.
+    """
+
+    resolved_plan = getattr(result, "resolved_plan", None)
+    plan_build = getattr(result, "plan_build", None)
+    adapter_review = adapter_review_display_payload(resolved_plan if isinstance(resolved_plan, dict) else {})
+    outcome = dict(plan_outcome) if isinstance(plan_outcome, Mapping) else crawler_asset_plan_outcome_payload(result)
+    content_review_payload = outcome.get("content_review")
+    content_review = (
+        content_review_payload
+        if isinstance(content_review_payload, dict)
+        else adapter_review_content_summary_payload(adapter_review)
+    )
+    credential_gates = getattr(plan_build, "credential_gates", ()) if plan_build is not None else ()
+    blocked_credentials = _safe_int(getattr(plan_build, "blocked_credential_count", 0)) if plan_build is not None else 0
+    missing_provider_ids = getattr(plan_build, "missing_provider_ids", ()) if plan_build is not None else ()
+    bounds = getattr(result, "bounds", None)
+    return {
+        "asset_id": str(getattr(result, "asset_id", "") or ""),
+        "has_resolved_plan": isinstance(resolved_plan, dict) and bool(resolved_plan),
+        "outcome_bucket": str(outcome.get("outcome_bucket") or getattr(result, "outcome_bucket", "") or ""),
+        "short_label": str(outcome.get("short_label") or ""),
+        "display_tone": str(outcome.get("display_tone") or "neutral"),
+        "candidate_count": _safe_int(getattr(plan_build, "candidate_count", 0)) if plan_build is not None else 0,
+        "upserted_candidate_count": _safe_int(getattr(plan_build, "upserted_candidate_count", 0)) if plan_build is not None else 0,
+        "selected_version_count": _safe_int(getattr(plan_build, "selected_version_count", 0)) if plan_build is not None else 0,
+        "filtered_version_count": _safe_int(getattr(plan_build, "filtered_version_count", 0)) if plan_build is not None else 0,
+        "direct_download_count": _safe_int(getattr(result, "direct_download_count", 0)),
+        "review_required_count": _safe_int(getattr(result, "review_required_count", 0)),
+        "adapter_review_count": _safe_int(adapter_review.get("item_count")),
+        "content_review_count": _safe_int(content_review.get("count") if isinstance(content_review, dict) else 0),
+        "blocked_credential_count": blocked_credentials,
+        "credential_gate_count": len(tuple(credential_gates)),
+        "missing_provider_count": len(tuple(missing_provider_ids)),
+        "next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
+        "bounds": bounds.to_dict() if hasattr(bounds, "to_dict") else {},
+    }
+
+
 def crawler_asset_plan_event_badge_payload(context: Mapping[str, object]) -> dict[str, object]:
     """Rebuild a compact plan-outcome badge from a structured event context.
 
@@ -595,6 +643,7 @@ __all__ = [
     "crawler_asset_flow_steps",
     "crawler_asset_plan_event_badge_payload",
     "crawler_asset_plan_outcome_payload",
+    "crawler_asset_plan_passport_payload",
     "plan_entry_content_status_payload",
     "capability_display_label",
     "bound_field_display_label",

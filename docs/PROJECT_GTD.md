@@ -27,7 +27,8 @@ Last updated: 2026-05-26
 - [x] Web Preview 卡片牆現在會從近期 `crawler_asset_plan_outcome_recorded` structured event 補上 `latest_plan_outcome`，頁面重載後仍能看到最近後端計畫結果徽章；Web session 內新建結果仍優先顯示，避免用 stale event 蓋掉最新操作。
 - [x] Web Preview 建立下載計畫時也會寫入 compact `crawler_asset_plan_outcome_recorded` event；事件只保留 badge/context 欄位與是否有 resolved plan，不把完整 plan JSON 塞進 event log。
 - [x] Web Preview 選中資產的 hero 與右側資產護照已顯示 `latest_plan_outcome` 摘要：最近計畫短標、summary、direct/review counts 與 content-review badge 都來自後端 payload。
-- [ ] 下一步：把 Adapter resolving 結果回寫成更完整的 resolved-plan passport / 資產 profile 狀態，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract，而不是只依賴近期 event。
+- [x] Web API 建立下載計畫時已回傳 compact `plan_passport`：它整理 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/missing-provider counts、bounds 與 next action，但不把完整 resolved plan body 複製到 UI 狀態。
+- [ ] 下一步：把 `plan_passport` 視覺化到 Web/Tk 卡片護照，並評估哪些欄位需要回寫成資產 profile；完整 resolved plan 仍留在 review/download path。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

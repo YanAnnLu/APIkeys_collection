@@ -11,6 +11,7 @@ from unittest.mock import patch
 from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
     crawler_asset_plan_outcome_payload,
+    crawler_asset_plan_passport_payload,
     plan_entry_content_status_payload,
 )
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
@@ -137,6 +138,57 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("", context["resolved_plan"])
         self.assertTrue(context["resolved_plan_available"])
 
+    def test_plan_passport_summarizes_resolved_plan_without_copying_body(self) -> None:
+        result = SimpleNamespace(
+            asset_id="demo_stac",
+            outcome_bucket="partial_review_required",
+            direct_download_count=1,
+            review_required_count=2,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            bounds=SimpleNamespace(to_dict=lambda: {"candidate_limit": 3}),
+            plan_build=SimpleNamespace(
+                candidate_count=3,
+                upserted_candidate_count=2,
+                selected_version_count=2,
+                filtered_version_count=1,
+                blocked_credential_count=0,
+                credential_gates=(),
+                missing_provider_ids=("missing_provider",),
+            ),
+            resolved_plan={
+                "summary": {"direct_download_count": 1, "review_required_count": 2},
+                "providers": [
+                    {
+                        "provider_id": "demo_provider",
+                        "dataset_id": "demo_dataset",
+                        "download_eligibility": {"status": "adapter_required"},
+                        "adapter_review": {"source_url": "https://example.test/catalog"},
+                        "content_parser": {
+                            "parser_id": "scientific_grid_review",
+                            "review_bucket": "content_parser_required",
+                        },
+                    }
+                ],
+            },
+        )
+
+        passport = crawler_asset_plan_passport_payload(
+            result,
+            plan_outcome=crawler_asset_plan_outcome_payload(result, added_count=1),
+        )
+
+        self.assertEqual("demo_stac", passport["asset_id"])
+        self.assertTrue(passport["has_resolved_plan"])
+        self.assertEqual("partial_review_required", passport["outcome_bucket"])
+        self.assertEqual(3, passport["candidate_count"])
+        self.assertEqual(1, passport["direct_download_count"])
+        self.assertEqual(2, passport["review_required_count"])
+        self.assertEqual(1, passport["adapter_review_count"])
+        self.assertEqual(1, passport["content_review_count"])
+        self.assertEqual(1, passport["missing_provider_count"])
+        self.assertEqual({"candidate_limit": 3}, passport["bounds"])
+        self.assertNotIn("providers", passport)
+
     def test_detail_returns_dynamic_bounds_form(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)
@@ -250,6 +302,47 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("landsat-c2", bounds["facet_values"]["collection"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), bounds["facet_values"]["bbox"])
         self.assertEqual(10, bounds["facet_values"]["limit"])
+
+    def test_plan_preview_execute_returns_compact_plan_passport(self) -> None:
+        fake_result = SimpleNamespace(
+            asset_id="demo_stac",
+            outcome_bucket="ready_to_download",
+            direct_download_count=1,
+            review_required_count=0,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            next_action="download_ready",
+            bounds=SimpleNamespace(to_dict=lambda: {"candidate_limit": 1}),
+            plan_build=SimpleNamespace(
+                candidate_count=1,
+                upserted_candidate_count=1,
+                selected_version_count=1,
+                filtered_version_count=0,
+                blocked_credential_count=0,
+                credential_gates=(),
+                missing_provider_ids=(),
+            ),
+            resolved_plan={"summary": {"direct_download_count": 1}, "providers": []},
+        )
+        fake_result.to_dict = lambda: {"asset_id": "demo_stac"}
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            with patch("frontends.web.preview_api.build_crawler_asset_download_plan", return_value=fake_result):
+                with patch("frontends.web.preview_api.log_event"):
+                    payload = crawler_asset_plan_preview(
+                        "demo_stac",
+                        {"limit": "1"},
+                        execute=True,
+                        primary_path=source_path,
+                        local_path=local_path,
+                        profile_path=profile_path,
+                    )
+
+        passport = payload["plan_passport"]
+        self.assertEqual("demo_stac", passport["asset_id"])
+        self.assertTrue(passport["has_resolved_plan"])
+        self.assertEqual(1, passport["candidate_count"])
+        self.assertEqual(1, passport["direct_download_count"])
+        self.assertNotIn("providers", passport)
 
     def test_shared_display_schema_describes_plan_outcome(self) -> None:
         result = SimpleNamespace(
