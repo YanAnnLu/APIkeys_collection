@@ -21,7 +21,7 @@ from api_launcher.crawler_asset_display import (
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
 from api_launcher.db import connect_db
-from api_launcher.event_log import latest_events
+from api_launcher.event_log import latest_events, log_event
 from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.repository import ApiCatalogRepository
 
@@ -219,10 +219,56 @@ def crawler_asset_plan_preview(
         )
         conn.commit()
     response["plan_result"] = result.to_dict()
-    response["plan_outcome"] = crawler_asset_plan_outcome_payload(result)
+    plan_outcome = crawler_asset_plan_outcome_payload(result)
+    response["plan_outcome"] = plan_outcome
     response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
     response["next_action"] = result.user_next_action
+    log_event(
+        "crawler_asset_plan_outcome_recorded",
+        "Web Preview crawler asset workflow recorded the visible plan outcome.",
+        component="web.crawler_assets",
+        context=crawler_asset_plan_event_context(result, plan_outcome),
+    )
     return response
+
+
+def crawler_asset_plan_event_context(
+    result: object,
+    plan_outcome: Mapping[str, object],
+    *,
+    added_count: int = 0,
+) -> dict[str, object]:
+    """Build the shared event context used by Tk/Web/Qt plan-outcome badges.
+
+    Web Preview does not write a resolved-plan file like Tk does, so it records
+    a compact event context only.  The card badge can be rebuilt from this
+    payload without logging the full plan into JSONL.
+    """
+
+    content_review = plan_outcome.get("content_review")
+    return {
+        "asset_id": str(getattr(result, "asset_id", "") or ""),
+        "outcome_bucket": str(
+            getattr(result, "outcome_bucket", "")
+            or plan_outcome.get("outcome_bucket")
+            or ""
+        ),
+        "outcome_label": str(plan_outcome.get("short_label") or plan_outcome.get("display_label") or ""),
+        "added_count": added_count,
+        "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
+        "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
+        "review_queue_count": int(getattr(result, "review_required_count", 0) or 0),
+        "content_review_label": str(plan_outcome.get("content_review_label") or ""),
+        "content_review": content_review if isinstance(content_review, dict) else {},
+        "resolved_plan": "",
+        "resolved_plan_available": bool(getattr(result, "resolved_plan", None)),
+        "user_next_action": str(
+            getattr(result, "user_next_action", "")
+            or getattr(result, "next_action", "")
+            or plan_outcome.get("next_action")
+            or ""
+        ),
+    }
 
 
 def _crawler_asset(

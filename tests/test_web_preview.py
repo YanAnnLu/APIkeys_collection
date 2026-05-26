@@ -17,6 +17,7 @@ from frontends.web.server import build_web_preview_server, web_preview_runtime_s
 from frontends.web.preview_api import (
     crawler_asset_cards,
     crawler_asset_detail,
+    crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
     web_preview_status,
 )
@@ -101,6 +102,40 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("待 Adapter 1", outcome["short_label"])
         self.assertEqual("review", outcome["display_tone"])
         self.assertEqual("內容 Parser 待辦 1", outcome["content_review"]["display_label"])
+
+    def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:
+        result = SimpleNamespace(
+            asset_id="demo_stac",
+            outcome_bucket="review_required",
+            direct_download_count=0,
+            review_required_count=1,
+            user_next_action="open_adapter_review_or_adjust_bounds",
+            resolved_plan={"providers": [{"provider_id": "demo"}]},
+        )
+
+        context = crawler_asset_plan_event_context(
+            result,
+            {
+                "outcome_bucket": "review_required",
+                "short_label": "待 Adapter 1",
+                "content_review_label": "內容 Parser 待辦 1",
+                "content_review": {
+                    "display_label": "內容 Parser 待辦 1",
+                    "display_tone": "review",
+                    "count": 1,
+                    "has_review": True,
+                    "buckets": [],
+                },
+            },
+        )
+
+        self.assertEqual("demo_stac", context["asset_id"])
+        self.assertEqual("review_required", context["outcome_bucket"])
+        self.assertEqual("待 Adapter 1", context["outcome_label"])
+        self.assertEqual(1, context["review_queue_count"])
+        self.assertEqual("內容 Parser 待辦 1", context["content_review"]["display_label"])
+        self.assertEqual("", context["resolved_plan"])
+        self.assertTrue(context["resolved_plan_available"])
 
     def test_detail_returns_dynamic_bounds_form(self) -> None:
         with TemporaryDirectory() as tmp:
