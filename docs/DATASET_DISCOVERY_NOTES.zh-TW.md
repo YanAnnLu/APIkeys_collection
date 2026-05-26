@@ -2,6 +2,7 @@
 
 ## 2026-05-26 Crawler run record / registry handoff
 
+- `--handoff-report` / `--handoff-report-json` 現在會輸出 `crawler_run_summary`：最新 listing 與 download-plan build 的 counts、compact `run_record`、`next_action`、`resolved_plan_available` 都會以白名單摘要呈現，不帶完整 resolved plan 或候選清單。接手 agent 應先讀 handoff，再視需要查 Web `/api/events/recent` 或完整 JSONL。
 - Tk 清單擷取完成後現在會額外寫入 `crawler_asset_listing_recorded` structured event，只保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`；這補上 `source profile -> crawler run -> candidate -> plan` 前半段的可追蹤性，但仍不是永久 SQLite run registry。
 
 - Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在會保存同一份 compact `run_record`。Web `/api/events/recent` 會暴露 bounded `run_record` summary 與核心 counts，讓 agent 可以從事件紀錄讀狀態，但不會把完整 plan 或候選清單塞進 event log。

@@ -12,6 +12,7 @@ Last updated: 2026-05-26
 - [x] `crawler_run_record_from_result()` 會在 result 沒有 contract、`to_dict()` 失敗或 payload 不是 dict 時降級成空 payload，避免交接 payload 壞掉時拖垮 Tk/Web event logging。
 - [x] Tk 清單擷取成功時現在也會寫入 `crawler_asset_listing_recorded` structured event，保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`；listing 不再只存在 status bar 或一次性視窗狀態。
 - [x] Web Preview `/api/events/recent` 現在會把 `crawler_asset_listing_recorded` 的候選、upsert、skip、duplicate、warning/error counts 與 compact `run_record` counts 一起納入 bounded summary；事件分頁也會優先顯示 `run_record` 與核心 counts，方便 agent/人類不用重新跑 crawler 就能接手上一輪清單擷取結果。
+- [x] `--handoff-report` / `--handoff-report-json` 現在會輸出 `crawler_run_summary`，把最近一次 listing 與 plan build 的 counts、`run_record`、`next_action` 與是否存在 resolved plan 壓成白名單摘要；接手 agent 可先讀 handoff，不必為了理解上一輪 crawler 狀態重跑遠端來源。
 
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。

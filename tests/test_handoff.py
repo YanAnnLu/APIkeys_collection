@@ -12,6 +12,7 @@ from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.handoff import (
     build_handoff_snapshot,
+    crawler_run_handoff_summary,
     data_store_handoff_summary,
     handoff_snapshot_to_dict,
     markdown_table_cells,
@@ -56,6 +57,9 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("latest_download_plan_stage:", report)
         self.assertIn("latest_mvp_demo_smoke_event_at:", report)
         self.assertIn("latest_mvp_demo_smoke_stage:", report)
+        self.assertIn("Crawler Run Handoff", report)
+        self.assertIn("latest_listing:", report)
+        self.assertIn("latest_download_plan_build:", report)
         self.assertIn("Open GTD Focus", report)
         self.assertIn("open_gtd_total:", report)
         self.assertIn("Portal Intake / Local Discovery", report)
@@ -79,10 +83,87 @@ class HandoffTests(unittest.TestCase):
         encoded = json.dumps(payload, ensure_ascii=False)
         self.assertIn("verification_summary", payload)
         self.assertIn("mvp_readiness", payload)
+        self.assertIn("crawler_run_summary", payload)
         self.assertIn("open_gtd_items", payload)
         self.assertIn("recent_logs", payload)
         self.assertIn("verification_summary", encoded)
         self.assertIn("mvp_readiness", encoded)
+        self.assertIn("crawler_run_summary", encoded)
+
+    def test_crawler_run_handoff_summary_keeps_bounded_counts_only(self) -> None:
+        summary = crawler_run_handoff_summary(
+            [
+                {
+                    "timestamp": "2026-05-26T12:00:00+00:00",
+                    "level": "info",
+                    "event": "crawler_asset_listing_recorded",
+                    "context": {
+                        "asset_id": "noaa_erddap",
+                        "candidate_count": 12,
+                        "upserted_count": 10,
+                        "skipped_provider_count": 1,
+                        "duplicate_count": 2,
+                        "warning_count": 1,
+                        "next_action": "review_candidates",
+                        "run_record": {
+                            "record_key": "abc123",
+                            "stage": "crawler_listing",
+                            "status": "warning",
+                            "asset_id": "noaa_erddap",
+                            "candidate_count": 12,
+                            "duplicate_count": 2,
+                            "warning_count": 1,
+                            "storage_lane": "structured_event_log",
+                            "future_sqlite_table": "crawler_run_registry",
+                        },
+                    },
+                },
+                {
+                    "timestamp": "2026-05-26T12:10:00+00:00",
+                    "level": "info",
+                    "event": "crawler_asset_plan_outcome_recorded",
+                    "context": {
+                        "asset_id": "noaa_erddap",
+                        "outcome_bucket": "partial_review_required",
+                        "direct_download_count": 3,
+                        "review_queue_count": 4,
+                        "warning_count": 2,
+                        "user_next_action": "open_adapter_review",
+                        "resolved_plan": {"providers": [{"large": "payload"}]},
+                        "run_record": {
+                            "record_key": "def456",
+                            "stage": "download_plan_build",
+                            "status": "review",
+                            "outcome_bucket": "partial_review_required",
+                            "asset_id": "noaa_erddap",
+                            "candidate_count": 7,
+                            "direct_download_count": 3,
+                            "review_required_count": 4,
+                            "warning_count": 2,
+                            "next_action": "open_adapter_review",
+                        },
+                    },
+                },
+            ]
+        )
+
+        listing = summary["latest_listing"]
+        plan = summary["latest_download_plan_build"]
+        self.assertEqual("crawler_asset_listing_recorded", listing["event"])
+        self.assertEqual("noaa_erddap", listing["asset_id"])
+        self.assertEqual(12, listing["candidate_count"])
+        self.assertEqual(10, listing["upserted_count"])
+        self.assertEqual(2, listing["duplicate_count"])
+        self.assertEqual("crawler_listing", listing["run_record"]["stage"])
+        self.assertNotIn("resolved_plan", listing)
+        self.assertEqual("crawler_asset_plan_outcome_recorded", plan["event"])
+        self.assertEqual("partial_review_required", plan["outcome_bucket"])
+        self.assertEqual(3, plan["direct_download_count"])
+        self.assertEqual(4, plan["review_required_count"])
+        self.assertEqual("download_plan_build", plan["run_record"]["stage"])
+        self.assertTrue(plan["resolved_plan_available"])
+        self.assertNotIn("resolved_plan", plan)
+        self.assertNotIn("providers", json.dumps(plan, ensure_ascii=False))
 
     def test_cli_emits_handoff_report_json_without_human_setup_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
