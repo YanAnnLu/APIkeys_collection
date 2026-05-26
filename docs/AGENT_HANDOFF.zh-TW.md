@@ -3,6 +3,7 @@
 - `api_launcher/crawler_run_records.py` 現在提供 compact `crawler_run_record()`，用同一份 payload 描述 crawler listing 與 download-plan build 的 stage、status、outcome bucket、候選/下載/review/error/warning/duplicate counts、signature、`next_action` 與穩定 `record_key`。
 - `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 都已輸出 `run_record`。下一位 agent / Tk / Web / Qt 應優先讀 `payload["run_record"]` 做狀態交接，不要各自從 `candidate_count`、`warning_count`、`outcome_bucket` 等分散欄位重新推理。
 - Tk 與 Web Preview 的 `crawler_asset_plan_outcome_recorded` structured event context 現在也會帶 `run_record`。外部 agent 若從 event log 或 `/api/events/recent` 接手，應先讀 `context.run_record` / `context_summary.run_record`，再決定是否需要重建 plan 或補正式 run registry。
+- Tk 清單擷取完成後也會寫入 `crawler_asset_listing_recorded` structured event，保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`。接手時若要理解「剛剛 crawler 找到多少候選」，先讀這個 event，不要只看 status bar 或重新跑遠端 crawler。
 - `crawler_run_record_from_result()` 是降級式 helper：result 沒有 `to_dict()`、`to_dict()` 拋錯、或 payload 不含 dict 型 `run_record` 時會回傳 `{}`。UI/event logging 不應因 run-record handoff 缺失而中止主要 plan outcome 記錄。
 - 這仍是 handoff / structured event 層，不是永久 DB migration。`storage_lane=structured_event_log` 與 `future_sqlite_table=crawler_run_registry` 是後續 run registry 表設計的對齊提示；目前不要新增 SQLite 表或把它當成已完成 registry persistence。
 

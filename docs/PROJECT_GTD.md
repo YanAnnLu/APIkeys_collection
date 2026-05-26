@@ -10,6 +10,7 @@ Last updated: 2026-05-26
 - [x] 測試已鎖住 zero-candidate、blocked plan 與 listing warning 的 `run_record` payload，避免 UI/agent 再從分散 count 自行重建 crawler run 狀態。
 - [x] Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在也會保存 compact `run_record`；Web `/api/events/recent` 只回傳 bounded summary，避免前端或 agent 重新推理 crawler run 狀態。
 - [x] `crawler_run_record_from_result()` 會在 result 沒有 contract、`to_dict()` 失敗或 payload 不是 dict 時降級成空 payload，避免交接 payload 壞掉時拖垮 Tk/Web event logging。
+- [x] Tk 清單擷取成功時現在也會寫入 `crawler_asset_listing_recorded` structured event，保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`；listing 不再只存在 status bar 或一次性視窗狀態。
 
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。

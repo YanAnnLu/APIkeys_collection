@@ -392,7 +392,6 @@ class CrawlerAssetWorkflowMixin:
             self.root.after(0, lambda: messagebox.showerror(self.tr("來源草稿建立失敗", "Source draft failed"), error_message, parent=getattr(self, "root", None)))
             self.root.after(0, lambda: self.status_var.set(self.tr(f"來源草稿建立失敗：{error_message}", f"Source draft failed: {error_message}")))
             return
-
         def finish() -> None:
             self.refresh_crawler_asset_tab()
             source_ids = ", ".join(str(item) for item in summary.get("audit_source_ids", []) if item)
@@ -543,6 +542,8 @@ class CrawlerAssetWorkflowMixin:
             self.root.after(0, lambda: self.status_var.set(self.tr(f"入口清單擷取失敗：{exc}", f"Source listing failed: {exc}")))
             return
 
+        self.record_crawler_asset_listing_outcome(result)
+
         def finish() -> None:
             if result.blocked:
                 self.status_var.set(
@@ -564,6 +565,37 @@ class CrawlerAssetWorkflowMixin:
                 self.main_notebook.select(self.downloader_tab)
 
         self.root.after(0, finish)
+
+    def record_crawler_asset_listing_outcome(self, result: object) -> None:
+        """把 listing 結果留下 compact event，供 handoff/Web/Qt 讀取。
+
+        清單擷取是 crawler run 的前半段，不能只靠 status bar 呈現；但 event
+        也不能塞完整候選清單，所以這裡只保存 counts、next_action 與 run_record。
+        """
+
+        try:
+            log_event(
+                "crawler_asset_listing_recorded",
+                "Tk crawler asset workflow recorded the visible listing outcome.",
+                component="ui.crawler_assets",
+                context={
+                    "asset_id": str(getattr(result, "asset_id", "") or ""),
+                    "source_found": bool(getattr(result, "source_found", False)),
+                    "blocked": bool(getattr(result, "blocked", False)),
+                    "blocked_reason": str(getattr(result, "blocked_reason", "") or ""),
+                    "candidate_count": int(getattr(result, "candidate_count", 0) or 0),
+                    "upserted_count": int(getattr(result, "upserted_count", 0) or 0),
+                    "skipped_provider_count": int(getattr(result, "skipped_provider_count", 0) or 0),
+                    "duplicate_count": int(getattr(result, "duplicate_count", 0) or 0),
+                    "error_count": int(getattr(result, "error_count", 0) or 0),
+                    "warning_count": int(getattr(result, "warning_count", 0) or 0),
+                    "next_action": str(getattr(result, "next_action", "") or ""),
+                    "run_record": crawler_run_record_from_result(result),
+                },
+            )
+        except Exception:
+            # event log 是 handoff 輔助，不應阻斷 UI listing 完成路徑。
+            return
 
     def prepare_selected_crawler_asset_download(self) -> None:
         asset = self.selected_crawler_asset()

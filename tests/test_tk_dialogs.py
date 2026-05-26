@@ -9,6 +9,7 @@ from unittest.mock import patch
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
 from api_launcher.source_download import SourceDownloadBounds
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_assets import crawler_asset_from_source
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE, SourcePatternDetection
 from api_launcher.crawlers.types import DatasetDiscoverySource
@@ -729,6 +730,30 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(1, context["plan_passport"]["content_review_count"])
         self.assertEqual("download_plan_build", context["run_record"]["stage"])
         self.assertEqual("review", context["run_record"]["status"])
+
+    def test_crawler_asset_listing_outcome_event_records_run_record(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_index",
+            source_found=True,
+            candidate_count=5,
+            upserted_count=3,
+            skipped_provider_count=1,
+            duplicate_count=2,
+            warning_count=1,
+            next_action="review_candidates",
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+
+        with patch("frontends.tk.crawler_asset_workflows.log_event") as event_log:
+            CrawlerAssetWorkflowMixin.record_crawler_asset_listing_outcome(ui, result)
+
+        event_log.assert_called_once()
+        context = event_log.call_args.kwargs["context"]
+        self.assertEqual("demo_index", context["asset_id"])
+        self.assertEqual(5, context["candidate_count"])
+        self.assertEqual(3, context["upserted_count"])
+        self.assertEqual("crawler_listing", context["run_record"]["stage"])
+        self.assertEqual("warning", context["run_record"]["status"])
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)
