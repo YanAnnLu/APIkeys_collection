@@ -47,7 +47,7 @@ async function loadAssets() {
     renderHealthFilter();
     renderSourceTypeFilters();
     renderAssetGrid();
-    addMission("Web Preview 已連線", `讀取 ${assets.length} 個 crawler asset`);
+    addMission("Web Preview 已連線", `讀取 ${assets.length} 個 crawler asset / ${serverRuntimeLabel(health)}`);
     if (!selectedAssetId && assets.length) {
       await selectAsset(assets[0].asset_id);
     } else if (selectedAssetId) {
@@ -64,7 +64,26 @@ function renderOverview(health) {
   assetCount.textContent = String(assets.length);
   healthyCount.textContent = String(healthCounts.healthy || 0);
   needsBoundsCount.textContent = String(healthCounts.needs_bounds || 0);
-  setServerState(`${health.surface || "web_preview"}`, "success");
+  setServerState(serverRuntimeLabel(health), "success", serverRuntimeTitle(health));
+}
+
+function serverRuntimeLabel(health) {
+  const server = health?.server || {};
+  if (server.host && server.port) {
+    return `${server.host}:${server.port}`;
+  }
+  return `${health?.surface || "web_preview"}`;
+}
+
+function serverRuntimeTitle(health) {
+  const server = health?.server || {};
+  if (!server.port) {
+    return "";
+  }
+  if (server.port_scanned) {
+    return `原定 port ${server.requested_port} 已被占用，Web Preview 改用 ${server.port}。`;
+  }
+  return `Web Preview 使用預設 port ${server.port}。`;
 }
 
 function renderHealthFilter() {
@@ -567,9 +586,14 @@ function renderMissionQueue() {
   `;
 }
 
-function setServerState(text, state) {
+function setServerState(text, state, title = "") {
   serverState.textContent = text;
   serverState.className = `server-state ${state}`;
+  if (title) {
+    serverState.title = title;
+  } else {
+    serverState.removeAttribute("title");
+  }
 }
 
 function statePill(status) {

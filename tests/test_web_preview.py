@@ -12,7 +12,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
     plan_entry_content_status_payload,
 )
-from frontends.web.server import build_web_preview_server
+from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
     crawler_asset_cards,
     crawler_asset_detail,
@@ -28,6 +28,22 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("web_preview", status["surface"])
         self.assertEqual("uiux_review", status["purpose"])
         self.assertEqual("api_launcher", status["business_logic_owner"])
+
+    def test_server_runtime_status_reports_actual_port(self) -> None:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
+            blocker.bind(("127.0.0.1", 0))
+            blocker.listen(1)
+            busy_port = blocker.getsockname()[1]
+
+            with build_web_preview_server("127.0.0.1", busy_port, port_scan=3) as server:
+                payload = web_preview_runtime_status(server)
+
+        runtime = payload["server"]
+        self.assertEqual(busy_port, runtime["requested_port"])
+        self.assertNotEqual(busy_port, runtime["port"])
+        self.assertTrue(runtime["port_scanned"])
+        self.assertEqual(3, runtime["port_scan"])
+        self.assertEqual(f"http://127.0.0.1:{runtime['port']}/", runtime["url"])
 
     def test_crawler_asset_cards_use_backend_asset_contract(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -117,6 +133,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("contentReviewBadge", combined)
         self.assertIn("setContentReviewBadge", combined)
         self.assertIn("groupedBoundFields", combined)
+        self.assertIn("serverRuntimeLabel", combined)
         self.assertIn("content-review-badge", styles)
         self.assertIn("bounds-group", styles)
         self.assertNotIn("Mission Queue", combined)

@@ -32,7 +32,7 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         path = parsed.path
         try:
             if path == "/api/health":
-                self.write_json(web_preview_status())
+                self.write_json(web_preview_runtime_status(self.server))
                 return
             if path == "/api/crawler-assets":
                 self.write_json(crawler_asset_cards())
@@ -131,6 +131,9 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
 
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
+    requested_host: str
+    requested_port: int
+    port_scan: int
 
 
 def build_web_preview_server(
@@ -144,13 +147,13 @@ def build_web_preview_server(
     if port < 0 or port > 65535:
         raise ValueError("port must be between 0 and 65535")
     if port == 0:
-        return ReusableTCPServer((host, port), WebPreviewHandler)
+        return _configured_server(host, port, port_scan, port)
 
     attempts = max(port_scan, 0) + 1
     last_error: OSError | None = None
     for candidate in range(port, min(65535, port + attempts - 1) + 1):
         try:
-            return ReusableTCPServer((host, candidate), WebPreviewHandler)
+            return _configured_server(host, candidate, port_scan, port)
         except OSError as exc:
             last_error = exc
             if not port_is_unavailable(exc):
@@ -159,6 +162,31 @@ def build_web_preview_server(
     if last_error is not None:
         raise OSError(message) from last_error
     raise OSError(message)
+
+
+def _configured_server(host: str, bind_port: int, port_scan: int, requested_port: int) -> ReusableTCPServer:
+    server = ReusableTCPServer((host, bind_port), WebPreviewHandler)
+    # 前端/agent 需要知道實際綁定的 port；不要讓多個 Web Preview 並行時只顯示抽象狀態。
+    server.requested_host = host
+    server.requested_port = requested_port
+    server.port_scan = max(port_scan, 0)
+    return server
+
+
+def web_preview_runtime_status(server: socketserver.TCPServer) -> dict[str, object]:
+    payload = web_preview_status()
+    actual_host, actual_port = server.server_address
+    requested_port = int(getattr(server, "requested_port", actual_port))
+    port_scan = int(getattr(server, "port_scan", 0))
+    payload["server"] = {
+        "host": str(actual_host),
+        "port": int(actual_port),
+        "url": f"http://{actual_host}:{actual_port}/",
+        "requested_port": requested_port,
+        "port_scan": port_scan,
+        "port_scanned": requested_port not in {0, int(actual_port)},
+    }
+    return payload
 
 
 def port_is_unavailable(exc: OSError) -> bool:

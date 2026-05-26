@@ -1,5 +1,5 @@
 # Web Preview UI/UX 對照層
-最後更新：2026-05-25
+最後更新：2026-05-26
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
@@ -87,6 +87,7 @@ http://127.0.0.1:8765/
 - `execute=false` 只做界域 payload 與 plan preview，不觸發 live crawler。
 - `execute=true` 會呼叫現有 crawler asset download plan service，仍會進入 adapter review / direct plan 規則，不繞過後端。
 - Web Preview 第一版已改成較完整的 console 佈局，作為未來 QSS 參照。
+- `/api/health` 會回報實際綁定的 `host`、`port`、`url`、原請求 port 與是否經過 port scan；前端總覽與本機互動紀錄會顯示實際 `host:port`，避免多個 agent / clone 同時開 Web Preview 時混淆。
 
 ## 下一步
 
@@ -129,3 +130,5 @@ py -B -m frontends.web.server --host 127.0.0.1 --port 8766 --port-scan 0 --open
 ```
 
 不要為了預覽 UI 去終止不明程序。不同 agent 可以在不同專案資料夾各自開 Web Preview，只要 port 不同即可。需要穩定展示時，請在本地 clone 執行 Web Preview，不要在雲端碟 K 槽直接跑長時間 GUI / server。
+
+前端若成功連到 server，總覽卡會顯示實際 `host:port`；若原 port 被占用而改用後續 port，該欄位會有 tooltip 說明原定 port 與實際 port。這個資訊來自 `/api/health`，不是前端硬猜。
