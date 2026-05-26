@@ -324,6 +324,7 @@ def source_download_options_from_crawler_asset_payload(
         full_crawl=full_crawl or bounds.full_crawl,
         max_pages=effective_max_pages,
         max_workers=1,
+        selected_versions=selected_versions_from_crawler_asset_payload(payload),
     )
 
 
@@ -360,6 +361,27 @@ def source_download_bounds_from_crawler_asset_payload(payload: CrawlerAssetBound
         latitude_field=str(values.get("SourceDownloadBounds.latitude_field") or "").strip(),
         schema_probe_required=True,
     )
+
+
+def selected_versions_from_crawler_asset_payload(payload: CrawlerAssetBoundPayload | None) -> dict[str, tuple[str, ...]]:
+    """Extract a frontend-neutral version selector from crawler asset bounds.
+
+    Crawler-asset forms are source-level forms: the user chooses a version before
+    the concrete dataset candidate is known.  The wildcard key lets
+    ``SourceDownloadOptions`` apply that selector to whichever dataset the
+    crawler returns, while dataset-specific selectors can still override it
+    later in more precise UI flows.
+    """
+
+    if payload is None:
+        return {}
+    raw = payload.maps_to_values.get("SourceDownloadOptions.selected_versions")
+    if raw in ("", None, (), []):
+        raw = payload.facet_values.get("version")
+    selected = tuple_bound(raw)
+    if not selected:
+        return {}
+    return {"*": selected}
 
 
 def selector_terms_from_facets(facets: dict[str, object]) -> tuple[str, ...]:

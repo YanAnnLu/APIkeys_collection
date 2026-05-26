@@ -275,6 +275,10 @@ def selected_version_options(dataset: Dataset, options: SourceDownloadOptions) -
     version_options = version_options_for_dataset(dataset)
     wanted = set(options.selected_versions.get(dataset.dataset_uid, ()))
     wanted.update(options.selected_versions.get(dataset.dataset_id, ()))
+    # Source-level crawler asset forms can choose a version before a concrete
+    # dataset candidate exists.  Keep that selector explicit instead of
+    # overloading version_limit, so UI/Qt can offer real version picks.
+    wanted.update(options.selected_versions.get("*", ()))
     if wanted:
         return [
             option

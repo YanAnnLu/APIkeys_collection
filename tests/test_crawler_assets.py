@@ -728,6 +728,119 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("direct_download", entry["download_eligibility"]["status"])
         self.assertEqual(7, entry["download_bounds"]["sample_limit"])
 
+    def test_service_applies_source_level_version_selection_from_asset_bounds(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            local_path = Path(tmp) / "local_sources.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "versioned_index",
+      "provider_id": "demo_provider",
+      "name": "Versioned Index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://example.test/index.html"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            conn = connect_db(Path(tmp) / "catalog.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                        auth_type="none",
+                    )
+                )
+                source = load_crawler_asset_source("versioned_index", source_path, local_path)
+                self.assertIsNotNone(source)
+                assert source is not None
+                asset = crawler_asset_from_source(source)
+                spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema)
+                bounds_payload = crawler_asset_bound_payload_from_form_values(
+                    spec,
+                    {"version": "2025-01-02", "limit": "5"},
+                )
+                candidate = DatasetCandidate(
+                    dataset=Dataset(
+                        dataset_uid="demo_provider:dataset_a",
+                        provider_id="demo_provider",
+                        dataset_id="dataset_a",
+                        title="Dataset A",
+                        categories=("demo",),
+                        native_format="csv",
+                        metadata={
+                            "available_versions": [
+                                {
+                                    "label": "2025-01-01 shard",
+                                    "version": "2025-01-01",
+                                    "download_url": "https://example.test/data-2025-01-01.csv",
+                                    "source_format": "csv",
+                                },
+                                {
+                                    "label": "2025-01-02 shard",
+                                    "version": "2025-01-02",
+                                    "download_url": "https://example.test/data-2025-01-02.csv",
+                                    "source_format": "csv",
+                                },
+                            ],
+                        },
+                    ),
+                    source_id="versioned_index",
+                    source_type="html_file_index",
+                    source_url="https://example.test/index.html",
+                    confidence=0.9,
+                    evidence=("unit-test",),
+                )
+
+                def fake_runner(_sources, _options):
+                    return DatasetCrawlResult(
+                        candidates=(candidate,),
+                        source_results=(
+                            DatasetSourceCrawlResult(
+                                source_id="versioned_index",
+                                provider_id="demo_provider",
+                                source_type="html_file_index",
+                                candidate_count=1,
+                                candidates=(candidate,),
+                            ),
+                        ),
+                    )
+
+                from unittest.mock import patch
+
+                with patch("api_launcher.source_download.crawl_dataset_sources", fake_runner):
+                    result = build_crawler_asset_download_plan(
+                        "versioned_index",
+                        conn,
+                        bounds_payload=bounds_payload,
+                        downloads_root=Path(tmp) / "downloads",
+                        primary_path=source_path,
+                        local_path=local_path,
+                    )
+            finally:
+                conn.close()
+
+        self.assertFalse(result.blocked)
+        self.assertEqual(1, result.plan_build.selected_version_count)
+        self.assertEqual(1, result.plan_build.filtered_version_count)
+        entry = result.resolved_plan["providers"][0]
+        version = entry["dataset_version"]
+        self.assertEqual("2025-01-02", version["version"])
+        self.assertEqual("https://example.test/data-2025-01-02.csv", entry["download_url"])
+
 
 if __name__ == "__main__":
     unittest.main()

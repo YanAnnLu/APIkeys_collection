@@ -461,6 +461,7 @@ CrawlerAsset + CrawlerAssetBoundPayload
 
 - `CrawlerAssetBoundPayload` 是前端中立輸入；Tk/Qt 只負責收集欄位。
 - `SourceDownloadBounds` 是下載服務真正理解的界域契約；例如 limit、bbox、time range、columns、search terms。
+- 版本選擇的邊界：crawler asset 表單是在 source-level 收集條件，可能尚未知道具體 dataset id。因此 `version` facet 會先轉成 wildcard `selected_versions["*"]`，由 `selected_version_options()` 套用到實際候選 dataset。若未來 UI 已經能針對單一 dataset 顯示版本清單，應改用 dataset_uid/dataset_id keyed selector。
 - direct download / adapter review 的判斷仍由 `source_download` 與 resolver 管線負責，UI 不應自行猜測。
 - Tk 目前會把結果寫到 `state/crawler_asset_plans/*.original.json` 與 `*.resolved.json`，並只把 resolved plan 中可直接下載的項目加入下載器。
 - 若 source 被 disabled / archived，或 resolver 判斷仍需 adapter review，流程應清楚回報 `next_action`，不能裝作已可下載。
