@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from api_launcher.adapter_review import adapter_review_agent_payload
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundFormField, CrawlerAssetBoundFormSpec
@@ -303,6 +303,54 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     }
 
 
+def crawler_asset_plan_event_badge_payload(context: Mapping[str, object]) -> dict[str, object]:
+    """Rebuild a compact plan-outcome badge from a structured event context.
+
+    Tk writes ``crawler_asset_plan_outcome_recorded`` after a crawler asset is
+    sent to the downloader.  Web/Qt can read that event and render the same
+    badge without replaying the plan build or parsing UI prose.
+    """
+
+    bucket = str(context.get("outcome_bucket") or "empty_plan")
+    direct = _safe_int(context.get("direct_download_count"))
+    review = _safe_int(context.get("review_required_count") or context.get("review_queue_count"))
+    added_count = _safe_int(context.get("added_count"))
+    blocked_reason = str(context.get("blocked_reason") or "")
+    next_action = str(context.get("user_next_action") or "")
+    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
+    short_label = str(context.get("outcome_label") or "").strip() or _plan_outcome_short_label(
+        bucket,
+        direct=direct,
+        review=review,
+        added_count=added_count,
+        blocked_reason=blocked_reason,
+    )
+    content_review = _content_review_payload_from_event_context(context)
+    return {
+        "outcome_bucket": bucket,
+        "display_label": display["display_label"],
+        "display_tone": display["display_tone"],
+        "short_label": short_label,
+        "summary": _plan_outcome_summary(
+            bucket,
+            default_summary=str(display["summary"]),
+            direct=direct,
+            review=review,
+            added_count=added_count,
+            blocked_reason=blocked_reason,
+        ),
+        "direct_download_count": direct,
+        "review_required_count": review,
+        "added_count": added_count,
+        "blocked": bucket == "blocked",
+        "blocked_reason": blocked_reason,
+        "next_action": next_action,
+        "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
+        "content_review": content_review,
+        "content_review_label": content_review["display_label"],
+    }
+
+
 def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str, object]:
     """Summarize adapter-review work for UI surfaces without parsing prose."""
 
@@ -399,6 +447,22 @@ def adapter_review_content_summary_label(adapter_review_payload: dict[str, objec
     """Build a compact content-format review label from adapter-review display data."""
 
     return str(adapter_review_content_summary_payload(adapter_review_payload)["display_label"])
+
+
+def _content_review_payload_from_event_context(context: Mapping[str, object]) -> dict[str, object]:
+    payload = context.get("content_review")
+    if isinstance(payload, dict) and payload.get("display_label"):
+        return dict(payload)
+    label = str(context.get("content_review_label") or "").strip()
+    if not label:
+        return adapter_review_content_summary_payload({})
+    return {
+        "display_label": label,
+        "display_tone": "review",
+        "count": _safe_int(context.get("review_queue_count")) or 1,
+        "has_review": True,
+        "buckets": [],
+    }
 
 
 def adapter_review_content_summary_payload(adapter_review_payload: dict[str, object]) -> dict[str, object]:
@@ -529,6 +593,7 @@ __all__ = [
     "crawler_asset_bound_form_payload",
     "crawler_asset_card_capabilities",
     "crawler_asset_flow_steps",
+    "crawler_asset_plan_event_badge_payload",
     "crawler_asset_plan_outcome_payload",
     "plan_entry_content_status_payload",
     "capability_display_label",

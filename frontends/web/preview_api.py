@@ -15,11 +15,13 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_bound_form_payload,
     crawler_asset_card_capabilities,
     crawler_asset_flow_steps,
+    crawler_asset_plan_event_badge_payload,
     crawler_asset_plan_outcome_payload,
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
 from api_launcher.db import connect_db
+from api_launcher.event_log import latest_events
 from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.repository import ApiCatalogRepository
 
@@ -52,13 +54,16 @@ def crawler_asset_cards(
     """
 
     assets = load_crawler_assets(primary_path, local_path, profile_path)
+    latest_plan_outcomes = recent_crawler_asset_plan_outcomes()
     return {
         "count": len(assets),
-        "assets": [crawler_asset_card(asset) for asset in assets],
+        "assets": [
+            crawler_asset_card(asset, latest_plan_outcome=latest_plan_outcomes.get(asset.asset_id)) for asset in assets
+        ],
     }
 
 
-def crawler_asset_card(asset: CrawlerAsset) -> dict[str, object]:
+def crawler_asset_card(asset: CrawlerAsset, *, latest_plan_outcome: dict[str, object] | None = None) -> dict[str, object]:
     return {
         "asset_id": asset.asset_id,
         "display_name": asset.display_name,
@@ -79,6 +84,7 @@ def crawler_asset_card(asset: CrawlerAsset) -> dict[str, object]:
         "health": asset.health.to_dict(),
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "next_action": asset.next_action,
+        "latest_plan_outcome": latest_plan_outcome or {},
     }
 
 
@@ -98,10 +104,34 @@ def crawler_asset_detail(
     )
     return {
         "asset": asset.to_dict(),
-        "card": crawler_asset_card(asset),
+        "card": crawler_asset_card(
+            asset,
+            latest_plan_outcome=recent_crawler_asset_plan_outcomes().get(asset.asset_id),
+        ),
         "bound_form": crawler_asset_bound_form_payload(form_spec),
         "flow_steps": crawler_asset_flow_steps(asset, form_spec),
     }
+
+
+def recent_crawler_asset_plan_outcomes(*, limit: int = 200) -> dict[str, dict[str, object]]:
+    """Return the newest recorded plan outcome for each crawler asset.
+
+    Tk and Web both write/read the same structured event stream, so the preview
+    can show recent backend state without localStorage or duplicate UI rules.
+    """
+
+    outcomes: dict[str, dict[str, object]] = {}
+    for event in latest_events(limit):
+        if event.get("event") != "crawler_asset_plan_outcome_recorded":
+            continue
+        context = event.get("context")
+        if not isinstance(context, dict):
+            continue
+        asset_id = str(context.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        outcomes[asset_id] = crawler_asset_plan_event_badge_payload(context)
+    return outcomes
 
 
 def crawler_asset_bound_form(

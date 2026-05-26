@@ -514,7 +514,7 @@ function renderSelectedHero(card, flowSteps = []) {
 }
 
 function planBadgeHtml(asset) {
-  const outcome = asset.latest_plan_outcome || assetPlanOutcomes.get(asset.asset_id);
+  const outcome = latestPlanOutcomeForAsset(asset);
   if (!outcome) return "";
   const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
   const tone = toneClass(outcome.display_tone);
@@ -527,6 +527,17 @@ function planBadgeHtml(asset) {
       ${contentReview}
     </div>
   `;
+}
+
+function latestPlanOutcomeForAsset(asset) {
+  const sessionOutcome = assetPlanOutcomes.get(asset.asset_id);
+  if (hasPlanOutcomeBadge(sessionOutcome)) return sessionOutcome;
+  if (hasPlanOutcomeBadge(asset.latest_plan_outcome)) return asset.latest_plan_outcome;
+  return null;
+}
+
+function hasPlanOutcomeBadge(outcome) {
+  return Boolean(outcome?.outcome_bucket || outcome?.short_label || outcome?.display_label);
 }
 
 function heroMetric(label, value) {

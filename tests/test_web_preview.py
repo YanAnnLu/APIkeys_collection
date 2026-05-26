@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
@@ -62,6 +63,44 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("stac_collections", card["source_type"])
         self.assertTrue(card["capabilities"])
         self.assertEqual("抓取元資料", card["capabilities"][0]["display_label"])
+        self.assertEqual({}, card["latest_plan_outcome"])
+
+    def test_crawler_asset_cards_include_recent_plan_outcome_event(self) -> None:
+        events = [
+            {
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "outcome_bucket": "review_required",
+                    "outcome_label": "待 Adapter 1",
+                    "review_required_count": 1,
+                    "review_queue_count": 1,
+                    "content_review": {
+                        "display_label": "內容 Parser 待辦 1",
+                        "display_tone": "review",
+                        "count": 1,
+                        "has_review": True,
+                        "buckets": [],
+                    },
+                    "user_next_action": "open_adapter_review_or_adjust_bounds",
+                },
+            }
+        ]
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+
+            with patch("frontends.web.preview_api.latest_events", return_value=events):
+                payload = crawler_asset_cards(
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                )
+
+        outcome = payload["assets"][0]["latest_plan_outcome"]
+        self.assertEqual("review_required", outcome["outcome_bucket"])
+        self.assertEqual("待 Adapter 1", outcome["short_label"])
+        self.assertEqual("review", outcome["display_tone"])
+        self.assertEqual("內容 Parser 待辦 1", outcome["content_review"]["display_label"])
 
     def test_detail_returns_dynamic_bounds_form(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -135,6 +174,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("groupedBoundFields", combined)
         self.assertIn("serverRuntimeLabel", combined)
         self.assertIn("planBadgeHtml", combined)
+        self.assertIn("latestPlanOutcomeForAsset", combined)
         self.assertIn("content-review-badge", styles)
         self.assertIn("bounds-group", styles)
         self.assertIn("plan-badge", styles)
