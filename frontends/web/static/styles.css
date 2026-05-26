@@ -806,7 +806,8 @@ p {
   background: rgba(147, 170, 187, 0.1);
 }
 
-.plan-outcome-panel {
+.plan-outcome-panel,
+.plan-passport-panel {
   display: grid;
   gap: 10px;
   padding: 12px;
@@ -815,30 +816,36 @@ p {
   background: rgba(6, 14, 22, 0.54);
 }
 
-.plan-outcome-panel strong {
+.plan-outcome-panel strong,
+.plan-passport-panel strong {
   display: block;
   margin-top: 3px;
   color: var(--text);
   font-size: 15px;
 }
 
-.plan-outcome-panel p {
+.plan-outcome-panel p,
+.plan-passport-panel p {
   margin: 5px 0 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
 }
 
-.plan-outcome-panel.success {
+.plan-outcome-panel.success,
+.plan-passport-panel.success {
   border-color: rgba(107, 229, 133, 0.26);
 }
 
 .plan-outcome-panel.warning,
-.plan-outcome-panel.review {
+.plan-outcome-panel.review,
+.plan-passport-panel.warning,
+.plan-passport-panel.review {
   border-color: rgba(242, 200, 75, 0.28);
 }
 
-.plan-outcome-panel.danger {
+.plan-outcome-panel.danger,
+.plan-passport-panel.danger {
   border-color: rgba(255, 107, 112, 0.28);
 }
 
@@ -870,6 +877,27 @@ p {
 .plan-outcome-review.danger {
   color: var(--red);
   background: rgba(255, 107, 112, 0.12);
+}
+
+.plan-passport-panel {
+  background:
+    linear-gradient(140deg, rgba(105, 230, 255, 0.06), transparent 38%),
+    rgba(6, 14, 22, 0.5);
+}
+
+.plan-passport-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-passport-foot span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(147, 170, 187, 0.1);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .hero-plan-outcome {

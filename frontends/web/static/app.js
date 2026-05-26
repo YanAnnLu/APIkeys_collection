@@ -4,6 +4,7 @@ let selectedAssetDetail = null;
 let selectedSourceType = "all";
 let missions = [];
 const assetPlanOutcomes = new Map();
+const assetPlanPassports = new Map();
 
 const assetGrid = document.querySelector("#assetGrid");
 const assetFilter = document.querySelector("#assetFilter");
@@ -249,6 +250,7 @@ function renderPassport(card, asset) {
     </dl>
 
     ${planOutcomePanelHtml(card)}
+    ${planPassportPanelHtml(card)}
 
     <div class="trust-radar">
       <div><span>Trust</span><strong>${escapeHtml(String(boundedPercent(card.trust_score)))}</strong></div>
@@ -416,6 +418,7 @@ async function submitBounds(execute) {
     writeJson(payload);
     if (payload.plan_outcome) {
       rememberAssetPlanOutcome(selectedAssetId, payload.plan_outcome);
+      rememberAssetPlanPassport(selectedAssetId, payload.plan_passport);
       formState.textContent = payload.plan_outcome.display_label || payload.next_action || "review";
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
       setContentReviewBadge(payload.plan_outcome.content_review);
@@ -446,6 +449,18 @@ function rememberAssetPlanOutcome(assetId, planOutcome) {
   }
   if (selectedAssetDetail?.card?.asset_id === assetId) {
     selectedAssetDetail.card.latest_plan_outcome = planOutcome;
+  }
+}
+
+function rememberAssetPlanPassport(assetId, planPassport) {
+  if (!assetId || !planPassport) return;
+  assetPlanPassports.set(assetId, planPassport);
+  const asset = assets.find((item) => item.asset_id === assetId);
+  if (asset) {
+    asset.latest_plan_passport = planPassport;
+  }
+  if (selectedAssetDetail?.card?.asset_id === assetId) {
+    selectedAssetDetail.card.latest_plan_passport = planPassport;
   }
 }
 
@@ -554,6 +569,39 @@ function planOutcomePanelHtml(asset) {
   `;
 }
 
+function planPassportPanelHtml(asset) {
+  const passport = latestPlanPassportForAsset(asset);
+  if (!hasPlanPassport(passport)) return "";
+  const tone = toneClass(passport.display_tone || "neutral");
+  const resolvedLabel = passport.has_resolved_plan ? "Resolved plan 已建立" : "Resolved plan 待建立";
+  const contentReviewLabel = passport.content_review_count
+    ? `內容待辦 ${passport.content_review_count}`
+    : "內容待辦 0";
+  const gateLabel = [
+    passport.blocked_credential_count ? `憑證阻擋 ${passport.blocked_credential_count}` : "",
+    passport.missing_provider_count ? `缺 Provider ${passport.missing_provider_count}` : "",
+  ].filter(Boolean).join(" / ");
+  return `
+    <section class="plan-passport-panel ${tone}">
+      <div>
+        <span class="eyebrow">Plan Passport</span>
+        <strong>${escapeHtml(passport.short_label || passport.outcome_bucket || "計畫護照")}</strong>
+        <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(passport.next_action || "等待下一步")}</p>
+      </div>
+      <div class="plan-outcome-metrics">
+        ${heroMetric("Candidates", passport.candidate_count || 0)}
+        ${heroMetric("Direct", passport.direct_download_count || 0)}
+        ${heroMetric("Review", passport.review_required_count || 0)}
+        ${heroMetric("Adapter", passport.adapter_review_count || 0)}
+      </div>
+      <div class="plan-passport-foot">
+        <span>${escapeHtml(contentReviewLabel)}</span>
+        <span>${escapeHtml(gateLabel || "憑證 / Provider OK")}</span>
+      </div>
+    </section>
+  `;
+}
+
 function planOutcomeHeroHtml(asset) {
   const outcome = latestPlanOutcomeForAsset(asset);
   if (!outcome) return "";
@@ -590,8 +638,19 @@ function latestPlanOutcomeForAsset(asset) {
   return null;
 }
 
+function latestPlanPassportForAsset(asset) {
+  const sessionPassport = assetPlanPassports.get(asset.asset_id);
+  if (hasPlanPassport(sessionPassport)) return sessionPassport;
+  if (hasPlanPassport(asset.latest_plan_passport)) return asset.latest_plan_passport;
+  return null;
+}
+
 function hasPlanOutcomeBadge(outcome) {
   return Boolean(outcome?.outcome_bucket || outcome?.short_label || outcome?.display_label);
+}
+
+function hasPlanPassport(passport) {
+  return Boolean(passport?.asset_id || passport?.outcome_bucket || passport?.has_resolved_plan);
 }
 
 function heroMetric(label, value) {

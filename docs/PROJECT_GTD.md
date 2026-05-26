@@ -28,7 +28,8 @@ Last updated: 2026-05-26
 - [x] Web Preview 建立下載計畫時也會寫入 compact `crawler_asset_plan_outcome_recorded` event；事件只保留 badge/context 欄位與是否有 resolved plan，不把完整 plan JSON 塞進 event log。
 - [x] Web Preview 選中資產的 hero 與右側資產護照已顯示 `latest_plan_outcome` 摘要：最近計畫短標、summary、direct/review counts 與 content-review badge 都來自後端 payload。
 - [x] Web API 建立下載計畫時已回傳 compact `plan_passport`：它整理 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/missing-provider counts、bounds 與 next action，但不把完整 resolved plan body 複製到 UI 狀態。
-- [ ] 下一步：把 `plan_passport` 視覺化到 Web/Tk 卡片護照，並評估哪些欄位需要回寫成資產 profile；完整 resolved plan 仍留在 review/download path。
+- [x] Web Preview 右側資產護照已視覺化 `plan_passport`：建立下載計畫後會顯示 resolved-plan presence、Candidates、Direct、Review、Adapter、內容待辦與 credential/provider gate 摘要；瀏覽器驗證使用 port-scan 自動避開 8765，實際跑在 `127.0.0.1:8766`。
+- [ ] 下一步：把同一份 `plan_passport` 延伸到 Tk 卡片護照，並評估哪些欄位需要回寫成 asset profile；完整 resolved plan 仍留在 review/download path。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 
