@@ -120,7 +120,14 @@ def detect_source_interface_pattern(
     payload 欄位、HTML 連結、capabilities 等證據，回傳可交給 crawler adapter 的 pattern。
     """
 
-    candidates = tuple(sorted((detector(url, fetcher, timeout) for detector in DETECTORS), key=lambda item: item.confidence, reverse=True))
+    guarded_fetcher = guarded_pattern_fetcher(fetcher)
+    candidates = tuple(
+        sorted(
+            (detector(url, guarded_fetcher, timeout) for detector in DETECTORS),
+            key=lambda item: item.confidence,
+            reverse=True,
+        )
+    )
     best = candidates[0] if candidates else score_pattern(UNKNOWN_PATTERN_ID, ())
     if best.confidence < minimum_confidence:
         return SourcePatternDetection(
@@ -136,6 +143,16 @@ def detect_source_interface_pattern(
         source_type_hint=best.source_type_hint,
         candidates=candidates[:3],
     )
+
+
+def guarded_pattern_fetcher(fetcher: PatternFetcher) -> PatternFetcher:
+    def guarded(url: str, timeout: float) -> PatternProbeResponse | None:
+        try:
+            return fetcher(url, timeout)
+        except Exception:
+            return None
+
+    return guarded
 
 
 def detect_stac(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:

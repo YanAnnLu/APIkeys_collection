@@ -366,6 +366,31 @@ class SourcePatternDetectorTest(unittest.TestCase):
         self.assertNotEqual("cmr", result.pattern_id)
         self.assertNotIn("https://cmr.earthdata.nasa.gov/search/collections.json?page_size=1", calls)
 
+    def test_fetcher_exceptions_fall_back_to_unknown_pattern(self) -> None:
+        def fetcher(_url: str, _timeout: float) -> PatternProbeResponse | None:
+            raise RuntimeError("probe failed")
+
+        result = detect_source_interface_pattern("https://unstable.example.test/catalog", fetcher=fetcher)
+
+        self.assertEqual(UNKNOWN_PATTERN_ID, result.pattern_id)
+        self.assertEqual(0.0, result.confidence)
+        self.assertEqual("", result.source_type_hint)
+        self.assertTrue(result.candidates)
+        self.assertTrue(all(candidate.confidence == 0.0 for candidate in result.candidates))
+
+    def test_malformed_json_probe_falls_back_to_unknown_pattern(self) -> None:
+        def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
+            return PatternProbeResponse(
+                url=url,
+                text='{"collections":[',
+                headers={"content-type": "application/json"},
+            )
+
+        result = detect_source_interface_pattern("https://broken-json.example.test/catalog", fetcher=fetcher)
+
+        self.assertEqual(UNKNOWN_PATTERN_ID, result.pattern_id)
+        self.assertEqual(0.0, result.confidence)
+
     def test_html_file_index_is_fallback_pattern_with_file_links(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://files.example.test/":

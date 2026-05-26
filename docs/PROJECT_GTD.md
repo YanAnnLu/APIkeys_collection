@@ -86,6 +86,7 @@ Last updated: 2026-05-26
 - [x] Source draft writer 會二次驗證 detector confidence；低信心但帶 `source_type_hint` 的 detector 結果仍留在 review，不會寫成 local source draft。
 - [x] Tk source draft dialog / workflow 已改用後端 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE` 作為預設值，避免 UI 層保存自己的 detector 門檻魔法值。
 - [x] CLI `--source-draft-detector-min-confidence` 的預設值也已改用後端 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`，避免命令列、Tk 與 detector contract 對人工 review 門檻漂移。
+- [x] Source pattern detector 入口已包住注入式 fetcher 例外；自訂 probe、未來 plugin 或測試替身失敗時會安全回到 `unknown`，不會讓整段 discovery 因單一 HTTP/JSON 探測崩掉。
 - [x] Tk crawler asset「送進下載器 / 界域」已先收集 bounds payload，再切換到下載器；目前仍是草稿橋接，下一輪要把 payload 正式餵給 `build_download_plan()`。
 - [x] 把 detector result 接入 source profile 草稿建立流程：`api_launcher/source_pattern_drafts.py` 與 CLI `--write-source-draft-from-url` 現在可把 URL 偵測結果寫成 ignored local dataset source draft，summary 會保留 `source_type_hint`、evidence、`audit_source_ids` 與下一步 crawler audit 指令。
 - [x] Source draft 服務層已在 detector 前拒絕非 HTTP(S) URL 與內嵌帳密 URL，避免 local source draft 保存本機路徑或 credential-bearing URL。

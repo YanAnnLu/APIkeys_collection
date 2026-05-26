@@ -75,6 +75,8 @@ HTML file index 的來源類型判斷已集中到 `api_launcher/crawlers/source_
 
 Source pattern detector 的 unknown fallback 與最低信心門檻已集中到 `api_launcher/crawlers/source_patterns.py` 的 `UNKNOWN_PATTERN_ID` 與 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`。Draft writer、測試與後續 adapter 不應各自硬寫 `"unknown"` 或 `0.35`，避免 detector、draft、UI 對「保留人工 review」的門檻漂移。
 
+Detector 入口必須把注入式 fetcher 例外收斂成 `None` probe result。這讓自訂 fetcher、未來 plugin detector 或測試替身在 timeout、HTTP、JSON 或實作錯誤時安全降級成 `unknown` / review，而不是讓整段 discovery 崩潰；錯誤細節應在 crawler audit 或來源設定層用 warning/next_action 呈現，不在 detector 階段假猜來源類型。
+
 Source draft writer 也會在寫入 local source draft 前重新檢查 detector confidence；即使注入的 detector 回傳非 unknown 且帶 `source_type_hint`，低於最低信心門檻仍必須停在 review。這是防止測試替身、外部 detector 或未來 plugin adapter 繞過 unknown fallback 的安全邊界。
 
 Tk 的 source draft dialog 與 crawler asset workflow 也改為讀取同一個最低信心門檻常數，而不是在 UI 層硬寫 `0.35`。UI 仍只負責收集輸入與呼叫 service；detector contract 的預設值由後端維護。
@@ -214,7 +216,7 @@ K 槽爬蟲教材可用來萃取技巧，但不要直接搬站點腳本進專案
 
 Sciverse / OpenDataLab 這類科學文獻 API 暫時不應打亂 geospatial asset downloader 主線。對地理資料下載來說，它不是 STAC / OGC / CMR / ERDDAP 等資料本體入口；比較合理的定位是低優先級 `literature_discovery_api` 或 `vendor_science_api`，用來搜尋地理資料相關論文、DOI、方法、資料集名稱與引用片段，產生 provenance 線索後再交給真正的資料入口 detector 判斷。第一階段仍優先穩住 STAC、OGC、CMR、ERDDAP、CKAN、Socrata、HTML file index 與 unknown fallback。
 
-Detector 測試目前已覆蓋 STAC、CKAN、Socrata、OGC API JSON、OGC/WMS `GetCapabilities` XML、ERDDAP、CMR guard、HTML file index、複合壓縮/地理資料檔線索，以及 ambiguous collections payload fallback。新增範式前應先補 fake fetcher fixture，確認正例、低信心 unknown、以及不污染其他範式三件事。
+Detector 測試目前已覆蓋 STAC、CKAN、Socrata、OGC API JSON、OGC/WMS `GetCapabilities` XML、ERDDAP、CMR guard、HTML file index、複合壓縮/地理資料檔線索、fetcher exception、malformed JSON，以及 ambiguous collections payload fallback。新增範式前應先補 fake fetcher fixture，確認正例、低信心 unknown、probe failure fallback，以及不污染其他範式三件事。
 
 OGC family 目前分兩條 source type：`ogc_api_records` 負責 OGC API `/collections` 與 Records / Features JSON 目錄，`ogc_wms_capabilities` 負責老式 WMS `GetCapabilities` XML layer 清單。source draft 會把 detector 找到的 OGC API base URL 正規化為 `/collections`，避免後續 audit 仍停在 root endpoint。WMS 只產生 layer candidate 與 map service metadata，並優先把 `Request/GetMap` 的 `OnlineResource` 當成候選 `api_url`；真正的 GetMap 影像下載、bbox/time/style 參數化仍需後續 adapter resolver / content parser 切片。
 
