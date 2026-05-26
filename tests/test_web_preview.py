@@ -14,6 +14,10 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_passport_payload,
     plan_entry_content_status_payload,
 )
+from api_launcher.crawler_asset_profiles import (
+    load_crawler_asset_profiles,
+    update_crawler_asset_plan_passport,
+)
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
     crawler_asset_cards,
@@ -161,6 +165,53 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(passport, detail_passport)
         self.assertNotIn("providers", passport)
         self.assertNotIn("resolved_plan", passport)
+
+    def test_crawler_asset_cards_prefer_profile_plan_passport_over_event_fallback(self) -> None:
+        events = [
+            {
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "plan_passport": {
+                        "asset_id": "demo_stac",
+                        "candidate_count": 1,
+                        "direct_download_count": 1,
+                    },
+                },
+            }
+        ]
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            update_crawler_asset_plan_passport(
+                "demo_stac",
+                {
+                    "asset_id": "demo_stac",
+                    "candidate_count": 7,
+                    "direct_download_count": 2,
+                    "adapter_review_count": 5,
+                    "providers": [{"provider_id": "too_large"}],
+                },
+                profile_path,
+            )
+
+            with patch("frontends.web.preview_api.latest_events", return_value=events):
+                payload = crawler_asset_cards(
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                )
+                detail = crawler_asset_detail(
+                    "demo_stac",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                )
+
+        passport = payload["assets"][0]["latest_plan_passport"]
+        self.assertEqual(7, passport["candidate_count"])
+        self.assertEqual(2, passport["direct_download_count"])
+        self.assertEqual(5, detail["card"]["latest_plan_passport"]["adapter_review_count"])
+        self.assertNotIn("providers", passport)
 
     def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:
         result = SimpleNamespace(
@@ -468,13 +519,19 @@ class WebPreviewApiTest(unittest.TestCase):
                         local_path=local_path,
                         profile_path=profile_path,
                     )
+            profiles = load_crawler_asset_profiles(profile_path)
 
         passport = payload["plan_passport"]
+        persisted_passport = profiles["demo_stac"].latest_plan_passport
         self.assertEqual("demo_stac", passport["asset_id"])
         self.assertTrue(passport["has_resolved_plan"])
         self.assertEqual(1, passport["candidate_count"])
         self.assertEqual(1, passport["direct_download_count"])
         self.assertNotIn("providers", passport)
+        self.assertEqual(1, persisted_passport["candidate_count"])
+        self.assertEqual(1, persisted_passport["direct_download_count"])
+        self.assertNotIn("providers", persisted_passport)
+        self.assertNotIn("resolved_plan", persisted_passport)
 
     def test_shared_display_schema_describes_plan_outcome(self) -> None:
         result = SimpleNamespace(

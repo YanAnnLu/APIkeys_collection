@@ -2,13 +2,36 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Mapping
 
 from api_launcher.paths import local_config_file
 
 
 LOCAL_CRAWLER_ASSET_PROFILES_NAME = "crawler_asset_profiles.local.json"
+CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
+    {
+        "asset_id",
+        "has_resolved_plan",
+        "outcome_bucket",
+        "short_label",
+        "display_tone",
+        "candidate_count",
+        "upserted_candidate_count",
+        "selected_version_count",
+        "filtered_version_count",
+        "direct_download_count",
+        "review_required_count",
+        "adapter_review_count",
+        "content_review_count",
+        "blocked_credential_count",
+        "credential_gate_count",
+        "missing_provider_count",
+        "next_action",
+        "bounds",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +54,7 @@ class CrawlerAssetProfile:
     favicon_url: str = ""
     logo_source: str = ""
     logo_license_note: str = ""
+    latest_plan_passport: dict[str, object] = field(default_factory=dict)
 
     @property
     def active(self) -> bool:
@@ -61,6 +85,7 @@ class CrawlerAssetProfile:
             "favicon_url": self.favicon_url,
             "logo_source": self.logo_source,
             "logo_license_note": self.logo_license_note,
+            "latest_plan_passport": dict(self.latest_plan_passport),
         }
 
 
@@ -107,6 +132,7 @@ def crawler_asset_profile_from_dict(asset_id: str, raw: dict[str, object]) -> Cr
         favicon_url=str(raw.get("favicon_url") or "").strip(),
         logo_source=str(raw.get("logo_source") or "").strip(),
         logo_license_note=str(raw.get("logo_license_note") or "").strip(),
+        latest_plan_passport=compact_crawler_asset_plan_passport(raw.get("latest_plan_passport")),
     )
 
 
@@ -210,6 +236,57 @@ def _validate_api_key_env_var(value: str) -> str:
     return value
 
 
+def compact_crawler_asset_plan_passport(plan_passport: object) -> dict[str, object]:
+    """Keep persisted plan passport status bounded and free of resolved plans."""
+
+    if not isinstance(plan_passport, Mapping):
+        return {}
+    payload = {
+        key: value
+        for key, value in plan_passport.items()
+        if key in CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS
+    }
+    payload["bounds"] = _compact_plan_passport_bounds(payload.get("bounds"))
+    return dict(payload)
+
+
+def _compact_plan_passport_bounds(bounds: object) -> dict[str, object]:
+    if not isinstance(bounds, Mapping):
+        return {}
+    compact: dict[str, object] = {}
+    for key, value in bounds.items():
+        field = str(key).strip()
+        if not field:
+            continue
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            compact[field] = value
+        elif isinstance(value, (list, tuple)):
+            compact[field] = [
+                item
+                for item in value
+                if isinstance(item, (str, int, float, bool)) or item is None
+            ]
+    return compact
+
+
+def update_crawler_asset_plan_passport(
+    asset_id: str,
+    plan_passport: object,
+    path: str | Path | None = None,
+) -> CrawlerAssetProfile:
+    """Persist only the small UI passport, never the resolved download plan."""
+
+    asset_key = asset_id.strip()
+    if not asset_key:
+        raise ValueError("crawler asset id is required")
+    profiles = load_crawler_asset_profiles(path)
+    current = profiles.get(asset_key) or default_crawler_asset_profile(asset_key)
+    updated = replace(current, latest_plan_passport=compact_crawler_asset_plan_passport(plan_passport))
+    profiles[asset_key] = updated
+    save_crawler_asset_profiles(profiles, path)
+    return updated
+
+
 def set_crawler_asset_archived(
     asset_id: str,
     archived: bool,
@@ -238,6 +315,7 @@ def toggle_crawler_asset_archived(
 
 __all__ = [
     "CrawlerAssetProfile",
+    "compact_crawler_asset_plan_passport",
     "crawler_asset_profile_for",
     "crawler_asset_profiles_path",
     "default_crawler_asset_profile",
@@ -246,4 +324,5 @@ __all__ = [
     "set_crawler_asset_archived",
     "toggle_crawler_asset_archived",
     "update_crawler_asset_profile",
+    "update_crawler_asset_plan_passport",
 ]

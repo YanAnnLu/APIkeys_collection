@@ -73,6 +73,7 @@ class CrawlerAsset:
     favicon_url: str
     logo_source: str
     logo_license_note: str
+    latest_plan_passport: dict[str, object]
     health: CrawlerAssetHealth
     capabilities: tuple[CrawlerAssetCapability, ...]
 
@@ -118,6 +119,7 @@ class CrawlerAsset:
             "favicon_url": self.favicon_url,
             "logo_source": self.logo_source,
             "logo_license_note": self.logo_license_note,
+            "latest_plan_passport": dict(self.latest_plan_passport),
             "health": self.health.to_dict(),
             "capabilities": [item.to_dict() for item in self.capabilities],
         }
@@ -203,6 +205,7 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
         favicon_url=profile.favicon_url,
         logo_source=profile.logo_source,
         logo_license_note=profile.logo_license_note,
+        latest_plan_passport=dict(profile.latest_plan_passport),
         health=health,
         capabilities=capabilities,
     )

@@ -8,7 +8,11 @@ from tkinter import messagebox, ttk
 from typing import Callable
 
 from api_launcher.adapter_review import adapter_review_items
-from api_launcher.crawler_asset_profiles import toggle_crawler_asset_archived, update_crawler_asset_profile
+from api_launcher.crawler_asset_profiles import (
+    toggle_crawler_asset_archived,
+    update_crawler_asset_plan_passport,
+    update_crawler_asset_profile,
+)
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_display import (
@@ -632,6 +636,15 @@ class CrawlerAssetWorkflowMixin:
             outcome_payload.get("content_review") if isinstance(outcome_payload.get("content_review"), dict) else {}
         )
         plan_passport_payload = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
+        try:
+            update_crawler_asset_plan_passport(str(getattr(result, "asset_id", "") or ""), plan_passport_payload)
+        except Exception as exc:
+            log_exception(
+                "crawler_asset_plan_passport_persist_failed",
+                exc,
+                component="ui.crawler_assets",
+                context={"asset_id": str(getattr(result, "asset_id", "") or "")},
+            )
         log_event(
             "crawler_asset_plan_outcome_recorded",
             "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",

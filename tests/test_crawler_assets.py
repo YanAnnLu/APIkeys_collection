@@ -12,10 +12,12 @@ from api_launcher.crawler_asset_service import (
     source_download_options_from_crawler_asset_payload,
 )
 from api_launcher.crawler_asset_profiles import (
+    compact_crawler_asset_plan_passport,
     crawler_asset_profile_for,
     load_crawler_asset_profiles,
     set_crawler_asset_archived,
     toggle_crawler_asset_archived,
+    update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
 )
 from api_launcher.crawler_asset_bound_forms import (
@@ -368,6 +370,41 @@ class CrawlerAssetTest(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 update_crawler_asset_profile("demo_index", profile_path, api_key_env_var="sk-secret")
+
+    def test_profile_plan_passport_keeps_only_compact_status(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+
+            updated = update_crawler_asset_plan_passport(
+                "demo_index",
+                {
+                    "asset_id": "demo_index",
+                    "candidate_count": 5,
+                    "direct_download_count": 2,
+                    "adapter_review_count": 3,
+                    "next_action": "open_downloader_and_start_or_pause_queue",
+                    "bounds": {
+                        "limit": 5,
+                        "bbox": [120.0, 22.0, 122.0, 25.0],
+                        "unsafe_nested": {"resolved_plan": True},
+                    },
+                    "providers": [{"provider_id": "too_large"}],
+                    "resolved_plan": {"entries": [{"url": "https://example.test/file.csv"}]},
+                },
+                profile_path,
+            )
+            profiles = load_crawler_asset_profiles(profile_path)
+
+        passport = updated.latest_plan_passport
+        self.assertEqual(5, passport["candidate_count"])
+        self.assertEqual(2, profiles["demo_index"].latest_plan_passport["direct_download_count"])
+        self.assertEqual([120.0, 22.0, 122.0, 25.0], passport["bounds"]["bbox"])
+        self.assertNotIn("unsafe_nested", passport["bounds"])
+        self.assertNotIn("providers", passport)
+        self.assertNotIn("resolved_plan", passport)
+
+    def test_compact_plan_passport_rejects_non_mapping(self) -> None:
+        self.assertEqual({}, compact_crawler_asset_plan_passport(["not", "a", "mapping"]))
 
     def test_loaded_assets_apply_archived_profile_without_changing_source(self) -> None:
         with TemporaryDirectory() as tmp:

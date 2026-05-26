@@ -19,6 +19,10 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
 )
+from api_launcher.crawler_asset_profiles import (
+    compact_crawler_asset_plan_passport,
+    update_crawler_asset_plan_passport,
+)
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
 from api_launcher.db import connect_db
@@ -29,28 +33,6 @@ from api_launcher.repository import ApiCatalogRepository
 
 WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
 WEB_PREVIEW_EVENT_LIMIT = 80
-WEB_PREVIEW_PLAN_PASSPORT_KEYS = frozenset(
-    {
-        "asset_id",
-        "has_resolved_plan",
-        "outcome_bucket",
-        "short_label",
-        "display_tone",
-        "candidate_count",
-        "upserted_candidate_count",
-        "selected_version_count",
-        "filtered_version_count",
-        "direct_download_count",
-        "review_required_count",
-        "adapter_review_count",
-        "content_review_count",
-        "blocked_credential_count",
-        "credential_gate_count",
-        "missing_provider_count",
-        "next_action",
-        "bounds",
-    }
-)
 
 
 def web_preview_status() -> dict[str, object]:
@@ -86,7 +68,7 @@ def crawler_asset_cards(
             crawler_asset_card(
                 asset,
                 latest_plan_outcome=latest_plan_outcomes.get(asset.asset_id),
-                latest_plan_passport=latest_plan_passports.get(asset.asset_id),
+                latest_plan_passport=asset.latest_plan_passport or latest_plan_passports.get(asset.asset_id),
             )
             for asset in assets
         ],
@@ -143,7 +125,8 @@ def crawler_asset_detail(
         "card": crawler_asset_card(
             asset,
             latest_plan_outcome=recent_crawler_asset_plan_outcomes().get(asset.asset_id),
-            latest_plan_passport=recent_crawler_asset_plan_passports().get(asset.asset_id),
+            latest_plan_passport=asset.latest_plan_passport
+            or recent_crawler_asset_plan_passports().get(asset.asset_id),
         ),
         "bound_form": crawler_asset_bound_form_payload(form_spec),
         "flow_steps": crawler_asset_flow_steps(asset, form_spec),
@@ -198,17 +181,7 @@ def recent_crawler_asset_plan_passports(*, limit: int = 200) -> dict[str, dict[s
 def compact_web_plan_passport_payload(plan_passport: object) -> dict[str, object]:
     """Keep event-backed plan passports bounded and UI-safe."""
 
-    if not isinstance(plan_passport, Mapping):
-        return {}
-    payload = {
-        key: value
-        for key, value in plan_passport.items()
-        if key in WEB_PREVIEW_PLAN_PASSPORT_KEYS
-    }
-    bounds = payload.get("bounds")
-    if "bounds" in payload and not isinstance(bounds, Mapping):
-        payload["bounds"] = {}
-    return dict(payload)
+    return compact_crawler_asset_plan_passport(plan_passport)
 
 
 def web_preview_recent_events(*, limit: int = 50) -> dict[str, object]:
@@ -352,6 +325,7 @@ def crawler_asset_plan_preview(
     response["plan_outcome"] = plan_outcome
     plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
     response["plan_passport"] = plan_passport
+    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
     response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
     response["next_action"] = result.user_next_action
     log_event(
