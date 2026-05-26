@@ -2,6 +2,7 @@ let assets = [];
 let selectedAssetId = "";
 let selectedSourceType = "all";
 let missions = [];
+const assetPlanOutcomes = new Map();
 
 const assetGrid = document.querySelector("#assetGrid");
 const assetFilter = document.querySelector("#assetFilter");
@@ -179,6 +180,7 @@ function assetSlotHtml(asset) {
       <span class="surface-pill">${escapeHtml(surfaceLabel(asset.source_surface))}</span>
       ${statePill(status)}
     </div>
+    ${planBadgeHtml(asset)}
     <div class="slot-emblem"><span>${escapeHtml(initials)}</span></div>
     <div class="slot-copy">
       <strong>${escapeHtml(asset.display_name)}</strong>
@@ -408,10 +410,12 @@ async function submitBounds(execute) {
     const payload = await postJson(url, values);
     writeJson(payload);
     if (payload.plan_outcome) {
+      rememberAssetPlanOutcome(selectedAssetId, payload.plan_outcome);
       formState.textContent = payload.plan_outcome.display_label || payload.next_action || "review";
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
       setContentReviewBadge(payload.plan_outcome.content_review);
       addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action || "review");
+      renderAssetGrid();
     } else {
       setContentReviewBadge(null);
       addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
@@ -424,6 +428,15 @@ async function submitBounds(execute) {
     }
   } catch (error) {
     writeJson({ error: String(error), asset_id: selectedAssetId });
+  }
+}
+
+function rememberAssetPlanOutcome(assetId, planOutcome) {
+  if (!assetId || !planOutcome) return;
+  assetPlanOutcomes.set(assetId, planOutcome);
+  const asset = assets.find((item) => item.asset_id === assetId);
+  if (asset) {
+    asset.latest_plan_outcome = planOutcome;
   }
 }
 
@@ -497,6 +510,22 @@ function renderSelectedHero(card, flowSteps = []) {
       </div>
     </div>
     ${renderFlowSteps(flowSteps)}
+  `;
+}
+
+function planBadgeHtml(asset) {
+  const outcome = asset.latest_plan_outcome || assetPlanOutcomes.get(asset.asset_id);
+  if (!outcome) return "";
+  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const tone = toneClass(outcome.display_tone);
+  const contentReview = outcome.content_review?.has_review
+    ? `<span class="plan-badge review">${escapeHtml(outcome.content_review.display_label || "內容待辦")}</span>`
+    : "";
+  return `
+    <div class="plan-badge-row" title="${escapeAttr(outcome.summary || outcome.next_action_label || label)}">
+      <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
+      ${contentReview}
+    </div>
   `;
 }
 

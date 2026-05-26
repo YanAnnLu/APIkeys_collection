@@ -23,7 +23,8 @@ Last updated: 2026-05-26
 - [x] `crawler_asset_plan_outcome_payload()` 現在同時輸出 `content_review` badge payload（label / tone / count / has_review），保留 `content_review_label` 作為相容短文字，後續 Tk/Web/Qt 可直接共用同一份待辦徽章資料。
 - [x] Tk `crawler_asset_plan_outcome_recorded` structured event 也會寫入 `content_review` badge payload；重開 UI 時可優先讀事件中的 badge label，舊事件仍可從 resolved plan 回推。
 - [x] Web Preview 的界域表單狀態列已接上 `plan_outcome.content_review`：建立下載計畫後若仍有內容 Parser / 內容格式待辦，畫面會顯示同一份 backend badge，而不是只把訊息藏在任務列或 JSON。
-- [ ] 下一步：把 Adapter resolving 結果回寫成更完整的卡片 badge / 待辦徽章樣式，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
+- [x] Web Preview 卡片牆已可顯示本次 session 建立下載計畫後的 `plan_outcome` 徽章：文字吃 `short_label`，色調吃 `display_tone`，內容格式待辦吃 `content_review`；這是 session-local UIUX preview，不做跨 session 持久化。
+- [ ] 下一步：把 Adapter resolving 結果回寫成更完整的 resolved-plan passport / 持久化 card badge，讓 Tk/Web/Qt 都能沿用同一份 outcome/tone contract。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

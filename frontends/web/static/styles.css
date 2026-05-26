@@ -760,6 +760,52 @@ p {
   background: rgba(147, 170, 187, 0.1);
 }
 
+.plan-badge-row {
+  min-height: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 2px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 151, 181, 0.22);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-badge.success {
+  color: var(--green);
+  background: rgba(107, 229, 133, 0.11);
+  border-color: rgba(107, 229, 133, 0.22);
+}
+
+.plan-badge.warning,
+.plan-badge.review {
+  color: var(--yellow);
+  background: rgba(242, 200, 75, 0.12);
+  border-color: rgba(242, 200, 75, 0.24);
+}
+
+.plan-badge.danger {
+  color: var(--red);
+  background: rgba(255, 107, 112, 0.12);
+  border-color: rgba(255, 107, 112, 0.24);
+}
+
+.plan-badge.neutral {
+  color: var(--muted);
+  background: rgba(147, 170, 187, 0.1);
+}
+
 .slot-emblem {
   width: 70px;
   height: 70px;
