@@ -149,6 +149,12 @@ class HandoffTests(unittest.TestCase):
             ]
         )
 
+        self.assertEqual(2, summary["summary_scope"]["event_scan_count"])
+        self.assertEqual("2026-05-26T12:00:00+00:00", summary["summary_scope"]["latest_listing_event_at"])
+        self.assertEqual(
+            "2026-05-26T12:10:00+00:00",
+            summary["summary_scope"]["latest_download_plan_build_event_at"],
+        )
         listing = summary["latest_listing"]
         plan = summary["latest_download_plan_build"]
         self.assertEqual("crawler_asset_listing_recorded", listing["event"])
@@ -206,6 +212,7 @@ class HandoffTests(unittest.TestCase):
         event_reader.assert_called_once_with(DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT)
         self.assertEqual(0, rc)
         self.assertEqual(DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, payload["event_limit"])
+        self.assertIn("summary_scope", payload)
         self.assertIn("latest_listing", payload)
         self.assertIn("latest_download_plan_build", payload)
         self.assertNotIn("[db]", stdout.getvalue())
@@ -243,6 +250,7 @@ class HandoffTests(unittest.TestCase):
         event_reader.assert_called_once_with(7)
         self.assertEqual(0, rc)
         self.assertEqual(7, payload["event_limit"])
+        self.assertIn("summary_scope", payload)
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())
 
@@ -265,6 +273,7 @@ class HandoffTests(unittest.TestCase):
         event_reader.assert_called_once_with(1)
         self.assertEqual(0, rc)
         self.assertEqual(1, payload["event_limit"])
+        self.assertIn("summary_scope", payload)
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())
 
@@ -286,6 +295,7 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertIn("latest_listing", payload)
         self.assertIn("latest_download_plan_build", payload)
+        self.assertIn("summary_scope", payload)
         self.assertIn("event_limit", payload)
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())

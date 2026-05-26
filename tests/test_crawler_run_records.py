@@ -105,11 +105,27 @@ class CrawlerRunRecordTest(unittest.TestCase):
             ]
         )
 
+        self.assertEqual(3, summary["summary_scope"]["event_scan_count"])
+        self.assertTrue(summary["summary_scope"]["latest_listing_found"])
+        self.assertEqual("latest-listing", summary["summary_scope"]["latest_listing_event_at"])
+        self.assertTrue(summary["summary_scope"]["latest_download_plan_build_found"])
+        self.assertEqual("latest-plan", summary["summary_scope"]["latest_download_plan_build_event_at"])
         self.assertEqual("new_asset", summary["latest_listing"]["asset_id"])
         self.assertEqual(5, summary["latest_listing"]["candidate_count"])
         self.assertEqual(2, summary["latest_download_plan_build"]["direct_download_count"])
         self.assertTrue(summary["latest_download_plan_build"]["resolved_plan_available"])
         self.assertNotIn("resolved_plan", summary["latest_download_plan_build"])
+
+    def test_summary_from_empty_events_reports_empty_scope(self) -> None:
+        summary = crawler_run_summary_from_events([])
+
+        self.assertEqual(0, summary["summary_scope"]["event_scan_count"])
+        self.assertFalse(summary["summary_scope"]["latest_listing_found"])
+        self.assertEqual("", summary["summary_scope"]["latest_listing_event_at"])
+        self.assertFalse(summary["summary_scope"]["latest_download_plan_build_found"])
+        self.assertEqual("", summary["summary_scope"]["latest_download_plan_build_event_at"])
+        self.assertEqual({}, summary["latest_listing"])
+        self.assertEqual({}, summary["latest_download_plan_build"])
 
 
 if __name__ == "__main__":

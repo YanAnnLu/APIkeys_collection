@@ -204,8 +204,37 @@ def crawler_run_summary_from_events(events: list[dict[str, object]]) -> dict[str
     latest_listing = latest_crawler_run_event(events, CRAWLER_RUN_LISTING_EVENT)
     latest_plan_build = latest_crawler_run_event(events, CRAWLER_RUN_PLAN_EVENT)
     return {
+        "summary_scope": crawler_run_summary_scope(
+            events,
+            latest_listing=latest_listing,
+            latest_plan_build=latest_plan_build,
+        ),
         "latest_listing": crawler_run_event_summary(latest_listing),
         "latest_download_plan_build": crawler_run_event_summary(latest_plan_build),
+    }
+
+
+def crawler_run_summary_scope(
+    events: list[dict[str, object]],
+    *,
+    latest_listing: Mapping[str, object],
+    latest_plan_build: Mapping[str, object],
+) -> dict[str, object]:
+    """Describe the event window used for a crawler-run handoff summary.
+
+    這個欄位不判斷狀態是否「有效」，只讓 agent/UI 知道摘要是從多少筆
+    structured events 中找到的，以及找到的 crawler listing / plan event
+    時間戳。後續若要做 stale policy，應在 service 層另行定義。
+    """
+
+    return {
+        "event_scan_count": len(events),
+        "latest_listing_found": bool(latest_listing),
+        "latest_listing_event_at": str(latest_listing.get("timestamp") or "") if latest_listing else "",
+        "latest_download_plan_build_found": bool(latest_plan_build),
+        "latest_download_plan_build_event_at": str(latest_plan_build.get("timestamp") or "")
+        if latest_plan_build
+        else "",
     }
 
 
@@ -243,6 +272,7 @@ __all__ = [
     "crawler_run_record",
     "crawler_run_record_from_result",
     "crawler_run_record_key",
+    "crawler_run_summary_scope",
     "crawler_run_summary_from_events",
     "latest_crawler_run_event",
 ]
