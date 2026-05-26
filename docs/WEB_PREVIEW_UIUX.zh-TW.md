@@ -7,7 +7,7 @@
 ## Plan Passport freshness guard
 - Web Preview 讀取的 `latest_plan_passport` 是後端判斷過的 display-safe payload，不是單純的上次結果快照。
 - `api_launcher/crawler_asset_profiles.py` 會比較 profile state、source signature 與 bounds signature；當 crawler asset 被停用、封存、來源 endpoint/source type 變更，或界域表單範式改變時，後端輸出 `stale=true` / `stale_reason`。
-- Web/Tk/未來 Qt 只顯示「計畫需重建」與 stale reason，不在 UI 端重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
+- Web/Tk/未來 Qt 只顯示後端給的 `stale_label` / `stale_next_action`，例如「資產已停用，啟用後重新建立下載計畫」或「來源設定已改變，請重新建立下載計畫」，不在 UI 端翻譯 raw `stale_reason` 或重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
 
 ## 定位
 

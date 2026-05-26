@@ -239,6 +239,8 @@ class WebPreviewApiTest(unittest.TestCase):
         passport = payload["assets"][0]["latest_plan_passport"]
         self.assertTrue(passport["stale"])
         self.assertEqual("asset_disabled", passport["stale_reason"])
+        self.assertEqual("資產已停用，啟用後重新建立下載計畫", passport["stale_label"])
+        self.assertEqual("enable_before_building_download_plan", passport["stale_next_action"])
         self.assertEqual("warning", passport["display_tone"])
 
     def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:

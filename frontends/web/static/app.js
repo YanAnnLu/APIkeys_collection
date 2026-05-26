@@ -213,7 +213,7 @@ function downloaderRowHtml(asset) {
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
     : "";
   const staleChip = passport.stale
-    ? `<span class="context-chip warning">計畫需重建 ${escapeHtml(passport.stale_reason || "profile_changed")}</span>`
+    ? `<span class="context-chip warning">${escapeHtml(passport.stale_label || passport.stale_reason || "計畫需重建")}</span>`
     : "";
   return `
     <article class="download-row ${tone}">
@@ -790,7 +790,7 @@ function planPassportPanelHtml(asset) {
   const tone = toneClass(isStale ? "warning" : passport.display_tone || "neutral");
   const resolvedLabel = passport.has_resolved_plan ? "Resolved plan 已建立" : "Resolved plan 待建立";
   const staleLabel = isStale
-    ? `狀態可能過期：${passport.stale_reason || "profile_changed"}`
+    ? (passport.stale_label || `計畫需重建：${passport.stale_reason || "profile_changed"}`)
     : "profile 已同步";
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
@@ -804,7 +804,7 @@ function planPassportPanelHtml(asset) {
       <div>
         <span class="eyebrow">Plan Passport</span>
         <strong>${escapeHtml(passport.short_label || passport.outcome_bucket || "計畫護照")}</strong>
-        <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(passport.next_action || "等待下一步")}</p>
+        <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(passport.stale_next_action || passport.next_action || "等待下一步")}</p>
       </div>
       <div class="plan-outcome-metrics">
         ${heroMetric("Candidates", passport.candidate_count || 0)}

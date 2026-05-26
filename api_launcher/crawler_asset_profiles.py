@@ -36,10 +36,35 @@ CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
         "profile_state",
         "stale",
         "stale_reason",
+        "stale_label",
+        "stale_next_action",
         "source_signature",
         "bounds_signature",
     }
 )
+
+CRAWLER_ASSET_PLAN_PASSPORT_STALE_DISPLAY = {
+    "asset_archived": (
+        "資產已封存，解除封存後重新建立下載計畫",
+        "unarchive_before_building_download_plan",
+    ),
+    "asset_disabled": (
+        "資產已停用，啟用後重新建立下載計畫",
+        "enable_before_building_download_plan",
+    ),
+    "profile_state_changed": (
+        "資產設定已改變，請重新建立下載計畫",
+        "rebuild_download_plan_after_profile_change",
+    ),
+    "source_changed": (
+        "來源設定已改變，請重新建立下載計畫",
+        "rebuild_download_plan_after_source_change",
+    ),
+    "bounds_schema_changed": (
+        "界域表單已改變，請重新建立下載計畫",
+        "rebuild_download_plan_after_bounds_change",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -290,13 +315,28 @@ def crawler_asset_plan_passport_for_profile(
         stale_reason = "bounds_schema_changed"
 
     if stale_reason:
+        stale_label, stale_next_action = stale_plan_passport_display(stale_reason)
         payload["stale"] = True
         payload["stale_reason"] = stale_reason
+        payload["stale_label"] = stale_label
+        payload["stale_next_action"] = stale_next_action
         payload["display_tone"] = "warning"
     else:
         payload["stale"] = False
         payload["stale_reason"] = ""
+        payload["stale_label"] = ""
+        payload["stale_next_action"] = ""
     return payload
+
+
+def stale_plan_passport_display(stale_reason: str) -> tuple[str, str]:
+    """Return UI-safe stale passport copy without making UI translate raw reasons."""
+
+    normalized = str(stale_reason or "").strip()
+    return CRAWLER_ASSET_PLAN_PASSPORT_STALE_DISPLAY.get(
+        normalized,
+        ("下載計畫可能已過期，請重新建立下載計畫", "rebuild_download_plan"),
+    )
 
 
 def crawler_asset_source_signature(source: object) -> str:
@@ -417,6 +457,7 @@ __all__ = [
     "load_crawler_asset_profiles",
     "save_crawler_asset_profiles",
     "set_crawler_asset_archived",
+    "stale_plan_passport_display",
     "toggle_crawler_asset_archived",
     "update_crawler_asset_profile",
     "update_crawler_asset_plan_passport",

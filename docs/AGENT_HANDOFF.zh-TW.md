@@ -4,7 +4,8 @@
 - 本輪新增 profile-backed plan passport stale 判斷：`update_crawler_asset_plan_passport()` 會保存 `saved_at`、`profile_state`、`stale=false`，`crawler_asset_plan_passport_for_profile()` 會在 asset 停用、封存或 profile state 改變時輸出 `stale=true` 與 `stale_reason`。
 - `load_crawler_assets()` 現在回傳 display-safe passport；Web/Tk 只呈現 stale 狀態，不自行判斷規則。這是之後 Qt 換皮時可共用的 payload。
 - stale 判斷已延伸到 `source_signature` 與 `bounds_signature`：來源 endpoint/source type/file regex 等欄位改變會輸出 `source_changed`，界域 facets 改變會輸出 `bounds_schema_changed`。這些簽名由後端生成，UI 不應自行重算。
-- 已補測試：profile compact persistence、disabled asset stale、source_changed stale、bounds_schema_changed stale、Web persisted signature payload、Tk summary stale text。下一步若要更嚴格，可增加候選版本 / source revision 指紋。
+- stale payload 已補 `stale_label` 與 `stale_next_action`，讓 Web/Tk/未來 Qt 顯示「資產已停用 / 來源設定已改變 / 界域表單已改變」這類可讀提示，而不是把 raw `source_changed` 丟給使用者。
+- 已補測試：profile compact persistence、disabled asset stale、source_changed stale、bounds_schema_changed stale、Web persisted signature payload、Tk summary stale text、Web stale display label。下一步若要更嚴格，可增加候選版本 / source revision 指紋。
 
 最後更新：2026-05-26
 
