@@ -26,6 +26,7 @@ Last updated: 2026-05-26
 - [x] 驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke；另用 Browser 驗證 `127.0.0.1:8766` 在 849x910 viewport 下 nav 文字可見、來源篩選高度受控、搜尋 `stac` 會把可見卡片收斂為 2 張。
 - [x] 把 Web 使用的 `flow_steps` / label 對照抽成 `api_launcher/crawler_asset_display.py`，讓 Web/Tk/Qt 以後共用 `display_label`、`display_help` 與流程條 payload。
 - [x] 將 plan outcome / Adapter review 摘要納入同一份 display schema：Web API 現在回傳 `plan_outcome` 與 `adapter_review` 顯示 payload，Web JS 只呈現後端 label/tone/summary，不自行推理業務分支。
+- [x] Web Preview 的 plan outcome、Plan Passport 與 Adapter review chip 已補 display-safe fallback helper；缺後端 label 時顯示中性「計畫結果 / 計畫護照 / 待辦分類」，不再把 raw `outcome_bucket` 當作使用者主文案。
 - [x] 讓 Tk 的爬蟲資產分頁改用同一份 display schema：表格短狀態現在取自 `plan_outcome.short_label`，不再在 Tk 內重寫 outcome bucket 分支。
 - [x] 讓 Tk Adapter 待辦表格也使用共用 display schema：表格顯示人類可讀 outcome label，detail 仍保留原始 `outcome_bucket` 給 agent / JSON 比對。
 - [x] 把 `content_detection` / `content_parser` 摘要接進 Adapter review：JSON item 與 summary 現在會帶出 `content_source_format`、`content_parser_id`、`content_review_bucket` 等欄位，Tk detail 也能直接看到內容格式與 parser review 下一步。

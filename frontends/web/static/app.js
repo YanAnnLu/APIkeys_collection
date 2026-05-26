@@ -207,7 +207,7 @@ function downloaderRowHtml(asset) {
   const outcome = latestPlanOutcomeForAsset(asset) || {};
   const passport = latestPlanPassportForAsset(asset) || {};
   const tone = toneClass(outcome.display_tone || passport.display_tone);
-  const label = outcome.short_label || outcome.display_label || passport.short_label || passport.outcome_bucket || "計畫結果";
+  const label = planOutcomeLabel(outcome, passport, "計畫結果");
   const nextAction = outcome.next_action_label || passport.next_action || asset.next_action || "等待後端下一步";
   const contentReview = outcome.content_review?.has_review || passport.content_review_count
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
@@ -272,7 +272,7 @@ function renderReviewWorkspace() {
       <span class="eyebrow">Adapter Review</span>
       <strong>${escapeHtml(String(latestAdapterReview.item_count))} 筆需要審核</strong>
       <div class="context-chip-row">
-        ${outcomes.map((outcome) => `<span class="context-chip">${escapeHtml(outcome.display_label || outcome.outcome_bucket)} ${escapeHtml(String(outcome.count || 0))}</span>`).join("")}
+        ${outcomes.map((outcome) => `<span class="context-chip">${escapeHtml(reviewOutcomeLabel(outcome))} ${escapeHtml(String(outcome.count || 0))}</span>`).join("")}
       </div>
     </section>
     <section class="review-card">
@@ -765,7 +765,7 @@ function renderSelectedHero(card, flowSteps = []) {
 function planOutcomePanelHtml(asset) {
   const outcome = latestPlanOutcomeForAsset(asset);
   if (!outcome) return "";
-  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const label = planOutcomeLabel(outcome, null, "計畫結果");
   const summary = outcome.summary || outcome.next_action_label || "最近一次計畫結果可供檢視。";
   const tone = toneClass(outcome.display_tone);
   const contentReview = outcome.content_review?.has_review
@@ -809,7 +809,7 @@ function planPassportPanelHtml(asset) {
     <section class="plan-passport-panel ${tone}">
       <div>
         <span class="eyebrow">Plan Passport</span>
-        <strong>${escapeHtml(passport.short_label || passport.outcome_bucket || "計畫護照")}</strong>
+        <strong>${escapeHtml(planPassportLabel(passport))}</strong>
         <p>${escapeHtml(resolvedLabel)} · ${escapeHtml(nextAction || "等待下一步")}</p>
       </div>
       <div class="plan-outcome-metrics">
@@ -831,7 +831,7 @@ function planPassportPanelHtml(asset) {
 function planOutcomeHeroHtml(asset) {
   const outcome = latestPlanOutcomeForAsset(asset);
   if (!outcome) return "";
-  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const label = planOutcomeLabel(outcome, null, "計畫結果");
   const tone = toneClass(outcome.display_tone);
   return `
     <div class="hero-plan-outcome ${tone}" title="${escapeAttr(outcome.summary || outcome.next_action_label || label)}">
@@ -844,7 +844,7 @@ function planOutcomeHeroHtml(asset) {
 function planBadgeHtml(asset) {
   const outcome = latestPlanOutcomeForAsset(asset);
   if (!outcome) return "";
-  const label = outcome.short_label || outcome.display_label || outcome.outcome_bucket || "計畫結果";
+  const label = planOutcomeLabel(outcome, null, "計畫結果");
   const tone = toneClass(outcome.display_tone);
   const contentReview = outcome.content_review?.has_review
     ? `<span class="plan-badge review">${escapeHtml(outcome.content_review.display_label || "內容待辦")}</span>`
@@ -918,6 +918,21 @@ function toneClass(tone) {
   return "neutral";
 }
 
+function planOutcomeLabel(outcome, passport = null, fallback = "計畫結果") {
+  const label = String(outcome?.short_label || outcome?.display_label || passport?.short_label || "").trim();
+  return label || fallback;
+}
+
+function planPassportLabel(passport, fallback = "計畫護照") {
+  const label = String(passport?.short_label || passport?.display_label || "").trim();
+  return label || fallback;
+}
+
+function reviewOutcomeLabel(outcome, fallback = "待辦分類") {
+  const label = String(outcome?.display_label || outcome?.short_label || "").trim();
+  return label || fallback;
+}
+
 function stalePassportLabel(passport) {
   const label = String(passport?.stale_label || "").trim();
   if (label) return label;
@@ -935,7 +950,7 @@ function stalePassportNextAction(passport) {
 
 function adapterReviewOutcomeText(outcomes) {
   if (!outcomes.length) return "無待辦分類";
-  return outcomes.map((outcome) => `${outcome.display_label || outcome.outcome_bucket} ${outcome.count}`).join(" / ");
+  return outcomes.map((outcome) => `${reviewOutcomeLabel(outcome)} ${outcome.count}`).join(" / ");
 }
 
 function contentReviewText(buckets) {
