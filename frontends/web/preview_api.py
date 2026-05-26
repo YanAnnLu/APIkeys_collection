@@ -25,7 +25,7 @@ from api_launcher.crawler_asset_profiles import (
 )
 from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
-from api_launcher.crawler_run_records import crawler_run_record_from_result
+from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.paths import default_local_downloads_root, state_file
@@ -205,53 +205,7 @@ def web_preview_recent_events(*, limit: int = 50) -> dict[str, object]:
 def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
     context = event.get("context") if isinstance(event.get("context"), dict) else {}
     assert isinstance(context, dict)
-    summary_keys = (
-        "asset_id",
-        "source_found",
-        "blocked",
-        "blocked_reason",
-        "candidate_count",
-        "upserted_count",
-        "skipped_provider_count",
-        "duplicate_count",
-        "error_count",
-        "warning_count",
-        "outcome_bucket",
-        "outcome_label",
-        "direct_download_count",
-        "review_required_count",
-        "review_queue_count",
-        "stage",
-        "succeeded",
-        "row_count",
-        "next_action",
-        "user_next_action",
-    )
-    context_summary = {key: context[key] for key in summary_keys if key in context}
-    if isinstance(context.get("content_review"), dict):
-        content_review = context["content_review"]
-        context_summary["content_review"] = {
-            "display_label": content_review.get("display_label", ""),
-            "display_tone": content_review.get("display_tone", ""),
-            "count": content_review.get("count", 0),
-            "has_review": bool(content_review.get("has_review")),
-        }
-    if isinstance(context.get("run_record"), dict):
-        run_record = context["run_record"]
-        context_summary["run_record"] = {
-            "record_key": run_record.get("record_key", ""),
-            "stage": run_record.get("stage", ""),
-            "status": run_record.get("status", ""),
-            "outcome_bucket": run_record.get("outcome_bucket", ""),
-            "candidate_count": run_record.get("candidate_count", 0),
-            "direct_download_count": run_record.get("direct_download_count", 0),
-            "review_required_count": run_record.get("review_required_count", 0),
-            "error_count": run_record.get("error_count", 0),
-            "warning_count": run_record.get("warning_count", 0),
-            "duplicate_count": run_record.get("duplicate_count", 0),
-            "candidate_snapshot_count": run_record.get("candidate_snapshot_count", 0),
-            "next_action": run_record.get("next_action", ""),
-        }
+    context_summary = crawler_run_context_summary(context)
     return {
         "timestamp": str(event.get("timestamp") or ""),
         "level": str(event.get("level") or "info"),

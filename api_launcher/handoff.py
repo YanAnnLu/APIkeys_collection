@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from api_launcher.crawler_run_records import crawler_run_event_summary
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.db import utc_now_iso
@@ -306,87 +307,6 @@ def crawler_run_handoff_summary(events: list[dict[str, object]]) -> dict[str, An
         "latest_listing": crawler_run_event_summary(latest_listing),
         "latest_download_plan_build": crawler_run_event_summary(latest_plan_build),
     }
-
-
-def crawler_run_event_summary(event: dict[str, object]) -> dict[str, Any]:
-    if not event:
-        return {}
-    context = event.get("context") if isinstance(event.get("context"), dict) else {}
-    run_record = context.get("run_record") if isinstance(context.get("run_record"), dict) else {}
-    content_review = context.get("content_review") if isinstance(context.get("content_review"), dict) else {}
-    summary: dict[str, Any] = {
-        "event_at": str(event.get("timestamp") or ""),
-        "event": str(event.get("event") or ""),
-        "level": str(event.get("level") or ""),
-        "asset_id": str(context.get("asset_id") or run_record.get("asset_id") or ""),
-        "status": str(run_record.get("status") or context.get("status") or ""),
-        "outcome_bucket": str(run_record.get("outcome_bucket") or context.get("outcome_bucket") or ""),
-        "next_action": str(
-            context.get("user_next_action")
-            or context.get("next_action")
-            or run_record.get("next_action")
-            or ""
-        ),
-        "resolved_plan_available": "resolved_plan" in context and context.get("resolved_plan") is not None,
-    }
-    summary.update(crawler_run_event_counts(context, run_record))
-    if run_record:
-        summary["run_record"] = compact_crawler_run_record(run_record)
-    if content_review:
-        summary["content_review"] = {
-            "display_label": content_review.get("display_label", ""),
-            "display_tone": content_review.get("display_tone", ""),
-            "count": content_review.get("count", 0),
-            "has_review": bool(content_review.get("has_review")),
-        }
-    return summary
-
-
-def crawler_run_event_counts(
-    context: dict[str, object],
-    run_record: dict[str, object],
-) -> dict[str, object]:
-    count_keys = (
-        "candidate_count",
-        "upserted_count",
-        "skipped_provider_count",
-        "direct_download_count",
-        "review_required_count",
-        "review_queue_count",
-        "error_count",
-        "warning_count",
-        "duplicate_count",
-        "candidate_snapshot_count",
-    )
-    counts: dict[str, object] = {}
-    for key in count_keys:
-        if key in run_record:
-            counts[key] = run_record[key]
-        elif key in context:
-            counts[key] = context[key]
-    return counts
-
-
-def compact_crawler_run_record(run_record: dict[str, object]) -> dict[str, object]:
-    keep_keys = (
-        "record_key",
-        "stage",
-        "status",
-        "outcome_bucket",
-        "asset_id",
-        "source_id",
-        "candidate_count",
-        "direct_download_count",
-        "review_required_count",
-        "error_count",
-        "warning_count",
-        "duplicate_count",
-        "candidate_snapshot_count",
-        "next_action",
-        "storage_lane",
-        "future_sqlite_table",
-    )
-    return {key: run_record[key] for key in keep_keys if key in run_record}
 
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:

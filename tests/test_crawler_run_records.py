@@ -3,7 +3,11 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from api_launcher.crawler_run_records import crawler_run_record_from_result
+from api_launcher.crawler_run_records import (
+    crawler_run_context_summary,
+    crawler_run_event_summary,
+    crawler_run_record_from_result,
+)
 
 
 class CrawlerRunRecordTest(unittest.TestCase):
@@ -24,6 +28,56 @@ class CrawlerRunRecordTest(unittest.TestCase):
 
         self.assertEqual(record, extracted)
         self.assertIsNot(record, extracted)
+
+    def test_context_summary_keeps_run_record_counts_without_resolved_plan_body(self) -> None:
+        summary = crawler_run_context_summary(
+            {
+                "asset_id": "sample_asset",
+                "candidate_count": 4,
+                "resolved_plan": {"providers": [{"large": "payload"}]},
+                "run_record": {
+                    "record_key": "abc123",
+                    "stage": "download_plan_build",
+                    "status": "review",
+                    "candidate_count": 4,
+                    "direct_download_count": 1,
+                    "review_required_count": 3,
+                    "source_signature": "hidden-from-compact-summary",
+                },
+            }
+        )
+
+        self.assertEqual("sample_asset", summary["asset_id"])
+        self.assertEqual(4, summary["candidate_count"])
+        self.assertEqual("download_plan_build", summary["run_record"]["stage"])
+        self.assertEqual(1, summary["run_record"]["direct_download_count"])
+        self.assertNotIn("resolved_plan", summary)
+        self.assertNotIn("source_signature", summary["run_record"])
+
+    def test_event_summary_reports_resolved_plan_presence_without_copying_payload(self) -> None:
+        summary = crawler_run_event_summary(
+            {
+                "timestamp": "2026-05-26T13:00:00+00:00",
+                "level": "info",
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "sample_asset",
+                    "resolved_plan": {},
+                    "run_record": {
+                        "record_key": "def456",
+                        "stage": "download_plan_build",
+                        "status": "ready",
+                        "direct_download_count": 2,
+                    },
+                },
+            }
+        )
+
+        self.assertEqual("crawler_asset_plan_outcome_recorded", summary["event"])
+        self.assertEqual("sample_asset", summary["asset_id"])
+        self.assertEqual(2, summary["direct_download_count"])
+        self.assertTrue(summary["resolved_plan_available"])
+        self.assertNotIn("resolved_plan", summary)
 
 
 if __name__ == "__main__":

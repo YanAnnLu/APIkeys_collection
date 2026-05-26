@@ -104,6 +104,7 @@ http://127.0.0.1:8765/
 - Web Preview 側欄四個工作區已啟用：`爬蟲資產` 保留主要界域與資產護照心流；`下載器` 顯示已建立的 `plan_outcome` / `plan_passport` 摘要；`匯入審核` 顯示最近一次 plan build 回傳的 Adapter review 與 content parser 待辦；`事件紀錄` 讀取 `/api/events/recent` 的 structured event 摘要。這些分頁都只視覺化後端契約，不在 JS 裡重寫下載、匯入或審核規則。
 - `/api/events/recent` 會保留 crawler listing 的 bounded counts：candidate、upserted、skipped provider、duplicate、warning/error 與 compact `run_record` counts。事件分頁會優先顯示 `asset_id`、`run_record`、核心 counts 與 next action，讓 listing 與 plan build 都能被掃描；完整 payload 仍留在 `state/logs/launcher_events.jsonl`。
 - 需要跨 agent 接手時，優先讀 `--handoff-report-json` 的 `crawler_run_summary`；Web 事件分頁是人類掃描與 UIUX 驗證層，不是唯一狀態來源。
+- Web 事件摘要改由 `api_launcher.crawler_run_records.crawler_run_context_summary()` 產生；前端 JS 只渲染 summary，不維護自己的 event 白名單或 `run_record` 壓縮規則。
 - Web Preview 的 crawler asset card/detail 會優先讀 asset profile 裡的 compact `latest_plan_passport`，再退回近期 `crawler_asset_plan_outcome_recorded` event。兩條路徑都只保留 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/provider gate、簡化 bounds 與 next action 等白名單欄位；完整 `providers` / resolved plan body 不會進入 profile 或事件還原 payload。這讓頁面重載後的「下載器」分頁與資產護照仍能顯示真實後端狀態，而不是依賴 JS localStorage。
 - 其中 `candidate_snapshot_signature` / `candidate_snapshot_count` 是後端 plan build 的候選快照摘要。前端可以顯示或保留它，但不能把它當成遠端自動更新通知；`candidate_snapshot_changed` 也必須由使用者明確重跑 crawl / rebuild plan 後，讓後端比較新舊 digest 才能更新。Web Preview 目前只在下載器列與 Plan Passport 面板顯示這個旗標，不在 JS 端重做比較。
 

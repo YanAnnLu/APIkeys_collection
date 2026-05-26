@@ -1,8 +1,64 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from hashlib import sha256
-from typing import Mapping
+
+
+RUN_EVENT_SUMMARY_KEYS = (
+    "asset_id",
+    "source_found",
+    "blocked",
+    "blocked_reason",
+    "candidate_count",
+    "upserted_count",
+    "skipped_provider_count",
+    "duplicate_count",
+    "error_count",
+    "warning_count",
+    "outcome_bucket",
+    "outcome_label",
+    "direct_download_count",
+    "review_required_count",
+    "review_queue_count",
+    "stage",
+    "succeeded",
+    "row_count",
+    "next_action",
+    "user_next_action",
+)
+
+RUN_RECORD_SUMMARY_KEYS = (
+    "record_key",
+    "stage",
+    "status",
+    "outcome_bucket",
+    "asset_id",
+    "source_id",
+    "candidate_count",
+    "direct_download_count",
+    "review_required_count",
+    "error_count",
+    "warning_count",
+    "duplicate_count",
+    "candidate_snapshot_count",
+    "next_action",
+    "storage_lane",
+    "future_sqlite_table",
+)
+
+RUN_COUNT_KEYS = (
+    "candidate_count",
+    "upserted_count",
+    "skipped_provider_count",
+    "direct_download_count",
+    "review_required_count",
+    "review_queue_count",
+    "error_count",
+    "warning_count",
+    "duplicate_count",
+    "candidate_snapshot_count",
+)
 
 
 def crawler_run_record(
@@ -82,7 +138,83 @@ def crawler_run_record_from_result(result: object) -> dict[str, object]:
     return dict(run_record) if isinstance(run_record, dict) else {}
 
 
+def crawler_run_context_summary(context: Mapping[str, object]) -> dict[str, object]:
+    """把 crawler event context 壓成 Web / handoff 可共用的白名單摘要。"""
+
+    summary: dict[str, object] = {key: context[key] for key in RUN_EVENT_SUMMARY_KEYS if key in context}
+    content_review = context.get("content_review")
+    if isinstance(content_review, Mapping):
+        summary["content_review"] = {
+            "display_label": content_review.get("display_label", ""),
+            "display_tone": content_review.get("display_tone", ""),
+            "count": content_review.get("count", 0),
+            "has_review": bool(content_review.get("has_review")),
+        }
+    run_record = context.get("run_record")
+    if isinstance(run_record, Mapping):
+        summary["run_record"] = compact_crawler_run_record(run_record)
+    return summary
+
+
+def crawler_run_event_summary(event: Mapping[str, object]) -> dict[str, object]:
+    """把完整 structured event 壓成 agent handoff 用的 bounded run 摘要。"""
+
+    if not event:
+        return {}
+    context = event.get("context") if isinstance(event.get("context"), Mapping) else {}
+    assert isinstance(context, Mapping)
+    run_record = context.get("run_record") if isinstance(context.get("run_record"), Mapping) else {}
+    assert isinstance(run_record, Mapping)
+    summary: dict[str, object] = {
+        "event_at": str(event.get("timestamp") or ""),
+        "event": str(event.get("event") or ""),
+        "level": str(event.get("level") or ""),
+        "asset_id": str(context.get("asset_id") or run_record.get("asset_id") or ""),
+        "status": str(run_record.get("status") or context.get("status") or ""),
+        "outcome_bucket": str(run_record.get("outcome_bucket") or context.get("outcome_bucket") or ""),
+        "next_action": str(
+            context.get("user_next_action")
+            or context.get("next_action")
+            or run_record.get("next_action")
+            or ""
+        ),
+        "resolved_plan_available": "resolved_plan" in context and context.get("resolved_plan") is not None,
+    }
+    summary.update(crawler_run_event_counts(context, run_record))
+    if run_record:
+        summary["run_record"] = compact_crawler_run_record(run_record)
+    content_review = context.get("content_review")
+    if isinstance(content_review, Mapping):
+        summary["content_review"] = {
+            "display_label": content_review.get("display_label", ""),
+            "display_tone": content_review.get("display_tone", ""),
+            "count": content_review.get("count", 0),
+            "has_review": bool(content_review.get("has_review")),
+        }
+    return summary
+
+
+def crawler_run_event_counts(
+    context: Mapping[str, object],
+    run_record: Mapping[str, object],
+) -> dict[str, object]:
+    counts: dict[str, object] = {}
+    for key in RUN_COUNT_KEYS:
+        if key in run_record:
+            counts[key] = run_record[key]
+        elif key in context:
+            counts[key] = context[key]
+    return counts
+
+
+def compact_crawler_run_record(run_record: Mapping[str, object]) -> dict[str, object]:
+    return {key: run_record[key] for key in RUN_RECORD_SUMMARY_KEYS if key in run_record}
+
+
 __all__ = [
+    "compact_crawler_run_record",
+    "crawler_run_context_summary",
+    "crawler_run_event_summary",
     "crawler_run_record",
     "crawler_run_record_from_result",
     "crawler_run_record_key",
