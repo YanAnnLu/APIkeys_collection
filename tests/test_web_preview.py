@@ -350,6 +350,62 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("review", event["context_summary"]["run_record"]["status"])
         self.assertEqual("內容 Parser 待辦 1", event["context_summary"]["content_review"]["display_label"])
 
+    def test_web_preview_recent_events_keeps_listing_run_counts(self) -> None:
+        events = [
+            {
+                "timestamp": "2026-05-26T11:00:00+08:00",
+                "level": "warning",
+                "event": "crawler_asset_listing_recorded",
+                "component": "tk.crawler_assets",
+                "message": "crawler listing recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "source_found": True,
+                    "blocked": False,
+                    "candidate_count": 12,
+                    "upserted_count": 9,
+                    "skipped_provider_count": 1,
+                    "duplicate_count": 2,
+                    "error_count": 0,
+                    "warning_count": 1,
+                    "next_action": "review_candidates_or_build_plan",
+                    "run_record": {
+                        "record_key": "listing123456789",
+                        "stage": "crawler_listing",
+                        "status": "warning",
+                        "outcome_bucket": "listing_warning",
+                        "candidate_count": 12,
+                        "direct_download_count": 0,
+                        "review_required_count": 0,
+                        "error_count": 0,
+                        "warning_count": 1,
+                        "duplicate_count": 2,
+                        "candidate_snapshot_count": 12,
+                        "next_action": "review_candidates_or_build_plan",
+                    },
+                    "resolved_plan": {"providers": [{"provider_id": "demo"}]},
+                },
+            }
+        ]
+
+        with patch("frontends.web.preview_api.latest_events", return_value=events):
+            payload = web_preview_recent_events(limit=20)
+
+        event = payload["events"][0]
+        summary = event["context_summary"]
+        self.assertEqual("crawler_asset_listing_recorded", event["event"])
+        self.assertEqual("demo_stac", summary["asset_id"])
+        self.assertEqual(12, summary["candidate_count"])
+        self.assertEqual(9, summary["upserted_count"])
+        self.assertEqual(1, summary["skipped_provider_count"])
+        self.assertEqual(2, summary["duplicate_count"])
+        self.assertEqual(1, summary["warning_count"])
+        self.assertNotIn("resolved_plan", summary)
+        self.assertEqual("crawler_listing", summary["run_record"]["stage"])
+        self.assertEqual(12, summary["run_record"]["candidate_count"])
+        self.assertEqual(2, summary["run_record"]["duplicate_count"])
+        self.assertEqual(1, summary["run_record"]["warning_count"])
+
     def test_plan_passport_summarizes_resolved_plan_without_copying_body(self) -> None:
         result = SimpleNamespace(
             asset_id="demo_stac",

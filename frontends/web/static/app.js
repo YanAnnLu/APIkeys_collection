@@ -344,15 +344,38 @@ function renderEventWorkspace() {
 }
 
 function contextChipsHtml(context) {
+  const priority = [
+    "asset_id",
+    "run_record",
+    "candidate_count",
+    "direct_download_count",
+    "review_required_count",
+    "warning_count",
+    "error_count",
+    "duplicate_count",
+    "next_action",
+    "user_next_action",
+    "content_review",
+  ];
   const entries = Object.entries(context)
     .filter(([, value]) => value !== "" && value !== null && value !== undefined)
-    .slice(0, 10);
+    .sort(([leftKey], [rightKey]) => {
+      const left = priority.indexOf(leftKey);
+      const right = priority.indexOf(rightKey);
+      if (left === -1 && right === -1) return 0;
+      if (left === -1) return 1;
+      if (right === -1) return -1;
+      return left - right;
+    })
+    .slice(0, 12);
   if (!entries.length) return "";
   return `
     <div class="context-chip-row">
       ${entries.map(([key, value]) => {
         if (typeof value === "object") {
-          const label = value.display_label || value.review_bucket || JSON.stringify(value);
+          const label = key === "run_record"
+            ? [value.stage, value.status].filter(Boolean).join(" / ")
+            : value.display_label || value.review_bucket || JSON.stringify(value);
           return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(label)}</span>`;
         }
         return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(String(value))}</span>`;

@@ -11,6 +11,7 @@ Last updated: 2026-05-26
 - [x] Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在也會保存 compact `run_record`；Web `/api/events/recent` 只回傳 bounded summary，避免前端或 agent 重新推理 crawler run 狀態。
 - [x] `crawler_run_record_from_result()` 會在 result 沒有 contract、`to_dict()` 失敗或 payload 不是 dict 時降級成空 payload，避免交接 payload 壞掉時拖垮 Tk/Web event logging。
 - [x] Tk 清單擷取成功時現在也會寫入 `crawler_asset_listing_recorded` structured event，保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`；listing 不再只存在 status bar 或一次性視窗狀態。
+- [x] Web Preview `/api/events/recent` 現在會把 `crawler_asset_listing_recorded` 的候選、upsert、skip、duplicate、warning/error counts 與 compact `run_record` counts 一起納入 bounded summary；事件分頁也會優先顯示 `run_record` 與核心 counts，方便 agent/人類不用重新跑 crawler 就能接手上一輪清單擷取結果。
 
 ## 2026-05-26 Source Pattern Draft Review Payload
 - [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。
@@ -61,6 +62,7 @@ Last updated: 2026-05-26
 - [x] Web Preview 右側資產護照已視覺化 `plan_passport`：建立下載計畫後會顯示 resolved-plan presence、Candidates、Direct、Review、Adapter、內容待辦與 credential/provider gate 摘要；瀏覽器驗證使用 port-scan 自動避開 8765，實際跑在 `127.0.0.1:8766`。
 - [x] 同一份 `plan_passport` 已延伸到 Tk 卡片護照：送進下載器後會寫入 compact passport、重開 UI 後可從 structured event 還原，右側 Crawler Passport 會顯示候選、可下載、待 Adapter、內容待辦、憑證與缺 Provider 摘要；完整 resolved plan 仍留在 review/download path。
 - [x] Web Preview 側欄工作區已從單一爬蟲資產頁擴成四分頁：`爬蟲資產`、`下載器`、`匯入審核`、`事件紀錄`。下載器分頁只顯示後端 `plan_outcome` / `plan_passport`；匯入審核只顯示最近 adapter/content review payload；事件紀錄讀 `/api/events/recent` 的 bounded structured event 摘要，不在 Web JS 內重寫下載或匯入規則。
+- [x] 事件紀錄分頁會優先排列 `asset_id`、`run_record`、候選數、direct/review counts、warning/error/duplicate counts 與 next action；這讓 crawler listing event 與 plan event 都能被快速掃描，不必打開完整 JSONL。
 - [x] Web Preview 現在會從 structured event 讀回 compact `plan_passport`，並透過白名單欄位灌回 crawler asset card/detail；頁面重載後的資產護照與下載器分頁仍能顯示 Candidates、Direct、Review、Adapter、內容待辦與 gate 摘要，但不把完整 resolved plan body 複製成前端狀態。
 - [x] `plan_passport` 已收斂為 asset profile 的 compact 欄位：Tk 與 Web 建立下載計畫後會只保存白名單狀態欄位與簡化 bounds，不保存完整 `providers` 或 resolved plan body。Web card/detail 會優先讀 profile passport，再退回近期 event；這讓跨 session 狀態比單純 event fallback 更穩。
 - [x] 下載計畫護照已包含候選 snapshot digest，讓 Web/Tk/Qt 能追溯本次 plan 來自哪一批候選資料。

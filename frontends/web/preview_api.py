@@ -207,6 +207,15 @@ def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
     assert isinstance(context, dict)
     summary_keys = (
         "asset_id",
+        "source_found",
+        "blocked",
+        "blocked_reason",
+        "candidate_count",
+        "upserted_count",
+        "skipped_provider_count",
+        "duplicate_count",
+        "error_count",
+        "warning_count",
         "outcome_bucket",
         "outcome_label",
         "direct_download_count",
@@ -234,6 +243,13 @@ def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
             "stage": run_record.get("stage", ""),
             "status": run_record.get("status", ""),
             "outcome_bucket": run_record.get("outcome_bucket", ""),
+            "candidate_count": run_record.get("candidate_count", 0),
+            "direct_download_count": run_record.get("direct_download_count", 0),
+            "review_required_count": run_record.get("review_required_count", 0),
+            "error_count": run_record.get("error_count", 0),
+            "warning_count": run_record.get("warning_count", 0),
+            "duplicate_count": run_record.get("duplicate_count", 0),
+            "candidate_snapshot_count": run_record.get("candidate_snapshot_count", 0),
             "next_action": run_record.get("next_action", ""),
         }
     return {

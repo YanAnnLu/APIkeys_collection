@@ -4,7 +4,8 @@
 
 - Tk 清單擷取完成後現在會額外寫入 `crawler_asset_listing_recorded` structured event，只保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`；這補上 `source profile -> crawler run -> candidate -> plan` 前半段的可追蹤性，但仍不是永久 SQLite run registry。
 
-- Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在會保存同一份 compact `run_record`。Web `/api/events/recent` 只暴露 `record_key`、`stage`、`status`、`outcome_bucket`、`next_action` 等 bounded summary，讓 agent 可以從事件紀錄讀狀態，但不會把完整 plan 或候選清單塞進 event log。
+- Tk / Web 建立爬蟲資產下載計畫時，`crawler_asset_plan_outcome_recorded` event context 現在會保存同一份 compact `run_record`。Web `/api/events/recent` 會暴露 bounded `run_record` summary 與核心 counts，讓 agent 可以從事件紀錄讀狀態，但不會把完整 plan 或候選清單塞進 event log。
+- `crawler_asset_listing_recorded` 的 Web summary 也會保留候選、upsert、skipped provider、duplicate、warning/error counts；這是 `source profile -> crawler run -> candidate` 的輕量接力面，不代表正式 SQLite run registry 已完成。
 - `crawler_run_record_from_result()` 是前端中立 helper：Tk/Web/未來 Qt 不應知道每個 result 如何計算 run status，只從 `result.to_dict()["run_record"]` 取 compact payload；沒有這個 contract 的 result 會回傳空 payload。
 - `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 現在都會輸出 `run_record`，作為 crawler run registry 正式落地前的 structured handoff payload。
 - `run_record` 目前固定帶 `stage`、`status`、`outcome_bucket`、候選/下載/review/error/warning/duplicate counts、`source_signature`、`bounds_signature`、`candidate_snapshot_signature`、`next_action` 與 16 字元 `record_key`。

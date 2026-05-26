@@ -4,6 +4,7 @@
 - `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 都已輸出 `run_record`。下一位 agent / Tk / Web / Qt 應優先讀 `payload["run_record"]` 做狀態交接，不要各自從 `candidate_count`、`warning_count`、`outcome_bucket` 等分散欄位重新推理。
 - Tk 與 Web Preview 的 `crawler_asset_plan_outcome_recorded` structured event context 現在也會帶 `run_record`。外部 agent 若從 event log 或 `/api/events/recent` 接手，應先讀 `context.run_record` / `context_summary.run_record`，再決定是否需要重建 plan 或補正式 run registry。
 - Tk 清單擷取完成後也會寫入 `crawler_asset_listing_recorded` structured event，保存 bounded counts、`next_action` 與 `run_record.stage=crawler_listing`。接手時若要理解「剛剛 crawler 找到多少候選」，先讀這個 event，不要只看 status bar 或重新跑遠端 crawler。
+- Web Preview `/api/events/recent` 現在也會保留 listing event 的候選/upsert/skip/duplicate/warning/error counts 與 compact `run_record` counts。接手 agent 若沒有 Tk 畫面，可直接讀 Web 事件摘要或完整 JSONL；不要因為缺 UI 狀態就重跑遠端 crawler。
 - `crawler_run_record_from_result()` 是降級式 helper：result 沒有 `to_dict()`、`to_dict()` 拋錯、或 payload 不含 dict 型 `run_record` 時會回傳 `{}`。UI/event logging 不應因 run-record handoff 缺失而中止主要 plan outcome 記錄。
 - 這仍是 handoff / structured event 層，不是永久 DB migration。`storage_lane=structured_event_log` 與 `future_sqlite_table=crawler_run_registry` 是後續 run registry 表設計的對齊提示；目前不要新增 SQLite 表或把它當成已完成 registry persistence。
 
@@ -49,6 +50,7 @@
 - Web Preview crawler asset card/detail 現在會優先從 asset profile 讀回 compact `latest_plan_passport`，再退回近期 `crawler_asset_plan_outcome_recorded` event。`frontends/web/preview_api.py` 只允許白名單欄位進入前端 payload，完整 `providers` / resolved plan body 不會從 profile 或 event log 回灌到 UI；因此頁面重載後的「下載器」分頁可顯示真實計畫護照摘要。
 - Tk Crawler Passport 也已接上同一份 compact `plan_passport`：送進下載器後會寫入 asset profile 的 `latest_plan_passport`，並同步記在 `crawler_asset_plan_passports` 與 `crawler_asset_plan_outcome_recorded` event context。重開 UI 可從 profile / 最近事件還原，右側 passport 顯示候選、可下載、待 Adapter、內容待辦、憑證阻擋與缺 Provider 摘要。完整 resolved plan 仍只留在 review/download path；下一步要處理 stale 判斷，不要擴大保存內容。
 - Web Preview 側欄目前四個工作區都已啟用：`爬蟲資產` 是原本的界域/資產護照主流程；`下載器` 只視覺化已建立的 `plan_outcome` / `plan_passport`；`匯入審核` 只視覺化最近 plan build 回傳的 Adapter review / content parser 待辦；`事件紀錄` 讀 `/api/events/recent` 的 bounded structured event 摘要。這是 UIUX 前導層，不是正式 Web downloader；不要在 `app.js` 內新增下載、匯入或 adapter 判斷規則。
+- 事件紀錄分頁的 chip 會優先顯示 `run_record` 與 crawler/download 核心 counts；前端只負責排序摘要，不自行推導 run 狀態。
 - `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help` / `display_tone` / `summary`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
 - Tk 的爬蟲資產分頁已開始使用同一份 display schema：表格短狀態改取 `plan_outcome.short_label`，避免 Tk/Web/Qt 各自維護 outcome bucket 文案。下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章；不要把外部參考命名搬回 UI。
