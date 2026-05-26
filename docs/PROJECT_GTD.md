@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-26
 
+## 2026-05-26 Source Pattern Draft Review Payload
+- [x] `api_launcher/source_pattern_drafts.py` 現在用 `SourcePatternDraftError` 表示 URL detector 被擋在 review 的情況，並輸出 `review_reason`、`minimum_confidence`、`source_pattern_detection`、`skipped` 與 `next_action=review_source_profile_or_add_detector`。
+- [x] `--write-source-draft-from-url ... --write-source-draft-json ...` 在 unknown / low-confidence / missing source type / unsupported source type 時會先寫出 blocked summary JSON，再讓 CLI 失敗；這讓 agent/Tk/Web/Qt 可以讀 structured result，而不是只看到 traceback。
+- [x] 測試已覆蓋 unknown、低信心、缺 source type、unsupported source type，以及 CLI blocked JSON handoff；成功寫入 local source draft 的既有路徑不變。
+
 ## 2026-05-26 Plan Passport stale guard
 - [x] `latest_plan_passport` 現在會保存 `saved_at`、`profile_state`、`stale` 與 `stale_reason`。當 crawler asset profile 被停用或封存後，Web/Tk 會把既有 plan passport 標成需要重建，而不是讓舊下載計畫看起來仍然可用。
 - [x] 後端判斷集中在 `api_launcher/crawler_asset_profiles.py`，`crawler_assets` 只取 display-safe payload，Web/Tk 只呈現結果，避免把 stale 規則散落到 UI。

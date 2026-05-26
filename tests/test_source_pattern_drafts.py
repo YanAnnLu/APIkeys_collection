@@ -6,9 +6,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from api_launcher.crawlers.html_index import html_file_index_candidates_from_text
-from api_launcher.crawlers.source_patterns import SourcePatternDetection, UNKNOWN_PATTERN_ID
+from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE, SourcePatternDetection, UNKNOWN_PATTERN_ID
 from api_launcher.crawlers.source_type_registry import source_type_is_file_index
 from api_launcher.source_pattern_drafts import (
+    SourcePatternDraftError,
     dataset_source_from_detected_url,
     write_source_draft_from_url,
 )
@@ -219,8 +220,15 @@ class SourcePatternDraftTest(unittest.TestCase):
                 candidates=(),
             )
 
-        with self.assertRaisesRegex(ValueError, "unknown"):
+        with self.assertRaisesRegex(SourcePatternDraftError, "unknown") as caught:
             dataset_source_from_detected_url("https://example.test/landing", detector=detector)
+
+        payload = caught.exception.to_dict()
+        self.assertEqual("source_pattern_unknown", payload["review_reason"])
+        self.assertEqual("review_source_profile_or_add_detector", payload["next_action"])
+        self.assertEqual(0, payload["source_draft_count"])
+        self.assertEqual("unknown", payload["source_pattern_detection"]["pattern_id"])
+        self.assertEqual("source_pattern_unknown", payload["skipped"][0]["reason_code"])
 
     def test_low_confidence_detector_stays_in_review_even_with_source_hint(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
@@ -231,8 +239,31 @@ class SourcePatternDraftTest(unittest.TestCase):
                 source_type_hint="stac_collections",
             )
 
-        with self.assertRaisesRegex(ValueError, "below minimum"):
+        with self.assertRaisesRegex(SourcePatternDraftError, "below minimum") as caught:
             dataset_source_from_detected_url("https://example.test/landing", detector=detector)
+
+        payload = caught.exception.to_dict()
+        self.assertEqual("source_pattern_below_minimum_confidence", payload["review_reason"])
+        self.assertEqual("stac", payload["source_pattern_detection"]["pattern_id"])
+        self.assertEqual("stac_collections", payload["source_pattern_detection"]["source_type_hint"])
+        self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, payload["minimum_confidence"])
+
+    def test_missing_source_type_hint_stays_in_structured_review(self) -> None:
+        def detector(_url: str) -> SourcePatternDetection:
+            return SourcePatternDetection(
+                pattern_id="vendor_custom",
+                confidence=0.9,
+                evidence=("custom_api_shape",),
+                source_type_hint="",
+            )
+
+        with self.assertRaisesRegex(SourcePatternDraftError, "no supported source type") as caught:
+            dataset_source_from_detected_url("https://example.test/api", detector=detector)
+
+        payload = caught.exception.to_dict()
+        self.assertEqual("source_pattern_missing_source_type", payload["review_reason"])
+        self.assertEqual("vendor_custom", payload["source_pattern_detection"]["pattern_id"])
+        self.assertEqual("review_source_profile_or_add_detector", payload["next_action"])
 
     def test_unsupported_source_type_is_rejected_before_local_draft(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
@@ -243,8 +274,12 @@ class SourcePatternDraftTest(unittest.TestCase):
                 source_type_hint="unsupported_custom_api",
             )
 
-        with self.assertRaisesRegex(ValueError, "not supported"):
+        with self.assertRaisesRegex(SourcePatternDraftError, "not supported") as caught:
             dataset_source_from_detected_url("https://example.test/api", detector=detector)
+
+        payload = caught.exception.to_dict()
+        self.assertEqual("source_pattern_unsupported_source_type", payload["review_reason"])
+        self.assertEqual("unsupported_custom_api", payload["skipped"][0]["detected_source_type"])
 
     def test_non_http_source_url_is_rejected_before_detection(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:

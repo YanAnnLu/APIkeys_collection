@@ -31,6 +31,54 @@ SourcePatternDraftDetector = Callable[[str], SourcePatternDetection]
 DEFAULT_HTML_FILE_INDEX_REGEX = (
     rf"(?i)\.({HTML_DATA_FILE_EXTENSION_ALTERNATION})(?:$|[?#])"
 )
+SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION = "review_source_profile_or_add_detector"
+
+
+class SourcePatternDraftError(ValueError):
+    """Source draft is intentionally blocked before writing local config."""
+
+    def __init__(
+        self,
+        reason_code: str,
+        message: str,
+        *,
+        source_url: str,
+        detection: SourcePatternDetection | None = None,
+        minimum_confidence: float = DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
+        detected_source_type: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.source_url = source_url
+        self.detection = detection
+        self.minimum_confidence = minimum_confidence
+        self.detected_source_type = detected_source_type
+
+    def to_dict(self) -> dict[str, object]:
+        # 這份 payload 是給 CLI/Tk/Web/agent 的 review handoff；被擋下的 URL 不應只剩 traceback。
+        detection_payload = self.detection.to_dict() if self.detection is not None else {}
+        skipped_item = {
+            "source_url": self.source_url,
+            "reason_code": self.reason_code,
+            "message": str(self),
+            "source_pattern_detection": detection_payload,
+        }
+        if self.detected_source_type:
+            skipped_item["detected_source_type"] = self.detected_source_type
+        return {
+            "schema_version": 1,
+            "role": "source pattern draft blocked for review; no local source was written",
+            "source_url": self.source_url,
+            "source_draft_count": 0,
+            "skipped_count": 1,
+            "review_reason": self.reason_code,
+            "review_message": str(self),
+            "minimum_confidence": self.minimum_confidence,
+            "next_action": SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION,
+            "source_pattern_detection": detection_payload,
+            "sources": [],
+            "skipped": [skipped_item],
+        }
 
 
 def dataset_source_from_detected_url(
@@ -62,14 +110,39 @@ def dataset_source_from_detected_url(
         detector=detector,
     )
     if detection.pattern_id == UNKNOWN_PATTERN_ID:
-        raise ValueError("source pattern detector returned unknown; keep this URL in review")
+        raise SourcePatternDraftError(
+            "source_pattern_unknown",
+            "source pattern detector returned unknown; keep this URL in review",
+            source_url=normalized_url,
+            detection=detection,
+            minimum_confidence=minimum_confidence,
+        )
     if detection.confidence < minimum_confidence:
-        raise ValueError("source pattern detector confidence is below minimum; keep this URL in review")
+        raise SourcePatternDraftError(
+            "source_pattern_below_minimum_confidence",
+            "source pattern detector confidence is below minimum; keep this URL in review",
+            source_url=normalized_url,
+            detection=detection,
+            minimum_confidence=minimum_confidence,
+        )
     source_type = detection.source_type_hint.strip()
     if not source_type:
-        raise ValueError("source pattern detector returned no supported source type; keep this URL in review")
+        raise SourcePatternDraftError(
+            "source_pattern_missing_source_type",
+            "source pattern detector returned no supported source type; keep this URL in review",
+            source_url=normalized_url,
+            detection=detection,
+            minimum_confidence=minimum_confidence,
+        )
     if source_type not in SUPPORTED_DATASET_SOURCE_TYPES:
-        raise ValueError(f"detected source type is not supported by a dataset crawler: {source_type}")
+        raise SourcePatternDraftError(
+            "source_pattern_unsupported_source_type",
+            f"detected source type is not supported by a dataset crawler: {source_type}",
+            source_url=normalized_url,
+            detection=detection,
+            minimum_confidence=minimum_confidence,
+            detected_source_type=source_type,
+        )
 
     parsed = urllib.parse.urlparse(normalized_url)
     provider = safe_identifier(provider_id) or provider_id_from_url(parsed)

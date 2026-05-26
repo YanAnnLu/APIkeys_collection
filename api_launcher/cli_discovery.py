@@ -19,7 +19,7 @@ from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
 from api_launcher.event_log import log_event
 from api_launcher.repository import load_providers
 from api_launcher.paths import catalog_file, local_config_file, state_file
-from api_launcher.source_pattern_drafts import write_source_draft_from_url
+from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 
 
 def add_discovery_args(parser: argparse.ArgumentParser) -> None:
@@ -182,19 +182,45 @@ def write_source_draft_from_url_cli(args: argparse.Namespace) -> None:
         return
     # URL detector 只寫入 ignored local source draft；真正 catalog promotion 仍需 local discovery audit。
     output_path = local_config_file(args.source_draft_local)
-    summary = write_source_draft_from_url(
-        args.write_source_draft_from_url,
-        output_path,
-        provider_id=args.source_draft_provider_id,
-        name=args.source_draft_name,
-        source_id=args.source_draft_source_id,
-        categories=tuple(args.source_draft_category or ()),
-        geographic_scope=args.source_draft_scope,
-        max_results=args.source_draft_max_results,
-        min_expected_candidates=args.source_draft_min_expected_candidates,
-        timeout=args.source_draft_detector_timeout,
-        minimum_confidence=args.source_draft_detector_min_confidence,
-    )
+    try:
+        summary = write_source_draft_from_url(
+            args.write_source_draft_from_url,
+            output_path,
+            provider_id=args.source_draft_provider_id,
+            name=args.source_draft_name,
+            source_id=args.source_draft_source_id,
+            categories=tuple(args.source_draft_category or ()),
+            geographic_scope=args.source_draft_scope,
+            max_results=args.source_draft_max_results,
+            min_expected_candidates=args.source_draft_min_expected_candidates,
+            timeout=args.source_draft_detector_timeout,
+            minimum_confidence=args.source_draft_detector_min_confidence,
+        )
+    except SourcePatternDraftError as exc:
+        summary = exc.to_dict()
+        summary_path_text = ""
+        if args.write_source_draft_json:
+            summary_path = resolve_project_path(args.write_source_draft_json)
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
+            summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            summary_path_text = str(summary_path)
+            print(f"[discover] wrote blocked source draft summary to {summary_path}")
+        log_event(
+            "source_pattern_source_draft_blocked",
+            "source pattern detector kept a URL in review before writing local config",
+            level="warning",
+            component="discovery",
+            context={
+                "source_url": args.write_source_draft_from_url,
+                "dataset_source_path": str(output_path),
+                "summary_path": summary_path_text,
+                "review_reason": summary.get("review_reason", ""),
+                "minimum_confidence": summary.get("minimum_confidence", ""),
+                "source_pattern_detection": summary.get("source_pattern_detection", {}),
+                "next_action": summary.get("next_action", ""),
+            },
+        )
+        raise
     summary_path_text = ""
     detection = summary.get("source_pattern_detection", {})
     print(

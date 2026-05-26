@@ -15,6 +15,7 @@ from api_launcher.discovery_drafts import normalize_endpoint_for_source_type
 from api_launcher.discovery_drafts import SOURCE_ENDPOINT_NORMALIZERS
 from api_launcher.discovery_drafts import SOURCE_TYPE_INFERENCE_RULES
 from api_launcher.discovery_drafts import write_provider_candidate_source_drafts
+from api_launcher.source_pattern_drafts import SourcePatternDraftError
 from api_launcher.source_pattern_drafts import dataset_source_from_detected_url
 from api_launcher.source_pattern_drafts import write_source_draft_from_url
 
@@ -332,6 +333,39 @@ class DiscoveryDraftTests(unittest.TestCase):
         self.assertIn("/erddap/tabledap/allDatasets.json", sources[0].endpoint_url)
         self.assertEqual("erddap", summary["source_pattern_detection"]["pattern_id"])
         self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
+
+    def test_cli_writes_blocked_source_draft_review_json_before_raising(self) -> None:
+        detection = SourcePatternDetection(
+            pattern_id="unknown",
+            confidence=0.1,
+            evidence=("below_minimum_confidence",),
+            source_type_hint="",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_sources_path = Path(tmpdir) / "dataset_discovery_sources.local.json"
+            summary_path = Path(tmpdir) / "source_pattern_blocked.json"
+            with patch("api_launcher.source_pattern_drafts.detect_source_interface_pattern", return_value=detection):
+                with self.assertRaises(SourcePatternDraftError):
+                    main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--write-source-draft-from-url",
+                            "https://example.test/landing",
+                            "--source-draft-local",
+                            str(local_sources_path),
+                            "--write-source-draft-json",
+                            str(summary_path),
+                        ]
+                    )
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(local_sources_path.exists())
+        self.assertEqual(0, summary["source_draft_count"])
+        self.assertEqual(1, summary["skipped_count"])
+        self.assertEqual("source_pattern_unknown", summary["review_reason"])
+        self.assertEqual("review_source_profile_or_add_detector", summary["next_action"])
+        self.assertEqual("unknown", summary["source_pattern_detection"]["pattern_id"])
 
     def test_erddap_deep_dataset_url_normalizes_to_all_datasets_endpoint(self) -> None:
         endpoint = normalize_endpoint_for_source_type(
