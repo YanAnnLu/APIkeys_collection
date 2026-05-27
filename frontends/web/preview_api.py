@@ -400,6 +400,7 @@ def crawler_asset_listing(
     response["listing_result"] = payload
     response["audit_summary"] = payload.get("audit_summary", {})
     response["next_action"] = result.next_action
+    response["next_action_label"] = next_action_display_label(response["next_action"])
     log_event(
         "crawler_asset_listing_recorded",
         "Web Preview crawler asset workflow recorded the visible listing outcome.",
@@ -666,6 +667,7 @@ def crawler_asset_plan_preview(
         "credential_guard": credential_guard,
         "next_action": "click_build_plan_to_call_backend" if not execute else "review_plan_outcome",
     }
+    response["next_action_label"] = next_action_display_label(response["next_action"])
     if not execute:
         return response
     if credential_status_blocks_plan(credential_guard):
@@ -704,6 +706,7 @@ def crawler_asset_plan_preview(
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
     response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
     response["next_action"] = result.user_next_action
+    response["next_action_label"] = str(plan_outcome.get("next_action_label") or next_action_display_label(response["next_action"]))
     log_event(
         "crawler_asset_plan_outcome_recorded",
         "Web Preview crawler asset workflow recorded the visible plan outcome.",

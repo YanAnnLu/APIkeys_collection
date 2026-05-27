@@ -481,7 +481,7 @@ async function runCrawlerAssetListingById(assetId, options = {}) {
       openCredentialEditorById(assetId);
       return;
     }
-    addMission("seed 枚舉完成", seedEnumerationDetail(result) || payload.next_action || "review candidates");
+    addMission("seed 枚舉完成", seedEnumerationDetail(result) || payload.next_action_label || payload.next_action || "review candidates");
     loadRecentEvents({ quiet: true });
     await loadAssets({ autoEnumerateSelected: false });
     await selectAsset(assetId, { autoEnumerate: false });
@@ -1273,15 +1273,15 @@ async function submitBounds(execute) {
     if (payload.plan_outcome) {
       rememberAssetPlanOutcome(selectedAssetId, payload.plan_outcome);
       rememberAssetPlanPassport(selectedAssetId, payload.plan_passport);
-      formState.textContent = payload.plan_outcome.display_label || payload.next_action || "review";
+      formState.textContent = payload.plan_outcome.display_label || payload.next_action_label || payload.next_action || "review";
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
       setContentReviewBadge(payload.plan_outcome.content_review);
-      addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action || "review");
+      addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action_label || payload.next_action || "review");
       renderAssetGrid();
       refreshSelectedAssetOutcomeViews();
     } else {
       setContentReviewBadge(null);
-      addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action || "review"}`);
+      addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action_label || payload.next_action || "review"}`);
     }
     if (payload.adapter_review) {
       latestAdapterReview = payload.adapter_review;

@@ -746,6 +746,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(0, listing_kwargs["max_pages"])
         self.assertEqual("demo_stac", payload["asset_id"])
         self.assertEqual("review_or_upsert_dataset_candidates", payload["next_action"])
+        self.assertEqual("審核或寫入候選資料", payload["next_action_label"])
         self.assertEqual(3, payload["listing_result"]["candidate_count"])
         self.assertEqual("complete_seed", payload["listing_options"]["listing_mode"])
         self.assertEqual(2, payload["listing_result"]["upserted_count"])
@@ -1314,6 +1315,8 @@ class WebPreviewApiTest(unittest.TestCase):
 
         self.assertFalse(payload["execute"])
         self.assertNotIn("plan_result", payload)
+        self.assertEqual("click_build_plan_to_call_backend", payload["next_action"])
+        self.assertEqual("建立下載計畫並交給後端判斷", payload["next_action_label"])
         bounds = payload["bounds_payload"]
         self.assertEqual("landsat-c2", bounds["facet_values"]["collection"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), bounds["facet_values"]["bbox"])
@@ -1361,6 +1364,8 @@ class WebPreviewApiTest(unittest.TestCase):
 
         passport = payload["plan_passport"]
         persisted_passport = profiles["demo_stac"].latest_plan_passport
+        self.assertEqual("open_downloader_and_start_or_pause_queue", payload["next_action"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
         self.assertEqual("demo_stac", passport["asset_id"])
         self.assertTrue(passport["has_resolved_plan"])
         self.assertEqual(1, passport["candidate_count"])

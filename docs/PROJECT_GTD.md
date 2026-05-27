@@ -16,6 +16,7 @@ Last updated: 2026-05-28
 - [x] 新增 `api_launcher/crawler_asset_download.py`，把正式下載 / 匯入流程收成 service：`crawler asset + bounds payload -> resolved download plan -> direct download -> import pipeline`。這是 Web `真下載示範` 的正式替代路徑起點，不再以硬編碼 demo CSV 作為主要使用者下載入口。
 - [x] Web Preview 新增 `POST /api/crawler-assets/{asset_id}/download-import`，會先套 credential guard；缺登入/API Key 時回傳 `blocked_before_download` 與 `edit_local_credentials_before_live_download`，不發出必然失敗的 live request。
 - [x] Web crawler asset card、Crawler Passport、下載器清單與缺憑證 blocked payload 已補 `next_action_label`：前端優先顯示「先探測資料結構，再定義界域」「先完成登入設定，再下載資料」等人類可讀下一步，raw `next_action` 保留給 JSON / agent debug。
+- [x] Web listing / plan-preview 成功路徑也補 top-level `next_action_label`：seed 枚舉 mission、dry-run 界域 payload 與 execute 建計畫結果會優先顯示人類可讀下一步，不再退回 raw action id。
 - [x] Web 下載器主按鈕已改為「下載 / 匯入目前資產」，下載器清單每個資產也有「下載 / 匯入」動作。結果列顯示 Submitted、Completed、Imported、Downloads、Plan、SQLite artifacts，讓使用者看到正式 pipeline 的實際輸出。
 - [x] 本輪 live smoke 確認 K/RaiDrive 上直接匯入 SQLite 可能遇到 `database is locked`；同一路徑改用本地 temp/downloads 後成功完成 `download_import_completed`、`submitted=1`、`completed=1`、`imported=1`。後續 GUI/smoke/展示下載匯入仍應用本地 clone 或本機 Downloads/Temp。
 - [x] 已新增 regression：`tests.test_crawler_asset_download` 鎖住 service 會建立 formal resolved plan 並呼叫 download/import pipeline；`tests.test_web_preview` 鎖住 Web endpoint 會呼叫 formal service、記錄 structured event 並回傳 display payload。

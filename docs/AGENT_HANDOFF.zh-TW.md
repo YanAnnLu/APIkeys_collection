@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 05:16 Web plan/listing next-action label handoff
+- 本輪把 Web Preview 非缺憑證的 listing 與 plan-preview response 也補上 top-level `next_action_label`。`crawler_asset_listing()` 現在會把 `review_or_upsert_dataset_candidates` 轉成「審核或寫入候選資料」；`crawler_asset_plan_preview()` 的 dry-run / execute 路徑會分別輸出「建立下載計畫並交給後端判斷」或 plan outcome 的人類下一步。
+- `frontends/web/static/app.js` 的 seed 枚舉 mission、plan form state 與 plan mission 也改成優先讀 `payload.next_action_label`，避免成功路徑仍用 raw `next_action`。這仍是顯示層切片，不改 crawler、download、import 或 adapter review 行為。
+- 本地驗證已通過：in-memory Python syntax check OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 38 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，812 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_051719.log`。
+
 ## 2026-05-28 05:04 Tk listing blocked next-action label handoff
 - 本輪把 Tk 爬蟲資產「清單擷取被阻擋」status bar 訊息也接到共用 next-action label。`frontends/tk/crawler_asset_workflows.py` 新增 `crawler_asset_listing_blocked_status_text()`，由 `api_launcher.crawler_asset_display.next_action_display_label()` 將 `enable_before_crawl` 等 machine action 轉成人類可讀「先啟用爬蟲資產，再枚舉 seed」。
 - 這是 UI 顯示層切片，不改 crawler、repository、download 或 import 行為；目標是讓 Tk/Web/未來 Qt 都消費後端 display contract，不在使用者畫面露出 raw `next_action`。
