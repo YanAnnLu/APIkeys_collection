@@ -975,6 +975,13 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(detail["bound_form"]["presets"])
         self.assertEqual("global", detail["bound_form"]["presets"][0]["preset_id"])
         self.assertIn("bbox_west", detail["bound_form"]["presets"][0]["values"])
+        form_profile = detail["bound_form"]["form_profile"]
+        self.assertEqual("bounds_form_schema_probe_recommended", form_profile["profile_id"])
+        self.assertEqual(len(detail["bound_form"]["fields"]), form_profile["field_count"])
+        self.assertIn("time", form_profile["facet_ids"])
+        self.assertIn("bbox", form_profile["facet_ids"])
+        self.assertIn("time_field", form_profile["schema_probe_field_ids"])
+        self.assertEqual("apply_defaults_or_probe_schema", form_profile["next_action"])
         flow_step_ids = [step["step_id"] for step in detail["flow_steps"]]
         self.assertEqual(
             ["seed", "source_pattern", "bounds", "download_plan", "review_gate"],

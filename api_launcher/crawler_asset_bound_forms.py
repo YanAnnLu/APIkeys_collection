@@ -85,6 +85,57 @@ class CrawlerAssetBoundPreset:
 
 
 @dataclass(frozen=True)
+class CrawlerAssetBoundFormProfile:
+    """Declarative summary for a crawler asset bounds form.
+
+    The full form spec remains the source of field details.  This profile gives
+    Tk/Web/Qt a compact contract for status, facets, presets, and next action,
+    so frontends do not need to infer UI flow from raw fields.
+    """
+
+    profile_id: str
+    asset_id: str
+    status: str
+    display_label: str
+    display_tone: str
+    next_action: str
+    field_count: int = 0
+    required_field_ids: tuple[str, ...] = ()
+    optional_field_ids: tuple[str, ...] = ()
+    facet_ids: tuple[str, ...] = ()
+    groups: tuple[str, ...] = ()
+    controls: tuple[str, ...] = ()
+    schema_probe_required_count: int = 0
+    schema_probe_field_ids: tuple[str, ...] = ()
+    preset_count: int = 0
+    preset_ids: tuple[str, ...] = ()
+    recommended_value_keys: tuple[str, ...] = ()
+    warning_codes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "profile_id": self.profile_id,
+            "asset_id": self.asset_id,
+            "status": self.status,
+            "display_label": self.display_label,
+            "display_tone": self.display_tone,
+            "next_action": self.next_action,
+            "field_count": self.field_count,
+            "required_field_ids": list(self.required_field_ids),
+            "optional_field_ids": list(self.optional_field_ids),
+            "facet_ids": list(self.facet_ids),
+            "groups": list(self.groups),
+            "controls": list(self.controls),
+            "schema_probe_required_count": self.schema_probe_required_count,
+            "schema_probe_field_ids": list(self.schema_probe_field_ids),
+            "preset_count": self.preset_count,
+            "preset_ids": list(self.preset_ids),
+            "recommended_value_keys": list(self.recommended_value_keys),
+            "warning_codes": list(self.warning_codes),
+        }
+
+
+@dataclass(frozen=True)
 class CrawlerAssetBoundFormField:
     """前端中立的 crawler asset 界域表單欄位。
 
@@ -147,6 +198,7 @@ class CrawlerAssetBoundFormSpec:
         return {
             "asset_id": self.asset_id,
             "status": self.status,
+            "form_profile": crawler_asset_bound_form_profile(self).to_dict(),
             "fields": [field.to_dict() for field in self.fields],
             "schema_probe_required_count": self.schema_probe_required_count,
             "groups": list(self.groups),
@@ -156,6 +208,57 @@ class CrawlerAssetBoundFormSpec:
             "guidance_zh_TW": self.guidance_zh_TW,
             "guidance_en": self.guidance_en,
         }
+
+
+def crawler_asset_bound_form_profile(spec: CrawlerAssetBoundFormSpec) -> CrawlerAssetBoundFormProfile:
+    fields = spec.fields
+    required_field_ids = tuple(field.field_id for field in fields if field.required)
+    optional_field_ids = tuple(field.field_id for field in fields if not field.required)
+    facet_ids = tuple(dict.fromkeys(field.facet_id for field in fields))
+    controls = tuple(dict.fromkeys(field.control for field in fields))
+    schema_probe_field_ids = tuple(field.field_id for field in fields if field.requires_schema_probe)
+    preset_ids = tuple(preset.preset_id for preset in spec.presets)
+    recommended_value_keys = tuple(spec.recommended_values)
+    if not fields:
+        profile_id = "bounds_form_empty"
+        display_label = "不需界域"
+        display_tone = "neutral"
+        next_action = "continue_to_download_plan"
+    elif schema_probe_field_ids:
+        profile_id = "bounds_form_schema_probe_recommended"
+        display_label = "建議先探測欄位"
+        display_tone = "warning"
+        next_action = "apply_defaults_or_probe_schema"
+    elif spec.presets or spec.recommended_values:
+        profile_id = "bounds_form_ready_with_presets"
+        display_label = "可套用推薦界域"
+        display_tone = "success"
+        next_action = "apply_recommended_values_or_preview_payload"
+    else:
+        profile_id = "bounds_form_ready"
+        display_label = "可設定界域"
+        display_tone = "success"
+        next_action = "enter_bounds_then_preview_payload"
+    return CrawlerAssetBoundFormProfile(
+        profile_id=profile_id,
+        asset_id=spec.asset_id,
+        status=spec.status,
+        display_label=display_label,
+        display_tone=display_tone,
+        next_action=next_action,
+        field_count=len(fields),
+        required_field_ids=required_field_ids,
+        optional_field_ids=optional_field_ids,
+        facet_ids=facet_ids,
+        groups=spec.groups,
+        controls=controls,
+        schema_probe_required_count=spec.schema_probe_required_count,
+        schema_probe_field_ids=schema_probe_field_ids,
+        preset_count=len(spec.presets),
+        preset_ids=preset_ids,
+        recommended_value_keys=recommended_value_keys,
+        warning_codes=spec.warning_codes,
+    )
 
 
 @dataclass(frozen=True)
@@ -507,11 +610,13 @@ def build_maps_to_values(
 
 __all__ = [
     "CrawlerAssetBoundFormField",
+    "CrawlerAssetBoundFormProfile",
     "CrawlerAssetBoundPreset",
     "CrawlerAssetBoundFormSpec",
     "CrawlerAssetBoundPayload",
     "build_crawler_asset_bound_form_spec",
     "bound_form_presets",
+    "crawler_asset_bound_form_profile",
     "crawler_asset_bound_payload_from_form_values",
     "fields_for_facet",
     "recommended_form_values",

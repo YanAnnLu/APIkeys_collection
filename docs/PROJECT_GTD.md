@@ -41,6 +41,7 @@ Last updated: 2026-05-27
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
 - [x] UI display profile 已開始 typed 化：`api_launcher.crawler_asset_display.DisplayProfile` / `plan_outcome_display_profile()` 會把 `outcome_bucket -> label/tone/summary/next_action_label` 收成可序列化 profile，並掛到 plan outcome payload 的 `display_profile`；前端仍保留舊欄位相容。
+- [x] Bounds form profile 已開始 typed 化：`api_launcher.crawler_asset_bound_forms.CrawlerAssetBoundFormProfile` / `crawler_asset_bound_form_profile()` 會把界域表單的欄位數、facet、groups、schema probe 需求、presets、recommended values 與 next action 收成 `form_profile`；Web/Tk/未來 Qt 可先讀這份摘要，不必各自從 raw fields 猜表單狀態。
 - [x] 將「數據驅動裝飾器爬蟲架構」定位成第二階段 source profile / middleware PoC 候選；第一階段只收斂已落地的 timeout、page cap、page size、rate-limit、credential/terms policy，不用 raw list matrix 或大型 DSL 取代既有 handler。
 - [x] 將中期架構語彙收斂成 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`；後續 PoC 應以 typed profile / gateway / middleware 實作，不使用欄位順序脆弱的 raw matrix。
 - [x] 新增 `api_launcher.crawler_capability_profiles.CrawlerCapabilityProfile`，讓 crawler asset payload 帶出 source type、auth/terms、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 effective request policy。這是宣告式 gateway 的第一個可序列化 profile，不取代現有 Python handler。

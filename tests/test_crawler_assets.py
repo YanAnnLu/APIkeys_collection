@@ -30,6 +30,7 @@ from api_launcher.crawler_asset_profiles import (
 )
 from api_launcher.crawler_asset_bound_forms import (
     build_crawler_asset_bound_form_spec,
+    crawler_asset_bound_form_profile,
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
@@ -335,6 +336,50 @@ class CrawlerAssetTest(unittest.TestCase):
         taiwan = preset_payloads[0]
         self.assertEqual({"bbox_west": 119.0, "bbox_south": 21.5, "bbox_east": 123.5, "bbox_north": 25.5}, taiwan["values"])
         self.assertIn("預覽", form_spec.guidance_zh_TW)
+
+    def test_bounds_form_profile_summarizes_dynamic_form_contract(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            geographic_scope="taiwan",
+            max_results=80,
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(
+            asset.asset_id,
+            asset.capabilities[2].bounds_schema,
+            source=source,
+        )
+
+        profile = crawler_asset_bound_form_profile(form_spec)
+        payload = form_spec.to_dict()["form_profile"]
+
+        self.assertEqual("bounds_form_schema_probe_recommended", profile.profile_id)
+        self.assertEqual("warning", profile.display_tone)
+        self.assertEqual("apply_defaults_or_probe_schema", profile.next_action)
+        self.assertEqual(len(form_spec.fields), profile.field_count)
+        self.assertIn("time", profile.facet_ids)
+        self.assertIn("bbox", profile.facet_ids)
+        self.assertIn("TimeBounds", profile.groups)
+        self.assertIn("SpatialBounds", profile.groups)
+        self.assertIn("time_field", profile.schema_probe_field_ids)
+        self.assertIn("taiwan", profile.preset_ids)
+        self.assertIn("limit", profile.recommended_value_keys)
+        self.assertEqual(profile.to_dict(), payload)
+
+    def test_empty_bounds_form_profile_allows_direct_plan_flow(self) -> None:
+        form_spec = build_crawler_asset_bound_form_spec("demo_empty", ())
+
+        profile = crawler_asset_bound_form_profile(form_spec)
+
+        self.assertEqual("bounds_form_empty", profile.profile_id)
+        self.assertEqual("empty", profile.status)
+        self.assertEqual(0, profile.field_count)
+        self.assertEqual("continue_to_download_plan", profile.next_action)
+        self.assertEqual("不需界域", profile.display_label)
 
     def test_bounds_payload_converts_to_source_download_options(self) -> None:
         source = DatasetDiscoverySource(

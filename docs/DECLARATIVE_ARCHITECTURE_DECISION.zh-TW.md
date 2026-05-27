@@ -37,6 +37,7 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
    - `source_type` / asset capability -> form fields / presets / validation / defaults
    - 前端根據 form spec 產生表單。
    - 不在 Tk/Web 裡硬寫 STAC、CKAN、CMR 等表單邏輯。
+   - 2026-05-27 已開始落地：`api_launcher.crawler_asset_bound_forms.CrawlerAssetBoundFormProfile` / `crawler_asset_bound_form_profile()` 會把 bounds form 的欄位數、facet、groups、schema probe 需求、presets、recommended values 與 next action 收成 typed profile，並隨 `CrawlerAssetBoundFormSpec.to_dict()` 輸出 `form_profile`。前端仍保留原本 `fields` / `presets` / `recommended_values` 相容欄位。
 
 3. Content parser / importer capability contract
    - CSV / JSON / GeoJSON 可 import。
