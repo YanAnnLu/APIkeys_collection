@@ -52,7 +52,11 @@ from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_r
 from api_launcher.db import connect_db
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event
-from api_launcher.local_credentials import crawler_asset_credential_status, update_crawler_asset_credentials
+from api_launcher.local_credentials import (
+    crawler_asset_credential_status,
+    credential_status_blocks_download,
+    update_crawler_asset_credentials,
+)
 from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.web_real_download_demo import run_web_real_download_demo
@@ -64,15 +68,6 @@ WEB_PREVIEW_EVENT_LIMIT = 80
 # has many seeds.  The backend still applies source-level page caps, rate limits,
 # credential gates, and remote pagination status.
 WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT = 1000
-CREDENTIAL_BLOCKING_STATUSES = frozenset(
-    {
-        "missing_credentials",
-        "partial_credentials",
-        "credential_profile_required",
-    }
-)
-
-
 def web_preview_status() -> dict[str, object]:
     """Return a small machine-readable status for browser smoke checks."""
 
@@ -914,7 +909,7 @@ def crawler_seed_download_import(
 
 
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
-    return str(credential_guard.get("status") or "") in CREDENTIAL_BLOCKING_STATUSES
+    return credential_status_blocks_download(credential_guard)
 
 
 def credential_blocked_plan_outcome(credential_guard: Mapping[str, object]) -> dict[str, object]:

@@ -24,6 +24,13 @@ PLACEHOLDER_PREFIXES = (
     "todo",
 )
 SECRET_PREFIXES = ("sk-", "ghp_", "github_pat_", "eyj")
+CREDENTIAL_BLOCKING_STATUSES = frozenset(
+    {
+        "missing_credentials",
+        "partial_credentials",
+        "credential_profile_required",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -285,6 +292,20 @@ def credential_next_action(status: str) -> str:
     return "continue_to_bounds_or_download_plan"
 
 
+def credential_status_blocks_download(status_or_payload: object) -> bool:
+    """Return whether live listing/download should stop before a doomed request.
+
+    The guard is intentionally backend-owned so Tk, Web, and future Qt do not
+    each keep a slightly different list of credential-blocking states.
+    """
+
+    if isinstance(status_or_payload, Mapping):
+        status = str(status_or_payload.get("status") or "")
+    else:
+        status = str(status_or_payload or "")
+    return status in CREDENTIAL_BLOCKING_STATUSES
+
+
 def credential_entry_label(*, signup_url: str, docs_url: str) -> str:
     if signup_url:
         return "開啟官方登入 / 申請 API Key"
@@ -430,8 +451,10 @@ def first_text(*values: str) -> str:
 
 
 __all__ = [
+    "CREDENTIAL_BLOCKING_STATUSES",
     "crawler_asset_credential_status",
     "credential_env_vars_for_asset",
+    "credential_status_blocks_download",
     "local_env_path",
     "provider_for_id",
     "read_env_values",

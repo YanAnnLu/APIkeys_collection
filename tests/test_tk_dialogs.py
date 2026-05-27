@@ -47,6 +47,7 @@ from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_credential_guard_message,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
@@ -800,6 +801,51 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIsInstance(thread_call.args[2], CrawlerAssetBoundPayload)
         self.assertEqual({"limit": 5}, thread_call.args[2].facet_values)
         self.assertIn("Downloading / importing seed", ui.status_var.value)
+
+    def test_seed_download_import_blocks_missing_credentials_before_worker(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="earthdata_cmr",
+            provider_id="demo_provider",
+            name="Earthdata CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.earthdata.nasa.gov/search/collections.json",
+            credential_mode="user_credential_required",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+            patch("frontends.tk.crawler_asset_workflows.messagebox.showwarning") as showwarning,
+        ):
+            CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
+                ui,
+                asset,
+                dataset_uid="demo_provider:seed_1",
+            )
+
+        thread_class.assert_not_called()
+        showwarning.assert_called_once()
+        self.assertIn("Seed 下載已暫停", ui.status_var.value)
+        self.assertIn("請先完成登入設定", showwarning.call_args.args[1])
+
+    def test_crawler_asset_credential_guard_message_keeps_next_action_visible(self) -> None:
+        message = crawler_asset_credential_guard_message(
+            {
+                "display_label": "需要登入 / API Key",
+                "provider_name": "NASA Earthdata",
+                "missing_required": ["EARTHDATA_TOKEN"],
+                "credential_entry_label": "開啟官方登入 / 申請 API Key",
+                "next_action": "edit_local_credentials_before_live_download",
+            },
+            lambda zh, _en: zh,
+        )
+
+        self.assertIn("NASA Earthdata", message)
+        self.assertIn("EARTHDATA_TOKEN", message)
+        self.assertIn("edit_local_credentials_before_live_download", message)
 
     def test_seed_download_import_worker_uses_formal_service_and_local_download_root(self) -> None:
         fake_pipeline = SimpleNamespace(

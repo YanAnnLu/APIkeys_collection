@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 02:03 Tk credential guard handoff
+- 本輪把 Web Preview 已有的 credential-blocking 判斷抽回 `api_launcher.local_credentials.credential_status_blocks_download()`，讓 Web/Tk/未來 Qt 不再各自維護 missing/partial/profile-required 狀態清單。Web Preview 的 `credential_status_blocks_plan()` 現在呼叫這個共用 helper。
+- Tk seed 下載路徑現在會在啟動背景 worker 前呼叫 `crawler_asset_credential_status()`。若來源缺登入 / API Key，`run_crawler_asset_seed_download_import_from_ui()` 會先顯示「需要登入 / API Key」、缺少欄位、next action 與官方入口；若有官方登入 / 申請 API Key URL，會詢問是否開啟瀏覽器。這避免 Tk seed download 先送出必然失敗的 live request。
+- 本地 targeted 驗證已通過：`py -B -m py_compile api_launcher\local_credentials.py frontends\web\preview_api.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py tests\test_web_preview.py` OK；`py -B -m unittest tests.test_tk_dialogs -v` 54 tests OK；`py -B -m unittest tests.test_web_preview -v` 38 tests OK；`py -B -m unittest tests.test_local_credentials tests.test_tk_dialogs tests.test_web_preview -v` 93 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，801 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_020439.log`。尚未 push / CI。
+
 ## 2026-05-28 01:44 Tk seed import path handoff
 - 本輪把上一個 Web seed import badge 切片同步到 Tk。`frontends/tk/crawler_asset_seed_dialog.py` 現在會從 seed row 的 `content_display_label` / `content_import_profile.display_label` / `content_pipeline_lane` 取得後端 import path label，並在 Seed 表格新增「匯入路徑」欄；Tk 不自行推斷 CSV/ZIP/GeoTIFF 規則。
 - 右側 Crawler Passport 的 seed preview 也會顯示同一個 import label，讓使用者不用打開完整表格，也能看到可匯入 SQLite、需解壓轉換、內容 Parser 待辦或 Adapter review 等處理路徑。這是 Tk/Web 顯示同步，不改 crawler、resolver、downloader 或 importer 執行行為。

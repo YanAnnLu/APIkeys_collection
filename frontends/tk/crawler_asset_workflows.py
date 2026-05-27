@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import threading
+import webbrowser
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
@@ -46,6 +47,7 @@ from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFID
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
+from api_launcher.local_credentials import crawler_asset_credential_status, credential_status_blocks_download
 from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
@@ -725,6 +727,27 @@ class CrawlerAssetWorkflowMixin:
         if asset.archived:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再下載 seed。", "This crawler is archived; unarchive it before downloading a seed."))
             return
+        credential_guard = crawler_asset_credential_status(asset)
+        if credential_status_blocks_download(credential_guard):
+            title = self.tr("需要登入 / API Key", "Login/API key required")
+            message = crawler_asset_credential_guard_message(credential_guard, self.tr)
+            entry_url = str(credential_guard.get("credential_entry_url") or "").strip()
+            self.status_var.set(self.tr("Seed 下載已暫停：請先完成登入設定。", "Seed download paused: finish login settings first."))
+            if entry_url:
+                open_label = str(credential_guard.get("credential_entry_label") or "").strip()
+                should_open = messagebox.askyesno(
+                    title,
+                    self.tr(
+                        f"{message}\n\n是否現在{open_label or '開啟官方入口'}？",
+                        f"{message}\n\nOpen the official login/API key page now?",
+                    ),
+                    parent=getattr(self, "root", None),
+                )
+                if should_open:
+                    webbrowser.open(entry_url)
+                return
+            messagebox.showwarning(title, message, parent=getattr(self, "root", None))
+            return
         bounds_payload = self.crawler_asset_bound_payload_for_asset(asset.asset_id)
         self.status_var.set(
             self.tr(
@@ -1368,6 +1391,40 @@ def crawler_asset_seed_page_preview_text(
     if payload.get("has_more"):
         lines.append(tr("按「顯示更多 Seed」展開下一批。", "Use Show more seeds for the next page."))
     return "\n".join(lines)
+
+
+def crawler_asset_credential_guard_message(
+    credential_guard: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """Translate backend credential guard payload into a Tk-safe prompt."""
+
+    guard = credential_guard if isinstance(credential_guard, dict) else {}
+    label = str(guard.get("display_label") or "需要登入 / API Key").strip()
+    provider_name = str(guard.get("provider_name") or guard.get("provider_id") or "").strip()
+    missing = guard.get("missing_required") if isinstance(guard.get("missing_required"), list) else []
+    missing_text = ", ".join(str(item) for item in missing if str(item).strip()) or "-"
+    next_action = str(guard.get("next_action") or "edit_local_credentials_before_live_download").strip()
+    entry_label = str(guard.get("credential_entry_label") or "").strip()
+    zh_lines = [
+        f"{label}。",
+        f"來源：{provider_name or '-'}",
+        f"缺少欄位：{missing_text}",
+        "請先完成登入設定；如果需要 API Key，請到官方入口申請後再回來下載。",
+        f"下一步：{next_action}",
+    ]
+    if entry_label:
+        zh_lines.append(f"可用入口：{entry_label}")
+    en_lines = [
+        f"{label}.",
+        f"Source: {provider_name or '-'}",
+        f"Missing fields: {missing_text}",
+        "Finish login settings first. If an API key is required, get it from the official portal before downloading.",
+        f"Next action: {next_action}",
+    ]
+    if entry_label:
+        en_lines.append(f"Available entry: {entry_label}")
+    return tr("\n".join(zh_lines), "\n".join(en_lines))
 
 
 def crawler_asset_listing_event_preview_payload(context: object) -> dict[str, object]:
