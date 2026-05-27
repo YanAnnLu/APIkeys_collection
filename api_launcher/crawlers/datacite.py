@@ -19,7 +19,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
@@ -148,9 +148,21 @@ def paginated_datacite_candidates(
     page_size: int,
     max_pages: int,
 ) -> list[DatasetCandidate]:
+    return list(paginated_datacite_output(source, search_term, timeout, page_size, max_pages).candidates)
+
+
+def paginated_datacite_output(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
     next_url = datacite_dois_search_url(source.endpoint_url, search_term, page_size, page_number=1)
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for _page in range(discovery_page_cap(max_pages)):
         payload = fetch_json(next_url, timeout=timeout)
         items = datacite_payload_items(payload)
@@ -158,11 +170,30 @@ def paginated_datacite_candidates(
         added = append_new_candidates(candidates, page_candidates, seen)
         links = payload.get("links") if isinstance(payload.get("links"), dict) else {}
         next_candidate = str(links.get("next") or "")
-        if not items or len(items) < page_size or added == 0 or not next_candidate:
+        if not items:
+            remote_exhausted = True
+            break
+        if len(items) < page_size:
+            remote_exhausted = True
+            break
+        if added == 0:
+            remote_exhausted = None
+            break
+        if not next_candidate:
+            remote_exhausted = True
             break
         polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_candidate
-    return candidates
+    else:
+        remote_exhausted = False
+        remote_next_page_token = next_candidate
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def datacite_candidates_for_source(
@@ -172,16 +203,32 @@ def datacite_candidates_for_source(
     search_terms: tuple[str, ...],
     full_crawl: bool,
     max_pages: int,
-) -> list[DatasetCandidate]:
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for term in search_terms or ("",):
         if full_crawl:
-            candidates.extend(paginated_datacite_candidates(source, term, timeout, limit, max_pages))
+            output = paginated_datacite_output(source, term, timeout, limit, max_pages)
+            candidates.extend(output.candidates)
+            if output.remote_exhausted is False:
+                remote_exhausted = False
+                remote_next_page_token = output.remote_next_page_token
+            elif output.remote_exhausted is True and remote_exhausted is not False:
+                remote_exhausted = True
+            elif remote_exhausted is not False:
+                remote_exhausted = None
             continue
         url = datacite_dois_search_url(source.endpoint_url, term, limit)
         payload = fetch_json(url, timeout=timeout)
         candidates.extend(datacite_candidates_from_payload(source, payload, url, limit))
-    return candidates
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def datacite_title(attributes: dict[str, Any]) -> str:

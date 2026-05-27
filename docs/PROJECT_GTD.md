@@ -62,7 +62,8 @@ Last updated: 2026-05-27
 - [x] 補上 handler 回傳遠端 pagination metadata 的相容 contract：`DatasetCrawlerOutput` 允許新 handler 回傳 candidates 以外的 `remote_exhausted` / `remote_next_page_token`，舊 handler 仍可只回傳 list；orchestrator 會把這些欄位保留到 `DatasetSourceCrawlResult`。
 - [x] Socrata full crawl 已接上第一個真 handler PoC：當 `max_pages` 安全上限截斷 Socrata catalog 枚舉時，後端會回報 `remote_pagination.status=has_more`、`remote_exhausted=false` 與 token-present 狀態；當 Socrata 回報結果已列完時可回報 exhausted。
 - [x] CKAN full crawl 已接上第二個真 handler：利用 `result.count` / `start` 判斷遠端是否 exhausted，若因 `max_pages` 截斷則回報 `remote_pagination.status=has_more` 與下一個 start token-present。
-- [ ] 下一步：把 `DatasetCrawlerOutput` 逐步接到 OpenAlex / DataCite / Zenodo / CMR 等有 cursor、next link 或 result-count 的 handler，並讓 Tk/CLI 讀同一份 seed 收藏查詢入口。
+- [x] `DatasetCrawlerOutput` 已接到 OpenAlex / DataCite / Zenodo / CMR full-crawl handler：OpenAlex cursor、DataCite / Zenodo `links.next`、CMR page number 會在本機 page cap 先截斷時回報 `remote_pagination.status=has_more` 與 token-present 狀態。
+- [ ] 下一步：把 remote pagination metadata 接到仍有可判斷 page/offset/next-link 的 NCEI / GBIF / Dataverse / OGC / STAC handler；同時讓 Tk/CLI 讀同一份 seed 收藏查詢入口。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。

@@ -34,7 +34,7 @@ from api_launcher.dataset_discovery import (
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
-from api_launcher.crawlers import ckan, dataset_sources, html_index, socrata
+from api_launcher.crawlers import ckan, cmr, datacite, dataset_sources, html_index, openalex, socrata, zenodo
 from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
@@ -485,6 +485,43 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(("Ada Researcher",), dataset.metadata["authors"])
         self.assertEqual(("Example University",), dataset.metadata["institutions"])
 
+    def test_openalex_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="openalex_dataset_works_search",
+            provider_id="openalex",
+            name="OpenAlex dataset works",
+            source_type="openalex_works_search",
+            endpoint_url="https://api.openalex.org/works",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "meta": {"next_cursor": "next-page-cursor"},
+                "results": [
+                    {
+                        "id": "https://openalex.org/W1650569836",
+                        "doi": "https://doi.org/10.1163/example",
+                        "display_name": "Climate Change Synthesis Report Dataset",
+                        "type": "dataset",
+                    }
+                ],
+            }
+
+        with patch("api_launcher.crawlers.openalex.fetch_json", side_effect=fake_fetch_json):
+            output = openalex.openalex_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("next-page-cursor", output.remote_next_page_token)
+
     def test_erddap_all_datasets_payload_can_be_filtered_by_terms(self) -> None:
         source = DatasetDiscoverySource(
             source_id="erddap",
@@ -555,6 +592,44 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("mur-jpl-l4-glob-v4.1-4.1", dataset.dataset_id)
         self.assertEqual("grid_or_array", dataset.metadata["data_family"])
         self.assertIn("collection_concept_id=C123-PODAAC", dataset.api_url)
+
+    def test_cmr_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="nasa_cmr_collections",
+            provider_id="nasa_earthdata",
+            name="NASA CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.example.test/search/collections.json",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "feed": {
+                    "entry": [
+                        {
+                            "id": "C123-PODAAC",
+                            "short_name": "MUR-JPL-L4-GLOB-v4.1",
+                            "version_id": "4.1",
+                            "title": "MUR sea surface temperature",
+                        }
+                    ]
+                }
+            }
+
+        with patch("api_launcher.crawlers.cmr.fetch_json", side_effect=fake_fetch_json):
+            output = cmr.cmr_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("2", output.remote_next_page_token)
 
     def test_stac_collections_payload_can_be_filtered_by_terms(self) -> None:
         source = DatasetDiscoverySource(
@@ -708,6 +783,46 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("https://zenodo.example.test/api/records/123/files/huge.zip/content", dataset.metadata["resources"][0]["download_url"])
         self.assertEqual("huge.zip", dataset.metadata["files"][0]["key"])
 
+    def test_zenodo_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="zenodo_records_search",
+            provider_id="zenodo",
+            name="Zenodo",
+            source_type="zenodo_records_search",
+            endpoint_url="https://zenodo.example.test/api/records",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "hits": {
+                    "hits": [
+                        {
+                            "id": 123,
+                            "recid": "123",
+                            "title": "High-resolution climate raster bundle",
+                            "links": {"self": "https://zenodo.example.test/api/records/123"},
+                            "metadata": {"resource_type": {"type": "dataset"}},
+                        }
+                    ]
+                },
+                "links": {"next": "https://zenodo.example.test/api/records?page=2"},
+            }
+
+        with patch("api_launcher.crawlers.zenodo.fetch_json", side_effect=fake_fetch_json):
+            output = zenodo.zenodo_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("https://zenodo.example.test/api/records?page=2", output.remote_next_page_token)
+
     def test_datacite_dois_payload_becomes_research_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(
             source_id="datacite_dois_search",
@@ -757,6 +872,46 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", dataset.metadata["content_url"])
         self.assertEqual("https://data.example.test/cloud/cloud_sample.nc", dataset.metadata["resources"][0]["download_url"])
         self.assertEqual("nc", dataset.metadata["resources"][0]["format"])
+
+    def test_datacite_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="datacite_dois_search",
+            provider_id="datacite",
+            name="DataCite DOI Search",
+            source_type="datacite_dois",
+            endpoint_url="https://api.datacite.example.test/dois",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "data": [
+                    {
+                        "id": "10.1234/example.dataset",
+                        "type": "dois",
+                        "attributes": {
+                            "doi": "10.1234/example.dataset",
+                            "titles": [{"title": "Global cloud imagery training dataset"}],
+                            "types": {"resourceTypeGeneral": "Dataset"},
+                        },
+                    }
+                ],
+                "links": {"next": "https://api.datacite.example.test/dois?page[number]=2"},
+            }
+
+        with patch("api_launcher.crawlers.datacite.fetch_json", side_effect=fake_fetch_json):
+            output = datacite.datacite_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("https://api.datacite.example.test/dois?page[number]=2", output.remote_next_page_token)
 
     def test_ogc_api_records_payload_becomes_reviewable_catalog_candidate(self) -> None:
         source = DatasetDiscoverySource(
