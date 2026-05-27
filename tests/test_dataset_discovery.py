@@ -33,7 +33,7 @@ from api_launcher.dataset_discovery import (
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
-from api_launcher.crawlers import dataset_sources, html_index, socrata
+from api_launcher.crawlers import ckan, dataset_sources, html_index, socrata
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
     render_dataset_seed_coverage_markdown,
@@ -940,6 +940,50 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("ocean-buoy-observations", dataset.dataset_id)
         self.assertEqual("csv", dataset.native_format)
         self.assertEqual("https://example.test/buoy.csv", dataset.api_url)
+
+    def test_ckan_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="data_gov_package_search",
+            provider_id="data_gov",
+            name="Data.gov CKAN",
+            source_type="ckan_package_search",
+            endpoint_url="https://catalog.data.gov/api/3/action/package_search",
+        )
+        original_fetch_json = ckan.fetch_json
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "success": True,
+                "result": {
+                    "count": 2,
+                    "results": [
+                        {
+                            "name": "water-quality",
+                            "title": "Water Quality",
+                            "tags": [{"name": "water"}],
+                            "resources": [{"format": "CSV", "url": "https://example.test/water.csv"}],
+                        }
+                    ],
+                },
+            }
+
+        ckan.fetch_json = fake_fetch_json
+        try:
+            output = ckan.ckan_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+        finally:
+            ckan.fetch_json = original_fetch_json
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("1", output.remote_next_page_token)
 
     def test_html_file_index_discovers_versions_without_hardcoded_python_urls(self) -> None:
         source = DatasetDiscoverySource(

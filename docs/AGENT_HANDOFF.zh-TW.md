@@ -8,7 +8,8 @@
 - 新增 `DatasetCrawlerOutput` 作為 handler 的相容 richer return contract。舊 handler 仍可只回傳 `list[DatasetCandidate]`；新 handler 可額外回報 `remote_pagination_status`、`remote_exhausted` 與 `remote_next_page_token`。
 - `crawl_dataset_sources()` / orchestrator 會把 richer output 保留到 `DatasetSourceCrawlResult`，`run_crawler_asset_listing()` 再把第一個 source result 的遠端 pagination metadata 帶入 `CrawlerAssetListingResult` 與 `seed_enumeration` payload。
 - Socrata full crawl 是第一個真 handler PoC：若 `max_pages` 安全上限截斷 catalog 枚舉，後端會回報 `remote_pagination.status=has_more`、`remote_exhausted=false`，並只向 UI 暴露 `next_page_token_present=true`，不暴露 raw token。
-- 本切片已用 targeted tests 驗證：orchestrator 保留 pagination metadata、Socrata page cap 會回報 has-more、crawler asset listing payload 不洩漏 raw token。下一步是把 OpenAlex / DataCite / Zenodo / CKAN / CMR 等已有 cursor、next link 或 result-count 的 handler 逐一接上，而不是在 UI 加猜測。
+- CKAN full crawl 是第二個真 handler：它會用 `result.count` / `start` 判斷遠端 exhausted 或 `has_more`，讓政府開放資料入口不再只回報本機 limit 狀態。
+- 本切片已用 targeted tests 驗證：orchestrator 保留 pagination metadata、Socrata / CKAN page cap 會回報 has-more、crawler asset listing payload 不洩漏 raw token。下一步是把 OpenAlex / DataCite / Zenodo / CMR 等已有 cursor、next link 或 result-count 的 handler 逐一接上，而不是在 UI 加猜測。
 
 ## 2026-05-27 Seed remote pagination contract
 - `CrawlerAssetListingResult` 現在帶 `remote_pagination_status`、`remote_exhausted` 與 `remote_next_page_token`。輸出的 `remote_pagination` payload 只暴露 status、exhausted 與 `next_page_token_present`，不把 raw token 交給 UI。

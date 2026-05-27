@@ -15,7 +15,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
@@ -109,9 +109,21 @@ def paginated_ckan_candidates(
     page_size: int,
     max_pages: int,
 ) -> list[DatasetCandidate]:
+    return list(paginated_ckan_output(source, search_term, timeout, page_size, max_pages).candidates)
+
+
+def paginated_ckan_output(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
     start = 0
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for _page in range(discovery_page_cap(max_pages)):
         url = ckan_package_search_url(source.endpoint_url, search_term, page_size, start=start)
         payload = fetch_json(url, timeout=timeout)
@@ -120,12 +132,29 @@ def paginated_ckan_candidates(
         page_candidates = ckan_candidates_from_payload(source, payload, url, page_size)
         added = append_new_candidates(candidates, page_candidates, seen)
         count = int(result.get("count") or 0)
-        if not isinstance(results, list) or not results or len(results) < page_size or added == 0:
+        if not isinstance(results, list) or not results:
+            remote_exhausted = True
             break
         start += len(results)
-        if count and start >= count:
+        if len(results) < page_size:
+            remote_exhausted = True
             break
-    return candidates
+        if count and start >= count:
+            remote_exhausted = True
+            break
+        if added == 0:
+            remote_exhausted = None
+            break
+    else:
+        remote_exhausted = False
+        remote_next_page_token = str(start)
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def ckan_candidates_for_source(
@@ -135,16 +164,32 @@ def ckan_candidates_for_source(
     search_terms: tuple[str, ...],
     full_crawl: bool,
     max_pages: int,
-) -> list[DatasetCandidate]:
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for term in search_terms or ("",):
         if full_crawl:
-            candidates.extend(paginated_ckan_candidates(source, term, timeout, limit, max_pages))
+            output = paginated_ckan_output(source, term, timeout, limit, max_pages)
+            candidates.extend(output.candidates)
+            if output.remote_exhausted is False:
+                remote_exhausted = False
+                remote_next_page_token = output.remote_next_page_token
+            elif output.remote_exhausted is True and remote_exhausted is not False:
+                remote_exhausted = True
+            elif remote_exhausted is not False:
+                remote_exhausted = None
             continue
         url = ckan_package_search_url(source.endpoint_url, term, limit)
         payload = fetch_json(url, timeout=timeout)
         candidates.extend(ckan_candidates_from_payload(source, payload, url, limit))
-    return candidates
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def first_resource_url(resources: list[object]) -> str:
