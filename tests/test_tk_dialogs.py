@@ -40,10 +40,12 @@ from frontends.tk.dialogs import (
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
+    crawler_asset_listing_event_preview_payload,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
+    crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
 )
@@ -578,6 +580,63 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("csv, 2026-05", text)
         self.assertIn("本頁另有 1 筆", text)
         self.assertIn("顯示更多 Seed", text)
+
+    def test_crawler_asset_seed_page_preview_includes_remote_pagination_note(self) -> None:
+        payload = {
+            "total": 1,
+            "has_more": False,
+            "page_summary": {"shown_start": 1, "shown_end": 1, "remaining": 0},
+            "seeds": [{"title": "Remote Seed", "dataset_id": "remote_seed"}],
+        }
+        listing = {
+            "seed_enumeration": {
+                "label": "已枚舉前 1000 筆 seed",
+                "help": "遠端可能還有更多 seed。",
+                "remote_pagination": {
+                    "status": "has_more",
+                    "exhausted": False,
+                    "next_page_token_present": True,
+                },
+            }
+        }
+
+        text = crawler_asset_seed_page_preview_text(payload, lambda zh, _en: zh, listing_outcome=listing)
+
+        self.assertIn("已枚舉前 1000 筆 seed", text)
+        self.assertIn("還有下一頁線索", text)
+        self.assertIn("token 已由後端遮蔽", text)
+        self.assertIn("Remote Seed", text)
+
+    def test_crawler_asset_seed_enumeration_note_handles_not_reported(self) -> None:
+        listing = {"seed_enumeration": {"label": "已枚舉 3 筆 seed", "remote_pagination": {"status": "not_reported"}}}
+
+        text = crawler_asset_seed_enumeration_note_text(listing, lambda zh, _en: zh)
+
+        self.assertIn("尚未回報", text)
+        self.assertIn("本機 catalog", text)
+
+    def test_crawler_asset_listing_event_preview_payload_keeps_seed_status(self) -> None:
+        context = {
+            "asset_id": "demo_index",
+            "candidate_count": 1000,
+            "upserted_count": 998,
+            "warning_count": 1,
+            "max_results": 1000,
+            "complete_seed": True,
+            "seed_enumeration": {
+                "status": "local_limit_reached",
+                "label": "已枚舉前 1000 筆 seed",
+                "remote_pagination": {"status": "has_more", "next_page_token_present": True},
+            },
+            "remote_pagination": {"status": "has_more", "next_page_token_present": True},
+        }
+
+        payload = crawler_asset_listing_event_preview_payload(context)
+
+        self.assertEqual("demo_index", payload["asset_id"])
+        self.assertEqual(1000, payload["candidate_count"])
+        self.assertEqual("local_limit_reached", payload["seed_enumeration"]["status"])
+        self.assertEqual("has_more", payload["remote_pagination"]["status"])
 
     def test_crawler_asset_seed_page_status_guides_empty_catalog(self) -> None:
         payload = {"total": 0, "page_summary": {"shown_start": 0, "shown_end": 0, "remaining": 0}, "seeds": []}

@@ -66,7 +66,8 @@ Last updated: 2026-05-27
 - [x] `DatasetCrawlerOutput` 已接到 NCEI / GBIF / Dataverse / OGC API Records / STAC full-crawl handler：NCEI / GBIF / Dataverse 會在本機 page cap 先截斷 offset/start 分頁時回報 `remote_pagination.status=has_more`，OGC / STAC 會在 next-link 尚存在但 page cap 停止時回報 token-present 狀態。
 - [x] CLI 已接上同一份 seed 分頁查詢入口：`--crawler-asset-seeds ASSET_ID --crawler-asset-seeds-json` 會從本機 catalog 讀取已枚舉 seed page，並可用 `--crawler-asset-seed-page` / `--crawler-asset-seed-page-size` 展開下一批；阻擋狀態與 page summary 皆為 agent-readable JSON。
 - [x] Tk 爬蟲資產分頁已接上同一份 seed 分頁查詢入口：右側 Crawler Passport 新增「Seed 清單」區塊與「查看 Seed 清單 / 顯示更多 Seed」動作，重用 `crawler_seed_page()` 讀本機 catalog 的 `[0..49]`、`[50..99]` 視窗，並顯示收藏星號、remaining 與下一頁提示；不重新 live crawl。
-- [ ] 下一步：把 remote pagination 狀態從 Web seed bar 擴展到 Tk 下載器 / crawler asset 分頁的可讀提示，並規劃 Tk seed row 選取後的 seed-level 下載 / 收藏切換 UX。
+- [x] Tk 爬蟲資產分頁已接上 listing event 裡的 `seed_enumeration` / `remote_pagination` 摘要：選取 crawler asset 或讀取 seed page 時，右側 Seed 清單會顯示遠端是否仍有下一頁線索、是否已列完，或 handler 尚未回報遠端完整度；raw pagination token 不進 UI。Web Preview 的 compact listing payload 也已保留同一份摘要，避免 reload 後 seed bar 退回純 counts。
+- [ ] 下一步：規劃 Tk seed row 選取後的 seed-level 下載 / 收藏切換 UX，避免 Tk 只停在側欄文字摘要。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。

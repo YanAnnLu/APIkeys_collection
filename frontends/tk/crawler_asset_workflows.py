@@ -181,6 +181,7 @@ class CrawlerAssetWorkflowMixin:
         self.crawler_asset_plan_passports: dict[str, dict[str, object]] = {}
         self.crawler_asset_seed_pages: dict[str, dict[str, object]] = {}
         self.load_crawler_asset_plan_outcomes_from_events()
+        self.load_crawler_asset_listing_outcomes_from_events()
         self.refresh_crawler_asset_tab()
 
     def load_crawler_asset_plan_outcomes_from_events(self) -> None:
@@ -221,6 +222,19 @@ class CrawlerAssetWorkflowMixin:
                     label = adapter_review_content_summary_label(adapter_review_display_payload(payload))
                     if label:
                         self.crawler_asset_content_review_outcomes[asset_id] = label
+
+    def load_crawler_asset_listing_outcomes_from_events(self) -> None:
+        """Restore the latest listing/seed-enumeration status from structured events."""
+
+        self.crawler_asset_listing_outcomes: dict[str, dict[str, object]] = {}
+        for event in latest_events(200):
+            if event.get("event") != "crawler_asset_listing_recorded":
+                continue
+            context = event.get("context") if isinstance(event.get("context"), dict) else {}
+            asset_id = str(context.get("asset_id") or "").strip()
+            if not asset_id:
+                continue
+            self.crawler_asset_listing_outcomes[asset_id] = crawler_asset_listing_event_preview_payload(context)
 
     def refresh_crawler_asset_tab(self) -> None:
         if not hasattr(self, "crawler_asset_tree"):
@@ -276,10 +290,11 @@ class CrawlerAssetWorkflowMixin:
             return
         if hasattr(self, "crawler_asset_seed_page_var"):
             cached_seed_page = getattr(self, "crawler_asset_seed_pages", {}).get(asset.asset_id)
+            latest_listing = getattr(self, "crawler_asset_listing_outcomes", {}).get(asset.asset_id)
             self.crawler_asset_seed_page_var.set(
-                crawler_asset_seed_page_preview_text(cached_seed_page, self.tr)
+                crawler_asset_seed_page_preview_text(cached_seed_page, self.tr, listing_outcome=latest_listing)
                 if isinstance(cached_seed_page, dict)
-                else self.tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds.")
+                else crawler_asset_seed_page_preview_text(None, self.tr, listing_outcome=latest_listing)
             )
         if hasattr(self, "crawler_asset_archive_button_var"):
             self.crawler_asset_archive_button_var.set(
@@ -663,12 +678,18 @@ class CrawlerAssetWorkflowMixin:
         """
 
         try:
+            context = crawler_asset_listing_event_context(result)
             log_event(
                 "crawler_asset_listing_recorded",
                 "Tk crawler asset workflow recorded the visible listing outcome.",
                 component="ui.crawler_assets",
-                context=crawler_asset_listing_event_context(result),
+                context=context,
             )
+            if not hasattr(self, "crawler_asset_listing_outcomes"):
+                self.crawler_asset_listing_outcomes = {}
+            asset_id = str(context.get("asset_id") or "").strip()
+            if asset_id:
+                self.crawler_asset_listing_outcomes[asset_id] = crawler_asset_listing_event_preview_payload(context)
         except Exception:
             # event log 是 handoff 輔助，不應阻斷 UI listing 完成路徑。
             return
@@ -1066,16 +1087,21 @@ def crawler_asset_seed_page_preview_text(
     tr: Callable[[str, str], str],
     *,
     preview_limit: int = 8,
+    listing_outcome: object | None = None,
 ) -> str:
     """把 seed page payload 轉成 Tk 側欄摘要；完整分頁規則仍由後端 service 決定。"""
 
+    listing_note = crawler_asset_seed_enumeration_note_text(listing_outcome, tr)
     if not isinstance(payload, dict):
-        return tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds.")
+        base = tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds.")
+        return f"{listing_note}\n\n{base}" if listing_note else base
     seeds = payload.get("seeds") if isinstance(payload.get("seeds"), list) else []
     status = crawler_asset_seed_page_status_text(payload, tr)
     if not seeds:
-        return status
+        return f"{status}\n\n{listing_note}" if listing_note else status
     lines: list[str] = [status, ""]
+    if listing_note:
+        lines.extend([listing_note, ""])
     for index, row in enumerate(seeds[: max(1, preview_limit)], start=1):
         if not isinstance(row, dict):
             continue
@@ -1091,6 +1117,73 @@ def crawler_asset_seed_page_preview_text(
         lines.append(tr(f"...本頁另有 {remaining_on_page} 筆", f"...{remaining_on_page} more on this page"))
     if payload.get("has_more"):
         lines.append(tr("按「顯示更多 Seed」展開下一批。", "Use Show more seeds for the next page."))
+    return "\n".join(lines)
+
+
+def crawler_asset_listing_event_preview_payload(context: object) -> dict[str, object]:
+    """Keep only listing fields that Tk needs to explain seed enumeration state."""
+
+    if not isinstance(context, dict):
+        return {}
+    seed_enumeration = context.get("seed_enumeration") if isinstance(context.get("seed_enumeration"), dict) else {}
+    remote_pagination = context.get("remote_pagination") if isinstance(context.get("remote_pagination"), dict) else {}
+    return {
+        "asset_id": str(context.get("asset_id") or ""),
+        "candidate_count": int(context.get("candidate_count") or 0),
+        "upserted_count": int(context.get("upserted_count") or 0),
+        "warning_count": int(context.get("warning_count") or 0),
+        "error_count": int(context.get("error_count") or 0),
+        "max_results": int(context.get("max_results") or 0),
+        "complete_seed": bool(context.get("complete_seed")),
+        "next_action": str(context.get("next_action") or ""),
+        "seed_enumeration": dict(seed_enumeration),
+        "remote_pagination": dict(remote_pagination),
+    }
+
+
+def crawler_asset_seed_enumeration_note_text(
+    listing_outcome: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """Render backend seed-enumeration confidence without exposing raw pagination tokens."""
+
+    if not isinstance(listing_outcome, dict):
+        return ""
+    enumeration = listing_outcome.get("seed_enumeration") if isinstance(listing_outcome.get("seed_enumeration"), dict) else {}
+    remote = enumeration.get("remote_pagination") if isinstance(enumeration.get("remote_pagination"), dict) else {}
+    if not remote:
+        remote = listing_outcome.get("remote_pagination") if isinstance(listing_outcome.get("remote_pagination"), dict) else {}
+    label = str(enumeration.get("label") or "").strip()
+    help_text = str(enumeration.get("help") or "").strip()
+    status = str(remote.get("status") or "").strip()
+    exhausted = remote.get("exhausted")
+    token_present = bool(remote.get("next_page_token_present"))
+    if status == "has_more":
+        remote_text = tr(
+            "遠端狀態：crawler 回報還有下一頁線索；token 已由後端遮蔽。",
+            "Remote status: crawler reported another page; token is hidden by the backend.",
+        )
+    elif status == "exhausted" or exhausted is True:
+        remote_text = tr(
+            "遠端狀態：crawler 回報已列完。",
+            "Remote status: crawler reported that the remote listing is exhausted.",
+        )
+    elif status and status != "not_reported":
+        remote_text = tr(
+            f"遠端狀態：{status}。",
+            f"Remote status: {status}.",
+        )
+    elif token_present:
+        remote_text = tr(
+            "遠端狀態：偵測到下一頁線索；token 已由後端遮蔽。",
+            "Remote status: detected another page; token is hidden by the backend.",
+        )
+    else:
+        remote_text = tr(
+            "遠端完整度：這個 handler 尚未回報，只能依本機 catalog 視窗判斷。",
+            "Remote completeness: this handler has not reported it; rely on the local catalog window.",
+        )
+    lines = [part for part in (label, help_text, remote_text) if part]
     return "\n".join(lines)
 
 

@@ -475,6 +475,8 @@ def compact_listing_outcome(context: Mapping[str, object]) -> dict[str, object]:
     """Keep listing summaries small enough for cards and hero panels."""
 
     run_record = context.get("run_record")
+    seed_enumeration = context.get("seed_enumeration")
+    remote_pagination = context.get("remote_pagination")
     return {
         "asset_id": str(context.get("asset_id") or ""),
         "listing_mode": str(context.get("listing_mode") or ""),
@@ -488,6 +490,8 @@ def compact_listing_outcome(context: Mapping[str, object]) -> dict[str, object]:
         "complete_seed": bool(context.get("complete_seed")),
         "search_scope": str(context.get("search_scope") or ""),
         "next_action": str(context.get("next_action") or ""),
+        "seed_enumeration": seed_enumeration if isinstance(seed_enumeration, dict) else {},
+        "remote_pagination": remote_pagination if isinstance(remote_pagination, dict) else {},
         "run_record": run_record if isinstance(run_record, dict) else {},
     }
 

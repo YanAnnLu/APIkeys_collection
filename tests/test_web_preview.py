@@ -40,6 +40,7 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
+    compact_listing_outcome,
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
@@ -750,6 +751,36 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("crawler_listing", context["run_record"]["stage"])
         self.assertEqual(3, context["candidate_count"])
         self.assertEqual("within_current_limits", context["seed_enumeration"]["status"])
+
+    def test_compact_listing_outcome_preserves_seed_enumeration_status(self) -> None:
+        context = {
+            "asset_id": "demo_stac",
+            "candidate_count": 1000,
+            "upserted_count": 1000,
+            "max_results": 1000,
+            "complete_seed": True,
+            "seed_enumeration": {
+                "status": "local_limit_reached",
+                "label": "已枚舉前 1000 筆 seed",
+                "remote_pagination": {
+                    "status": "has_more",
+                    "exhausted": False,
+                    "next_page_token_present": True,
+                },
+            },
+            "remote_pagination": {
+                "status": "has_more",
+                "exhausted": False,
+                "next_page_token_present": True,
+            },
+            "run_record": {"stage": "crawler_listing", "candidate_count": 1000},
+        }
+
+        payload = compact_listing_outcome(context)
+
+        self.assertEqual("local_limit_reached", payload["seed_enumeration"]["status"])
+        self.assertEqual("has_more", payload["remote_pagination"]["status"])
+        self.assertTrue(payload["seed_enumeration"]["remote_pagination"]["next_page_token_present"])
 
     def test_crawler_asset_listing_blocks_missing_credentials_before_live_crawler(self) -> None:
         with TemporaryDirectory() as tmp:

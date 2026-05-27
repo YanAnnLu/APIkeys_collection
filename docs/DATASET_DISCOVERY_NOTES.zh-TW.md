@@ -24,6 +24,7 @@
 - UI 展示 seed 清單時，不應重新打 crawler。Web Preview 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，從 catalog 讀取 `metadata.discovery_source_id == asset_id` 的候選，先顯示 50 筆，使用者按「顯示更多 seed」才展開下一批。
 - CLI 現在也能讀同一份 seed page contract：`--crawler-asset-seeds ASSET_ID --crawler-asset-seeds-json` 從 catalog 輸出 `page_summary`、`has_more`、`favorite_seed_count` 與 seed rows。這是給 agent / CI / 未來 Tk-Qt 接線用的薄入口，不會重新打遠端 crawler。
 - Tk 爬蟲資產分頁也已讀同一份 seed page contract：右側 Crawler Passport 的「Seed 清單」區塊會呼叫 `crawler_seed_page()`，用本機 catalog 顯示第一批 50 筆與「顯示更多 Seed」下一頁；收藏星號來自 crawler asset profile 的 `favorite_seed_uids`。Tk 仍不重新 live crawl，也不自行計算 page summary。
+- Tk 也會從最近的 `crawler_asset_listing_recorded` structured event 讀取 `seed_enumeration` / `remote_pagination`，把「遠端仍有下一頁線索 / 遠端已列完 / handler 尚未回報完整度」轉成 Crawler Passport 可讀提示。Web Preview 的 recent listing compact payload 也保留這份摘要，避免頁面重載後退回純本機 counts。
 - Web Preview 的 seed row 已能進入正式下載 / 匯入路徑：`POST /api/crawler-assets/{asset_id}/seed-download-import` 會驗證 `dataset_uid` 屬於該 asset，從 catalog seed 建立 formal resolved plan，並交給 download/import pipeline；這不是重新枚舉遠端入口，也不是舊 demo CSV。
 - 收藏功能應落在 seed 層。Web 會透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續要把收藏提升到正式 seed registry，並保留 dataset uid、title、source URL、版本與來源 pattern 等可追溯欄位。
 - Listing result 已補 `seed_enumeration` 結構化狀態，先處理 blocked / error / empty / warning / within-current-limits / local-limit-reached / bounded-sample 這幾種 UI 分流。它能避免 UI 只從候選數猜測枚舉完整度。
