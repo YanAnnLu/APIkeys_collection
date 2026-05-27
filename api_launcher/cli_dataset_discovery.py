@@ -4,6 +4,7 @@ import argparse
 import json
 import sqlite3
 
+from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_report
 from api_launcher.dataset_discovery import (
     DEFAULT_DATASET_DISCOVERY_SOURCES_NAME,
     LOCAL_DATASET_DISCOVERY_SOURCES_NAME,
@@ -36,6 +37,7 @@ def add_dataset_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dataset-discovery-strict-audit", action="store_true", help="exit with failure when any crawler source has errors or audit warnings")
     parser.add_argument("--dataset-discovery-complete-seed", action="store_true", help="attempt complete entry seed discovery by ignoring configured sample search terms and enabling full crawl")
     parser.add_argument("--dataset-discovery-seed-coverage-json", action="store_true", help="emit dataset discovery source seed-coverage audit as JSON without crawling")
+    parser.add_argument("--dataset-discovery-handler-smoke-json", action="store_true", help="emit an offline crawler handler audit contract smoke report as JSON")
     parser.add_argument("--write-dataset-seed-coverage", default="", help="write dataset discovery source seed-coverage audit JSON")
     parser.add_argument("--write-dataset-seed-coverage-md", default="", help="write a human-readable Markdown seed-coverage showcase report")
     parser.add_argument("--write-dataset-candidates", default="dataset_candidates.discovered.json", help="output JSON for discovered dataset candidates")
@@ -55,6 +57,7 @@ def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
     return bool(
         args.discover_dataset_candidates
         or args.dataset_discovery_seed_coverage_json
+        or args.dataset_discovery_handler_smoke_json
         or bool(args.write_dataset_seed_coverage)
         or bool(args.write_dataset_seed_coverage_md)
         or args.list_dataset_candidates
@@ -64,6 +67,10 @@ def dataset_discovery_command_active(args: argparse.Namespace) -> bool:
 
 
 def discover_dataset_candidates_cli(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
+    if args.dataset_discovery_handler_smoke_json:
+        print(json.dumps(crawler_handler_audit_smoke_report(), ensure_ascii=False, indent=2))
+        return
+
     sources = filtered_dataset_discovery_sources(args)
     maybe_write_or_print_seed_coverage(args, sources)
     if args.dataset_discovery_seed_coverage_json and not args.discover_dataset_candidates:

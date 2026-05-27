@@ -12,7 +12,8 @@ Last updated: 2026-05-27
 - [x] Web Preview 新增 seed 分頁讀取：`/api/crawler-assets/{asset_id}/seeds?page=&page_size=50` 只從已枚舉的 catalog 候選讀取 `[0..49]`、`[50..99]` 這類視窗；按「顯示更多 seed」只展開下一批 50 筆，不重新跑 crawler。
 - [x] 收藏心流已明確落在 seed 層：Web 會呼叫 `/api/crawler-assets/{asset_id}/seed-favorites`，由後端寫入 crawler asset profile 的 `favorite_seed_uids`，不再把收藏對象設計成 crawler asset / 入口本身。
 - [x] Seed 枚舉結果現在有後端 structured status：`seed_enumeration.status/label/help/limited_by_max_results` 會說明目前是完整落在本機上限內、零候選、警告、需要登入，或已達本機安全上限。Web 只呈現這份 service payload，不再從 `candidate_count` 自己猜完整度。
-- [ ] 下一步：把 source pattern / source draft 的「全 handler 覆蓋」延伸到實際 crawler audit smoke，逐一確認每種 source type 的 zero-candidate / warning / next_action 都能用同一套 run_record 與 UI 狀態呈現。
+- [x] Source pattern / source draft 的「全 handler 覆蓋」已延伸成離線 crawler audit contract smoke：`--dataset-discovery-handler-smoke-json` 會為每個 supported source type 產生 fixture source，驗證 zero-candidate warning / `next_action` 與正常候選 pass case 都走同一套 audit summary，且不碰 live network。
+- [ ] 下一步：把 handler smoke 的結果接到 handoff / heartbeat 或 Web/Tk developer diagnostics，讓 agent 與人類不用記 CLI 指令也能看見 crawler audit contract 是否完整。
 - [ ] 下一步：把 seed 收藏再從 crawler asset profile 欄位提升成正式 seed registry / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload

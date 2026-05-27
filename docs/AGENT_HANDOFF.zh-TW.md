@@ -4,6 +4,11 @@
 - 前一個大切片 `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
 - K 槽雲端工作區偶發 PowerShell current working directory handle 失效時，Git repo 本身不一定壞。若看到 `fatal: Unable to read current working directory`，先用 `git -C K:\APIkeys_collection status` 驗證，不要 reset、restore 或刪 lock。這次用 `git -C` 完成 add / commit / push。
 
+## 2026-05-27 Crawler audit contract smoke
+- `api_launcher/crawler_audit_smoke.py` 新增離線 handler audit contract smoke。它用 fixture source 覆蓋所有 `SUPPORTED_DATASET_SOURCE_TYPES`，並透過注入式 crawler runner 驗證兩件事：零候選要產生 `zero_candidates` / `repair_crawler_query_or_parser`；正常候選要通過 audit summary。這不打 live endpoint，也不取代每個 handler 的 payload fixture 測試。
+- CLI 新增 `--dataset-discovery-handler-smoke-json`，輸出 agent-readable JSON。若後續新增 crawler handler，這條 smoke 應立刻能指出 source type 是否漏掉 audit status、warning code 或 next_action 交接。
+- `crawl_dataset_sources()` 現在支援可選 `source_crawler` 注入。正式流程仍走 `default_source_crawler()`；測試與 contract smoke 才使用替身，避免為了驗 audit layer 而連外。
+
 ## 2026-05-27 Source Pattern / Crawler Asset registry coverage
 - `api_launcher/crawlers/source_patterns.py` 已補上 NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex 的 URL shape detector。這些 detector 只做入口類型辨識與 source type hint，不下載資料，也不取代 crawler audit。
 - `SOURCE_TYPE_HINTS` 現在由測試鎖成完全覆蓋 `SUPPORTED_DATASET_SOURCE_TYPES`。新增 crawler handler 時，必須同步補 detector hint、source draft 正規化、bounds facet、surface label 與測試；不要讓「handler 有了但貼 URL 建來源草稿仍 unknown」再發生。

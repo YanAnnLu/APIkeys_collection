@@ -16,6 +16,7 @@
 - `tests.test_source_patterns` 會確認 `SOURCE_TYPE_HINTS.values()` 等於 `SUPPORTED_DATASET_SOURCE_TYPES`；以後新增 handler 時，必須同步補 source pattern hint 或明確調整契約，避免 UI/CLI 貼 URL 時仍被 `unknown` 擋下。
 - `tests.test_source_pattern_drafts` 會確認 vendor/science API URL 在 fake fetcher / no live network 下可建立 supported local source draft，並由 `discovery_drafts.py` 正規化為各 crawler 的 canonical endpoint。這是 `URL -> source draft -> crawler audit` 的第一段閉環，不是直接下載。
 - `SOURCE_BOUND_FACETS` 與 `SOURCE_SURFACE_LABELS` 現在也被測試鎖成覆蓋所有 supported crawler source type。新增來源類型時，除了 handler 外，也要同步補 UI 中立界域 facet 與來源表面標籤，否則 crawler asset 分頁會退化成弱表單或 raw label。
+- `--dataset-discovery-handler-smoke-json` 是離線 crawler audit contract smoke。它會用 fixture source 覆蓋每一個 `SUPPORTED_DATASET_SOURCE_TYPES`，分別驗證「零候選時產生 `zero_candidates` / `repair_crawler_query_or_parser`」與「正常候選時 audit pass」。這不取代各 crawler 的 payload fixture 測試，也不代表 live endpoint 可用；它用來防止新增 handler 後 audit summary、warning code、next_action 或 CLI JSON 交接斷線。
 
 ## 2026-05-26 Crawler run record / registry handoff
 

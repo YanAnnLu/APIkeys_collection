@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import concurrent.futures
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
 from api_launcher.crawlers import dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+
+DatasetCandidateRunner = Callable[[DatasetDiscoverySource, "DatasetCrawlOptions"], list[DatasetCandidate]]
 
 
 @dataclass(frozen=True)
@@ -159,6 +162,7 @@ def crawl_result_audit_summary(result: DatasetCrawlResult) -> dict[str, Any]:
 def crawl_dataset_sources(
     sources: list[DatasetDiscoverySource],
     options: DatasetCrawlOptions | None = None,
+    source_crawler: DatasetCandidateRunner | None = None,
 ) -> DatasetCrawlResult:
     """Run configured dataset-source crawlers concurrently and dedupe results.
 
@@ -167,6 +171,7 @@ def crawl_dataset_sources(
     cross-source dedupe.
     """
     options = options or DatasetCrawlOptions()
+    source_crawler = source_crawler or default_source_crawler
     if not sources:
         return DatasetCrawlResult(candidates=(), source_results=())
 
@@ -180,7 +185,7 @@ def crawl_dataset_sources(
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="dataset-crawler") as executor:
         futures = {
-            executor.submit(_crawl_one_source, source, options): source
+            executor.submit(_crawl_one_source, source, options, source_crawler): source
             for source in sources
         }
         for future in concurrent.futures.as_completed(futures):
@@ -230,16 +235,26 @@ def crawl_dataset_sources(
     )
 
 
-def _crawl_one_source(source: DatasetDiscoverySource, options: DatasetCrawlOptions) -> DatasetSourceCrawlResult:
+def default_source_crawler(source: DatasetDiscoverySource, options: DatasetCrawlOptions) -> list[DatasetCandidate]:
+    """執行正式 crawler handler；測試/contract smoke 可注入替身而不碰 live 網路。"""
+
+    return dataset_sources.discover_dataset_candidates_for_source(
+        source,
+        timeout=options.timeout,
+        max_results_override=options.max_results_override,
+        search_terms_override=options.search_terms_override,
+        full_crawl=options.full_crawl,
+        max_pages=options.max_pages,
+    )
+
+
+def _crawl_one_source(
+    source: DatasetDiscoverySource,
+    options: DatasetCrawlOptions,
+    source_crawler: DatasetCandidateRunner,
+) -> DatasetSourceCrawlResult:
     try:
-        candidates = dataset_sources.discover_dataset_candidates_for_source(
-            source,
-            timeout=options.timeout,
-            max_results_override=options.max_results_override,
-            search_terms_override=options.search_terms_override,
-            full_crawl=options.full_crawl,
-            max_pages=options.max_pages,
-        )
+        candidates = source_crawler(source, options)
     except Exception as exc:
         return DatasetSourceCrawlResult(
             source_id=source.source_id,

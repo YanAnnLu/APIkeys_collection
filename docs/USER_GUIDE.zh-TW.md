@@ -247,6 +247,7 @@ Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discove
 | 跑資料集候選爬蟲 | `python3 APIkeys_collection.py --init-db --seed --discover-dataset-candidates --write-dataset-candidates state/dataset_candidates.review.json --upsert-dataset-candidates` |
 | 只跑單一 source | `python3 APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-source SOURCE_ID --dataset-discovery-limit 10` |
 | full-crawl 到沒有下一頁或安全 cap | `python3 APIkeys_collection.py --discover-dataset-candidates --dataset-discovery-full-crawl --dataset-discovery-max-pages 10 --dataset-discovery-strict-audit` |
+| 離線檢查所有 crawler handler 的 audit contract | `python3 APIkeys_collection.py --dataset-discovery-handler-smoke-json` |
 | 列出候選 | `python3 APIkeys_collection.py --list-dataset-candidates --dataset-candidate-status all` |
 | 以 JSON 列出候選 | `python3 APIkeys_collection.py --list-dataset-candidates --dataset-candidates-json` |
 | 標記候選可用 | `python3 APIkeys_collection.py --review-dataset-candidate DATASET_UID --dataset-candidate-decision approved` |
