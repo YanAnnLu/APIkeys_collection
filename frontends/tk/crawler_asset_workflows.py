@@ -1493,6 +1493,7 @@ def crawler_asset_credential_summary_text(
     """
 
     status = credential_status if isinstance(credential_status, dict) else {}
+    display_profile = status.get("display_profile") if isinstance(status.get("display_profile"), dict) else {}
     summary_zh = str(status.get("display_summary_zh_TW") or "").strip()
     summary_en = str(status.get("display_summary_en") or "").strip()
     if summary_zh or summary_en:
@@ -1501,6 +1502,17 @@ def crawler_asset_credential_summary_text(
     configured = int(status.get("configured_count") or 0)
     total = int(status.get("field_count") or 0)
     next_action = str(status.get("next_action") or "").strip()
+    next_action_zh = str(
+        status.get("next_action_label_zh_TW")
+        or display_profile.get("next_action_label_zh_TW")
+        or display_profile.get("next_action_label")
+        or next_action
+    ).strip()
+    next_action_en = str(
+        status.get("next_action_label_en")
+        or display_profile.get("next_action_label_en")
+        or next_action
+    ).strip()
     missing = status.get("missing_required") if isinstance(status.get("missing_required"), list) else []
     missing_text = ", ".join(str(item) for item in missing if str(item).strip())
     if total:
@@ -1512,9 +1524,9 @@ def crawler_asset_credential_summary_text(
     if missing_text:
         zh = f"{zh}；缺少 {missing_text}"
         en = f"{en}; missing {missing_text}"
-    if next_action:
-        zh = f"{zh}；下一步：{next_action}"
-        en = f"{en}; next: {next_action}"
+    if next_action_zh or next_action_en:
+        zh = f"{zh}；下一步：{next_action_zh or next_action}"
+        en = f"{en}; next: {next_action_en or next_action}"
     return tr(zh, en)
 
 
@@ -1525,18 +1537,30 @@ def crawler_asset_credential_guard_message(
     """Translate backend credential guard payload into a Tk-safe prompt."""
 
     guard = credential_guard if isinstance(credential_guard, dict) else {}
-    label = str(guard.get("display_label") or "需要登入 / API Key").strip()
+    display_profile = guard.get("display_profile") if isinstance(guard.get("display_profile"), dict) else {}
+    label = str(display_profile.get("label") or guard.get("display_label") or "需要登入 / API Key").strip()
     provider_name = str(guard.get("provider_name") or guard.get("provider_id") or "").strip()
     missing = guard.get("missing_required") if isinstance(guard.get("missing_required"), list) else []
     missing_text = ", ".join(str(item) for item in missing if str(item).strip()) or "-"
     next_action = str(guard.get("next_action") or "edit_local_credentials_before_live_download").strip()
+    next_action_zh = str(
+        guard.get("next_action_label_zh_TW")
+        or display_profile.get("next_action_label_zh_TW")
+        or display_profile.get("next_action_label")
+        or next_action
+    ).strip()
+    next_action_en = str(
+        guard.get("next_action_label_en")
+        or display_profile.get("next_action_label_en")
+        or next_action
+    ).strip()
     entry_label = str(guard.get("credential_entry_label") or "").strip()
     zh_lines = [
         f"{label}。",
         f"來源：{provider_name or '-'}",
         f"缺少欄位：{missing_text}",
         "請先完成登入設定；如果需要 API Key，請到官方入口申請後再回來下載。",
-        f"下一步：{next_action}",
+        f"下一步：{next_action_zh or next_action}",
     ]
     if entry_label:
         zh_lines.append(f"可用入口：{entry_label}")
@@ -1545,7 +1569,7 @@ def crawler_asset_credential_guard_message(
         f"Source: {provider_name or '-'}",
         f"Missing fields: {missing_text}",
         "Finish login settings first. If an API key is required, get it from the official portal before downloading.",
-        f"Next action: {next_action}",
+        f"Next action: {next_action_en or next_action}",
     ]
     if entry_label:
         en_lines.append(f"Available entry: {entry_label}")

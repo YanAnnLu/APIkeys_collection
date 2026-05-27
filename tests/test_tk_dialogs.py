@@ -580,6 +580,24 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("後端摘要", summary)
         self.assertIn("NASA_TOKEN", summary)
 
+    def test_crawler_asset_credential_summary_fallback_uses_human_next_action_label(self) -> None:
+        payload = {
+            "display_label": "需要登入 / API Key",
+            "configured_count": 0,
+            "field_count": 1,
+            "missing_required": ["EARTHDATA_TOKEN"],
+            "next_action": "edit_local_credentials_before_live_download",
+            "display_profile": {
+                "next_action_label_zh_TW": "先完成登入設定，再下載資料",
+                "next_action_label_en": "Finish login settings before downloading",
+            },
+        }
+
+        summary = crawler_asset_credential_summary_text(payload, lambda zh, _en: zh)
+
+        self.assertIn("先完成登入設定", summary)
+        self.assertNotIn("edit_local_credentials_before_live_download", summary)
+
     def test_crawler_asset_seed_page_preview_uses_shared_page_payload(self) -> None:
         payload = {
             "total": 55,
@@ -948,10 +966,15 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(["EARTHDATA_TOKEN"], context["field_names"])
         self.assertNotIn("****cret", json.dumps(context, ensure_ascii=False))
 
-    def test_crawler_asset_credential_guard_message_keeps_next_action_visible(self) -> None:
+    def test_crawler_asset_credential_guard_message_uses_human_next_action_label(self) -> None:
         message = crawler_asset_credential_guard_message(
             {
                 "display_label": "需要登入 / API Key",
+                "display_profile": {
+                    "label": "需要登入 / API Key",
+                    "next_action_label_zh_TW": "先完成登入設定，再下載資料",
+                    "next_action_label_en": "Finish login settings before downloading",
+                },
                 "provider_name": "NASA Earthdata",
                 "missing_required": ["EARTHDATA_TOKEN"],
                 "credential_entry_label": "開啟官方登入 / 申請 API Key",
@@ -962,7 +985,8 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertIn("NASA Earthdata", message)
         self.assertIn("EARTHDATA_TOKEN", message)
-        self.assertIn("edit_local_credentials_before_live_download", message)
+        self.assertIn("先完成登入設定", message)
+        self.assertNotIn("edit_local_credentials_before_live_download", message)
 
     def test_seed_download_import_worker_uses_formal_service_and_local_download_root(self) -> None:
         fake_pipeline = SimpleNamespace(
