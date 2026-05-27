@@ -57,6 +57,7 @@ Last updated: 2026-05-28
 - [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。
 - [x] Source pattern draft 的 next-action 顯示已補 label contract：成功與 blocked review payload 會輸出 `next_action_label_*`，Tk source draft 成功 / 保留審核訊息優先顯示人類下一步，raw `next_action` 只留給 JSON / agent；audit command 另列為可重跑命令。
 - [x] Tk 爬蟲資產 blocked download-plan summary 已改吃同一份 plan outcome display payload；例如 `enable_before_building_download_plan` 會顯示為「先啟用爬蟲資產」，不再把 machine `next_action` 直接丟給使用者。
+- [x] Tk 爬蟲資產 listing blocked status 也改吃共用 `next_action_display_label()`；例如 disabled source 的 `enable_before_crawl` 會顯示為「先啟用爬蟲資產，再枚舉 seed」，避免 status bar 露出 raw action id。
 - [x] Crawler asset 的 bounds facet registry 與 source surface registry 都已鎖成覆蓋全部 supported crawler source type；新增 handler 時若漏接 UI 表單或表面分類，測試會直接失敗。
 - [x] Web Preview 修正無界域欄位時「建立下載計畫」按鈕被反向停用的問題；同時補上 `file_index` / `map_service` / `catalog` 的使用者可讀來源表面標籤。
 - [x] Web Preview 選取爬蟲入口後，預設走 seed 枚舉心流：`crawler_asset_listing` 會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口內 seed，並把候選寫回本機 catalog。

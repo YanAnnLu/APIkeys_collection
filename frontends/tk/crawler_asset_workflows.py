@@ -34,6 +34,7 @@ from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
+    next_action_display_label,
 )
 from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
@@ -1017,12 +1018,7 @@ class CrawlerAssetWorkflowMixin:
 
         def finish() -> None:
             if result.blocked:
-                self.status_var.set(
-                    self.tr(
-                        f"爬蟲資產暫停執行：{result.blocked_reason}；下一步：{result.next_action}",
-                        f"Crawler asset blocked: {result.blocked_reason}; next action: {result.next_action}",
-                    )
-                )
+                self.status_var.set(crawler_asset_listing_blocked_status_text(result, self.tr))
                 return
             self.reload_data()
             self.refresh_crawler_asset_tab()
@@ -1353,6 +1349,17 @@ def crawler_asset_download_plan_summary_text(
     if resolved_path:
         zh = f"{zh}\n\nResolved plan：{resolved_path}"
         en = f"{en}\n\nResolved plan: {resolved_path}"
+    return tr(zh, en)
+
+
+def crawler_asset_listing_blocked_status_text(result: object, tr: Callable[[str, str], str]) -> str:
+    """Render blocked listing status without leaking raw backend next_action ids."""
+
+    blocked_reason = str(getattr(result, "blocked_reason", "") or "-").strip()
+    next_action = str(getattr(result, "next_action", "") or "").strip()
+    next_action_label = next_action_display_label(next_action) if next_action else ""
+    zh = f"爬蟲資產暫停執行：{blocked_reason}；下一步：{next_action_label or '-'}"
+    en = f"Crawler asset blocked: {blocked_reason}; next action: {next_action_label or '-'}"
     return tr(zh, en)
 
 

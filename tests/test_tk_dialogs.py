@@ -53,6 +53,7 @@ from frontends.tk.crawler_asset_workflows import (
     crawler_asset_credential_guard_message,
     crawler_asset_credential_summary_text,
     crawler_asset_download_plan_summary_text,
+    crawler_asset_listing_blocked_status_text,
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
@@ -638,6 +639,17 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertIn("先完成登入設定", summary)
         self.assertNotIn("edit_local_credentials_before_live_download", summary)
+
+    def test_crawler_asset_listing_blocked_status_uses_human_next_action_label(self) -> None:
+        result = SimpleNamespace(
+            blocked_reason="disabled",
+            next_action="enable_before_crawl",
+        )
+
+        message = crawler_asset_listing_blocked_status_text(result, lambda zh, _en: zh)
+
+        self.assertIn("先啟用爬蟲資產，再枚舉 seed", message)
+        self.assertNotIn("enable_before_crawl", message)
 
     def test_crawler_asset_seed_page_preview_uses_shared_page_payload(self) -> None:
         payload = {

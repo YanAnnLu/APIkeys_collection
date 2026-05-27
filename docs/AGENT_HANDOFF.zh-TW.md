@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 05:04 Tk listing blocked next-action label handoff
+- 本輪把 Tk 爬蟲資產「清單擷取被阻擋」status bar 訊息也接到共用 next-action label。`frontends/tk/crawler_asset_workflows.py` 新增 `crawler_asset_listing_blocked_status_text()`，由 `api_launcher.crawler_asset_display.next_action_display_label()` 將 `enable_before_crawl` 等 machine action 轉成人類可讀「先啟用爬蟲資產，再枚舉 seed」。
+- 這是 UI 顯示層切片，不改 crawler、repository、download 或 import 行為；目標是讓 Tk/Web/未來 Qt 都消費後端 display contract，不在使用者畫面露出 raw `next_action`。
+- 本地驗證已通過：in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 63 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，812 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_050459.log`。
+
 ## 2026-05-28 04:50 Web crawler asset next-action label handoff
 - 本輪把 Web Preview 的 crawler asset card、Crawler Passport、下載器清單與缺憑證 blocked payload 都接到同一份 `next_action_label` contract。`api_launcher.crawler_asset_display` 現在提供 `next_action_display_label()`，讓 Web API 不必把 `probe_schema_then_define_bounds`、`edit_local_credentials_before_live_download` 等 raw machine action 直接交給前端顯示。
 - `frontends/web/preview_api.py` 會在 asset card、credential-blocked listing、plan preview、asset download/import、seed download/import 與 blocked plan passport 回傳人類可讀 `next_action_label`；`frontends/web/static/app.js` 的 hero、passport、下載器 row 與搜尋 haystack 也優先使用 label。這是 UI-neutral display contract 對齊，不改 crawler、download 或 import 執行行為。
