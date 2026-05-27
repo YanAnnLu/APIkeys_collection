@@ -2,7 +2,7 @@
 ## 2026-05-27 22:44 Web demo cleanup docs drift handoff
 - 本輪依 Documentation Drift Guard 複查 Web demo route cleanup，修正 `PROJECT_GTD.md` 與 `DOCS_DRIFT_AUDIT.zh-TW.md` 中仍把舊 `執行真下載示範` 寫成一般使用者主流程的敘述。
 - 已對齊目前 verified behavior：Web 下載器主 CTA 是正式 `下載 / 匯入目前資產`；舊 public CSV helper 只保留在 developer diagnostics `POST /api/diagnostics/real-download-demo`；舊 `/api/demo/real-download` 不再是一般 API。
-- 本地檢查：`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK。此切片是文檔漂移修補，不改產品碼、不改 Web/Tk 行為。下一步可回到宣告式主線，優先做 `BoundsFormProfile` 小切片，避免 UI/Tk/Web 各自猜界域表單狀態。
+- 已推送 `f251d8c Align web demo cleanup docs`；GitHub Actions run `26518617851` 的 Ubuntu、Windows 與 real DB smoke 全部 success。本地檢查：`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK。此切片是文檔漂移修補，不改產品碼、不改 Web/Tk 行為。下一步可回到宣告式主線，優先做 `BoundsFormProfile` 小切片，避免 UI/Tk/Web 各自猜界域表單狀態。
 
 ## 2026-05-27 22:32 UI display profile handoff
 - 依宣告式架構方向，將 plan outcome 的顯示狀態再收斂成 typed `DisplayProfile`。`api_launcher/crawler_asset_display.py` 現在提供 `DisplayProfile` 與 `plan_outcome_display_profile()`，並讓 `crawler_asset_plan_outcome_payload()` 輸出 `display_profile`，同時保留原本 `display_label` / `display_tone` / `short_label` / `summary` 欄位以免前端破壞。
