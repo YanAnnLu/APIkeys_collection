@@ -1,8 +1,8 @@
 ﻿# Agent 接力卡
-## 2026-05-27 15:15 Source profile access policy validation checkpoint
+## 2026-05-27 15:27 Source profile access policy validation checkpoint
 - 本輪在 `credential_mode` / `terms_risk` 明示欄位上補白名單 normalization：`DatasetDiscoverySource` loader 只接受 `public_or_review`、`user_credential_required`、`terms_review_required` 這類已知治理值，未知字串會被清空，`source_to_dict()` 也不會把未知 access policy 寫回 source JSON。
 - `crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 也改吃同一組 normalizer；因此本機 source profile 若誤填 `raw-secret`、`maybe` 這類值，不會漏到 Web/Tk/Qt capability contract，而是回到既有 public/review fallback heuristic。
-- 這是 source profile access policy 的防呆補強，不是新的 crawler 功能，也不改使用者 UI 操作流程。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，80 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，111 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，761 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步：commit / push / watch CI。
+- 這是 source profile access policy 的防呆補強，不是新的 crawler 功能，也不改使用者 UI 操作流程。已推送 `217231a Normalize source access policy values`；GitHub Actions run `26497125509` 的 Ubuntu、Windows 與 real DB smoke 全部 success。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，80 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，111 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，761 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。
 
 ## 2026-05-27 15:04 Source profile access policy checkpoint
 - 本輪新增 `DatasetDiscoverySource.credential_mode` 與 `terms_risk`；source JSON 會載入與寫回這兩個欄位。`crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 會優先讀明示 source profile 欄位，再退回既有文字 heuristic。
