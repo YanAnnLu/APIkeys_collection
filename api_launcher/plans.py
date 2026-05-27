@@ -8,7 +8,7 @@ from typing import Iterable
 from api_launcher.db import utc_now_iso
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.downloads.eligibility import DownloadEligibility, assess_provider_download, looks_like_direct_download
-from api_launcher.content_registry import content_parser_capability, normalize_content_format
+from api_launcher.content_registry import content_import_profile, content_parser_capability, normalize_content_format
 from api_launcher.models import Dataset, Provider
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.sql_assets import validate_sql_identifier
@@ -175,6 +175,7 @@ def dataset_import_plan_entry(
 ) -> dict[str, object]:
     source_format = normalize_content_format(dataset.native_format or str((option.metadata or {}).get("native_format") or ""))
     capability = content_parser_capability(source_format)
+    import_profile = content_import_profile(source_format)
     data_family = str(dataset.metadata.get("data_family") or dataset.data_type or "").strip()
     base = {
         "target_engine": "sqlite_mvp",
@@ -182,6 +183,7 @@ def dataset_import_plan_entry(
         "data_family": data_family or "unknown",
         "content_family": capability.content_family,
         "content_parser": capability.parser_id,
+        "content_import_profile": import_profile.to_dict(),
         "table_hint": sql_table_hint(f"{dataset.provider_id}_{dataset.dataset_id}"),
         "post_download": True,
     }

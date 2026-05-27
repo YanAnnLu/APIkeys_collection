@@ -1,6 +1,6 @@
 ﻿# RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 ## 2026-05-27 Documentation drift audit / 協作文件對齊
 - [x] 追加 Documentation Drift Guard 到全域 Codex skills，要求 agent 不盲信文檔，先以 verified behavior（tests / CLI JSON / smoke / UI / git diff / CI）建立現況。
@@ -45,6 +45,7 @@ Last updated: 2026-05-27
 - [x] 將「數據驅動裝飾器爬蟲架構」定位成第二階段 source profile / middleware PoC 候選；第一階段只收斂已落地的 timeout、page cap、page size、rate-limit、credential/terms policy，不用 raw list matrix 或大型 DSL 取代既有 handler。
 - [x] 將中期架構語彙收斂成 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`；後續 PoC 應以 typed profile / gateway / middleware 實作，不使用欄位順序脆弱的 raw matrix。
 - [x] 新增 `api_launcher.crawler_capability_profiles.CrawlerCapabilityProfile`，讓 crawler asset payload 帶出 source type、auth/terms、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 effective request policy。這是宣告式 gateway 的第一個可序列化 profile，不取代現有 Python handler。
+- [x] Content parser/import profile 已開始 typed 化：`api_launcher.content_registry.ContentImportProfile` / `content_import_profile()` 會把 CSV/JSON/GeoJSON 可匯入、ZIP 需解壓轉換、NetCDF/GeoTIFF/Parquet/SQLite/unknown 需 review 的判斷收成 `import_profile` / `content_import_profile` payload；Web/Tk/未來 Qt 不必各自猜內容格式能否匯入。
 - [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。
 - [x] `SOURCE_TYPE_HINTS` 已用 regression 鎖成「每個已接 `SUPPORTED_DATASET_SOURCE_TYPES` 都有 detector hint」，避免 handler 已存在但貼 URL 建來源草稿仍被擋成 `unknown`。
 - [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。

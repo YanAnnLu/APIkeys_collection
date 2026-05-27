@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from api_launcher.content_registry import content_parser_capability, detect_content_format, normalize_content_format
+from api_launcher.content_registry import content_import_profile, content_parser_capability, detect_content_format, normalize_content_format
 from api_launcher.dataset_versions import DatasetVersionOption
 from api_launcher.downloads.eligibility import DownloadEligibility
 from api_launcher.models import Dataset
@@ -31,6 +31,8 @@ class ContentRegistryTest(unittest.TestCase):
 
         self.assertEqual("supported_after_download", csv_capability.import_status)
         self.assertEqual("csv_to_sqlite", csv_capability.parser_id)
+        self.assertEqual("sqlite_curated_import", csv_capability.to_dict()["import_profile"]["pipeline_lane"])
+        self.assertFalse(csv_capability.to_dict()["import_profile"]["review_required"])
         self.assertEqual("supported_after_download", geojson_capability.import_status)
         self.assertEqual("json_to_sqlite", geojson_capability.parser_id)
 
@@ -40,6 +42,22 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("requires_unpack_or_adapter", capability.import_status)
         self.assertEqual("downloaded_payload_transform", capability.review_bucket)
         self.assertEqual("archive_review", capability.parser_id)
+        self.assertEqual("downloaded_payload_transform", capability.to_dict()["import_profile"]["pipeline_lane"])
+        self.assertEqual("unpack_or_transform_downloaded_payload", capability.to_dict()["import_profile"]["next_action"])
+
+    def test_content_import_profile_routes_supported_and_review_formats(self) -> None:
+        csv_profile = content_import_profile("csv")
+        netcdf_profile = content_import_profile("netcdf")
+        unknown_profile = content_import_profile("unknown-binary")
+
+        self.assertEqual("direct_sqlite_import_after_verified_download", csv_profile.importability)
+        self.assertEqual("csv_to_sqlite", csv_profile.supported_importer)
+        self.assertFalse(csv_profile.review_required)
+        self.assertEqual("content_parser_review", netcdf_profile.pipeline_lane)
+        self.assertEqual("content_parser_required", netcdf_profile.review_bucket)
+        self.assertTrue(netcdf_profile.review_required)
+        self.assertEqual("adapter_review", unknown_profile.pipeline_lane)
+        self.assertEqual("unsupported_payload_format", unknown_profile.review_bucket)
 
     def test_dataset_import_plan_uses_content_registry(self) -> None:
         dataset = Dataset(
@@ -70,6 +88,8 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("scientific_grid_review", plan["content_parser"])
         self.assertEqual("manual_review_required", plan["status"])
         self.assertEqual("content_parser_required", plan["review_bucket"])
+        self.assertEqual("content_parser_review", plan["content_import_profile"]["pipeline_lane"])
+        self.assertEqual("add_content_parser_or_keep_raw_artifact", plan["content_import_profile"]["next_action"])
 
     def test_normalize_content_format_keeps_compound_suffixes(self) -> None:
         self.assertEqual("csv.gz", normalize_content_format("text/csv+gzip"))
@@ -120,6 +140,7 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("scientific_grid_or_array", detection.capability.content_family)
         self.assertEqual("scientific_grid_review", detection.capability.parser_id)
         self.assertEqual("content_parser_required", detection.capability.review_bucket)
+        self.assertEqual("content_parser_review", detection.to_dict()["import_profile"]["pipeline_lane"])
 
     def test_sqlite_database_snapshot_routes_to_database_review(self) -> None:
         detection = detect_content_format(url="https://example.test/database/catalog.sqlite3")

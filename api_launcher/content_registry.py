@@ -45,6 +45,46 @@ FORMAT_ALIASES = {
 
 
 @dataclass(frozen=True)
+class ContentImportProfile:
+    """UI-neutral import capability contract for one content format.
+
+    Source-pattern adapters answer "how do we find resources"; this profile
+    answers "what can RRKAL safely do with the downloaded bytes".  Keep this
+    contract declarative so Tk/Web/Qt can render the same next action without
+    duplicating content-format rules.
+    """
+
+    source_format: str
+    content_family: str
+    import_status: str
+    parser_id: str
+    importability: str
+    pipeline_lane: str
+    review_required: bool
+    review_bucket: str
+    next_action: str
+    display_label: str
+    display_tone: str
+    supported_importer: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "source_format": self.source_format,
+            "content_family": self.content_family,
+            "import_status": self.import_status,
+            "parser_id": self.parser_id,
+            "importability": self.importability,
+            "pipeline_lane": self.pipeline_lane,
+            "review_required": self.review_required,
+            "review_bucket": self.review_bucket,
+            "next_action": self.next_action,
+            "display_label": self.display_label,
+            "display_tone": self.display_tone,
+            "supported_importer": self.supported_importer,
+        }
+
+
+@dataclass(frozen=True)
 class ContentParserCapability:
     source_format: str
     content_family: str
@@ -61,6 +101,7 @@ class ContentParserCapability:
             "parser_id": self.parser_id,
             "reason": self.reason,
             "review_bucket": self.review_bucket,
+            "import_profile": content_import_profile_from_capability(self).to_dict(),
         }
 
 
@@ -77,6 +118,7 @@ class ContentDetection:
             "confidence": self.confidence,
             "evidence": list(self.evidence),
             "capability": self.capability.to_dict(),
+            "import_profile": content_import_profile_from_capability(self.capability).to_dict(),
         }
 
 
@@ -232,9 +274,79 @@ def content_parser_capability(source_format: str) -> ContentParserCapability:
     )
 
 
+def content_import_profile(source_format: str) -> ContentImportProfile:
+    """Return the declarative import profile for a normalized or hinted format."""
+
+    return content_import_profile_from_capability(content_parser_capability(source_format))
+
+
+def content_import_profile_from_capability(capability: ContentParserCapability) -> ContentImportProfile:
+    """Convert parser capability into the smaller import/review routing contract."""
+
+    if capability.import_status == "supported_after_download":
+        return ContentImportProfile(
+            source_format=capability.source_format,
+            content_family=capability.content_family,
+            import_status=capability.import_status,
+            parser_id=capability.parser_id,
+            importability="direct_sqlite_import_after_verified_download",
+            pipeline_lane="sqlite_curated_import",
+            review_required=False,
+            review_bucket="",
+            next_action="download_then_import_verified_payload",
+            display_label="可匯入 SQLite",
+            display_tone="success",
+            supported_importer=capability.parser_id,
+        )
+    if capability.import_status == "requires_unpack_or_adapter":
+        return ContentImportProfile(
+            source_format=capability.source_format,
+            content_family=capability.content_family,
+            import_status=capability.import_status,
+            parser_id=capability.parser_id,
+            importability="transform_required_before_curated_import",
+            pipeline_lane="downloaded_payload_transform",
+            review_required=True,
+            review_bucket=capability.review_bucket,
+            next_action="unpack_or_transform_downloaded_payload",
+            display_label="下載後需解壓或轉換",
+            display_tone="warning",
+        )
+    if capability.review_bucket == "unsupported_payload_format":
+        return ContentImportProfile(
+            source_format=capability.source_format,
+            content_family=capability.content_family,
+            import_status=capability.import_status,
+            parser_id=capability.parser_id,
+            importability="unsupported_content_review",
+            pipeline_lane="adapter_review",
+            review_required=True,
+            review_bucket=capability.review_bucket,
+            next_action="review_payload_format_or_keep_raw_artifact",
+            display_label="未知內容格式",
+            display_tone="danger",
+        )
+    return ContentImportProfile(
+        source_format=capability.source_format,
+        content_family=capability.content_family,
+        import_status=capability.import_status,
+        parser_id=capability.parser_id,
+        importability="content_parser_required_before_curated_import",
+        pipeline_lane="content_parser_review",
+        review_required=True,
+        review_bucket=capability.review_bucket,
+        next_action="add_content_parser_or_keep_raw_artifact",
+        display_label="內容 Parser 待辦",
+        display_tone="warning",
+    )
+
+
 __all__ = [
     "ContentDetection",
+    "ContentImportProfile",
     "ContentParserCapability",
+    "content_import_profile",
+    "content_import_profile_from_capability",
     "content_parser_capability",
     "detect_content_format",
     "normalize_content_format",
