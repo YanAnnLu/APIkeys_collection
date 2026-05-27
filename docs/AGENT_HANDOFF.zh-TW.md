@@ -1,4 +1,9 @@
 ﻿# Agent 接力卡
+## 2026-05-27 15:15 Source profile access policy validation checkpoint
+- 本輪在 `credential_mode` / `terms_risk` 明示欄位上補白名單 normalization：`DatasetDiscoverySource` loader 只接受 `public_or_review`、`user_credential_required`、`terms_review_required` 這類已知治理值，未知字串會被清空，`source_to_dict()` 也不會把未知 access policy 寫回 source JSON。
+- `crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 也改吃同一組 normalizer；因此本機 source profile 若誤填 `raw-secret`、`maybe` 這類值，不會漏到 Web/Tk/Qt capability contract，而是回到既有 public/review fallback heuristic。
+- 這是 source profile access policy 的防呆補強，不是新的 crawler 功能，也不改使用者 UI 操作流程。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，80 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，111 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，761 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步：commit / push / watch CI。
+
 ## 2026-05-27 15:04 Source profile access policy checkpoint
 - 本輪新增 `DatasetDiscoverySource.credential_mode` 與 `terms_risk`；source JSON 會載入與寫回這兩個欄位。`crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 會優先讀明示 source profile 欄位，再退回既有文字 heuristic。
 - 這代表登入/API key 與條款風險屬於 crawler/source profile，而不是資料集本身或 UI 猜測。`crawler_asset_source_signature()` 已納入這兩個欄位，讓保存過的 plan passport 在治理設定改變後變 stale。

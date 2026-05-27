@@ -242,6 +242,37 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(2, len(output.candidates))
         delay.assert_called_once_with(0.25)
 
+    def test_source_loader_rejects_unknown_access_policy_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "sources.json"
+            path.write_text(
+                """
+                {
+                  "schema_version": 1,
+                  "sources": [
+                    {
+                      "source_id": "sample_source",
+                      "provider_id": "sample_provider",
+                      "name": "Sample Source",
+                      "source_type": "ckan_package_search",
+                      "endpoint_url": "https://example.test/api/3/action/package_search",
+                      "credential_mode": "raw-secret",
+                      "terms_risk": "maybe"
+                    }
+                  ]
+                }
+                """,
+                encoding="utf-8",
+            )
+
+            sources = load_dataset_discovery_sources(path)
+
+        self.assertEqual("", sources[0].credential_mode)
+        self.assertEqual("", sources[0].terms_risk)
+        payload = dataset_sources.source_to_dict(sources[0])
+        self.assertNotIn("credential_mode", payload)
+        self.assertNotIn("terms_risk", payload)
+
     def test_seed_coverage_marks_search_terms_as_sample_scope(self) -> None:
         source = DatasetDiscoverySource(
             source_id="sample_socrata",

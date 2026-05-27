@@ -5,6 +5,10 @@ from dataclasses import dataclass, replace
 from api_launcher.models import Dataset
 
 
+SOURCE_CREDENTIAL_MODES = frozenset({"public_or_review", "user_credential_required"})
+SOURCE_TERMS_RISKS = frozenset({"public_or_review", "terms_review_required"})
+
+
 @dataclass(frozen=True)
 class DatasetDiscoverySource:
     # source 是 crawler 的設定單位，不是單一 dataset；一個 source 可以產出多筆 candidate。
@@ -32,6 +36,16 @@ class DatasetDiscoverySource:
     crawl_page_size: int = 0
     crawl_rate_limit_seconds: float = 0.0
     notes: str = ""
+
+
+def normalize_source_credential_mode(value: object) -> str:
+    mode = str(value or "").strip()
+    return mode if mode in SOURCE_CREDENTIAL_MODES else ""
+
+
+def normalize_source_terms_risk(value: object) -> str:
+    risk = str(value or "").strip()
+    return risk if risk in SOURCE_TERMS_RISKS else ""
 
 
 @dataclass(frozen=True)

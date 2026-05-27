@@ -187,6 +187,22 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("terms_review_required", asset.capabilities[0].terms_risk)
         self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
 
+    def test_unknown_source_access_policy_values_do_not_leak_to_ui_contract(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="plain_public_source",
+            provider_id="plain_provider",
+            name="Plain Public Source",
+            source_type="ckan_package_search",
+            endpoint_url="https://example.test/api/3/action/package_search",
+            credential_mode="raw-secret",
+            terms_risk="maybe",
+        )
+
+        asset = crawler_asset_from_source(source)
+
+        self.assertEqual("public_or_review", asset.capabilities[0].credential_mode)
+        self.assertEqual("public_or_review", asset.capabilities[0].terms_risk)
+
     def test_source_type_drives_dynamic_bounds_facets(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_stac",

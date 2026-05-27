@@ -22,10 +22,12 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接 `crawl_page_size`，讓 source JSON 可限制單次請求 page size；當 Web/Tk/CLI 給出較大的 `max_results_override` 時，source profile 可以把 per-request page size 壓低，避免完整 seed 枚舉對特定入口送出過大頁面請求。
 - [x] Source profile 已承接 `crawl_rate_limit_seconds`，各 paginated crawler handler 會透過共用 `polite_crawl_delay()` 在下一頁請求前套用來源層延遲；`crawler_asset_source_signature()` 也納入 politeness 欄位，讓保存的 plan passport 在 source profile 改變後可被標成 stale。
 - [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
+- [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [ ] 下一步 hardening：source profile / crawler capability 可再收斂更正式的 request policy metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
+- [x] 將「數據驅動裝飾器爬蟲架構」定位成第二階段 source profile / middleware PoC 候選；第一階段只收斂已落地的 timeout、page cap、page size、rate-limit、credential/terms policy，不用 raw list matrix 或大型 DSL 取代既有 handler。
 - [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。
 - [x] `SOURCE_TYPE_HINTS` 已用 regression 鎖成「每個已接 `SUPPORTED_DATASET_SOURCE_TYPES` 都有 detector hint」，避免 handler 已存在但貼 URL 建來源草稿仍被擋成 `unknown`。
 - [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。

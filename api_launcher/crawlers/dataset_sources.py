@@ -84,6 +84,8 @@ from api_launcher.crawlers.types import (
     DatasetDiscoverySource,
     dataset_to_dict,
     dataset_with_candidate_metadata,
+    normalize_source_credential_mode,
+    normalize_source_terms_risk,
 )
 from api_launcher.crawlers.zenodo import (
     paginated_zenodo_candidates,
@@ -196,8 +198,8 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             file_url_regex=str(item.get("file_url_regex") or "").strip(),
             min_expected_candidates=int(item.get("min_expected_candidates") if item.get("min_expected_candidates") is not None else 1),
             seed_discovery_mode=str(item.get("seed_discovery_mode") or "auto").strip() or "auto",
-            credential_mode=str(item.get("credential_mode") or "").strip(),
-            terms_risk=str(item.get("terms_risk") or "").strip(),
+            credential_mode=normalize_source_credential_mode(item.get("credential_mode")),
+            terms_risk=normalize_source_terms_risk(item.get("terms_risk")),
             crawl_timeout_seconds=_positive_float(item.get("crawl_timeout_seconds")),
             crawl_max_pages=_positive_int(item.get("crawl_max_pages")),
             crawl_page_size=_positive_int(item.get("crawl_page_size")),
@@ -266,10 +268,12 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
     }
     if source.seed_discovery_mode != "auto":
         payload["seed_discovery_mode"] = source.seed_discovery_mode
-    if source.credential_mode:
-        payload["credential_mode"] = source.credential_mode
-    if source.terms_risk:
-        payload["terms_risk"] = source.terms_risk
+    credential_mode = normalize_source_credential_mode(source.credential_mode)
+    terms_risk = normalize_source_terms_risk(source.terms_risk)
+    if credential_mode:
+        payload["credential_mode"] = credential_mode
+    if terms_risk:
+        payload["terms_risk"] = terms_risk
     if source.crawl_timeout_seconds > 0:
         payload["crawl_timeout_seconds"] = source.crawl_timeout_seconds
     if source.crawl_max_pages > 0:

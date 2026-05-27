@@ -9,7 +9,11 @@ from api_launcher.crawler_asset_bounds import (
     bounds_schema_for_source,
 )
 from api_launcher.crawlers.source_type_registry import source_uses_file_index
-from api_launcher.crawlers.types import DatasetDiscoverySource
+from api_launcher.crawlers.types import (
+    DatasetDiscoverySource,
+    normalize_source_credential_mode,
+    normalize_source_terms_risk,
+)
 
 
 FETCH_METADATA = "fetch_metadata"
@@ -174,7 +178,7 @@ def access_requirement_for_source(source: DatasetDiscoverySource) -> str:
 
 
 def credential_mode_for_source(source: DatasetDiscoverySource) -> str:
-    explicit = str(getattr(source, "credential_mode", "") or "").strip()
+    explicit = normalize_source_credential_mode(getattr(source, "credential_mode", ""))
     if explicit:
         return explicit
     text = " ".join([source.source_id, source.provider_id, source.endpoint_url, source.docs_url, source.notes]).lower()
@@ -185,7 +189,7 @@ def credential_mode_for_source(source: DatasetDiscoverySource) -> str:
 
 
 def terms_risk_for_source(source: DatasetDiscoverySource) -> str:
-    explicit = str(getattr(source, "terms_risk", "") or "").strip()
+    explicit = normalize_source_terms_risk(getattr(source, "terms_risk", ""))
     if explicit:
         return explicit
     text = " ".join([source.source_id, source.provider_id, source.endpoint_url, source.docs_url, source.notes]).lower()
