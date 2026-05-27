@@ -23,6 +23,7 @@
 - `node --check frontends\web\static\app.js`
 - `py -B -m unittest tests.test_csv_importer tests.test_json_importer tests.test_ingestion_pipeline tests.test_crawler_fetch tests.test_local_credentials tests.test_web_preview -v`
 - `scripts\pre_push_smoke_brief.cmd`，754 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`
+- GitHub Actions run `26492936566`：Ubuntu、Windows、Real DB smoke 全部 success
 
 ## P0 Findings
 

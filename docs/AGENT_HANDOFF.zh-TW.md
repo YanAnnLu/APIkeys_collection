@@ -1,12 +1,12 @@
 ﻿# Agent 接力卡
-## 2026-05-27 13:22 Code health audit / P1 hardening local pass
-- 本輪從 `05d6b67 Record GUI audit CI checkpoint` 繼續，工作樹原先為 clean；目前正在做程式健康審計與 P1 hardening，尚未推送。不要把本段視為 GitHub checkpoint，需以後續 `git log -1` / Actions run 驗證。
+## 2026-05-27 13:22 Code health audit / P1 hardening checkpoint
+- 本輪從 `05d6b67 Record GUI audit CI checkpoint` 繼續，已推送 `9e63f6c Harden import fetch and credential writes`；GitHub Actions run `26492936566` 的 Ubuntu、Windows 與 real DB smoke 全部 success。
 - 已修 P1-1：`api_launcher/importers/csv_importer.py` 的 `replace=True` 匯入不再先 drop target table；新資料先寫唯一暫存表，成功後才 swap target，失敗時保留舊 curated table。測試：`tests.test_csv_importer` 新增失敗保留舊表與成功替換 regression。
 - 已修 P1-2：`api_launcher/crawlers/fetch.py` 的 crawler metadata fetch 加入 `DEFAULT_MAX_CRAWLER_RESPONSE_BYTES = 8MB`，避免 metadata probe 誤讀大型檔案或惡意 payload。測試：`tests.test_crawler_fetch` 新增超限拒絕 regression。
 - 已修 P1-3：`api_launcher/local_credentials.py` 的本機 `.env` 寫入改成同目錄 UTF-8 temp file + `os.replace()`；替換失敗時清理 temp 並保留舊檔。測試：`tests.test_local_credentials` 新增 replace failure 不破壞既有檔案 regression。
 - 已新增 `docs/CODE_HEALTH_AUDIT.zh-TW.md`，並更新 GTD、Docs Index、本 handoff 與 development log。此文件列出 P2 剩餘風險：HTML file index partial failure、source-profile politeness defaults、Web `真下載示範` 退場。
 - 針對使用者提出的「數據驅動裝飾器爬蟲架構」：採納為宣告式架構第二階段的候選 PoC，不直接重寫現有 crawler。實作時應避免 raw list row，優先用 dataclass / profile schema；並注意裝飾器順序，若 credential 必須每頁刷新，pagination wrapper 應呼叫 credential wrapper，而不是只在整個 pagination 外層注入一次。
-- 目前驗證已通過：targeted `py -B -m unittest tests.test_csv_importer tests.test_json_importer tests.test_ingestion_pipeline tests.test_crawler_fetch tests.test_local_credentials tests.test_web_preview -v` 共 52 tests OK；`git diff --check` 無 whitespace error；docs mojibake scan OK；`scripts\pre_push_smoke_brief.cmd` 754 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步請 commit/push 並看 GitHub Actions。
+- 驗證已通過：targeted `py -B -m unittest tests.test_csv_importer tests.test_json_importer tests.test_ingestion_pipeline tests.test_crawler_fetch tests.test_local_credentials tests.test_web_preview -v` 共 52 tests OK；`git diff --check` 無 whitespace error；docs mojibake scan OK；`scripts\pre_push_smoke_brief.cmd` 754 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26492936566` 全部 success。
 
 ## 2026-05-27 13:01 GUI-level documentation drift audit complete
 - 文件漂移審計已補完 Web/Tk 實際行為對照。Verified Git state：`1e08e21 Complete documentation drift audit`，working tree 在本輪修補前為 clean / `main...origin/main`；該 commit 的 GitHub Actions run `26491482241` 已 success。
