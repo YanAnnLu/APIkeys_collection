@@ -2,7 +2,7 @@
 ## 2026-05-28 04:09 Tk blocked plan next-action label handoff
 - 本輪把 Tk「爬蟲資產無法建立下載計畫」警告也接到後端 display payload。`frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_download_plan_summary_text()` 現在先讀 `crawler_asset_plan_outcome_payload(...).next_action_label`，避免 blocked path 把 `enable_before_building_download_plan` 這類 machine `next_action` 直接顯示給使用者。
 - 新增 `tests/test_tk_dialogs.py::test_crawler_asset_download_plan_summary_blocked_uses_human_next_action_label`，鎖住 blocked summary 要顯示「先啟用爬蟲資產」，且 raw `enable_before_building_download_plan` 不得出現在使用者訊息中。
-- 本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 61 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，809 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_041048.log`。尚未推送 / GitHub CI。
+- 已推送：`ff0f283 Use labels for blocked Tk plan next action`；GitHub Actions run `26536339890` 已通過 Ubuntu、Windows 與 real DB smoke。本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 61 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，809 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_041048.log`。
 
 ## 2026-05-28 03:53 Source draft next-action label handoff
 - 本輪把 source pattern draft 的 next-action 顯示也收斂成 UI-neutral label。`api_launcher/source_pattern_drafts.py` 現在會在成功與 blocked review payload 中輸出 `next_action_label`、`next_action_label_zh_TW`、`next_action_label_en`；machine-readable `next_action` 保留給 JSON / agent。
