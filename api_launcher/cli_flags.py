@@ -32,6 +32,8 @@ def command_requested(args: argparse.Namespace) -> bool:
         download_plan_command_active(args),
         bool(args.write_mvp_demo_flow),
         bool(args.run_mvp_demo_smoke_json),
+        args.mvp_readiness_json,
+        bool(args.write_mvp_readiness_json),
         yfinance_command_active(args),
         bool(args.adapter_review_plan),
         args.adapter_review_json,

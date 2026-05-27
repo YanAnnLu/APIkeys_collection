@@ -1,8 +1,32 @@
 # 文件漂移審計
 
-最後更新：2026-05-28 05:52 Asia/Taipei
+最後更新：2026-05-28 06:25 Asia/Taipei
 
 本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
+
+## 第四輪補洞：小閉環 100% 與整體成熟度拆分（2026-05-28）
+
+這一輪處理「為什麼有目標但永遠不到 100%，如何交付客戶」的交付口徑問題。結論是：客戶交付必須以 bounded closure 判定 100%，不能用無邊界的全產品願景百分比。
+
+已落地的 verified behavior：
+
+- 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`。
+- 新增 `api_launcher/mvp_readiness.py`，輸出 `closure_id=canonical_mvp_demo_closure`、`closure_percent`、verified steps、blockers、warnings、rerun commands。
+- 實跑 canonical smoke：`download_import_completed`、`row_count=3`。
+- 實跑 readiness：`status=ready_for_mvp_demo`、`closure_percent=100`、`blockers=[]`、`warnings=[]`。
+
+文件口徑：
+
+- 可以寫：canonical offline Socrata 311 MVP demo closure 已 100%。
+- 不可以寫：RRKAL 全產品、所有 crawler、所有 adapter、renderer / simulation bridge、Qt/Web ecosystem 已 100%。
+- 之後使用者問「整體進度多少」時，必須回成熟度矩陣；單一百分比只能用在明確 bounded deliverable。
+
+同輪魯棒性修補：
+
+- `event_log.latest_events()` 已改為檔尾 bounded 讀取，避免大型 JSONL 讓 handoff/readiness MemoryError 或超時。
+- `log_event()` 已移除每筆事件的 `platform.*` 阻塞 probe，改用 `os.name` / `sys.version` 提供非阻塞平台欄位。
+- `api_launcher/rendering_profiles.py`、`api_launcher/platform_paths.py`、`api_launcher/environment.py`、`api_launcher/integrations.py` 已移除一般啟動 / renderer profile / integration profile 路徑上的 `platform.system()` / `platform.machine()` 阻塞 probe，改用 `sys.platform` / 環境變數做保守推斷。
+- `scripts/pre_push_smoke.ps1` 已補 K/RaiDrive upstream 探測 guard；若 optional `git rev-parse @{u}` 偶發讀不到 cwd，會跳過 pending-push diff 而不是直接中斷 smoke。
 
 ## 第三輪補洞：源碼成熟度邊界審計（2026-05-28）
 

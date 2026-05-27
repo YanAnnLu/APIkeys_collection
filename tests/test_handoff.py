@@ -24,6 +24,7 @@ from api_launcher.handoff import (
     render_handoff_markdown,
     verification_summary,
 )
+from api_launcher.mvp_readiness import mvp_readiness_payload_from_snapshot
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -223,6 +224,67 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("git_status", payload)
         self.assertIn("verification_summary", payload)
         self.assertIn("open_gtd_summary", payload)
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+    def test_mvp_readiness_payload_scopes_percent_to_canonical_closure(self) -> None:
+        payload = mvp_readiness_payload_from_snapshot(
+            {
+                "mvp_readiness": {
+                    "status": "ready_for_mvp_demo",
+                    "status_zh_TW": "MVP Demo 閉環可交付",
+                    "remaining_percent_estimate": "0% for canonical MVP demo closure",
+                    "canonical_smoke": {
+                        "stage": "download_import_completed",
+                        "succeeded": True,
+                        "table_name": "nyc_open_data_socrata_socrata_311_sample",
+                        "row_count": 3,
+                    },
+                    "blockers": [],
+                    "warnings": [],
+                },
+                "verification_summary": {
+                    "latest_mvp_demo_smoke_event_at": "2026-05-28T00:00:00+00:00",
+                },
+                "manifest_health": {"ok": 1},
+            }
+        )
+
+        self.assertEqual("canonical_mvp_demo_closure", payload["closure_id"])
+        self.assertEqual(100, payload["closure_percent"])
+        self.assertIn("not the maturity percentage", payload["not_product_scope"])
+        self.assertEqual(
+            ["seed", "candidate", "plan", "download", "manifest", "import", "ui_json_handoff"],
+            [item["step"] for item in payload["verified_steps"]],
+        )
+        self.assertTrue(all(item["status"] == "pass" for item in payload["verified_steps"]))
+
+    def test_cli_emits_mvp_readiness_json_without_human_setup_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with patch(
+                "api_launcher.core.build_mvp_readiness_payload",
+                return_value={
+                    "closure_id": "canonical_mvp_demo_closure",
+                    "status": "ready_for_mvp_demo",
+                    "closure_percent": 100,
+                },
+            ):
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--init-db",
+                            "--seed",
+                            "--mvp-readiness-json",
+                        ]
+                    )
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("canonical_mvp_demo_closure", payload["closure_id"])
+        self.assertEqual(100, payload["closure_percent"])
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())
 

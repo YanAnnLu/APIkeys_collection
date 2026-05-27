@@ -30,7 +30,7 @@ class UnrealBridgeTests(unittest.TestCase):
         self.assertEqual("ue", profiles[0].id)
 
     def test_unreal_profile_ignores_windows_project_path_on_macos(self) -> None:
-        with patch("api_launcher.integrations.platform.system", return_value="Darwin"):
+        with patch("api_launcher.integrations.platform_name", return_value="Darwin"):
             profiles = unreal_project_profiles_from_config(
                 {
                     "unreal_projects": [
@@ -49,7 +49,7 @@ class UnrealBridgeTests(unittest.TestCase):
         self.assertEqual("", profiles[0].content_root)
 
     def test_unreal_profile_uses_platform_specific_project_path(self) -> None:
-        with patch("api_launcher.integrations.platform.system", return_value="Darwin"):
+        with patch("api_launcher.integrations.platform_name", return_value="Darwin"):
             profiles = unreal_project_profiles_from_config(
                 {
                     "unreal_projects": [

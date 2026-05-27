@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-28
 
+## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
+- [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
+- [x] `api_launcher/mvp_readiness.py` 明確標示此 100% 只代表 canonical offline Socrata 311 小閉環：`seed -> candidate -> plan -> download -> manifest -> SQLite import -> JSON handoff`，不得被寫成全產品、全 crawler、renderer 或 Qt/Web 成熟度。
+- [x] 實跑 `py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --init-db --seed --run-mvp-demo-smoke-json state\mvp_demo\flow.json`：`download_import_completed`、`row_count=3`。
+- [x] 實跑 `py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --mvp-readiness-json`：`status=ready_for_mvp_demo`、`closure_percent=100`、`blockers=[]`、`warnings=[]`。
+- [x] 修補 `event_log.latest_events()`：改為從檔尾 bounded 讀取，不再整份讀取大型 JSONL；同時移除每次 log 寫入時可能卡住的 `platform.*` 探測，避免 handoff/readiness 因長期事件紀錄或平台 probe 卡死。
+- [x] 修補平台探測：`rendering_profiles.py`、`environment.py`、`platform_paths.py`、`integrations.py` 不再走可能卡住的 `platform.system()` / `platform.machine()`，改用 `sys.platform` 與環境變數做保守推斷。
+- [x] 修補 `scripts/pre_push_smoke.ps1` upstream 探測：K/RaiDrive 偶發 `git rev-parse @{u}` 讀不到 cwd 時只跳過 optional pending-push diff，不再讓整個 smoke 提早失敗。
+- [ ] 下一步：把「成熟度矩陣」正式寫成一份短文件 / CLI summary，之後使用者問整體進度時回報矩陣，不再回單一百分比。
+
 ## 2026-05-28 Source-code maturity / 能力成熟度邊界審計
 - [x] 針對 `dataset_adapters.py`、`api_launcher/adapters/`、`simulation_bridge.py`、`unreal_bridge.py` 做源碼實體抽查，確認第二輪文檔審計仍缺一個「能力成熟度」判準。
 - [x] 明確標示 `simulation_bridge.py` 目前是 `contract_only`，不能被寫成已實作物理模擬；`unreal_bridge.py` 目前只產生 `planned` bridge target，不能被寫成已完成 Unreal Content 實體導入。

@@ -46,8 +46,17 @@ if (-not $SkipDiffCheck) {
     Write-Host "[pre-push-smoke] git diff --check staged"
     git diff --check --cached
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $upstream = git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>$null
-    if ($LASTEXITCODE -eq 0 -and $upstream) {
+    $upstream = $null
+    $upstreamExitCode = 1
+    try {
+        # RaiDrive / cloud-backed K: can transiently fail rev-parse cwd lookup; skip only this optional diff.
+        $upstream = git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>$null
+        $upstreamExitCode = $LASTEXITCODE
+    } catch {
+        $upstream = $null
+        $upstreamExitCode = 1
+    }
+    if ($upstreamExitCode -eq 0 -and $upstream) {
         Write-Host "[pre-push-smoke] git diff --check pending push $upstream..HEAD"
         git diff --check "$upstream..HEAD"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

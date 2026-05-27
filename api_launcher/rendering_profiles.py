@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-import platform
 import shutil
+import sys
 from dataclasses import dataclass
 
 
@@ -29,18 +29,42 @@ def cuda_runtime_available() -> bool:
     return bool(shutil.which("nvidia-smi") or os.environ.get("CUDA_PATH") or os.environ.get("CUDA_HOME"))
 
 
+def safe_platform_system() -> str:
+    # `platform.system()` 在部分 Windows/雲端碟環境可能卡住；renderer profile 只需要粗略平台名。
+    explicit = os.environ.get("APIKEYS_RENDER_SYSTEM", "").strip()
+    if explicit:
+        return explicit
+    if sys.platform.startswith("win"):
+        return "Windows"
+    if sys.platform == "darwin":
+        return "Darwin"
+    if sys.platform.startswith("linux"):
+        return "Linux"
+    return sys.platform or "unknown"
+
+
+def safe_platform_machine() -> str:
+    # 避免 `platform.machine()` probe；Windows/CI 上用環境變數足夠判斷保守 tier。
+    return (
+        os.environ.get("PROCESSOR_ARCHITECTURE")
+        or os.environ.get("PROCESSOR_ARCHITEW6432")
+        or os.environ.get("HOSTTYPE")
+        or ""
+    ).lower()
+
+
 def is_probable_mobile() -> bool:
     # 行動/低功耗裝置可由環境變數覆寫；自動判斷只做保守提示。
-    machine = platform.machine().lower()
+    machine = safe_platform_machine()
     marker = os.environ.get("APIKEYS_RENDER_DEVICE_CLASS", "").strip().lower()
     if marker in {"mobile", "tablet", "low_power"}:
         return True
-    return machine in {"arm", "arm64", "aarch64"} and platform.system() != "Darwin"
+    return machine in {"arm", "arm64", "aarch64"} and safe_platform_system() != "Darwin"
 
 
 def default_taichi_backend_order(system: str | None = None) -> tuple[str, ...]:
     # Taichi backend 順序按平台慣例排列；最後永遠保留 CPU fallback。
-    system = system or platform.system()
+    system = system or safe_platform_system()
     if system == "Darwin":
         return ("metal", "vulkan", "opengl", "cpu")
     if system == "Windows":
@@ -56,7 +80,7 @@ def default_taichi_backend_order(system: str | None = None) -> tuple[str, ...]:
 
 def default_unreal_graphics_api_order(system: str | None = None) -> tuple[str, ...]:
     # Unreal graphics API 只給偏好順序，實際可用性仍由 Unreal 專案/平台決定。
-    system = system or platform.system()
+    system = system or safe_platform_system()
     if system == "Darwin":
         return ("metal",)
     if system == "Windows":
@@ -75,7 +99,7 @@ def infer_performance_tier() -> str:
         return "mobile"
     if cuda_runtime_available():
         return "high"
-    if platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
+    if safe_platform_system() == "Darwin" and safe_platform_machine() in {"arm64", "aarch64"}:
         return "medium"
     return "medium"
 
@@ -95,7 +119,7 @@ def tile_budget_for_tier(tier: str) -> tuple[int, int, int]:
 
 def build_render_backend_profile(frontend: str = "taichi", system: str | None = None) -> RenderBackendProfile:
     # profile 是 capability summary，不在這裡啟動 renderer 或檢查完整引擎安裝。
-    system = system or platform.system()
+    system = system or safe_platform_system()
     tier = infer_performance_tier()
     max_parallel_tiles, stream_radius, target_fps = tile_budget_for_tier(tier)
     frontend = frontend.strip().lower()

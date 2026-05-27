@@ -22,6 +22,18 @@ class EventLogTests(unittest.TestCase):
         self.assertEqual("sample", events[0]["context"]["provider_id"])
         self.assertIn("platform", events[0])
 
+    def test_latest_events_streams_only_tail_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "events.jsonl"
+            for index in range(5):
+                log_event(f"event_{index}", "hello", component="test", log_path=path)
+
+            events = latest_events(limit=2, log_path=path)
+            none_events = latest_events(limit=0, log_path=path)
+
+        self.assertEqual(["event_3", "event_4"], [event["event"] for event in events])
+        self.assertEqual([], none_events)
+
     def test_exception_log_includes_error_type_and_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "events.jsonl"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import platform
 import re
+import sys
 from collections.abc import Mapping
 
 
@@ -9,8 +9,14 @@ WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def platform_name() -> str:
-    # 包成函式方便測試注入 system，也集中對 platform.system() 的依賴。
-    return platform.system()
+    # 避免 platform.system() 在部分 Windows/雲端碟環境卡住；這裡只需要粗略 OS 名稱。
+    if sys.platform.startswith("win"):
+        return "Windows"
+    if sys.platform == "darwin":
+        return "Darwin"
+    if sys.platform.startswith("linux"):
+        return "Linux"
+    return sys.platform or "unknown"
 
 
 def is_windows_absolute_path(value: str) -> bool:

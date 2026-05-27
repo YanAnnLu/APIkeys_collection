@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-import platform
+import os
+import sys
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,9 +40,10 @@ class LauncherEvent:
             "error_type": self.error_type,
             "traceback": self.traceback,
             "platform": {
-                "system": platform.system(),
-                "release": platform.release(),
-                "python": platform.python_version(),
+                # 避免在 Windows/雲端碟環境中呼叫可能卡住的 platform.* 探測。
+                "system": os.name,
+                "release": "",
+                "python": sys.version.split()[0],
             },
         }
 
@@ -94,20 +96,41 @@ def log_exception(
 
 
 def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict[str, Any]]:
-    # 只讀尾端 N 行，避免 UI 或 handoff 因長期累積的大型 log 變慢。
+    # 只串流保留尾端 N 行，避免 UI 或 handoff 因長期累積的大型 log 變慢或耗盡記憶體。
     path = log_path or log_file(EVENT_LOG_NAME)
     if not path.exists():
         # 沒有 log 是乾淨新環境的正常狀態，呼叫端不需要另外處理例外。
         return []
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    bounded_limit = max(0, int(limit))
+    if bounded_limit == 0:
+        return []
+    lines = _tail_text_lines(path, bounded_limit)
     events: list[dict[str, Any]] = []
-    for line in lines[-limit:]:
+    for line in lines:
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
             # JSONL 可能因中斷寫入留下壞行；略過壞行，保留其他可用事件。
             continue
     return events
+
+
+def _tail_text_lines(path: Path, limit: int, block_size: int = 8192) -> list[str]:
+    """Read the last N lines without loading or scanning the entire log file."""
+    chunks: list[bytes] = []
+    newline_count = 0
+    with path.open("rb") as handle:
+        handle.seek(0, 2)
+        position = handle.tell()
+        while position > 0 and newline_count <= limit:
+            read_size = min(block_size, position)
+            position -= read_size
+            handle.seek(position)
+            chunk = handle.read(read_size)
+            chunks.append(chunk)
+            newline_count += chunk.count(b"\n")
+    tail_bytes = b"".join(reversed(chunks))
+    return [line.decode("utf-8", errors="replace") for line in tail_bytes.splitlines()[-limit:]]
 
 
 def _append_jsonl(path: Path, record: LauncherEvent) -> None:

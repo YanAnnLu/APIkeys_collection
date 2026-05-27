@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import platform
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,7 +15,7 @@ from api_launcher.downloads.policy import PoliteDownloadPolicy
 from api_launcher.models import Provider
 from api_launcher.oauth_device import oauth_device_config_from_profile
 from api_launcher.paths import config_file, local_config_file
-from api_launcher.platform_paths import platform_config_path
+from api_launcher.platform_paths import platform_config_path, platform_name
 
 
 LOCAL_INTEGRATIONS_NAME = "launcher_integrations.local.json"
@@ -174,7 +173,7 @@ def database_client_profiles() -> list[DatabaseClientProfile]:
 
 def database_client_profiles_from_config(config: dict[str, object]) -> list[DatabaseClientProfile]:
     # command_by_platform 讓 Windows/macOS/Linux 可以共用一份 example config。
-    system = platform.system()
+    system = platform_name()
     profiles = []
     for item in config.get("database_clients", []):
         command_by_platform = item.get("command_by_platform") or {}
@@ -226,7 +225,7 @@ def download_tool_profiles() -> list[DownloadToolProfile]:
 
 
 def download_tool_profiles_from_config(config: dict[str, object]) -> list[DownloadToolProfile]:
-    system = platform.system()
+    system = platform_name()
     profiles = []
     for item in config.get("download_tools", []):
         command_by_platform = item.get("command_by_platform") or {}
@@ -264,7 +263,7 @@ def runtime_orchestration_profiles() -> list[RuntimeOrchestrationProfile]:
 
 
 def runtime_orchestration_profiles_from_config(config: dict[str, object]) -> list[RuntimeOrchestrationProfile]:
-    system = platform.system()
+    system = platform_name()
     profiles = []
     for item in config.get("runtime_orchestration_profiles", []):
         command_by_platform = item.get("command_by_platform") or {}
@@ -321,7 +320,7 @@ def unreal_project_profiles() -> list[UnrealProjectProfile]:
 
 
 def unreal_project_profiles_from_config(config: dict[str, object]) -> list[UnrealProjectProfile]:
-    system = platform.system()
+    system = platform_name()
     profiles = []
     for item in config.get("unreal_projects", []):
         editor_by_platform = item.get("editor_command_by_platform") or {}

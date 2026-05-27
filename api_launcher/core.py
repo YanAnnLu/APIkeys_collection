@@ -101,6 +101,7 @@ from api_launcher.heartbeat import (
     write_heartbeat_json,
     write_heartbeat_report,
 )
+from api_launcher.mvp_readiness import build_mvp_readiness_payload
 from api_launcher.downloads.http import HTTPDownloadAdapter, download_target_from_plan_entry
 from api_launcher.integrations import (
     active_ai_profile,
@@ -634,6 +635,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--download-timeout", type=float, default=30.0, help="HTTP timeout seconds for --run-download-plan")
     parser.add_argument("--write-mvp-demo-flow", help="write the canonical MVP demo flow JSON plus its adapter-review plan")
     parser.add_argument("--run-mvp-demo-smoke-json", help="write the canonical MVP demo flow and run its offline download/import smoke as JSON")
+    parser.add_argument("--mvp-readiness-json", action="store_true", help="emit canonical MVP closure readiness as JSON")
+    parser.add_argument("--write-mvp-readiness-json", default="", help="write canonical MVP closure readiness JSON")
     add_yfinance_args(parser)
     parser.add_argument("--adapter-review-plan", help="list adapter-required items from a download plan JSON")
     parser.add_argument("--adapter-review-json", action="store_true", help="emit --adapter-review-plan as agent-readable JSON")
@@ -796,6 +799,7 @@ class CatalogLauncherCli:
             self.refresh_state()
             self.write_mvp_demo_flow()
             self.run_mvp_demo_smoke()
+            self.show_mvp_readiness()
             run_yfinance_cli(self.args)
             run_download_plan_cli(self.args, self.repository, log_event)
             self.show_adapter_review_plan()
@@ -860,6 +864,7 @@ class CatalogLauncherCli:
             self.args.verify_downloads_json
             or self.args.run_download_plan_json
             or bool(self.args.run_mvp_demo_smoke_json)
+            or self.args.mvp_readiness_json
             or self.args.adapter_review_json
             or self.args.resolve_adapter_plan_json
             or self.args.manual_import_json
@@ -999,6 +1004,19 @@ class CatalogLauncherCli:
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
         if not result.succeeded:
             raise RuntimeError("MVP demo offline smoke did not complete successfully.")
+
+    def show_mvp_readiness(self) -> None:
+        if not (self.args.mvp_readiness_json or self.args.write_mvp_readiness_json):
+            return
+        payload = build_mvp_readiness_payload(self.repository, db_path=self.args.db)
+        if self.args.write_mvp_readiness_json:
+            output_path = resolve_project_path(self.args.write_mvp_readiness_json)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            if not self.args.mvp_readiness_json:
+                print(f"[mvp-readiness] wrote {output_path}")
+        if self.args.mvp_readiness_json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
 
     def show_adapter_review_plan(self) -> None:
         if not self.args.adapter_review_plan:

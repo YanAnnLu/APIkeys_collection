@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-import platform
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.db import SCRIPT_DIR, resolve_project_path
 from api_launcher.integrations import database_client_profiles, download_tool_profiles, integrations_path, unreal_project_profiles
-from api_launcher.platform_paths import is_foreign_platform_path
+from api_launcher.platform_paths import is_foreign_platform_path, platform_name
 
 
 @dataclass(frozen=True)
@@ -53,7 +52,7 @@ def check_python_encoding() -> EnvironmentCheck:
     # Windows/macOS 的編碼差異會影響中文 UI 與 log；warning 足夠，不阻擋啟動。
     preferred = os.device_encoding(1) or ""
     filesystem = os.sys.getfilesystemencoding()
-    detail = f"platform={platform.system()}, filesystem={filesystem}, stdout={preferred or 'unknown'}"
+    detail = f"platform={platform_name()}, filesystem={filesystem}, stdout={preferred or 'unknown'}"
     if filesystem.lower() != "utf-8":
         return EnvironmentCheck("python_encoding", "warning", detail)
     return EnvironmentCheck("python_encoding", "ok", detail)
@@ -101,7 +100,7 @@ def check_download_tool_paths() -> list[EnvironmentCheck]:
 def check_unreal_project_profiles() -> list[EnvironmentCheck]:
     # Unreal 是 renderer bridge 的中期路徑；缺設定要回報，但不能阻擋資料管理 MVP。
     checks = []
-    system = platform.system()
+    system = platform_name()
     for profile in unreal_project_profiles():
         if not profile.enabled:
             continue
