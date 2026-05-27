@@ -17,7 +17,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
@@ -227,12 +227,26 @@ def paginated_ogc_records_candidates(
     page_size: int,
     max_pages: int,
 ) -> list[DatasetCandidate]:
+    return list(paginated_ogc_records_output(source, search_term, timeout, page_size, max_pages).candidates)
+
+
+def paginated_ogc_records_output(
+    source: DatasetDiscoverySource,
+    search_term: str,
+    timeout: float,
+    page_size: int,
+    max_pages: int,
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
     seen_page_urls: set[str] = set()
     next_url = ogc_records_search_url(source.endpoint_url, search_term, page_size)
+    next_candidate = ""
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for _page in range(discovery_page_cap(max_pages)):
         if next_url in seen_page_urls:
+            remote_exhausted = None
             break
         seen_page_urls.add(next_url)
         payload = fetch_json(next_url, timeout=timeout)
@@ -240,11 +254,24 @@ def paginated_ogc_records_candidates(
         page_candidates = ogc_records_candidates_from_payload(source, payload, next_url, page_size)
         added = append_new_candidates(candidates, page_candidates, seen)
         next_candidate = next_link_href(payload.get("links"), next_url)
-        if item_count < page_size or added == 0 or not next_candidate:
+        if item_count < page_size or not next_candidate:
+            remote_exhausted = True
+            break
+        if added == 0:
+            remote_exhausted = None
             break
         polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_candidate
-    return candidates
+    else:
+        remote_exhausted = False
+        remote_next_page_token = next_candidate
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def ogc_records_candidates_for_source(
@@ -254,16 +281,32 @@ def ogc_records_candidates_for_source(
     search_terms: tuple[str, ...],
     full_crawl: bool,
     max_pages: int,
-) -> list[DatasetCandidate]:
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for term in search_terms or ("",):
         if full_crawl:
-            candidates.extend(paginated_ogc_records_candidates(source, term, timeout, limit, max_pages))
+            output = paginated_ogc_records_output(source, term, timeout, limit, max_pages)
+            candidates.extend(output.candidates)
+            if output.remote_exhausted is False:
+                remote_exhausted = False
+                remote_next_page_token = output.remote_next_page_token
+            elif output.remote_exhausted is True and remote_exhausted is not False:
+                remote_exhausted = True
+            elif remote_exhausted is not False:
+                remote_exhausted = None
             continue
         url = ogc_records_search_url(source.endpoint_url, term, limit)
         payload = fetch_json(url, timeout=timeout)
         candidates.extend(ogc_records_candidates_from_payload(source, payload, url, limit))
-    return candidates
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def first_text(properties: dict[str, Any], keys: tuple[str, ...]) -> str:

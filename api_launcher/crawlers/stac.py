@@ -17,7 +17,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
 
@@ -119,13 +119,26 @@ def paginated_stac_candidates(
     search_terms: tuple[str, ...],
     max_pages: int,
 ) -> list[DatasetCandidate]:
-    # STAC next link 可能是相對網址；stac_next_link 會用目前 URL 做 join。
+    return list(paginated_stac_output(source, timeout, page_size, search_terms, max_pages).candidates)
+
+
+def paginated_stac_output(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    page_size: int,
+    search_terms: tuple[str, ...],
+    max_pages: int,
+) -> DatasetCrawlerOutput:
     candidates: list[DatasetCandidate] = []
     seen: set[str] = set()
     seen_page_urls: set[str] = set()
     next_url = source.endpoint_url
+    next_link = ""
+    remote_exhausted: bool | None = None
+    remote_next_page_token = ""
     for _page in range(discovery_page_cap(max_pages)):
         if next_url in seen_page_urls:
+            remote_exhausted = None
             break
         seen_page_urls.add(next_url)
         payload = fetch_json(next_url, timeout=timeout)
@@ -134,10 +147,20 @@ def paginated_stac_candidates(
         append_new_candidates(candidates, page_candidates, seen)
         next_link = stac_next_link(payload, next_url)
         if not isinstance(collections, list) or not collections or not next_link:
+            remote_exhausted = True
             break
         polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_link
-    return candidates
+    else:
+        remote_exhausted = False
+        remote_next_page_token = next_link
+    status = "exhausted" if remote_exhausted is True else "has_more" if remote_exhausted is False else "not_reported"
+    return DatasetCrawlerOutput(
+        candidates=tuple(candidates),
+        remote_pagination_status=status,
+        remote_exhausted=remote_exhausted,
+        remote_next_page_token=remote_next_page_token,
+    )
 
 
 def stac_candidates_for_source(
@@ -147,11 +170,13 @@ def stac_candidates_for_source(
     search_terms: tuple[str, ...],
     full_crawl: bool,
     max_pages: int,
-) -> list[DatasetCandidate]:
+) -> DatasetCrawlerOutput:
     if full_crawl:
-        return paginated_stac_candidates(source, timeout, limit, search_terms, max_pages)
+        return paginated_stac_output(source, timeout, limit, search_terms, max_pages)
     payload = fetch_json(source.endpoint_url, timeout=timeout)
-    return stac_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+    return DatasetCrawlerOutput(
+        candidates=tuple(stac_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms))
+    )
 
 
 def first_stac_link_url(links: list[object], rels: tuple[str, ...]) -> str:

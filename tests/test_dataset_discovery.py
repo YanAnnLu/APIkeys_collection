@@ -34,7 +34,21 @@ from api_launcher.dataset_discovery import (
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
-from api_launcher.crawlers import ckan, cmr, datacite, dataset_sources, html_index, openalex, socrata, zenodo
+from api_launcher.crawlers import (
+    ckan,
+    cmr,
+    datacite,
+    dataset_sources,
+    dataverse,
+    gbif,
+    html_index,
+    ncei,
+    ogc_records,
+    openalex,
+    socrata,
+    stac,
+    zenodo,
+)
 from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
@@ -912,6 +926,190 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("has_more", output.remote_pagination_status)
         self.assertFalse(output.remote_exhausted)
         self.assertEqual("https://api.datacite.example.test/dois?page[number]=2", output.remote_next_page_token)
+
+    def test_ncei_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="noaa_ncei_dataset_search",
+            provider_id="noaa_ncei_access_data",
+            name="NOAA NCEI Search",
+            source_type="ncei_search",
+            endpoint_url="https://example.test/search",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "results": [
+                    {
+                        "id": "automatic-identification-system-ais",
+                        "name": "Automatic Identification System AIS",
+                        "description": "AIS vessel traffic data in CSV.",
+                        "formats": [{"name": "csv"}],
+                    }
+                ]
+            }
+
+        with patch("api_launcher.crawlers.ncei.fetch_json", side_effect=fake_fetch_json):
+            output = ncei.ncei_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("1", output.remote_next_page_token)
+
+    def test_gbif_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="gbif_dataset_search",
+            provider_id="gbif",
+            name="GBIF dataset search",
+            source_type="gbif_dataset_search",
+            endpoint_url="https://api.gbif.example.test/v1/dataset/search",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "results": [
+                    {
+                        "key": "abc-123",
+                        "title": "Global species occurrence dataset",
+                        "type": "OCCURRENCE",
+                    }
+                ],
+                "endOfRecords": False,
+            }
+
+        with patch("api_launcher.crawlers.gbif.fetch_json", side_effect=fake_fetch_json):
+            output = gbif.gbif_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("1", output.remote_next_page_token)
+
+    def test_dataverse_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="harvard_dataverse_search",
+            provider_id="harvard_dataverse",
+            name="Harvard Dataverse",
+            source_type="dataverse_search",
+            endpoint_url="https://dataverse.example.test/api/search",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "data": {
+                    "total_count": 2,
+                    "items": [
+                        {
+                            "name": "Climate survey dataset",
+                            "global_id": "doi:10.7910/DVN/ABC123",
+                            "description": "Daily climate observations.",
+                        }
+                    ],
+                }
+            }
+
+        with patch("api_launcher.crawlers.dataverse.fetch_json", side_effect=fake_fetch_json):
+            output = dataverse.dataverse_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("1", output.remote_next_page_token)
+
+    def test_ogc_records_full_crawl_reports_remote_has_more_when_next_link_hits_page_cap(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="ogc_records_search",
+            provider_id="sample_geospatial_catalog",
+            name="Sample OGC API Records",
+            source_type="ogc_api_records",
+            endpoint_url="https://records.example.test/collections/metadata/items",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "id": "cloud-raster-record",
+                        "properties": {"title": "Global satellite cloud raster archive"},
+                        "links": [{"rel": "self", "href": "https://records.example.test/items/cloud-raster-record"}],
+                    }
+                ],
+                "links": [{"rel": "next", "href": "https://records.example.test/collections/metadata/items?page=2"}],
+            }
+
+        with patch("api_launcher.crawlers.ogc_records.fetch_json", side_effect=fake_fetch_json):
+            output = ogc_records.ogc_records_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("https://records.example.test/collections/metadata/items?page=2", output.remote_next_page_token)
+
+    def test_stac_full_crawl_reports_remote_has_more_when_next_link_hits_page_cap(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="planetary_stac",
+            provider_id="microsoft_planetary_computer",
+            name="Planetary Computer STAC",
+            source_type="stac_collections",
+            endpoint_url="https://planetary.example.test/collections",
+        )
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "collections": [
+                    {
+                        "id": "sentinel-2-l2a",
+                        "title": "Sentinel-2 Level-2A",
+                        "description": "Satellite imagery.",
+                    }
+                ],
+                "links": [{"rel": "next", "href": "https://planetary.example.test/collections?page=2"}],
+            }
+
+        with patch("api_launcher.crawlers.stac.fetch_json", side_effect=fake_fetch_json):
+            output = stac.stac_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("https://planetary.example.test/collections?page=2", output.remote_next_page_token)
 
     def test_ogc_api_records_payload_becomes_reviewable_catalog_candidate(self) -> None:
         source = DatasetDiscoverySource(
