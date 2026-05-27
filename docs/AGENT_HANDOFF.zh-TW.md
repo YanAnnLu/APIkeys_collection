@@ -18,6 +18,11 @@
 - Web Preview 新增 `GET /api/diagnostics/crawler-handler-smoke`。這是 developer-only endpoint，只回傳 `developer_only=true`、`scope=offline_contract_smoke_no_live_network` 與 compact summary；不包含 per-source `source_results`，也不代表 live endpoint 可用。
 - 已用 local HTTP smoke 確認 endpoint 回傳 `supported_source_type_count=14`、`candidate_case_status=pass`。若前端要呈現這個資訊，請放在開發者診斷區，不要混到正式使用者的 seed 枚舉 / 建立下載計畫流程。
 
+## 2026-05-27 Tk developer diagnostics
+- Tk 工具選單新增「開發者：Crawler handler diagnostics」，實作集中在 `frontends/tk/developer_diagnostics_workflows.py`，不把 diagnostics 邏輯塞回 `launcher_ui.py` 或 `dialogs.py`。
+- Tk 入口讀同一份 `crawler_handler_audit_smoke_summary()`，只顯示 compact counts、next action 與可重跑 command，並寫入 `tk_crawler_handler_smoke_diagnostics_opened` structured event；不包含 per-source `source_results`。
+- 這是 developer-only / offline contract smoke。若要確認 live crawler 是否能連 NASA/NOAA/CKAN 等遠端來源，仍要跑正式 crawler listing / source discovery / download plan，不要把這個 diagnostics 當成 live endpoint 成功證明。
+
 ## 2026-05-27 Crawler audit contract smoke
 - `api_launcher/crawler_audit_smoke.py` 新增離線 handler audit contract smoke。它用 fixture source 覆蓋所有 `SUPPORTED_DATASET_SOURCE_TYPES`，並透過注入式 crawler runner 驗證兩件事：零候選要產生 `zero_candidates` / `repair_crawler_query_or_parser`；正常候選要通過 audit summary。這不打 live endpoint，也不取代每個 handler 的 payload fixture 測試。
 - CLI 新增 `--dataset-discovery-handler-smoke-json`，輸出 agent-readable JSON。若後續新增 crawler handler，這條 smoke 應立刻能指出 source type 是否漏掉 audit status、warning code 或 next_action 交接。

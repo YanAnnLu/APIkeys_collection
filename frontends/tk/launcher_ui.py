@@ -39,6 +39,7 @@ from frontends.tk.provider_models import ProviderRow
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
+from frontends.tk.developer_diagnostics_workflows import DeveloperDiagnosticsWorkflowMixin
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -64,6 +65,7 @@ class ApiCollectionUi(
     AppLifecycleWorkflowMixin,
     AiSummaryWorkflowMixin,
     CrawlerAssetWorkflowMixin,
+    DeveloperDiagnosticsWorkflowMixin,
     DiscoveryWorkflowMixin,
     PlanWorkflowMixin,
     ProviderSettingsWorkflowMixin,

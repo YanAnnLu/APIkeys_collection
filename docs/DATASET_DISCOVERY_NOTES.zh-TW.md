@@ -19,7 +19,7 @@
 - `--dataset-discovery-handler-smoke-json` 是離線 crawler audit contract smoke。它會用 fixture source 覆蓋每一個 `SUPPORTED_DATASET_SOURCE_TYPES`，分別驗證「零候選時產生 `zero_candidates` / `repair_crawler_query_or_parser`」與「正常候選時 audit pass」。這不取代各 crawler 的 payload fixture 測試，也不代表 live endpoint 可用；它用來防止新增 handler 後 audit summary、warning code、next_action 或 CLI JSON 交接斷線。
 - `--handoff-report` / `--handoff-report-json` 現在會包含 `crawler_handler_smoke_summary` 的 compact 摘要：可重跑命令、supported source type 數、零候選 warning count 與正常候選 pass count。若摘要異常，再跑完整 `--dataset-discovery-handler-smoke-json` 讀 per-source report；不要讓 handoff 夾帶完整 smoke payload。
 - `--heartbeat-plan-json`、heartbeat report 與 heartbeat agent prompt 也會包含同一份 compact summary。這是給自動接力 / 長工時工作檢查用的開發者 contract 狀態，不是一般使用者的資料下載入口。
-- Web Preview 的 `GET /api/diagnostics/crawler-handler-smoke` 也讀同一份 compact summary，作為瀏覽器可查的 developer diagnostics。它只適合 agent / 開發者確認 handler audit contract，不能用來判斷 NASA/NOAA/CKAN 等 live endpoint 是否真的可連線，也不應放進正式使用者下載心流。
+- Web Preview 的 `GET /api/diagnostics/crawler-handler-smoke` 與 Tk 工具選單「開發者：Crawler handler diagnostics」都讀同一份 compact summary，作為 developer diagnostics。它只適合 agent / 開發者確認 handler audit contract，不能用來判斷 NASA/NOAA/CKAN 等 live endpoint 是否真的可連線，也不應放進正式使用者下載心流。
 
 ## 2026-05-26 Crawler run record / registry handoff
 

@@ -110,6 +110,10 @@ class WindowLayoutWorkflowMixin:
         tools_menu.add_command(label=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), command=self.open_yfinance_storage_review_dialog)
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
+        tools_menu.add_command(
+            label=self.tr("開發者：Crawler handler diagnostics", "Developer: crawler handler diagnostics"),
+            command=self.open_crawler_handler_smoke_diagnostics,
+        )
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開啟下載資料夾", "Open downloads folder"), command=lambda: webbrowser.open(DOWNLOADS_DIR.as_uri()))
         menu_bar.add_cascade(label=self.tr("工具", "Tools"), menu=tools_menu)

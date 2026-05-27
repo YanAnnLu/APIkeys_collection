@@ -45,6 +45,11 @@ from frontends.tk.crawler_asset_workflows import (
     crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
 )
+from frontends.tk.developer_diagnostics_workflows import (
+    DeveloperDiagnosticsWorkflowMixin,
+    crawler_handler_smoke_diagnostics_message,
+    crawler_handler_smoke_diagnostics_payload,
+)
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
@@ -110,6 +115,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(AiSummaryWorkflowMixin.generate_active_summary))
         self.assertTrue(callable(CrawlerAssetWorkflowMixin))
         self.assertTrue(callable(CrawlerAssetWorkflowMixin.refresh_crawler_asset_tab))
+        self.assertTrue(callable(DeveloperDiagnosticsWorkflowMixin))
+        self.assertTrue(callable(DeveloperDiagnosticsWorkflowMixin.open_crawler_handler_smoke_diagnostics))
         self.assertTrue(callable(DetailPanelWorkflowMixin))
         self.assertTrue(callable(DetailPanelWorkflowMixin.update_detail_panel))
         self.assertTrue(callable(DiscoveryWorkflowMixin))
@@ -157,6 +164,39 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(detail_panel_module.StringVar))
         self.assertTrue(callable(detail_panel_module.Canvas))
         self.assertIn("panel", detail_panel_module.COLORS)
+
+    def test_tk_crawler_handler_smoke_diagnostics_uses_compact_payload(self) -> None:
+        payload = crawler_handler_smoke_diagnostics_payload()
+        message = crawler_handler_smoke_diagnostics_message(payload)
+
+        self.assertEqual("tk", payload["surface"])
+        self.assertEqual("developer_diagnostics", payload["purpose"])
+        self.assertTrue(payload["developer_only"])
+        self.assertNotIn("source_results", json.dumps(payload, ensure_ascii=False))
+        self.assertIn("Supported source types", message)
+        self.assertIn("offline contract smoke", message)
+
+    def test_tk_crawler_handler_smoke_diagnostics_dialog_sets_status(self) -> None:
+        class _Ui(DeveloperDiagnosticsWorkflowMixin):
+            root = None
+
+            def __init__(self) -> None:
+                self.status_var = _FakeVar("")
+
+            def tr(self, zh_tw: str, en_us: str = "") -> str:
+                return zh_tw
+
+        ui = _Ui()
+        with patch("frontends.tk.developer_diagnostics_workflows.log_event") as log_event_mock, patch(
+            "frontends.tk.developer_diagnostics_workflows.messagebox.showinfo"
+        ) as showinfo_mock:
+            payload = ui.open_crawler_handler_smoke_diagnostics()
+
+        self.assertEqual("crawler_handler_contract_smoke", payload["diagnostic_id"])
+        self.assertIn("開發者診斷", showinfo_mock.call_args.args[0])
+        self.assertIn("Crawler handler contract smoke", showinfo_mock.call_args.args[1])
+        self.assertIn("Crawler handler", ui.status_var.get())
+        self.assertEqual(1, log_event_mock.call_count)
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。
