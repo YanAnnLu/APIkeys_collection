@@ -1,6 +1,15 @@
+from contextlib import redirect_stdout
+from io import StringIO
+import json
+from types import SimpleNamespace
 from tempfile import TemporaryDirectory
 import unittest
 
+from api_launcher.cli_crawler_assets import (
+    crawler_asset_command_active,
+    crawler_asset_seed_page_cli_result,
+    run_crawler_asset_cli,
+)
 from api_launcher.crawler_asset_profiles import load_crawler_asset_profiles
 from api_launcher.crawler_seed_registry import (
     MAX_CRAWLER_SEED_PAGE_SIZE,
@@ -182,6 +191,68 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
     def test_save_seed_favorite_requires_dataset_uid(self) -> None:
         with self.assertRaisesRegex(ValueError, "dataset_uid is required"):
             save_crawler_seed_favorite(asset_id="demo_asset", dataset_uid="")
+
+    def test_cli_seed_page_reads_shared_registry_payload(self) -> None:
+        repo = FakeSeedRepository([seed_dataset(f"seed_{index:02d}") for index in range(55)])
+        result = crawler_asset_seed_page_cli_result(
+            repo,
+            asset_id="demo_asset",
+            provider_id_override="demo_provider",
+            page=2,
+            page_size=50,
+        )
+
+        self.assertFalse(result["blocked"])
+        self.assertEqual("demo_provider", result["provider_id"])
+        self.assertEqual("override", result["provider_id_source"])
+        self.assertEqual(55, result["total"])
+        self.assertEqual(5, len(result["seeds"]))
+        self.assertFalse(result["has_more"])
+        self.assertEqual("seed_page_complete", result["next_action"])
+
+    def test_cli_seed_page_blocks_when_source_and_provider_are_missing(self) -> None:
+        repo = FakeSeedRepository([])
+
+        result = crawler_asset_seed_page_cli_result(repo, asset_id="missing_asset")
+
+        self.assertTrue(result["blocked"])
+        self.assertEqual("", result["provider_id_source"])
+        self.assertEqual("crawler_asset_source_not_found_or_provider_id_required", result["blocked_reason"])
+        self.assertEqual("provide_crawler_asset_provider_id_or_fix_source_profile", result["next_action"])
+
+    def test_run_crawler_asset_cli_emits_seed_page_json(self) -> None:
+        repo = FakeSeedRepository([seed_dataset(f"seed_{index:02d}") for index in range(55)])
+        args = SimpleNamespace(
+            run_crawler_asset_listing=[],
+            crawler_asset_listing_timeout=12.0,
+            crawler_asset_listing_limit=100,
+            crawler_asset_listing_max_pages=0,
+            crawler_asset_listing_json=False,
+            crawler_asset_seeds=["demo_asset"],
+            crawler_asset_seeds_json=True,
+            crawler_asset_seeds_provider_id="demo_provider",
+            crawler_asset_seed_page=1,
+            crawler_asset_seed_page_size=50,
+            crawler_asset_profile_path="",
+        )
+        stdout = StringIO()
+
+        with redirect_stdout(stdout):
+            run_crawler_asset_cli(args, repo, lambda *args, **kwargs: None)
+
+        payload = json.loads(stdout.getvalue())
+        seed_pages = payload["seed_pages"]
+        self.assertEqual("crawler_asset", payload["command"])
+        self.assertEqual(1, seed_pages["asset_count"])
+        self.assertEqual(55, seed_pages["seed_count"])
+        self.assertEqual(1, seed_pages["has_more_count"])
+        self.assertEqual("show_next_seed_page", seed_pages["next_action"])
+        self.assertEqual(50, len(seed_pages["results"][0]["seeds"]))
+
+    def test_crawler_asset_command_active_includes_seed_page_command(self) -> None:
+        args = SimpleNamespace(run_crawler_asset_listing=[], crawler_asset_seeds=["demo_asset"])
+
+        self.assertTrue(crawler_asset_command_active(args))
 
 
 if __name__ == "__main__":
