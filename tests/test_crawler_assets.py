@@ -100,6 +100,17 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("1 configured", asset.seed_summary)
         self.assertEqual("public_or_review", asset.access_requirement)
         self.assertGreaterEqual(asset.trust_score, 50)
+        self.assertEqual("offset", asset.capability_profile.pagination_mode)
+        self.assertEqual(("csv", "json", "zip", "excel", "pdf", "unknown"), asset.capability_profile.content_formats)
+        self.assertEqual(("package", "resource", "format", "limit"), asset.capability_profile.bound_facets)
+        self.assertIn("bounded_fetch", asset.capability_profile.middleware)
+        self.assertIn("pagination_driver", asset.capability_profile.middleware)
+        self.assertEqual("review_source_profile", asset.capability_profile.failure_policy["missing_credentials"])
+
+        payload = asset.to_dict()["capability_profile"]
+        self.assertEqual("ckan_package_search", payload["source_type"])
+        self.assertEqual("offset", payload["pagination_mode"])
+        self.assertEqual("public_or_review", payload["request_policy"]["credential_mode"])
 
     def test_file_index_source_can_offer_selectable_download(self) -> None:
         source = DatasetDiscoverySource(
@@ -168,6 +179,9 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("user_credential_required", asset.capabilities[0].credential_mode)
         self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
         self.assertEqual("AuthBounds", asset.capabilities[2].bounds_schema[-1].group)
+        self.assertEqual("user_credential_required", asset.capability_profile.auth_mode)
+        self.assertIn("credential_guard", asset.capability_profile.middleware)
+        self.assertEqual("open_credential_editor", asset.capability_profile.failure_policy["missing_credentials"])
 
     def test_source_profile_can_explicitly_declare_access_policy(self) -> None:
         source = DatasetDiscoverySource(

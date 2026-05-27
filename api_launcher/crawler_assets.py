@@ -27,6 +27,7 @@ from api_launcher.crawler_asset_capabilities import (
     crawler_asset_capabilities,
     status_label,
 )
+from api_launcher.crawler_capability_profiles import CrawlerCapabilityProfile, crawler_capability_profile
 from api_launcher.crawler_asset_health import CrawlerAssetHealth, evaluate_crawler_asset_health
 from api_launcher.dataset_seed_coverage import source_seed_coverage
 from api_launcher.paths import catalog_file, local_config_file
@@ -91,6 +92,7 @@ class CrawlerAsset:
     logo_source: str
     logo_license_note: str
     latest_plan_passport: dict[str, object]
+    capability_profile: CrawlerCapabilityProfile
     health: CrawlerAssetHealth
     capabilities: tuple[CrawlerAssetCapability, ...]
 
@@ -137,6 +139,7 @@ class CrawlerAsset:
             "logo_source": self.logo_source,
             "logo_license_note": self.logo_license_note,
             "latest_plan_passport": dict(self.latest_plan_passport),
+            "capability_profile": self.capability_profile.to_dict(),
             "health": self.health.to_dict(),
             "capabilities": [item.to_dict() for item in self.capabilities],
         }
@@ -176,6 +179,7 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
     profile = profile or crawler_asset_profile_for(source.source_id, {})
     supported = source.source_type in SUPPORTED_DATASET_SOURCE_TYPES
     capabilities = crawler_asset_capabilities(source, supported=supported)
+    capability_profile = crawler_capability_profile(source)
     maturity = crawler_asset_maturity(coverage.complete_seed_ready, supported, source)
     risk_tier = "archived" if profile.archived else crawler_asset_risk_tier(supported, coverage.complete_seed_ready, capabilities)
     next_action = "archived_disabled" if profile.archived else coverage.next_action
@@ -227,6 +231,7 @@ def crawler_asset_from_source(source: DatasetDiscoverySource, profile: CrawlerAs
             source_signature=crawler_asset_source_signature(source),
             bounds_signature=crawler_asset_bounds_signature(bounds_facets_for_source(source)),
         ),
+        capability_profile=capability_profile,
         health=health,
         capabilities=capabilities,
     )

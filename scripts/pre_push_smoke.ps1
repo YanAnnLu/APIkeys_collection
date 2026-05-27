@@ -42,12 +42,15 @@ if (-not $SkipDiffCheck) {
     $null = $true
     Write-Host "[pre-push-smoke] git diff --check worktree"
     git diff --check
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "[pre-push-smoke] git diff --check staged"
     git diff --check --cached
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $upstream = git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>$null
     if ($LASTEXITCODE -eq 0 -and $upstream) {
         Write-Host "[pre-push-smoke] git diff --check pending push $upstream..HEAD"
         git diff --check "$upstream..HEAD"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     } else {
         Write-Host "[pre-push-smoke] no upstream branch found; skipped pending-push diff check"
     }
@@ -59,15 +62,18 @@ Write-Host "[pre-push-smoke] py_compile core entrypoints"
     APIkeys_collection_ui.py `
     frontends\tk\launcher_ui.py `
     api_launcher\core.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not $SkipTests) {
     Write-Host "[pre-push-smoke] unittest discover -s tests"
     & $Python -B -m unittest discover -s tests
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 if (-not $SkipSummary) {
     Write-Host "[pre-push-smoke] CLI summary"
     & $Python -B APIkeys_collection.py --summary
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 if (-not $SkipMvpSmoke) {

@@ -34,6 +34,7 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
+- [x] `scripts/pre_push_smoke.ps1` 已補 `$LASTEXITCODE` 檢查；`git diff --check`、`py_compile`、`unittest discover`、CLI summary 若失敗會立即讓 smoke 失敗，不再靠後續 summary/MVP smoke 掩蓋 native command failure。
 - [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
 - [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。這不是立即 asyncio 重寫理由；下一步應先設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
 
@@ -41,6 +42,7 @@ Last updated: 2026-05-27
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
 - [x] 將「數據驅動裝飾器爬蟲架構」定位成第二階段 source profile / middleware PoC 候選；第一階段只收斂已落地的 timeout、page cap、page size、rate-limit、credential/terms policy，不用 raw list matrix 或大型 DSL 取代既有 handler。
 - [x] 將中期架構語彙收斂成 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`；後續 PoC 應以 typed profile / gateway / middleware 實作，不使用欄位順序脆弱的 raw matrix。
+- [x] 新增 `api_launcher.crawler_capability_profiles.CrawlerCapabilityProfile`，讓 crawler asset payload 帶出 source type、auth/terms、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 effective request policy。這是宣告式 gateway 的第一個可序列化 profile，不取代現有 Python handler。
 - [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。
 - [x] `SOURCE_TYPE_HINTS` 已用 regression 鎖成「每個已接 `SUPPORTED_DATASET_SOURCE_TYPES` 都有 detector hint」，避免 handler 已存在但貼 URL 建來源草稿仍被擋成 `unknown`。
 - [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。

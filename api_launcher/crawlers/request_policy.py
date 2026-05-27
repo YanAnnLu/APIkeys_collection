@@ -23,6 +23,16 @@ class SourceRequestPolicy:
     credential_mode: str
     terms_risk: str
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "timeout_seconds": self.timeout_seconds,
+            "max_pages": self.max_pages,
+            "page_size": self.page_size,
+            "rate_limit_seconds": self.rate_limit_seconds,
+            "credential_mode": self.credential_mode,
+            "terms_risk": self.terms_risk,
+        }
+
 
 def source_request_policy(
     source: DatasetDiscoverySource,

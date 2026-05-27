@@ -68,6 +68,8 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
 
 目前已落地的 source profile 欄位（timeout、max pages、page size、rate limit、credential mode、terms risk）可以視為這條路線的最小資料面。下一步不是把所有 crawler 改成一個裝飾器函數，而是把這些已穩定的 request/access policy 抽成明確 schema，並讓既有 adapter 逐步共用 middleware。`api_launcher.crawlers.request_policy.SourceRequestPolicy` 是這條路線的第一個 typed staging point。
 
+2026-05-27 後續切片已新增 `api_launcher.crawler_capability_profiles.CrawlerCapabilityProfile`。它把一個來源的 source type、auth mode、terms risk、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 effective request policy 收成可序列化 profile，並掛到 crawler asset payload 的 `capability_profile`。這仍然不取代既有 Python handler；它只是把 matrix cell 先落成 validated profile，供 Tk/Web/Qt、agent 與後續 gateway 共用。
+
 ## Matrix Cell -> Profile -> Gateway -> Pipeline
 
 更精確的中期架構命名是：

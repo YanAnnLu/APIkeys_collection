@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-27 22:00 Crawler capability profile handoff
+- 依使用者要求繼續往宣告式架構推進，但沒有重寫 crawler handler。本輪新增 `api_launcher/crawler_capability_profiles.py`，提供 `CrawlerCapabilityProfile`：把 source type、auth mode、terms risk、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 `SourceRequestPolicy` 包成可序列化 profile。
+- `crawler_asset_from_source()` 現在會把這份 profile 掛到 `CrawlerAsset.capability_profile` 與 `asset.to_dict()["capability_profile"]`。這讓 Web/Tk/Qt/agent 後續可讀同一份 capability contract，不必散落 `if source_type == ...` 來猜 pagination、內容格式或缺憑證時下一步。
+- 這是 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline` 的第一個資料契約切片，不是 universal interpreter。既有 handler、download/import、seed row UI 行為不變。
+- 本輪同時修補 `scripts/pre_push_smoke.ps1`：PowerShell native command 失敗不會自動被 `$ErrorActionPreference` 擋住，所以現在 `git diff --check`、`py_compile`、`unittest discover`、CLI summary 後都檢查 `$LASTEXITCODE`。這避免 pre-push smoke 在測試失敗時繼續跑 summary/smoke 造成假綠燈。
+- 本地驗證已通過：`py -B -m py_compile api_launcher\crawler_capability_profiles.py api_launcher\crawler_assets.py api_launcher\crawlers\request_policy.py tests\test_crawler_assets.py` OK；`py -B -m unittest tests.test_crawler_assets -v` 40 tests OK；`py -B -m unittest tests.test_dataset_discovery -v` 50 tests OK；`py -B -m unittest tests.test_crawler_assets tests.test_dataset_discovery tests.test_web_preview -v` 126 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，792 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260527_221311.log`。下一步 commit/push/watch CI。
+
 ## 2026-05-27 21:38 Tk seed row action handoff
 - 本輪把 Tk「爬蟲資產」分頁從側欄 seed 摘要推進到可操作 seed row：右側 Crawler Passport 新增「開 Seed 表格 / 下載」，會開 `frontends/tk/crawler_asset_seed_dialog.py` 的表格 dialog。Dialog 只顯示目前已載入的本機 catalog seed page，回傳 `favorite` / `download` action，不直接改 profile、下載檔案或匯入資料。
 - 收藏動作走共用 `api_launcher.crawler_seed_registry.save_crawler_seed_favorite()`，下載動作走正式 `api_launcher.crawler_asset_download.run_crawler_seed_download_import()`。Tk worker 會把輸出放到 OS Downloads 底下的 `RuRuKa Asset Launcher/downloads/crawler_assets/<asset>/<seed>`，並寫出 seed resolved plan / `curated_sources.db`；避免把 live SQLite import 預設壓在 K 槽雲端同步路徑。
