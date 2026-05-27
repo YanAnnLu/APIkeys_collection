@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-28
 
+## 2026-05-28 Source-code maturity / 能力成熟度邊界審計
+- [x] 針對 `dataset_adapters.py`、`api_launcher/adapters/`、`simulation_bridge.py`、`unreal_bridge.py` 做源碼實體抽查，確認第二輪文檔審計仍缺一個「能力成熟度」判準。
+- [x] 明確標示 `simulation_bridge.py` 目前是 `contract_only`，不能被寫成已實作物理模擬；`unreal_bridge.py` 目前只產生 `planned` bridge target，不能被寫成已完成 Unreal Content 實體導入。
+- [x] 明確拆分 source crawler handler、provider-specific dataset adapter、adapter plan resolver、content parser/importer capability、renderer/simulation bridge。`SUPPORTED_DATASET_SOURCE_TYPES` 代表 source handler / offline audit contract 覆蓋，不代表每個來源都有 deep adapter / curated import / renderer bridge。
+- [x] 更新 `DOCS_DRIFT_AUDIT.zh-TW.md` 與 `DATASET_DISCOVERY_NOTES.zh-TW.md`，要求後續文件描述「支援某來源」時必須標明 discovery、bounded plan、download、import、renderer bridge 或 contract-only 層級。
+- [ ] 後續若要量化整體進度，必須以能力成熟度矩陣重新估算，不得再用單一百分比混合 contract、offline smoke、live download 與 renderer bridge。
+
 ## 2026-05-27 Documentation drift audit / 協作文件對齊
 - [x] 追加 Documentation Drift Guard 到全域 Codex skills，要求 agent 不盲信文檔，先以 verified behavior（tests / CLI JSON / smoke / UI / git diff / CI）建立現況。
 - [x] 快速審閱發現 `AGENT_HANDOFF.zh-TW.md` 的「最新已推送 HEAD」已漂移：文件仍指 `3ca9a37`，實際 `git log -1` 是 `170b236 Log CKAN pagination output checkpoint`。

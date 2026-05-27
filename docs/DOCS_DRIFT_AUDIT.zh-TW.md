@@ -1,8 +1,41 @@
 # 文件漂移審計
 
-最後更新：2026-05-27 18:52 Asia/Taipei
+最後更新：2026-05-28 05:52 Asia/Taipei
 
 本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
+
+## 第三輪補洞：源碼成熟度邊界審計（2026-05-28）
+
+這一輪不是重新推翻第二輪文檔審計，而是補上第二輪漏掉的判準：文件不能只寫「已有 crawler / adapter / bridge」，還必須說清楚它落在哪一個成熟度層級。否則 agent 會把「已有 contract」誤讀成「已能真實執行」，或把「source handler 已接」誤讀成「內容 parser / importer / renderer 都已完成」。
+
+已查證的源碼事實：
+
+- `api_launcher/simulation_bridge.py` 目前是 simulation input/backend contract。backend 的 `implementation_status` 仍是 `contract_only`，不能被寫成已實作物理模擬引擎。
+- `api_launcher/unreal_bridge.py` 目前只產生 Unreal bridge target plan，狀態是 `planned`，且刻意不在該層複製檔案或改動 Unreal project content。不能被寫成已完成 Unreal Content 實體導入。
+- `api_launcher/dataset_adapters.py` 目前集中註冊 provider-specific dataset adapter，實體為 GEBCO、HYG、yfinance 三條。這不等於整個 source pattern / crawler 系統只有三個來源，也不等於 14 個 source type 都有 deep dataset adapter。
+- `api_launcher/crawlers/dataset_sources.py` 的 `SUPPORTED_DATASET_SOURCE_TYPES` / `SOURCE_CRAWLER_HANDLERS` 代表 source-level crawler handler contract，可用來做 discovery / candidate enumeration / offline audit smoke；它不是內容格式 parser、curated SQLite importer、renderer bridge 或 full live download coverage 的保證。
+- `api_launcher/adapter_plan_resolver.py` 與 `api_launcher/adapter_plan_resolvers/` 是 bounded resolver / adapter-review bridge，目標是把候選 metadata 安全提升成小樣本 direct plan 或 review item；它不代表每個平台的大量資料都已可無界下載。
+- `api_launcher/content_registry.py` / import plan contract 目前已能把 CSV/JSON/GeoJSON 等可匯入格式與 NetCDF/GeoTIFF/ZIP/unknown 等 review lane 分開；停在 review lane 的格式不得寫成已可 curated import。
+
+後續文檔一律使用以下成熟度語彙，避免模糊宣稱：
+
+| 成熟度 | 可寫成 | 不可寫成 |
+| --- | --- | --- |
+| `contract_only` | 已定義資料結構、介面或輸入契約 | 已實作引擎、已可執行 |
+| `planned_io` | 已能產生檔案/bridge/export 計畫 | 已完成實體複製、匯入或外部專案修改 |
+| `offline_contract_smoke` | fixture / offline smoke 通過 | live endpoint 全部可用 |
+| `live_discovery` | 可向指定 live source 枚舉候選 | 可下載或匯入資料本體 |
+| `bounded_plan_resolver` | 可把候選提升成小樣本 plan 或 review item | 可全量下載該平台所有資料 |
+| `download_ready` | 有 direct download plan 且通過 downloader/manifest | 已 curated import 或 renderer-ready |
+| `import_ready` | 可進 SQLite / manifest import | 已有所有 domain parser / renderer bridge |
+| `ui_operable` | Tk/Web 已可操作該流程 | 後端所有來源都完成 |
+| `ci_verified` | 對應測試 / smoke / CI 通過 | 未覆蓋的 live source 也通過 |
+
+處置：
+
+- `DATASET_DISCOVERY_NOTES.zh-TW.md` 已補上 source crawler、provider-specific dataset adapter、adapter resolver、content parser/importer、renderer/simulation bridge 的分層界線。
+- `PROJECT_GTD.md` 與 `AGENT_HANDOFF.zh-TW.md` 已把這次視為 docs drift guard 的補洞 checkpoint。
+- 後續若文件說「支援某 source type」，必須同時說明它是 discovery、bounded plan、download、import、renderer bridge 還是哪一層支援。
 
 ## 第二輪審計摘要（2026-05-27）
 

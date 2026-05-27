@@ -311,6 +311,20 @@ K 槽其他教材與 CODE_KM 也應作為「概念樣本庫」使用，而不是
 
 ## Dataset adapters
 
+### 能力成熟度邊界
+
+本節容易被誤讀，必須先分層。`SUPPORTED_DATASET_SOURCE_TYPES`、`SOURCE_CRAWLER_HANDLERS`、`dataset_adapters.py`、`adapter_plan_resolver.py`、`content_registry.py` 與 renderer/simulation bridge 說的是不同成熟度，不可互相替代。
+
+目前建議用以下方式描述實作狀態：
+
+- **Source crawler handler**：位於 `api_launcher/crawlers/` 與 `SOURCE_CRAWLER_HANDLERS`。它負責 source-level discovery、candidate enumeration、pagination metadata、audit warning 與 offline handler smoke。它不保證該來源已能下載資料本體，也不保證內容格式可匯入。
+- **Provider-specific dataset adapter**：位於 `api_launcher/dataset_adapters.py` 與 `api_launcher/adapters/`。目前實體註冊的是 GEBCO、HYG、yfinance 三條 provider/dataset adapter。這是 legacy / provider-specific adapter 層，不是每個 supported source type 都必須有一支同名 adapter。
+- **Adapter plan resolver**：位於 `api_launcher/adapter_plan_resolver.py` 與 `api_launcher/adapter_plan_resolvers/`。它把候選 metadata 轉成 bounded direct plan 或 adapter review item；多數 resolver 只產生小樣本 metadata / CSV / JSON plan，不等於完成全量下載器。
+- **Content parser / importer capability**：位於 `api_launcher/content_registry.py` 與 importer pipeline。CSV/JSON/GeoJSON 可走 SQLite MVP import；NetCDF、HDF、GeoTIFF、COG、Zarr、Parquet、ZIP、unknown 等目前多數仍是 review / future parser lane。
+- **Renderer / simulation bridge**：`simulation_bridge.py` 目前是 `contract_only`，不能被寫成已實作物理模擬；`unreal_bridge.py` 目前只產生 `planned` bridge target，不在該層做 real file copy 或 Unreal Content import。
+
+因此，「14 個 supported source type」只能表示 source crawler handler / offline audit contract 已覆蓋到這些入口類型；不能寫成「14 個來源都已有深度 dataset adapter、內容 parser、SQLite curated import、renderer bridge」。反過來，`dataset_adapters.py` 只有三條 provider-specific adapter，也不能寫成 crawler 系統只支援三種來源，因為 source discovery 與 provider-specific adapter 是兩個不同層。
+
 Source-site discovery 和 dataset discovery 已經分開：
 
 - `api_launcher/discovery.py`：負責從官方來源站抓取可審核的 provider/source candidate。
