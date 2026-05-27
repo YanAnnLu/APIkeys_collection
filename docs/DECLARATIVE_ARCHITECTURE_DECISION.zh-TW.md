@@ -54,6 +54,40 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
    - endpoint、auth profile、query params、bounds facets、rate limit、expected content type 逐步從 Python 硬編碼移到 profile/config。
    - 但 crawler handler 不一次消滅。
 
+## 數據驅動裝飾器爬蟲候選方向
+
+使用者提出的「數據驅動裝飾器爬蟲架構」可視為第二階段 source profile 收斂的候選 PoC。其核心價值不是立即消滅現有 handler，而是把重複的橫切能力抽成可組裝 middleware：
+
+- credential gating
+- pagination driver
+- timeout / retry / rate limit
+- evidence URL / warning code / audit summary
+- content detection handoff
+
+落地時請採用「profile schema + middleware pipeline」心法，不要直接用脆弱的 raw list row 當正式 contract。建議用 dataclass / typed dict / JSON schema 描述 task profile，避免欄位順序錯誤造成難查 bug。
+
+### 裝飾器順序注意
+
+Python 裝飾器的套用順序與呼叫順序容易誤解。若寫成：
+
+```python
+@with_oauth_gating
+@with_pagination_driver
+def crawl(...):
+    ...
+```
+
+實際呼叫時通常是外層 oauth wrapper 先執行一次，再進入 pagination wrapper。若需求是「每一頁請求都要重新注入最新 credential / header」，pagination wrapper 應該呼叫 credential wrapper，或直接用明確的 middleware pipeline 控制順序。不要把這個細節藏在看似優雅的 `@decorator` 疊法裡。
+
+### 第一個 PoC 建議
+
+可以從 Socrata 或 HTML file index 開始，原因是它們已有比較穩的 source pattern、seed enumeration 與測試路徑。PoC 成功條件：
+
+- profile 驅動 endpoint / pagination / timeout / max_pages。
+- adapter 仍輸出 `DatasetCandidate` 與既有 audit summary。
+- zero candidates、blocked credentials、unknown content format 都有 structured warning / next_action。
+- 不破壞現有 Python handler；先並行驗證，再逐步收斂。
+
 ## 可接受 PoC
 
 第一個宣告式 PoC 可選 Socrata 或 HTML file index。

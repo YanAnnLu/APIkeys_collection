@@ -7,6 +7,7 @@ from typing import Any
 
 
 USER_AGENT = "APIkeys_collection/0.4 (+dataset-discovery; metadata only)"
+DEFAULT_MAX_CRAWLER_RESPONSE_BYTES = 8 * 1024 * 1024
 
 
 def search_endpoint_url(endpoint_url: str, params: dict[str, str]) -> str:
@@ -21,20 +22,24 @@ def search_endpoint_url(endpoint_url: str, params: dict[str, str]) -> str:
     return urllib.parse.urlunparse(parsed._replace(query=query))
 
 
-def fetch_json(url: str, timeout: float) -> dict[str, Any]:
+def fetch_json(url: str, timeout: float, max_bytes: int = DEFAULT_MAX_CRAWLER_RESPONSE_BYTES) -> dict[str, Any]:
     # crawler 只接受 JSON object 作為 catalog payload；陣列或文字頁面應由專屬 crawler 處理。
-    text, _ = fetch_text(url, timeout=timeout)
+    text, _ = fetch_text(url, timeout=timeout, max_bytes=max_bytes)
     payload = json.loads(text)
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object from {url}")
     return payload
 
 
-def fetch_text(url: str, timeout: float) -> tuple[str, str]:
+def fetch_text(url: str, timeout: float, max_bytes: int = DEFAULT_MAX_CRAWLER_RESPONSE_BYTES) -> tuple[str, str]:
     # 回傳 final_url 是為了保留 redirect 後的 evidence/source_url。
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1.")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = response.read()
+        data = response.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ValueError(f"Crawler metadata response exceeded {max_bytes} bytes: {url}")
         charset = response.headers.get_content_charset() or "utf-8"
         final_url = response.geturl()
     return data.decode(charset, errors="replace"), final_url

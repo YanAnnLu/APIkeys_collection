@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -358,7 +360,21 @@ def write_env_updates(path: str | Path, *, values: Mapping[str, str], clear: set
     for key in sorted(clear):
         if key not in handled:
             output.extend(("", f"{key}="))
-    target.write_text("\n".join(output).rstrip() + "\n", encoding="utf-8")
+    content = "\n".join(output).rstrip() + "\n"
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        dir=target.parent,
+        text=True,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+        os.replace(temp_name, target)
+    except Exception:
+        with contextlib.suppress(OSError):
+            os.unlink(temp_name)
+        raise
     return target
 
 

@@ -12,6 +12,13 @@ Last updated: 2026-05-27
 - [x] Mojibake 風險已拆成「檔案真的損壞」與「PowerShell 顯示 codepage 問題」兩類；全域 skill 已要求讀寫中文時明確指定 UTF-8，並新增 Python strict UTF-8 scanner。RRKAL docs 掃描目前通過。
 - [x] GUI-level audit 已補完：Web Preview 透過 HTTP/API 與 in-app browser 驗證四分頁、下載器的 `執行真下載示範`、NASA CMR credential guard / `記住我的帳號`、seed page 與 seed favorite 入口；Tk 透過 `window_layout_workflows.py` 入口查證與 `tests.test_tk_dialogs` / `tests.test_launcher_ui` headless tests 驗證「爬蟲資產」第一分頁、「下載器」第二分頁、展示模式工具選單、開發者 diagnostics、下載器雙擊與開始/暫停行為。文件漂移審計可結束，下一輪回到主線開發。
 
+## 2026-05-27 Code health audit / 匯入、crawler fetch、credential 寫入硬化
+- [x] 新增 `docs/CODE_HEALTH_AUDIT.zh-TW.md`，用 P0/P1/P2/P3 記錄本輪程式健康審計。結論：本輪沒有發現 P0；已修三個 P1 級資料/資源/credential 耐久性風險。
+- [x] `api_launcher/importers/csv_importer.py` 的 replace import 已改為先寫 SQLite 暫存表，再於成功後 swap target table；失敗時保留既有 curated table。`tests.test_csv_importer` 已補失敗保留舊表與成功替換 regression。
+- [x] `api_launcher/crawlers/fetch.py` 的 metadata fetch 已加入 8MB 預設上限，避免 crawler metadata probe 誤讀大型 payload；`tests.test_crawler_fetch` 已補超限拒絕 regression。
+- [x] `api_launcher/local_credentials.py` 的 `.env` 寫入已改成 UTF-8 暫存檔 + `os.replace()`；替換失敗時清理 temp 並保留舊 `.env`。`tests.test_local_credentials` 已補替換失敗不破壞既有 credential file 的 regression。
+- [ ] 下一步 hardening：HTML file index full crawl 的單頁失敗應轉成 warning + partial candidates；source profile 應逐步承接 `max_pages` / timeout / rate-limit / page-size 等 politeness defaults；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
+
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
 - [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。

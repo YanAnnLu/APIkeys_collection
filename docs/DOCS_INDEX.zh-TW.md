@@ -38,6 +38,7 @@
 | --- | --- | --- |
 | 新 Agent 接手 | `AGENT_START_HERE.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先看權威順序、目前主線與不要做什麼，再看最新接力、進度與文件地圖。 |
 | 檢查文件是否漂移 | `DOCS_DRIFT_AUDIT.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> 實際 CLI/test/UI/CI 證據 | 先看已知漂移與本輪修補，再用已驗證行為判斷文件是否可採信。 |
+| 檢查程式健康 / 風險 | `CODE_HEALTH_AUDIT.zh-TW.md` -> 相關測試 -> `CODE_RELATIONSHIP_MAP.zh-TW.md` | 先看已確認的 P1/P2/P3 風險、已修補項目與下一個 hardening slice。 |
 | 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 屬於哪個開發階段、改了什麼、如何驗證、還有什麼風險。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
@@ -61,6 +62,7 @@
 | `HEARTBEAT_AUTOMATION.zh-TW.md` | heartbeat automation 的安全規則、CLI/script 入口、外部排程與 agent runner 邊界。 | 更改 heartbeat CLI、scheduler、停止條件或自動推進規則時更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
 | `DOCS_DRIFT_AUDIT.zh-TW.md` | 文件漂移審計紀錄，列出已驗證現況、已修漂移、已知剩餘漂移風險與後續驗收路徑。 | 做文檔對齊、發現文件和實際行為衝突、或 showcase/驗收前做文件審計時更新。 |
+| `CODE_HEALTH_AUDIT.zh-TW.md` | 程式健康審計紀錄，列出 P0/P1/P2/P3 風險、已修補 hardening、測試證據與不建議立即重構的區域。 | 做 read-only / hardening 程式審計、修補資料毀損/下載/匯入/credential 風險、或安排下一個 consolidation slice 時更新。 |
 | `CODE_RELATIONSHIP_MAP.zh-TW.md` | 程式關聯地圖，說明入口、子系統、調度方向、測試入口與註解規則。 | 拆模組、搬資料夾、調整 CLI/UI/backend 邊界時更新。 |
 | `MVP_FLOW_AUDIT.zh-TW.md` | MVP 閉環稽核表，列出 Demo 流程、下載/匯入/repair/MySQL 的可驗證狀態與缺口。 | Demo 前後、發現按鈕沒有閉環、下載/匯入/crawler 行為改變時更新。 |
 | `USER_MANUAL.zh-TW.md` | 帶圖說的使用者操作手冊，面向 Demo 與第一次操作。 | 新增 UI/CLI 操作、改變使用者流程、補圖說時更新。 |

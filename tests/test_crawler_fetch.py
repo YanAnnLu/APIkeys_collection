@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from api_launcher.crawlers.fetch import search_endpoint_url
+from api_launcher.crawlers.fetch import fetch_text, search_endpoint_url
 
 
 class CrawlerFetchTests(unittest.TestCase):
@@ -24,6 +26,14 @@ class CrawlerFetchTests(unittest.TestCase):
         url = search_endpoint_url("https://data.example.test/api?domains=data.example.test#docs", {"q": ""})
 
         self.assertEqual("https://data.example.test/api?domains=data.example.test#docs", url)
+
+    def test_fetch_text_rejects_metadata_response_over_byte_limit(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "large-catalog.txt"
+            path.write_text("x" * 32, encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "exceeded 8 bytes"):
+                fetch_text(path.as_uri(), timeout=1.0, max_bytes=8)
 
 
 if __name__ == "__main__":

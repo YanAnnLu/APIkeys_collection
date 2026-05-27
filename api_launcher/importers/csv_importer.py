@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import contextlib
 import gzip
 import re
 import sqlite3
@@ -209,23 +210,35 @@ def import_rows_to_sqlite(
     replace: bool,
     row_limit: int,
 ) -> int:
-    quoted_table = quote_identifier(table_name)
+    target_table = table_name
+    write_table = unique_table_name(sqlite_path, f"{table_name}_import_tmp") if replace else table_name
+    quoted_table = quote_identifier(write_table)
     quoted_columns = ", ".join(f"{quote_identifier(column)} TEXT" for column in columns)
     insert_columns = ", ".join(quote_identifier(column) for column in columns)
     placeholders = ", ".join("?" for _ in columns)
     with closing(sqlite3.connect(sqlite_path)) as conn:
-        if replace:
-            conn.execute(f"DROP TABLE IF EXISTS {quoted_table}")
-        conn.execute(f"CREATE TABLE {quoted_table} ({quoted_columns})")
-        count = 0
-        for row in rows:
-            if row_limit > 0 and count >= row_limit:
-                break
-            values = normalized_row_values(row, len(columns))
-            conn.execute(f"INSERT INTO {quoted_table} ({insert_columns}) VALUES ({placeholders})", values)
-            count += 1
-        conn.commit()
-        return count
+        try:
+            conn.execute(f"CREATE TABLE {quoted_table} ({quoted_columns})")
+            count = 0
+            for row in rows:
+                if row_limit > 0 and count >= row_limit:
+                    break
+                values = normalized_row_values(row, len(columns))
+                conn.execute(f"INSERT INTO {quoted_table} ({insert_columns}) VALUES ({placeholders})", values)
+                count += 1
+            if replace:
+                quoted_target = quote_identifier(target_table)
+                conn.execute(f"DROP TABLE IF EXISTS {quoted_target}")
+                conn.execute(f"ALTER TABLE {quoted_table} RENAME TO {quoted_target}")
+            conn.commit()
+            return count
+        except Exception:
+            conn.rollback()
+            if replace:
+                with contextlib.suppress(sqlite3.Error):
+                    conn.execute(f"DROP TABLE IF EXISTS {quoted_table}")
+                    conn.commit()
+            raise
 
 
 def table_exists(sqlite_path: str | Path, table_name: str) -> bool:

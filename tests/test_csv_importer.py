@@ -10,7 +10,11 @@ from pathlib import Path
 
 from api_launcher.core import main
 from api_launcher.database_self_check import DatabaseAssetVerifier
-from api_launcher.importers.csv_importer import import_csv_manifest_to_sqlite, import_verified_csv_manifests_to_sqlite
+from api_launcher.importers.csv_importer import (
+    import_csv_manifest_to_sqlite,
+    import_rows_to_sqlite,
+    import_verified_csv_manifests_to_sqlite,
+)
 from api_launcher.db import connect_db
 from api_launcher.manifests import build_asset_manifest, write_manifest
 from api_launcher.repository import ApiCatalogRepository
@@ -143,6 +147,61 @@ class CsvImporterTests(unittest.TestCase):
         self.assertEqual(0, result.failed)
         self.assertEqual(0, second.imported)
         self.assertEqual(1, second.skipped_existing)
+
+    def test_replace_import_preserves_existing_table_when_new_rows_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            with closing(sqlite3.connect(curated_db)) as curated:
+                curated.execute('CREATE TABLE "stable_table" ("name" TEXT)')
+                curated.execute('INSERT INTO "stable_table" ("name") VALUES (?)', ("old",))
+                curated.commit()
+
+            def broken_rows():
+                yield ["new"]
+                raise RuntimeError("simulated import failure")
+
+            with self.assertRaisesRegex(RuntimeError, "simulated import failure"):
+                import_rows_to_sqlite(
+                    curated_db,
+                    "stable_table",
+                    ("name",),
+                    broken_rows(),
+                    replace=True,
+                    row_limit=0,
+                )
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name FROM "stable_table"').fetchall()
+                temp_tables = curated.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE ?",
+                    ("%import_tmp%",),
+                ).fetchall()
+
+        self.assertEqual([("old",)], rows)
+        self.assertEqual([], temp_tables)
+
+    def test_replace_import_swaps_table_after_successful_new_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            curated_db = Path(tmpdir) / "curated.sqlite"
+            with closing(sqlite3.connect(curated_db)) as curated:
+                curated.execute('CREATE TABLE "stable_table" ("name" TEXT)')
+                curated.execute('INSERT INTO "stable_table" ("name") VALUES (?)', ("old",))
+                curated.commit()
+
+            imported = import_rows_to_sqlite(
+                curated_db,
+                "stable_table",
+                ("name",),
+                [["new"], ["newer"]],
+                replace=True,
+                row_limit=0,
+            )
+
+            with closing(sqlite3.connect(curated_db)) as curated:
+                rows = curated.execute('SELECT name FROM "stable_table"').fetchall()
+
+        self.assertEqual(2, imported)
+        self.assertEqual([("new",), ("newer",)], rows)
 
     def test_cli_batch_imports_registry_csv_manifests(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
