@@ -1,10 +1,12 @@
 # RuRuKa Asset Launcher 架構
 
-最後更新：2026-05-23
+最後更新：2026-05-27
 
 RuRuKa Asset Launcher 是一個類 Steam 的科學資料集、爬蟲資產與本機資料庫 launcher。它負責整理 provider/catalog、治理資料取得能力、產生下載計畫、下載與匯入資料、追蹤已安裝資產，並把整理後的資料交給 Taichi、Unreal 或其他下游 renderer / 分析工具。
 
 英文原文仍保留在 `docs/ARCHITECTURE.md`；本文件是繁中架構入口，補足接力與中文討論需要。
+
+> 2026-05-27 校準註記：本文件描述穩定架構邊界；最新已驗證能力請以 CLI JSON、tests/smoke、`AGENT_HANDOFF`、`PROJECT_GTD` 與 `DOCS_DRIFT_AUDIT` 為準。Web Preview、crawler seed registry、developer diagnostics、remote pagination contract 等新切片已在專題文件與 GTD 追蹤；若本文件未逐一列出，不能視為功能不存在，也不能反推它已正式產品化。
 
 ## 管線分層
 

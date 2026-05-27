@@ -1,8 +1,10 @@
 # 使用者操作手冊
 
-最後更新：2026-05-23
+最後更新：2026-05-27
 
 這份手冊是面向第一次操作 Demo 的使用者。更細的背景說明仍保留在 `docs/USER_GUIDE.zh-TW.md`；本文件聚焦「照著做」。
+
+> 2026-05-27 校準註記：本手冊保留穩定 MVP demo 操作步驟。最新 Web Preview、crawler asset seed 分頁、credential guard、developer diagnostics 與真下載示範的 transitional 狀態，請以 `docs/USER_GUIDE.zh-TW.md` 與 `docs/WEB_PREVIEW_UIUX.zh-TW.md` 為準。展示或驗收前，先用 CLI JSON / Web API smoke / Tk 實際操作驗證，不要只照本文件的歷史敘述判斷功能已完成。
 
 ## 操作流程圖
 

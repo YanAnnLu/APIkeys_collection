@@ -1,4 +1,11 @@
 ﻿# Agent 接力卡
+## 2026-05-27 12:55 Deep documentation drift audit / UTF-8 guard
+- 第二輪文檔漂移審計從 `f580450 Align docs with verified drift audit` 開始，目標是把使用者文件、Web/Tk 文件、架構文件與 encoding 風險補到可交接狀態。最終 commit 請以 `git log -1` 驗證，不要把本段的起點 commit 誤讀成最新 HEAD。
+- Verified behavior：`--handoff-report-json` 成功，canonical MVP demo 仍為 `download_import_completed`、`row_count=3`；`--crawler-run-summary-json` 目前是 `missing_listing`，所以若要展示某入口 seed 清單，請先重新枚舉該入口；`--dataset-discovery-handler-smoke-json` 仍顯示 14 個 supported source type 的離線 handler contract pass。
+- Web Preview smoke：用 in-process HTTP server 驗證 `/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 均能回應，crawler asset card 數 23，diagnostics `supported_source_type_count=14`、`candidate_case_status=pass`。這不是 live endpoint 全成功證明。
+- Encoding incident：`AGENT_START_HERE.zh-TW.md` 以 Python strict UTF-8 與 `Get-Content -Encoding UTF8` 讀取正常；PowerShell 預設輸出曾顯示 mojibake，判定為 console/codepage 顯示問題。後續讀寫中文文件必須明確指定 UTF-8，不要只看預設 console 輸出就修檔。
+- 本輪修補文件：`USER_GUIDE.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`、`USER_MANUAL.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md`、`TECHNICAL_OVERVIEW.zh-TW.md`、`ARCHITECTURE.zh-TW.md`、`DOCS_DRIFT_AUDIT.zh-TW.md`、`PROJECT_GTD.md`、本 handoff。`真下載示範` 已標成 transitional/demo-only surface，不能當作所有 crawler source 均已正式打通的證明。
+
 ## 2026-05-27 12:22 Documentation drift audit / current verified status
 - Read-only drift audit confirmed an obvious stale handoff claim: this file still said latest pushed HEAD was `3ca9a37`, while verified Git state is now `170b236 Log CKAN pagination output checkpoint` on `main...origin/main`.
 - Verified GitHub Actions state: `gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5` reports latest run `26489024004` for `170b236` completed with `success`.

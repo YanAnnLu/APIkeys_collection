@@ -1,8 +1,12 @@
 # MVP 閉環稽核
 
-最後更新：2026-05-23
+最後更新：2026-05-27
 
 這份文件用來回答 Demo 時最重要的問題：哪些流程真的可以從 UI/CLI 走完，哪些只是有按鈕或骨架，卡住時該看哪裡。
+
+## 2026-05-27 校準註記
+
+目前 canonical MVP demo 已由 `--handoff-report-json` 驗證仍可跑到 `download_import_completed`，匯入 `row_count=3`。Crawler handler diagnostics 也已離線驗證 14 個 supported source type 的 contract smoke 為 pass。但 `--crawler-run-summary-json` 目前回報 `missing_listing`，表示本機事件視窗沒有最新 crawler listing event；若要驗證某一入口最新 seed，請重新跑該入口 listing。下方 2026-05-23 表格仍可作 MVP 心智模型，但最新 Web/Tk crawler asset 操作細節以 `USER_GUIDE`、`WEB_PREVIEW_UIUX`、`AGENT_HANDOFF` 與實際 CLI/UI 行為為準。
 
 ## 總覽圖
 

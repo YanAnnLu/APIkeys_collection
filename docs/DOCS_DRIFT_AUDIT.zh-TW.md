@@ -1,8 +1,31 @@
 # 文件漂移審計
 
-最後更新：2026-05-27 12:22 Asia/Taipei
+最後更新：2026-05-27 12:55 Asia/Taipei
 
 本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
+
+## 第二輪審計摘要（2026-05-27）
+
+第二輪審計從 commit `f580450 Align docs with verified drift audit` 開始，目標是把第一輪留下的使用者文件、Web/Tk 文件、架構文件與 encoding 風險補到可交接狀態。
+
+已驗證行為：
+
+- `git status --short --branch`：乾淨，`main...origin/main`。
+- `git log -1 --oneline --decorate`：`f580450 (HEAD -> main, origin/main, origin/HEAD) Align docs with verified drift audit`。
+- GitHub Actions：run `26490857279` 對應 `f580450`，已 success。
+- `py -B APIkeys_collection.py --handoff-report-json`：可成功輸出；provider count 55、dataset count 1、canonical MVP demo `download_import_completed`、table `nyc_open_data_socrata_socrata_311_sample_190`、`row_count=3`。
+- `py -B APIkeys_collection.py --crawler-run-summary-json`：目前 `summary_scope.status=missing_listing`，表示本機 event window 沒有最新 crawler asset listing event；這不是 crawler 全壞，而是 freshness 證據不足。
+- `py -B APIkeys_collection.py --dataset-discovery-handler-smoke-json`：14 個 supported source type 的離線 handler contract smoke pass；這是 offline contract，不代表 live NASA/NOAA/CKAN endpoint 均可連線。
+- Web Preview in-process HTTP smoke：`/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 均回應；crawler asset card 數 23，developer diagnostics `supported_source_type_count=14`、`candidate_case_status=pass`。
+- Encoding / mojibake：`AGENT_START_HERE.zh-TW.md` 以 Python strict UTF-8 與 `Get-Content -Encoding UTF8` 讀取正常。若 PowerShell 預設輸出顯示亂碼，應視為 console/codepage 顯示風險，不能直接判定檔案損壞。
+
+本輪已修正 / 標註：
+
+- `USER_GUIDE.zh-TW.md`：新增目前校準狀態，明確標示 crawler listing freshness 目前缺最新 listing event；將「真下載示範 / 展示模式」標成過渡與 demo-only surface。
+- `WEB_PREVIEW_UIUX.zh-TW.md`：新增 Web API smoke 驗證值，並標示 `/api/demo/real-download` 是 transitional helper，不是正式全 crawler 下載證明。
+- `USER_MANUAL.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md`：補上 2026-05-27 校準註記，避免舊 demo 文件被誤讀成最新 Web/Tk 操作總綱。
+- `TECHNICAL_OVERVIEW.zh-TW.md`、`ARCHITECTURE.zh-TW.md`：補上校準註記，把它們定位為架構背景與邊界文件；最新能力仍以 verified behavior、GTD、handoff、專題文件為準。
+- 全域 skill 已補強 UTF-8 explicit rule 與 Python strict scanner；RRKAL docs 也已用 scanner 驗證無 mojibake 風險。
 
 ## 本輪審計範圍
 

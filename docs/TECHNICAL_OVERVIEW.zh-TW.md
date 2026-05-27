@@ -1,12 +1,14 @@
 # RuRuKa Asset Launcher 中文技術概要
 
-最後更新：2026-05-18
+最後更新：2026-05-27
 
 RuRuKa Asset Launcher（短稱：RRKAL；內部相容名稱：APIkeys_collection）是一個類 Steam 的資料庫與資料源啟動器。它的目標不是只保存 API key，而是協助大數據專案管理「資料源、下載計畫、本機資料庫、安裝狀態、清洗流程、渲染器橋接」。
 
 更白話地說，它想把資料工程裡最麻煩的「到處搜集」懶人化：找官方來源、看文件、確認授權、挑版本、下載檔案、保存 manifest、匯入 SQLite/資料庫、檢查壞檔、重建 cache、接到 Taichi/Unreal/圖表前端。這些不是一次性腳本該各做各的，而應該像 Steam 管遊戲一樣，放進同一個 library / install / repair / workspace 模型裡。
 
 ## 目前定位
+
+> 2026-05-27 校準註記：本文件是架構背景與產品方向總覽，不是最新功能清單。Crawler asset seed registry、Web Preview、developer diagnostics、remote pagination metadata、content parser review payload、credential guard 等新能力，請以 `docs/PROJECT_GTD.md`、`docs/AGENT_HANDOFF.zh-TW.md`、`docs/DATASET_DISCOVERY_NOTES.zh-TW.md`、`docs/WEB_PREVIEW_UIUX.zh-TW.md` 與實際 CLI JSON / tests / Web API smoke 為準。若本文件的「尚未完成」或「目前」字眼與 verified behavior 衝突，以 verified behavior 為準，並補最小文檔修正。
 
 這個專案目前是 MVP 階段，已經具備資料源清單、下載計畫、非阻塞下載器、資料庫工具設定、基本安裝 registry、Taichi renderer bridge 的骨架。
 

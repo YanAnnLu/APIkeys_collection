@@ -3,6 +3,13 @@
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
+## 2026-05-27 文件審計校準
+
+- 實際 Web API smoke 已用同一進程 HTTP server 驗證：`/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 均能回應。
+- 目前驗證值：crawler asset card 數為 23；developer diagnostics 的 `supported_source_type_count=14`，`candidate_case_status=pass`。
+- `/api/demo/real-download` 與畫面上的「執行真下載示範」仍存在，但它是過渡 demo helper，只證明公開 CSV 的下載 / manifest / SQLite import 路徑，不代表所有 crawler source 都已可正式下載。等 crawler asset 的正式 download flow 打通後，這個入口應移除或改成 developer/demo-only 區塊。
+- 若用 PowerShell 讀 zh-TW 文件時出現亂碼，先用 `Get-Content -Encoding UTF8` 或 Python `encoding="utf-8"` 複核；不要把 console 顯示問題誤判成檔案損壞。
+
 
 ## Plan Passport freshness guard
 - Web Preview 讀取的 `latest_plan_passport` 是後端判斷過的 display-safe payload，不是單純的上次結果快照。
