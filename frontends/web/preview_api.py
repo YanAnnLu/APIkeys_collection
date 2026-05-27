@@ -34,6 +34,7 @@ from api_launcher.crawler_asset_service import (
     run_crawler_asset_listing,
 )
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
+from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
@@ -63,6 +64,25 @@ def web_preview_status() -> dict[str, object]:
         "surface": "web_preview",
         "purpose": "uiux_review",
         "business_logic_owner": "api_launcher",
+    }
+
+
+def crawler_handler_smoke_diagnostics() -> dict[str, object]:
+    """Return a compact developer-only crawler handler contract diagnostic.
+
+    Web Preview 需要能讓 agent / 開發者用瀏覽器確認 crawler handler 契約，
+    但正式使用者下載流程不應看到完整 smoke report 或每個 source 的大 payload。
+    因此這裡只回傳共用 compact summary 與清楚的 developer-only 標記。
+    """
+
+    return {
+        "surface": "web_preview",
+        "purpose": "developer_diagnostics",
+        "diagnostic_id": "crawler_handler_contract_smoke",
+        "developer_only": True,
+        "scope": "offline_contract_smoke_no_live_network",
+        "summary": crawler_handler_audit_smoke_summary(),
+        "next_action": "run_dataset_discovery_handler_smoke_json_if_summary_fails",
     }
 
 

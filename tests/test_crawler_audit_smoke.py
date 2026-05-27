@@ -7,7 +7,11 @@ import json
 import unittest
 
 from api_launcher.cli_dataset_discovery import add_dataset_discovery_args, dataset_discovery_command_active, discover_dataset_candidates_cli
-from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_report, crawler_handler_smoke_sources
+from api_launcher.crawler_audit_smoke import (
+    crawler_handler_audit_smoke_report,
+    crawler_handler_audit_smoke_summary,
+    crawler_handler_smoke_sources,
+)
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 
 
@@ -47,6 +51,17 @@ class CrawlerAuditSmokeTest(unittest.TestCase):
         self.assertEqual(0, candidate_case["warning_count"])
         self.assertEqual(0, summary["problem_source_count"])
         self.assertEqual({"pass": len(SUPPORTED_DATASET_SOURCE_TYPES), "warning": 0, "error": 0}, summary["by_status"])
+
+    def test_handler_audit_smoke_summary_is_compact(self) -> None:
+        summary = crawler_handler_audit_smoke_summary()
+
+        self.assertIn("--dataset-discovery-handler-smoke-json", summary["command"])
+        self.assertEqual(len(SUPPORTED_DATASET_SOURCE_TYPES), summary["supported_source_type_count"])
+        self.assertEqual("warning", summary["empty_case_status"])
+        self.assertEqual(len(SUPPORTED_DATASET_SOURCE_TYPES), summary["empty_case_zero_candidates"])
+        self.assertEqual("pass", summary["candidate_case_status"])
+        self.assertEqual(len(SUPPORTED_DATASET_SOURCE_TYPES), summary["candidate_case_pass_sources"])
+        self.assertNotIn("source_results", json.dumps(summary, ensure_ascii=False))
 
     def test_cli_can_emit_handler_smoke_json_without_live_crawl(self) -> None:
         parser = argparse.ArgumentParser()

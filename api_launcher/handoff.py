@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_report
+from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
 from api_launcher.crawler_run_records import DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, crawler_run_summary_from_events
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
 from api_launcher.data_store_connections import data_store_env_template_filename
@@ -325,39 +325,7 @@ def crawler_handler_smoke_handoff_summary() -> dict[str, Any]:
     status/count/next_action 與可重跑命令，避免交接 JSON 變成另一份大報告。
     """
 
-    report = crawler_handler_audit_smoke_report()
-    empty_summary = _audit_summary(report.get("empty_case"))
-    candidate_summary = _audit_summary(report.get("candidate_case"))
-    return {
-        "command": "python APIkeys_collection.py --dataset-discovery-handler-smoke-json",
-        "supported_source_type_count": int(report.get("supported_source_type_count") or 0),
-        "empty_case_status": str(empty_summary.get("status") or ""),
-        "empty_case_zero_candidates": int(
-            _dict_value(empty_summary.get("by_warning_code"), "zero_candidates")
-        ),
-        "empty_case_next_action_count": int(
-            _dict_value(empty_summary.get("by_next_action"), "repair_crawler_query_or_parser")
-        ),
-        "candidate_case_status": str(candidate_summary.get("status") or ""),
-        "candidate_case_pass_sources": int(_dict_value(candidate_summary.get("by_status"), "pass")),
-        "next_action": str(report.get("next_action") or ""),
-    }
-
-
-def _audit_summary(case_payload: object) -> dict[str, Any]:
-    if not isinstance(case_payload, dict):
-        return {}
-    audit_summary = case_payload.get("audit_summary")
-    return audit_summary if isinstance(audit_summary, dict) else {}
-
-
-def _dict_value(value: object, key: str) -> int:
-    if not isinstance(value, dict):
-        return 0
-    try:
-        return int(value.get(key) or 0)
-    except (TypeError, ValueError):
-        return 0
+    return crawler_handler_audit_smoke_summary()
 
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:

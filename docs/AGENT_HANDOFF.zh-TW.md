@@ -13,6 +13,11 @@
 - `api_launcher/heartbeat.py` 現在同樣輸出 `crawler_handler_smoke_summary`，並在 heartbeat Markdown report 與 agent prompt 中列出可重跑命令、supported source type 數、零候選 warning count、正常候選 pass count 與 next action。
 - `python APIkeys_collection.py --heartbeat-plan-json --heartbeat-skip-ci` 可在離線 / 長工時接力時直接看到這份摘要。若 working tree 有 tracked changes，`safe_to_progress=false` 仍是正確安全行為；不要把它誤判成 crawler contract 壞掉。
 
+## 2026-05-27 Web Preview developer diagnostics
+- `api_launcher/crawler_audit_smoke.py` 現在提供共用 `crawler_handler_audit_smoke_summary()`；handoff / heartbeat / Web Preview 讀同一份 compact summary，不再各自重算。
+- Web Preview 新增 `GET /api/diagnostics/crawler-handler-smoke`。這是 developer-only endpoint，只回傳 `developer_only=true`、`scope=offline_contract_smoke_no_live_network` 與 compact summary；不包含 per-source `source_results`，也不代表 live endpoint 可用。
+- 已用 local HTTP smoke 確認 endpoint 回傳 `supported_source_type_count=14`、`candidate_case_status=pass`。若前端要呈現這個資訊，請放在開發者診斷區，不要混到正式使用者的 seed 枚舉 / 建立下載計畫流程。
+
 ## 2026-05-27 Crawler audit contract smoke
 - `api_launcher/crawler_audit_smoke.py` 新增離線 handler audit contract smoke。它用 fixture source 覆蓋所有 `SUPPORTED_DATASET_SOURCE_TYPES`，並透過注入式 crawler runner 驗證兩件事：零候選要產生 `zero_candidates` / `repair_crawler_query_or_parser`；正常候選要通過 audit summary。這不打 live endpoint，也不取代每個 handler 的 payload fixture 測試。
 - CLI 新增 `--dataset-discovery-handler-smoke-json`，輸出 agent-readable JSON。若後續新增 crawler handler，這條 smoke 應立刻能指出 source type 是否漏掉 audit status、warning code 或 next_action 交接。

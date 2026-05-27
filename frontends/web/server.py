@@ -20,6 +20,7 @@ from frontends.web.preview_api import (
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
+    crawler_handler_smoke_diagnostics,
     save_crawler_asset_credentials,
     save_crawler_asset_seed_favorite,
     web_real_download_demo,
@@ -48,6 +49,9 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 limit = int(first_query_value(query, "limit") or "50")
                 self.write_json(web_preview_recent_events(limit=limit))
+                return
+            if path == "/api/diagnostics/crawler-handler-smoke":
+                self.write_json(crawler_handler_smoke_diagnostics())
                 return
             if path.startswith("/api/crawler-assets/"):
                 asset_id, suffix = self.parse_asset_route(path)

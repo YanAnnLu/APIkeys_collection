@@ -40,6 +40,7 @@ from frontends.web.preview_api import (
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
+    crawler_handler_smoke_diagnostics,
     save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
@@ -55,6 +56,22 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("web_preview", status["surface"])
         self.assertEqual("uiux_review", status["purpose"])
         self.assertEqual("api_launcher", status["business_logic_owner"])
+
+    def test_crawler_handler_smoke_diagnostics_is_developer_only_and_compact(self) -> None:
+        payload = crawler_handler_smoke_diagnostics()
+
+        self.assertEqual("web_preview", payload["surface"])
+        self.assertEqual("developer_diagnostics", payload["purpose"])
+        self.assertEqual("crawler_handler_contract_smoke", payload["diagnostic_id"])
+        self.assertTrue(payload["developer_only"])
+        self.assertEqual("offline_contract_smoke_no_live_network", payload["scope"])
+        summary = payload["summary"]
+        self.assertIsInstance(summary, dict)
+        self.assertIn("--dataset-discovery-handler-smoke-json", summary["command"])
+        self.assertGreater(summary["supported_source_type_count"], 0)
+        self.assertEqual("warning", summary["empty_case_status"])
+        self.assertEqual("pass", summary["candidate_case_status"])
+        self.assertNotIn("source_results", json.dumps(payload, ensure_ascii=False))
 
     def test_web_real_download_demo_plan_uses_public_csv_import_contract(self) -> None:
         with TemporaryDirectory() as tmp:

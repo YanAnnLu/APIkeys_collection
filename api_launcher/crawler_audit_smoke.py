@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, crawl_dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
@@ -44,6 +46,33 @@ def crawler_handler_audit_smoke_report() -> dict[str, object]:
         "empty_case": _crawl_result_payload(empty_result),
         "candidate_case": _crawl_result_payload(candidate_result),
         "next_action": "repair_contract_if_any_supported_source_type_missing_audit_status",
+    }
+
+
+def crawler_handler_audit_smoke_summary() -> dict[str, object]:
+    """Return the compact contract summary shared by handoff and diagnostics.
+
+    這份摘要刻意不回傳 per-source `source_results`。完整 smoke report 仍留給 CLI
+    與測試追查；handoff、heartbeat、Web developer diagnostics 只需要知道整體契約
+    是否仍可重跑、零候選是否能導到修復 next_action、正常候選是否全部 pass。
+    """
+
+    report = crawler_handler_audit_smoke_report()
+    empty_summary = _audit_summary(report.get("empty_case"))
+    candidate_summary = _audit_summary(report.get("candidate_case"))
+    return {
+        "command": "python APIkeys_collection.py --dataset-discovery-handler-smoke-json",
+        "supported_source_type_count": int(report.get("supported_source_type_count") or 0),
+        "empty_case_status": str(empty_summary.get("status") or ""),
+        "empty_case_zero_candidates": int(
+            _dict_value(empty_summary.get("by_warning_code"), "zero_candidates")
+        ),
+        "empty_case_next_action_count": int(
+            _dict_value(empty_summary.get("by_next_action"), "repair_crawler_query_or_parser")
+        ),
+        "candidate_case_status": str(candidate_summary.get("status") or ""),
+        "candidate_case_pass_sources": int(_dict_value(candidate_summary.get("by_status"), "pass")),
+        "next_action": str(report.get("next_action") or ""),
     }
 
 
@@ -95,4 +124,24 @@ def _crawl_result_payload(result: DatasetCrawlResult) -> dict[str, object]:
     }
 
 
-__all__ = ["crawler_handler_audit_smoke_report", "crawler_handler_smoke_sources"]
+def _audit_summary(case_payload: object) -> dict[str, Any]:
+    if not isinstance(case_payload, dict):
+        return {}
+    audit_summary = case_payload.get("audit_summary")
+    return audit_summary if isinstance(audit_summary, dict) else {}
+
+
+def _dict_value(value: object, key: str) -> int:
+    if not isinstance(value, dict):
+        return 0
+    try:
+        return int(value.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+__all__ = [
+    "crawler_handler_audit_smoke_report",
+    "crawler_handler_audit_smoke_summary",
+    "crawler_handler_smoke_sources",
+]
