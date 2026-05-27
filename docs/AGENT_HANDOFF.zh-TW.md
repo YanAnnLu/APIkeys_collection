@@ -2,7 +2,7 @@
 ## 2026-05-28 03:36 Tk credential next-action label handoff
 - 本輪把 credential next-action label 的 UI-neutral contract 補回 Tk guard prompt。`frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_credential_summary_text()` 與 `crawler_asset_credential_guard_message()` 現在會優先讀 `display_profile.next_action_label_zh_TW/en` 或 top-level `next_action_label_zh_TW/en`，讓 Tk 顯示「先完成登入設定，再下載資料」，而不是把 `edit_local_credentials_before_live_download` 這種機器碼直接丟給使用者。
 - 新增 / 更新 `tests/test_tk_dialogs.py` regression：credential summary fallback 與 guard message 都要使用人類可讀 next-action label，並確認 raw machine `next_action` 不出現在使用者訊息裡。raw `next_action` 仍保留給 JSON / event / agent debug。
-- 本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_local_credentials -v` 61 tests OK；`git diff --check` OK。尚未跑 full pre-push smoke / GitHub CI。
+- 已推送 `6403836 Use credential next action labels in Tk`；GitHub Actions run `26534494911` 的 Ubuntu、Windows 與 real DB smoke 全部 success。本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_local_credentials -v` 61 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，807 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_033736.log`。
 
 ## 2026-05-28 03:29 Credential next-action label handoff
 - 本輪延續 `CredentialDisplayProfile`，把 credential `next_action` 的機器碼補成 UI-neutral 人類可讀 label。`api_launcher/local_credentials.py` 新增 `credential_next_action_label()`，`CredentialDisplayProfile.to_dict()` 現在帶 `next_action_label`、`next_action_label_zh_TW` 與 `next_action_label_en`；summary 也改用 label，不再把 `edit_local_credentials_before_live_download` 直接丟到使用者畫面。
