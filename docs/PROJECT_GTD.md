@@ -14,7 +14,8 @@ Last updated: 2026-05-27
 - [x] Seed 枚舉結果現在有後端 structured status：`seed_enumeration.status/label/help/limited_by_max_results` 會說明目前是完整落在本機上限內、零候選、警告、需要登入，或已達本機安全上限。Web 只呈現這份 service payload，不再從 `candidate_count` 自己猜完整度。
 - [x] Source pattern / source draft 的「全 handler 覆蓋」已延伸成離線 crawler audit contract smoke：`--dataset-discovery-handler-smoke-json` 會為每個 supported source type 產生 fixture source，驗證 zero-candidate warning / `next_action` 與正常候選 pass case 都走同一套 audit summary，且不碰 live network。
 - [x] Handler smoke 的 compact summary 已接進 `--handoff-report` / `--handoff-report-json`：handoff 會顯示可重跑命令、supported source type 數、零候選 warning count 與正常候選 pass count，避免 agent 必須記住 `--dataset-discovery-handler-smoke-json` 才能判斷 crawler audit contract。
-- [ ] 下一步：評估是否把同一份 handler smoke summary 放進 heartbeat dry-run 或 Web/Tk developer diagnostics；正式使用者 UI 不應顯示這種開發者 contract smoke，避免混淆下載流程。
+- [x] 同一份 handler smoke summary 已放進 heartbeat dry-run payload / report / agent prompt。`--heartbeat-plan-json` 會帶 `crawler_handler_smoke_summary`，讓長時間工作或外部 agent 接力時能直接看到 14 個 handler contract 狀態。
+- [ ] 下一步：評估是否要在 Web/Tk developer diagnostics 呈現這個 contract smoke；正式使用者 UI 不應顯示這種開發者檢查，避免混淆下載流程。
 - [ ] 下一步：把 seed 收藏再從 crawler asset profile 欄位提升成正式 seed registry / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload

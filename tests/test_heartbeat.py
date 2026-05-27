@@ -114,6 +114,13 @@ class HeartbeatTests(unittest.TestCase):
                 },
             },
             "ci": {"status": "completed", "conclusion": "success", "displayTitle": "CI", "databaseId": 1},
+            "crawler_handler_smoke_summary": {
+                "command": "python APIkeys_collection.py --dataset-discovery-handler-smoke-json",
+                "supported_source_type_count": 14,
+                "empty_case_zero_candidates": 14,
+                "candidate_case_pass_sources": 14,
+                "next_action": "repair_contract_if_any_supported_source_type_missing_audit_status",
+            },
             "top_gtd_candidates": [],
         }
 
@@ -121,6 +128,8 @@ class HeartbeatTests(unittest.TestCase):
 
         self.assertIn("# RuRuKa Asset Launcher Heartbeat Report", report)
         self.assertIn("safe_to_progress: True", report)
+        self.assertIn("Crawler Handler Contract Smoke", report)
+        self.assertIn("--dataset-discovery-handler-smoke-json", report)
         self.assertIn("py -B -m unittest tests.test_heartbeat -v", report)
 
     def test_heartbeat_agent_prompt_contains_bounded_task(self) -> None:
@@ -138,12 +147,21 @@ class HeartbeatTests(unittest.TestCase):
             "safety_rules": ["Do not run destructive DB/file operations."],
             "completion_rules": ["Run targeted tests for code changes."],
             "stop_rules": ["Requirement is unclear."],
+            "crawler_handler_smoke_summary": {
+                "command": "python APIkeys_collection.py --dataset-discovery-handler-smoke-json",
+                "supported_source_type_count": 14,
+                "empty_case_zero_candidates": 14,
+                "candidate_case_pass_sources": 14,
+                "next_action": "repair_contract_if_any_supported_source_type_missing_audit_status",
+            },
         }
 
         prompt = render_heartbeat_agent_prompt(payload)
 
         self.assertIn("RuRuKa Asset Launcher Heartbeat Agent Prompt", prompt)
         self.assertIn("Download repair scanner", prompt)
+        self.assertIn("Crawler Handler Contract Smoke", prompt)
+        self.assertIn("--dataset-discovery-handler-smoke-json", prompt)
         self.assertIn("Do not run destructive DB/file operations.", prompt)
         self.assertIn("py -B -m unittest tests.test_heartbeat -v", prompt)
 
@@ -158,6 +176,11 @@ class HeartbeatTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(1, payload["schema_version"])
         self.assertIn("recommended_plan", payload)
+        self.assertIn("crawler_handler_smoke_summary", payload)
+        self.assertEqual(
+            payload["crawler_handler_smoke_summary"]["supported_source_type_count"],
+            payload["crawler_handler_smoke_summary"]["candidate_case_pass_sources"],
+        )
 
     def test_cli_writes_heartbeat_agent_prompt(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -183,6 +206,8 @@ class HeartbeatTests(unittest.TestCase):
 
         self.assertEqual("not_checked", payload["ci"]["status"])
         self.assertIn("recommended_plan", payload)
+        self.assertIn("crawler_handler_smoke_summary", payload)
+        self.assertEqual(14, payload["crawler_handler_smoke_summary"]["supported_source_type_count"])
 
 
 if __name__ == "__main__":

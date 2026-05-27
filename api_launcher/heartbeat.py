@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.db import utc_now_iso
-from api_launcher.handoff import parse_open_gtd_items
+from api_launcher.handoff import crawler_handler_smoke_handoff_summary, parse_open_gtd_items
 from api_launcher.paths import project_path
 
 
@@ -51,6 +51,7 @@ def build_heartbeat_payload(
     repo_state = repo_state_from_status(git_status.stdout)
     latest_ci = latest_github_actions_run() if include_ci else {"status": "not_checked", "reason": "CI check disabled"}
     plan = select_next_heartbeat_task(open_items, repo_state=repo_state, latest_ci=latest_ci)
+    crawler_contract = crawler_handler_smoke_handoff_summary()
     return {
         "schema_version": 1,
         "generated_at": utc_now_iso(),
@@ -74,6 +75,7 @@ def build_heartbeat_payload(
             "repo_state": repo_state,
         },
         "ci": latest_ci,
+        "crawler_handler_smoke_summary": crawler_contract,
         "open_gtd_count": len(open_items),
         "recommended_plan": plan,
         "top_gtd_candidates": plan.get("candidate_preview", []),
@@ -89,6 +91,11 @@ def render_heartbeat_report(payload: dict[str, object]) -> str:
     repo = payload.get("git") if isinstance(payload.get("git"), dict) else {}
     repo_state = repo.get("repo_state") if isinstance(repo.get("repo_state"), dict) else {}
     ci = payload.get("ci") if isinstance(payload.get("ci"), dict) else {}
+    crawler_contract = (
+        payload.get("crawler_handler_smoke_summary")
+        if isinstance(payload.get("crawler_handler_smoke_summary"), dict)
+        else {}
+    )
     lines = [
         "# RuRuKa Asset Launcher Heartbeat Report",
         "",
@@ -115,6 +122,14 @@ def render_heartbeat_report(payload: dict[str, object]) -> str:
         f"- conclusion: {ci.get('conclusion', '')}",
         f"- title: {ci.get('displayTitle', ci.get('title', ''))}",
         f"- run_id: {ci.get('databaseId', ci.get('id', ''))}",
+        "",
+        "## Crawler Handler Contract Smoke",
+        "",
+        f"- command: {crawler_contract.get('command', '')}",
+        f"- supported_source_type_count: {crawler_contract.get('supported_source_type_count', 0)}",
+        f"- empty_case_zero_candidates: {crawler_contract.get('empty_case_zero_candidates', 0)}",
+        f"- candidate_case_pass_sources: {crawler_contract.get('candidate_case_pass_sources', 0)}",
+        f"- next_action: {crawler_contract.get('next_action', '')}",
         "",
         "## Suggested Checkpoint",
         "",
@@ -179,6 +194,11 @@ def render_heartbeat_agent_prompt(payload: dict[str, object]) -> str:
     completion = payload.get("completion_rules") if isinstance(payload.get("completion_rules"), list) else completion_rules()
     stop = payload.get("stop_rules") if isinstance(payload.get("stop_rules"), list) else stop_rules()
     commands = plan.get("verification_commands") if isinstance(plan.get("verification_commands"), list) else default_verification_commands()
+    crawler_contract = (
+        payload.get("crawler_handler_smoke_summary")
+        if isinstance(payload.get("crawler_handler_smoke_summary"), dict)
+        else {}
+    )
     lines = [
         "# RuRuKa Asset Launcher Heartbeat Agent Prompt",
         "",
@@ -202,6 +222,14 @@ def render_heartbeat_agent_prompt(payload: dict[str, object]) -> str:
         f"- status: {plan.get('status', '')}",
         f"- next_step: {plan.get('next_step', '')}",
         f"- reason: {plan.get('reason', '')}",
+        "",
+        "## Crawler Handler Contract Smoke",
+        "",
+        f"- command: {crawler_contract.get('command', '')}",
+        f"- supported_source_type_count: {crawler_contract.get('supported_source_type_count', 0)}",
+        f"- empty_case_zero_candidates: {crawler_contract.get('empty_case_zero_candidates', 0)}",
+        f"- candidate_case_pass_sources: {crawler_contract.get('candidate_case_pass_sources', 0)}",
+        f"- next_action: {crawler_contract.get('next_action', '')}",
         "",
         "## Safety Rules",
         "",

@@ -9,6 +9,10 @@
 - `--handoff-report-json` 現在能讓 heartbeat 或下一位 agent 直接看到 handler audit contract 是否仍完整；若摘要不符，先跑 `python APIkeys_collection.py --dataset-discovery-handler-smoke-json` 看完整 per-source report，再修 handler / audit / warning contract。
 - 這仍是離線 contract smoke，不代表 live endpoint 可用，也不取代 `tests.test_source_patterns`、各 crawler fixture、實際 source discovery 與下載計畫驗證。
 
+## 2026-05-27 Heartbeat crawler handler contract summary
+- `api_launcher/heartbeat.py` 現在同樣輸出 `crawler_handler_smoke_summary`，並在 heartbeat Markdown report 與 agent prompt 中列出可重跑命令、supported source type 數、零候選 warning count、正常候選 pass count 與 next action。
+- `python APIkeys_collection.py --heartbeat-plan-json --heartbeat-skip-ci` 可在離線 / 長工時接力時直接看到這份摘要。若 working tree 有 tracked changes，`safe_to_progress=false` 仍是正確安全行為；不要把它誤判成 crawler contract 壞掉。
+
 ## 2026-05-27 Crawler audit contract smoke
 - `api_launcher/crawler_audit_smoke.py` 新增離線 handler audit contract smoke。它用 fixture source 覆蓋所有 `SUPPORTED_DATASET_SOURCE_TYPES`，並透過注入式 crawler runner 驗證兩件事：零候選要產生 `zero_candidates` / `repair_crawler_query_or_parser`；正常候選要通過 audit summary。這不打 live endpoint，也不取代每個 handler 的 payload fixture 測試。
 - CLI 新增 `--dataset-discovery-handler-smoke-json`，輸出 agent-readable JSON。若後續新增 crawler handler，這條 smoke 應立刻能指出 source type 是否漏掉 audit status、warning code 或 next_action 交接。

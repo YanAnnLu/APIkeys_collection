@@ -253,7 +253,7 @@ Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discove
 | 標記候選可用 | `python3 APIkeys_collection.py --review-dataset-candidate DATASET_UID --dataset-candidate-decision approved` |
 | 匯出候選下載 / 匯入計畫 | `python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json --candidate-plan-status approved` |
 
-`--dataset-discovery-handler-smoke-json` 是開發者 / agent 用的離線 contract smoke，不會連到 NASA、NOAA 或任何 live endpoint。若只想看目前交接狀態，`--handoff-report` / `--handoff-report-json` 也會顯示同一組 compact 摘要；只有摘要異常時才需要跑完整 smoke JSON 看 per-source 細節。
+`--dataset-discovery-handler-smoke-json` 是開發者 / agent 用的離線 contract smoke，不會連到 NASA、NOAA 或任何 live endpoint。若只想看目前交接狀態，`--handoff-report` / `--handoff-report-json`、`--heartbeat-plan-json` 與 heartbeat agent prompt 也會顯示同一組 compact 摘要；只有摘要異常時才需要跑完整 smoke JSON 看 per-source 細節。
 
 ### Adapter review / download / import
 
