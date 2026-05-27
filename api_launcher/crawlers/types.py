@@ -25,6 +25,8 @@ class DatasetDiscoverySource:
     file_url_regex: str = ""
     min_expected_candidates: int = 1
     seed_discovery_mode: str = "auto"
+    crawl_timeout_seconds: float = 0.0
+    crawl_max_pages: int = 0
     notes: str = ""
 
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from collections.abc import Callable
@@ -156,6 +156,8 @@ def discover_dataset_candidate_output_for_source(
 ) -> DatasetCrawlerOutput:
     # 保留歷史 list-returning API，同時讓 orchestrator 可以接住新 handler
     # 回報的遠端 pagination metadata。
+    timeout = _effective_source_crawl_timeout(source, timeout)
+    max_pages = _effective_source_crawl_max_pages(source, max_pages)
     limit = max_results_override or source.max_results
     if full_crawl and not max_results_override:
         limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
@@ -196,6 +198,8 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             file_url_regex=str(item.get("file_url_regex") or "").strip(),
             min_expected_candidates=int(item.get("min_expected_candidates") if item.get("min_expected_candidates") is not None else 1),
             seed_discovery_mode=str(item.get("seed_discovery_mode") or "auto").strip() or "auto",
+            crawl_timeout_seconds=_positive_float(item.get("crawl_timeout_seconds")),
+            crawl_max_pages=_positive_int(item.get("crawl_max_pages")),
             notes=str(item.get("notes") or "").strip(),
         )
         for item in data.get("sources", [])
@@ -260,6 +264,10 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
     }
     if source.seed_discovery_mode != "auto":
         payload["seed_discovery_mode"] = source.seed_discovery_mode
+    if source.crawl_timeout_seconds > 0:
+        payload["crawl_timeout_seconds"] = source.crawl_timeout_seconds
+    if source.crawl_max_pages > 0:
+        payload["crawl_max_pages"] = source.crawl_max_pages
     return payload
 
 
@@ -301,6 +309,8 @@ def discover_dataset_candidates_for_source(
     max_pages: int = 0,
 ) -> list[DatasetCandidate]:
     # full crawl 只在使用者明確要求時提高 page size；一般 demo 保持 bounded。
+    timeout = _effective_source_crawl_timeout(source, timeout)
+    max_pages = _effective_source_crawl_max_pages(source, max_pages)
     limit = max_results_override or source.max_results
     if full_crawl and not max_results_override:
         limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
@@ -310,3 +320,41 @@ def discover_dataset_candidates_for_source(
         return list(dataset_crawler_output(handler(source, timeout, limit, search_terms, full_crawl, max_pages)).candidates)
     # 不支援的 source_type 必須明確失敗，否則 portal intake 會以為 crawler 已接好。
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
+
+
+def _positive_float(value: object, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _positive_int(value: object, default: int = 0) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _effective_source_crawl_timeout(source: DatasetDiscoverySource, fallback_timeout: float) -> float:
+    # 來源 profile 可宣告自己的 HTTP timeout；未設定時才使用 CLI/UI 全域選項。
+    return source.crawl_timeout_seconds if source.crawl_timeout_seconds > 0 else fallback_timeout
+
+
+def _effective_source_crawl_max_pages(source: DatasetDiscoverySource, fallback_max_pages: int) -> int:
+    """Return the effective full-crawl page cap for one source.
+
+    `crawl_max_pages` is a source-level safety cap. A lower runtime cap can
+    further restrict it, but a runtime cap should not accidentally raise the
+    source profile's declared politeness boundary.
+    """
+
+    source_cap = source.crawl_max_pages
+    runtime_cap = fallback_max_pages
+    if source_cap > 0 and runtime_cap > 0:
+        return min(source_cap, runtime_cap)
+    if source_cap > 0:
+        return source_cap
+    return runtime_cap

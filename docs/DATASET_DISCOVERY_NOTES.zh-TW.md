@@ -2,6 +2,8 @@
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
+- Source profile 現在可宣告第一組 politeness defaults：`crawl_timeout_seconds` 與 `crawl_max_pages`。它們存在於 `DatasetDiscoverySource` / `dataset_discovery_sources*.json` 層，屬於「這個來源本身應如何被有禮貌地探測」的設定，不是 UI 專屬選項。`crawl_max_pages` 會作為來源層安全上限；若 CLI/UI 執行期給更低的 `max_pages`，後端會採更低值，避免一次展示或完整枚舉把特定入口的來源邊界放大。
+- 這只是 source profile politeness 的第一步。`page_size`、rate limit、credential mode 與 terms risk 仍應繼續往 source profile / crawler capability metadata 收斂，不要在個別 parser 裡硬塞 `time.sleep()` 或把站點限流規則寫進 UI。
 - `DatasetCrawlerOutput` 是 crawler handler 回報遠端分頁狀態的第一個後端 contract。舊 handler 可維持回傳 candidate list；支援分頁的 handler 應逐步改成回傳 candidates 加 `remote_pagination_status` / `remote_exhausted` / `remote_next_page_token`，讓 UI 呈現 seed 枚舉完整度而不用自行猜測。
 - Socrata full crawl 已接上這個 contract：當 Socrata catalog 因本機 `max_pages` 上限停止而遠端仍可能有更多 seed 時，listing payload 會回報 `remote_pagination.status=has_more` 與 `completion_confidence=remote_has_more`；raw pagination token 只留在後端，不進 UI payload。
 - CKAN full crawl 也已接上這個 contract：`result.count` / `start` 能讓 handler 判斷遠端是否 exhausted；若本機 `max_pages` 先截斷，UI 會看到 `has_more` / token-present，而不是誤以為本機已列完整個入口。

@@ -100,6 +100,92 @@ class DatasetDiscoveryTests(unittest.TestCase):
 
         self.assertEqual("complete_entry_listing", sources[0].seed_discovery_mode)
 
+    def test_source_loader_preserves_politeness_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "sources.json"
+            path.write_text(
+                """
+                {
+                  "schema_version": 1,
+                  "sources": [
+                    {
+                      "source_id": "sample_polite_source",
+                      "provider_id": "sample_provider",
+                      "name": "Sample polite source",
+                      "source_type": "html_file_index",
+                      "endpoint_url": "https://example.test/index.html",
+                      "crawl_timeout_seconds": "3.5",
+                      "crawl_max_pages": "7"
+                    }
+                  ]
+                }
+                """,
+                encoding="utf-8",
+            )
+
+            sources = load_dataset_discovery_sources(path)
+
+        self.assertEqual(3.5, sources[0].crawl_timeout_seconds)
+        self.assertEqual(7, sources[0].crawl_max_pages)
+        payload = dataset_sources.source_to_dict(sources[0])
+        self.assertEqual(3.5, payload["crawl_timeout_seconds"])
+        self.assertEqual(7, payload["crawl_max_pages"])
+
+    def test_source_profile_politeness_defaults_reach_default_crawler(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_polite_source",
+            provider_id="sample_provider",
+            name="Sample polite source",
+            source_type="unit_politeness",
+            endpoint_url="https://example.test/index.html",
+            crawl_timeout_seconds=3.5,
+            crawl_max_pages=7,
+        )
+        calls: list[tuple[float, int, int, bool]] = []
+
+        def fake_handler(
+            _source: DatasetDiscoverySource,
+            timeout: float,
+            limit: int,
+            _search_terms: tuple[str, ...],
+            full_crawl: bool,
+            max_pages: int,
+        ) -> list[dataset_sources.DatasetCandidate]:
+            calls.append((timeout, max_pages, limit, full_crawl))
+            return []
+
+        original_handler = dataset_sources.SOURCE_CRAWLER_HANDLERS.get(source.source_type)
+        dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type] = fake_handler
+        try:
+            crawl_dataset_sources(
+                [source],
+                DatasetCrawlOptions(
+                    timeout=1.0,
+                    max_pages=9,
+                    full_crawl=True,
+                    max_workers=1,
+                    min_candidates_per_source_override=0,
+                ),
+            )
+            crawl_dataset_sources(
+                [source],
+                DatasetCrawlOptions(
+                    timeout=1.0,
+                    max_pages=2,
+                    full_crawl=True,
+                    max_workers=1,
+                    min_candidates_per_source_override=0,
+                ),
+            )
+        finally:
+            if original_handler is None:
+                del dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type]
+            else:
+                dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type] = original_handler
+
+        self.assertEqual((3.5, 7, 100, True), calls[0])
+        self.assertEqual((3.5, 2, 100, True), calls[1])
+
     def test_seed_coverage_marks_search_terms_as_sample_scope(self) -> None:
         source = DatasetDiscoverySource(
             source_id="sample_socrata",
