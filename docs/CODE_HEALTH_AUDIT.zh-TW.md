@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 14:07 Asia/Taipei
+最後更新：2026-05-27 14:15 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -25,7 +25,7 @@
 - `scripts\pre_push_smoke_brief.cmd`，754 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`
 - GitHub Actions run `26492936566`：Ubuntu、Windows、Real DB smoke 全部 success
 - 後續 HTML index partial warning 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，79 tests OK；`scripts\pre_push_smoke_brief.cmd` 755 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26493410406` 全部 success
-- 後續 source-profile politeness 切片：`py -B -m unittest tests.test_dataset_discovery -v`，38 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，81 tests OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，757 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。CI 狀態請以本輪最新 handoff 與 development log 為準。
+- 後續 source-profile politeness 切片：`py -B -m unittest tests.test_dataset_discovery -v`，38 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，81 tests OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，757 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26494263728` 全部 success。
 
 ## P0 Findings
 
