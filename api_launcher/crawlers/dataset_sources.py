@@ -158,9 +158,7 @@ def discover_dataset_candidate_output_for_source(
     # 回報的遠端 pagination metadata。
     timeout = _effective_source_crawl_timeout(source, timeout)
     max_pages = _effective_source_crawl_max_pages(source, max_pages)
-    limit = max_results_override or source.max_results
-    if full_crawl and not max_results_override:
-        limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
+    limit = _effective_source_crawl_page_size(source, max_results_override, full_crawl)
     search_terms = search_terms_override or source.search_terms
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
@@ -200,6 +198,7 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             seed_discovery_mode=str(item.get("seed_discovery_mode") or "auto").strip() or "auto",
             crawl_timeout_seconds=_positive_float(item.get("crawl_timeout_seconds")),
             crawl_max_pages=_positive_int(item.get("crawl_max_pages")),
+            crawl_page_size=_positive_int(item.get("crawl_page_size")),
             notes=str(item.get("notes") or "").strip(),
         )
         for item in data.get("sources", [])
@@ -268,6 +267,8 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
         payload["crawl_timeout_seconds"] = source.crawl_timeout_seconds
     if source.crawl_max_pages > 0:
         payload["crawl_max_pages"] = source.crawl_max_pages
+    if source.crawl_page_size > 0:
+        payload["crawl_page_size"] = source.crawl_page_size
     return payload
 
 
@@ -311,9 +312,7 @@ def discover_dataset_candidates_for_source(
     # full crawl 只在使用者明確要求時提高 page size；一般 demo 保持 bounded。
     timeout = _effective_source_crawl_timeout(source, timeout)
     max_pages = _effective_source_crawl_max_pages(source, max_pages)
-    limit = max_results_override or source.max_results
-    if full_crawl and not max_results_override:
-        limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
+    limit = _effective_source_crawl_page_size(source, max_results_override, full_crawl)
     search_terms = search_terms_override or source.search_terms
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
@@ -358,3 +357,29 @@ def _effective_source_crawl_max_pages(source: DatasetDiscoverySource, fallback_m
     if source_cap > 0:
         return source_cap
     return runtime_cap
+
+
+def _effective_source_crawl_page_size(
+    source: DatasetDiscoverySource,
+    max_results_override: int,
+    full_crawl: bool,
+) -> int:
+    """Return the per-request page size for source discovery.
+
+    `max_results_override` historically doubles as a per-request page size.
+    `crawl_page_size` lets a source profile lower that value so showcase or
+    complete-seed flows do not accidentally send a very large page request to a
+    sensitive catalog.
+    """
+
+    source_page_size = source.crawl_page_size
+    if max_results_override > 0:
+        if source_page_size > 0:
+            return min(max_results_override, source_page_size)
+        return max_results_override
+    if source_page_size > 0:
+        return source_page_size
+    limit = source.max_results
+    if full_crawl:
+        return max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
+    return limit

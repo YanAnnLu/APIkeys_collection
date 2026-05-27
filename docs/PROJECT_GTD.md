@@ -19,7 +19,8 @@ Last updated: 2026-05-27
 - [x] `api_launcher/local_credentials.py` 的 `.env` 寫入已改成 UTF-8 暫存檔 + `os.replace()`；替換失敗時清理 temp 並保留舊 `.env`。`tests.test_local_credentials` 已補替換失敗不破壞既有 credential file 的 regression。
 - [x] HTML file index full crawl 的 linked page fetch failure 已轉成 `index_page_fetch_failed` warning，並保留已找到候選；orchestrator 現在會合併 handler-level warnings 到 source audit。`tests.test_dataset_discovery` 已補 partial candidate regression。
 - [x] Source profile 已承接第一組 politeness defaults：`DatasetDiscoverySource` / source JSON 可宣告 `crawl_timeout_seconds` 與 `crawl_max_pages`，crawler 執行時會套用 source-level timeout，並把 `crawl_max_pages` 當成來源安全上限；執行期 `max_pages` 更低時會採更低值。`tests.test_dataset_discovery` 已補 loader / handler 參數流 regression。
-- [ ] 下一步 hardening：source profile 繼續承接 rate-limit / page-size / credential mode 等 metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
+- [x] Source profile 已承接 `crawl_page_size`，讓 source JSON 可限制單次請求 page size；當 Web/Tk/CLI 給出較大的 `max_results_override` 時，source profile 可以把 per-request page size 壓低，避免完整 seed 枚舉對特定入口送出過大頁面請求。
+- [ ] 下一步 hardening：source profile 繼續承接 rate-limit / credential mode 等 metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

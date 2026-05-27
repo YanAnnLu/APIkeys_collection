@@ -115,7 +115,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
                       "source_type": "html_file_index",
                       "endpoint_url": "https://example.test/index.html",
                       "crawl_timeout_seconds": "3.5",
-                      "crawl_max_pages": "7"
+                      "crawl_max_pages": "7",
+                      "crawl_page_size": "25"
                     }
                   ]
                 }
@@ -127,9 +128,11 @@ class DatasetDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(3.5, sources[0].crawl_timeout_seconds)
         self.assertEqual(7, sources[0].crawl_max_pages)
+        self.assertEqual(25, sources[0].crawl_page_size)
         payload = dataset_sources.source_to_dict(sources[0])
         self.assertEqual(3.5, payload["crawl_timeout_seconds"])
         self.assertEqual(7, payload["crawl_max_pages"])
+        self.assertEqual(25, payload["crawl_page_size"])
 
     def test_source_profile_politeness_defaults_reach_default_crawler(self) -> None:
         source = DatasetDiscoverySource(
@@ -140,6 +143,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
             endpoint_url="https://example.test/index.html",
             crawl_timeout_seconds=3.5,
             crawl_max_pages=7,
+            crawl_page_size=25,
         )
         calls: list[tuple[float, int, int, bool]] = []
 
@@ -183,8 +187,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
             else:
                 dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type] = original_handler
 
-        self.assertEqual((3.5, 7, 100, True), calls[0])
-        self.assertEqual((3.5, 2, 100, True), calls[1])
+        self.assertEqual((3.5, 7, 25, True), calls[0])
+        self.assertEqual((3.5, 2, 25, True), calls[1])
 
     def test_seed_coverage_marks_search_terms_as_sample_scope(self) -> None:
         source = DatasetDiscoverySource(

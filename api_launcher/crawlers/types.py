@@ -27,6 +27,7 @@ class DatasetDiscoverySource:
     seed_discovery_mode: str = "auto"
     crawl_timeout_seconds: float = 0.0
     crawl_max_pages: int = 0
+    crawl_page_size: int = 0
     notes: str = ""
 
 

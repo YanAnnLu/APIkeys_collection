@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 14:15 Asia/Taipei
+最後更新：2026-05-27 14:22 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -59,13 +59,13 @@
 
 ## P2 Findings / 尚未處理
 
-### P2-1 Seed 完整枚舉仍需 source-profile politeness（第一步已修補）
+### P2-1 Seed 完整枚舉仍需 source-profile politeness（前兩步已修補）
 
 - 現況：Web Preview 可用 `complete_seed=true`、`max_results=1000` 與 handler pagination contract 表達本機上限與遠端 has-more。
 - 風險：不同來源的合理頁數、延遲、timeout 與 rate limit 不同；如果全部依同一上限執行，仍可能對某些入口太積極。
-- 修法：`DatasetDiscoverySource` 新增 `crawl_timeout_seconds` 與 `crawl_max_pages`；catalog/local source JSON 會載入與寫回這兩個欄位。Crawler 執行時會套用 source-level timeout，並把 `crawl_max_pages` 視為來源層安全上限；若執行期 `max_pages` 更低，會採更低值，避免 UI/CLI accidental override 把特定來源的 politeness boundary 放大。
+- 修法：`DatasetDiscoverySource` 新增 `crawl_timeout_seconds`、`crawl_max_pages` 與 `crawl_page_size`；catalog/local source JSON 會載入與寫回這些欄位。Crawler 執行時會套用 source-level timeout，並把 `crawl_max_pages` 視為來源層安全上限；若執行期 `max_pages` 更低，會採更低值，避免 UI/CLI accidental override 把特定來源的 politeness boundary 放大。`crawl_page_size` 會限制單次請求的 page size；若 UI/CLI 給較大的 `max_results_override`，source profile 可把 per-request page size 壓低。
 - 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_source_loader_preserves_politeness_defaults` 與 `test_source_profile_politeness_defaults_reach_default_crawler`。
-- 剩餘：`page_size`、rate limit、credential mode 還需逐步收斂到 source profile / crawler capability metadata；目前本切片只處理 timeout 與 max_pages。
+- 剩餘：rate limit、credential mode 還需逐步收斂到 source profile / crawler capability metadata；目前尚未導入跨 handler 的 rate-limit middleware。
 
 ### P2-2 HTML file index full crawl 單頁失敗策略仍偏硬（已於後續切片修補）
 
@@ -96,7 +96,7 @@
 ## 下一步建議
 
 1. 先把本輪三個 P1 修補跑完整 pre-push smoke，推送後看 GitHub Actions。
-2. 下一個 hardening slice 可處理 source-profile rate-limit / page-size metadata，或挑一個 public-source 正式 crawler asset download/import path 取代 Web real demo。
+2. 下一個 hardening slice 可處理 source-profile rate-limit metadata / middleware，或挑一個 public-source 正式 crawler asset download/import path 取代 Web real demo。
 3. 接著回到產品主線：正式 crawler asset 的 public-source download/import path，而不是繼續依賴 Web real demo。
 
 ## Docs drift check

@@ -1,4 +1,8 @@
 ﻿# Agent 接力卡
+## 2026-05-27 14:28 Source profile page-size politeness working checkpoint
+- 本輪在已完成的 `crawl_timeout_seconds` / `crawl_max_pages` 基礎上，繼續加入 `crawl_page_size`。`DatasetDiscoverySource` / source JSON 現在可宣告單次請求 page size，讓 Web/Tk/CLI 即使給出較大的 `max_results_override`，source profile 仍可把 per-request page size 壓低。
+- 已驗證：`py -B -m unittest tests.test_dataset_discovery -v`，38 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，81 tests OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，757 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。尚未 commit/push 或 GitHub Actions；後續完成前不要把本段當成已推送 checkpoint。
+
 ## 2026-05-27 14:15 Source profile politeness defaults checkpoint
 - 本輪接續 code health audit 的 P2 hardening，已推送 `88698ad Add source profile politeness defaults`；GitHub Actions run `26494263728` 的 Ubuntu、Windows 與 real DB smoke 全部 success。修補內容：`DatasetDiscoverySource` 新增 `crawl_timeout_seconds` 與 `crawl_max_pages`，`dataset_discovery_sources*.json` 載入 / 寫回會保留這兩個欄位。
 - Crawler 執行時會使用 source-level timeout；`crawl_max_pages` 視為來源層安全上限，若 CLI/UI 執行期 `max_pages` 更低，會採更低值，避免展示或完整枚舉把特定入口的 politeness boundary 放大。這是 source-profile 收斂，不是把 crawler 改成 universal interpreter。
