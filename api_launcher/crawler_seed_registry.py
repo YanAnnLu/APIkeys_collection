@@ -21,8 +21,8 @@ def crawler_seed_page(
 ) -> dict[str, object]:
     """Return a UI-neutral page of seeds already enumerated into the catalog.
 
-    這層只讀本機 catalog，不重新跑 crawler。Web/Tk/Qt 都應該共用這個分頁
-    contract，避免「顯示更多 seed」在不同 UI 裡各自實作成不同語意。
+    這裡只讀已經由 crawler 寫進本機 catalog 的 seed，不重新打遠端 crawler。
+    Web/Tk/Qt 共用這份 contract，避免每個前端各自重算頁碼與收藏狀態。
     """
 
     clean_asset_id = str(asset_id or "").strip()
@@ -37,15 +37,52 @@ def crawler_seed_page(
     total = len(candidates)
     start = (safe_page - 1) * safe_page_size
     rows = candidates[start : start + safe_page_size]
+    page_summary = crawler_seed_page_summary(
+        total=total,
+        page=safe_page,
+        page_size=safe_page_size,
+        row_count=len(rows),
+    )
     return {
         "asset_id": clean_asset_id,
         "provider_id": clean_provider_id,
         "page": safe_page,
         "page_size": safe_page_size,
         "total": total,
-        "has_more": start + safe_page_size < total,
+        "has_more": bool(page_summary["has_more"]),
+        "page_summary": page_summary,
         "favorite_seed_count": len(favorites),
         "seeds": [crawler_seed_row(dataset, favorite_seed_uids=favorites) for dataset in rows],
+    }
+
+
+def crawler_seed_page_summary(
+    *,
+    total: int,
+    page: int,
+    page_size: int,
+    row_count: int,
+) -> dict[str, object]:
+    """Return display-neutral paging metadata for seed list expansion controls."""
+
+    safe_total = max(0, int(total or 0))
+    safe_page, safe_page_size = normalize_crawler_seed_page(page=page, page_size=page_size)
+    safe_row_count = max(0, int(row_count or 0))
+    start_index = (safe_page - 1) * safe_page_size
+    shown_start = start_index + 1 if safe_total and safe_row_count else 0
+    shown_end = min(start_index + safe_row_count, safe_total)
+    has_more = shown_end < safe_total
+    remaining = max(0, safe_total - shown_end)
+    page_count = ((safe_total - 1) // safe_page_size + 1) if safe_total else 0
+    return {
+        "shown_start": shown_start,
+        "shown_end": shown_end,
+        "row_count": safe_row_count,
+        "remaining": remaining,
+        "page_count": page_count,
+        "has_more": has_more,
+        "next_page": safe_page + 1 if has_more else 0,
+        "next_action": "show_next_seed_page" if has_more else "seed_page_complete",
     }
 
 
@@ -171,6 +208,7 @@ __all__ = [
     "crawler_seed_belongs_to_asset",
     "crawler_seed_favorite_key",
     "crawler_seed_page",
+    "crawler_seed_page_summary",
     "crawler_seed_row",
     "list_crawler_asset_seed_candidates",
     "normalize_crawler_seed_page",

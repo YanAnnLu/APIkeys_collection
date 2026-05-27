@@ -7,6 +7,7 @@ from api_launcher.crawler_seed_registry import (
     crawler_seed_belongs_to_asset,
     crawler_seed_favorite_key,
     crawler_seed_page,
+    crawler_seed_page_summary,
     crawler_seed_row,
     normalize_crawler_seed_page,
     save_crawler_seed_favorite,
@@ -76,6 +77,12 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(55, page["total"])
         self.assertEqual(MAX_CRAWLER_SEED_PAGE_SIZE, len(page["seeds"]))
         self.assertTrue(page["has_more"])
+        self.assertEqual(1, page["page_summary"]["shown_start"])
+        self.assertEqual(50, page["page_summary"]["shown_end"])
+        self.assertEqual(5, page["page_summary"]["remaining"])
+        self.assertEqual(2, page["page_summary"]["page_count"])
+        self.assertEqual(2, page["page_summary"]["next_page"])
+        self.assertEqual("show_next_seed_page", page["page_summary"]["next_action"])
         self.assertEqual(1, page["favorite_seed_count"])
         self.assertEqual("seed_00", page["seeds"][0]["dataset_id"])
         self.assertTrue(page["seeds"][0]["favorite"])
@@ -88,7 +95,27 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(2, page["page"])
         self.assertEqual(5, len(page["seeds"]))
         self.assertFalse(page["has_more"])
+        self.assertEqual(51, page["page_summary"]["shown_start"])
+        self.assertEqual(55, page["page_summary"]["shown_end"])
+        self.assertEqual(0, page["page_summary"]["remaining"])
+        self.assertEqual(0, page["page_summary"]["next_page"])
+        self.assertEqual("seed_page_complete", page["page_summary"]["next_action"])
         self.assertEqual("seed_50", page["seeds"][0]["dataset_id"])
+
+    def test_seed_page_summary_handles_empty_and_more_pages(self) -> None:
+        empty = crawler_seed_page_summary(total=0, page=1, page_size=50, row_count=0)
+        more = crawler_seed_page_summary(total=125, page=2, page_size=50, row_count=50)
+
+        self.assertEqual(0, empty["shown_start"])
+        self.assertEqual(0, empty["shown_end"])
+        self.assertEqual(0, empty["page_count"])
+        self.assertEqual("seed_page_complete", empty["next_action"])
+        self.assertEqual(51, more["shown_start"])
+        self.assertEqual(100, more["shown_end"])
+        self.assertEqual(25, more["remaining"])
+        self.assertEqual(3, more["page_count"])
+        self.assertEqual(3, more["next_page"])
+        self.assertEqual("show_next_seed_page", more["next_action"])
 
     def test_seed_row_uses_dataset_uid_as_favorite_key(self) -> None:
         dataset = seed_dataset("seed_01")

@@ -515,3 +515,4 @@ CrawlerAsset + CrawlerAssetBoundPayload
 
 - `api_launcher/crawler_seed_registry.py` 現在是 seed 分頁的後端 service 邊界：負責從 repository 讀 `list_dataset_candidates(status="all", provider_id=...)`、以 `metadata.discovery_source_id` 過濾 asset seed、限制每頁最多 50 筆、輸出 shared row payload 與 favorite flag。Web endpoint 只是 adapter；Tk/Qt/CLI 之後不要複製這段 catalog paging 邏輯。
 - Seed 收藏寫入也已進入同一個 service 邊界：`save_crawler_seed_favorite(asset_id, dataset_uid, favorite, profile_path)` 負責檢查必要欄位、呼叫 profile lane 寫入 `favorite_seed_uids`，並回傳 `favorite`、`favorite_seed_count` 與 `next_action=seed_favorite_saved`。Web/Tk/Qt 只應呈現這份結果，不要各自操作 profile 欄位。
+- Seed 分頁狀態也由後端輸出：`page_summary.shown_start/shown_end/remaining/page_count/next_page/next_action` 是 UI/agent 判斷目前顯示視窗與「顯示更多」的 canonical payload。前端不應用自己的 page math 取代這份摘要。

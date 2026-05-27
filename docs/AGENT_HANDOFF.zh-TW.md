@@ -41,6 +41,7 @@
 - Web Preview 的爬蟲資產選取現在預設觸發 seed 枚舉，而不是要求使用者先按「更新」。後端以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口 seed，並將候選 upsert 到本機 catalog。
 - Web 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，右側 seed 清單只讀本機已枚舉候選並以 50 筆為一個視窗展開。這個 endpoint 不重新打遠端 crawler；「顯示更多 seed」只是顯示下一批已枚舉結果。
 - Seed 清單分頁已抽到 `api_launcher/crawler_seed_registry.py`。`frontends/web/preview_api.py` 只負責解析 asset / DB / profile，真正的 asset filter、page clamp、row payload、favorite 判斷都由後端 service 產生。後續 Tk/Qt 若要顯示 seed 清單，請直接用這個 module，不要複製 Web endpoint 內部邏輯。
+- Seed page payload 現在包含 `page_summary`：`shown_start`、`shown_end`、`remaining`、`page_count`、`next_page`、`next_action`。前端做展開清單或動態 bar 時應吃這份後端摘要，不要自己用 `page * page_size` 重算。
 - 收藏對象已改為 seed。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 進入 `save_crawler_seed_favorite()`，再寫入 crawler asset profile 的 `favorite_seed_uids`；UI 不應直接呼叫 profile helper 或自行知道 profile 欄位名稱。後續若要產品化，應延伸 seed registry 查詢 / 狀態 payload，而不是收藏 crawler asset 入口。
 - `CrawlerAssetListingResult.to_dict()` 與 listing event context 現在包含 `seed_enumeration`：`status`、`display_tone`、`label`、`help`、`limited_by_max_results`、`candidate_count`、`max_results`。Web/Tk/Qt 應呈現這份後端 payload，不要用 `candidate_count >= max_results` 之類的前端 heuristic 自行推論。
 - 當 `seed_enumeration.status=local_limit_reached` 時，意思是「達到本機安全枚舉上限，遠端可能還有更多」，不是錯誤，也不是入口失效。下一步應是縮小界域、提高上限，或等 handler 層補遠端 pagination / exhausted 狀態。

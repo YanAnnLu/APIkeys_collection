@@ -20,6 +20,7 @@ Last updated: 2026-05-27
 - [x] Tk 也已提供 developer-only handler smoke diagnostics 入口：工具選單新增「開發者：Crawler handler diagnostics」，讀同一份 compact summary，只用來確認 handler contract，不進入一般使用者下載心流。
 - [x] Tk / Web 的 developer diagnostics surface payload 已收斂到 `api_launcher/developer_diagnostics.py`，未來 Qt 或 CLI diagnostics index 應重用這個 module，不要在前端各自命名。
 - [x] Seed 收藏寫入已從 Web endpoint 抽到後端 `api_launcher/crawler_seed_registry.py::save_crawler_seed_favorite()`，並用測試鎖住新增 / 移除收藏、空 dataset uid 擋板與 profile persistence。
+- [x] Seed 分頁 contract 新增 `page_summary`，後端直接提供 `shown_start`、`shown_end`、`remaining`、`page_count`、`next_page` 與 `next_action`，讓 Web/Tk/Qt 能做「第 1-50 筆 / 顯示更多」而不用各自重算頁碼。
 - [ ] 下一步：補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷；再評估 Tk/CLI 是否需要讀同一份 seed 收藏查詢入口。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
