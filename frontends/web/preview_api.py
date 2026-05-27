@@ -36,6 +36,7 @@ from api_launcher.crawler_asset_service import (
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
+from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.local_credentials import crawler_asset_credential_status, update_crawler_asset_credentials
@@ -221,29 +222,17 @@ def crawler_asset_seed_page(
     asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     favorite_seed_uids = set(crawler_asset_favorite_seed_uids(asset.asset_id, profile_path))
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    safe_page_size = min(max(1, int(page_size or 50)), 50)
-    safe_page = max(1, int(page or 1))
     with contextlib.closing(connect_db(target_db)) as conn:
         repository = ApiCatalogRepository(conn)
         repository.init_schema()
-        candidates = [
-            dataset
-            for dataset in repository.list_dataset_candidates(status="all", provider_id=asset.provider_id)
-            if str(dataset.metadata.get("discovery_source_id") or "").strip() == asset.asset_id
-        ]
-    total = len(candidates)
-    start = (safe_page - 1) * safe_page_size
-    rows = candidates[start : start + safe_page_size]
-    return {
-        "asset_id": asset.asset_id,
-        "provider_id": asset.provider_id,
-        "page": safe_page,
-        "page_size": safe_page_size,
-        "total": total,
-        "has_more": start + safe_page_size < total,
-        "favorite_seed_count": len(favorite_seed_uids),
-        "seeds": [crawler_asset_seed_row(dataset, favorite_seed_uids=favorite_seed_uids) for dataset in rows],
-    }
+        return crawler_seed_page(
+            repository,
+            asset_id=asset.asset_id,
+            provider_id=asset.provider_id,
+            page=page,
+            page_size=page_size,
+            favorite_seed_uids=favorite_seed_uids,
+        )
 
 
 def crawler_asset_seed_row(
@@ -251,27 +240,7 @@ def crawler_asset_seed_row(
     *,
     favorite_seed_uids: set[str] | frozenset[str] | None = None,
 ) -> dict[str, object]:
-    metadata = getattr(dataset, "metadata", {}) if isinstance(getattr(dataset, "metadata", {}), dict) else {}
-    dataset_uid = str(getattr(dataset, "dataset_uid", "") or "")
-    dataset_id = str(getattr(dataset, "dataset_id", "") or "")
-    title = str(getattr(dataset, "title", "") or "")
-    favorite_key = dataset_uid or dataset_id or title
-    favorites = favorite_seed_uids or set()
-    return {
-        "dataset_uid": dataset_uid,
-        "dataset_id": dataset_id,
-        "title": title,
-        "favorite_key": favorite_key,
-        "native_format": str(getattr(dataset, "native_format", "") or ""),
-        "data_type": str(getattr(dataset, "data_type", "") or ""),
-        "version": str(getattr(dataset, "version", "") or ""),
-        "landing_url": str(getattr(dataset, "landing_url", "") or ""),
-        "api_url": str(getattr(dataset, "api_url", "") or ""),
-        "candidate_status": str(metadata.get("candidate_status") or ""),
-        "source_type": str(metadata.get("discovery_source_type") or ""),
-        "data_family": str(metadata.get("data_family") or ""),
-        "favorite": favorite_key in favorites,
-    }
+    return crawler_seed_row(dataset, favorite_seed_uids=favorite_seed_uids or ())
 
 
 def save_crawler_asset_seed_favorite(

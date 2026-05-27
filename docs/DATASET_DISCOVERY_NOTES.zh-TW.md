@@ -511,3 +511,6 @@ CrawlerAsset + CrawlerAssetBoundPayload
 - 若 source 被 disabled / archived，或 resolver 判斷仍需 adapter review，流程應清楚回報 `next_action`，不能裝作已可下載。
 
 下一步是把 `review_required_count`、blocked reason、content parser review 等結果做成更清楚的 UI 待辦狀態，而不是再增加新的 UI 判斷分支。
+## 2026-05-27 Seed registry service checkpoint
+
+- `api_launcher/crawler_seed_registry.py` 現在是 seed 分頁的後端 service 邊界：負責從 repository 讀 `list_dataset_candidates(status="all", provider_id=...)`、以 `metadata.discovery_source_id` 過濾 asset seed、限制每頁最多 50 筆、輸出 shared row payload 與 favorite flag。Web endpoint 只是 adapter；Tk/Qt/CLI 之後不要複製這段 catalog paging 邏輯。

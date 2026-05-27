@@ -10,6 +10,7 @@ Last updated: 2026-05-27
 - [x] Web Preview 修正無界域欄位時「建立下載計畫」按鈕被反向停用的問題；同時補上 `file_index` / `map_service` / `catalog` 的使用者可讀來源表面標籤。
 - [x] Web Preview 選取爬蟲入口後，預設走 seed 枚舉心流：`crawler_asset_listing` 會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口內 seed，並把候選寫回本機 catalog。
 - [x] Web Preview 新增 seed 分頁讀取：`/api/crawler-assets/{asset_id}/seeds?page=&page_size=50` 只從已枚舉的 catalog 候選讀取 `[0..49]`、`[50..99]` 這類視窗；按「顯示更多 seed」只展開下一批 50 筆，不重新跑 crawler。
+- [x] Seed 分頁 contract 已從 Web Preview 抽到後端 `api_launcher/crawler_seed_registry.py`。Web 仍保留既有 endpoint，但 paging、asset filter、favorite row payload 由共用 service 產生，後續 Tk/Qt/CLI 不需要複製 Web 的 seed list 邏輯。
 - [x] 收藏心流已明確落在 seed 層：Web 會呼叫 `/api/crawler-assets/{asset_id}/seed-favorites`，由後端寫入 crawler asset profile 的 `favorite_seed_uids`，不再把收藏對象設計成 crawler asset / 入口本身。
 - [x] Seed 枚舉結果現在有後端 structured status：`seed_enumeration.status/label/help/limited_by_max_results` 會說明目前是完整落在本機上限內、零候選、警告、需要登入，或已達本機安全上限。Web 只呈現這份 service payload，不再從 `candidate_count` 自己猜完整度。
 - [x] Source pattern / source draft 的「全 handler 覆蓋」已延伸成離線 crawler audit contract smoke：`--dataset-discovery-handler-smoke-json` 會為每個 supported source type 產生 fixture source，驗證 zero-candidate warning / `next_action` 與正常候選 pass case 都走同一套 audit summary，且不碰 live network。
@@ -18,7 +19,7 @@ Last updated: 2026-05-27
 - [x] Web Preview 已提供 developer-only handler smoke diagnostics endpoint：`/api/diagnostics/crawler-handler-smoke` 只回傳 compact summary、developer-only 標記與可重跑命令，不把 per-source smoke report 放進正式下載 UI。
 - [x] Tk 也已提供 developer-only handler smoke diagnostics 入口：工具選單新增「開發者：Crawler handler diagnostics」，讀同一份 compact summary，只用來確認 handler contract，不進入一般使用者下載心流。
 - [x] Tk / Web 的 developer diagnostics surface payload 已收斂到 `api_launcher/developer_diagnostics.py`，未來 Qt 或 CLI diagnostics index 應重用這個 module，不要在前端各自命名。
-- [ ] 下一步：把 seed 收藏再從 crawler asset profile 欄位提升成正式 seed registry / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
+- [ ] 下一步：把 seed 收藏寫入也從 profile helper 提升成正式 seed registry API / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。
