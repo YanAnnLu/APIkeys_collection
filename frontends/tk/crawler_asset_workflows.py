@@ -945,20 +945,21 @@ class CrawlerAssetWorkflowMixin:
         curated_sqlite = str(artifacts.get("curated_sqlite") or "")
         dataset_uid = str(payload.get("dataset_uid") or "").strip()
         next_action = str(payload.get("next_action") or "").strip()
+        next_action_label = str(payload.get("next_action_label") or next_action).strip()
         message = self.tr(
             (
                 f"Seed：{dataset_uid or '-'}\n"
                 f"Stage：{stage}\n"
                 f"Downloads：{downloads_root or '-'}\n"
                 f"SQLite：{curated_sqlite or '-'}\n"
-                f"下一步：{next_action or '-'}"
+                f"下一步：{next_action_label or '-'}"
             ),
             (
                 f"Seed: {dataset_uid or '-'}\n"
                 f"Stage: {stage}\n"
                 f"Downloads: {downloads_root or '-'}\n"
                 f"SQLite: {curated_sqlite or '-'}\n"
-                f"Next: {next_action or '-'}"
+                f"Next: {next_action_label or '-'}"
             ),
         )
         if succeeded:

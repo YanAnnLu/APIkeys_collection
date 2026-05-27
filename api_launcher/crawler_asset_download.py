@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+from api_launcher.crawler_asset_display import NEXT_ACTION_DISPLAY_LABELS
 from api_launcher.crawler_asset_service import (
     CrawlerAssetDownloadPlanResult,
     build_crawler_asset_download_plan,
@@ -53,6 +54,7 @@ class CrawlerAssetDownloadImportResult:
         return self.pipeline.succeeded
 
     def to_dict(self) -> dict[str, object]:
+        next_action = self.pipeline.next_action or self.plan_result.user_next_action
         artifacts: dict[str, object] = {
             "downloads_root": str(self.downloads_root),
             "curated_sqlite": str(self.curated_sqlite_path),
@@ -69,7 +71,8 @@ class CrawlerAssetDownloadImportResult:
             "plan_result": self.plan_result.to_dict(),
             "download_import": self.pipeline.to_dict(),
             "artifacts": artifacts,
-            "next_action": self.pipeline.next_action or self.plan_result.user_next_action,
+            "next_action": next_action,
+            "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
         }
         if self.dataset_uid:
             payload["dataset_uid"] = self.dataset_uid

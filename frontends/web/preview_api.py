@@ -783,7 +783,8 @@ def crawler_asset_download_import(
         )
         conn.commit()
 
-    response["download_result"] = result.to_dict()
+    download_result = result.to_dict()
+    response["download_result"] = download_result
     response["plan_result"] = result.plan_result.to_dict()
     plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
     response["plan_outcome"] = plan_outcome
@@ -791,8 +792,15 @@ def crawler_asset_download_import(
     response["plan_passport"] = plan_passport
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
     response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
-    response["download_import"] = result.pipeline.to_dict()
+    download_import = result.pipeline.to_dict()
     response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
+    response["next_action_label"] = str(
+        download_result.get("next_action_label")
+        or plan_outcome.get("next_action_label")
+        or response["next_action"]
+    )
+    download_import["next_action_label"] = response["next_action_label"]
+    response["download_import"] = download_import
     log_event(
         "crawler_asset_download_import_completed",
         "Web Preview ran the formal crawler asset download/import path.",
@@ -882,7 +890,8 @@ def crawler_seed_download_import(
         )
         conn.commit()
 
-    response["download_result"] = result.to_dict()
+    download_result = result.to_dict()
+    response["download_result"] = download_result
     response["plan_result"] = result.plan_result.to_dict()
     plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
     response["plan_outcome"] = plan_outcome
@@ -890,8 +899,15 @@ def crawler_seed_download_import(
     response["plan_passport"] = plan_passport
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
     response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
-    response["download_import"] = result.pipeline.to_dict()
+    download_import = result.pipeline.to_dict()
     response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
+    response["next_action_label"] = str(
+        download_result.get("next_action_label")
+        or plan_outcome.get("next_action_label")
+        or response["next_action"]
+    )
+    download_import["next_action_label"] = response["next_action_label"]
+    response["download_import"] = download_import
     log_event(
         "crawler_seed_download_import_completed",
         "Web Preview ran the formal seed download/import path.",

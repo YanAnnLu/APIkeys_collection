@@ -21,6 +21,7 @@ Last updated: 2026-05-28
 - [x] Web seed 清單已補上 seed-level 正式下載 / 匯入動作：每筆 seed 顯示「下載此 seed」，呼叫 `POST /api/crawler-assets/{asset_id}/seed-download-import`，把目前界域表單值與 `dataset_uid` 交給後端。
 - [x] 後端新增 `build_crawler_seed_download_plan()` / `run_crawler_seed_download_import()`，會驗證 seed 屬於該 crawler asset，從 catalog seed 建立 formal resolved plan，套用同一份 credential gate、bounds、adapter review、download/import pipeline，且不重新打遠端 crawler。
 - [x] 舊 `/api/demo/real-download` 已從一般 API 路由移除；developer regression helper 改走 `POST /api/diagnostics/real-download-demo`，payload 會標明 `developer_only=true` 與正式主/seed 下載 endpoint，避免使用者把 public CSV demo 誤認成正式 crawler 下載流程。
+- [x] Formal crawler asset / seed 下載匯入結果已補 `next_action_label`：後端 `CrawlerAssetDownloadImportResult.to_dict()`、Web Preview endpoint、Tk seed 完成/未完成提示與 Web 下載器結果列都優先顯示人類可讀下一步；raw `next_action` 仍保留給 JSON / agent debug。
 
 ## 2026-05-27 Code health audit / 匯入、crawler fetch、credential 寫入硬化
 - [x] 新增 `docs/CODE_HEALTH_AUDIT.zh-TW.md`，用 P0/P1/P2/P3 記錄本輪程式健康審計。結論：本輪沒有發現 P0；已修三個 P1 級資料/資源/credential 耐久性風險。

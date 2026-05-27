@@ -254,6 +254,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
         self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
         self.assertEqual(1, payload["plan_passport"]["direct_download_count"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
         log_event.assert_called_once()
         self.assertEqual("crawler_asset_download_import_completed", log_event.call_args.args[0])
         context = log_event.call_args.kwargs["context"]
@@ -332,6 +334,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("demo_provider:dataset_a", payload["dataset_uid"])
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
         self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
         log_event.assert_called_once()
         self.assertEqual("crawler_seed_download_import_completed", log_event.call_args.args[0])
         context = log_event.call_args.kwargs["context"]

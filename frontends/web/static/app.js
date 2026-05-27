@@ -275,7 +275,7 @@ async function runCrawlerAssetDownloadImportById(assetId) {
     if (downloadImport.succeeded) {
       addMission("正式下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${asset?.display_name || assetId}`);
     } else {
-      addMission("正式下載 / 匯入未完成", payload.next_action || downloadImport.stage || "review required");
+      addMission("正式下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
     }
     renderDownloaderWorkspace();
     refreshSelectedAssetOutcomeViews();
@@ -323,7 +323,7 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     if (downloadImport.succeeded) {
       addMission("seed 下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${datasetUid}`);
     } else {
-      addMission("seed 下載 / 匯入未完成", payload.next_action || downloadImport.stage || "review required");
+      addMission("seed 下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
     }
     renderDownloaderWorkspace();
     refreshSelectedAssetOutcomeViews();
@@ -373,7 +373,7 @@ function crawlerAssetDownloadImportRowHtml(payload) {
         <span class="context-chip">download_import_pipeline</span>
         <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || payload.outcome_bucket || "plan")}</span>
       </div>
-      <p>${escapeHtml(payload.next_action || downloadImport.next_action || "review result")}</p>
+      <p>${escapeHtml(payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.next_action || "review result")}</p>
       <dl class="artifact-list">
         <div><dt>Downloads</dt><dd>${escapeHtml(artifacts.downloads_root || "")}</dd></div>
         <div><dt>Plan</dt><dd>${escapeHtml(artifacts.plan || "")}</dd></div>

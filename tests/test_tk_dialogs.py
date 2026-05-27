@@ -1082,6 +1082,38 @@ class TkDialogModuleTest(unittest.TestCase):
         showinfo.assert_called_once()
         self.assertIn("Seed 下載 / 匯入完成", ui.status_var.value)
 
+    def test_seed_download_import_finish_uses_human_next_action_label(self) -> None:
+        class Var:
+            value = ""
+
+            def set(self, value: str) -> None:
+                self.value = value
+
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = Var()
+        result = SimpleNamespace(
+            to_dict=lambda: {
+                "dataset_uid": "demo_provider:dataset_a",
+                "stage": "blocked_before_download",
+                "succeeded": False,
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                },
+                "next_action": "run_adapter_review_or_resolve_adapter_plan_before_downloading",
+                "next_action_label": "先處理 Adapter 審核或解析計畫，再下載",
+            }
+        )
+
+        with patch("frontends.tk.crawler_asset_workflows.messagebox.showwarning") as showwarning:
+            CrawlerAssetWorkflowMixin._finish_crawler_asset_seed_download_import(ui, result)
+
+        showwarning.assert_called_once()
+        message = showwarning.call_args.args[1]
+        self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message)
+        self.assertNotIn("run_adapter_review_or_resolve_adapter_plan_before_downloading", message)
+
     def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
         payload = {
             "providers": [

@@ -6,7 +6,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
+from api_launcher.crawler_asset_download import (
+    CrawlerAssetDownloadImportResult,
+    run_crawler_asset_download_import,
+    run_crawler_seed_download_import,
+)
 from api_launcher.crawlers.orchestrator import DatasetCrawlResult, DatasetSourceCrawlResult
 from api_launcher.crawlers.types import DatasetCandidate
 from api_launcher.db import connect_db
@@ -220,6 +224,45 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
                 self.assertEqual("download_import_completed", payload["stage"])
             finally:
                 conn.close()
+
+    def test_download_import_result_payload_adds_human_next_action_label(self) -> None:
+        plan_result = unittest.mock.Mock()
+        plan_result.outcome_bucket = "review_required"
+        plan_result.direct_download_count = 0
+        plan_result.review_required_count = 1
+        plan_result.user_next_action = "open_adapter_review_or_adjust_bounds"
+        plan_result.to_dict.return_value = {"outcome_bucket": "review_required"}
+        pipeline = DownloadImportPipelineRun(
+            result=DownloadPlanRunResult(
+                entry_count=1,
+                submitted=0,
+                completed=0,
+                failed=0,
+                skipped=1,
+                registered_assets=0,
+            ),
+            stage="blocked_before_download",
+            import_requested=True,
+            next_action="run_adapter_review_or_resolve_adapter_plan_before_downloading",
+        )
+        result = CrawlerAssetDownloadImportResult(
+            asset_id="demo_index",
+            plan_result=plan_result,
+            pipeline=pipeline,
+            downloads_root=Path("downloads"),
+            curated_sqlite_path=Path("downloads") / "curated_sources.db",
+        )
+
+        payload = result.to_dict()
+
+        self.assertEqual(
+            "run_adapter_review_or_resolve_adapter_plan_before_downloading",
+            payload["next_action"],
+        )
+        self.assertEqual(
+            "先處理 Adapter 審核或解析計畫，再下載",
+            payload["next_action_label"],
+        )
 
 
 if __name__ == "__main__":
