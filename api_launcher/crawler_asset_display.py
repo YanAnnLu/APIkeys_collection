@@ -120,6 +120,35 @@ TONE_SEVERITY = {
 
 
 @dataclass(frozen=True)
+class DisplayProfile:
+    """UI-neutral display contract for one backend status.
+
+    This keeps label/tone/next-action decisions in the backend so Tk, Web, and
+    future Qt surfaces can render the same state without reimplementing business
+    branching.
+    """
+
+    profile_id: str
+    display_label: str
+    display_tone: str = "neutral"
+    short_label: str = ""
+    summary: str = ""
+    next_action: str = ""
+    next_action_label: str = ""
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "profile_id": self.profile_id,
+            "display_label": self.display_label,
+            "display_tone": self.display_tone,
+            "short_label": self.short_label,
+            "summary": self.summary,
+            "next_action": self.next_action,
+            "next_action_label": self.next_action_label,
+        }
+
+
+@dataclass(frozen=True)
 class CrawlerAssetFlowStep:
     step_id: str
     label: str
@@ -266,37 +295,31 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     review = _safe_int(getattr(result, "review_required_count", 0))
     blocked_reason = str(getattr(result, "blocked_reason", "") or "")
     next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "")
-    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
-    resolved_plan = getattr(result, "resolved_plan", None)
-    adapter_review = adapter_review_display_payload(resolved_plan) if isinstance(resolved_plan, dict) else {}
-    content_review = adapter_review_content_summary_payload(adapter_review)
-    summary = _plan_outcome_summary(
+    display = plan_outcome_display_profile(
         bucket,
-        default_summary=str(display["summary"]),
         direct=direct,
         review=review,
         added_count=added_count,
         blocked_reason=blocked_reason,
+        next_action=next_action,
     )
+    resolved_plan = getattr(result, "resolved_plan", None)
+    adapter_review = adapter_review_display_payload(resolved_plan) if isinstance(resolved_plan, dict) else {}
+    content_review = adapter_review_content_summary_payload(adapter_review)
     return {
         "outcome_bucket": bucket,
-        "display_label": display["display_label"],
-        "display_tone": display["display_tone"],
-        "short_label": _plan_outcome_short_label(
-            bucket,
-            direct=direct,
-            review=review,
-            added_count=added_count,
-            blocked_reason=blocked_reason,
-        ),
-        "summary": summary,
+        "display_profile": display.to_dict(),
+        "display_label": display.display_label,
+        "display_tone": display.display_tone,
+        "short_label": display.short_label,
+        "summary": display.summary,
         "direct_download_count": direct,
         "review_required_count": review,
         "added_count": added_count,
         "blocked": bool(getattr(result, "blocked", False)) or bucket == "blocked",
         "blocked_reason": blocked_reason,
-        "next_action": next_action,
-        "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
+        "next_action": display.next_action,
+        "next_action_label": display.next_action_label,
         "adapter_review": adapter_review,
         "content_review": content_review,
         "content_review_label": content_review["display_label"],
@@ -576,17 +599,45 @@ def content_review_bucket_tone(bucket: str) -> str:
 
 
 def plan_outcome_display_label(bucket: str) -> str:
-    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
-    return str(display["display_label"])
+    return plan_outcome_display_profile(bucket).display_label
 
 
 def plan_outcome_short_label(bucket: str, *, added_count: int = 0, review_count: int = 0) -> str:
-    return _plan_outcome_short_label(
+    return plan_outcome_display_profile(bucket, review=review_count, added_count=added_count).short_label
+
+
+def plan_outcome_display_profile(
+    bucket: str,
+    *,
+    direct: int = 0,
+    review: int = 0,
+    added_count: int = 0,
+    blocked_reason: str = "",
+    next_action: str = "",
+) -> DisplayProfile:
+    display = PLAN_OUTCOME_DISPLAY.get(bucket, PLAN_OUTCOME_DISPLAY["empty_plan"])
+    summary = _plan_outcome_summary(
         bucket,
-        direct=0,
-        review=review_count,
+        default_summary=str(display["summary"]),
+        direct=direct,
+        review=review,
         added_count=added_count,
-        blocked_reason="",
+        blocked_reason=blocked_reason,
+    )
+    return DisplayProfile(
+        profile_id=bucket,
+        display_label=str(display["display_label"]),
+        display_tone=str(display["display_tone"]),
+        short_label=_plan_outcome_short_label(
+            bucket,
+            direct=direct,
+            review=review,
+            added_count=added_count,
+            blocked_reason=blocked_reason,
+        ),
+        summary=summary,
+        next_action=next_action,
+        next_action_label=NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
     )
 
 
@@ -654,9 +705,11 @@ __all__ = [
     "crawler_asset_plan_outcome_payload",
     "crawler_asset_plan_passport_payload",
     "plan_entry_content_status_payload",
+    "DisplayProfile",
     "capability_display_label",
     "bound_field_display_label",
     "bound_field_display_help",
     "plan_outcome_display_label",
+    "plan_outcome_display_profile",
     "plan_outcome_short_label",
 ]

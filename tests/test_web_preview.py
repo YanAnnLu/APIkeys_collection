@@ -16,6 +16,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
     plan_entry_content_status_payload,
+    plan_outcome_display_profile,
 )
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_asset_profiles import (
@@ -1386,16 +1387,35 @@ class WebPreviewApiTest(unittest.TestCase):
         payload = crawler_asset_plan_outcome_payload(result, added_count=1)
 
         self.assertEqual("partial_review_required", payload["outcome_bucket"])
+        self.assertEqual("partial_review_required", payload["display_profile"]["profile_id"])
         self.assertEqual("部分可下載", payload["display_label"])
         self.assertEqual("可下載 1 / 待辦 2", payload["short_label"])
         self.assertEqual("warning", payload["display_tone"])
+        self.assertEqual("warning", payload["display_profile"]["display_tone"])
         self.assertIn("仍有 2 筆需要 Adapter 審核", payload["summary"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["display_profile"]["next_action_label"])
         self.assertEqual("內容 Parser 待辦 1", payload["content_review_label"])
         self.assertEqual("內容 Parser 待辦 1", payload["content_review"]["display_label"])
         self.assertEqual("review", payload["content_review"]["display_tone"])
         self.assertEqual(1, payload["content_review"]["count"])
         self.assertTrue(payload["content_review"]["has_review"])
+
+    def test_plan_outcome_display_profile_is_serializable_contract(self) -> None:
+        profile = plan_outcome_display_profile(
+            "blocked",
+            blocked_reason="missing_credentials",
+            next_action="open_adapter_review_or_adjust_bounds",
+        )
+
+        payload = profile.to_dict()
+
+        self.assertEqual("blocked", payload["profile_id"])
+        self.assertEqual("已阻擋", payload["display_label"])
+        self.assertEqual("danger", payload["display_tone"])
+        self.assertEqual("已阻擋 missing_credentials", payload["short_label"])
+        self.assertIn("missing_credentials", payload["summary"])
+        self.assertEqual("開啟 Adapter 審核或調整界域", payload["next_action_label"])
 
     def test_shared_display_schema_summarizes_adapter_review_outcomes(self) -> None:
         plan = {

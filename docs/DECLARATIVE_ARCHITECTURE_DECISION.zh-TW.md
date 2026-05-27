@@ -31,6 +31,7 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
    - `status` / `outcome_bucket` / `warning_code` -> `label` / `tone` / `next_action`
    - Tk、Web、未來 Qt 都讀同一份後端 display payload。
    - 前端不自行判斷業務狀態。
+   - 2026-05-27 已開始落地：`api_launcher.crawler_asset_display.DisplayProfile` / `plan_outcome_display_profile()` 會把 plan outcome 的 `outcome_bucket -> label/tone/summary/next_action_label` 收成 typed display profile，並隨 plan outcome payload 輸出 `display_profile`。
 
 2. 動態界域表單 contract
    - `source_type` / asset capability -> form fields / presets / validation / defaults

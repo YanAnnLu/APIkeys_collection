@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-27 22:32 UI display profile handoff
+- 依宣告式架構方向，將 plan outcome 的顯示狀態再收斂成 typed `DisplayProfile`。`api_launcher/crawler_asset_display.py` 現在提供 `DisplayProfile` 與 `plan_outcome_display_profile()`，並讓 `crawler_asset_plan_outcome_payload()` 輸出 `display_profile`，同時保留原本 `display_label` / `display_tone` / `short_label` / `summary` 欄位以免前端破壞。
+- 這是 UI 狀態 contract 的第一步：後端負責 `outcome_bucket -> label/tone/summary/next_action_label`，Tk/Web/未來 Qt 只負責呈現。它不是重新設計 Web/Tk，也不碰 download/import/crawler handler。
+- 本地驗證已通過：`py -B -m py_compile api_launcher\crawler_asset_display.py tests\test_web_preview.py` OK；`py -B -m unittest tests.test_web_preview -v` OK；`py -B -m unittest tests.test_web_preview tests.test_tk_dialogs -v` OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK。下一步 commit/push/watch CI。
+
 ## 2026-05-27 22:00 Crawler capability profile handoff
 - 依使用者要求繼續往宣告式架構推進，但沒有重寫 crawler handler。本輪新增 `api_launcher/crawler_capability_profiles.py`，提供 `CrawlerCapabilityProfile`：把 source type、auth mode、terms risk、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 `SourceRequestPolicy` 包成可序列化 profile。
 - `crawler_asset_from_source()` 現在會把這份 profile 掛到 `CrawlerAsset.capability_profile` 與 `asset.to_dict()["capability_profile"]`。這讓 Web/Tk/Qt/agent 後續可讀同一份 capability contract，不必散落 `if source_type == ...` 來猜 pagination、內容格式或缺憑證時下一步。
