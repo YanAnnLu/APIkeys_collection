@@ -582,7 +582,6 @@ class CrawlerAssetWorkflowMixin:
                 "crawler_asset_listing_recorded",
                 "Tk crawler asset workflow recorded the visible listing outcome.",
                 component="ui.crawler_assets",
-                context={
                 context=crawler_asset_listing_event_context(result),
             )
         except Exception:
