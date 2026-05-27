@@ -2,7 +2,7 @@
 ## 2026-05-27 15:04 Source profile access policy checkpoint
 - 本輪新增 `DatasetDiscoverySource.credential_mode` 與 `terms_risk`；source JSON 會載入與寫回這兩個欄位。`crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 會優先讀明示 source profile 欄位，再退回既有文字 heuristic。
 - 這代表登入/API key 與條款風險屬於 crawler/source profile，而不是資料集本身或 UI 猜測。`crawler_asset_source_signature()` 已納入這兩個欄位，讓保存過的 plan passport 在治理設定改變後變 stale。
-- 已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，78 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，109 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，759 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。尚未 push / CI。
+- 已推送 `e98213f Add source profile access policy overrides`；GitHub Actions run `26496327588` 的 Ubuntu、Windows 與 real DB smoke 全部 success。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，78 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，109 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，759 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。
 
 ## 2026-05-27 14:54 Source profile rate-limit politeness checkpoint
 - 本輪在已完成的 `crawl_timeout_seconds` / `crawl_max_pages` / `crawl_page_size` 基礎上，新增 `crawl_rate_limit_seconds`；`DatasetDiscoverySource` / source JSON 會載入與寫回此欄位，各 paginated crawler handler 會透過 `api_launcher.crawlers.pagination.polite_crawl_delay()` 在下一頁 request 前套用 source-level 延遲。
