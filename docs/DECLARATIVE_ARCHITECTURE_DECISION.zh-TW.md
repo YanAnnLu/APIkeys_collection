@@ -68,6 +68,108 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
 
 目前已落地的 source profile 欄位（timeout、max pages、page size、rate limit、credential mode、terms risk）可以視為這條路線的最小資料面。下一步不是把所有 crawler 改成一個裝飾器函數，而是把這些已穩定的 request/access policy 抽成明確 schema，並讓既有 adapter 逐步共用 middleware。`api_launcher.crawlers.request_policy.SourceRequestPolicy` 是這條路線的第一個 typed staging point。
 
+## Matrix Cell -> Profile -> Gateway -> Pipeline
+
+更精確的中期架構命名是：
+
+```text
+Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline
+```
+
+多維矩陣中的一個 cell 不應直接變成 raw list 或 magic tuple，而應先驗證成 typed profile。例如：
+
+```text
+來源範式 × 權限模式 × 分頁模式 × 內容格式 × 界域能力
+= CrawlerCapabilityProfile
+```
+
+範例：
+
+```text
+Socrata × optional_api_key × offset_pagination × csv/json × time+bbox+limit
+```
+
+應落成：
+
+```python
+CrawlerCapabilityProfile(
+    source_type="socrata",
+    auth_mode="optional_api_key",
+    pagination_mode="offset",
+    content_formats=("csv", "json"),
+    bound_facets=("time", "bbox", "limit"),
+    middleware=(
+        "credential_guard",
+        "offset_pagination",
+        "bounded_fetch",
+        "audit_warning",
+    ),
+    failure_policy={
+        "zero_candidates": "review_query_or_bounds",
+        "missing_credentials": "open_credential_editor",
+        "unsupported_content": "adapter_review",
+        "pagination_limit_reached": "show_has_more",
+    },
+)
+```
+
+整體資料流：
+
+```text
+Source / URL / Seed
+    -> Detector / SourceProfile
+    -> Crawler Capability Gateway
+    -> Middleware Pipeline
+    -> Crawler Adapter
+    -> DatasetCandidate[] + warnings + next_action
+    -> Plan / Download / Import / UI
+```
+
+這個 gateway 的責任是集中分流，不是藏起所有判斷。UI、downloader、importer、resolver 不應散落 `if source_type == "socrata"` 或 `if provider == "NASA"`；它們應消費後端輸出的 capability、status、warning code 與 next action。
+
+## Profile 家族
+
+這個抽象不只適用 crawler。可以逐步整理成以下 profile 家族：
+
+- `CrawlerCapabilityProfile`：source type、auth、pagination、bounds、content hint。
+- `BoundsFormProfile`：source type、supported facets、preset、validation、defaults。
+- `ContentImportProfile`：format、compression、tabular/grid/raster、importability。
+- `DisplayProfile`：status、severity、user role、next action。
+- `CredentialProfile`：provider、auth mode、fields、storage policy。
+- `StorageProfile`：data size、update frequency、query pattern、format。
+- `RecoveryProfile`：error type、stage、recoverability、user action。
+- `TestCaseProfile`：source type、auth state、network state、payload shape。
+
+這些 profile 的共同規則：
+
+- 使用 dataclass / TypedDict / JSON schema，不使用 raw matrix row。
+- profile 只描述能力與政策；實際 I/O 仍由 adapter / service 執行。
+- profile output 必須可測、可序列化、可給 Tk/Web/Qt 共用。
+- 不把 provider 名稱當成架構分支；NASA、NOAA、FRED 是 source profile 差異，不是到處散落的 special case。
+
+## 優先落地順序
+
+1. UI display profile
+   - 讓 Tk / Web / 未來 Qt 都讀同一份 label / tone / next_action。
+
+2. Bounds form profile
+   - 解決使用者盲填欄位問題，讓界域表單由 profile 動態生成。
+
+3. Content parser / import profile
+   - 集中 CSV / JSON / GeoJSON 可匯入，ZIP / NetCDF / GeoTIFF 需 review 這類判斷。
+
+4. Crawler capability profile PoC
+   - 先選 Socrata 或 HTML file index，不一次接所有 source。
+   - 輸出仍是既有 `DatasetCandidate`，不發明新主資料結構。
+
+PoC 成功標準：
+
+- profile 能描述 endpoint、auth、pagination、timeout、rate limit、content hint。
+- gateway 能根據 profile 組裝 bounded fetch、credential guard、pagination、audit warning。
+- 測試覆蓋 zero candidates、missing credentials、pagination has_more、large payload blocked、unsupported content format、warning code / next action。
+
+這是一種架構維護性優化，不是 CPU 效能優化。它主要改善分流集中度、UI 防呆、測試矩陣、新來源擴充速度與長期代碼體積；HTTP 速度、SQLite 寫入速度與 CPU 運算速度仍需由 downloader / importer / storage 層另行處理。
+
 ### 裝飾器順序注意
 
 Python 裝飾器的套用順序與呼叫順序容易誤解。若寫成：

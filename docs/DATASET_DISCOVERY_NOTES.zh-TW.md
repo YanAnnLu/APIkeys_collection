@@ -10,6 +10,7 @@
 - `api_launcher.crawlers.request_policy.SourceRequestPolicy` 現在是 source profile request/access policy 的 typed staging point。`dataset_sources.py` 先算出 effective timeout、max pages、page size、rate-limit、credential mode 與 terms risk，再呼叫既有 handler；後續 middleware/decorator 化應接這裡，而不是讓 handler/UI 各自重算。
 - 這只是 source profile request/access policy 的第一段。未來可再把 timeout、page cap、page size、rate-limit、credential mode、terms risk 合併成正式 request policy object，但不要在個別 parser 或 UI 裡硬寫站點規則。
 - 使用者提出的「數據驅動裝飾器爬蟲架構」可視為第二階段 PoC：把 credential gating、pagination driver、timeout/retry/rate-limit 等橫切能力收成 middleware pipeline。但正式 contract 應使用 typed source profile / request policy schema，不使用欄位順序脆弱的 raw list row。
+- 中期命名採 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`。Crawler source 的 matrix cell 代表來源範式、權限模式、分頁模式、內容格式與界域能力的組合；它要先驗證成 `CrawlerCapabilityProfile`，再由 gateway 組裝 middleware pipeline。這不是第一階段重寫命令，現有 handler 仍保留。
 - `DatasetCrawlerOutput` 是 crawler handler 回報遠端分頁狀態的第一個後端 contract。舊 handler 可維持回傳 candidate list；支援分頁的 handler 應逐步改成回傳 candidates 加 `remote_pagination_status` / `remote_exhausted` / `remote_next_page_token`，讓 UI 呈現 seed 枚舉完整度而不用自行猜測。
 - Socrata full crawl 已接上這個 contract：當 Socrata catalog 因本機 `max_pages` 上限停止而遠端仍可能有更多 seed 時，listing payload 會回報 `remote_pagination.status=has_more` 與 `completion_confidence=remote_has_more`；raw pagination token 只留在後端，不進 UI payload。
 - CKAN full crawl 也已接上這個 contract：`result.count` / `start` 能讓 handler 判斷遠端是否 exhausted；若本機 `max_pages` 先截斷，UI 會看到 `has_more` / token-present，而不是誤以為本機已列完整個入口。

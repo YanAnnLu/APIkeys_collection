@@ -1,4 +1,9 @@
 ﻿# Agent 接力卡
+## 2026-05-27 15:55 Matrix/profile gateway architecture note
+- 使用者補充的架構概念已收斂進 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`：正式命名採 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`。
+- 判斷：這是第二階段宣告式架構的收斂工具，不是第一階段重寫命令。第一階段仍保持 `seed -> crawler -> candidate -> plan -> download -> import -> UI`，既有 handler 保留。PoC 應先選 Socrata 或 HTML file index，輸出仍是既有 `DatasetCandidate`。
+- 後續實作優先順序：UI display profile、Bounds form profile、Content parser/import profile，最後才做 crawler capability profile PoC。避免 raw matrix row、過度 `@decorator` 魔法或一次消滅所有 crawler。
+
 ## 2026-05-27 15:48 Source request policy consolidation checkpoint
 - 本輪把 source profile 的 timeout / max pages / page size / rate-limit / credential mode / terms risk 收斂到 `api_launcher.crawlers.request_policy.SourceRequestPolicy` 與 `source_request_policy()`。`dataset_sources.py` 現在只消費有效 policy，再呼叫既有 handler；這是為未來 middleware / decorator pipeline 鋪 typed contract，不是改寫 crawler handler。
 - 已保留既有行為：source-level max pages 仍是安全上限、page size 仍會壓低過大的 UI/CLI override、access policy 仍走白名單 normalization。已推送 `0863357 Extract source request policy helper`；GitHub Actions run `26498010323` 的 Ubuntu、Windows 與 real DB smoke 全部 success。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，81 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，112 tests OK；`py -B -m py_compile api_launcher\crawlers\request_policy.py api_launcher\crawlers\dataset_sources.py tests\test_dataset_discovery.py` OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，762 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。
