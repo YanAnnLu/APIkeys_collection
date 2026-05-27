@@ -19,7 +19,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
 )
-from api_launcher.crawler_asset_download import run_crawler_asset_download_import
+from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_profiles import (
     compact_crawler_asset_plan_passport,
     crawler_asset_favorite_seed_uids,
@@ -38,6 +38,7 @@ from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
 from api_launcher.db import connect_db
+from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.local_credentials import crawler_asset_credential_status, update_crawler_asset_credentials
 from api_launcher.paths import default_local_downloads_root, state_file
@@ -769,6 +770,106 @@ def crawler_asset_download_import(
         component="web.crawler_assets",
         context={
             **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
+            "stage": result.pipeline.stage,
+            "succeeded": result.succeeded,
+            "download_import": result.pipeline.to_dict(),
+            "artifacts": result.to_dict().get("artifacts", {}),
+        },
+    )
+    return response
+
+
+def crawler_seed_download_import(
+    asset_id: str,
+    values: Mapping[str, object],
+    *,
+    db_path: str | Path | None = None,
+    downloads_root: str | Path | None = None,
+    import_sqlite_path: str | Path | None = None,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Run the formal download/import path for one visible seed row."""
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    dataset_uid = str(values.get("dataset_uid") or "").strip()
+    if not dataset_uid:
+        raise ValueError("dataset_uid is required")
+    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
+    payload = crawler_asset_payload_from_web_values(
+        asset_id,
+        values,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
+    response: dict[str, object] = {
+        "asset_id": asset.asset_id,
+        "dataset_uid": dataset_uid,
+        "bounds_payload": payload.to_dict(),
+        "credential_guard": credential_guard,
+        "next_action": "run_crawler_seed_download_import",
+    }
+    if credential_status_blocks_plan(credential_guard):
+        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
+        response["plan_passport"] = credential_blocked_plan_passport(asset.asset_id, credential_guard)
+        response["download_import"] = {
+            "stage": "blocked_before_download",
+            "succeeded": False,
+            "next_action": "edit_local_credentials_before_live_download",
+        }
+        response["next_action"] = "edit_local_credentials_before_live_download"
+        return response
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    seed_dir = safe_path_part(dataset_uid)[:96]
+    target_downloads = (
+        Path(downloads_root)
+        if downloads_root is not None
+        else default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset.asset_id / seed_dir
+    )
+    target_import_sqlite = (
+        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
+    )
+    plan_path = target_downloads / "resolved_seed_download_plan.json"
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        repository.seed_builtin_providers()
+        result = run_crawler_seed_download_import(
+            asset.asset_id,
+            dataset_uid,
+            repository,
+            target_downloads,
+            bounds_payload=payload,
+            import_sqlite_path=target_import_sqlite,
+            plan_path=plan_path,
+            primary_path=primary_path,
+            local_path=local_path,
+            profile_path=profile_path,
+            timeout=8.0,
+        )
+        conn.commit()
+
+    response["download_result"] = result.to_dict()
+    response["plan_result"] = result.plan_result.to_dict()
+    plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
+    response["plan_outcome"] = plan_outcome
+    plan_passport = crawler_asset_plan_passport_payload(result.plan_result, plan_outcome=plan_outcome)
+    response["plan_passport"] = plan_passport
+    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
+    response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
+    response["download_import"] = result.pipeline.to_dict()
+    response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
+    log_event(
+        "crawler_seed_download_import_completed",
+        "Web Preview ran the formal seed download/import path.",
+        component="web.crawler_assets",
+        context={
+            **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
+            "dataset_uid": dataset_uid,
             "stage": result.pipeline.stage,
             "succeeded": result.succeeded,
             "download_import": result.pipeline.to_dict(),

@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from api_launcher.crawler_asset_download import run_crawler_asset_download_import
+from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawlers.orchestrator import DatasetCrawlResult, DatasetSourceCrawlResult
 from api_launcher.crawlers.types import DatasetCandidate
 from api_launcher.db import connect_db
@@ -121,6 +121,103 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
                         self.assertEqual("download_import_completed", payload["stage"])
                         self.assertEqual(str(root / "downloads"), payload["artifacts"]["downloads_root"])
                         self.assertEqual(str(root / "curated.sqlite"), payload["artifacts"]["curated_sqlite"])
+            finally:
+                conn.close()
+
+    def test_service_downloads_one_visible_seed_without_recrawling_source(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_path = root / "sources.json"
+            local_path = root / "local_sources.json"
+            source_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "sources": [
+                            {
+                                "source_id": "demo_index",
+                                "provider_id": "demo_provider",
+                                "name": "Demo Index",
+                                "source_type": "html_file_index",
+                                "endpoint_url": "https://example.test/index.html",
+                            }
+                        ],
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            conn = connect_db(root / "catalog.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                    )
+                )
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="demo_provider:dataset_a",
+                        provider_id="demo_provider",
+                        dataset_id="dataset_a",
+                        title="Dataset A",
+                        categories=("demo",),
+                        native_format="csv",
+                        api_url="https://example.test/data.csv",
+                        landing_url="https://example.test/data",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "demo_index",
+                            "discovery_source_type": "html_file_index",
+                            "download_url": "https://example.test/data.csv",
+                        },
+                    )
+                )
+                fake_pipeline = DownloadImportPipelineRun(
+                    result=DownloadPlanRunResult(
+                        entry_count=1,
+                        submitted=1,
+                        completed=1,
+                        failed=0,
+                        skipped=0,
+                        registered_assets=1,
+                        imported=1,
+                    ),
+                    stage="download_import_completed",
+                    import_requested=True,
+                )
+                plan_path = root / "plans" / "seed.json"
+                with patch("api_launcher.crawler_asset_download.run_download_import_slice", return_value=fake_pipeline) as runner:
+                    with patch("api_launcher.source_download.crawl_dataset_sources") as crawler:
+                        result = run_crawler_seed_download_import(
+                            "demo_index",
+                            "demo_provider:dataset_a",
+                            repo,
+                            root / "downloads",
+                            import_sqlite_path=root / "curated.sqlite",
+                            plan_path=plan_path,
+                            primary_path=source_path,
+                            local_path=local_path,
+                        )
+                        crawler.assert_not_called()
+                        runner.assert_called_once()
+                self.assertTrue(result.succeeded)
+                self.assertEqual("demo_provider:dataset_a", result.dataset_uid)
+                self.assertEqual("ready_to_download", result.plan_result.outcome_bucket)
+                called_plan = runner.call_args.args[0]
+                self.assertEqual("crawler_seed_download_plan", called_plan["plan_name"])
+                self.assertEqual("catalog_seed_download_plan", called_plan["source"]["kind"])
+                self.assertEqual("demo_provider:dataset_a", called_plan["source"]["dataset_uid"])
+                self.assertEqual("https://example.test/data.csv", called_plan["providers"][0]["download_url"])
+                payload = result.to_dict()
+                self.assertEqual("demo_provider:dataset_a", payload["dataset_uid"])
+                self.assertEqual("download_import_completed", payload["stage"])
             finally:
                 conn.close()
 

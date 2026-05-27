@@ -20,6 +20,7 @@
 - Crawler asset listing 現在要被視為「入口 seed 枚舉」的後端動作，而不是只為 UI 產生一份小樣本。Web Preview 選取入口時會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 觸發 listing，並將候選寫回本機 catalog。
 - 既有 crawler handler 仍保留安全邊界；`search_terms_override=("",)` 是目前用來避免 sample search term 縮小入口清單的 sentinel。這代表「完整枚舉嘗試」，不代表所有外部平台都已能證明走到遠端末頁。
 - UI 展示 seed 清單時，不應重新打 crawler。Web Preview 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，從 catalog 讀取 `metadata.discovery_source_id == asset_id` 的候選，先顯示 50 筆，使用者按「顯示更多 seed」才展開下一批。
+- Web Preview 的 seed row 已能進入正式下載 / 匯入路徑：`POST /api/crawler-assets/{asset_id}/seed-download-import` 會驗證 `dataset_uid` 屬於該 asset，從 catalog seed 建立 formal resolved plan，並交給 download/import pipeline；這不是重新枚舉遠端入口，也不是舊 demo CSV。
 - 收藏功能應落在 seed 層。Web 會透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續要把收藏提升到正式 seed registry，並保留 dataset uid、title、source URL、版本與來源 pattern 等可追溯欄位。
 - Listing result 已補 `seed_enumeration` 結構化狀態，先處理 blocked / error / empty / warning / within-current-limits / local-limit-reached / bounded-sample 這幾種 UI 分流。它能避免 UI 只從候選數猜測枚舉完整度。
 - 後續 hardening：handler 層仍應補「是否抵達遠端末頁 / 下一頁 token / 遠端總數」等更精確欄位。現在的 `local_limit_reached` 只表示碰到本機 `max_results` 安全上限，不能證明遠端已到末頁。

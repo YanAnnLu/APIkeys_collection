@@ -18,6 +18,8 @@ Last updated: 2026-05-27
 - [x] Web 下載器主按鈕已改為「下載 / 匯入目前資產」，下載器清單每個資產也有「下載 / 匯入」動作。結果列顯示 Submitted、Completed、Imported、Downloads、Plan、SQLite artifacts，讓使用者看到正式 pipeline 的實際輸出。
 - [x] 本輪 live smoke 確認 K/RaiDrive 上直接匯入 SQLite 可能遇到 `database is locked`；同一路徑改用本地 temp/downloads 後成功完成 `download_import_completed`、`submitted=1`、`completed=1`、`imported=1`。後續 GUI/smoke/展示下載匯入仍應用本地 clone 或本機 Downloads/Temp。
 - [x] 已新增 regression：`tests.test_crawler_asset_download` 鎖住 service 會建立 formal resolved plan 並呼叫 download/import pipeline；`tests.test_web_preview` 鎖住 Web endpoint 會呼叫 formal service、記錄 structured event 並回傳 display payload。
+- [x] Web seed 清單已補上 seed-level 正式下載 / 匯入動作：每筆 seed 顯示「下載此 seed」，呼叫 `POST /api/crawler-assets/{asset_id}/seed-download-import`，把目前界域表單值與 `dataset_uid` 交給後端。
+- [x] 後端新增 `build_crawler_seed_download_plan()` / `run_crawler_seed_download_import()`，會驗證 seed 屬於該 crawler asset，從 catalog seed 建立 formal resolved plan，套用同一份 credential gate、bounds、adapter review、download/import pipeline，且不重新打遠端 crawler。
 - [ ] 下一步：把舊 `/api/demo/real-download` 移到 developer/demo-only 區塊或刪除；在這之前它只保留為 regression / 教學過渡，不再作為主按鈕。
 
 ## 2026-05-27 Code health audit / 匯入、crawler fetch、credential 寫入硬化

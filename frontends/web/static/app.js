@@ -269,6 +269,49 @@ async function runCrawlerAssetDownloadImportById(assetId) {
   }
 }
 
+async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
+  if (!assetId || !datasetUid) {
+    addMission("請先選擇 seed", "seed 下載 / 匯入需要一個已枚舉的 dataset_uid。");
+    return;
+  }
+  const asset = assets.find((item) => item.asset_id === assetId);
+  addMission("seed 下載 / 匯入開始", `${asset?.display_name || assetId} / ${datasetUid}`);
+  try {
+    if (selectedAssetId !== assetId) {
+      await selectAsset(assetId, { autoEnumerate: false });
+    }
+    const payload = await postJson(
+      `/api/crawler-assets/${encodeURIComponent(assetId)}/seed-download-import`,
+      {
+        ...currentBoundsFormValues(),
+        dataset_uid: datasetUid,
+      },
+    );
+    crawlerAssetDownloadImportResult = payload;
+    writeJson(payload);
+    if (payload.plan_outcome) {
+      rememberAssetPlanOutcome(assetId, payload.plan_outcome);
+      rememberAssetPlanPassport(assetId, payload.plan_passport);
+    }
+    if (payload.adapter_review) {
+      latestAdapterReview = payload.adapter_review;
+      renderReviewWorkspace();
+    }
+    const downloadImport = payload.download_import || {};
+    if (downloadImport.succeeded) {
+      addMission("seed 下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${datasetUid}`);
+    } else {
+      addMission("seed 下載 / 匯入未完成", payload.next_action || downloadImport.stage || "review required");
+    }
+    renderDownloaderWorkspace();
+    refreshSelectedAssetOutcomeViews();
+    loadRecentEvents({ quiet: true });
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "crawler_seed_download_import", asset_id: assetId, dataset_uid: datasetUid });
+    addMission("seed 下載 / 匯入失敗", String(error));
+  }
+}
+
 function currentBoundsFormValues() {
   const values = {};
   if (!boundsForm) return values;
@@ -1268,6 +1311,7 @@ function seedListPanelHtml(card) {
 
 function seedRowHtml(seed) {
   const uid = seed.favorite_key || seed.dataset_uid || seed.dataset_id || seed.title || "";
+  const downloadUid = seed.dataset_uid || uid;
   const favored = Boolean(seed.favorite) || favoriteSeedUids.has(uid);
   const title = seed.title || seed.dataset_id || uid || "未命名 seed";
   const meta = [seed.native_format, seed.data_type || seed.data_family, seed.version].filter(Boolean).join(" / ");
@@ -1279,6 +1323,9 @@ function seedRowHtml(seed) {
         <span>${escapeHtml(meta || "metadata pending")}</span>
       </div>
       <small>${escapeHtml(seed.dataset_id || uid)}</small>
+      <div class="seed-row-actions">
+        <button type="button" class="secondary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(selectedAssetId || "")}', '${escapeAttr(downloadUid)}')">下載此 seed</button>
+      </div>
     </article>
   `;
 }

@@ -15,14 +15,27 @@ from api_launcher.crawler_asset_profiles import (
 )
 from api_launcher.crawler_assets import load_crawler_asset_source
 from api_launcher.crawler_run_records import crawler_run_record, crawler_run_record_from_result
-from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, crawl_dataset_sources
+from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
+from api_launcher.crawler_seed_registry import crawler_seed_belongs_to_asset
+from api_launcher.crawlers.orchestrator import (
+    DatasetCrawlOptions,
+    DatasetCrawlResult,
+    DatasetSourceCrawlResult,
+    crawl_dataset_sources,
+)
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource, dataset_with_candidate_metadata
+from api_launcher.plans import build_dataset_download_plan, provider_dataset_version_plan_entry
 from api_launcher.repository import ApiCatalogRepository, load_providers
 from api_launcher.source_download import (
+    apply_source_download_bounds,
+    credential_blocked_plan_entry,
+    credential_gate_for_provider,
     SourceDownloadBounds,
     SourceDownloadOptions,
     SourceDownloadPlanBuild,
     build_source_download_plan,
+    selected_version_options,
+    source_candidate_snapshot_signature,
 )
 
 
@@ -600,6 +613,182 @@ def build_crawler_asset_download_plan(
         previous_candidate_snapshot_signature=previous_candidate_snapshot_signature,
         candidate_snapshot_changed=candidate_snapshot_changed,
         next_action=plan_build.crawl_result.next_action,
+    )
+
+
+def build_crawler_seed_download_plan(
+    asset_id: str,
+    dataset_uid: str,
+    conn: sqlite3.Connection,
+    *,
+    bounds_payload: CrawlerAssetBoundPayload | None = None,
+    downloads_root: str | Path = "downloads",
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    timeout: float = 12.0,
+) -> CrawlerAssetDownloadPlanResult:
+    """Build a formal download plan from one enumerated catalog seed.
+
+    Seed rows are already catalog objects.  This path validates that the seed
+    belongs to the selected crawler asset, then reuses the same plan resolver
+    and bounds machinery as the asset-level download lane.  It deliberately
+    avoids a fresh source crawl so a user can act on the visible seed list.
+    """
+
+    asset_key = asset_id.strip()
+    dataset_key = dataset_uid.strip()
+    if not asset_key:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_id,
+            source_found=False,
+            blocked_reason="missing_asset_id",
+            next_action="select_crawler_asset",
+        )
+    if not dataset_key:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=False,
+            blocked_reason="missing_dataset_uid",
+            next_action="select_seed",
+        )
+
+    source = load_crawler_asset_source(asset_key, primary_path, local_path)
+    if source is None:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=False,
+            blocked_reason="source_not_found",
+            next_action="refresh_or_repair_crawler_source_catalog",
+        )
+
+    profile = crawler_asset_profile_for(asset_key, load_crawler_asset_profiles(profile_path))
+    if profile.archived:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=True,
+            blocked_reason="archived",
+            next_action="unarchive_before_downloading_seed",
+        )
+    if not profile.enabled:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=True,
+            blocked_reason="disabled",
+            next_action="enable_before_downloading_seed",
+        )
+
+    repository = ApiCatalogRepository(conn)
+    dataset = repository.get_dataset(dataset_key)
+    if dataset is None or not crawler_seed_belongs_to_asset(dataset, asset_key):
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=True,
+            blocked_reason="seed_not_found_for_asset",
+            next_action="refresh_seed_listing_or_select_another_seed",
+        )
+
+    providers = {provider.provider_id: provider for provider in repository.load_providers([dataset.provider_id])}
+    provider = providers.get(dataset.provider_id)
+    if provider is None:
+        return CrawlerAssetDownloadPlanResult(
+            asset_id=asset_key,
+            source_found=True,
+            blocked_reason="provider_not_found_for_seed",
+            next_action="repair_provider_catalog_before_download",
+        )
+
+    options = source_download_options_from_crawler_asset_payload(
+        bounds_payload,
+        timeout=timeout,
+        max_results=1,
+        full_crawl=False,
+        max_pages=1,
+    )
+    gate = credential_gate_for_provider(provider)
+    version_options = selected_version_options(dataset, options)
+    all_version_options = selected_version_options(
+        dataset,
+        SourceDownloadOptions(bounds=options.bounds, include_all_versions=True),
+    )
+    entries: list[dict[str, object]] = []
+    for option in version_options:
+        entry = provider_dataset_version_plan_entry(provider, dataset, option, downloads_root=downloads_root)
+        entry = apply_source_download_bounds(entry, options.bounds)
+        if not gate.allows_download:
+            entry = credential_blocked_plan_entry(entry, gate)
+        entries.append(entry)
+
+    original_plan = build_dataset_download_plan(entries, plan_name="crawler_seed_download_plan")
+    original_plan["source"] = {
+        "kind": "catalog_seed_download_plan",
+        "asset_id": asset_key,
+        "dataset_uid": dataset.dataset_uid,
+        "dataset_id": dataset.dataset_id,
+        "provider_id": dataset.provider_id,
+        "source_id": source.source_id,
+        "source_type": source.source_type,
+        "candidate_count": 1,
+        "version_policy": {
+            "selected_versions": {key: list(value) for key, value in options.selected_versions.items()},
+            "selected_version_count": len(version_options),
+            "available_version_count": len(all_version_options),
+        },
+        "bounds": options.bounds.to_dict(),
+    }
+    resolved_plan, resolution = resolve_adapter_review_plan_payload(original_plan, downloads_root=downloads_root)
+    seed_candidate = DatasetCandidate(
+        dataset=dataset,
+        source_id=source.source_id,
+        source_type=source.source_type,
+        source_url=source.endpoint_url,
+        confidence=1.0,
+        evidence=("selected_catalog_seed",),
+    )
+    crawl_result = DatasetCrawlResult(
+        candidates=(seed_candidate,),
+        source_results=(
+            DatasetSourceCrawlResult(
+                source_id=source.source_id,
+                provider_id=source.provider_id,
+                source_type=source.source_type,
+                candidate_count=1,
+                unique_candidate_count=1,
+                candidates=(seed_candidate,),
+            ),
+        ),
+    )
+    plan_build = SourceDownloadPlanBuild(
+        crawl_result=crawl_result,
+        candidate_count=1,
+        upserted_candidate_count=0,
+        original_plan=original_plan,
+        resolved_plan=resolved_plan,
+        resolution=resolution,
+        credential_gates=(gate,),
+        selected_version_count=len(version_options),
+        filtered_version_count=max(0, len(all_version_options) - len(version_options)),
+        candidate_snapshot_signature=source_candidate_snapshot_signature((seed_candidate,)),
+        candidate_snapshot_count=1,
+    )
+    previous_candidate_snapshot_signature = str(
+        profile.latest_plan_passport.get("candidate_snapshot_signature") if profile.latest_plan_passport else ""
+    ).strip()
+    current_candidate_snapshot_signature = str(plan_build.candidate_snapshot_signature or "").strip()
+    return CrawlerAssetDownloadPlanResult(
+        asset_id=asset_key,
+        source_found=True,
+        bounds=options.bounds,
+        plan_build=plan_build,
+        source_signature=crawler_asset_source_signature(source),
+        bounds_signature=crawler_asset_bounds_signature(bounds_facets_for_source(source)),
+        previous_candidate_snapshot_signature=previous_candidate_snapshot_signature,
+        candidate_snapshot_changed=bool(
+            previous_candidate_snapshot_signature
+            and current_candidate_snapshot_signature
+            and previous_candidate_snapshot_signature != current_candidate_snapshot_signature
+        ),
+        next_action="download_selected_seed" if version_options else "adjust_version_selection_for_seed",
     )
 
 

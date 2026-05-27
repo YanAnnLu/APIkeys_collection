@@ -1,4 +1,10 @@
 ﻿# Agent 接力卡
+## 2026-05-27 17:44 Seed-level Web download/import path
+- 本輪在已完成的 crawler asset formal download/import 基礎上，補上 seed row 層級的正式下載 / 匯入路徑。Web seed 清單現在會在每筆 seed 顯示「下載此 seed」，呼叫 `POST /api/crawler-assets/{asset_id}/seed-download-import`，把目前動態界域表單值與 `dataset_uid` 交給後端。
+- 後端新增 `build_crawler_seed_download_plan()` 與 `run_crawler_seed_download_import()`：它會驗證 seed 是否屬於該 crawler asset，從 catalog seed 直接建立 formal resolved plan，套用同一份 credential gate、bounds、adapter review、download/import pipeline，且不重新打遠端 crawler。這讓使用者可以從已枚舉的可見 seed 直接進入正式下載 / 匯入。
+- Web Preview 預設輸出路徑會落在本機下載資料夾的 `RuRuKa Asset Launcher Web Preview\<asset_id>\<seed>`，並寫出 `resolved_seed_download_plan.json` 與 `curated_sources.db`；這延續 K/RaiDrive live SQLite import 可能 lock 的教訓，不把展示或驗收用 SQLite 預設壓在 K 槽雲端同步路徑。
+- 已驗證：`py -B -m unittest tests.test_crawler_asset_download tests.test_web_preview`，35 tests OK；`py -B -m unittest tests.test_crawler_asset_download tests.test_web_preview tests.test_crawler_assets tests.test_crawler_seed_registry`，84 tests OK；`py -B -m py_compile api_launcher\crawler_asset_service.py api_launcher\crawler_asset_download.py frontends\web\preview_api.py frontends\web\server.py` OK；`node --check frontends\web\static\app.js` OK；docs mojibake scan OK；`git diff --check` 無 whitespace error（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 766 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步仍需 commit / push 與 CI watch。
+
 ## 2026-05-27 16:25 Formal crawler asset download/import Web path
 - 本輪把 Web Preview 下載器主 CTA 從過渡用「執行真下載示範」改成正式的「下載 / 匯入目前資產」，路由為 `POST /api/crawler-assets/{asset_id}/download-import`。它會從選取的 crawler asset 與動態界域表單建立 resolved plan，執行 direct download/import pipeline，並把 `plan_outcome`、`plan_passport`、`adapter_review`、`download_import` 與 artifacts 回傳給 Web。
 - 新增 `api_launcher/crawler_asset_download.py` 作為正式 service：`asset + bounds -> resolved plan -> direct downloads -> import`。Web 只呼叫這個 service，不再把 demo CSV 當作主下載心流。舊 `/api/demo/real-download` 與 `api_launcher/web_real_download_demo.py` 暫時保留給 regression / developer demo，後續全 crawler source 更穩後再移到 developer-only 或刪除。

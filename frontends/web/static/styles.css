@@ -1470,7 +1470,7 @@ p {
 
 .seed-row {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) minmax(80px, 170px);
+  grid-template-columns: 32px minmax(0, 1fr) minmax(80px, 170px) auto;
   gap: 10px;
   align-items: center;
   padding: 10px;
@@ -1507,6 +1507,11 @@ p {
   background: rgba(255, 255, 255, 0.04);
   color: var(--yellow);
   cursor: pointer;
+}
+
+.seed-row-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .seed-list-actions {

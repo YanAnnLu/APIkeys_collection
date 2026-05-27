@@ -131,6 +131,7 @@ http://127.0.0.1:8765/
 - 憑證 UI 的主語言改用「登入」心智：缺登入 / API Key 的來源會先阻擋建立下載計畫，提供「開啟官方登入 / 申請 API Key」、三步驟說明、貼上欄位與「記住我的帳號」勾選。勾選代表保存到本機設定檔，下次開啟仍可使用；取消勾選代表只在目前 Web Preview 進程有效。`.env` 是進階/技術說明，不應作為主按鈕文案。
 - Seed 枚舉已成為入口選取的預設行為：Web 會呼叫後端 listing service 嘗試列出入口 seed，並透過 `/api/crawler-assets/{asset_id}/seeds` 從本機 catalog 分頁讀回顯示資料。右側清單只顯示目前視窗，不把大量 seed 一次塞進 DOM。
 - Seed 收藏目前是 seed-level profile-backed prototype：星號會呼叫 localhost API，後端寫入 crawler asset profile 的 `favorite_seed_uids`。這不是正式跨裝置同步，也不是收藏入口；後續要收斂到正式 seed registry。
+- Seed row 的「下載此 seed」是 Web Preview 目前最小的正式 seed-level download/import UX：它呼叫 `/api/crawler-assets/{asset_id}/seed-download-import`，後端用 catalog seed 建立 plan 並交給正式 pipeline。Web 只傳入 `dataset_uid` 與目前表單值，不自行判斷可下載性、憑證、adapter review 或 import policy。
 - Seed 面板現在會呈現 `seed_enumeration.label/help`，並在本機枚舉上限被打滿時顯示 `seed-limit-badge`。這是 UX 防呆：候選數達到 1000 不代表入口只有 1000 筆，而是這次枚舉到達本機安全上限。
 
 ## 下一步

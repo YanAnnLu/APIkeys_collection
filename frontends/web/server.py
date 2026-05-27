@@ -21,6 +21,7 @@ from frontends.web.preview_api import (
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
+    crawler_seed_download_import,
     crawler_handler_smoke_diagnostics,
     save_crawler_asset_credentials,
     save_crawler_asset_seed_favorite,
@@ -105,6 +106,10 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 if suffix == "/download-import":
                     values = self.read_json_body()
                     self.write_json(crawler_asset_download_import(asset_id, values))
+                    return
+                if suffix == "/seed-download-import":
+                    values = self.read_json_body()
+                    self.write_json(crawler_seed_download_import(asset_id, values))
                     return
                 if suffix == "/credentials":
                     values = self.read_json_body()
