@@ -35,6 +35,7 @@ Last updated: 2026-05-27
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
 - [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
+- [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。這不是立即 asyncio 重寫理由；下一步應先設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
@@ -67,7 +68,8 @@ Last updated: 2026-05-27
 - [x] CLI 已接上同一份 seed 分頁查詢入口：`--crawler-asset-seeds ASSET_ID --crawler-asset-seeds-json` 會從本機 catalog 讀取已枚舉 seed page，並可用 `--crawler-asset-seed-page` / `--crawler-asset-seed-page-size` 展開下一批；阻擋狀態與 page summary 皆為 agent-readable JSON。
 - [x] Tk 爬蟲資產分頁已接上同一份 seed 分頁查詢入口：右側 Crawler Passport 新增「Seed 清單」區塊與「查看 Seed 清單 / 顯示更多 Seed」動作，重用 `crawler_seed_page()` 讀本機 catalog 的 `[0..49]`、`[50..99]` 視窗，並顯示收藏星號、remaining 與下一頁提示；不重新 live crawl。
 - [x] Tk 爬蟲資產分頁已接上 listing event 裡的 `seed_enumeration` / `remote_pagination` 摘要：選取 crawler asset 或讀取 seed page 時，右側 Seed 清單會顯示遠端是否仍有下一頁線索、是否已列完，或 handler 尚未回報遠端完整度；raw pagination token 不進 UI。Web Preview 的 compact listing payload 也已保留同一份摘要，避免 reload 後 seed bar 退回純 counts。
-- [ ] 下一步：規劃 Tk seed row 選取後的 seed-level 下載 / 收藏切換 UX，避免 Tk 只停在側欄文字摘要。
+- [x] Tk 爬蟲資產分頁已補 seed row 操作表格：右側 Crawler Passport 可開「Seed 表格 / 下載」，選取 seed 後可切換 seed 收藏，或呼叫同一條 `run_crawler_seed_download_import()` formal service 下載 / 匯入該 seed。Tk dialog 只回傳 action payload，不直接操作 profile、下載器或 importer；下載輸出預設走本機 Downloads 產品資料夾，避免把 live SQLite import 壓在 K 槽。
+- [ ] 下一步：把缺登入 / API Key 的 credential setup guard 與「記住我的帳號」流程接回 Tk seed / crawler asset download path，避免 Tk 下載 seed 時只在 service 失敗後才看到憑證問題。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。

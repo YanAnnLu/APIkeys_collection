@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -21,6 +22,11 @@ from api_launcher.bound_form import build_bound_form_spec, source_download_bound
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.crawler_asset_seed_dialog import (
+    CrawlerAssetSeedDialog,
+    crawler_seed_dialog_row_values,
+    crawler_seed_dialog_rows,
+)
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
@@ -102,6 +108,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(DatabaseClientSettingsDialog))
         self.assertTrue(callable(CrawlerAssetBoundDialog))
         self.assertTrue(callable(CrawlerAssetProfileDialog))
+        self.assertTrue(callable(CrawlerAssetSeedDialog))
         self.assertTrue(callable(SourcePatternDraftDialog))
         self.assertTrue(callable(DataStoreConnectionSettingsDialog))
         self.assertTrue(callable(DatasetBoundFormDialog))
@@ -690,6 +697,159 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(seed_page_values)
         self.assertTrue(status_values)
         self.assertIn("已到最後一頁", status_values[-1])
+
+    def test_crawler_asset_seed_dialog_rows_are_ui_only_projection(self) -> None:
+        payload = {
+            "seeds": [
+                {
+                    "dataset_uid": "demo_provider:seed_1",
+                    "dataset_id": "seed_1",
+                    "title": "Seed 1",
+                    "native_format": "csv",
+                    "version": "2026",
+                    "candidate_status": "new",
+                    "favorite": True,
+                },
+                "bad-row",
+            ]
+        }
+
+        rows = crawler_seed_dialog_rows(payload)
+        values = crawler_seed_dialog_row_values(rows[0])
+
+        self.assertEqual(1, len(rows))
+        self.assertEqual(("★", "Seed 1", "csv", "2026", "demo_provider:seed_1", "new"), values)
+
+    def test_open_selected_crawler_asset_seed_dialog_routes_favorite_action(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = {
+            "asset_id": "demo_index",
+            "page": 2,
+            "total": 1,
+            "seeds": [{"dataset_uid": "demo_provider:seed_1", "title": "Seed 1", "favorite": False}],
+        }
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.tr = lambda zh, _en: zh
+        ui.root = object()
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_seed_pages = {"demo_index": payload}
+        reloaded: list[tuple[str, int]] = []
+        ui.load_crawler_asset_seed_page = lambda selected_asset, page=1: reloaded.append((selected_asset.asset_id, page))
+
+        with (
+            patch(
+                "frontends.tk.crawler_asset_workflows.CrawlerAssetSeedDialog",
+                return_value=SimpleNamespace(result={"action": "favorite", "dataset_uid": "demo_provider:seed_1", "favorite": True}),
+            ),
+            patch("frontends.tk.crawler_asset_workflows.save_crawler_seed_favorite", return_value={"asset_id": "demo_index"}) as save,
+            patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+        ):
+            CrawlerAssetWorkflowMixin.open_selected_crawler_asset_seed_dialog(ui)
+
+        save.assert_called_once_with(asset_id="demo_index", dataset_uid="demo_provider:seed_1", favorite=True)
+        event_log.assert_called_once()
+        self.assertEqual([("demo_index", 2)], reloaded)
+        self.assertIn("Seed 收藏已加入", ui.status_var.value)
+
+    def test_run_crawler_asset_seed_download_import_starts_background_worker(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = CrawlerAssetBoundPayload(asset_id="demo_index", facet_values={"limit": 5})
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_bound_payloads = {"demo_index": payload.to_dict()}
+        thread_call = SimpleNamespace(target=None, args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.target = target
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread):
+            CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
+                ui,
+                asset,
+                dataset_uid="demo_provider:seed_1",
+            )
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual("demo_index", thread_call.args[0])
+        self.assertEqual("demo_provider:seed_1", thread_call.args[1])
+        self.assertIsInstance(thread_call.args[2], CrawlerAssetBoundPayload)
+        self.assertEqual({"limit": 5}, thread_call.args[2].facet_values)
+        self.assertIn("Downloading / importing seed", ui.status_var.value)
+
+    def test_seed_download_import_worker_uses_formal_service_and_local_download_root(self) -> None:
+        fake_pipeline = SimpleNamespace(
+            stage="download_import_completed",
+            succeeded=True,
+            next_action="",
+            to_dict=lambda: {"stage": "download_import_completed", "succeeded": True},
+        )
+        fake_result = SimpleNamespace(
+            asset_id="demo_index",
+            dataset_uid="demo_provider:seed_1",
+            pipeline=fake_pipeline,
+            succeeded=True,
+            to_dict=lambda: {
+                "asset_id": "demo_index",
+                "dataset_uid": "demo_provider:seed_1",
+                "stage": "download_import_completed",
+                "succeeded": True,
+                "artifacts": {
+                    "downloads_root": "downloads-root",
+                    "curated_sqlite": "downloads-root/curated_sources.db",
+                },
+            },
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+        ui._connect = lambda: SimpleNamespace(commit=lambda: None, close=lambda: None)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = Path(tmp)
+            with (
+                patch("frontends.tk.crawler_asset_workflows.default_local_downloads_root", return_value=tmp_root / "downloads"),
+                patch("frontends.tk.crawler_asset_workflows.state_file", return_value=tmp_root / "plans" / "seed.resolved.json"),
+                patch("frontends.tk.crawler_asset_workflows.ApiCatalogRepository", return_value="repository") as repository_class,
+                patch("frontends.tk.crawler_asset_workflows.run_crawler_seed_download_import", return_value=fake_result) as run_service,
+                patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+                patch("frontends.tk.crawler_asset_workflows.messagebox.showinfo") as showinfo,
+            ):
+                CrawlerAssetWorkflowMixin._crawler_asset_seed_download_import_worker(
+                    ui,
+                    "demo_index",
+                    "demo_provider:seed_1",
+                    None,
+                )
+
+        repository_class.assert_called_once()
+        run_service.assert_called_once()
+        self.assertIn("downloads", str(run_service.call_args.args[3]))
+        self.assertEqual("crawler_seed_download_import_completed", event_log.call_args.args[0])
+        showinfo.assert_called_once()
+        self.assertIn("Seed 下載 / 匯入完成", ui.status_var.value)
 
     def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
         payload = {

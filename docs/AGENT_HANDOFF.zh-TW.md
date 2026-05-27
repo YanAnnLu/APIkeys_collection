@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-27 21:38 Tk seed row action handoff
+- 本輪把 Tk「爬蟲資產」分頁從側欄 seed 摘要推進到可操作 seed row：右側 Crawler Passport 新增「開 Seed 表格 / 下載」，會開 `frontends/tk/crawler_asset_seed_dialog.py` 的表格 dialog。Dialog 只顯示目前已載入的本機 catalog seed page，回傳 `favorite` / `download` action，不直接改 profile、下載檔案或匯入資料。
+- 收藏動作走共用 `api_launcher.crawler_seed_registry.save_crawler_seed_favorite()`，下載動作走正式 `api_launcher.crawler_asset_download.run_crawler_seed_download_import()`。Tk worker 會把輸出放到 OS Downloads 底下的 `RuRuKa Asset Launcher/downloads/crawler_assets/<asset>/<seed>`，並寫出 seed resolved plan / `curated_sources.db`；避免把 live SQLite import 預設壓在 K 槽雲端同步路徑。
+- 本地驗證已通過：read/compile（不寫 pyc）OK；`py -B -m unittest tests.test_tk_dialogs -v` 52 tests OK；`py -B -m unittest tests.test_tk_dialogs tests.test_crawler_seed_registry tests.test_crawler_asset_download tests.test_web_preview -v` 103 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，792 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260527_214126.log`。下一步 commit/push/watch CI。
+
 ## 2026-05-27 21:05 Tk/Web seed enumeration confidence handoff
 - 本輪把 listing event 內的 `seed_enumeration` / `remote_pagination` 也接到 Tk「爬蟲資產」分頁。Tk 開啟時會從 `crawler_asset_listing_recorded` structured event 恢復最近一次 seed 枚舉狀態；選取 crawler asset 時，右側「Seed 清單」會在本機 seed page 摘要之外，顯示「遠端還有下一頁線索 / 遠端已列完 / handler 尚未回報遠端完整度」這類可讀提示，且不暴露 raw pagination token。
 - Web Preview 的 recent listing compact payload 也補回 `seed_enumeration` 與 `remote_pagination`，避免頁面重載後 seed bar 只剩 counts、失去後端完整度提示。這是 UI contract 修補，不重新 live crawl，也不改 download/import 行為。

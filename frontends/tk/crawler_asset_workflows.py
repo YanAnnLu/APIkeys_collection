@@ -16,6 +16,7 @@ from api_launcher.crawler_asset_profiles import (
 )
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
+from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
     adapter_review_display_payload,
@@ -28,16 +29,17 @@ from api_launcher.crawler_asset_service import (
     run_crawler_asset_listing,
 )
 from api_launcher.crawler_run_records import crawler_run_record_from_result
-from api_launcher.crawler_seed_registry import crawler_seed_page
+from api_launcher.crawler_seed_registry import crawler_seed_page, save_crawler_seed_favorite
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
-from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
+from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
@@ -166,6 +168,12 @@ class CrawlerAssetWorkflowMixin:
             text=self.tr("查看 Seed 清單", "View seeds"),
             style="Action.TButton",
             command=self.load_selected_crawler_asset_seed_page,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
+        ttk.Button(
+            detail,
+            text=self.tr("開 Seed 表格 / 下載", "Open seed table / download"),
+            style="Action.TButton",
+            command=self.open_selected_crawler_asset_seed_dialog,
         ).pack(anchor="w", padx=14, pady=(8, 0))
         ttk.Button(
             detail,
@@ -601,6 +609,205 @@ class CrawlerAssetWorkflowMixin:
         if hasattr(self, "crawler_asset_seed_page_var"):
             self.crawler_asset_seed_page_var.set(crawler_asset_seed_page_preview_text(payload, self.tr))
         self.status_var.set(crawler_asset_seed_page_status_text(payload, self.tr))
+
+    def open_selected_crawler_asset_seed_dialog(self) -> None:
+        """Open the loaded seed page as an actionable seed table."""
+
+        asset = self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return
+        payload = getattr(self, "crawler_asset_seed_pages", {}).get(asset.asset_id)
+        if not isinstance(payload, dict):
+            self.load_crawler_asset_seed_page(asset, page=1)
+            payload = getattr(self, "crawler_asset_seed_pages", {}).get(asset.asset_id)
+        if not isinstance(payload, dict):
+            self.status_var.set(self.tr("尚未取得 seed 清單；請先執行清單擷取。", "No seed list is available yet; run listing first."))
+            return
+        dialog = CrawlerAssetSeedDialog(getattr(self, "root", None), payload, self.tr)
+        if not isinstance(dialog.result, dict):
+            return
+        action = str(dialog.result.get("action") or "").strip()
+        dataset_uid = str(dialog.result.get("dataset_uid") or "").strip()
+        if action == "favorite":
+            self.toggle_crawler_asset_seed_favorite(
+                asset,
+                dataset_uid=dataset_uid,
+                favorite=bool(dialog.result.get("favorite")),
+                current_payload=payload,
+            )
+        elif action == "download":
+            self.run_crawler_asset_seed_download_import_from_ui(asset, dataset_uid=dataset_uid)
+
+    def toggle_crawler_asset_seed_favorite(
+        self,
+        asset: CrawlerAsset,
+        *,
+        dataset_uid: str,
+        favorite: bool,
+        current_payload: object | None = None,
+    ) -> None:
+        """Persist seed-level favorite state, then refresh the same local page."""
+
+        if not dataset_uid:
+            self.status_var.set(self.tr("這筆 seed 缺少可用 ID，無法收藏。", "This seed has no usable ID to favorite."))
+            return
+        try:
+            result = save_crawler_seed_favorite(asset_id=asset.asset_id, dataset_uid=dataset_uid, favorite=favorite)
+            log_event(
+                "crawler_seed_favorite_saved",
+                "Tk crawler asset workflow saved a seed-level favorite.",
+                component="ui.crawler_assets",
+                context=result,
+            )
+        except Exception as exc:  # pragma: no cover - Tk surface guard
+            log_exception("crawler_seed_favorite_failed", exc, component="ui.crawler_assets", context={"asset_id": asset.asset_id, "dataset_uid": dataset_uid})
+            messagebox.showerror(self.tr("Seed 收藏失敗", "Seed favorite failed"), str(exc), parent=getattr(self, "root", None))
+            return
+        page = 1
+        if isinstance(current_payload, dict):
+            try:
+                page = int(current_payload.get("page") or 1)
+            except (TypeError, ValueError):
+                page = 1
+        self.load_crawler_asset_seed_page(asset, page=page)
+        self.status_var.set(
+            self.tr(
+                f"Seed 收藏已{'加入' if favorite else '取消'}：{dataset_uid}",
+                f"Seed favorite {'saved' if favorite else 'removed'}: {dataset_uid}",
+            )
+        )
+
+    def run_crawler_asset_seed_download_import_from_ui(self, asset: CrawlerAsset, *, dataset_uid: str) -> None:
+        """Run formal seed download/import for one selected seed row."""
+
+        if not dataset_uid:
+            self.status_var.set(self.tr("這筆 seed 缺少可用 ID，無法下載。", "This seed has no usable ID to download."))
+            return
+        if asset.archived:
+            self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再下載 seed。", "This crawler is archived; unarchive it before downloading a seed."))
+            return
+        bounds_payload = self.crawler_asset_bound_payload_for_asset(asset.asset_id)
+        self.status_var.set(
+            self.tr(
+                f"正在下載 / 匯入 seed：{dataset_uid}",
+                f"Downloading / importing seed: {dataset_uid}",
+            )
+        )
+        threading.Thread(
+            target=self._crawler_asset_seed_download_import_worker,
+            args=(asset.asset_id, dataset_uid, bounds_payload),
+            daemon=True,
+        ).start()
+
+    def crawler_asset_bound_payload_for_asset(self, asset_id: str) -> CrawlerAssetBoundPayload | None:
+        """Return the latest bounds payload captured by the Tk bounds dialog."""
+
+        payloads = getattr(self, "crawler_asset_bound_payloads", {})
+        payload = payloads.get(asset_id) if isinstance(payloads, dict) else None
+        if isinstance(payload, CrawlerAssetBoundPayload):
+            return payload
+        if not isinstance(payload, dict):
+            return None
+        facet_values = payload.get("facet_values") if isinstance(payload.get("facet_values"), dict) else {}
+        field_values = payload.get("field_values") if isinstance(payload.get("field_values"), dict) else {}
+        maps_to_values = payload.get("maps_to_values") if isinstance(payload.get("maps_to_values"), dict) else {}
+        warning_codes = payload.get("warning_codes") if isinstance(payload.get("warning_codes"), list) else ()
+        return CrawlerAssetBoundPayload(
+            asset_id=str(payload.get("asset_id") or asset_id),
+            facet_values=dict(facet_values),
+            field_values=dict(field_values),
+            maps_to_values=dict(maps_to_values),
+            warning_codes=tuple(str(code) for code in warning_codes),
+        )
+
+    def _crawler_asset_seed_download_import_worker(
+        self,
+        asset_id: str,
+        dataset_uid: str,
+        bounds_payload: CrawlerAssetBoundPayload | None,
+    ) -> None:
+        """Background worker for one seed row's formal download/import path."""
+
+        try:
+            safe_asset = safe_path_part(asset_id)[:96]
+            safe_seed = safe_path_part(dataset_uid)[:96]
+            downloads_root = default_local_downloads_root() / "crawler_assets" / safe_asset / safe_seed
+            plan_path = state_file(f"crawler_asset_seed_plans/{safe_asset}.{safe_seed}.resolved.json")
+            conn = self._connect()
+            try:
+                repository = ApiCatalogRepository(conn)
+                result = run_crawler_seed_download_import(
+                    asset_id,
+                    dataset_uid,
+                    repository,
+                    downloads_root,
+                    bounds_payload=bounds_payload,
+                    import_sqlite_path=downloads_root / "curated_sources.db",
+                    plan_path=plan_path,
+                    timeout=8.0,
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:
+            log_exception(
+                "crawler_seed_download_import_failed",
+                exc,
+                component="ui.crawler_assets",
+                context={"asset_id": asset_id, "dataset_uid": dataset_uid},
+            )
+            self.root.after(0, lambda: messagebox.showerror(self.tr("Seed 下載 / 匯入失敗", "Seed download/import failed"), str(exc), parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"Seed 下載 / 匯入失敗：{exc}", f"Seed download/import failed: {exc}")))
+            return
+
+        log_event(
+            "crawler_seed_download_import_completed",
+            "Tk crawler asset workflow ran the formal seed download/import path.",
+            component="ui.crawler_assets",
+            context={
+                "asset_id": asset_id,
+                "dataset_uid": dataset_uid,
+                "stage": result.pipeline.stage,
+                "succeeded": result.succeeded,
+                "download_import": result.pipeline.to_dict(),
+                "artifacts": result.to_dict().get("artifacts", {}),
+            },
+        )
+        self.root.after(0, lambda: self._finish_crawler_asset_seed_download_import(result))
+
+    def _finish_crawler_asset_seed_download_import(self, result: object) -> None:
+        raw_payload = result.to_dict() if hasattr(result, "to_dict") else {}
+        payload = raw_payload if isinstance(raw_payload, dict) else {}
+        stage = str(payload.get("stage") or getattr(getattr(result, "pipeline", None), "stage", "") or "-")
+        succeeded = bool(payload.get("succeeded") if "succeeded" in payload else getattr(result, "succeeded", False))
+        artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
+        downloads_root = str(artifacts.get("downloads_root") or "")
+        curated_sqlite = str(artifacts.get("curated_sqlite") or "")
+        dataset_uid = str(payload.get("dataset_uid") or "").strip()
+        next_action = str(payload.get("next_action") or "").strip()
+        message = self.tr(
+            (
+                f"Seed：{dataset_uid or '-'}\n"
+                f"Stage：{stage}\n"
+                f"Downloads：{downloads_root or '-'}\n"
+                f"SQLite：{curated_sqlite or '-'}\n"
+                f"下一步：{next_action or '-'}"
+            ),
+            (
+                f"Seed: {dataset_uid or '-'}\n"
+                f"Stage: {stage}\n"
+                f"Downloads: {downloads_root or '-'}\n"
+                f"SQLite: {curated_sqlite or '-'}\n"
+                f"Next: {next_action or '-'}"
+            ),
+        )
+        if succeeded:
+            self.status_var.set(self.tr(f"Seed 下載 / 匯入完成：{dataset_uid or '-'}", f"Seed download/import completed: {dataset_uid or '-'}"))
+            messagebox.showinfo(self.tr("Seed 下載 / 匯入完成", "Seed download/import completed"), message, parent=getattr(self, "root", None))
+        else:
+            self.status_var.set(self.tr(f"Seed 下載 / 匯入未完成：{stage}", f"Seed download/import did not complete: {stage}"))
+            messagebox.showwarning(self.tr("Seed 下載 / 匯入未完成", "Seed download/import incomplete"), message, parent=getattr(self, "root", None))
 
     def run_selected_crawler_asset_metadata(self) -> None:
         asset = self.selected_crawler_asset()
