@@ -772,17 +772,22 @@ function renderPassport(card, asset) {
 
 function credentialBadgeHtml(asset) {
   const credentials = asset.credentials || {};
-  const label = credentials.display_label || "";
+  const profile = credentialDisplayProfile(credentials);
+  const label = credentials.display_badge_label || profile.badge_label || credentials.display_label || "";
   if (!label || credentials.status === "public_no_credentials") {
     return "";
   }
   const tone = toneClass(credentials.display_tone);
-  return `<span class="credential-badge ${tone}" title="${escapeAttr(credentials.next_action || label)}">${escapeHtml(label)}</span>`;
+  const title = profile.next_action_label || credentials.next_action_label || credentials.next_action || label;
+  return `<span class="credential-badge ${tone}" title="${escapeAttr(title)}">${escapeHtml(label)}</span>`;
 }
 
 function credentialPanelHtml(credentials = {}, assetId = "") {
   const fields = credentials.fields || [];
+  const profile = credentialDisplayProfile(credentials);
   const tone = toneClass(credentials.display_tone);
+  const panelLabel = profile.label || credentials.display_label || "登入狀態";
+  const panelSummary = credentials.display_summary_zh_TW || profile.summary_zh_TW || credentials.safety_note_zh_TW || "登入資訊只留在這台電腦，不會寫進事件紀錄。";
   const entryLink = credentials.credential_entry_url
     ? `<a class="credential-entry-link" href="${escapeAttr(credentials.credential_entry_url)}" target="_blank" rel="noreferrer">${escapeHtml(credentials.credential_entry_label || "開啟官方登入 / 申請 API Key")}</a>`
     : "";
@@ -806,11 +811,11 @@ function credentialPanelHtml(credentials = {}, assetId = "") {
       <div class="credential-panel-head">
         <div>
           <span class="eyebrow">登入設定</span>
-          <strong>${escapeHtml(credentials.display_label || "登入狀態")}</strong>
+          <strong>${escapeHtml(panelLabel)}</strong>
         </div>
         <button type="button" class="secondary-button small" onclick="openCredentialEditorById('${escapeAttr(assetId)}')">編輯</button>
       </div>
-      <p>${escapeHtml(credentials.safety_note_zh_TW || "登入資訊只留在這台電腦，不會寫進事件紀錄。")}</p>
+      <p>${escapeHtml(panelSummary)}</p>
       <div class="credential-links">
         ${entryLink}
         ${docsLink}
@@ -822,18 +827,27 @@ function credentialPanelHtml(credentials = {}, assetId = "") {
   `;
 }
 
+function credentialDisplayProfile(credentials = {}) {
+  return credentials.display_profile && typeof credentials.display_profile === "object"
+    ? credentials.display_profile
+    : {};
+}
+
 function credentialBlocksLivePlan(credentials = {}) {
   return ["missing_credentials", "partial_credentials", "credential_profile_required"].includes(credentials.status || "");
 }
 
 function credentialGuardBanner(credentials = {}, assetId = "") {
   if (!credentialBlocksLivePlan(credentials)) return null;
+  const profile = credentialDisplayProfile(credentials);
+  const label = profile.label || credentials.display_label || "需要登入 / API Key";
+  const summary = credentials.display_summary_zh_TW || profile.summary_zh_TW || credentials.safety_note_zh_TW || "這個來源需要先完成登入設定；像登入 Email 一樣，先到官方入口取得金鑰，再回到這裡貼上。";
   const panel = document.createElement("section");
   panel.className = `credential-guard-banner ${toneClass(credentials.display_tone)}`;
   panel.innerHTML = `
     <div>
-      <strong>${escapeHtml(credentials.display_label || "需要登入 / API Key")}</strong>
-      <p>${escapeHtml(credentials.safety_note_zh_TW || "這個來源需要先完成登入設定；像登入 Email 一樣，先到官方入口取得金鑰，再回到這裡貼上。")}</p>
+      <strong>${escapeHtml(label)}</strong>
+      <p>${escapeHtml(summary)}</p>
     </div>
     <div class="credential-guard-actions">
       ${credentials.credential_entry_url ? `<a class="secondary-button small" href="${escapeAttr(credentials.credential_entry_url)}" target="_blank" rel="noreferrer">${escapeHtml(credentials.credential_entry_label || "開啟官方登入 / 申請 API Key")}</a>` : ""}

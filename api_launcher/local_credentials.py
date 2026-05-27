@@ -67,6 +67,8 @@ class CredentialDisplayProfile:
     summary_zh_TW: str
     summary_en: str
     next_action: str
+    next_action_label_zh_TW: str
+    next_action_label_en: str
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -77,6 +79,9 @@ class CredentialDisplayProfile:
             "summary_zh_TW": self.summary_zh_TW,
             "summary_en": self.summary_en,
             "next_action": self.next_action,
+            "next_action_label": self.next_action_label_zh_TW,
+            "next_action_label_zh_TW": self.next_action_label_zh_TW,
+            "next_action_label_en": self.next_action_label_en,
         }
 
 
@@ -328,6 +333,24 @@ def credential_next_action(status: str) -> str:
     return "continue_to_bounds_or_download_plan"
 
 
+def credential_next_action_label(next_action: str) -> tuple[str, str]:
+    labels = {
+        "edit_local_credentials_before_live_download": (
+            "先完成登入設定，再下載資料",
+            "Complete login settings before downloading live data",
+        ),
+        "optional_edit_local_credentials": (
+            "可先登入以提高額度或解鎖進階 API",
+            "Optionally sign in to raise limits or unlock advanced APIs",
+        ),
+        "continue_to_bounds_or_download_plan": (
+            "可繼續設定界域或建立下載計畫",
+            "Continue to bounds setup or build a download plan",
+        ),
+    }
+    return labels.get(next_action, (next_action, next_action))
+
+
 def credential_display_profile(
     *,
     status: str,
@@ -340,6 +363,7 @@ def credential_display_profile(
 
     label = credential_status_label(status)
     tone = credential_status_tone(status)
+    next_action_zh, next_action_en = credential_next_action_label(next_action)
     missing_text = ", ".join(str(item) for item in missing_required if str(item).strip())
     if field_count:
         badge_label = f"{label} {configured_count}/{field_count}"
@@ -353,8 +377,8 @@ def credential_display_profile(
         summary_zh = f"{summary_zh}；缺少 {missing_text}"
         summary_en = f"{summary_en}; missing {missing_text}"
     if next_action:
-        summary_zh = f"{summary_zh}；下一步：{next_action}"
-        summary_en = f"{summary_en}; next: {next_action}"
+        summary_zh = f"{summary_zh}；下一步：{next_action_zh}"
+        summary_en = f"{summary_en}; next: {next_action_en}"
     return CredentialDisplayProfile(
         status=status,
         label=label,
@@ -363,6 +387,8 @@ def credential_display_profile(
         summary_zh_TW=summary_zh,
         summary_en=summary_en,
         next_action=next_action,
+        next_action_label_zh_TW=next_action_zh,
+        next_action_label_en=next_action_en,
     )
 
 
@@ -530,6 +556,7 @@ __all__ = [
     "crawler_asset_credential_status",
     "credential_display_profile",
     "credential_env_vars_for_asset",
+    "credential_next_action_label",
     "credential_status_blocks_download",
     "local_env_path",
     "provider_for_id",

@@ -23,7 +23,9 @@ class LocalCredentialsTest(unittest.TestCase):
         self.assertEqual("需要登入 / API Key 1/2", payload["badge_label"])
         self.assertEqual("warning", payload["tone"])
         self.assertIn("NASA_TOKEN", payload["summary_zh_TW"])
-        self.assertIn("edit_local_credentials_before_live_download", payload["summary_en"])
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label_zh_TW"])
+        self.assertIn("Complete login settings", payload["summary_en"])
 
     def test_write_env_updates_keeps_existing_file_if_replace_fails(self) -> None:
         with TemporaryDirectory() as tmp:

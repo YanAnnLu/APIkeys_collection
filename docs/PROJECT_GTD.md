@@ -81,7 +81,8 @@ Last updated: 2026-05-28
 - [x] 同一份 `local_credentials` service 已做成 Tk 內的正式「登入設定 / 記住我的帳號」編輯 dialog。Crawler Passport 可直接打開本機登入設定；缺登入 / API Key 的 seed 下載 guard 也會先開這個 dialog。Tk 只收集欄位 payload，保存仍交給 `update_crawler_asset_credentials()`；事件紀錄只保存 status、counts 與 field names，不保存明文 token。
 - [x] Tk crawler asset 表格已新增「登入」欄，右側 Crawler Passport 也會顯示後端 credential display payload 的 label、設定數、缺少欄位與 next action；儲存登入設定後只刷新該 asset row，不重新載入整張表。這讓使用者不用等到 seed 下載才知道該入口是否需要登入 / API Key。
 - [x] Credential display payload 已正式收斂成 `api_launcher.local_credentials.CredentialDisplayProfile`。`crawler_asset_credential_status()` 會輸出 `display_profile`、`display_badge_label`、`display_summary_zh_TW` 與 `display_summary_en`；Tk helper 只優先呈現後端 payload，Web detail payload 也用測試鎖住這份 contract，避免 Tk/Web/未來 Qt 各自組 credential 狀態文案。
-- [ ] 下一步：把 Web/Tk 的 credential 顯示區逐步改成直接吃 `display_profile` 的完整欄位，並把下一步 action 轉成更人類可讀的 display label，而不是直接露出 machine-readable `next_action` 字串。
+- [x] Credential next action 已補成人類可讀 display label。`CredentialDisplayProfile` 現在帶 `next_action_label` / `next_action_label_zh_TW` / `next_action_label_en`；Web Preview 的 credential badge、panel 與 guard banner 會優先讀後端 `display_profile` / `display_summary_zh_TW`，不再把 `edit_local_credentials_before_live_download` 顯示給一般使用者。
+- [ ] 下一步：把 Tk credential dialog / guard message 也改成優先顯示 `next_action_label_zh_TW`，並保留 raw `next_action` 只給 debug、event 或 JSON inspector。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。
