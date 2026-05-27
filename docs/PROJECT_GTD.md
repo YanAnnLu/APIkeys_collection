@@ -78,7 +78,8 @@ Last updated: 2026-05-28
 - [x] Tk 爬蟲資產分頁已接上 listing event 裡的 `seed_enumeration` / `remote_pagination` 摘要：選取 crawler asset 或讀取 seed page 時，右側 Seed 清單會顯示遠端是否仍有下一頁線索、是否已列完，或 handler 尚未回報遠端完整度；raw pagination token 不進 UI。Web Preview 的 compact listing payload 也已保留同一份摘要，避免 reload 後 seed bar 退回純 counts。
 - [x] Tk 爬蟲資產分頁已補 seed row 操作表格：右側 Crawler Passport 可開「Seed 表格 / 下載」，選取 seed 後可切換 seed 收藏，或呼叫同一條 `run_crawler_seed_download_import()` formal service 下載 / 匯入該 seed。Tk dialog 只回傳 action payload，不直接操作 profile、下載器或 importer；下載輸出預設走本機 Downloads 產品資料夾，避免把 live SQLite import 壓在 K 槽。
 - [x] Tk seed 下載路徑已接上 credential setup guard：`run_crawler_asset_seed_download_import_from_ui()` 會在啟動背景 worker 前讀後端 `crawler_asset_credential_status()`，缺登入 / API Key 時先停下，顯示「需要登入 / API Key」、缺少欄位、next action 與官方入口，不再等 service / live request 失敗後才回報。
-- [ ] 下一步：把同一份 local credential service 做成 Tk 內的正式「登入設定 / 記住我的帳號」編輯 dialog，讓使用者不用切到 Web Preview 也能保存本機登入資訊。
+- [x] 同一份 `local_credentials` service 已做成 Tk 內的正式「登入設定 / 記住我的帳號」編輯 dialog。Crawler Passport 可直接打開本機登入設定；缺登入 / API Key 的 seed 下載 guard 也會先開這個 dialog。Tk 只收集欄位 payload，保存仍交給 `update_crawler_asset_credentials()`；事件紀錄只保存 status、counts 與 field names，不保存明文 token。
+- [ ] 下一步：把 Tk credential dialog 的結果狀態再接到 crawler asset 表格 / passport 的可掃描 badge，並評估 Web/Tk 是否要共用更完整的 credential display profile。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。

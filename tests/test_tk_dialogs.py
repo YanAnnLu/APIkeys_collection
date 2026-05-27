@@ -21,6 +21,7 @@ from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
+from frontends.tk.crawler_asset_credential_dialog import crawler_asset_credential_edit_payload
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import (
     CrawlerAssetSeedDialog,
@@ -47,6 +48,7 @@ from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
@@ -802,7 +804,18 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual({"limit": 5}, thread_call.args[2].facet_values)
         self.assertIn("Downloading / importing seed", ui.status_var.value)
 
-    def test_seed_download_import_blocks_missing_credentials_before_worker(self) -> None:
+    def test_credential_dialog_payload_keeps_values_and_clear_flags_separate(self) -> None:
+        payload = crawler_asset_credential_edit_payload(
+            {"EARTHDATA_TOKEN": " token-secret ", "FRED_API_KEY": ""},
+            {"EARTHDATA_TOKEN": True, "FRED_API_KEY": True},
+            remember_local=False,
+        )
+
+        self.assertFalse(payload["remember_local"])
+        self.assertEqual({"EARTHDATA_TOKEN": "token-secret"}, payload["values"])
+        self.assertEqual(["FRED_API_KEY"], payload["clear"])
+
+    def test_seed_download_import_opens_credential_dialog_before_worker(self) -> None:
         source = DatasetDiscoverySource(
             source_id="earthdata_cmr",
             provider_id="demo_provider",
@@ -818,8 +831,9 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with (
             patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
-            patch("frontends.tk.crawler_asset_workflows.messagebox.showwarning") as showwarning,
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetCredentialDialog") as credential_dialog,
         ):
+            credential_dialog.return_value = SimpleNamespace(result=None)
             CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
                 ui,
                 asset,
@@ -827,9 +841,87 @@ class TkDialogModuleTest(unittest.TestCase):
             )
 
         thread_class.assert_not_called()
-        showwarning.assert_called_once()
+        credential_dialog.assert_called_once()
         self.assertIn("Seed 下載已暫停", ui.status_var.value)
-        self.assertIn("請先完成登入設定", showwarning.call_args.args[1])
+
+    def test_open_crawler_asset_credential_dialog_saves_through_backend(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="earthdata_cmr",
+            provider_id="demo_provider",
+            name="Earthdata CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.earthdata.nasa.gov/search/collections.json",
+            credential_mode="user_credential_required",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetCredentialDialog") as credential_dialog,
+            patch("frontends.tk.crawler_asset_workflows.update_crawler_asset_credentials") as update_credentials,
+            patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+        ):
+            credential_dialog.return_value = SimpleNamespace(
+                result={
+                    "remember_local": True,
+                    "values": {"EARTHDATA_TOKEN": "token-secret"},
+                    "clear": [],
+                }
+            )
+            update_credentials.return_value = {
+                "status": "configured",
+                "display_label": "已設定登入",
+                "configured_count": 1,
+                "field_count": 1,
+                "fields": [
+                    {
+                        "env_var": "EARTHDATA_TOKEN",
+                        "configured": True,
+                        "value_preview": "****cret",
+                    }
+                ],
+                "missing_required": [],
+                "remember_local": True,
+                "next_action": "continue_to_bounds_or_download_plan",
+            }
+            result = CrawlerAssetWorkflowMixin.open_selected_crawler_asset_credential_dialog(ui, asset)
+
+        self.assertEqual("configured", result["status"])
+        update_credentials.assert_called_once_with(asset, credential_dialog.return_value.result)
+        event_log.assert_called_once()
+        context = event_log.call_args.kwargs["context"]
+        self.assertEqual("configured", context["status"])
+        self.assertEqual(["EARTHDATA_TOKEN"], context["field_names"])
+        self.assertNotIn("token-secret", json.dumps(context, ensure_ascii=False))
+        self.assertIn("登入設定已儲存", ui.status_var.value)
+
+    def test_crawler_asset_credential_event_context_masks_secret_values(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="earthdata_cmr",
+            provider_id="demo_provider",
+            name="Earthdata CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.earthdata.nasa.gov/search/collections.json",
+        )
+        asset = crawler_asset_from_source(source)
+        context = crawler_asset_credential_event_context(
+            asset,
+            {
+                "status": "configured",
+                "display_label": "已設定登入",
+                "configured_count": 1,
+                "field_count": 1,
+                "fields": [{"env_var": "EARTHDATA_TOKEN", "value_preview": "****cret"}],
+                "missing_required": [],
+                "remember_local": True,
+                "next_action": "continue_to_bounds_or_download_plan",
+            },
+        )
+
+        self.assertEqual(["EARTHDATA_TOKEN"], context["field_names"])
+        self.assertNotIn("****cret", json.dumps(context, ensure_ascii=False))
 
     def test_crawler_asset_credential_guard_message_keeps_next_action_visible(self) -> None:
         message = crawler_asset_credential_guard_message(

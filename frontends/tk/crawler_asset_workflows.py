@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import threading
-import webbrowser
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
@@ -47,11 +46,16 @@ from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFID
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
-from api_launcher.local_credentials import crawler_asset_credential_status, credential_status_blocks_download
+from api_launcher.local_credentials import (
+    crawler_asset_credential_status,
+    credential_status_blocks_download,
+    update_crawler_asset_credentials,
+)
 from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
+from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog, crawler_seed_dialog_import_label
 from frontends.tk.dialogs import AdapterReviewDialog
@@ -178,6 +182,12 @@ class CrawlerAssetWorkflowMixin:
             text=self.tr("爬蟲設定 / Logo", "Settings / logo"),
             style="Action.TButton",
             command=self.open_selected_crawler_asset_profile_dialog,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
+        ttk.Button(
+            detail,
+            text=self.tr("登入設定 / 記住我的帳號", "Login settings / remember account"),
+            style="Action.TButton",
+            command=self.open_selected_crawler_asset_credential_dialog,
         ).pack(anchor="w", padx=14, pady=(8, 0))
         ttk.Label(detail, text=self.tr("Seed 清單", "Seed list"), style="DetailSection.TLabel").pack(anchor="w", padx=14, pady=(18, 8))
         self.crawler_asset_seed_page_var = StringVar(value=self.tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds."))
@@ -586,6 +596,55 @@ class CrawlerAssetWorkflowMixin:
             self.on_crawler_asset_select()
         self.status_var.set(self.tr(f"爬蟲設定已儲存：{asset.display_name}", f"Crawler settings saved: {asset.display_name}"))
 
+    def open_selected_crawler_asset_credential_dialog(
+        self,
+        asset: CrawlerAsset | None = None,
+        *,
+        credential_guard: object | None = None,
+        update_cancel_status: bool = True,
+    ) -> dict[str, object] | None:
+        """Open the local login/settings editor for one crawler asset.
+
+        Tk only collects the credential payload.  The backend local credential
+        service owns editable fields, file writes, process-env updates, masking,
+        and blocking-state calculation.
+        """
+
+        asset = asset or self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return None
+        guard = credential_guard if isinstance(credential_guard, dict) else crawler_asset_credential_status(asset)
+        dialog = CrawlerAssetCredentialDialog(getattr(self, "root", None), asset, guard)
+        if dialog.result is None:
+            if update_cancel_status:
+                self.status_var.set(self.tr("登入設定未變更。", "Login settings were not changed."))
+            return None
+        try:
+            refreshed = update_crawler_asset_credentials(asset, dict(dialog.result))
+        except Exception as exc:
+            log_exception("crawler_asset_credentials_update_failed", exc, component="ui.crawler_assets", context={"asset_id": asset.asset_id})
+            messagebox.showerror(self.tr("登入設定儲存失敗", "Login settings failed"), str(exc), parent=getattr(self, "root", None))
+            return None
+        log_event(
+            "crawler_asset_credentials_updated",
+            "Tk crawler asset workflow updated local credential settings.",
+            component="ui.crawler_assets",
+            context=crawler_asset_credential_event_context(asset, refreshed),
+        )
+        label = str(refreshed.get("display_label") or "").strip()
+        self.status_var.set(
+            self.tr(
+                f"登入設定已儲存：{asset.display_name}（{label or '已更新'}）。",
+                f"Login settings saved: {asset.display_name} ({label or 'updated'}).",
+            )
+        )
+        if hasattr(self, "crawler_asset_tree") and asset.asset_id in self.crawler_asset_tree.get_children():
+            self.crawler_asset_tree.selection_set(asset.asset_id)
+            self.crawler_asset_tree.focus(asset.asset_id)
+            self.on_crawler_asset_select()
+        return dict(refreshed)
+
     def load_selected_crawler_asset_seed_page(self) -> None:
         asset = self.selected_crawler_asset()
         if asset is None:
@@ -730,23 +789,29 @@ class CrawlerAssetWorkflowMixin:
         credential_guard = crawler_asset_credential_status(asset)
         if credential_status_blocks_download(credential_guard):
             title = self.tr("需要登入 / API Key", "Login/API key required")
-            message = crawler_asset_credential_guard_message(credential_guard, self.tr)
-            entry_url = str(credential_guard.get("credential_entry_url") or "").strip()
             self.status_var.set(self.tr("Seed 下載已暫停：請先完成登入設定。", "Seed download paused: finish login settings first."))
-            if entry_url:
-                open_label = str(credential_guard.get("credential_entry_label") or "").strip()
-                should_open = messagebox.askyesno(
+            refreshed = self.open_selected_crawler_asset_credential_dialog(
+                asset,
+                credential_guard=credential_guard,
+                update_cancel_status=False,
+            )
+            if refreshed is None:
+                return
+            if credential_status_blocks_download(refreshed):
+                messagebox.showwarning(
                     title,
-                    self.tr(
-                        f"{message}\n\n是否現在{open_label or '開啟官方入口'}？",
-                        f"{message}\n\nOpen the official login/API key page now?",
-                    ),
+                    crawler_asset_credential_guard_message(refreshed, self.tr),
                     parent=getattr(self, "root", None),
                 )
-                if should_open:
-                    webbrowser.open(entry_url)
                 return
-            messagebox.showwarning(title, message, parent=getattr(self, "root", None))
+            messagebox.showinfo(
+                self.tr("登入設定已完成", "Login settings saved"),
+                self.tr(
+                    "登入設定已保存；請再次按「下載此 seed」開始下載。",
+                    "Login settings are saved. Press Download this seed again to start.",
+                ),
+                parent=getattr(self, "root", None),
+            )
             return
         bounds_payload = self.crawler_asset_bound_payload_for_asset(asset.asset_id)
         self.status_var.set(
@@ -1425,6 +1490,34 @@ def crawler_asset_credential_guard_message(
     if entry_label:
         en_lines.append(f"Available entry: {entry_label}")
     return tr("\n".join(zh_lines), "\n".join(en_lines))
+
+
+def crawler_asset_credential_event_context(asset: CrawlerAsset, credential_status: object) -> dict[str, object]:
+    """Return a sanitized event payload for credential changes.
+
+    This intentionally excludes raw field values.  Event logs should only show
+    status, counts, and field names so local secrets never leak into JSONL.
+    """
+
+    status = credential_status if isinstance(credential_status, dict) else {}
+    fields = status.get("fields") if isinstance(status.get("fields"), list) else []
+    field_names = [
+        str(field.get("env_var") or "")
+        for field in fields
+        if isinstance(field, dict) and str(field.get("env_var") or "").strip()
+    ]
+    return {
+        "asset_id": asset.asset_id,
+        "provider_id": asset.provider_id,
+        "status": str(status.get("status") or ""),
+        "display_label": str(status.get("display_label") or ""),
+        "configured_count": int(status.get("configured_count") or 0),
+        "field_count": int(status.get("field_count") or 0),
+        "missing_required": list(status.get("missing_required") or []),
+        "field_names": field_names,
+        "remember_local": bool(status.get("remember_local")),
+        "next_action": str(status.get("next_action") or ""),
+    }
 
 
 def crawler_asset_listing_event_preview_payload(context: object) -> dict[str, object]:
