@@ -375,6 +375,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("stac_collections", card["source_type"])
         self.assertTrue(card["capabilities"])
         self.assertEqual("抓取元資料", card["capabilities"][0]["display_label"])
+        self.assertEqual("probe_schema_then_define_bounds", card["next_action"])
+        self.assertEqual("先探測資料結構，再定義界域", card["next_action_label"])
         self.assertEqual({}, card["latest_plan_outcome"])
         self.assertEqual({}, card["latest_plan_passport"])
 
@@ -803,9 +805,11 @@ class WebPreviewApiTest(unittest.TestCase):
 
         run_listing.assert_not_called()
         self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
         self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
         self.assertTrue(payload["listing_result"]["blocked"])
         self.assertEqual("credential_setup_required", payload["listing_result"]["blocked_reason"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["listing_result"]["next_action_label"])
         self.assertEqual("blocked", payload["listing_result"]["seed_enumeration"]["status"])
 
     def test_crawler_asset_seed_page_returns_first_50_then_more(self) -> None:
@@ -1142,9 +1146,11 @@ class WebPreviewApiTest(unittest.TestCase):
 
         build_plan.assert_not_called()
         self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
         self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
         self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
         self.assertEqual("需要登入", payload["plan_passport"]["short_label"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["plan_passport"]["next_action_label"])
         self.assertFalse(payload["plan_passport"]["has_resolved_plan"])
 
     def test_detail_returns_separate_version_and_version_limit_form_fields(self) -> None:

@@ -98,9 +98,30 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "adjust_bounds_or_refresh_source_listing": "放寬界域或重新抓取清單",
     "review_resolved_download_plan": "檢查後端 resolved plan",
     "select_crawler_asset": "先選擇一個爬蟲資產",
+    "select_seed": "先選擇一筆 seed",
+    "probe_schema_then_define_bounds": "先探測資料結構，再定義界域",
+    "review_or_upsert_dataset_candidates": "審核或寫入候選資料",
+    "review_candidates_or_build_plan": "審核候選或建立下載計畫",
+    "preview_payload_before_building_plan": "先預覽界域 payload",
+    "click_build_plan_to_call_backend": "建立下載計畫並交給後端判斷",
+    "review_plan_outcome": "檢查下載計畫結果",
     "enable_before_building_download_plan": "先啟用爬蟲資產",
     "unarchive_before_building_download_plan": "先解除封存",
+    "enable_before_crawl": "先啟用爬蟲資產，再枚舉 seed",
+    "unarchive_before_crawl": "先解除封存，再枚舉 seed",
+    "enable_before_downloading_seed": "先啟用爬蟲資產，再下載 seed",
+    "unarchive_before_downloading_seed": "先解除封存，再下載 seed",
     "refresh_or_repair_crawler_source_catalog": "重新整理或修復來源設定",
+    "refresh_seed_listing_or_select_another_seed": "重新枚舉 seed 或選擇其他 seed",
+    "repair_provider_catalog_before_download": "先修復 provider catalog，再下載",
+    "download_selected_seed": "下載選取的 seed",
+    "adjust_version_selection_for_seed": "調整 seed 版本選擇",
+    "run_crawler_asset_download_import": "下載 / 匯入目前爬蟲資產",
+    "run_crawler_seed_download_import": "下載 / 匯入選取的 seed",
+    "show_next_seed_page": "顯示下一批 seed",
+    "seed_page_complete": "已顯示目前 seed 清單",
+    "edit_local_credentials_before_live_download": "先完成登入設定，再下載資料",
+    "optional_edit_local_credentials": "可選擇補上登入設定",
     "run_adapter_review_or_resolve_adapter_plan_before_downloading": "先處理 Adapter 審核或解析計畫，再下載",
 }
 
@@ -234,6 +255,13 @@ def crawler_asset_bound_group_payload(group: str) -> dict[str, str]:
 
 def capability_display_label(capability: CrawlerAssetCapability) -> str:
     return CAPABILITY_DISPLAY_LABELS.get(capability.capability_id) or capability.label or capability.capability_id
+
+
+def next_action_display_label(action: object) -> str:
+    """Return the shared human label for a stable backend next_action id."""
+
+    text = str(action or "").strip()
+    return NEXT_ACTION_DISPLAY_LABELS.get(text, text)
 
 
 def bound_field_display_label(field: CrawlerAssetBoundFormField) -> str:
@@ -827,6 +855,7 @@ __all__ = [
     "capability_display_label",
     "bound_field_display_label",
     "bound_field_display_help",
+    "next_action_display_label",
     "plan_outcome_display_label",
     "plan_outcome_display_profile",
     "plan_outcome_short_label",

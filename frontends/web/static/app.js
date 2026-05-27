@@ -388,7 +388,7 @@ function downloaderRowHtml(asset) {
   const passport = latestPlanPassportForAsset(asset) || {};
   const tone = toneClass(outcome.display_tone || passport.display_tone);
   const label = planOutcomeLabel(outcome, passport, "計畫結果");
-  const nextAction = outcome.next_action_label || passport.next_action || asset.next_action || "等待後端下一步";
+  const nextAction = outcome.next_action_label || passport.next_action_label || asset.next_action_label || passport.next_action || asset.next_action || "等待後端下一步";
   const contentReview = outcome.content_review?.has_review || passport.content_review_count
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
     : "";
@@ -645,6 +645,7 @@ function filteredAssets() {
       asset.source_surface,
       asset.endpoint_url,
       asset.health?.status_code,
+      asset.next_action_label,
       asset.next_action,
     ].join(" ").toLowerCase();
     return haystack.includes(needle);
@@ -742,7 +743,7 @@ function renderPassport(card, asset) {
       <div><dt>風險層級</dt><dd>${escapeHtml(asset.risk_tier || "unknown")}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
-      <div><dt>下一步</dt><dd>${escapeHtml(card.next_action || "檢查界域或審核結果")}</dd></div>
+      <div><dt>下一步</dt><dd>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</dd></div>
     </dl>
 
     ${planOutcomePanelHtml(card)}
@@ -1550,7 +1551,7 @@ function renderSelectedHero(card, flowSteps = []) {
       ${heroMetric("Caps", (card.capabilities || []).length)}
       <div class="hero-next-action">
         <span>下一步</span>
-        <strong>${escapeHtml(card.next_action || "檢查界域或審核結果")}</strong>
+        <strong>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</strong>
       </div>
     </div>
     ${renderFlowSteps(flowSteps)}

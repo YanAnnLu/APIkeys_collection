@@ -30,6 +30,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_badge_payload,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
+    next_action_display_label,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_profiles import (
@@ -195,6 +196,7 @@ def crawler_asset_card(
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "credentials": crawler_asset_credential_status(asset, env_path=env_path),
         "next_action": asset.next_action,
+        "next_action_label": next_action_display_label(asset.next_action),
         "latest_listing": latest_listing or {},
         "latest_plan_outcome": latest_plan_outcome or {},
         "latest_plan_passport": latest_plan_passport or {},
@@ -362,6 +364,7 @@ def crawler_asset_listing(
             "error_count": 0,
             "warning_count": 0,
             "next_action": "edit_local_credentials_before_live_download",
+            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
             "audit_summary": {},
             "max_results": listing_options["max_results"],
             "max_pages": listing_options["max_pages"],
@@ -371,6 +374,7 @@ def crawler_asset_listing(
             "seed_enumeration": crawler_seed_enumeration_payload(blocked_result),
         }
         response["next_action"] = "edit_local_credentials_before_live_download"
+        response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
@@ -670,6 +674,7 @@ def crawler_asset_plan_preview(
         response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
         response["plan_passport"] = credential_blocked_plan_passport(asset_id, credential_guard)
         response["next_action"] = "edit_local_credentials_before_live_download"
+        response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
@@ -749,8 +754,10 @@ def crawler_asset_download_import(
             "stage": "blocked_before_download",
             "succeeded": False,
             "next_action": "edit_local_credentials_before_live_download",
+            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
         }
         response["next_action"] = "edit_local_credentials_before_live_download"
+        response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
@@ -856,8 +863,10 @@ def crawler_seed_download_import(
             "stage": "blocked_before_download",
             "succeeded": False,
             "next_action": "edit_local_credentials_before_live_download",
+            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
         }
         response["next_action"] = "edit_local_credentials_before_live_download"
+        response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
@@ -964,6 +973,7 @@ def credential_blocked_plan_passport(
         "content_review_count": 0,
         "blocked_credential_count": len(credential_guard.get("missing_required") or ()),
         "next_action": "edit_local_credentials_before_live_download",
+        "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
     }
 
 

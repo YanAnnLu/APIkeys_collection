@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 04:50 Web crawler asset next-action label handoff
+- 本輪把 Web Preview 的 crawler asset card、Crawler Passport、下載器清單與缺憑證 blocked payload 都接到同一份 `next_action_label` contract。`api_launcher.crawler_asset_display` 現在提供 `next_action_display_label()`，讓 Web API 不必把 `probe_schema_then_define_bounds`、`edit_local_credentials_before_live_download` 等 raw machine action 直接交給前端顯示。
+- `frontends/web/preview_api.py` 會在 asset card、credential-blocked listing、plan preview、asset download/import、seed download/import 與 blocked plan passport 回傳人類可讀 `next_action_label`；`frontends/web/static/app.js` 的 hero、passport、下載器 row 與搜尋 haystack 也優先使用 label。這是 UI-neutral display contract 對齊，不改 crawler、download 或 import 執行行為。
+- 本地驗證已通過：in-memory Python syntax check OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 38 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，811 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_045134.log`。第一次跑 `tests.test_web_preview` 時 Windows ephemeral port 遇到一次 `WinError 10013`，重跑單條 server test 與完整 suite 均通過，判定為環境性 port flake。
+
 ## 2026-05-28 04:30 Download/import next-action label handoff
 - 本輪把 formal crawler asset / seed 下載匯入結果也接到 UI-neutral next-action label contract。`CrawlerAssetDownloadImportResult.to_dict()` 現在會輸出 `next_action_label`，先使用 `api_launcher.crawler_asset_display.NEXT_ACTION_DISPLAY_LABELS` 將 `run_adapter_review_or_resolve_adapter_plan_before_downloading` 轉成「先處理 Adapter 審核或解析計畫，再下載」。
 - Tk seed 下載 / 匯入完成或未完成提示改為優先顯示 `next_action_label`，避免 messagebox 把 raw machine `next_action` 丟給使用者。Web Preview 的 formal asset download/import 與 seed download/import endpoint 也會把 `next_action_label` 回傳到 top-level 與 `download_import` payload；下載器 mission 與結果列優先顯示人類可讀下一步。
