@@ -34,7 +34,7 @@ from api_launcher.crawler_asset_service import (
     run_crawler_asset_listing,
 )
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
-from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
+from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
@@ -75,15 +75,7 @@ def crawler_handler_smoke_diagnostics() -> dict[str, object]:
     因此這裡只回傳共用 compact summary 與清楚的 developer-only 標記。
     """
 
-    return {
-        "surface": "web_preview",
-        "purpose": "developer_diagnostics",
-        "diagnostic_id": "crawler_handler_contract_smoke",
-        "developer_only": True,
-        "scope": "offline_contract_smoke_no_live_network",
-        "summary": crawler_handler_audit_smoke_summary(),
-        "next_action": "run_dataset_discovery_handler_smoke_json_if_summary_fails",
-    }
+    return crawler_handler_smoke_diagnostics_payload("web_preview")
 
 
 def web_real_download_demo() -> dict[str, object]:

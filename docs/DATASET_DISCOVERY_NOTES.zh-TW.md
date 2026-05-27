@@ -20,6 +20,7 @@
 - `--handoff-report` / `--handoff-report-json` 現在會包含 `crawler_handler_smoke_summary` 的 compact 摘要：可重跑命令、supported source type 數、零候選 warning count 與正常候選 pass count。若摘要異常，再跑完整 `--dataset-discovery-handler-smoke-json` 讀 per-source report；不要讓 handoff 夾帶完整 smoke payload。
 - `--heartbeat-plan-json`、heartbeat report 與 heartbeat agent prompt 也會包含同一份 compact summary。這是給自動接力 / 長工時工作檢查用的開發者 contract 狀態，不是一般使用者的資料下載入口。
 - Web Preview 的 `GET /api/diagnostics/crawler-handler-smoke` 與 Tk 工具選單「開發者：Crawler handler diagnostics」都讀同一份 compact summary，作為 developer diagnostics。它只適合 agent / 開發者確認 handler audit contract，不能用來判斷 NASA/NOAA/CKAN 等 live endpoint 是否真的可連線，也不應放進正式使用者下載心流。
+- Tk / Web / 未來 Qt 的 diagnostics surface payload 應透過 `api_launcher/developer_diagnostics.py::crawler_handler_smoke_diagnostics_payload(surface)` 產生；前端只傳自己的 surface，不要各自複製 `diagnostic_id`、scope、next action 或 compact summary 結構。
 
 ## 2026-05-26 Crawler run record / registry handoff
 

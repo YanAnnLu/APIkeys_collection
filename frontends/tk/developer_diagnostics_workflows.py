@@ -5,22 +5,16 @@ from __future__ import annotations
 from typing import Any
 from tkinter import messagebox
 
-from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
+from api_launcher.developer_diagnostics import (
+    crawler_handler_smoke_diagnostics_payload as backend_crawler_handler_smoke_diagnostics_payload,
+)
 from api_launcher.event_log import log_event
 
 
 def crawler_handler_smoke_diagnostics_payload() -> dict[str, object]:
     """Return the same compact crawler handler smoke payload used by Web Preview."""
 
-    return {
-        "surface": "tk",
-        "purpose": "developer_diagnostics",
-        "diagnostic_id": "crawler_handler_contract_smoke",
-        "developer_only": True,
-        "scope": "offline_contract_smoke_no_live_network",
-        "summary": crawler_handler_audit_smoke_summary(),
-        "next_action": "run_dataset_discovery_handler_smoke_json_if_summary_fails",
-    }
+    return backend_crawler_handler_smoke_diagnostics_payload("tk")
 
 
 def crawler_handler_smoke_diagnostics_message(payload: dict[str, object]) -> str:

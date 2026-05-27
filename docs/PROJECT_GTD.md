@@ -17,7 +17,7 @@ Last updated: 2026-05-27
 - [x] 同一份 handler smoke summary 已放進 heartbeat dry-run payload / report / agent prompt。`--heartbeat-plan-json` 會帶 `crawler_handler_smoke_summary`，讓長時間工作或外部 agent 接力時能直接看到 14 個 handler contract 狀態。
 - [x] Web Preview 已提供 developer-only handler smoke diagnostics endpoint：`/api/diagnostics/crawler-handler-smoke` 只回傳 compact summary、developer-only 標記與可重跑命令，不把 per-source smoke report 放進正式下載 UI。
 - [x] Tk 也已提供 developer-only handler smoke diagnostics 入口：工具選單新增「開發者：Crawler handler diagnostics」，讀同一份 compact summary，只用來確認 handler contract，不進入一般使用者下載心流。
-- [ ] 下一步：把 Tk / Web 的 developer diagnostics 再收斂成共用 diagnostics service/module，必要時提供 agent-readable CLI index，避免未來每個診斷入口各自命名。
+- [x] Tk / Web 的 developer diagnostics surface payload 已收斂到 `api_launcher/developer_diagnostics.py`，未來 Qt 或 CLI diagnostics index 應重用這個 module，不要在前端各自命名。
 - [ ] 下一步：把 seed 收藏再從 crawler asset profile 欄位提升成正式 seed registry / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
