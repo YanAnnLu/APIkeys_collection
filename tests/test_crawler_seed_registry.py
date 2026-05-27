@@ -1,4 +1,5 @@
 from contextlib import redirect_stdout
+from dataclasses import replace
 from io import StringIO
 import json
 from types import SimpleNamespace
@@ -135,6 +136,41 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertTrue(row["favorite"])
         self.assertEqual("stac_collections", row["source_type"])
         self.assertEqual("catalog", row["data_family"])
+        self.assertEqual("sqlite_curated_import", row["content_pipeline_lane"])
+        self.assertEqual("可匯入 SQLite", row["content_display_label"])
+        self.assertEqual("success", row["content_display_tone"])
+        self.assertFalse(row["content_review_required"])
+
+    def test_seed_row_marks_archive_format_as_transform_required(self) -> None:
+        dataset = replace(seed_dataset("seed_zip"), native_format="zip")
+
+        row = crawler_seed_row(dataset)
+
+        self.assertEqual("downloaded_payload_transform", row["content_pipeline_lane"])
+        self.assertEqual("下載後需解壓或轉換", row["content_display_label"])
+        self.assertEqual("unpack_or_transform_downloaded_payload", row["content_next_action"])
+        self.assertTrue(row["content_review_required"])
+
+    def test_seed_row_detects_content_profile_from_url_when_format_missing(self) -> None:
+        dataset = Dataset(
+            dataset_uid="demo_provider:seed_json",
+            provider_id="demo_provider",
+            dataset_id="seed_json",
+            title="Seed JSON",
+            categories=("demo",),
+            native_format="",
+            api_url="https://example.test/data/seed.json",
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": "demo_asset",
+                "discovery_source_type": "html_file_index",
+            },
+        )
+
+        row = crawler_seed_row(dataset)
+
+        self.assertEqual("json", row["content_import_profile"]["source_format"])
+        self.assertEqual("sqlite_curated_import", row["content_pipeline_lane"])
 
     def test_seed_belongs_to_asset_requires_metadata_match(self) -> None:
         self.assertTrue(crawler_seed_belongs_to_asset(seed_dataset("seed_01"), "demo_asset"))

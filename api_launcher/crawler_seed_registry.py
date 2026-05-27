@@ -13,9 +13,10 @@ the same paging/favorite semantics.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Iterable
 
+from api_launcher.content_registry import content_import_profile, detect_content_format
 from api_launcher.crawler_asset_profiles import set_crawler_asset_seed_favorite
 
 
@@ -158,6 +159,7 @@ def crawler_seed_row(
 
     metadata = getattr(dataset, "metadata", {})
     metadata = metadata if isinstance(metadata, dict) else {}
+    import_profile = crawler_seed_content_import_profile(dataset)
     dataset_uid = str(getattr(dataset, "dataset_uid", "") or "")
     dataset_id = str(getattr(dataset, "dataset_id", "") or "")
     title = str(getattr(dataset, "title", "") or "")
@@ -176,8 +178,66 @@ def crawler_seed_row(
         "candidate_status": str(metadata.get("candidate_status") or ""),
         "source_type": str(metadata.get("discovery_source_type") or ""),
         "data_family": str(metadata.get("data_family") or ""),
+        "content_import_profile": import_profile,
+        "content_importability": str(import_profile.get("importability") or ""),
+        "content_pipeline_lane": str(import_profile.get("pipeline_lane") or ""),
+        "content_next_action": str(import_profile.get("next_action") or ""),
+        "content_display_label": str(import_profile.get("display_label") or ""),
+        "content_display_tone": str(import_profile.get("display_tone") or ""),
+        "content_review_required": bool(import_profile.get("review_required")),
         "favorite": favorite_key in favorites,
     }
+
+
+def crawler_seed_content_import_profile(dataset: object) -> dict[str, object]:
+    """Return the content import profile that a seed row should display.
+
+    Seed pages appear before a user builds or runs a download plan.  Computing
+    this profile here gives every UI surface an early, truthful hint such as
+    "can import to SQLite" or "needs content parser review" without requiring
+    JavaScript, Tk, or future Qt code to know content-format rules.
+    """
+
+    metadata = getattr(dataset, "metadata", {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    existing_profile = first_mapping(
+        metadata.get("content_import_profile"),
+        metadata.get("import_profile"),
+        nested_mapping(metadata.get("content_detection"), "import_profile"),
+        nested_mapping(metadata.get("content_detection"), "capability", "import_profile"),
+    )
+    if existing_profile:
+        return dict(existing_profile)
+
+    native_format = str(getattr(dataset, "native_format", "") or "").strip()
+    if native_format:
+        return content_import_profile(native_format).to_dict()
+
+    detection = detect_content_format(
+        url=str(getattr(dataset, "api_url", "") or ""),
+        filename=str(getattr(dataset, "landing_url", "") or ""),
+    )
+    return detection.to_dict()["import_profile"]
+
+
+def first_mapping(*values: object) -> Mapping[str, object] | None:
+    """Return the first mapping from optional nested metadata slots."""
+
+    for value in values:
+        if isinstance(value, Mapping):
+            return value
+    return None
+
+
+def nested_mapping(value: object, *keys: str) -> Mapping[str, object] | None:
+    """Safely read a nested mapping without making metadata shape assumptions."""
+
+    current = value
+    for key in keys:
+        if not isinstance(current, Mapping):
+            return None
+        current = current.get(key)
+    return current if isinstance(current, Mapping) else None
 
 
 def crawler_seed_favorite_key(dataset: object) -> str:
@@ -232,6 +292,7 @@ __all__ = [
     "DEFAULT_CRAWLER_SEED_PAGE_SIZE",
     "MAX_CRAWLER_SEED_PAGE_SIZE",
     "crawler_seed_belongs_to_asset",
+    "crawler_seed_content_import_profile",
     "crawler_seed_favorite_key",
     "crawler_seed_page",
     "crawler_seed_page_summary",

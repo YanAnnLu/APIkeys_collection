@@ -1362,12 +1362,13 @@ function seedRowHtml(seed) {
   const favored = Boolean(seed.favorite) || favoriteSeedUids.has(uid);
   const title = seed.title || seed.dataset_id || uid || "未命名 seed";
   const meta = [seed.native_format, seed.data_type || seed.data_family, seed.version].filter(Boolean).join(" / ");
+  const importBadge = seedImportBadgeHtml(seed);
   return `
     <article class="seed-row ${favored ? "favorite" : ""}">
       <button type="button" class="seed-favorite-button" onclick="toggleSeedFavorite('${escapeAttr(uid)}')" title="收藏 seed">${favored ? "★" : "☆"}</button>
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(meta || "metadata pending")}</span>
+        <span>${escapeHtml(meta || "metadata pending")}${importBadge}</span>
       </div>
       <small>${escapeHtml(seed.dataset_id || uid)}</small>
       <div class="seed-row-actions">
@@ -1375,6 +1376,18 @@ function seedRowHtml(seed) {
       </div>
     </article>
   `;
+}
+
+function seedImportBadgeHtml(seed) {
+  const profile = seed.content_import_profile || {};
+  const label = seed.content_display_label || profile.display_label || "";
+  if (!label) return "";
+  const tone = toneClass(seed.content_display_tone || profile.display_tone);
+  const title = [
+    seed.content_pipeline_lane || profile.pipeline_lane,
+    seed.content_next_action || profile.next_action,
+  ].filter(Boolean).join(" / ");
+  return ` <span class="context-chip ${tone}" title="${escapeAttr(title || label)}">${escapeHtml(label)}</span>`;
 }
 
 async function toggleSeedFavorite(seedUid) {
