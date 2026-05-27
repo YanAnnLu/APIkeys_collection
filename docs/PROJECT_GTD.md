@@ -79,7 +79,8 @@ Last updated: 2026-05-28
 - [x] Tk 爬蟲資產分頁已補 seed row 操作表格：右側 Crawler Passport 可開「Seed 表格 / 下載」，選取 seed 後可切換 seed 收藏，或呼叫同一條 `run_crawler_seed_download_import()` formal service 下載 / 匯入該 seed。Tk dialog 只回傳 action payload，不直接操作 profile、下載器或 importer；下載輸出預設走本機 Downloads 產品資料夾，避免把 live SQLite import 壓在 K 槽。
 - [x] Tk seed 下載路徑已接上 credential setup guard：`run_crawler_asset_seed_download_import_from_ui()` 會在啟動背景 worker 前讀後端 `crawler_asset_credential_status()`，缺登入 / API Key 時先停下，顯示「需要登入 / API Key」、缺少欄位、next action 與官方入口，不再等 service / live request 失敗後才回報。
 - [x] 同一份 `local_credentials` service 已做成 Tk 內的正式「登入設定 / 記住我的帳號」編輯 dialog。Crawler Passport 可直接打開本機登入設定；缺登入 / API Key 的 seed 下載 guard 也會先開這個 dialog。Tk 只收集欄位 payload，保存仍交給 `update_crawler_asset_credentials()`；事件紀錄只保存 status、counts 與 field names，不保存明文 token。
-- [ ] 下一步：把 Tk credential dialog 的結果狀態再接到 crawler asset 表格 / passport 的可掃描 badge，並評估 Web/Tk 是否要共用更完整的 credential display profile。
+- [x] Tk crawler asset 表格已新增「登入」欄，右側 Crawler Passport 也會顯示後端 credential display payload 的 label、設定數、缺少欄位與 next action；儲存登入設定後只刷新該 asset row，不重新載入整張表。這讓使用者不用等到 seed 下載才知道該入口是否需要登入 / API Key。
+- [ ] 下一步：評估是否把 credential display payload 正式收斂到更完整的後端 display profile，讓 Web/Tk/未來 Qt 都只讀 label / tone / next_action，不在前端自行組 credential 狀態文案。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。
@@ -152,7 +153,7 @@ Last updated: 2026-05-28
 - [x] explicit fresh crawl / rebuild plan 流程已可比較 `candidate_snapshot_signature` 並保存 `candidate_snapshot_changed`，讓 Web/Tk/未來 Qt 只在後端真的重跑候選清單後顯示候選快照變更。
 - [x] Web Preview 已接上本機登入設定防呆流程：`api_launcher/local_credentials.py` 依 crawler asset / provider catalog 產生可編輯 env var 欄位，Web 透過 localhost API 保存到本機 ignored credential file；UI 主文案使用「登入設定 / 記住我的帳號」，不把 `.env` 當成使用者日常操作術語。回傳與 structured event 只保存遮蔽狀態與欄位名稱，不回傳明文金鑰。
 - [x] Web Preview 的憑證流程已改成日常登入心智：缺登入 / API Key 時，建立下載計畫會先被後端擋下，不會發出必然失敗的 live crawler request；畫面提供「開啟官方登入 / 申請 API Key」入口、三步驟登入說明、貼上欄位，以及「記住我的帳號」勾選。勾選時保存到本機設定檔；取消勾選時只保存在目前 Web Preview 進程。
-- [ ] 下一步：把同一份 `local_credentials` service 接回 Tk 爬蟲資產設定入口，並把「需要登入 / API Key」的阻擋與修復提示同步到 Tk。
+- [x] 同一份 `local_credentials` service 已接回 Tk 爬蟲資產設定入口；Tk 現在有 seed 下載前 credential guard、本機「登入設定 / 記住我的帳號」dialog、表格登入欄與 Crawler Passport 登入摘要。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

@@ -48,8 +48,10 @@ from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
 from frontends.tk.crawler_asset_workflows import (
     CrawlerAssetWorkflowMixin,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
+    crawler_asset_credential_summary_text,
     crawler_asset_download_plan_summary_text,
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
@@ -551,9 +553,30 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.crawler_asset_plan_outcomes = {"demo_index": "可下載 1"}
         ui.crawler_asset_content_review_outcomes = {"demo_index": "內容 Parser 待辦 1"}
 
-        values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
+        with patch(
+            "frontends.tk.crawler_asset_workflows.crawler_asset_credential_status",
+            return_value={"display_label": "免登入", "configured_count": 0, "field_count": 0},
+        ):
+            values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
+        self.assertIn("免登入", values)
         self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
+
+    def test_crawler_asset_credential_badge_and_summary_use_backend_payload(self) -> None:
+        payload = {
+            "display_label": "需要登入 / API Key",
+            "configured_count": 1,
+            "field_count": 2,
+            "missing_required": ["NASA_TOKEN"],
+            "next_action": "edit_local_credentials_before_live_download",
+        }
+
+        self.assertEqual("需要登入 / API Key 1/2", crawler_asset_credential_badge_label(payload))
+        summary = crawler_asset_credential_summary_text(payload, lambda zh, _en: zh)
+
+        self.assertIn("登入：需要登入 / API Key（1/2）", summary)
+        self.assertIn("NASA_TOKEN", summary)
+        self.assertIn("edit_local_credentials_before_live_download", summary)
 
     def test_crawler_asset_seed_page_preview_uses_shared_page_payload(self) -> None:
         payload = {

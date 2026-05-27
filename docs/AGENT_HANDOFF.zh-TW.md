@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 02:41 Tk credential status badge handoff
+- 本輪延續 Tk credential editor，把本機登入狀態前移成可掃描 UI。`frontends/tk/crawler_asset_workflows.py` 的 crawler asset 表格新增「登入」欄，取自後端 `crawler_asset_credential_status()` 的 UI-safe display payload；右側 Crawler Passport 也會顯示登入 label、已設定/總欄位數、缺少欄位與 next action。
+- 儲存「登入設定 / 記住我的帳號」後，Tk 只刷新目前 asset row 與 Passport，不重新載入整張表；仍不預填、不顯示、不寫入 event log 任何明文 secret 或 masked preview。新增 helper `crawler_asset_credential_badge_label()` / `crawler_asset_credential_summary_text()`，只負責把後端 payload 轉成 Tk 文案，不複製 credential blocking policy。
+- 本地驗證已通過：`py -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -B -m unittest tests.test_tk_dialogs -v` 58 tests OK；`py -B -m unittest tests.test_local_credentials tests.test_tk_dialogs tests.test_launcher_ui -v` 89 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，805 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_024335.log`。尚未 push / CI。
+
 ## 2026-05-28 02:22 Tk credential editor handoff
 - 本輪把 Web Preview 的本機登入設定心流補回 Tk。新增 `frontends/tk/crawler_asset_credential_dialog.py`，以「登入設定 / 記住我的帳號」dialog 顯示後端 `crawler_asset_credential_status()` 提供的欄位、官方登入 / 申請 API Key 入口、清除已保存值與「記住我的帳號」勾選；dialog 不預填或回傳已保存明文 secret。
 - `frontends/tk/crawler_asset_workflows.py` 右側 Crawler Passport 新增「登入設定 / 記住我的帳號」入口。缺登入 / API Key 時，seed 下載 guard 會先開這個本機 credential editor，不再只丟 warning 或讓使用者自己猜 `.env`；保存仍呼叫 `api_launcher.local_credentials.update_crawler_asset_credentials()`，Tk 只收集 payload。structured event 只記錄 status、counts、field names 與 next action，不記錄明文 token 或 masked preview。

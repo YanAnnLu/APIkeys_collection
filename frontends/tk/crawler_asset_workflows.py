@@ -121,11 +121,12 @@ class CrawlerAssetWorkflowMixin:
 
         table_frame = ttk.Frame(body, style="Panel.TFrame")
         table_frame.pack(side=LEFT, fill=BOTH, expand=True)
-        columns = ("name", "state", "provider", "type", "metadata", "listing", "download", "seed_count", "trust", "seed", "next")
+        columns = ("name", "state", "login", "provider", "type", "metadata", "listing", "download", "seed_count", "trust", "seed", "next")
         self.crawler_asset_tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="browse")
         headings = [
             ("name", self.tr("入口爬蟲", "Crawler asset"), 270, "w"),
             ("state", self.tr("狀態", "State"), 82, "center"),
+            ("login", self.tr("登入", "Login"), 120, "center"),
             ("provider", self.tr("Provider", "Provider"), 150, "w"),
             ("type", self.tr("入口類型", "Source type"), 145, "w"),
             ("metadata", self.tr("元資料", "Metadata"), 70, "center"),
@@ -312,6 +313,7 @@ class CrawlerAssetWorkflowMixin:
         return (
             asset.display_name,
             crawler_asset_state_label(asset),
+            crawler_asset_credential_badge_label(crawler_asset_credential_status(asset)),
             asset.provider_id,
             asset.source_type,
             status_label(asset.capability_status("fetch_metadata")),
@@ -366,6 +368,9 @@ class CrawlerAssetWorkflowMixin:
             self.tr,
         )
         plan_passport_line = f"{plan_passport_summary}\n" if plan_passport_summary else ""
+        credential_status = crawler_asset_credential_status(asset)
+        credential_line = crawler_asset_credential_summary_text(credential_status, self.tr)
+        credential_line = f"{credential_line}\n" if credential_line else ""
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
         bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
@@ -379,6 +384,7 @@ class CrawlerAssetWorkflowMixin:
                     f"存取邊界：{asset.access_requirement}\n"
                     f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
                     f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
+                    f"{credential_line}"
                     f"{last_plan_line_zh}"
                     f"{content_review_line_zh}"
                     f"{review_line_zh}"
@@ -394,6 +400,7 @@ class CrawlerAssetWorkflowMixin:
                     f"Access: {asset.access_requirement}\n"
                     f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
                     f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
+                    f"{credential_line}"
                     f"{last_plan_line_en}"
                     f"{content_review_line_en}"
                     f"{review_line_en}"
@@ -591,6 +598,7 @@ class CrawlerAssetWorkflowMixin:
             return
         self.refresh_crawler_asset_tab()
         if hasattr(self, "crawler_asset_tree") and asset.asset_id in self.crawler_asset_tree.get_children():
+            self.crawler_asset_tree.item(asset.asset_id, values=self.crawler_asset_row_values(asset))
             self.crawler_asset_tree.selection_set(asset.asset_id)
             self.crawler_asset_tree.focus(asset.asset_id)
             self.on_crawler_asset_select()
@@ -1456,6 +1464,51 @@ def crawler_asset_seed_page_preview_text(
     if payload.get("has_more"):
         lines.append(tr("按「顯示更多 Seed」展開下一批。", "Use Show more seeds for the next page."))
     return "\n".join(lines)
+
+
+def crawler_asset_credential_badge_label(credential_status: object) -> str:
+    """Return the short credential label used in the crawler asset table."""
+
+    status = credential_status if isinstance(credential_status, dict) else {}
+    label = str(status.get("display_label") or "").strip()
+    configured = int(status.get("configured_count") or 0)
+    total = int(status.get("field_count") or 0)
+    if label and total:
+        return f"{label} {configured}/{total}"
+    return label or "免登入"
+
+
+def crawler_asset_credential_summary_text(
+    credential_status: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """Render credential status from the backend UI-safe payload.
+
+    Tk may describe status and next action, but it must not inspect raw secrets
+    or duplicate credential-blocking policy.  Those rules stay in
+    ``api_launcher.local_credentials``.
+    """
+
+    status = credential_status if isinstance(credential_status, dict) else {}
+    label = str(status.get("display_label") or "免登入").strip()
+    configured = int(status.get("configured_count") or 0)
+    total = int(status.get("field_count") or 0)
+    next_action = str(status.get("next_action") or "").strip()
+    missing = status.get("missing_required") if isinstance(status.get("missing_required"), list) else []
+    missing_text = ", ".join(str(item) for item in missing if str(item).strip())
+    if total:
+        zh = f"登入：{label}（{configured}/{total}）"
+        en = f"Login: {label} ({configured}/{total})"
+    else:
+        zh = f"登入：{label}"
+        en = f"Login: {label}"
+    if missing_text:
+        zh = f"{zh}；缺少 {missing_text}"
+        en = f"{en}; missing {missing_text}"
+    if next_action:
+        zh = f"{zh}；下一步：{next_action}"
+        en = f"{en}; next: {next_action}"
+    return tr(zh, en)
 
 
 def crawler_asset_credential_guard_message(
