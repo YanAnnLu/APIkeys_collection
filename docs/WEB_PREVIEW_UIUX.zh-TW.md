@@ -7,6 +7,8 @@
 
 - 實際 Web API smoke 已用同一進程 HTTP server 驗證：`/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 均能回應。
 - 目前驗證值：crawler asset card 數為 23；developer diagnostics 的 `supported_source_type_count=14`，`candidate_case_status=pass`。
+- GUI-level audit 已用 in-app browser 驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器分頁仍可見「執行真下載示範」且維持過渡 demo 定位；選取 NASA Earthdata CMR 後，畫面會顯示「需要登入 / API Key」、官方登入入口與「記住我的帳號」設定流程。
+- API-level audit 也驗證 `/api/crawler-assets/noaa_ncei_dataset_search/seeds?page=1&page_size=50` 會回傳本機 seed 視窗與 `page_summary`；`/api/crawler-assets/nasa_earthdata_cmr_collections` 會回傳 `missing_credentials` guard 與 3 個 credential 欄位。
 - `/api/demo/real-download` 與畫面上的「執行真下載示範」仍存在，但它是過渡 demo helper，只證明公開 CSV 的下載 / manifest / SQLite import 路徑，不代表所有 crawler source 都已可正式下載。等 crawler asset 的正式 download flow 打通後，這個入口應移除或改成 developer/demo-only 區塊。
 - 若用 PowerShell 讀 zh-TW 文件時出現亂碼，先用 `Get-Content -Encoding UTF8` 或 Python `encoding="utf-8"` 複核；不要把 console 顯示問題誤判成檔案損壞。
 

@@ -9,6 +9,7 @@
 本文件已用第二輪文件漂移審計重新校準。請注意：
 
 - Web Preview 的後端 API 已用 in-process HTTP smoke 驗證：`/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 可回應；本機 crawler asset card 數為 23，handler diagnostics 顯示 14 個 source type 的離線 contract smoke 為 pass。
+- Web Preview 也已用瀏覽器實際開啟驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器仍有過渡用的「執行真下載示範」；選取 NASA Earthdata CMR 會出現「需要登入 / API Key」與「記住我的帳號」登入設定流程。
 - `--handoff-report-json` 驗證 canonical MVP demo 仍可跑到 `download_import_completed`，目前 demo 匯入表為 `nyc_open_data_socrata_socrata_311_sample_190`、`row_count=3`。
 - `--crawler-run-summary-json` 目前回報 `summary_scope.status=missing_listing`，代表本機事件視窗沒有最新 crawler listing event。若要向人展示「某入口目前已枚舉的 seed 清單」，請先在 Web/Tk 重新枚舉該入口，不要把舊文件描述當成最新 seed 狀態。
 - 「真下載示範」與「展示模式」是過渡 / demo-only surface，用來證明下載、manifest、SQLite import 或續傳能力，不代表所有 crawler source 都已完全打通。正式使用者主流程仍應回到 crawler asset -> seed listing -> bounds/credential -> download plan -> download/import。

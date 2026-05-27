@@ -10,7 +10,7 @@ Last updated: 2026-05-27
 - [x] 新增 `docs/DOCS_DRIFT_AUDIT.zh-TW.md` 作為本輪文檔漂移審計紀錄，列出已修正漂移與仍需後續深查的使用者文件 / UI 行為對齊項。
 - [x] 第二輪審計已對 `USER_GUIDE.zh-TW.md`、`USER_MANUAL.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md`、`TECHNICAL_OVERVIEW.zh-TW.md`、`ARCHITECTURE.zh-TW.md` 做校準註記與最小修補；Web API 已用 in-process HTTP smoke 驗證 health / crawler-assets / diagnostics / events endpoints。
 - [x] Mojibake 風險已拆成「檔案真的損壞」與「PowerShell 顯示 codepage 問題」兩類；全域 skill 已要求讀寫中文時明確指定 UTF-8，並新增 Python strict UTF-8 scanner。RRKAL docs 掃描目前通過。
-- [ ] 後續若要做完整 GUI 驗收，仍需在本地 clone 實際啟動 Tk/Web 操作一次，確認文件中的按鈕位置與畫面文案沒有 UI-level drift。
+- [x] GUI-level audit 已補完：Web Preview 透過 HTTP/API 與 in-app browser 驗證四分頁、下載器的 `執行真下載示範`、NASA CMR credential guard / `記住我的帳號`、seed page 與 seed favorite 入口；Tk 透過 `window_layout_workflows.py` 入口查證與 `tests.test_tk_dialogs` / `tests.test_launcher_ui` headless tests 驗證「爬蟲資產」第一分頁、「下載器」第二分頁、展示模式工具選單、開發者 diagnostics、下載器雙擊與開始/暫停行為。文件漂移審計可結束，下一輪回到主線開發。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

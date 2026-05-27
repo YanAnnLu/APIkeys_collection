@@ -1,4 +1,11 @@
 ﻿# Agent 接力卡
+## 2026-05-27 13:01 GUI-level documentation drift audit complete
+- 文件漂移審計已補完 Web/Tk 實際行為對照。Verified Git state：`1e08e21 Complete documentation drift audit`，working tree 在本輪修補前為 clean / `main...origin/main`；該 commit 的 GitHub Actions run `26491482241` 已 success。
+- Web Preview 實證：HTTP/API smoke 與 in-app browser 均通過。`/api/crawler-assets` 回 23 張資產卡；`/api/crawler-assets/noaa_ncei_dataset_search/seeds?page=1&page_size=50` 回 49 筆本機 seed 視窗；NASA CMR 資產 detail 回 `missing_credentials` / `需要登入 / API Key` / 3 個 credential 欄位。瀏覽器 DOM 可見四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」、下載器的「執行真下載示範」、NASA credential guard、官方登入入口與「記住我的帳號」流程。
+- Tk 實證：`frontends/tk/window_layout_workflows.py` 顯示主分頁順序為「爬蟲資產」第一、「下載器」第二；工具選單仍有三個展示模式入口與「開發者：Crawler handler diagnostics」。Targeted headless tests 已覆蓋下載器雙擊、開始/暫停主按鈕、爬蟲資產送進下載器、developer diagnostics 與 dialog 文案。
+- 驗證：`node --check frontends\web\static\app.js` OK；`py -B -m unittest tests.test_web_preview tests.test_crawler_seed_registry tests.test_tk_dialogs tests.test_launcher_ui -v` 112 tests OK；`py -B APIkeys_collection.py --handoff-report-json` 成功且 canonical MVP demo 仍為 `download_import_completed` / `row_count=3`。
+- 文檔處置：`DOCS_DRIFT_AUDIT.zh-TW.md`、`PROJECT_GTD.md`、本 handoff、`DEVELOPMENT_LOG.zh-TW.md` 已補 GUI-level audit 結論；`DEVELOPMENT_LOG.zh-TW.md` 也把 12:55 文檔審計列從本地 `WORKING` 對齊到已推送 checkpoint。下一輪可回到產品主線，不需要再中斷做大規模文件審計；但每個 checkpoint 仍要做小型 docs drift check。
+
 ## 2026-05-27 12:55 Deep documentation drift audit / UTF-8 guard
 - 第二輪文檔漂移審計從 `f580450 Align docs with verified drift audit` 開始，目標是把使用者文件、Web/Tk 文件、架構文件與 encoding 風險補到可交接狀態。最終 commit 請以 `git log -1` 驗證，不要把本段的起點 commit 誤讀成最新 HEAD。
 - Verified behavior：`--handoff-report-json` 成功，canonical MVP demo 仍為 `download_import_completed`、`row_count=3`；`--crawler-run-summary-json` 目前是 `missing_listing`，所以若要展示某入口 seed 清單，請先重新枚舉該入口；`--dataset-discovery-handler-smoke-json` 仍顯示 14 個 supported source type 的離線 handler contract pass。
