@@ -80,11 +80,11 @@
 - 修法：`DatasetCrawlerOutput` 新增 `warnings`；HTML file index full crawl 會把 linked page fetch failure 轉成 `index_page_fetch_failed` warning 並保留已找到候選，orchestrator 會把 handler warning 合併到 source audit。
 - 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_html_file_index_full_crawl_keeps_candidates_when_linked_page_fails`。
 
-### P2-3 Web `真下載示範` 仍是過渡功能（主 CTA 已退場）
+### P2-3 Web `真下載示範` developer-only 化（已修）
 
-- 現況：Web Preview 主 CTA 已改成 `下載 / 匯入目前資產`，呼叫 `POST /api/crawler-assets/{asset_id}/download-import` 與 `api_launcher.crawler_asset_download.run_crawler_asset_download_import()`。舊 `web_real_download_demo` 與 `/api/demo/real-download` 仍保留 regression / developer demo。
-- 風險：如果舊 demo endpoint 長期留在正式產品敘述中，仍可能讓使用者誤以為 demo CSV 代表所有 crawler source 都已完成正式下載 / 匯入。
-- 建議：下一個 UI cleanup slice 將 `/api/demo/real-download` 移到 developer/demo diagnostics 或移除；保留正式 crawler asset path 作為唯一主流程。
+- 現況：Web Preview 主 CTA 已改成 `下載 / 匯入目前資產`，呼叫 `POST /api/crawler-assets/{asset_id}/download-import` 與 `api_launcher.crawler_asset_download.run_crawler_asset_download_import()`。舊 public CSV helper 已移到 `POST /api/diagnostics/real-download-demo`，payload 會標示 `developer_only=true`，一般 `/api/demo/real-download` 會回 404。
+- 風險：已降級。公開 CSV helper 仍可做 regression / developer demo，但不再是一般使用者 API，也不應進入正式 UI 主流程。
+- 修法：保留正式 crawler asset path 作為唯一主流程；developer diagnostics helper 明確回報正式主下載 endpoint 與 seed 下載 endpoint。
 - 已補測試：`tests.test_crawler_asset_download` 鎖住 formal service 建 plan 並呼叫 download/import pipeline；`tests.test_web_preview.test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event` 鎖住 Web endpoint/event payload。
 
 ## P3 Findings / 架構債
@@ -102,11 +102,11 @@
 ## 下一步建議
 
 1. 先把本輪三個 P1 修補跑完整 pre-push smoke，推送後看 GitHub Actions。
-2. 下一個 cleanup slice 可移除或 developer-only 化 `/api/demo/real-download`，並把 Web 文案中剩餘的 demo 說法收斂成測試 / 教學用途。
+2. Web demo cleanup 已完成；下一步應把更多 public source 接到 formal crawler asset / seed download-import path，而不是依賴 developer diagnostics helper。
 3. 接著回到產品主線：把更多 public source 的 formal crawler asset download/import path 接到同一個 service，而不是繼續依賴 Web real demo。
 
 ## Docs drift check
 
 - 已更新：本文件、`PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`、`DEVELOPMENT_LOG.zh-TW.md`、`USER_GUIDE.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`。
 - 未更新：`DOCS_INDEX.zh-TW.md`。理由是本輪沒有新增或移動文件入口。
-- 已知剩餘漂移：舊 `/api/demo/real-download` 仍存在於程式與測試中，後續 cleanup 前不得把它寫成正式使用者主流程。
+- 已知剩餘漂移：無本切片已知文檔漂移。舊 real-download helper 仍存在於程式中，但只透過 developer diagnostics route 暴露，不是正式使用者主流程。

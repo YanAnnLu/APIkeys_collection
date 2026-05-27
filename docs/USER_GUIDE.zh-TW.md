@@ -12,7 +12,7 @@
 - Web Preview 也已用瀏覽器實際開啟驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器主按鈕已改為「下載 / 匯入目前資產」，會呼叫正式 crawler asset download/import endpoint；選取 NASA Earthdata CMR 會出現「需要登入 / API Key」與「記住我的帳號」登入設定流程。
 - `--handoff-report-json` 驗證 canonical MVP demo 仍可跑到 `download_import_completed`，目前 demo 匯入表為 `nyc_open_data_socrata_socrata_311_sample_190`、`row_count=3`。
 - `--crawler-run-summary-json` 目前回報 `summary_scope.status=missing_listing`，代表本機事件視窗沒有最新 crawler listing event。若要向人展示「某入口目前已枚舉的 seed 清單」，請先在 Web/Tk 重新枚舉該入口，不要把舊文件描述當成最新 seed 狀態。
-- 舊「真下載示範」與「展示模式」是過渡 / demo-only surface，用來證明下載、manifest、SQLite import 或續傳能力，不代表所有 crawler source 都已完全打通。Web Preview 的主要下載心流已改回 crawler asset -> seed listing -> bounds/credential -> download plan -> download/import；舊 demo endpoint 暫時只保留給 regression / developer demo。
+- 舊「真下載示範」與「展示模式」是過渡 / demo-only surface，用來證明下載、manifest、SQLite import 或續傳能力，不代表所有 crawler source 都已完全打通。Web Preview 的主要下載心流已改回 crawler asset -> seed listing -> bounds/credential -> download plan -> download/import；舊 real-download demo 已移到 developer diagnostics 路由，不再是一般使用者 API。
 
 ## 啟動方式
 
@@ -481,7 +481,7 @@ GUI 展示入口：
 - 穩定可展示的功能放在 `展示模式` 選單；仍在實驗中的完整來源爬蟲、全量 seed、SQL/MySQL/PostgreSQL 對接與轉接器補齊，留在開發或審核流程。
 - 「小樣本」不是固定玩具資料，展示者可在 GUI 輸入筆數上限控制大小；真正大型或無界感的下載展示改走大型 CSV 續傳線。
 - 資料夾選擇預設會指到系統 Downloads；若展示者手動選擇雲端同步資料夾，系統不會阻擋。雲端資料夾可能較慢或有短暫鎖檔，因此展示時若遇到外部網路或同步延遲，可用同一個下載面板重試或續傳。
-- Web Preview 目前主下載按鈕已改為 `下載 / 匯入目前資產`，它會走正式 crawler asset download/import endpoint。舊 `/api/demo/real-download` 仍是同一類過渡 demo helper：只用來快速看到公開 CSV 真的能下載、寫 manifest、匯入 SQLite；後續應移除或改放開發者區，不應再成為一般使用者主按鈕。
+- Web Preview 目前主下載按鈕已改為 `下載 / 匯入目前資產`，它會走正式 crawler asset download/import endpoint。舊 real-download demo 只保留在 `POST /api/diagnostics/real-download-demo` 作為 developer diagnostics / regression helper；一般使用者路徑不再暴露 `/api/demo/real-download`。
 
 如果只需要給 agent 或自動化工具讀取的 JSON：
 

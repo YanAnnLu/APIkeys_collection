@@ -1,4 +1,9 @@
 ﻿# Agent 接力卡
+## 2026-05-27 18:52 Web demo route developer-only cleanup
+- 本輪把舊 Web real-download demo 從一般路由 `/api/demo/real-download` 移到 developer diagnostics 路由 `POST /api/diagnostics/real-download-demo`。舊路由現在回 404，避免使用者或 agent 把過渡 demo endpoint 誤當成正式 crawler 下載入口。
+- `developer_real_download_demo()` 仍會執行同一條 public CSV regression helper，但 payload 會明確帶 `developer_only=true`、`scope=developer_diagnostic_public_csv_not_main_download_flow`，並標出正式主流程 `POST /api/crawler-assets/{asset_id}/download-import` 與 seed 流程 `POST /api/crawler-assets/{asset_id}/seed-download-import`。
+- 已驗證：`py -B -m unittest tests.test_web_preview tests.test_crawler_asset_download tests.test_crawler_assets tests.test_crawler_seed_registry` 86 tests OK；`py -B -m py_compile frontends\web\preview_api.py frontends\web\server.py tests\test_web_preview.py api_launcher\crawler_asset_download.py` OK；`node --check frontends\web\static\app.js` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 768 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步仍需 commit / push 與 CI watch。
+
 ## 2026-05-27 17:44 Seed-level Web download/import path
 - 本輪在已完成的 crawler asset formal download/import 基礎上，補上 seed row 層級的正式下載 / 匯入路徑。Web seed 清單現在會在每筆 seed 顯示「下載此 seed」，呼叫 `POST /api/crawler-assets/{asset_id}/seed-download-import`，把目前動態界域表單值與 `dataset_uid` 交給後端。
 - 後端新增 `build_crawler_seed_download_plan()` 與 `run_crawler_seed_download_import()`：它會驗證 seed 是否屬於該 crawler asset，從 catalog seed 直接建立 formal resolved plan，套用同一份 credential gate、bounds、adapter review、download/import pipeline，且不重新打遠端 crawler。這讓使用者可以從已枚舉的可見 seed 直接進入正式下載 / 匯入。

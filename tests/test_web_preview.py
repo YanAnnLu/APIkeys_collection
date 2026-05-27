@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import socket
+import threading
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -43,6 +45,7 @@ from frontends.web.preview_api import (
     crawler_asset_seed_page,
     crawler_seed_download_import,
     crawler_handler_smoke_diagnostics,
+    developer_real_download_demo,
     save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
@@ -122,6 +125,62 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(context["succeeded"])
         self.assertEqual(249, context["row_count"])
         self.assertEqual("state/web_demo/downloads/data.csv", context["downloaded_file"])
+
+    def test_developer_real_download_demo_is_explicitly_not_main_flow(self) -> None:
+        fake_result = SimpleNamespace(
+            to_dict=lambda: {
+                "demo_id": "web_real_download_public_csv",
+                "stage": "download_import_completed",
+                "succeeded": True,
+                "row_count": 3,
+                "artifacts": {},
+                "next_action": "open_downloaded_file_or_review_sqlite_import",
+            }
+        )
+
+        with patch("frontends.web.preview_api.run_web_real_download_demo", return_value=fake_result):
+            with patch("frontends.web.preview_api.log_event"):
+                payload = developer_real_download_demo()
+
+        self.assertTrue(payload["developer_only"])
+        self.assertEqual("developer_diagnostic_public_csv_not_main_download_flow", payload["scope"])
+        self.assertEqual("POST /api/crawler-assets/{asset_id}/download-import", payload["main_download_endpoint"])
+        self.assertEqual("POST /api/crawler-assets/{asset_id}/seed-download-import", payload["seed_download_endpoint"])
+
+    def test_real_download_demo_route_is_developer_diagnostic_only(self) -> None:
+        with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+            host, port = server.server_address
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "frontends.web.server.developer_real_download_demo",
+                    return_value={
+                        "developer_only": True,
+                        "stage": "download_import_completed",
+                        "succeeded": True,
+                    },
+                ) as demo:
+                    conn = http.client.HTTPConnection(host, port, timeout=5)
+                    conn.request("POST", "/api/diagnostics/real-download-demo", body="{}", headers={"Content-Type": "application/json"})
+                    response = conn.getresponse()
+                    body = json.loads(response.read().decode("utf-8"))
+                    conn.close()
+
+                    legacy = http.client.HTTPConnection(host, port, timeout=5)
+                    legacy.request("POST", "/api/demo/real-download", body="{}", headers={"Content-Type": "application/json"})
+                    legacy_response = legacy.getresponse()
+                    legacy_body = json.loads(legacy_response.read().decode("utf-8"))
+                    legacy.close()
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+        demo.assert_called_once_with()
+        self.assertEqual(200, response.status)
+        self.assertTrue(body["developer_only"])
+        self.assertEqual(404, legacy_response.status)
+        self.assertEqual(404, legacy_body["status"])
 
     def test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event(self) -> None:
         with TemporaryDirectory() as tmp:

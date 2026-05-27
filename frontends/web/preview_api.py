@@ -110,6 +110,17 @@ def web_real_download_demo() -> dict[str, object]:
     return payload
 
 
+def developer_real_download_demo() -> dict[str, object]:
+    """Run the public CSV proof path as a developer-only diagnostic."""
+
+    payload = web_real_download_demo()
+    payload["developer_only"] = True
+    payload["scope"] = "developer_diagnostic_public_csv_not_main_download_flow"
+    payload["main_download_endpoint"] = "POST /api/crawler-assets/{asset_id}/download-import"
+    payload["seed_download_endpoint"] = "POST /api/crawler-assets/{asset_id}/seed-download-import"
+    return payload
+
+
 def crawler_asset_cards(
     *,
     primary_path: str | Path | None = None,

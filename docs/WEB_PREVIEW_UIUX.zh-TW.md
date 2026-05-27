@@ -9,7 +9,7 @@
 - 目前驗證值：crawler asset card 數為 23；developer diagnostics 的 `supported_source_type_count=14`，`candidate_case_status=pass`。
 - GUI-level audit 已用 in-app browser 驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器分頁主 CTA 已改為「下載 / 匯入目前資產」，會呼叫 formal crawler asset download/import endpoint；選取 NASA Earthdata CMR 後，畫面會顯示「需要登入 / API Key」、官方登入入口與「記住我的帳號」設定流程。
 - API-level audit 也驗證 `/api/crawler-assets/noaa_ncei_dataset_search/seeds?page=1&page_size=50` 會回傳本機 seed 視窗與 `page_summary`；`/api/crawler-assets/nasa_earthdata_cmr_collections` 會回傳 `missing_credentials` guard 與 3 個 credential 欄位。
-- `/api/demo/real-download` 仍存在，但畫面主入口已退場，改由 `POST /api/crawler-assets/{asset_id}/download-import` 接管主要下載 / 匯入操作。舊 demo helper 只證明公開 CSV 的下載 / manifest / SQLite import 路徑；後續應移除或改成 developer/demo-only 區塊。
+- 一般路由 `/api/demo/real-download` 已退場；公開 CSV proof helper 只保留在 `POST /api/diagnostics/real-download-demo`，並以 `developer_only=true` 標示。主要下載 / 匯入操作由 `POST /api/crawler-assets/{asset_id}/download-import` 與 `POST /api/crawler-assets/{asset_id}/seed-download-import` 接管。
 - Formal crawler asset download/import 的預設輸出在本機下載資料夾下的 `RuRuKa Asset Launcher Web Preview\<asset_id>`；resolved plan 也寫在同一個本機下載資料夾內。不要把 live import 預設壓在 K 槽雲端同步路徑，避免 SQLite lock / sync latency 影響展示與驗收。
 - 若用 PowerShell 讀 zh-TW 文件時出現亂碼，先用 `Get-Content -Encoding UTF8` 或 Python `encoding="utf-8"` 複核；不要把 console 顯示問題誤判成檔案損壞。
 

@@ -23,9 +23,9 @@ from frontends.web.preview_api import (
     crawler_asset_seed_page,
     crawler_seed_download_import,
     crawler_handler_smoke_diagnostics,
+    developer_real_download_demo,
     save_crawler_asset_credentials,
     save_crawler_asset_seed_favorite,
-    web_real_download_demo,
     web_preview_recent_events,
     web_preview_status,
 )
@@ -84,8 +84,8 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         try:
-            if path == "/api/demo/real-download":
-                self.write_json(web_real_download_demo())
+            if path == "/api/diagnostics/real-download-demo":
+                self.write_json(developer_real_download_demo())
                 return
             if path.startswith("/api/crawler-assets/"):
                 asset_id, suffix = self.parse_asset_route(path)

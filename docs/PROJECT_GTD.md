@@ -20,7 +20,7 @@ Last updated: 2026-05-27
 - [x] 已新增 regression：`tests.test_crawler_asset_download` 鎖住 service 會建立 formal resolved plan 並呼叫 download/import pipeline；`tests.test_web_preview` 鎖住 Web endpoint 會呼叫 formal service、記錄 structured event 並回傳 display payload。
 - [x] Web seed 清單已補上 seed-level 正式下載 / 匯入動作：每筆 seed 顯示「下載此 seed」，呼叫 `POST /api/crawler-assets/{asset_id}/seed-download-import`，把目前界域表單值與 `dataset_uid` 交給後端。
 - [x] 後端新增 `build_crawler_seed_download_plan()` / `run_crawler_seed_download_import()`，會驗證 seed 屬於該 crawler asset，從 catalog seed 建立 formal resolved plan，套用同一份 credential gate、bounds、adapter review、download/import pipeline，且不重新打遠端 crawler。
-- [ ] 下一步：把舊 `/api/demo/real-download` 移到 developer/demo-only 區塊或刪除；在這之前它只保留為 regression / 教學過渡，不再作為主按鈕。
+- [x] 舊 `/api/demo/real-download` 已從一般 API 路由移除；developer regression helper 改走 `POST /api/diagnostics/real-download-demo`，payload 會標明 `developer_only=true` 與正式主/seed 下載 endpoint，避免使用者把 public CSV demo 誤認成正式 crawler 下載流程。
 
 ## 2026-05-27 Code health audit / 匯入、crawler fetch、credential 寫入硬化
 - [x] 新增 `docs/CODE_HEALTH_AUDIT.zh-TW.md`，用 P0/P1/P2/P3 記錄本輪程式健康審計。結論：本輪沒有發現 P0；已修三個 P1 級資料/資源/credential 耐久性風險。
@@ -34,7 +34,7 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
-- [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。剩餘工作是將舊 Web `真下載示範` 移到 developer/demo-only 或移除。
+- [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
