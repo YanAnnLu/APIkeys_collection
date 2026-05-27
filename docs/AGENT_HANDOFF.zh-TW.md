@@ -1,4 +1,9 @@
 ﻿# Agent 接力卡
+## 2026-05-27 Declarative architecture decision
+- 已新增 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。結論是採納宣告式架構作為第二階段收斂方向，但第一階段不重寫成萬能 YAML / universal interpreter。
+- 目前優先順序仍是 MVP 閉環：`seed -> crawler -> candidate -> plan -> download -> import -> UI`。現有 Python adapter / service / registry 先保持可測、可用、可交付。
+- 後續只在規則已穩定且重複出現時，逐步抽成 UI state contract、dynamic bounds form contract、content parser/importer capability contract、adapter review/download plan contract、feature flags、source profile metadata。Socrata 或 HTML file index 可作第一個 PoC，但必須有 fixture、blocked/unknown、zero-candidate 測試。
+
 ## 2026-05-27 Git / CI status
 - 最新已推送 HEAD：`d24998f Add crawler seed page summaries`，GitHub Actions run `26486700381` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
 - `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。

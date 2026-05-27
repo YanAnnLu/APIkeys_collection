@@ -151,3 +151,7 @@
 ## UI/UX 開發契約
 
 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md` 是 UI/UX 需求進入實作前的契約文件。當使用者用 Foxy、Steam、tem 或其他軟體舉例時，Agent 必須先萃取「互動精神」與「心流」，不能把參照軟體名稱直接寫進正式命名、程式碼或 UI 文案。中大型 UI 變更應先整理操作對象、入口、觸發方式、狀態變化、後端服務、錯誤狀態與驗收方式，再進入 Tk / Qt 實作。
+
+## 2026-05-27 新增索引
+
+- `DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`：宣告式架構分階段決策。第一階段維持 MVP 閉環與 Python adapter/service/registry，第二階段才把穩定重複規則抽成 UI state、bounds form、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。討論「一個通用蟲」、source profile YAML 或宣告式 contract 時，先讀這份文件，避免為抽象而全面重寫 crawler/importer/UI。

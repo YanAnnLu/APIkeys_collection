@@ -540,3 +540,9 @@
 - 本機 `git log` 在 2026-05-20 附近仍會碰到缺失 object `aca3de5bb67649e291223106e927a144fe403a9a`，這與先前 handoff 記錄的雲端同步損傷吻合；本次回補改以 GitHub Actions push run list 作為時間線來源。
 - 先前未追蹤的 `APIkeys_collection (1).py` 重複副本已移除；目前不再列為待處理風險。
 - `docs/PROJECT_STATE.md` 是長篇歷史狀態快照；最新狀態應以本開發日誌、`PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`、`git log` 可讀範圍與 GitHub Actions 為準。
+
+## 2026-05-27 Architecture / Docs checkpoint
+
+| 時間 | 分類 | 狀態 | SHA | Run | Commit | 摘要 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 10:32 | Architecture / Docs | **CHECKPOINT** | `local` | `local` | Record declarative architecture decision | 新增 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`，固定「宣告式架構是第二階段收斂方向，不是第一階段全面重寫理由」；第一階段仍維持 `seed -> crawler -> candidate -> plan -> download -> import -> UI`，現有 Python adapter / service / registry 先保持可測、可用、可交付。同步更新 GTD、handoff 與 docs index。驗證：`git -C K:\APIkeys_collection diff --check` OK（僅既有 CRLF warning）。 |
