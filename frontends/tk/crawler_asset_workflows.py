@@ -1303,10 +1303,12 @@ def crawler_asset_download_plan_summary_text(
     blocked = bool(getattr(result, "blocked", False))
     blocked_reason = str(getattr(result, "blocked_reason", "") or "-")
     next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "-")
+    outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
+    next_action_label = str(outcome_payload.get("next_action_label") or next_action).strip()
 
     if blocked or bucket == "blocked":
-        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action}"
-        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action}"
+        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label or next_action}"
+        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action_label or next_action}"
         return tr(zh, en)
     if bucket == "partial_review_required":
         zh = (
@@ -1342,7 +1344,7 @@ def crawler_asset_download_plan_summary_text(
         zh = "已建立下載計畫，但沒有可執行的下載項目。\n下一步：檢查 resolved plan，或調整界域後重試。"
         en = "Plan built, but no executable download item was produced.\nNext: inspect the resolved plan, or adjust bounds and retry."
 
-    content_review_label = str(crawler_asset_plan_outcome_payload(result, added_count=added_count).get("content_review_label") or "").strip()
+    content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
     if content_review_label:
         zh = f"{zh}\n內容格式待辦：{content_review_label}"
         en = f"{en}\nContent review: {content_review_label}"

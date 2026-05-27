@@ -520,6 +520,22 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("已加入下載器 3 筆", message)
         self.assertIn("開始 / 暫停", message)
 
+    def test_crawler_asset_download_plan_summary_blocked_uses_human_next_action_label(self) -> None:
+        result = SimpleNamespace(
+            blocked=True,
+            blocked_reason="crawler_asset_disabled",
+            outcome_bucket="blocked",
+            direct_download_count=0,
+            review_required_count=0,
+            user_next_action="enable_before_building_download_plan",
+        )
+
+        message = crawler_asset_download_plan_summary_text(result, 0, "", lambda zh, _en: zh)
+
+        self.assertIn("crawler_asset_disabled", message)
+        self.assertIn("先啟用爬蟲資產", message)
+        self.assertNotIn("enable_before_building_download_plan", message)
+
     def test_crawler_asset_download_plan_summary_mentions_content_review(self) -> None:
         result = SimpleNamespace(
             blocked=False,
