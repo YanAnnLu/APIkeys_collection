@@ -10,7 +10,7 @@ Last updated: 2026-05-27
 - [x] 新增 `docs/DOCS_DRIFT_AUDIT.zh-TW.md` 作為本輪文檔漂移審計紀錄，列出已修正漂移與仍需後續深查的使用者文件 / UI 行為對齊項。
 - [x] 第二輪審計已對 `USER_GUIDE.zh-TW.md`、`USER_MANUAL.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`、`MVP_FLOW_AUDIT.zh-TW.md`、`TECHNICAL_OVERVIEW.zh-TW.md`、`ARCHITECTURE.zh-TW.md` 做校準註記與最小修補；Web API 已用 in-process HTTP smoke 驗證 health / crawler-assets / diagnostics / events endpoints。
 - [x] Mojibake 風險已拆成「檔案真的損壞」與「PowerShell 顯示 codepage 問題」兩類；全域 skill 已要求讀寫中文時明確指定 UTF-8，並新增 Python strict UTF-8 scanner。RRKAL docs 掃描目前通過。
-- [x] GUI-level audit 已補完：Web Preview 透過 HTTP/API 與 in-app browser 驗證四分頁、下載器的 `執行真下載示範`、NASA CMR credential guard / `記住我的帳號`、seed page 與 seed favorite 入口；Tk 透過 `window_layout_workflows.py` 入口查證與 `tests.test_tk_dialogs` / `tests.test_launcher_ui` headless tests 驗證「爬蟲資產」第一分頁、「下載器」第二分頁、展示模式工具選單、開發者 diagnostics、下載器雙擊與開始/暫停行為。文件漂移審計可結束，下一輪回到主線開發。
+- [x] GUI-level audit 已補完並於後續 demo route cleanup 對齊：Web Preview 透過 HTTP/API 與 in-app browser 驗證四分頁、下載器正式 `下載 / 匯入目前資產` 主流程、developer-only `POST /api/diagnostics/real-download-demo`、NASA CMR credential guard / `記住我的帳號`、seed page 與 seed favorite 入口；舊 `執行真下載示範` 不再是一般使用者主流程。Tk 透過 `window_layout_workflows.py` 入口查證與 `tests.test_tk_dialogs` / `tests.test_launcher_ui` headless tests 驗證「爬蟲資產」第一分頁、「下載器」第二分頁、展示模式工具選單、開發者 diagnostics、下載器雙擊與開始/暫停行為。
 
 ## 2026-05-27 Formal crawler asset download/import / Web 主流程接線
 - [x] 新增 `api_launcher/crawler_asset_download.py`，把正式下載 / 匯入流程收成 service：`crawler asset + bounds payload -> resolved download plan -> direct download -> import pipeline`。這是 Web `真下載示範` 的正式替代路徑起點，不再以硬編碼 demo CSV 作為主要使用者下載入口。
