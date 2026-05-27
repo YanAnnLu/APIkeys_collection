@@ -174,6 +174,9 @@ def access_requirement_for_source(source: DatasetDiscoverySource) -> str:
 
 
 def credential_mode_for_source(source: DatasetDiscoverySource) -> str:
+    explicit = str(getattr(source, "credential_mode", "") or "").strip()
+    if explicit:
+        return explicit
     text = " ".join([source.source_id, source.provider_id, source.endpoint_url, source.docs_url, source.notes]).lower()
     guarded_words = ("token", "api key", "apikey", "oauth", "login", "account", "earthdata", "kaggle", "cdsapi")
     if any(word in text for word in guarded_words):
@@ -182,6 +185,9 @@ def credential_mode_for_source(source: DatasetDiscoverySource) -> str:
 
 
 def terms_risk_for_source(source: DatasetDiscoverySource) -> str:
+    explicit = str(getattr(source, "terms_risk", "") or "").strip()
+    if explicit:
+        return explicit
     text = " ".join([source.source_id, source.provider_id, source.endpoint_url, source.docs_url, source.notes]).lower()
     if any(word in text for word in ("restricted", "license", "terms", "commercial", "citation", "earthdata", "kaggle")):
         return "terms_review_required"

@@ -115,6 +115,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
                       "name": "Sample polite source",
                       "source_type": "html_file_index",
                       "endpoint_url": "https://example.test/index.html",
+                      "credential_mode": "user_credential_required",
+                      "terms_risk": "terms_review_required",
                       "crawl_timeout_seconds": "3.5",
                       "crawl_max_pages": "7",
                       "crawl_page_size": "25",
@@ -132,11 +134,15 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(7, sources[0].crawl_max_pages)
         self.assertEqual(25, sources[0].crawl_page_size)
         self.assertEqual(0.25, sources[0].crawl_rate_limit_seconds)
+        self.assertEqual("user_credential_required", sources[0].credential_mode)
+        self.assertEqual("terms_review_required", sources[0].terms_risk)
         payload = dataset_sources.source_to_dict(sources[0])
         self.assertEqual(3.5, payload["crawl_timeout_seconds"])
         self.assertEqual(7, payload["crawl_max_pages"])
         self.assertEqual(25, payload["crawl_page_size"])
         self.assertEqual(0.25, payload["crawl_rate_limit_seconds"])
+        self.assertEqual("user_credential_required", payload["credential_mode"])
+        self.assertEqual("terms_review_required", payload["terms_risk"])
 
     def test_source_profile_politeness_defaults_reach_default_crawler(self) -> None:
         source = DatasetDiscoverySource(

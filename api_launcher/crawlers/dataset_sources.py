@@ -196,6 +196,8 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             file_url_regex=str(item.get("file_url_regex") or "").strip(),
             min_expected_candidates=int(item.get("min_expected_candidates") if item.get("min_expected_candidates") is not None else 1),
             seed_discovery_mode=str(item.get("seed_discovery_mode") or "auto").strip() or "auto",
+            credential_mode=str(item.get("credential_mode") or "").strip(),
+            terms_risk=str(item.get("terms_risk") or "").strip(),
             crawl_timeout_seconds=_positive_float(item.get("crawl_timeout_seconds")),
             crawl_max_pages=_positive_int(item.get("crawl_max_pages")),
             crawl_page_size=_positive_int(item.get("crawl_page_size")),
@@ -264,6 +266,10 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
     }
     if source.seed_discovery_mode != "auto":
         payload["seed_discovery_mode"] = source.seed_discovery_mode
+    if source.credential_mode:
+        payload["credential_mode"] = source.credential_mode
+    if source.terms_risk:
+        payload["terms_risk"] = source.terms_risk
     if source.crawl_timeout_seconds > 0:
         payload["crawl_timeout_seconds"] = source.crawl_timeout_seconds
     if source.crawl_max_pages > 0:

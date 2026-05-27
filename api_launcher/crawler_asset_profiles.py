@@ -358,6 +358,8 @@ def crawler_asset_source_signature(source: object) -> str:
             "dataset_id": str(getattr(source, "dataset_id", "") or ""),
             "file_url_regex": str(getattr(source, "file_url_regex", "") or ""),
             "seed_discovery_mode": str(getattr(source, "seed_discovery_mode", "") or ""),
+            "credential_mode": str(getattr(source, "credential_mode", "") or ""),
+            "terms_risk": str(getattr(source, "terms_risk", "") or ""),
             "max_results": int(getattr(source, "max_results", 0) or 0),
             "crawl_max_pages": int(getattr(source, "crawl_max_pages", 0) or 0),
             "crawl_page_size": int(getattr(source, "crawl_page_size", 0) or 0),

@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 14:54 Asia/Taipei
+最後更新：2026-05-27 15:04 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -27,6 +27,7 @@
 - 後續 HTML index partial warning 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，79 tests OK；`scripts\pre_push_smoke_brief.cmd` 755 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26493410406` 全部 success
 - 後續 source-profile politeness 切片：`py -B -m unittest tests.test_dataset_discovery -v`，38 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，81 tests OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，757 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26494263728` 全部 success。
 - 後續 source-profile rate-limit 切片：`py -B -m unittest tests.test_dataset_discovery -v`，39 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke tests.test_web_preview -v`，113 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，758 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26495740693` 全部 success。
+- 後續 source-profile access-policy 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，78 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，109 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，759 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。
 
 ## P0 Findings
 
@@ -66,7 +67,7 @@
 - 風險：不同來源的合理頁數、延遲、timeout 與 rate limit 不同；如果全部依同一上限執行，仍可能對某些入口太積極。
 - 修法：`DatasetDiscoverySource` 新增 `crawl_timeout_seconds`、`crawl_max_pages`、`crawl_page_size` 與 `crawl_rate_limit_seconds`；catalog/local source JSON 會載入與寫回這些欄位。Crawler 執行時會套用 source-level timeout，並把 `crawl_max_pages` 視為來源層安全上限；若執行期 `max_pages` 更低，會採更低值，避免 UI/CLI accidental override 把特定來源的 politeness boundary 放大。`crawl_page_size` 會限制單次請求的 page size；若 UI/CLI 給較大的 `max_results_override`，source profile 可把 per-request page size 壓低。`crawl_rate_limit_seconds` 由 paginated crawler handler 透過共用 `polite_crawl_delay()` 在下一頁 request 前套用。
 - 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_source_loader_preserves_politeness_defaults`、`test_source_profile_politeness_defaults_reach_default_crawler` 與 `test_paginated_crawler_honors_source_rate_limit_between_pages`。
-- 剩餘：credential mode / terms risk 還需逐步收斂到 source profile / crawler capability metadata；未來可再把 timeout/page/rate-limit 合併成正式 request policy object。
+- 後續補強：`credential_mode` 與 `terms_risk` 已可由 source profile 明示；crawler asset capability 會先讀 source profile，再退回文字 heuristic。未來可再把 timeout/page/rate-limit/access policy 合併成正式 request policy object。
 
 ### P2-2 HTML file index full crawl 單頁失敗策略仍偏硬（已於後續切片修補）
 

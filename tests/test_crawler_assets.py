@@ -169,6 +169,24 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
         self.assertEqual("AuthBounds", asset.capabilities[2].bounds_schema[-1].group)
 
+    def test_source_profile_can_explicitly_declare_access_policy(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="guarded_source",
+            provider_id="public_name_does_not_hint_auth",
+            name="Guarded Source",
+            source_type="ckan_package_search",
+            endpoint_url="https://example.test/api/3/action/package_search",
+            credential_mode="user_credential_required",
+            terms_risk="terms_review_required",
+        )
+
+        asset = crawler_asset_from_source(source)
+
+        self.assertEqual("crawler_managed_auth", asset.access_requirement)
+        self.assertEqual("user_credential_required", asset.capabilities[0].credential_mode)
+        self.assertEqual("terms_review_required", asset.capabilities[0].terms_risk)
+        self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
+
     def test_source_type_drives_dynamic_bounds_facets(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_stac",

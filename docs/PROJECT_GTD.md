@@ -21,7 +21,8 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接第一組 politeness defaults：`DatasetDiscoverySource` / source JSON 可宣告 `crawl_timeout_seconds` 與 `crawl_max_pages`，crawler 執行時會套用 source-level timeout，並把 `crawl_max_pages` 當成來源安全上限；執行期 `max_pages` 更低時會採更低值。`tests.test_dataset_discovery` 已補 loader / handler 參數流 regression。
 - [x] Source profile 已承接 `crawl_page_size`，讓 source JSON 可限制單次請求 page size；當 Web/Tk/CLI 給出較大的 `max_results_override` 時，source profile 可以把 per-request page size 壓低，避免完整 seed 枚舉對特定入口送出過大頁面請求。
 - [x] Source profile 已承接 `crawl_rate_limit_seconds`，各 paginated crawler handler 會透過共用 `polite_crawl_delay()` 在下一頁請求前套用來源層延遲；`crawler_asset_source_signature()` 也納入 politeness 欄位，讓保存的 plan passport 在 source profile 改變後可被標成 stale。
-- [ ] 下一步 hardening：source profile / crawler capability 繼續收斂 credential mode、terms risk 與更正式的 request policy metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
+- [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
+- [ ] 下一步 hardening：source profile / crawler capability 可再收斂更正式的 request policy metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。
