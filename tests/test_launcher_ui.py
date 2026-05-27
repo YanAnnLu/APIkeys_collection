@@ -295,7 +295,8 @@ class DownloadPlanPanelUiTests(unittest.TestCase):
         message = mvp_demo_smoke_result_message(payload, lambda zh, _en="": zh)
 
         self.assertIn("MVP Demo Smoke 未通過", message)
-        self.assertIn("下一步：inspect_manifest", message)
+        self.assertIn("下一步：檢查 manifest 與最近事件紀錄", message)
+        self.assertNotIn("inspect_manifest", message)
         self.assertIn("修復建議", message)
 
     def test_mvp_demo_smoke_exception_message_includes_cli_fallback(self) -> None:

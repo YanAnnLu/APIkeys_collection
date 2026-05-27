@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 05:34 Tk MVP smoke next-action label handoff
+- 本輪把 Tk MVP Demo Smoke 失敗摘要也接到共用 `next_action_display_label()`。`frontends/tk/ui_helpers.py` 現在會把 `inspect_manifest` 轉成「檢查 manifest 與最近事件紀錄」，避免使用者在 Tk messagebox 看到 raw machine action；machine-readable `next_action` 仍保留在 CLI JSON / agent payload。
+- 這是 UI 顯示層切片，不改 MVP demo smoke、download、manifest、SQLite import 或 repair 行為。新增 / 更新 regression：`tests.test_launcher_ui.DownloadPlanPanelUiTests.test_mvp_demo_smoke_result_message_guides_failed_closure` 會確認使用者訊息包含人類 label，且不含 raw `inspect_manifest`。
+- 本地驗證已通過：in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_launcher_ui -v` 30 tests OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_launcher_ui -v` 35 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，812 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_052930.log`。尚未 commit / push；下一位 agent 若接手，請先從 `git status --short --branch` 確認本輪 dirty files。
+
 ## 2026-05-28 05:16 Web plan/listing next-action label handoff
 - 本輪把 Web Preview 非缺憑證的 listing 與 plan-preview response 也補上 top-level `next_action_label`。`crawler_asset_listing()` 現在會把 `review_or_upsert_dataset_candidates` 轉成「審核或寫入候選資料」；`crawler_asset_plan_preview()` 的 dry-run / execute 路徑會分別輸出「建立下載計畫並交給後端判斷」或 plan outcome 的人類下一步。
 - `frontends/web/static/app.js` 的 seed 枚舉 mission、plan form state 與 plan mission 也改成優先讀 `payload.next_action_label`，避免成功路徑仍用 raw `next_action`。這仍是顯示層切片，不改 crawler、download、import 或 adapter review 行為。

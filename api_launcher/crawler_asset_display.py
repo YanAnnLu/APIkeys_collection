@@ -123,6 +123,7 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "edit_local_credentials_before_live_download": "先完成登入設定，再下載資料",
     "optional_edit_local_credentials": "可選擇補上登入設定",
     "run_adapter_review_or_resolve_adapter_plan_before_downloading": "先處理 Adapter 審核或解析計畫，再下載",
+    "inspect_manifest": "檢查 manifest 與最近事件紀錄",
 }
 
 ADAPTER_REVIEW_OUTCOME_DISPLAY = {

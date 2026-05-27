@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from api_launcher.adapters.yfinance import normalize_yfinance_symbols
+from api_launcher.crawler_asset_display import next_action_display_label
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.paths import PROJECT_ROOT, state_file
 
@@ -56,7 +57,7 @@ def mvp_demo_smoke_result_message(payload: dict[str, object], tr) -> str:
     imported = result.get("imported", 0)
     failed = result.get("failed", 0)
     import_failed = result.get("import_failed", 0)
-    next_action = str(payload.get("next_action") or "")
+    next_action = next_action_display_label(payload.get("next_action"))
     flow_manifest = str(artifacts.get("flow_manifest") or "-")
     curated_sqlite = str(artifacts.get("curated_sqlite") or "-")
     status_zh = "通過" if succeeded else "未通過"
