@@ -545,4 +545,4 @@
 
 | 時間 | 分類 | 狀態 | SHA | Run | Commit | 摘要 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 10:32 | Architecture / Docs | **CHECKPOINT** | `local` | `local` | Record declarative architecture decision | 新增 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`，固定「宣告式架構是第二階段收斂方向，不是第一階段全面重寫理由」；第一階段仍維持 `seed -> crawler -> candidate -> plan -> download -> import -> UI`，現有 Python adapter / service / registry 先保持可測、可用、可交付。同步更新 GTD、handoff 與 docs index。驗證：`git -C K:\APIkeys_collection diff --check` OK（僅既有 CRLF warning）。 |
+| 10:32 | Architecture / Docs | **CHECKPOINT** | `8a2fd41` | `26487098990` | Record declarative architecture decision | 新增 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`，固定「宣告式架構是第二階段收斂方向，不是第一階段全面重寫理由」；第一階段仍維持 `seed -> crawler -> candidate -> plan -> download -> import -> UI`，現有 Python adapter / service / registry 先保持可測、可用、可交付。同步更新 GTD、handoff 與 docs index。驗證：`git -C K:\APIkeys_collection diff --check` OK（僅既有 CRLF warning）；GitHub Actions run `26487098990` Ubuntu / `windows-2025-vs2026` / real DB smoke success。 |
