@@ -1448,6 +1448,8 @@ class AdapterReviewDialog:
                 f"content_parser_id: {getattr(item, 'content_parser_id', '') or '-'}",
                 f"content_import_status: {getattr(item, 'content_import_status', '') or '-'}",
                 f"content_review_bucket: {getattr(item, 'content_review_bucket', '') or '-'}",
+                f"content_pipeline_lane: {getattr(item, 'content_pipeline_lane', '') or '-'}",
+                f"content_next_action: {getattr(item, 'content_next_action', '') or '-'}",
                 f"reason: {item.reason or '-'}",
                 f"content_reason: {getattr(item, 'content_reason', '') or '-'}",
             ]

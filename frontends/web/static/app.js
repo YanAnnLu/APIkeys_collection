@@ -506,6 +506,7 @@ function renderReviewWorkspace() {
   const outcomes = latestAdapterReview.outcomes || [];
   const buckets = latestAdapterReview.content_review_buckets || [];
   const parsers = latestAdapterReview.content_parsers || [];
+  const lanes = latestAdapterReview.content_pipeline_lanes || [];
   reviewSummary.innerHTML = `
     <section class="review-card">
       <span class="eyebrow">Adapter Review</span>
@@ -526,6 +527,13 @@ function renderReviewWorkspace() {
       <strong>${escapeHtml(String(parsers.length))} 種 parser 線索</strong>
       <div class="context-chip-row">
         ${parsers.slice(0, 8).map((parser) => `<span class="context-chip">${escapeHtml(parser.parser_id || parser.source_format || "parser")}</span>`).join("") || '<span class="context-chip">等待後端提供 parser 線索</span>'}
+      </div>
+    </section>
+    <section class="review-card">
+      <span class="eyebrow">Import Lane</span>
+      <strong>${escapeHtml(String(lanes.length))} 種匯入路徑</strong>
+      <div class="context-chip-row">
+        ${lanes.map((lane) => `<span class="context-chip ${toneClass(lane.display_tone)}">${escapeHtml(lane.display_label || lane.pipeline_lane || "lane")} ${escapeHtml(String(lane.count || 0))}</span>`).join("") || '<span class="context-chip">等待後端提供匯入路徑</span>'}
       </div>
     </section>
   `;
@@ -1269,6 +1277,9 @@ async function submitBounds(execute) {
       if (payload.adapter_review.content_review_buckets?.length) {
         addMission("內容格式待辦", contentReviewText(payload.adapter_review.content_review_buckets || []));
       }
+      if (payload.adapter_review.content_pipeline_lanes?.length) {
+        addMission("匯入路徑", contentPipelineLaneText(payload.adapter_review.content_pipeline_lanes || []));
+      }
     }
     renderDownloaderWorkspace();
     if (execute) {
@@ -1713,6 +1724,11 @@ function adapterReviewOutcomeText(outcomes) {
 function contentReviewText(buckets) {
   if (!buckets.length) return "尚無內容格式待辦";
   return buckets.map((bucket) => `${bucket.display_label || bucket.review_bucket} ${bucket.count}`).join(" / ");
+}
+
+function contentPipelineLaneText(lanes) {
+  if (!lanes.length) return "尚無匯入路徑分類";
+  return lanes.map((lane) => `${lane.display_label || lane.pipeline_lane} ${lane.count}`).join(" / ");
 }
 
 function setContentReviewBadge(contentReview) {

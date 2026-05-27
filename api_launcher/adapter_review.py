@@ -41,6 +41,13 @@ class AdapterReviewItem:
     content_import_status: str = ""
     content_review_bucket: str = ""
     content_reason: str = ""
+    content_import_profile: dict[str, object] | None = None
+    content_importability: str = ""
+    content_pipeline_lane: str = ""
+    content_next_action: str = ""
+    content_display_label: str = ""
+    content_display_tone: str = ""
+    content_review_required: bool = False
 
     def to_dict(self) -> dict[str, object]:
         # 輸出欄位維持扁平結構，讓 CLI JSON、Tk table 與 agent prompt 都容易消費。
@@ -69,6 +76,13 @@ class AdapterReviewItem:
             "content_import_status": self.content_import_status,
             "content_review_bucket": self.content_review_bucket,
             "content_reason": self.content_reason,
+            "content_import_profile": dict(self.content_import_profile or {}),
+            "content_importability": self.content_importability,
+            "content_pipeline_lane": self.content_pipeline_lane,
+            "content_next_action": self.content_next_action,
+            "content_display_label": self.content_display_label,
+            "content_display_tone": self.content_display_tone,
+            "content_review_required": self.content_review_required,
         }
 
 
@@ -89,9 +103,24 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
     review = entry.get("adapter_review") if isinstance(entry.get("adapter_review"), dict) else {}
     content_detection = entry.get("content_detection") if isinstance(entry.get("content_detection"), dict) else {}
     content_parser = entry.get("content_parser") if isinstance(entry.get("content_parser"), dict) else {}
+    detection_capability = (
+        content_detection.get("capability") if isinstance(content_detection.get("capability"), dict) else {}
+    )
+    content_import_profile = first_mapping(
+        content_parser.get("import_profile"),
+        import_plan.get("content_import_profile"),
+        content_detection.get("import_profile"),
+        detection_capability.get("import_profile"),
+    )
     download_status = str(eligibility.get("status") or "")
     import_status = str(import_plan.get("status") or "")
-    needs_review = bool(review) or download_status == "adapter_required" or import_status in REVIEW_IMPORT_STATUSES
+    profile_review_required = bool(content_import_profile.get("review_required"))
+    needs_review = (
+        bool(review)
+        or download_status == "adapter_required"
+        or import_status in REVIEW_IMPORT_STATUSES
+        or profile_review_required
+    )
     if not needs_review:
         # direct 且已支援匯入的項目不用進 Adapter 待辦，避免隊列被可執行項目污染。
         return None
@@ -144,6 +173,13 @@ def adapter_review_item_from_entry(index: int, entry: dict[str, object]) -> Adap
         content_import_status=first_text(content_parser.get("import_status")),
         content_review_bucket=first_text(content_parser.get("review_bucket")),
         content_reason=first_text(content_parser.get("reason")),
+        content_import_profile=dict(content_import_profile),
+        content_importability=first_text(content_import_profile.get("importability")),
+        content_pipeline_lane=first_text(content_import_profile.get("pipeline_lane")),
+        content_next_action=first_text(content_import_profile.get("next_action")),
+        content_display_label=first_text(content_import_profile.get("display_label")),
+        content_display_tone=first_text(content_import_profile.get("display_tone")),
+        content_review_required=profile_review_required,
     )
 
 
@@ -176,6 +212,15 @@ def first_text(*values: object) -> str:
     return ""
 
 
+def first_mapping(*values: object) -> dict[str, object]:
+    """Return the first dict-like metadata block without leaking mutable source state."""
+
+    for value in values:
+        if isinstance(value, dict):
+            return dict(value)
+    return {}
+
+
 def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, object]:
     # by_adapter/by_action 讓 agent 可以先挑同類工作批次處理，而不是逐筆掃完整 items。
     items = adapter_review_items(plan_payload)
@@ -184,6 +229,8 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
     by_outcome: dict[str, int] = {}
     by_content_review_bucket: dict[str, int] = {}
     by_content_parser: dict[str, int] = {}
+    by_content_pipeline_lane: dict[str, int] = {}
+    by_content_importability: dict[str, int] = {}
     for item in items:
         # 同時統計 adapter 與 action，可以看出是同一來源缺 resolver，還是多種轉換工作混在一起。
         by_adapter[item.adapter_id] = by_adapter.get(item.adapter_id, 0) + 1
@@ -193,6 +240,10 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
             by_content_review_bucket[item.content_review_bucket] = by_content_review_bucket.get(item.content_review_bucket, 0) + 1
         if item.content_parser_id:
             by_content_parser[item.content_parser_id] = by_content_parser.get(item.content_parser_id, 0) + 1
+        if item.content_pipeline_lane:
+            by_content_pipeline_lane[item.content_pipeline_lane] = by_content_pipeline_lane.get(item.content_pipeline_lane, 0) + 1
+        if item.content_importability:
+            by_content_importability[item.content_importability] = by_content_importability.get(item.content_importability, 0) + 1
     return {
         "summary": {
             "item_count": len(items),
@@ -202,6 +253,8 @@ def adapter_review_agent_payload(plan_payload: dict[str, Any]) -> dict[str, obje
             "by_outcome": by_outcome,
             "by_content_review_bucket": by_content_review_bucket,
             "by_content_parser": by_content_parser,
+            "by_content_pipeline_lane": by_content_pipeline_lane,
+            "by_content_importability": by_content_importability,
         },
         "items": [item.to_dict() for item in items],
     }

@@ -1357,6 +1357,8 @@ class TkDialogModuleTest(unittest.TestCase):
             content_parser_id="scientific_grid_review",
             content_import_status="manual_review_required",
             content_review_bucket="content_parser_required",
+            content_pipeline_lane="content_parser_review",
+            content_next_action="add_content_parser_or_keep_raw_artifact",
             content_reason="NetCDF requires a dedicated parser.",
             reason="selector",
         )
@@ -1372,6 +1374,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("content_source_format: netcdf", detail)
         self.assertIn("content_parser_id: scientific_grid_review", detail)
         self.assertIn("content_review_bucket: content_parser_required", detail)
+        self.assertIn("content_pipeline_lane: content_parser_review", detail)
+        self.assertIn("content_next_action: add_content_parser_or_keep_raw_artifact", detail)
         self.assertIn("reason: selector", detail)
 
     def test_dataset_candidate_review_row_and_detail_text_are_stable(self) -> None:

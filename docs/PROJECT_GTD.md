@@ -46,6 +46,7 @@ Last updated: 2026-05-28
 - [x] 將中期架構語彙收斂成 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline`；後續 PoC 應以 typed profile / gateway / middleware 實作，不使用欄位順序脆弱的 raw matrix。
 - [x] 新增 `api_launcher.crawler_capability_profiles.CrawlerCapabilityProfile`，讓 crawler asset payload 帶出 source type、auth/terms、pagination mode、content format hints、bounds facets、middleware ids、failure policy 與 effective request policy。這是宣告式 gateway 的第一個可序列化 profile，不取代現有 Python handler。
 - [x] Content parser/import profile 已開始 typed 化：`api_launcher.content_registry.ContentImportProfile` / `content_import_profile()` 會把 CSV/JSON/GeoJSON 可匯入、ZIP 需解壓轉換、NetCDF/GeoTIFF/Parquet/SQLite/unknown 需 review 的判斷收成 `import_profile` / `content_import_profile` payload；Web/Tk/未來 Qt 不必各自猜內容格式能否匯入。
+- [x] Content import profile 已接進 Adapter review / Web / Tk 顯示層：Adapter review item 與 summary 現在會輸出 `content_pipeline_lane`、`content_next_action`、`by_content_pipeline_lane` 與 `content_pipeline_lanes`；Web Review Workspace 顯示 Import Lane，Tk Adapter detail 顯示 pipeline lane / next action，`plan_entry_content_status_payload()` 也優先讀 `content_import_profile` 的 display label / tone / next_action。
 - [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。
 - [x] `SOURCE_TYPE_HINTS` 已用 regression 鎖成「每個已接 `SUPPORTED_DATASET_SOURCE_TYPES` 都有 detector hint」，避免 handler 已存在但貼 URL 建來源草稿仍被擋成 `unknown`。
 - [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。
@@ -231,7 +232,7 @@ Last updated: 2026-05-28
 - [x] GRIB/GRIB2 氣象格點檔已補齊 detector、source draft、direct eligibility、content registry、resolver 與 target extension 合約；`.grib2` 會形成 direct plan 並停在 scientific parser review。
 - [x] Direct download eligibility 已補 `.gpkg`、`.cdf`、`.sqlite` / `.sqlite3` / `.db`，避免已經是 GeoPackage、舊式 NetCDF 或 raw database snapshot 的來源在舊 provider/direct URL 路徑被誤標成 adapter required。
 - [x] 把 `content_detection` 摘要接進 adapter review JSON 與 Tk detail：Adapter review item 現在能顯示內容格式、內容家族、parser id、parser import status、review bucket 與 parser reason，使用者在 Adapter 待辦中能看出「需 parser review」的原因。
-- [ ] 下一輪：把同一組 content parser 摘要延伸成正式 card badge / resolved-plan passport 元件，讓使用者在送進下載器前就能看到「可匯入、需解壓、需 parser review」。
+- [ ] 下一輪：把 `content_import_profile` 延伸到 crawler asset card badge / resolved-plan passport 元件，讓使用者在送進下載器前就能看到「可匯入、需解壓、需 parser review」。
 
 ## 2026-05-24 UI/UX 開發契約
 

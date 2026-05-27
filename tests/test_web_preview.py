@@ -1446,6 +1446,19 @@ class WebPreviewApiTest(unittest.TestCase):
                         "parser_id": "scientific_grid_review",
                         "review_bucket": "content_parser_required",
                         "reason": "NetCDF requires a dedicated parser.",
+                        "import_profile": {
+                            "source_format": "netcdf",
+                            "content_family": "scientific_grid_or_array",
+                            "import_status": "manual_review_required",
+                            "parser_id": "scientific_grid_review",
+                            "importability": "content_parser_required_before_curated_import",
+                            "pipeline_lane": "content_parser_review",
+                            "review_required": True,
+                            "review_bucket": "content_parser_required",
+                            "next_action": "add_content_parser_or_keep_raw_artifact",
+                            "display_label": "內容 Parser 待辦",
+                            "display_tone": "warning",
+                        },
                     },
                 }
             ]
@@ -1458,8 +1471,13 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("來源解析待辦", payload["outcomes"][0]["display_label"])
         self.assertEqual({"content_parser_required": 1}, payload["by_content_review_bucket"])
         self.assertEqual({"scientific_grid_review": 1}, payload["by_content_parser"])
+        self.assertEqual({"content_parser_review": 1}, payload["by_content_pipeline_lane"])
         self.assertEqual("內容 Parser 待辦", payload["content_review_buckets"][0]["display_label"])
         self.assertEqual("scientific_grid_review", payload["content_parsers"][0]["parser_id"])
+        self.assertEqual("內容 Parser 待辦", payload["content_pipeline_lanes"][0]["display_label"])
+        self.assertEqual("warning", payload["content_pipeline_lanes"][0]["display_tone"])
+        self.assertEqual("content_parser_review", payload["items"][0]["content_pipeline_lane"])
+        self.assertEqual("add_content_parser_or_keep_raw_artifact", payload["items"][0]["content_next_action"])
 
     def test_plan_entry_content_status_payload_labels_parser_review(self) -> None:
         payload = plan_entry_content_status_payload(
@@ -1479,6 +1497,36 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("review", payload["display_tone"])
         self.assertEqual("netcdf", payload["source_format"])
         self.assertEqual("scientific_grid_review", payload["parser_id"])
+
+    def test_plan_entry_content_status_payload_prefers_import_profile(self) -> None:
+        payload = plan_entry_content_status_payload(
+            {
+                "source_format": "netcdf",
+                "import_plan": {
+                    "status": "manual_review_required",
+                    "content_import_profile": {
+                        "source_format": "netcdf",
+                        "content_family": "scientific_grid_or_array",
+                        "import_status": "manual_review_required",
+                        "parser_id": "scientific_grid_review",
+                        "importability": "content_parser_required_before_curated_import",
+                        "pipeline_lane": "content_parser_review",
+                        "review_required": True,
+                        "review_bucket": "content_parser_required",
+                        "next_action": "add_content_parser_or_keep_raw_artifact",
+                        "display_label": "內容 Parser 待辦",
+                        "display_tone": "warning",
+                    },
+                },
+            }
+        )
+
+        self.assertEqual("內容 Parser 待辦", payload["display_label"])
+        self.assertEqual("warning", payload["display_tone"])
+        self.assertEqual("content_parser_review", payload["pipeline_lane"])
+        self.assertEqual("content_parser_required_before_curated_import", payload["importability"])
+        self.assertEqual("add_content_parser_or_keep_raw_artifact", payload["next_action"])
+        self.assertTrue(payload["review_required"])
 
     def test_server_scans_next_port_when_preferred_port_is_busy(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
