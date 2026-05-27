@@ -14,6 +14,7 @@ from api_launcher.core import main
 from api_launcher.db import connect_db
 from api_launcher.handoff import (
     build_handoff_snapshot,
+    crawler_handler_smoke_handoff_summary,
     crawler_run_handoff_summary,
     data_store_handoff_summary,
     handoff_snapshot_to_dict,
@@ -62,6 +63,10 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("Crawler Run Handoff", report)
         self.assertIn("latest_listing:", report)
         self.assertIn("latest_download_plan_build:", report)
+        self.assertIn("Crawler Handler Contract Smoke", report)
+        self.assertIn("--dataset-discovery-handler-smoke-json", report)
+        self.assertIn("empty_case_zero_candidates:", report)
+        self.assertIn("candidate_case_pass_sources:", report)
         self.assertIn("Open GTD Focus", report)
         self.assertIn("open_gtd_total:", report)
         self.assertIn("Portal Intake / Local Discovery", report)
@@ -86,11 +91,34 @@ class HandoffTests(unittest.TestCase):
         self.assertIn("verification_summary", payload)
         self.assertIn("mvp_readiness", payload)
         self.assertIn("crawler_run_summary", payload)
+        self.assertIn("crawler_handler_smoke_summary", payload)
         self.assertIn("open_gtd_items", payload)
         self.assertIn("recent_logs", payload)
         self.assertIn("verification_summary", encoded)
         self.assertIn("mvp_readiness", encoded)
         self.assertIn("crawler_run_summary", encoded)
+        self.assertIn("crawler_handler_smoke_summary", encoded)
+
+    def test_crawler_handler_smoke_handoff_summary_is_compact_and_actionable(self) -> None:
+        summary = crawler_handler_smoke_handoff_summary()
+
+        self.assertIn("--dataset-discovery-handler-smoke-json", summary["command"])
+        self.assertGreater(summary["supported_source_type_count"], 0)
+        self.assertEqual("warning", summary["empty_case_status"])
+        self.assertEqual(
+            summary["supported_source_type_count"],
+            summary["empty_case_zero_candidates"],
+        )
+        self.assertEqual(
+            summary["supported_source_type_count"],
+            summary["empty_case_next_action_count"],
+        )
+        self.assertEqual("pass", summary["candidate_case_status"])
+        self.assertEqual(
+            summary["supported_source_type_count"],
+            summary["candidate_case_pass_sources"],
+        )
+        self.assertNotIn("source_results", json.dumps(summary, ensure_ascii=False))
 
     def test_crawler_run_handoff_summary_keeps_bounded_counts_only(self) -> None:
         summary = crawler_run_handoff_summary(

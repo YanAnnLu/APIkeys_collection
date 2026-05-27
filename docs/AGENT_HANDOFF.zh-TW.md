@@ -1,8 +1,14 @@
 ﻿# Agent 接力卡
 ## 2026-05-27 Git / CI status
-- 最新已推送 HEAD：`6be2061 Fix Tk crawler listing event context`，GitHub Actions run `26482464695` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
-- 前一個大切片 `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
+- 最新已推送 HEAD：`2d7f6b7 Log crawler handler audit smoke checkpoint`，GitHub Actions run `26483052649` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
+- `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
+- 目前本地切片已把 crawler handler smoke compact summary 接進 `--handoff-report` / `--handoff-report-json`，本地 targeted 測試通過，尚待 commit / push / CI 確認。
 - K 槽雲端工作區偶發 PowerShell current working directory handle 失效時，Git repo 本身不一定壞。若看到 `fatal: Unable to read current working directory`，先用 `git -C K:\APIkeys_collection status` 驗證，不要 reset、restore 或刪 lock。這次用 `git -C` 完成 add / commit / push。
+
+## 2026-05-27 Handoff crawler handler contract summary
+- `api_launcher/handoff.py` 會在 `HandoffSnapshot` 中輸出 `crawler_handler_smoke_summary`。這是 compact 摘要，不包含每個 source type 的完整 `source_results`，只列 supported source type 數、零候選 warning count、正常候選 pass count、next action 與可重跑命令。
+- `--handoff-report-json` 現在能讓 heartbeat 或下一位 agent 直接看到 handler audit contract 是否仍完整；若摘要不符，先跑 `python APIkeys_collection.py --dataset-discovery-handler-smoke-json` 看完整 per-source report，再修 handler / audit / warning contract。
+- 這仍是離線 contract smoke，不代表 live endpoint 可用，也不取代 `tests.test_source_patterns`、各 crawler fixture、實際 source discovery 與下載計畫驗證。
 
 ## 2026-05-27 Crawler audit contract smoke
 - `api_launcher/crawler_audit_smoke.py` 新增離線 handler audit contract smoke。它用 fixture source 覆蓋所有 `SUPPORTED_DATASET_SOURCE_TYPES`，並透過注入式 crawler runner 驗證兩件事：零候選要產生 `zero_candidates` / `repair_crawler_query_or_parser`；正常候選要通過 audit summary。這不打 live endpoint，也不取代每個 handler 的 payload fixture 測試。

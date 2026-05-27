@@ -1,6 +1,6 @@
 # 使用者操作指南
 
-最後更新：2026-05-25
+最後更新：2026-05-27
 
 這份文件寫給第一次打開 launcher 的人。它用操作角度說明目前 UI 可以做什麼，以及哪些功能還是骨架。
 
@@ -252,6 +252,8 @@ Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discove
 | 以 JSON 列出候選 | `python3 APIkeys_collection.py --list-dataset-candidates --dataset-candidates-json` |
 | 標記候選可用 | `python3 APIkeys_collection.py --review-dataset-candidate DATASET_UID --dataset-candidate-decision approved` |
 | 匯出候選下載 / 匯入計畫 | `python3 APIkeys_collection.py --export-candidate-plan state/candidate_plan.json --candidate-plan-status approved` |
+
+`--dataset-discovery-handler-smoke-json` 是開發者 / agent 用的離線 contract smoke，不會連到 NASA、NOAA 或任何 live endpoint。若只想看目前交接狀態，`--handoff-report` / `--handoff-report-json` 也會顯示同一組 compact 摘要；只有摘要異常時才需要跑完整 smoke JSON 看 per-source 細節。
 
 ### Adapter review / download / import
 

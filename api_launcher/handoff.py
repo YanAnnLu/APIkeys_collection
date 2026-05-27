@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_report
 from api_launcher.crawler_run_records import DEFAULT_CRAWLER_RUN_EVENT_SCAN_LIMIT, crawler_run_summary_from_events
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME, load_dataset_discovery_sources
 from api_launcher.data_store_connections import data_store_env_template_filename
@@ -30,6 +31,7 @@ class HandoffSnapshot:
     data_store_summary: dict[str, str]
     verification_summary: dict[str, str]
     crawler_run_summary: dict[str, Any]
+    crawler_handler_smoke_summary: dict[str, Any]
     mvp_readiness: dict[str, Any]
     open_gtd_summary: dict[str, Any]
     open_gtd_items: list[dict[str, str]]
@@ -58,6 +60,7 @@ def build_handoff_snapshot(repository: ApiCatalogRepository, log_limit: int = 5)
         data_store_summary=data_store_handoff_summary(),
         verification_summary=verification,
         crawler_run_summary=crawler_run_handoff_summary(recent_logs),
+        crawler_handler_smoke_summary=crawler_handler_smoke_handoff_summary(),
         mvp_readiness=mvp_readiness_summary(verification, manifest_health),
         open_gtd_summary=gtd_status_summary(open_gtd_items),
         open_gtd_items=open_gtd_items[:12],
@@ -137,6 +140,16 @@ def render_handoff_markdown(snapshot: HandoffSnapshot) -> str:
         "",
         f"- latest_listing: {snapshot.crawler_run_summary.get('latest_listing', {}) or '{}'}",
         f"- latest_download_plan_build: {snapshot.crawler_run_summary.get('latest_download_plan_build', {}) or '{}'}",
+        "",
+        "## Crawler Handler Contract Smoke",
+        "",
+        f"- command: {snapshot.crawler_handler_smoke_summary.get('command', '')}",
+        f"- supported_source_type_count: {snapshot.crawler_handler_smoke_summary.get('supported_source_type_count', 0)}",
+        f"- empty_case_status: {snapshot.crawler_handler_smoke_summary.get('empty_case_status', '')}",
+        f"- empty_case_zero_candidates: {snapshot.crawler_handler_smoke_summary.get('empty_case_zero_candidates', 0)}",
+        f"- candidate_case_status: {snapshot.crawler_handler_smoke_summary.get('candidate_case_status', '')}",
+        f"- candidate_case_pass_sources: {snapshot.crawler_handler_smoke_summary.get('candidate_case_pass_sources', 0)}",
+        f"- next_action: {snapshot.crawler_handler_smoke_summary.get('next_action', '')}",
         "",
         "## Open GTD Focus",
         "",
@@ -302,6 +315,49 @@ def crawler_run_handoff_summary(events: list[dict[str, object]]) -> dict[str, An
     """
 
     return crawler_run_summary_from_events(events)
+
+
+def crawler_handler_smoke_handoff_summary() -> dict[str, Any]:
+    """把離線 crawler handler contract smoke 壓成 handoff 可讀摘要。
+
+    完整 smoke report 會列出每個 supported source type 的 source_result；handoff
+    只需要判斷「是否所有 handler 都仍符合 audit 契約」，所以這裡只保留
+    status/count/next_action 與可重跑命令，避免交接 JSON 變成另一份大報告。
+    """
+
+    report = crawler_handler_audit_smoke_report()
+    empty_summary = _audit_summary(report.get("empty_case"))
+    candidate_summary = _audit_summary(report.get("candidate_case"))
+    return {
+        "command": "python APIkeys_collection.py --dataset-discovery-handler-smoke-json",
+        "supported_source_type_count": int(report.get("supported_source_type_count") or 0),
+        "empty_case_status": str(empty_summary.get("status") or ""),
+        "empty_case_zero_candidates": int(
+            _dict_value(empty_summary.get("by_warning_code"), "zero_candidates")
+        ),
+        "empty_case_next_action_count": int(
+            _dict_value(empty_summary.get("by_next_action"), "repair_crawler_query_or_parser")
+        ),
+        "candidate_case_status": str(candidate_summary.get("status") or ""),
+        "candidate_case_pass_sources": int(_dict_value(candidate_summary.get("by_status"), "pass")),
+        "next_action": str(report.get("next_action") or ""),
+    }
+
+
+def _audit_summary(case_payload: object) -> dict[str, Any]:
+    if not isinstance(case_payload, dict):
+        return {}
+    audit_summary = case_payload.get("audit_summary")
+    return audit_summary if isinstance(audit_summary, dict) else {}
+
+
+def _dict_value(value: object, key: str) -> int:
+    if not isinstance(value, dict):
+        return 0
+    try:
+        return int(value.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def verification_summary(repository: ApiCatalogRepository, events: list[dict[str, object]]) -> dict[str, str]:
