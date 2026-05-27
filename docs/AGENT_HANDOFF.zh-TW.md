@@ -16,7 +16,7 @@
 - 目前多數 handler 尚未實際回填遠端 pagination token / exhausted；下一步是逐一把有分頁能力的 handler 接上這個 contract，而不是在前端補 heuristic。
 
 ## 2026-05-27 Git / CI status
-- 最新已推送 HEAD：`0bb9cf5 Add seed remote pagination contract`，GitHub Actions run `26487560257` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
+- 最新已推送 HEAD：`cfa5367 Add crawler remote pagination output contract`，GitHub Actions run `26488561562` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
 - `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
 - K 槽雲端工作區偶發 PowerShell current working directory handle 失效時，Git repo 本身不一定壞。若看到 `fatal: Unable to read current working directory`，先用 `git -C K:\APIkeys_collection status` 驗證，不要 reset、restore 或刪 lock。這次用 `git -C` 完成 add / commit / push。
 
