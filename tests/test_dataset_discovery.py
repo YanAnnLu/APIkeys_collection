@@ -1071,6 +1071,50 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("2025-01-01", versions[0]["version"])
         self.assertEqual("2025-01-03", versions[2]["version"])
 
+    def test_html_file_index_full_crawl_keeps_candidates_when_linked_page_fails(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_html_index",
+            provider_id="sample_provider",
+            name="Sample HTML index",
+            source_type="html_file_index",
+            endpoint_url="https://files.example.test/index.html",
+            dataset_id="sample_shards",
+            dataset_title="Sample shards",
+            native_format="csv",
+            file_url_regex=r"sample-(?P<version>\d{4}-\d{2}-\d{2})\.csv$",
+        )
+        pages = {
+            "https://files.example.test/index.html": (
+                """
+                <a href="sample-2025-01-01.csv">sample-2025-01-01.csv</a>
+                <a href="broken/">broken folder</a>
+                """,
+                "https://files.example.test/index.html",
+            ),
+        }
+        original_fetch_text = html_index.fetch_text
+
+        def fake_fetch_text(url: str, *, timeout: float) -> tuple[str, str]:
+            if url not in pages:
+                raise TimeoutError("simulated linked page timeout")
+            return pages[url]
+
+        html_index.fetch_text = fake_fetch_text
+        try:
+            result = crawl_dataset_sources(
+                [source],
+                DatasetCrawlOptions(full_crawl=True, max_pages=3, max_workers=1),
+            )
+        finally:
+            html_index.fetch_text = original_fetch_text
+
+        self.assertEqual(1, result.candidate_count)
+        self.assertEqual(1, result.warning_count)
+        self.assertEqual(("index_page_fetch_failed",), result.source_results[0].warning_codes)
+        versions = result.candidates[0].dataset.metadata["available_versions"]
+        self.assertEqual(1, len(versions))
+        self.assertEqual("2025-01-01", versions[0]["version"])
+
     def test_dataset_crawler_orchestrator_dedupes_and_captures_errors(self) -> None:
         sources = [
             DatasetDiscoverySource(

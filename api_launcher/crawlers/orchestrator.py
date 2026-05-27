@@ -272,7 +272,7 @@ def _crawl_one_source(
             error=f"{type(exc).__name__}: {exc}",
         )
     candidates = list(output.candidates)
-    warnings = audit_source_candidates(source, candidates, options)
+    warnings = tuple(output.warnings) + audit_source_candidates(source, candidates, options)
     return DatasetSourceCrawlResult(
         source_id=source.source_id,
         provider_id=source.provider_id,

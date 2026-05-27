@@ -17,7 +17,8 @@ Last updated: 2026-05-27
 - [x] `api_launcher/importers/csv_importer.py` 的 replace import 已改為先寫 SQLite 暫存表，再於成功後 swap target table；失敗時保留既有 curated table。`tests.test_csv_importer` 已補失敗保留舊表與成功替換 regression。
 - [x] `api_launcher/crawlers/fetch.py` 的 metadata fetch 已加入 8MB 預設上限，避免 crawler metadata probe 誤讀大型 payload；`tests.test_crawler_fetch` 已補超限拒絕 regression。
 - [x] `api_launcher/local_credentials.py` 的 `.env` 寫入已改成 UTF-8 暫存檔 + `os.replace()`；替換失敗時清理 temp 並保留舊 `.env`。`tests.test_local_credentials` 已補替換失敗不破壞既有 credential file 的 regression。
-- [ ] 下一步 hardening：HTML file index full crawl 的單頁失敗應轉成 warning + partial candidates；source profile 應逐步承接 `max_pages` / timeout / rate-limit / page-size 等 politeness defaults；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
+- [x] HTML file index full crawl 的 linked page fetch failure 已轉成 `index_page_fetch_failed` warning，並保留已找到候選；orchestrator 現在會合併 handler-level warnings 到 source audit。`tests.test_dataset_discovery` 已補 partial candidate regression。
+- [ ] 下一步 hardening：source profile 應逐步承接 `max_pages` / timeout / rate-limit / page-size 等 politeness defaults；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

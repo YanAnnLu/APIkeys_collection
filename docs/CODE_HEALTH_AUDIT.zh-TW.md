@@ -24,6 +24,7 @@
 - `py -B -m unittest tests.test_csv_importer tests.test_json_importer tests.test_ingestion_pipeline tests.test_crawler_fetch tests.test_local_credentials tests.test_web_preview -v`
 - `scripts\pre_push_smoke_brief.cmd`，754 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`
 - GitHub Actions run `26492936566`：Ubuntu、Windows、Real DB smoke 全部 success
+- 後續 HTML index partial warning 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，79 tests OK；`scripts\pre_push_smoke_brief.cmd` 755 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`
 
 ## P0 Findings
 
@@ -64,12 +65,12 @@
 - 建議：把 `timeout`、`max_pages`、`page_size`、rate limit 與 credential mode 逐步收斂到 source profile / crawler capability metadata，UI 只呈現 seed enumeration status。
 - 需要測試：source profile 覆寫 `max_pages` / `page_size` 的 fixture 測試；超限時的 `remote_pagination.status=has_more` 測試。
 
-### P2-2 HTML file index full crawl 單頁失敗策略仍偏硬
+### P2-2 HTML file index full crawl 單頁失敗策略仍偏硬（已於後續切片修補）
 
 - 現況：HTML file index 已有 same-origin、seen set 與 `max_pages` 安全邊界。
 - 風險：若 full crawl 中某個索引頁失敗，後續可能直接中止，而不是保留已找到候選並附 warning。
-- 建議：把單頁失敗轉成 warning code，例如 `index_page_fetch_failed`，讓 listing result 可帶 partial candidates。
-- 需要測試：一頁 404 / timeout 時仍保留前一頁候選，並輸出 warning / next_action。
+- 修法：`DatasetCrawlerOutput` 新增 `warnings`；HTML file index full crawl 會把 linked page fetch failure 轉成 `index_page_fetch_failed` warning 並保留已找到候選，orchestrator 會把 handler warning 合併到 source audit。
+- 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_html_file_index_full_crawl_keeps_candidates_when_linked_page_fails`。
 
 ### P2-3 Web `真下載示範` 仍是過渡功能
 
@@ -93,7 +94,7 @@
 ## 下一步建議
 
 1. 先把本輪三個 P1 修補跑完整 pre-push smoke，推送後看 GitHub Actions。
-2. 下一個 hardening slice 優先處理 HTML file index partial failure warning，或 source-profile politeness defaults。
+2. 下一個 hardening slice 優先處理 source-profile politeness defaults，或挑一個 public-source 正式 crawler asset download/import path 取代 Web real demo。
 3. 接著回到產品主線：正式 crawler asset 的 public-source download/import path，而不是繼續依賴 Web real demo。
 
 ## Docs drift check

@@ -15,7 +15,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import discovery_page_cap
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.discovery import extract_links
 from api_launcher.models import Dataset
 
@@ -123,7 +123,7 @@ def html_file_index_candidates_for_source(
     limit: int,
     full_crawl: bool,
     max_pages: int = 0,
-) -> list[DatasetCandidate]:
+) -> list[DatasetCandidate] | DatasetCrawlerOutput:
     text, final_url = fetch_text(source.endpoint_url, timeout=timeout)
     if not full_crawl:
         return html_file_index_candidates_from_text(source, text, final_url, limit)
@@ -131,6 +131,7 @@ def html_file_index_candidates_for_source(
     page_cap = discovery_page_cap(max_pages)
     seen_pages = {final_url}
     seen_files: set[str] = set()
+    warnings: list[str] = []
     versions = html_file_index_versions_from_text(source, text, final_url, 0, seen_files)
     page_queue = [
         link
@@ -143,14 +144,24 @@ def html_file_index_candidates_for_source(
         if page_url in seen_pages:
             continue
         seen_pages.add(page_url)
-        page_text, page_final_url = fetch_text(page_url, timeout=timeout)
+        try:
+            page_text, page_final_url = fetch_text(page_url, timeout=timeout)
+        except Exception as exc:
+            warnings.append(
+                "index_page_fetch_failed: failed to fetch linked HTML index page "
+                f"{page_url}: {type(exc).__name__}: {exc}"
+            )
+            continue
         versions.extend(html_file_index_versions_from_text(source, page_text, page_final_url, 0, seen_files))
         for link in extract_links(page_text, page_final_url):
             if link in seen_pages or link in page_queue:
                 continue
             if should_follow_html_index_page(page_final_url, link, source.file_url_regex):
                 page_queue.append(link)
-    return html_file_index_candidates_from_versions(source, final_url, versions)
+    candidates = html_file_index_candidates_from_versions(source, final_url, versions)
+    if warnings:
+        return DatasetCrawlerOutput(candidates=tuple(candidates), warnings=tuple(warnings))
+    return candidates
 
 
 def should_follow_html_index_page(base_url: str, link: str, file_url_regex: str) -> bool:

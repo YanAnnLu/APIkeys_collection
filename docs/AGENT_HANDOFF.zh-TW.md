@@ -1,4 +1,9 @@
 ﻿# Agent 接力卡
+## 2026-05-27 13:45 HTML file index partial warning local pass
+- 延續 code health audit，已修 `api_launcher/crawlers/html_index.py`：full crawl 追同網域 linked index page 時，若某個 linked page fetch 失敗，現在輸出 `index_page_fetch_failed` warning 並保留已找到的 file-shard candidates，不再讓單頁失敗吃掉整個入口的 seed 枚舉成果。
+- `DatasetCrawlerOutput` 新增 `warnings` 欄位；`api_launcher/crawlers/orchestrator.py` 會把 handler-level warnings 併入 source audit，因此 UI/agent 可在 `source_results.warning_codes` 看到 partial failure，而不是只能看到 generic error。
+- 已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，79 tests OK；`git diff --check` 無 whitespace error；docs mojibake scan OK；`scripts\pre_push_smoke_brief.cmd` 755 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步仍需 commit/push 與 GitHub Actions。
+
 ## 2026-05-27 13:22 Code health audit / P1 hardening checkpoint
 - 本輪從 `05d6b67 Record GUI audit CI checkpoint` 繼續，已推送 `9e63f6c Harden import fetch and credential writes`；GitHub Actions run `26492936566` 的 Ubuntu、Windows 與 real DB smoke 全部 success。
 - 已修 P1-1：`api_launcher/importers/csv_importer.py` 的 `replace=True` 匯入不再先 drop target table；新資料先寫唯一暫存表，成功後才 swap target，失敗時保留舊 curated table。測試：`tests.test_csv_importer` 新增失敗保留舊表與成功替換 regression。

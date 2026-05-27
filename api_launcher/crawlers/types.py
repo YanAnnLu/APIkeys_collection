@@ -59,6 +59,7 @@ class DatasetCrawlerOutput:
     """
 
     candidates: tuple[DatasetCandidate, ...] = ()
+    warnings: tuple[str, ...] = ()
     remote_pagination_status: str = "not_reported"
     remote_exhausted: bool | None = None
     remote_next_page_token: str = ""
