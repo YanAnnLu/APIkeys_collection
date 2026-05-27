@@ -1,6 +1,6 @@
 ﻿# Agent 接力卡
 ## 2026-05-27 Git / CI status
-- 最新已推送 HEAD：`93a2b58 Extract crawler seed paging service`，GitHub Actions run `26485709468` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
+- 最新已推送 HEAD：`cd102f1 Log crawler seed paging checkpoint`；最新實質功能 checkpoint 是 `93a2b58 Extract crawler seed paging service`，GitHub Actions run `26485709468` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。`cd102f1` 是 log-sync commit，不需要在 development log 另開一筆遞迴紀錄。
 - `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
 - K 槽雲端工作區偶發 PowerShell current working directory handle 失效時，Git repo 本身不一定壞。若看到 `fatal: Unable to read current working directory`，先用 `git -C K:\APIkeys_collection status` 驗證，不要 reset、restore 或刪 lock。這次用 `git -C` 完成 add / commit / push。
 
@@ -41,7 +41,7 @@
 - Web Preview 的爬蟲資產選取現在預設觸發 seed 枚舉，而不是要求使用者先按「更新」。後端以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口 seed，並將候選 upsert 到本機 catalog。
 - Web 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，右側 seed 清單只讀本機已枚舉候選並以 50 筆為一個視窗展開。這個 endpoint 不重新打遠端 crawler；「顯示更多 seed」只是顯示下一批已枚舉結果。
 - Seed 清單分頁已抽到 `api_launcher/crawler_seed_registry.py`。`frontends/web/preview_api.py` 只負責解析 asset / DB / profile，真正的 asset filter、page clamp、row payload、favorite 判斷都由後端 service 產生。後續 Tk/Qt 若要顯示 seed 清單，請直接用這個 module，不要複製 Web endpoint 內部邏輯。
-- 收藏對象已改為 seed。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續若要產品化，應再提升到正式 seed registry，而不是收藏 crawler asset 入口。
+- 收藏對象已改為 seed。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 進入 `save_crawler_seed_favorite()`，再寫入 crawler asset profile 的 `favorite_seed_uids`；UI 不應直接呼叫 profile helper 或自行知道 profile 欄位名稱。後續若要產品化，應延伸 seed registry 查詢 / 狀態 payload，而不是收藏 crawler asset 入口。
 - `CrawlerAssetListingResult.to_dict()` 與 listing event context 現在包含 `seed_enumeration`：`status`、`display_tone`、`label`、`help`、`limited_by_max_results`、`candidate_count`、`max_results`。Web/Tk/Qt 應呈現這份後端 payload，不要用 `candidate_count >= max_results` 之類的前端 heuristic 自行推論。
 - 當 `seed_enumeration.status=local_limit_reached` 時，意思是「達到本機安全枚舉上限，遠端可能還有更多」，不是錯誤，也不是入口失效。下一步應是縮小界域、提高上限，或等 handler 層補遠端 pagination / exhausted 狀態。
 - UI 文案請避免回到「更新資料清單」作為主流程。入口卡片可以保留「重新枚舉 seed」作為次要刷新，但使用者選入口時就應能看到已枚舉的 seed 清單。

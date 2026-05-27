@@ -1,5 +1,7 @@
+from tempfile import TemporaryDirectory
 import unittest
 
+from api_launcher.crawler_asset_profiles import load_crawler_asset_profiles
 from api_launcher.crawler_seed_registry import (
     MAX_CRAWLER_SEED_PAGE_SIZE,
     crawler_seed_belongs_to_asset,
@@ -7,6 +9,7 @@ from api_launcher.crawler_seed_registry import (
     crawler_seed_page,
     crawler_seed_row,
     normalize_crawler_seed_page,
+    save_crawler_seed_favorite,
 )
 from api_launcher.models import Dataset
 
@@ -16,7 +19,11 @@ class FakeSeedRepository:
         self.datasets = datasets
         self.calls: list[tuple[str | None, str | None]] = []
 
-    def list_dataset_candidates(self, status: str | None = "needs_review", provider_id: str | None = None) -> list[Dataset]:
+    def list_dataset_candidates(
+        self,
+        status: str | None = "needs_review",
+        provider_id: str | None = None,
+    ) -> list[Dataset]:
         self.calls.append((status, provider_id))
         return [dataset for dataset in self.datasets if dataset.provider_id == provider_id]
 
@@ -119,6 +126,35 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
 
         self.assertEqual("dataset-id", crawler_seed_favorite_key(without_uid))
         self.assertEqual("Dataset Title", crawler_seed_favorite_key(without_ids))
+
+    def test_save_seed_favorite_persists_profile_state(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile_path = f"{tmp}/crawler_assets.local.json"
+
+            saved = save_crawler_seed_favorite(
+                asset_id="demo_asset",
+                dataset_uid="demo_provider:seed_01",
+                favorite=True,
+                profile_path=profile_path,
+            )
+            removed = save_crawler_seed_favorite(
+                asset_id="demo_asset",
+                dataset_uid="demo_provider:seed_01",
+                favorite=False,
+                profile_path=profile_path,
+            )
+            profiles = load_crawler_asset_profiles(profile_path)
+
+        self.assertTrue(saved["favorite"])
+        self.assertEqual(1, saved["favorite_seed_count"])
+        self.assertEqual("seed_favorite_saved", saved["next_action"])
+        self.assertFalse(removed["favorite"])
+        self.assertEqual(0, removed["favorite_seed_count"])
+        self.assertEqual((), profiles["demo_asset"].favorite_seed_uids)
+
+    def test_save_seed_favorite_requires_dataset_uid(self) -> None:
+        with self.assertRaisesRegex(ValueError, "dataset_uid is required"):
+            save_crawler_seed_favorite(asset_id="demo_asset", dataset_uid="")
 
 
 if __name__ == "__main__":

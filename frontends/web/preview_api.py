@@ -22,7 +22,6 @@ from api_launcher.crawler_asset_display import (
 from api_launcher.crawler_asset_profiles import (
     compact_crawler_asset_plan_passport,
     crawler_asset_favorite_seed_uids,
-    set_crawler_asset_seed_favorite,
     update_crawler_asset_plan_passport,
 )
 from api_launcher.crawler_asset_service import (
@@ -36,7 +35,7 @@ from api_launcher.crawler_asset_service import (
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
-from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row
+from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.local_credentials import crawler_asset_credential_status, update_crawler_asset_credentials
@@ -255,18 +254,13 @@ def save_crawler_asset_seed_favorite(
 
     asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     dataset_uid = str(payload.get("dataset_uid") or "").strip()
-    if not dataset_uid:
-        raise ValueError("dataset_uid is required")
     favorite = bool(payload.get("favorite", True))
-    profile = set_crawler_asset_seed_favorite(asset.asset_id, dataset_uid, favorite, profile_path)
-    is_favorite = dataset_uid in profile.favorite_seed_uids
-    result = {
-        "asset_id": asset.asset_id,
-        "dataset_uid": dataset_uid,
-        "favorite": is_favorite,
-        "favorite_seed_count": len(profile.favorite_seed_uids),
-        "next_action": "seed_favorite_saved",
-    }
+    result = save_crawler_seed_favorite(
+        asset_id=asset.asset_id,
+        dataset_uid=dataset_uid,
+        favorite=favorite,
+        profile_path=profile_path,
+    )
     log_event(
         "crawler_asset_seed_favorite_updated",
         "Web Preview updated a seed-level favorite.",

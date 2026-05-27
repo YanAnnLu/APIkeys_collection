@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Iterable
+
+from api_launcher.crawler_asset_profiles import set_crawler_asset_seed_favorite
 
 
 MAX_CRAWLER_SEED_PAGE_SIZE = 50
@@ -128,6 +131,40 @@ def crawler_seed_favorite_key(dataset: object) -> str:
     return ""
 
 
+def save_crawler_seed_favorite(
+    *,
+    asset_id: str,
+    dataset_uid: str,
+    favorite: bool = True,
+    profile_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Persist a seed-level favorite and return the shared result payload.
+
+    profile 目前仍是收藏的儲存 lane；這裡先把寫入語意集中起來，讓 Web/Tk/Qt
+    之後不需要各自知道 `favorite_seed_uids` 的欄位名稱。
+    """
+
+    clean_asset_id = str(asset_id or "").strip()
+    clean_dataset_uid = str(dataset_uid or "").strip()
+    if not clean_asset_id:
+        raise ValueError("asset_id is required")
+    if not clean_dataset_uid:
+        raise ValueError("dataset_uid is required")
+    profile = set_crawler_asset_seed_favorite(
+        clean_asset_id,
+        clean_dataset_uid,
+        bool(favorite),
+        profile_path,
+    )
+    return {
+        "asset_id": clean_asset_id,
+        "dataset_uid": clean_dataset_uid,
+        "favorite": clean_dataset_uid in profile.favorite_seed_uids,
+        "favorite_seed_count": len(profile.favorite_seed_uids),
+        "next_action": "seed_favorite_saved",
+    }
+
+
 __all__ = [
     "DEFAULT_CRAWLER_SEED_PAGE_SIZE",
     "MAX_CRAWLER_SEED_PAGE_SIZE",
@@ -137,4 +174,5 @@ __all__ = [
     "crawler_seed_row",
     "list_crawler_asset_seed_candidates",
     "normalize_crawler_seed_page",
+    "save_crawler_seed_favorite",
 ]
