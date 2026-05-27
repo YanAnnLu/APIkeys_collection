@@ -1,0 +1,99 @@
+# 文件漂移審計
+
+最後更新：2026-05-27 12:22 Asia/Taipei
+
+本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
+
+## 本輪審計範圍
+
+本輪是第一輪快速但實質的文檔漂移審計，重點是權威入口與接力文件：
+
+- `docs/AGENT_START_HERE.zh-TW.md`
+- `docs/AGENT_HANDOFF.zh-TW.md`
+- `docs/PROJECT_GTD.md`
+- `docs/DOCS_INDEX.zh-TW.md`
+- `docs/DEVELOPMENT_LOG.zh-TW.md`
+
+未做完整逐行驗證的文件：
+
+- `docs/USER_GUIDE.zh-TW.md`
+- `docs/USER_MANUAL.zh-TW.md`
+- `docs/WEB_PREVIEW_UIUX.zh-TW.md`
+- `docs/ARCHITECTURE*.md`
+- `docs/TECHNICAL_OVERVIEW.zh-TW.md`
+- 較舊 feature docs 與 appendices
+
+## 已驗證現況
+
+驗證命令與結果：
+
+- `git status --short --branch`：`## main...origin/main`
+- `git log -1 --oneline --decorate`：`170b236 (HEAD -> main, origin/main, origin/HEAD) Log CKAN pagination output checkpoint`
+- `gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`：最新 run `26489024004` 對應 `170b236`，狀態 `completed success`
+- 主要近期文件存在且可讀：`AGENT_HANDOFF`、`PROJECT_GTD`、`DATASET_DISCOVERY_NOTES`、`DOCS_INDEX`、`DEVELOPMENT_LOG`
+
+## 已發現並修補的漂移
+
+### 1. Handoff 最新 HEAD 漂移
+
+`docs/AGENT_HANDOFF.zh-TW.md` 的「Git / CI status」仍寫：
+
+```text
+最新已推送 HEAD：3ca9a37 Add CKAN remote pagination output
+```
+
+但 verified behavior 顯示目前 HEAD 是：
+
+```text
+170b236 Log CKAN pagination output checkpoint
+```
+
+處置：
+
+- 已將 handoff 最新 Git / CI status 對齊到 `170b236` / run `26489024004`。
+- 已在 handoff 最上方新增本輪 docs drift audit / current verified status，提醒後續 agent 不要把較舊段落當成目前真相。
+
+### 2. 入口文件權威順序過時
+
+`AGENT_START_HERE.zh-TW.md` 原權威順序把本文件排在 verified behavior 前面，容易讓 agent 盲信文件。
+
+處置：
+
+- 已新增「文檔漂移防護」。
+- 已把權威順序改為：使用者最新指令 -> 已驗證行為 -> handoff/GTD -> 入口/索引文件 -> specs -> feature docs -> 歷史日誌與參考資料。
+
+### 3. Docs Index 未標出文檔漂移審計入口
+
+`DOCS_INDEX.zh-TW.md` 原本沒有告訴 agent 如何處理文件漂移。
+
+處置：
+
+- 已新增文檔漂移防護原則。
+- 已新增「檢查文件是否漂移」閱讀路線。
+- 已把本文件加入主文件地圖。
+
+## 已知剩餘漂移風險
+
+這些不是已確認錯誤，而是尚未逐一驗證的高風險區：
+
+1. 使用者操作文件可能落後於實際 UI。
+   - 需對 `USER_GUIDE.zh-TW.md`、`USER_MANUAL.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md` 做 Tk/Web 實際操作對照。
+2. Handoff 過長，較舊段落仍含當時的「最新」用語。
+   - 最上方最新 section 已修正權威狀態；已把明顯的「最新穩定 checkpoint」舊語句改成歷史 checkpoint。其餘舊段落暫視為歷史證據，不逐段重寫。
+3. 架構與技術總覽文件較舊。
+   - `ARCHITECTURE*.md`、`TECHNICAL_OVERVIEW.zh-TW.md`、`WORKSPACE_LAYOUT.zh-TW.md` 可能未完整反映 Web Preview、crawler seed registry、developer diagnostics、remote pagination contract。
+4. Showcase / demo 字眼需要下輪審查。
+   - 凡是「真下載示範」「展示模式」相關文字，要確認是否清楚標示 transitional/demo，避免被寫成 stable mainline feature。
+
+## 後續建議
+
+下一輪若要繼續大規模對齊，建議順序：
+
+1. 實際啟動 Web Preview，對照 `WEB_PREVIEW_UIUX.zh-TW.md` 與 `USER_GUIDE.zh-TW.md`。
+2. 實際啟動 Tk 或至少跑 headless UI/import tests，對照 `USER_MANUAL.zh-TW.md`。
+3. 用 `rg` 搜尋「最新」「完成」「穩定」「0%」「真下載示範」「8765/8766」等易漂移語句，逐段分類成 current / historical / roadmap / demo。
+4. 將 handoff 的超長歷史段逐步瘦身，把穩定歷史移到 `DEVELOPMENT_LOG.zh-TW.md` 或專題文件，只保留最新接力與風險。
+
+## 本輪結論
+
+目前文件存在明確漂移，但最危險的入口漂移已做最小修補。下一輪開發前，agent 應先讀本文件，再用實際測試/CLI/UI 證據確認要採信哪些文件段落。

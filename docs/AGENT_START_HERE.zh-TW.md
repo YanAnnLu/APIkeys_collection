@@ -1,8 +1,14 @@
 # Agent Start Here
 
-最後更新：2026-05-24
+最後更新：2026-05-27
 
 這份文件是給接手 RRKAL / `APIkeys_collection` 的 agent 的最短入口地圖。它不取代詳細規格，只負責降低啟動時的判斷成本。
+
+## 文檔漂移防護
+
+不要假設文件永遠反映現況。文件是契約，但契約可能漂移。接手時先用 `git status --short --branch`、`git log -1 --oneline --decorate`、必要的 CLI JSON、smoke/test 或實際 UI 操作建立 verified behavior，再回頭讀文件。
+
+若文件和已驗證行為衝突，以已驗證行為為準，並把漂移寫進 handoff / GTD / development log 或做最小必要文件修補。歷史日誌是證據，不是目前真相。
 
 ## 目前主線
 
@@ -25,12 +31,12 @@
 若文件彼此衝突，依序採信：
 
 1. 使用者最新明確指令。
-2. 本文件：目前主線、不要做什麼、權威順序。
-3. `docs/AGENT_HANDOFF.zh-TW.md`：最新接力、風險、跨機器規則。
-4. `docs/PROJECT_GTD.md`：進度與下一步。
+2. 已驗證行為：tests、CLI JSON、smoke result、實際 UI 行為、`git diff`、GitHub Actions。
+3. `docs/AGENT_HANDOFF.zh-TW.md` 與 `docs/PROJECT_GTD.md`：最新接力、目前進度、下一步與已知風險。
+4. 本文件與 `docs/DOCS_INDEX.zh-TW.md`：入口地圖、閱讀路徑與文件分層。
 5. `openspec/specs/` 與 `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md`：中大型變更的規格與流程。
-6. 任務對應文件，例如 crawler 看 `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`，UI 看 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md`。
-7. 歷史日誌、K 槽教材、外部討論與概念筆記。
+6. 任務對應文件，例如 crawler 看 `docs/DATASET_DISCOVERY_NOTES.zh-TW.md`，UI 看 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md` / `docs/WEB_PREVIEW_UIUX.zh-TW.md`。
+7. `docs/DEVELOPMENT_LOG.zh-TW.md`、歷史日誌、K 槽教材、外部討論與概念筆記。它們可當證據與脈絡，但不能直接覆蓋已驗證現況。
 
 ## 任務閱讀路徑
 
@@ -51,6 +57,7 @@
 - 需要 agent-readable 狀態時，優先用 JSON 入口，例如 `--handoff-report-json`、`--run-mvp-demo-smoke-json`、`--adapter-review-json`、`--run-download-plan-json`，不要解析人類文字輸出。
 - push 前先跑 `.\scripts\pre_push_smoke_brief.cmd`；等流程穩定後才考慮用 `.\scripts\install_pre_push_hook.cmd` 安裝本機 hook。
 - push 後必須看 GitHub Actions：`gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`，再用 `gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status` 等遠端 checkpoint 確認。
+- 每個 checkpoint 結束前做 docs drift check：本輪是否改了 UI/Web/Tk/CLI、crawler/source pattern/download/import/adapter review、功能定位、展示/experimental surface、K 槽/本地 clone/GitHub/CI 工作流，或讓 handoff/GTD/log/index/user docs 任一敘述變成錯誤。
 
 ## K 槽參考邊界
 

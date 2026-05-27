@@ -1,10 +1,12 @@
 # 文件索引與整理規則
 
-最後更新：2026-05-24
+最後更新：2026-05-27
 
 這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
 核心原則：目前 `docs/` 裡的每份文件都可能保存重要決策。不要因為兩份文件看起來重複，就直接刪除、覆蓋或忽略；先確認它們各自承載的是接力、產品定位、使用說明、技術總覽、子系統細節，還是歷史狀態。
+
+文檔漂移防護：文件是契約，但可能漂移。接手時先以已驗證行為建立現況：tests、CLI JSON、smoke result、實際 UI 行為、`git diff`、GitHub Actions。若文件和已驗證行為衝突，以已驗證行為為準，回報漂移，並做最小必要修補。`DEVELOPMENT_LOG.zh-TW.md` 是歷史證據，不是目前真相。
 
 另一個重要原則：這些 `.md` 是專案知識與文件結構的 source of truth；Agent skill、handoff prompt、OpenSpec/Spectra 流程或外部自動化是消費這些文件的操作層。文件整理的方向應由 `.md` 的角色與專案維護性決定，不應反過來讓舊 skill 路徑凍結文件架構。合併、改名、刪除文件前，仍必須搜尋 `.codex/skills/`、`.gemini/`、`.github/skills/`、`.github/prompts/`、`openspec/`、`scripts/` 是否引用該路徑；整理好 `.md` 後，再回頭更新 skill/prompt/script 的引用，並在過渡期保留 redirect/summary 以免舊流程立刻失效。
 
@@ -35,6 +37,7 @@
 | 情境 | 建議先讀 | 目的 |
 | --- | --- | --- |
 | 新 Agent 接手 | `AGENT_START_HERE.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> `PROJECT_GTD.md` -> `DOCS_INDEX.zh-TW.md` | 先看權威順序、目前主線與不要做什麼，再看最新接力、進度與文件地圖。 |
+| 檢查文件是否漂移 | `DOCS_DRIFT_AUDIT.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> 實際 CLI/test/UI/CI 證據 | 先看已知漂移與本輪修補，再用已驗證行為判斷文件是否可採信。 |
 | 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 屬於哪個開發階段、改了什麼、如何驗證、還有什麼風險。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
@@ -57,6 +60,7 @@
 | `DEVELOPMENT_LOG.zh-TW.md` | 開發日誌，從 2026-05-21 起用流水帳記錄 push / CI run；最近日期與同日內最新時間放最上方，成功 run 用 `**CHECKPOINT**` 標醒目，失敗 run 保留為 `**CI 失敗**`，每筆都要有 `開發階段` 與中文說明。 | 每次完成並推送一個版本 checkpoint 後追加，不重寫舊紀錄；需要回補時可用 GitHub Actions run list 反推。 |
 | `HEARTBEAT_AUTOMATION.zh-TW.md` | heartbeat automation 的安全規則、CLI/script 入口、外部排程與 agent runner 邊界。 | 更改 heartbeat CLI、scheduler、停止條件或自動推進規則時更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |
+| `DOCS_DRIFT_AUDIT.zh-TW.md` | 文件漂移審計紀錄，列出已驗證現況、已修漂移、已知剩餘漂移風險與後續驗收路徑。 | 做文檔對齊、發現文件和實際行為衝突、或 showcase/驗收前做文件審計時更新。 |
 | `CODE_RELATIONSHIP_MAP.zh-TW.md` | 程式關聯地圖，說明入口、子系統、調度方向、測試入口與註解規則。 | 拆模組、搬資料夾、調整 CLI/UI/backend 邊界時更新。 |
 | `MVP_FLOW_AUDIT.zh-TW.md` | MVP 閉環稽核表，列出 Demo 流程、下載/匯入/repair/MySQL 的可驗證狀態與缺口。 | Demo 前後、發現按鈕沒有閉環、下載/匯入/crawler 行為改變時更新。 |
 | `USER_MANUAL.zh-TW.md` | 帶圖說的使用者操作手冊，面向 Demo 與第一次操作。 | 新增 UI/CLI 操作、改變使用者流程、補圖說時更新。 |

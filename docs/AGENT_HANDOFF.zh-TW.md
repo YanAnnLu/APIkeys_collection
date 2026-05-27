@@ -1,4 +1,11 @@
 ﻿# Agent 接力卡
+## 2026-05-27 12:22 Documentation drift audit / current verified status
+- Read-only drift audit confirmed an obvious stale handoff claim: this file still said latest pushed HEAD was `3ca9a37`, while verified Git state is now `170b236 Log CKAN pagination output checkpoint` on `main...origin/main`.
+- Verified GitHub Actions state: `gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5` reports latest run `26489024004` for `170b236` completed with `success`.
+- Current docs alignment patch updates `AGENT_START_HERE.zh-TW.md`, this handoff, `PROJECT_GTD.md`, `DOCS_INDEX.zh-TW.md`, `DEVELOPMENT_LOG.zh-TW.md`, and adds `DOCS_DRIFT_AUDIT.zh-TW.md`.
+- Rule for next agents: do not treat older sections in this file as current truth merely because they are near the top. Prefer verified behavior plus this newest handoff section; older entries are evidence/history unless restated in the latest section.
+- Known remaining drift risk: user-facing docs and older architecture/user manual files were not line-by-line validated against live Tk/Web behavior in this checkpoint. Before a showcase or UI acceptance pass, verify the actual UI and then patch user-facing docs minimally.
+
 ## 2026-05-27 Declarative architecture decision
 - 已新增 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。結論是採納宣告式架構作為第二階段收斂方向，但第一階段不重寫成萬能 YAML / universal interpreter。
 - 目前優先順序仍是 MVP 閉環：`seed -> crawler -> candidate -> plan -> download -> import -> UI`。現有 Python adapter / service / registry 先保持可測、可用、可交付。
@@ -17,7 +24,7 @@
 - 目前多數 handler 尚未實際回填遠端 pagination token / exhausted；下一步是逐一把有分頁能力的 handler 接上這個 contract，而不是在前端補 heuristic。
 
 ## 2026-05-27 Git / CI status
-- 最新已推送 HEAD：`3ca9a37 Add CKAN remote pagination output`，GitHub Actions run `26488915209` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。
+- 最新已推送 HEAD：`170b236 Log CKAN pagination output checkpoint`，GitHub Actions run `26489024004` 的 Ubuntu、`windows-2025-vs2026` 與 real DB smoke 全部 success。上一個功能 commit `3ca9a37 Add CKAN remote pagination output` / run `26488915209` 也成功，但已不是 latest HEAD。
 - `b8b45f9 Add crawler asset web seed UX` 曾在 CI 失敗，原因是 Tk crawler listing event logging 的語法錯誤。這已由 `6be2061` 修復；後續改 Web crawler asset 時仍要至少跑 Tk import / `tests.test_launcher_ui tests.test_tk_dialogs`，避免只驗 Web targeted tests 漏掉 Tk import path。
 - K 槽雲端工作區偶發 PowerShell current working directory handle 失效時，Git repo 本身不一定壞。若看到 `fatal: Unable to read current working directory`，先用 `git -C K:\APIkeys_collection status` 驗證，不要 reset、restore 或刪 lock。這次用 `git -C` 完成 add / commit / push。
 
@@ -148,7 +155,7 @@
 
 ## 2026-05-25 Crawler asset / download plan registry 收斂
 
-- 最新穩定 checkpoint：`734deb1`（`Preserve fragments in crawler query URLs`），GitHub Actions run `26400477554` 已成功。
+- 歷史穩定 checkpoint：`734deb1`（`Preserve fragments in crawler query URLs`），GitHub Actions run `26400477554` 已成功；這不是目前 latest HEAD。目前 latest HEAD 以本文件最上方的 current verified status 為準。
 - `api_launcher/crawlers/fetch.py::search_endpoint_url()` 現在用 URL parser 寫回 query，會把新增查詢參數放在 `#fragment` 前面，並在沒有有效參數時原樣返回。後續 crawler URL 組裝應走共用 helper 或範式專屬 normalizer，不要用手寫字串相加。
 - CLI `--source-draft-detector-min-confidence` 現在也引用後端 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`。命令列、Tk 表單與 detector service 共用同一個人工 review 門檻；後續不要在 CLI/UI 入口各自硬寫 detector threshold。
 - Tk source draft dialog 與 crawler asset workflow 現在引用後端 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`，不再在 UI 端硬寫 `0.35`。後續若調整 detector threshold，先改 `api_launcher.crawlers.source_patterns` 的契約與測試，UI 只吃服務層預設。
