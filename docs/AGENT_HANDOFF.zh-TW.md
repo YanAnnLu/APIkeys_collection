@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 05:43 Developer diagnostics next-action label handoff
+- 本輪把 developer-only crawler handler smoke diagnostics payload 也補上 `next_action_label`。`api_launcher/developer_diagnostics.py` 現在會把 `run_dataset_discovery_handler_smoke_json_if_summary_fails` 轉成「摘要失敗時，執行 handler smoke JSON 診斷」，Tk diagnostics message 也優先顯示這個 label，不再把 raw action id 當主文案。
+- 這是 UI-neutral display contract 的小切片，不改 handler smoke、crawler audit 或 Web/Tk diagnostics 執行邏輯；developer-only surface 仍明確標示它只是 offline contract smoke，不證明 live NASA/NOAA/CKAN endpoint 可連。
+- 本地驗證已通過：in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_developer_diagnostics tests.test_tk_dialogs tests.test_web_preview -v` 103 tests OK；docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，812 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_054131.log`。尚未 commit / push。
+
 ## 2026-05-28 05:34 Tk MVP smoke next-action label handoff
 - 本輪把 Tk MVP Demo Smoke 失敗摘要也接到共用 `next_action_display_label()`。`frontends/tk/ui_helpers.py` 現在會把 `inspect_manifest` 轉成「檢查 manifest 與最近事件紀錄」，避免使用者在 Tk messagebox 看到 raw machine action；machine-readable `next_action` 仍保留在 CLI JSON / agent payload。
 - 這是 UI 顯示層切片，不改 MVP demo smoke、download、manifest、SQLite import 或 repair 行為。新增 / 更新 regression：`tests.test_launcher_ui.DownloadPlanPanelUiTests.test_mvp_demo_smoke_result_message_guides_failed_closure` 會確認使用者訊息包含人類 label，且不含 raw `inspect_manifest`。

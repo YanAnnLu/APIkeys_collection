@@ -35,7 +35,7 @@ def crawler_handler_smoke_diagnostics_message(payload: dict[str, object]) -> str
             f"Candidate-case status: {summary.get('candidate_case_status', '')}",
             f"Candidate-case pass sources: {summary.get('candidate_case_pass_sources', 0)}",
             "",
-            f"Next action: {summary.get('next_action') or payload.get('next_action', '')}",
+            f"Next action: {payload.get('next_action_label') or summary.get('next_action') or payload.get('next_action', '')}",
             f"Command: {summary.get('command', '')}",
             "",
             "Developer-only: this is an offline contract smoke. It does not prove live NASA/NOAA/CKAN endpoints are reachable.",

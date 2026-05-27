@@ -19,6 +19,7 @@ class DeveloperDiagnosticsTests(unittest.TestCase):
         self.assertEqual(CRAWLER_HANDLER_SMOKE_DIAGNOSTIC_ID, payload["diagnostic_id"])
         self.assertTrue(payload["developer_only"])
         self.assertEqual(OFFLINE_CONTRACT_SMOKE_SCOPE, payload["scope"])
+        self.assertEqual("摘要失敗時，執行 handler smoke JSON 診斷", payload["next_action_label"])
         self.assertIn("--dataset-discovery-handler-smoke-json", payload["summary"]["command"])
         self.assertNotIn("source_results", json.dumps(payload, ensure_ascii=False))
 

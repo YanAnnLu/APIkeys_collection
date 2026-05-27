@@ -192,6 +192,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertNotIn("source_results", json.dumps(payload, ensure_ascii=False))
         self.assertIn("Supported source types", message)
         self.assertIn("offline contract smoke", message)
+        self.assertIn("摘要失敗時，執行 handler smoke JSON 診斷", message)
+        self.assertNotIn("run_dataset_discovery_handler_smoke_json_if_summary_fails", message)
 
     def test_tk_crawler_handler_smoke_diagnostics_dialog_sets_status(self) -> None:
         class _Ui(DeveloperDiagnosticsWorkflowMixin):

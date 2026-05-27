@@ -124,6 +124,7 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "optional_edit_local_credentials": "可選擇補上登入設定",
     "run_adapter_review_or_resolve_adapter_plan_before_downloading": "先處理 Adapter 審核或解析計畫，再下載",
     "inspect_manifest": "檢查 manifest 與最近事件紀錄",
+    "run_dataset_discovery_handler_smoke_json_if_summary_fails": "摘要失敗時，執行 handler smoke JSON 診斷",
 }
 
 ADAPTER_REVIEW_OUTCOME_DISPLAY = {
