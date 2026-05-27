@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 15:45 Asia/Taipei
+最後更新：2026-05-27 15:48 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -29,7 +29,7 @@
 - 後續 source-profile rate-limit 切片：`py -B -m unittest tests.test_dataset_discovery -v`，39 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke tests.test_web_preview -v`，113 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，758 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26495740693` 全部 success。
 - 後續 source-profile access-policy 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，78 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，109 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，759 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26496327588` 全部 success。
 - 後續 source-profile access-policy validation 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，80 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，111 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，761 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26497125509` 全部 success。
-- 後續 source-request-policy consolidation 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，81 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，112 tests OK；`py -B -m py_compile api_launcher\crawlers\request_policy.py api_launcher\crawlers\dataset_sources.py tests\test_dataset_discovery.py` OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，762 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。此切片尚待 CI。
+- 後續 source-request-policy consolidation 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，81 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，112 tests OK；`py -B -m py_compile api_launcher\crawlers\request_policy.py api_launcher\crawlers\dataset_sources.py tests\test_dataset_discovery.py` OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，762 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26498010323` 全部 success。
 
 ## P0 Findings
 
