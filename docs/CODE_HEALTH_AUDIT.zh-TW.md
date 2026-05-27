@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 15:27 Asia/Taipei
+最後更新：2026-05-27 15:45 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -29,6 +29,7 @@
 - 後續 source-profile rate-limit 切片：`py -B -m unittest tests.test_dataset_discovery -v`，39 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke tests.test_web_preview -v`，113 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，758 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26495740693` 全部 success。
 - 後續 source-profile access-policy 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，78 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，109 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，759 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26496327588` 全部 success。
 - 後續 source-profile access-policy validation 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，80 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，111 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，761 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26497125509` 全部 success。
+- 後續 source-request-policy consolidation 切片：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，81 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，112 tests OK；`py -B -m py_compile api_launcher\crawlers\request_policy.py api_launcher\crawlers\dataset_sources.py tests\test_dataset_discovery.py` OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，762 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。此切片尚待 CI。
 
 ## P0 Findings
 
@@ -70,6 +71,7 @@
 - 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_source_loader_preserves_politeness_defaults`、`test_source_profile_politeness_defaults_reach_default_crawler` 與 `test_paginated_crawler_honors_source_rate_limit_between_pages`。
 - 後續補強：`credential_mode` 與 `terms_risk` 已可由 source profile 明示；crawler asset capability 會先讀 source profile，再退回文字 heuristic。未來可再把 timeout/page/rate-limit/access policy 合併成正式 request policy object。
 - validation 補強：`credential_mode` 與 `terms_risk` 已經過白名單 normalization；未知值會被清空，不會寫回 source JSON 或顯示到 UI capability contract。
+- consolidation 補強：source profile request/access policy 已抽成 `SourceRequestPolicy` typed helper，讓未來 middleware/decorator pipeline 有單一入口，不必在 `dataset_sources.py` 與各 handler 之間繼續複製有效值計算。
 
 ### P2-2 HTML file index full crawl 單頁失敗策略仍偏硬（已於後續切片修補）
 

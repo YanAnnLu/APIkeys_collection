@@ -1,4 +1,8 @@
 ﻿# Agent 接力卡
+## 2026-05-27 15:45 Source request policy consolidation checkpoint
+- 本輪把 source profile 的 timeout / max pages / page size / rate-limit / credential mode / terms risk 收斂到 `api_launcher.crawlers.request_policy.SourceRequestPolicy` 與 `source_request_policy()`。`dataset_sources.py` 現在只消費有效 policy，再呼叫既有 handler；這是為未來 middleware / decorator pipeline 鋪 typed contract，不是改寫 crawler handler。
+- 已保留既有行為：source-level max pages 仍是安全上限、page size 仍會壓低過大的 UI/CLI override、access policy 仍走白名單 normalization。已驗證：`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets -v`，81 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v`，112 tests OK；`py -B -m py_compile api_launcher\crawlers\request_policy.py api_launcher\crawlers\dataset_sources.py tests\test_dataset_discovery.py` OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd`，762 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。下一步：commit / push / CI。
+
 ## 2026-05-27 15:27 Source profile access policy validation checkpoint
 - 本輪在 `credential_mode` / `terms_risk` 明示欄位上補白名單 normalization：`DatasetDiscoverySource` loader 只接受 `public_or_review`、`user_credential_required`、`terms_review_required` 這類已知治理值，未知字串會被清空，`source_to_dict()` 也不會把未知 access policy 寫回 source JSON。
 - `crawler_asset_capabilities.credential_mode_for_source()` / `terms_risk_for_source()` 也改吃同一組 normalizer；因此本機 source profile 若誤填 `raw-secret`、`maybe` 這類值，不會漏到 Web/Tk/Qt capability contract，而是回到既有 public/review fallback heuristic。

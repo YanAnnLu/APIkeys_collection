@@ -7,6 +7,7 @@
 - `crawl_rate_limit_seconds` 由 paginated crawler handler 透過共用 `polite_crawl_delay()` 套用於下一頁 request 前；這是 request-policy guard，不是 parser 邏輯。後續若要更完整，可把它提升成正式 request policy 物件，但不要讓 Tk/Web/Qt 自行 sleep 或猜測限流。
 - `credential_mode` 與 `terms_risk` 現在也可由 source profile 明示。crawler asset capability 先讀 source profile，再退回文字 heuristic；因此登入/API key 與條款風險是 crawler/source 的治理設定，不是 dataset seed 或 UI 憑空推論。
 - `credential_mode` / `terms_risk` 會經過白名單 normalization。未知字串不會寫回 source JSON，也不會進入 UI capability contract；這避免本機 source profile 誤填的 raw secret、自由文字或臨時標籤被前端當成正式治理狀態。
+- `api_launcher.crawlers.request_policy.SourceRequestPolicy` 現在是 source profile request/access policy 的 typed staging point。`dataset_sources.py` 先算出 effective timeout、max pages、page size、rate-limit、credential mode 與 terms risk，再呼叫既有 handler；後續 middleware/decorator 化應接這裡，而不是讓 handler/UI 各自重算。
 - 這只是 source profile request/access policy 的第一段。未來可再把 timeout、page cap、page size、rate-limit、credential mode、terms risk 合併成正式 request policy object，但不要在個別 parser 或 UI 裡硬寫站點規則。
 - 使用者提出的「數據驅動裝飾器爬蟲架構」可視為第二階段 PoC：把 credential gating、pagination driver、timeout/retry/rate-limit 等橫切能力收成 middleware pipeline。但正式 contract 應使用 typed source profile / request policy schema，不使用欄位順序脆弱的 raw list row。
 - `DatasetCrawlerOutput` 是 crawler handler 回報遠端分頁狀態的第一個後端 contract。舊 handler 可維持回傳 candidate list；支援分頁的 handler 應逐步改成回傳 candidates 加 `remote_pagination_status` / `remote_exhausted` / `remote_next_page_token`，讓 UI 呈現 seed 枚舉完整度而不用自行猜測。

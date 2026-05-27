@@ -65,7 +65,8 @@ from api_launcher.crawlers.openalex import (
     openalex_works_search_url,
     paginated_openalex_candidates,
 )
-from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES, append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.crawlers.socrata import (
     paginated_socrata_catalog_candidates,
     socrata_catalog_candidates_for_source,
@@ -97,7 +98,6 @@ from api_launcher.crawlers.zenodo import (
 
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
-DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
 DatasetSourceCrawler = Callable[
     [DatasetDiscoverySource, float, int, tuple[str, ...], bool, int],
     list[DatasetCandidate] | tuple[DatasetCandidate, ...] | DatasetCrawlerOutput,
@@ -158,13 +158,19 @@ def discover_dataset_candidate_output_for_source(
 ) -> DatasetCrawlerOutput:
     # 保留歷史 list-returning API，同時讓 orchestrator 可以接住新 handler
     # 回報的遠端 pagination metadata。
-    timeout = _effective_source_crawl_timeout(source, timeout)
-    max_pages = _effective_source_crawl_max_pages(source, max_pages)
-    limit = _effective_source_crawl_page_size(source, max_results_override, full_crawl)
+    policy = source_request_policy(
+        source,
+        fallback_timeout=timeout,
+        fallback_max_pages=max_pages,
+        max_results_override=max_results_override,
+        full_crawl=full_crawl,
+    )
     search_terms = search_terms_override or source.search_terms
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
-        return dataset_crawler_output(handler(source, timeout, limit, search_terms, full_crawl, max_pages))
+        return dataset_crawler_output(
+            handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
+        )
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
 
 
@@ -323,13 +329,21 @@ def discover_dataset_candidates_for_source(
     max_pages: int = 0,
 ) -> list[DatasetCandidate]:
     # full crawl 只在使用者明確要求時提高 page size；一般 demo 保持 bounded。
-    timeout = _effective_source_crawl_timeout(source, timeout)
-    max_pages = _effective_source_crawl_max_pages(source, max_pages)
-    limit = _effective_source_crawl_page_size(source, max_results_override, full_crawl)
+    policy = source_request_policy(
+        source,
+        fallback_timeout=timeout,
+        fallback_max_pages=max_pages,
+        max_results_override=max_results_override,
+        full_crawl=full_crawl,
+    )
     search_terms = search_terms_override or source.search_terms
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
-        return list(dataset_crawler_output(handler(source, timeout, limit, search_terms, full_crawl, max_pages)).candidates)
+        return list(
+            dataset_crawler_output(
+                handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
+            ).candidates
+        )
     # 不支援的 source_type 必須明確失敗，否則 portal intake 會以為 crawler 已接好。
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
 
@@ -348,51 +362,3 @@ def _positive_int(value: object, default: int = 0) -> int:
     except (TypeError, ValueError):
         return default
     return parsed if parsed > 0 else default
-
-
-def _effective_source_crawl_timeout(source: DatasetDiscoverySource, fallback_timeout: float) -> float:
-    # 來源 profile 可宣告自己的 HTTP timeout；未設定時才使用 CLI/UI 全域選項。
-    return source.crawl_timeout_seconds if source.crawl_timeout_seconds > 0 else fallback_timeout
-
-
-def _effective_source_crawl_max_pages(source: DatasetDiscoverySource, fallback_max_pages: int) -> int:
-    """Return the effective full-crawl page cap for one source.
-
-    `crawl_max_pages` is a source-level safety cap. A lower runtime cap can
-    further restrict it, but a runtime cap should not accidentally raise the
-    source profile's declared politeness boundary.
-    """
-
-    source_cap = source.crawl_max_pages
-    runtime_cap = fallback_max_pages
-    if source_cap > 0 and runtime_cap > 0:
-        return min(source_cap, runtime_cap)
-    if source_cap > 0:
-        return source_cap
-    return runtime_cap
-
-
-def _effective_source_crawl_page_size(
-    source: DatasetDiscoverySource,
-    max_results_override: int,
-    full_crawl: bool,
-) -> int:
-    """Return the per-request page size for source discovery.
-
-    `max_results_override` historically doubles as a per-request page size.
-    `crawl_page_size` lets a source profile lower that value so showcase or
-    complete-seed flows do not accidentally send a very large page request to a
-    sensitive catalog.
-    """
-
-    source_page_size = source.crawl_page_size
-    if max_results_override > 0:
-        if source_page_size > 0:
-            return min(max_results_override, source_page_size)
-        return max_results_override
-    if source_page_size > 0:
-        return source_page_size
-    limit = source.max_results
-    if full_crawl:
-        return max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
-    return limit

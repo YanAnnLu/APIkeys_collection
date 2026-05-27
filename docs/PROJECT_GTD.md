@@ -23,6 +23,7 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接 `crawl_rate_limit_seconds`，各 paginated crawler handler 會透過共用 `polite_crawl_delay()` 在下一頁請求前套用來源層延遲；`crawler_asset_source_signature()` 也納入 politeness 欄位，讓保存的 plan passport 在 source profile 改變後可被標成 stale。
 - [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
+- [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
 - [ ] 下一步 hardening：source profile / crawler capability 可再收斂更正式的 request policy metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊

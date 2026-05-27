@@ -35,6 +35,7 @@ from api_launcher.dataset_discovery import (
     zenodo_candidates_from_payload,
 )
 from api_launcher.crawlers import ckan, dataset_sources, html_index, socrata
+from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
     render_dataset_seed_coverage_markdown,
@@ -272,6 +273,37 @@ class DatasetDiscoveryTests(unittest.TestCase):
         payload = dataset_sources.source_to_dict(sources[0])
         self.assertNotIn("credential_mode", payload)
         self.assertNotIn("terms_risk", payload)
+
+    def test_source_request_policy_normalizes_request_and_access_fields(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="sample_source",
+            provider_id="sample_provider",
+            name="Sample Source",
+            source_type="ckan_package_search",
+            endpoint_url="https://example.test/api/3/action/package_search",
+            max_results=12,
+            crawl_timeout_seconds=5.5,
+            crawl_max_pages=3,
+            crawl_page_size=25,
+            crawl_rate_limit_seconds=0.25,
+            credential_mode="user_credential_required",
+            terms_risk="terms_review_required",
+        )
+
+        policy = source_request_policy(
+            source,
+            fallback_timeout=20.0,
+            fallback_max_pages=10,
+            max_results_override=100,
+            full_crawl=True,
+        )
+
+        self.assertEqual(5.5, policy.timeout_seconds)
+        self.assertEqual(3, policy.max_pages)
+        self.assertEqual(25, policy.page_size)
+        self.assertEqual(0.25, policy.rate_limit_seconds)
+        self.assertEqual("user_credential_required", policy.credential_mode)
+        self.assertEqual("terms_review_required", policy.terms_risk)
 
     def test_seed_coverage_marks_search_terms_as_sample_scope(self) -> None:
         source = DatasetDiscoverySource(

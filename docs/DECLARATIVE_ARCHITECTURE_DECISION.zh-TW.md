@@ -66,7 +66,7 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
 
 落地時請採用「profile schema + middleware pipeline」心法，不要直接用脆弱的 raw list row 當正式 contract。建議用 dataclass / typed dict / JSON schema 描述 task profile，避免欄位順序錯誤造成難查 bug。
 
-目前已落地的 source profile 欄位（timeout、max pages、page size、rate limit、credential mode、terms risk）可以視為這條路線的最小資料面。下一步不是把所有 crawler 改成一個裝飾器函數，而是把這些已穩定的 request/access policy 抽成明確 schema，並讓既有 adapter 逐步共用 middleware。
+目前已落地的 source profile 欄位（timeout、max pages、page size、rate limit、credential mode、terms risk）可以視為這條路線的最小資料面。下一步不是把所有 crawler 改成一個裝飾器函數，而是把這些已穩定的 request/access policy 抽成明確 schema，並讓既有 adapter 逐步共用 middleware。`api_launcher.crawlers.request_policy.SourceRequestPolicy` 是這條路線的第一個 typed staging point。
 
 ### 裝飾器順序注意
 
