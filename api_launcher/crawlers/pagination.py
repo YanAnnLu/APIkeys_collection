@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import time
+
 from api_launcher.crawlers.types import DatasetCandidate
 
 
 MAX_FULL_CRAWL_PAGES = 1000
+MAX_CRAWL_RATE_LIMIT_SECONDS = 30.0
 
 
 def discovery_page_cap(max_pages: int) -> int:
@@ -24,3 +27,15 @@ def append_new_candidates(candidates: list[DatasetCandidate], page_candidates: l
         candidates.append(candidate)
         added += 1
     return added
+
+
+def polite_crawl_delay(rate_limit_seconds: float) -> None:
+    """Apply a source-level delay between paginated discovery requests."""
+
+    try:
+        seconds = float(rate_limit_seconds)
+    except (TypeError, ValueError):
+        return
+    if seconds <= 0:
+        return
+    time.sleep(min(seconds, MAX_CRAWL_RATE_LIMIT_SECONDS))

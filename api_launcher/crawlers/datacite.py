@@ -18,7 +18,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -160,6 +160,7 @@ def paginated_datacite_candidates(
         next_candidate = str(links.get("next") or "")
         if not items or len(items) < page_size or added == 0 or not next_candidate:
             break
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_candidate
     return candidates
 

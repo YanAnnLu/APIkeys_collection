@@ -14,7 +14,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -145,6 +145,7 @@ def paginated_ckan_output(
         if added == 0:
             remote_exhausted = None
             break
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
     else:
         remote_exhausted = False
         remote_next_page_token = str(start)

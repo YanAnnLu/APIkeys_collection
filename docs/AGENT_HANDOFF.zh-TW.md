@@ -1,4 +1,10 @@
 ﻿# Agent 接力卡
+## 2026-05-27 14:54 Source profile rate-limit politeness checkpoint
+- 本輪在已完成的 `crawl_timeout_seconds` / `crawl_max_pages` / `crawl_page_size` 基礎上，新增 `crawl_rate_limit_seconds`；`DatasetDiscoverySource` / source JSON 會載入與寫回此欄位，各 paginated crawler handler 會透過 `api_launcher.crawlers.pagination.polite_crawl_delay()` 在下一頁 request 前套用 source-level 延遲。
+- `crawler_asset_source_signature()` 已納入 timeout、max pages、page size 與 rate-limit 欄位，避免 UI/Web/Tk 保存過的 plan passport 在來源 politeness profile 改變後仍被視為 fresh。
+- 這仍是第一階段 MVP hardening，不是改成 universal interpreter。使用者提出的「數據驅動裝飾器爬蟲架構」可作為第二階段 PoC 候選；本輪實作只把可重複的 request policy guard 收斂到 source profile 與共用 helper。
+- 已驗證：`py -B -m unittest tests.test_dataset_discovery -v`，39 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke tests.test_web_preview -v`，113 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，758 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`。尚未 push / CI；下一步請 commit / push 後 watch GitHub Actions。
+
 ## 2026-05-27 14:31 Source profile page-size politeness checkpoint
 - 本輪在已完成的 `crawl_timeout_seconds` / `crawl_max_pages` 基礎上，已推送 `8fec58f Add source profile page size guard`；GitHub Actions run `26494877172` 的 Ubuntu、Windows 與 real DB smoke 全部 success。修補內容：`DatasetDiscoverySource` / source JSON 現在可宣告 `crawl_page_size`，讓 Web/Tk/CLI 即使給出較大的 `max_results_override`，source profile 仍可把 per-request page size 壓低。
 - 已驗證：`py -B -m unittest tests.test_dataset_discovery -v`，38 tests OK；`py -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_crawler_audit_smoke -v`，81 tests OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd`，757 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`；GitHub Actions run `26494877172` 全部 success。

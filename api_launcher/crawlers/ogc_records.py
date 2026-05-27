@@ -16,7 +16,7 @@ from api_launcher.crawlers.metadata import (
     temporal_coverage,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -242,6 +242,7 @@ def paginated_ogc_records_candidates(
         next_candidate = next_link_href(payload.get("links"), next_url)
         if item_count < page_size or added == 0 or not next_candidate:
             break
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_candidate
     return candidates
 

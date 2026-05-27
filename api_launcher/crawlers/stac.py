@@ -16,7 +16,7 @@ from api_launcher.crawlers.metadata import (
     temporal_coverage,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -135,6 +135,7 @@ def paginated_stac_candidates(
         next_link = stac_next_link(payload, next_url)
         if not isinstance(collections, list) or not collections or not next_link:
             break
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
         next_url = next_link
     return candidates
 

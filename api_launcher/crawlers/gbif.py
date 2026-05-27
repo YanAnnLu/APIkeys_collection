@@ -13,7 +13,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -114,6 +114,7 @@ def paginated_gbif_candidates(
         if not isinstance(results, list) or not results or end_of_records or len(results) < page_size or added == 0:
             break
         offset += len(results)
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
     return candidates
 
 

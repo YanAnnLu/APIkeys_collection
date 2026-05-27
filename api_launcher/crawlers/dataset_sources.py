@@ -199,6 +199,7 @@ def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySou
             crawl_timeout_seconds=_positive_float(item.get("crawl_timeout_seconds")),
             crawl_max_pages=_positive_int(item.get("crawl_max_pages")),
             crawl_page_size=_positive_int(item.get("crawl_page_size")),
+            crawl_rate_limit_seconds=_positive_float(item.get("crawl_rate_limit_seconds")),
             notes=str(item.get("notes") or "").strip(),
         )
         for item in data.get("sources", [])
@@ -269,6 +270,8 @@ def source_to_dict(source: DatasetDiscoverySource) -> dict[str, object]:
         payload["crawl_max_pages"] = source.crawl_max_pages
     if source.crawl_page_size > 0:
         payload["crawl_page_size"] = source.crawl_page_size
+    if source.crawl_rate_limit_seconds > 0:
+        payload["crawl_rate_limit_seconds"] = source.crawl_rate_limit_seconds
     return payload
 
 

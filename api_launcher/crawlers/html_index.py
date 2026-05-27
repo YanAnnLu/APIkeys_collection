@@ -14,7 +14,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
-from api_launcher.crawlers.pagination import discovery_page_cap
+from api_launcher.crawlers.pagination import discovery_page_cap, polite_crawl_delay
 from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.discovery import extract_links
 from api_launcher.models import Dataset
@@ -144,6 +144,7 @@ def html_file_index_candidates_for_source(
         if page_url in seen_pages:
             continue
         seen_pages.add(page_url)
+        polite_crawl_delay(source.crawl_rate_limit_seconds)
         try:
             page_text, page_final_url = fetch_text(page_url, timeout=timeout)
         except Exception as exc:
