@@ -1,8 +1,8 @@
 # Agent 接力卡
-## 2026-05-28 03:18 Credential next-action label handoff
+## 2026-05-28 03:29 Credential next-action label handoff
 - 本輪延續 `CredentialDisplayProfile`，把 credential `next_action` 的機器碼補成 UI-neutral 人類可讀 label。`api_launcher/local_credentials.py` 新增 `credential_next_action_label()`，`CredentialDisplayProfile.to_dict()` 現在帶 `next_action_label`、`next_action_label_zh_TW` 與 `next_action_label_en`；summary 也改用 label，不再把 `edit_local_credentials_before_live_download` 直接丟到使用者畫面。
 - Web Preview 的 credential badge、credential panel 與 blocked guard banner 已改成優先讀 `display_profile` / `display_badge_label` / `display_summary_zh_TW`。這讓 Web/Tk/未來 Qt 仍保留 machine-readable `next_action` 給 agent，但 UI 呈現使用「先完成登入設定，再下載資料」這種人類可讀文案。
-- 本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`node --check frontends\web\static\app.js` OK；`py -B -m unittest tests.test_local_credentials tests.test_web_preview tests.test_tk_dialogs -v` 98 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，806 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_031946.log`。尚待 commit/push 與 GitHub Actions。
+- 已推送 `26f7d84 Add credential next action labels`；GitHub Actions run `26533611438` 的 Ubuntu、Windows 與 real DB smoke 全部 success。本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`node --check frontends\web\static\app.js` OK；`py -B -m unittest tests.test_local_credentials tests.test_web_preview tests.test_tk_dialogs -v` 98 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，806 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_031946.log`。
 
 ## 2026-05-28 03:11 Credential display profile handoff
 - 本輪把 credential 顯示文案從 Tk helper 再往後端收斂。`api_launcher/local_credentials.py` 新增 `CredentialDisplayProfile` 與 `credential_display_profile()`，`crawler_asset_credential_status()` 現在會輸出 `display_profile`、`display_badge_label`、`display_summary_zh_TW` 與 `display_summary_en`，讓 Tk/Web/未來 Qt 不必各自組登入徽章與摘要。
