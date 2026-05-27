@@ -51,7 +51,7 @@ from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
-from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
+from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog, crawler_seed_dialog_import_label
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
@@ -1358,7 +1358,8 @@ def crawler_asset_seed_page_preview_text(
         title = str(row.get("title") or row.get("dataset_id") or row.get("dataset_uid") or "-").strip()
         native_format = str(row.get("native_format") or row.get("data_type") or "").strip()
         version = str(row.get("version") or "").strip()
-        suffix_parts = [part for part in (native_format, version) if part]
+        import_label = crawler_seed_dialog_import_label(row)
+        suffix_parts = [part for part in (native_format, version, import_label) if part]
         suffix = f" ({', '.join(suffix_parts)})" if suffix_parts else ""
         lines.append(f"{index:02d}. {favorite}{title}{suffix}")
     remaining_on_page = max(0, len(seeds) - preview_limit)

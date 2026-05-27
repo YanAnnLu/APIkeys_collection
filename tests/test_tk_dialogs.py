@@ -568,6 +568,7 @@ class TkDialogModuleTest(unittest.TestCase):
                     "dataset_id": "rainfall",
                     "native_format": "csv",
                     "version": "2026-05",
+                    "content_display_label": "可匯入 SQLite",
                     "favorite": True,
                 },
                 {
@@ -585,6 +586,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("顯示第 1-50 筆，共 55 筆", text)
         self.assertIn("★ Taiwan Rainfall", text)
         self.assertIn("csv, 2026-05", text)
+        self.assertIn("可匯入 SQLite", text)
         self.assertIn("本頁另有 1 筆", text)
         self.assertIn("顯示更多 Seed", text)
 
@@ -706,6 +708,7 @@ class TkDialogModuleTest(unittest.TestCase):
                     "dataset_id": "seed_1",
                     "title": "Seed 1",
                     "native_format": "csv",
+                    "content_display_label": "可匯入 SQLite",
                     "version": "2026",
                     "candidate_status": "new",
                     "favorite": True,
@@ -718,7 +721,7 @@ class TkDialogModuleTest(unittest.TestCase):
         values = crawler_seed_dialog_row_values(rows[0])
 
         self.assertEqual(1, len(rows))
-        self.assertEqual(("★", "Seed 1", "csv", "2026", "demo_provider:seed_1", "new"), values)
+        self.assertEqual(("★", "Seed 1", "csv", "可匯入 SQLite", "2026", "demo_provider:seed_1", "new"), values)
 
     def test_open_selected_crawler_asset_seed_dialog_routes_favorite_action(self) -> None:
         source = DatasetDiscoverySource(

@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 01:44 Tk seed import path handoff
+- 本輪把上一個 Web seed import badge 切片同步到 Tk。`frontends/tk/crawler_asset_seed_dialog.py` 現在會從 seed row 的 `content_display_label` / `content_import_profile.display_label` / `content_pipeline_lane` 取得後端 import path label，並在 Seed 表格新增「匯入路徑」欄；Tk 不自行推斷 CSV/ZIP/GeoTIFF 規則。
+- 右側 Crawler Passport 的 seed preview 也會顯示同一個 import label，讓使用者不用打開完整表格，也能看到可匯入 SQLite、需解壓轉換、內容 Parser 待辦或 Adapter review 等處理路徑。這是 Tk/Web 顯示同步，不改 crawler、resolver、downloader 或 importer 執行行為。
+- 本地 targeted 驗證已通過：`py -B -m py_compile frontends\tk\crawler_asset_seed_dialog.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -B -m unittest tests.test_tk_dialogs -v` 52 tests OK；`py -B -m unittest tests.test_crawler_seed_registry tests.test_web_preview tests.test_tk_dialogs -v` 105 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，799 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_014549.log`。尚未 push / CI；下一步是 commit / push 並監看 GitHub Actions。
+
 ## 2026-05-28 01:27 Seed import badge handoff
 - 本輪把 `ContentImportProfile` 再前移到 seed 分頁 payload。`api_launcher.crawler_seed_registry.crawler_seed_row()` 現在會輸出 `content_import_profile`、`content_importability`、`content_pipeline_lane`、`content_next_action`、display label/tone 與 `content_review_required`，讓 Web/Tk/CLI/未來 Qt 在使用者按「下載此 seed」前就能看到可匯入 SQLite、需解壓轉換、內容 Parser 待辦或 Adapter review。
 - Web Preview 的 seed row 目前會把 `content_display_label` 畫成匯入路徑 badge；規則仍在後端 `api_launcher.content_registry`，JavaScript 只 render badge。若 candidate metadata 已有 `content_import_profile` / `content_detection.import_profile`，seed row 會優先使用；否則依 `native_format`，再退到 URL suffix 做弱偵測。

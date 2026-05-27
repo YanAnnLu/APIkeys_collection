@@ -22,16 +22,36 @@ def crawler_seed_dialog_rows(payload: object) -> list[dict[str, object]]:
     return [dict(row) for row in rows if isinstance(row, dict)]
 
 
-def crawler_seed_dialog_row_values(row: dict[str, object]) -> tuple[str, str, str, str, str, str]:
+def crawler_seed_dialog_import_label(row: dict[str, object]) -> str:
+    """Return the backend-provided import lane label for a seed row.
+
+    Tk deliberately does not infer CSV/ZIP/GeoTIFF behavior here. The row
+    already comes from `api_launcher.crawler_seed_registry`, which attaches
+    the UI-neutral content import profile used by Web and future Qt.
+    """
+
+    direct_label = str(row.get("content_display_label") or "").strip()
+    if direct_label:
+        return direct_label
+    profile = row.get("content_import_profile")
+    if isinstance(profile, dict):
+        profile_label = str(profile.get("display_label") or "").strip()
+        if profile_label:
+            return profile_label
+    return str(row.get("content_pipeline_lane") or "").strip()
+
+
+def crawler_seed_dialog_row_values(row: dict[str, object]) -> tuple[str, str, str, str, str, str, str]:
     """Create stable table values for one seed row."""
 
     favorite = "★" if row.get("favorite") else ""
     title = str(row.get("title") or row.get("dataset_id") or row.get("dataset_uid") or "-").strip()
     native_format = str(row.get("native_format") or row.get("data_type") or "").strip()
+    import_label = crawler_seed_dialog_import_label(row)
     version = str(row.get("version") or "").strip()
     dataset_uid = str(row.get("dataset_uid") or row.get("dataset_id") or "").strip()
     status = str(row.get("candidate_status") or row.get("source_type") or "").strip()
-    return favorite, title, native_format, version, dataset_uid, status
+    return favorite, title, native_format, import_label, version, dataset_uid, status
 
 
 class CrawlerAssetSeedDialog:
@@ -86,12 +106,13 @@ class CrawlerAssetSeedDialog:
 
         table_frame = ttk.Frame(frame, style="Panel.TFrame")
         table_frame.pack(fill=BOTH, expand=True)
-        columns = ("favorite", "title", "format", "version", "uid", "status")
+        columns = ("favorite", "title", "format", "import_path", "version", "uid", "status")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="browse")
         headings = (
             ("favorite", self.tr("收藏", "Favorite"), 64, "center"),
             ("title", self.tr("Seed 名稱", "Seed title"), 300, "w"),
             ("format", self.tr("格式", "Format"), 120, "w"),
+            ("import_path", self.tr("匯入路徑", "Import path"), 150, "w"),
             ("version", self.tr("版本", "Version"), 110, "w"),
             ("uid", self.tr("Seed ID", "Seed ID"), 260, "w"),
             ("status", self.tr("狀態", "Status"), 130, "w"),
@@ -171,6 +192,7 @@ class CrawlerAssetSeedDialog:
 
 __all__ = [
     "CrawlerAssetSeedDialog",
+    "crawler_seed_dialog_import_label",
     "crawler_seed_dialog_row_values",
     "crawler_seed_dialog_rows",
 ]
