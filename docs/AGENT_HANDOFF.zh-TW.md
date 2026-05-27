@@ -2,7 +2,7 @@
 ## 2026-05-28 05:52 Source-code maturity audit handoff
 - 本輪回應「為什麼昨天文檔審計後仍會把 contract / planned / implemented 混在一起」的問題，補上能力成熟度邊界。已查證：`simulation_bridge.py` 是 `contract_only`，`unreal_bridge.py` 只產生 `planned` target 並不做 real I/O，`dataset_adapters.py` 目前只有 GEBCO、HYG、yfinance 三條 provider-specific adapter。
 - 這不代表 source crawler 只支援三種來源。`SOURCE_CRAWLER_HANDLERS` / `SUPPORTED_DATASET_SOURCE_TYPES` 說的是 source-level crawler handler / offline audit contract；`dataset_adapters.py`、`adapter_plan_resolver.py`、`content_registry.py`、renderer bridge 是不同層。後續文件不可只寫「支援某來源」，必須說明支援到 discovery、bounded plan、download、import、renderer bridge 或 contract-only 哪一層。
-- 已更新 `docs/DOCS_DRIFT_AUDIT.zh-TW.md`、`docs/DATASET_DISCOVERY_NOTES.zh-TW.md`、`docs/PROJECT_GTD.md` 與 `docs/DEVELOPMENT_LOG.zh-TW.md`。這是 docs drift guard 的補洞，不改產品程式碼。本地 docs mojibake scan OK，`git diff --check` OK（僅 CRLF/LF warning）；下一步是 commit/push 並看 CI。
+- 已推送：`f753e94 Clarify source capability maturity`；GitHub Actions run `26541108253` 已通過 Ubuntu、Windows 與 real DB smoke。這是 docs drift guard 的補洞，不改產品程式碼。本地 docs mojibake scan OK，`git diff --check` OK（僅 CRLF/LF warning）。
 
 ## 2026-05-28 05:43 Developer diagnostics next-action label handoff
 - 本輪把 developer-only crawler handler smoke diagnostics payload 也補上 `next_action_label`。`api_launcher/developer_diagnostics.py` 現在會把 `run_dataset_discovery_handler_smoke_json_if_summary_fails` 轉成「摘要失敗時，執行 handler smoke JSON 診斷」，Tk diagnostics message 也優先顯示這個 label，不再把 raw action id 當主文案。
