@@ -44,6 +44,8 @@ from frontends.tk.crawler_asset_workflows import (
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
+    crawler_asset_seed_page_preview_text,
+    crawler_asset_seed_page_status_text,
 )
 from frontends.tk.developer_diagnostics_workflows import (
     DeveloperDiagnosticsWorkflowMixin,
@@ -540,6 +542,95 @@ class TkDialogModuleTest(unittest.TestCase):
         values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
         self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
+
+    def test_crawler_asset_seed_page_preview_uses_shared_page_payload(self) -> None:
+        payload = {
+            "total": 55,
+            "has_more": True,
+            "page_summary": {
+                "shown_start": 1,
+                "shown_end": 50,
+                "remaining": 5,
+                "next_action": "show_next_seed_page",
+            },
+            "seeds": [
+                {
+                    "title": "Taiwan Rainfall",
+                    "dataset_id": "rainfall",
+                    "native_format": "csv",
+                    "version": "2026-05",
+                    "favorite": True,
+                },
+                {
+                    "title": "Taiwan Temperature",
+                    "dataset_id": "temperature",
+                    "native_format": "json",
+                    "version": "",
+                    "favorite": False,
+                },
+            ],
+        }
+
+        text = crawler_asset_seed_page_preview_text(payload, lambda zh, _en: zh, preview_limit=1)
+
+        self.assertIn("顯示第 1-50 筆，共 55 筆", text)
+        self.assertIn("★ Taiwan Rainfall", text)
+        self.assertIn("csv, 2026-05", text)
+        self.assertIn("本頁另有 1 筆", text)
+        self.assertIn("顯示更多 Seed", text)
+
+    def test_crawler_asset_seed_page_status_guides_empty_catalog(self) -> None:
+        payload = {"total": 0, "page_summary": {"shown_start": 0, "shown_end": 0, "remaining": 0}, "seeds": []}
+
+        text = crawler_asset_seed_page_status_text(payload, lambda zh, _en: zh)
+
+        self.assertIn("本機 catalog", text)
+        self.assertIn("清單擷取", text)
+
+    def test_load_crawler_asset_seed_page_reads_shared_registry(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        status_values: list[str] = []
+        seed_page_values: list[str] = []
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(set=lambda value: status_values.append(value))
+        ui.crawler_asset_seed_page_var = SimpleNamespace(set=lambda value: seed_page_values.append(value))
+        ui.crawler_asset_seed_pages = {}
+        ui._connect = lambda: SimpleNamespace(close=lambda: None)
+        payload = {
+            "total": 1,
+            "has_more": False,
+            "page_summary": {"shown_start": 1, "shown_end": 1, "remaining": 0},
+            "seeds": [{"title": "Seed 1", "dataset_id": "seed_1", "favorite": True}],
+        }
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.load_crawler_asset_source", return_value=source),
+            patch("frontends.tk.crawler_asset_workflows.ApiCatalogRepository", return_value="repository") as repository_class,
+            patch("frontends.tk.crawler_asset_workflows.crawler_asset_favorite_seed_uids", return_value=("demo_provider:seed_1",)),
+            patch("frontends.tk.crawler_asset_workflows.crawler_seed_page", return_value=payload) as seed_page,
+        ):
+            CrawlerAssetWorkflowMixin.load_crawler_asset_seed_page(ui, asset, page=2)
+
+        repository_class.assert_called_once()
+        seed_page.assert_called_once_with(
+            "repository",
+            asset_id="demo_index",
+            provider_id="demo_provider",
+            page=2,
+            favorite_seed_uids=("demo_provider:seed_1",),
+        )
+        self.assertIs(payload, ui.crawler_asset_seed_pages["demo_index"])
+        self.assertTrue(seed_page_values)
+        self.assertTrue(status_values)
+        self.assertIn("已到最後一頁", status_values[-1])
 
     def test_crawler_asset_review_count_reads_resolved_plan(self) -> None:
         payload = {

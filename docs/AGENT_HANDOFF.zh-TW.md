@@ -1,4 +1,8 @@
-﻿# Agent 接力卡
+# Agent 接力卡
+## 2026-05-27 20:54 Tk crawler seed page handoff
+- 本輪把同一份 seed page contract 接到 Tk「爬蟲資產」分頁右側 Crawler Passport：新增「Seed 清單」區塊與「查看 Seed 清單 / 顯示更多 Seed」動作。Tk 會重用 `api_launcher.crawler_seed_registry.crawler_seed_page()`，只讀本機 catalog 已枚舉 seed，不重新 live crawl；分頁摘要、收藏星號與下一頁狀態都吃後端 payload。
+- `frontends/tk/crawler_asset_workflows.py` 只負責取得選中 asset、建立 `ApiCatalogRepository`、讀取 source provider id 與顯示摘要；page clamp、favorite row、`shown_start/shown_end/remaining/next_action` 仍由後端 seed registry 決定，避免 Tk/Web/CLI/未來 Qt 各自重算。
+- 本地驗證已通過：`py -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -B -m unittest tests.test_tk_dialogs -v` 45 tests OK；`py -B -m unittest tests.test_crawler_seed_registry tests.test_launcher_ui -v` 43 tests OK；`py -B -m unittest tests.test_tk_dialogs tests.test_crawler_seed_registry tests.test_launcher_ui tests.test_crawler_assets -v` 128 tests OK。.\scripts\pre_push_smoke_brief.cmd 已通過，784 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260527_205728.log`。尚未 push；下一步是 commit/push 並等待 GitHub Actions。
 ## 2026-05-27 20:28 Crawler seed page CLI handoff
 - 本輪把 Web 已有的 seed 分頁 contract 接到 CLI：新增 `--crawler-asset-seeds ASSET_ID`、`--crawler-asset-seeds-json`、`--crawler-asset-seed-page`、`--crawler-asset-seed-page-size`、`--crawler-asset-seeds-provider-id` 與 `--crawler-asset-profile-path`。CLI 會重用 `api_launcher.crawler_seed_registry.crawler_seed_page()`，只讀本機 catalog 已枚舉 seed，不重新 live crawl。
 - 若 CLI 能從 crawler asset source profile 找到 provider，使用者只需給 asset id；若找不到 source，可用 `--crawler-asset-seeds-provider-id` 明確指定 provider。阻擋狀態會回 JSON：`blocked_reason=crawler_asset_source_not_found_or_provider_id_required`、`next_action=provide_crawler_asset_provider_id_or_fix_source_profile`。

@@ -504,6 +504,9 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
 目前 Tk UI 已有第一版可操作閉環：
 
 1. 進入「爬蟲資產」分頁，選一張 crawler asset 卡片。
+   - 右側 Crawler Passport 的「Seed 清單」區塊可按「查看 Seed 清單」讀取本機 catalog 已枚舉的第一批 seed。
+   - 「顯示更多 Seed」會讀下一批本機 seed，例如第 51-100 筆；這不會重新連到遠端 crawler。
+   - 清單中的 `★` 代表該 seed 已被收藏；收藏狀態來自本機 crawler asset profile，Web / Tk 讀同一份後端 seed registry contract。
 2. 按「送進下載器」或同等下載計畫動作。
 3. 如果該爬蟲支援界域，系統會依後端 `bounds_schema` 動態產生表單，例如 limit、bbox、time range、collection、format。
 4. 送出後，UI 會在背景建立下載計畫，並把可直接下載的項目加入下方下載器。

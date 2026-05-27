@@ -9,11 +9,12 @@ from typing import Callable
 
 from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_profiles import (
+    crawler_asset_favorite_seed_uids,
     toggle_crawler_asset_archived,
     update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
 )
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets, status_label
+from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
@@ -27,11 +28,13 @@ from api_launcher.crawler_asset_service import (
     run_crawler_asset_listing,
 )
 from api_launcher.crawler_run_records import crawler_run_record_from_result
+from api_launcher.crawler_seed_registry import crawler_seed_page
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
+from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
@@ -155,12 +158,28 @@ class CrawlerAssetWorkflowMixin:
             style="Action.TButton",
             command=self.open_selected_crawler_asset_profile_dialog,
         ).pack(anchor="w", padx=14, pady=(8, 0))
+        ttk.Label(detail, text=self.tr("Seed 清單", "Seed list"), style="DetailSection.TLabel").pack(anchor="w", padx=14, pady=(18, 8))
+        self.crawler_asset_seed_page_var = StringVar(value=self.tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds."))
+        ttk.Label(detail, textvariable=self.crawler_asset_seed_page_var, style="DetailText.TLabel", wraplength=320).pack(anchor="w", padx=14)
+        ttk.Button(
+            detail,
+            text=self.tr("查看 Seed 清單", "View seeds"),
+            style="Action.TButton",
+            command=self.load_selected_crawler_asset_seed_page,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
+        ttk.Button(
+            detail,
+            text=self.tr("顯示更多 Seed", "Show more seeds"),
+            style="Action.TButton",
+            command=self.show_more_selected_crawler_asset_seeds,
+        ).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
         self.crawler_asset_content_review_outcomes: dict[str, str] = {}
         self.crawler_asset_resolved_plans: dict[str, dict[str, object]] = {}
         self.crawler_asset_plan_passports: dict[str, dict[str, object]] = {}
+        self.crawler_asset_seed_pages: dict[str, dict[str, object]] = {}
         self.load_crawler_asset_plan_outcomes_from_events()
         self.refresh_crawler_asset_tab()
 
@@ -255,6 +274,13 @@ class CrawlerAssetWorkflowMixin:
         asset = self.selected_crawler_asset()
         if asset is None:
             return
+        if hasattr(self, "crawler_asset_seed_page_var"):
+            cached_seed_page = getattr(self, "crawler_asset_seed_pages", {}).get(asset.asset_id)
+            self.crawler_asset_seed_page_var.set(
+                crawler_asset_seed_page_preview_text(cached_seed_page, self.tr)
+                if isinstance(cached_seed_page, dict)
+                else self.tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds.")
+            )
         if hasattr(self, "crawler_asset_archive_button_var"):
             self.crawler_asset_archive_button_var.set(
                 self.tr("解除封存 / 啟用" if asset.archived else "封存爬蟲", "Unarchive / Enable" if asset.archived else "Archive crawler")
@@ -501,6 +527,65 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_tree.focus(asset.asset_id)
             self.on_crawler_asset_select()
         self.status_var.set(self.tr(f"爬蟲設定已儲存：{asset.display_name}", f"Crawler settings saved: {asset.display_name}"))
+
+    def load_selected_crawler_asset_seed_page(self) -> None:
+        asset = self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return
+        self.load_crawler_asset_seed_page(asset, page=1)
+
+    def show_more_selected_crawler_asset_seeds(self) -> None:
+        asset = self.selected_crawler_asset()
+        if asset is None:
+            self.status_var.set(self.tr("請先選擇一個爬蟲資產。", "Select a crawler asset first."))
+            return
+        current = getattr(self, "crawler_asset_seed_pages", {}).get(asset.asset_id)
+        summary = current.get("page_summary") if isinstance(current, dict) and isinstance(current.get("page_summary"), dict) else {}
+        next_page = int(summary.get("next_page") or 0) if summary else 0
+        if next_page <= 0:
+            self.status_var.set(self.tr("目前 seed 清單已顯示到本機最後一頁。", "Seed list is already at the final local page."))
+            return
+        self.load_crawler_asset_seed_page(asset, page=next_page)
+
+    def load_crawler_asset_seed_page(self, asset: CrawlerAsset, *, page: int = 1) -> None:
+        """讀取本機 catalog seed page；不重新打遠端 crawler。"""
+
+        provider_id = asset.provider_id
+        source = load_crawler_asset_source(asset.asset_id)
+        if source is not None:
+            provider_id = str(getattr(source, "provider_id", "") or provider_id)
+        if not provider_id:
+            self.status_var.set(
+                self.tr(
+                    "這個爬蟲資產缺少 provider_id，無法讀取本機 seed 清單。",
+                    "This crawler asset has no provider_id, so its local seed page cannot be read.",
+                )
+            )
+            return
+        try:
+            conn = self._connect()
+            try:
+                repository = ApiCatalogRepository(conn)
+                payload = crawler_seed_page(
+                    repository,
+                    asset_id=asset.asset_id,
+                    provider_id=provider_id,
+                    page=page,
+                    favorite_seed_uids=crawler_asset_favorite_seed_uids(asset.asset_id),
+                )
+            finally:
+                conn.close()
+        except Exception as exc:  # pragma: no cover - Tk surface guard
+            log_exception("crawler_asset_seed_page_failed", exc, component="ui.crawler_assets", context={"asset_id": asset.asset_id})
+            self.status_var.set(self.tr(f"Seed 清單讀取失敗：{exc}", f"Failed to load seed page: {exc}"))
+            return
+        if not hasattr(self, "crawler_asset_seed_pages"):
+            self.crawler_asset_seed_pages = {}
+        self.crawler_asset_seed_pages[asset.asset_id] = payload
+        if hasattr(self, "crawler_asset_seed_page_var"):
+            self.crawler_asset_seed_page_var.set(crawler_asset_seed_page_preview_text(payload, self.tr))
+        self.status_var.set(crawler_asset_seed_page_status_text(payload, self.tr))
 
     def run_selected_crawler_asset_metadata(self) -> None:
         asset = self.selected_crawler_asset()
@@ -948,6 +1033,65 @@ def crawler_asset_review_count_from_plan(payload: object) -> int:
     if not isinstance(payload, dict):
         return 0
     return len(adapter_review_items(payload))
+
+
+def crawler_asset_seed_page_status_text(
+    payload: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """把共用 seed page payload 轉成 Tk status bar 可讀文字。"""
+
+    if not isinstance(payload, dict):
+        return tr("尚未讀取 seed 清單。", "No seed page loaded.")
+    summary = payload.get("page_summary") if isinstance(payload.get("page_summary"), dict) else {}
+    total = int(payload.get("total") or 0)
+    shown_start = int(summary.get("shown_start") or 0)
+    shown_end = int(summary.get("shown_end") or 0)
+    remaining = int(summary.get("remaining") or 0)
+    if total <= 0:
+        return tr("本機 catalog 目前沒有這個入口的 seed；請先執行清單擷取。", "No seeds for this source in the local catalog yet; run listing first.")
+    if remaining:
+        return tr(
+            f"Seed 清單：顯示第 {shown_start}-{shown_end} 筆，共 {total} 筆；還有 {remaining} 筆可展開。",
+            f"Seed page: showing {shown_start}-{shown_end} of {total}; {remaining} remaining.",
+        )
+    return tr(
+        f"Seed 清單：顯示第 {shown_start}-{shown_end} 筆，共 {total} 筆；已到最後一頁。",
+        f"Seed page: showing {shown_start}-{shown_end} of {total}; final page.",
+    )
+
+
+def crawler_asset_seed_page_preview_text(
+    payload: object,
+    tr: Callable[[str, str], str],
+    *,
+    preview_limit: int = 8,
+) -> str:
+    """把 seed page payload 轉成 Tk 側欄摘要；完整分頁規則仍由後端 service 決定。"""
+
+    if not isinstance(payload, dict):
+        return tr("尚未讀取 seed。先執行清單擷取，再查看本機 seed 視窗。", "No seed page loaded yet. Run listing first, then inspect local seeds.")
+    seeds = payload.get("seeds") if isinstance(payload.get("seeds"), list) else []
+    status = crawler_asset_seed_page_status_text(payload, tr)
+    if not seeds:
+        return status
+    lines: list[str] = [status, ""]
+    for index, row in enumerate(seeds[: max(1, preview_limit)], start=1):
+        if not isinstance(row, dict):
+            continue
+        favorite = "★ " if row.get("favorite") else ""
+        title = str(row.get("title") or row.get("dataset_id") or row.get("dataset_uid") or "-").strip()
+        native_format = str(row.get("native_format") or row.get("data_type") or "").strip()
+        version = str(row.get("version") or "").strip()
+        suffix_parts = [part for part in (native_format, version) if part]
+        suffix = f" ({', '.join(suffix_parts)})" if suffix_parts else ""
+        lines.append(f"{index:02d}. {favorite}{title}{suffix}")
+    remaining_on_page = max(0, len(seeds) - preview_limit)
+    if remaining_on_page:
+        lines.append(tr(f"...本頁另有 {remaining_on_page} 筆", f"...{remaining_on_page} more on this page"))
+    if payload.get("has_more"):
+        lines.append(tr("按「顯示更多 Seed」展開下一批。", "Use Show more seeds for the next page."))
+    return "\n".join(lines)
 
 
 def crawler_asset_state_label(asset: CrawlerAsset) -> str:
