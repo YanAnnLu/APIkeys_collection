@@ -1470,6 +1470,9 @@ def crawler_asset_credential_badge_label(credential_status: object) -> str:
     """Return the short credential label used in the crawler asset table."""
 
     status = credential_status if isinstance(credential_status, dict) else {}
+    badge = str(status.get("display_badge_label") or "").strip()
+    if badge:
+        return badge
     label = str(status.get("display_label") or "").strip()
     configured = int(status.get("configured_count") or 0)
     total = int(status.get("field_count") or 0)
@@ -1490,6 +1493,10 @@ def crawler_asset_credential_summary_text(
     """
 
     status = credential_status if isinstance(credential_status, dict) else {}
+    summary_zh = str(status.get("display_summary_zh_TW") or "").strip()
+    summary_en = str(status.get("display_summary_en") or "").strip()
+    if summary_zh or summary_en:
+        return tr(summary_zh or summary_en, summary_en or summary_zh)
     label = str(status.get("display_label") or "免登入").strip()
     configured = int(status.get("configured_count") or 0)
     total = int(status.get("field_count") or 0)

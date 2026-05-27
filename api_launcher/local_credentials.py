@@ -56,6 +56,30 @@ class CredentialFieldStatus:
         }
 
 
+@dataclass(frozen=True)
+class CredentialDisplayProfile:
+    """UI-neutral credential display contract for Tk/Web/future Qt."""
+
+    status: str
+    label: str
+    tone: str
+    badge_label: str
+    summary_zh_TW: str
+    summary_en: str
+    next_action: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "label": self.label,
+            "tone": self.tone,
+            "badge_label": self.badge_label,
+            "summary_zh_TW": self.summary_zh_TW,
+            "summary_en": self.summary_en,
+            "next_action": self.next_action,
+        }
+
+
 def local_env_path() -> Path:
     return PROJECT_ROOT / ".env"
 
@@ -101,13 +125,25 @@ def crawler_asset_credential_status(
         configured_count=configured_count,
         missing_required=missing_required,
     )
+    next_action = credential_next_action(status)
+    display_profile = credential_display_profile(
+        status=status,
+        configured_count=configured_count,
+        field_count=len(fields),
+        missing_required=missing_required,
+        next_action=next_action,
+    )
     docs_url = first_text(asset.docs_url, provider.docs_url if provider is not None else "")
     signup_url = provider.signup_url if provider is not None else ""
     entry_url = first_text(signup_url, docs_url)
     return {
         "status": status,
-        "display_label": credential_status_label(status),
-        "display_tone": credential_status_tone(status),
+        "display_label": display_profile.label,
+        "display_tone": display_profile.tone,
+        "display_profile": display_profile.to_dict(),
+        "display_badge_label": display_profile.badge_label,
+        "display_summary_zh_TW": display_profile.summary_zh_TW,
+        "display_summary_en": display_profile.summary_en,
         "requires_credentials": required,
         "configured_count": configured_count,
         "field_count": len(fields),
@@ -128,7 +164,7 @@ def crawler_asset_credential_status(
         "remember_local_default": True,
         "session_only_supported": True,
         "safety_note_zh_TW": "這是本機登入設定；Web Preview 不會把明文金鑰寫進事件紀錄或 JSON 回應。",
-        "next_action": credential_next_action(status),
+        "next_action": next_action,
     }
 
 
@@ -292,6 +328,44 @@ def credential_next_action(status: str) -> str:
     return "continue_to_bounds_or_download_plan"
 
 
+def credential_display_profile(
+    *,
+    status: str,
+    configured_count: int,
+    field_count: int,
+    missing_required: list[str] | tuple[str, ...],
+    next_action: str,
+) -> CredentialDisplayProfile:
+    """Build the display profile shared by desktop/web surfaces."""
+
+    label = credential_status_label(status)
+    tone = credential_status_tone(status)
+    missing_text = ", ".join(str(item) for item in missing_required if str(item).strip())
+    if field_count:
+        badge_label = f"{label} {configured_count}/{field_count}"
+        summary_zh = f"登入：{label}（{configured_count}/{field_count}）"
+        summary_en = f"Login: {label} ({configured_count}/{field_count})"
+    else:
+        badge_label = label
+        summary_zh = f"登入：{label}"
+        summary_en = f"Login: {label}"
+    if missing_text:
+        summary_zh = f"{summary_zh}；缺少 {missing_text}"
+        summary_en = f"{summary_en}; missing {missing_text}"
+    if next_action:
+        summary_zh = f"{summary_zh}；下一步：{next_action}"
+        summary_en = f"{summary_en}; next: {next_action}"
+    return CredentialDisplayProfile(
+        status=status,
+        label=label,
+        tone=tone,
+        badge_label=badge_label,
+        summary_zh_TW=summary_zh,
+        summary_en=summary_en,
+        next_action=next_action,
+    )
+
+
 def credential_status_blocks_download(status_or_payload: object) -> bool:
     """Return whether live listing/download should stop before a doomed request.
 
@@ -452,7 +526,9 @@ def first_text(*values: str) -> str:
 
 __all__ = [
     "CREDENTIAL_BLOCKING_STATUSES",
+    "CredentialDisplayProfile",
     "crawler_asset_credential_status",
+    "credential_display_profile",
     "credential_env_vars_for_asset",
     "credential_status_blocks_download",
     "local_env_path",

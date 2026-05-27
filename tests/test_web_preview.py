@@ -1016,6 +1016,9 @@ class WebPreviewApiTest(unittest.TestCase):
         credentials = detail["card"]["credentials"]
         self.assertTrue(credentials["requires_credentials"])
         self.assertEqual("missing_credentials", credentials["status"])
+        self.assertEqual("需要登入 / API Key", credentials["display_profile"]["label"])
+        self.assertEqual("需要登入 / API Key 0/3", credentials["display_badge_label"])
+        self.assertIn("NASA_EARTHDATA_TOKEN", credentials["display_summary_zh_TW"])
         field_names = {field["env_var"] for field in credentials["fields"]}
         self.assertIn("NASA_EARTHDATA_TOKEN", field_names)
         self.assertIn("NASA_EARTHDATA_USERNAME", field_names)

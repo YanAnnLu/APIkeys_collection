@@ -80,7 +80,8 @@ Last updated: 2026-05-28
 - [x] Tk seed 下載路徑已接上 credential setup guard：`run_crawler_asset_seed_download_import_from_ui()` 會在啟動背景 worker 前讀後端 `crawler_asset_credential_status()`，缺登入 / API Key 時先停下，顯示「需要登入 / API Key」、缺少欄位、next action 與官方入口，不再等 service / live request 失敗後才回報。
 - [x] 同一份 `local_credentials` service 已做成 Tk 內的正式「登入設定 / 記住我的帳號」編輯 dialog。Crawler Passport 可直接打開本機登入設定；缺登入 / API Key 的 seed 下載 guard 也會先開這個 dialog。Tk 只收集欄位 payload，保存仍交給 `update_crawler_asset_credentials()`；事件紀錄只保存 status、counts 與 field names，不保存明文 token。
 - [x] Tk crawler asset 表格已新增「登入」欄，右側 Crawler Passport 也會顯示後端 credential display payload 的 label、設定數、缺少欄位與 next action；儲存登入設定後只刷新該 asset row，不重新載入整張表。這讓使用者不用等到 seed 下載才知道該入口是否需要登入 / API Key。
-- [ ] 下一步：評估是否把 credential display payload 正式收斂到更完整的後端 display profile，讓 Web/Tk/未來 Qt 都只讀 label / tone / next_action，不在前端自行組 credential 狀態文案。
+- [x] Credential display payload 已正式收斂成 `api_launcher.local_credentials.CredentialDisplayProfile`。`crawler_asset_credential_status()` 會輸出 `display_profile`、`display_badge_label`、`display_summary_zh_TW` 與 `display_summary_en`；Tk helper 只優先呈現後端 payload，Web detail payload 也用測試鎖住這份 contract，避免 Tk/Web/未來 Qt 各自組 credential 狀態文案。
+- [ ] 下一步：把 Web/Tk 的 credential 顯示區逐步改成直接吃 `display_profile` 的完整欄位，並把下一步 action 轉成更人類可讀的 display label，而不是直接露出 machine-readable `next_action` 字串。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。

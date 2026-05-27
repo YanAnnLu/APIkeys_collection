@@ -5,10 +5,26 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from api_launcher.local_credentials import read_env_values, write_env_updates
+from api_launcher.local_credentials import credential_display_profile, read_env_values, write_env_updates
 
 
 class LocalCredentialsTest(unittest.TestCase):
+    def test_credential_display_profile_exposes_badge_and_summaries(self) -> None:
+        profile = credential_display_profile(
+            status="missing_credentials",
+            configured_count=1,
+            field_count=2,
+            missing_required=["NASA_TOKEN"],
+            next_action="edit_local_credentials_before_live_download",
+        )
+
+        payload = profile.to_dict()
+
+        self.assertEqual("需要登入 / API Key 1/2", payload["badge_label"])
+        self.assertEqual("warning", payload["tone"])
+        self.assertIn("NASA_TOKEN", payload["summary_zh_TW"])
+        self.assertIn("edit_local_credentials_before_live_download", payload["summary_en"])
+
     def test_write_env_updates_keeps_existing_file_if_replace_fails(self) -> None:
         with TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"

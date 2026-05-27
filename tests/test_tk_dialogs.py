@@ -565,18 +565,20 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_crawler_asset_credential_badge_and_summary_use_backend_payload(self) -> None:
         payload = {
             "display_label": "需要登入 / API Key",
+            "display_badge_label": "後端徽章 1/2",
+            "display_summary_zh_TW": "後端摘要：缺少 NASA_TOKEN",
+            "display_summary_en": "Backend summary: missing NASA_TOKEN",
             "configured_count": 1,
             "field_count": 2,
             "missing_required": ["NASA_TOKEN"],
             "next_action": "edit_local_credentials_before_live_download",
         }
 
-        self.assertEqual("需要登入 / API Key 1/2", crawler_asset_credential_badge_label(payload))
+        self.assertEqual("後端徽章 1/2", crawler_asset_credential_badge_label(payload))
         summary = crawler_asset_credential_summary_text(payload, lambda zh, _en: zh)
 
-        self.assertIn("登入：需要登入 / API Key（1/2）", summary)
+        self.assertIn("後端摘要", summary)
         self.assertIn("NASA_TOKEN", summary)
-        self.assertIn("edit_local_credentials_before_live_download", summary)
 
     def test_crawler_asset_seed_page_preview_uses_shared_page_payload(self) -> None:
         payload = {

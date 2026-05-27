@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 03:02 Credential display profile handoff
+- 本輪把 credential 顯示文案從 Tk helper 再往後端收斂。`api_launcher/local_credentials.py` 新增 `CredentialDisplayProfile` 與 `credential_display_profile()`，`crawler_asset_credential_status()` 現在會輸出 `display_profile`、`display_badge_label`、`display_summary_zh_TW` 與 `display_summary_en`，讓 Tk/Web/未來 Qt 不必各自組登入徽章與摘要。
+- `frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_credential_badge_label()` / `crawler_asset_credential_summary_text()` 已改為優先讀後端 payload，舊欄位只作相容 fallback。Web detail payload 測試也鎖住 credential `display_profile`，避免 Web 端日後回到自行推斷登入狀態。
+- 本地驗證已通過：`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK；targeted syntax check 使用不寫 pyc 的 in-memory `compile()` OK（K 槽雲端 `__pycache__` 曾出現 WinError 5）；`py -B -m unittest tests.test_local_credentials tests.test_tk_dialogs tests.test_web_preview -v` 98 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，806 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_030413.log`。尚待 commit/push 與 GitHub Actions。
+
 ## 2026-05-28 02:41 Tk credential status badge handoff
 - 本輪延續 Tk credential editor，把本機登入狀態前移成可掃描 UI。`frontends/tk/crawler_asset_workflows.py` 的 crawler asset 表格新增「登入」欄，取自後端 `crawler_asset_credential_status()` 的 UI-safe display payload；右側 Crawler Passport 也會顯示登入 label、已設定/總欄位數、缺少欄位與 next action。
 - 儲存「登入設定 / 記住我的帳號」後，Tk 只刷新目前 asset row 與 Passport，不重新載入整張表；仍不預填、不顯示、不寫入 event log 任何明文 secret 或 masked preview。新增 helper `crawler_asset_credential_badge_label()` / `crawler_asset_credential_summary_text()`，只負責把後端 payload 轉成 Tk 文案，不複製 credential blocking policy。
