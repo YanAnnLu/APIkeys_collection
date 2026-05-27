@@ -49,6 +49,21 @@ class DatasetCandidate:
         }
 
 
+@dataclass(frozen=True)
+class DatasetCrawlerOutput:
+    """可選的 richer crawler 回傳值。
+
+    只知道 candidates 的舊 handler 可以繼續回傳 list。知道遠端是否還有
+    下一頁的 handler 應回傳這個物件，讓 UI shell 能呈現完整度而不用靠
+    本機上限猜測。
+    """
+
+    candidates: tuple[DatasetCandidate, ...] = ()
+    remote_pagination_status: str = "not_reported"
+    remote_exhausted: bool | None = None
+    remote_next_page_token: str = ""
+
+
 def dataset_with_candidate_metadata(candidate: DatasetCandidate) -> Dataset:
     # 把 crawler 脈絡塞回 Dataset.metadata，讓 UI/adapter plan 不需要額外攜帶 candidate 物件。
     metadata = dict(candidate.dataset.metadata)

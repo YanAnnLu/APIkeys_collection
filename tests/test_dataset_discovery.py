@@ -8,6 +8,7 @@ from pathlib import Path
 from api_launcher.dataset_discovery import (
     DatasetDiscoverySource,
     DatasetCrawlOptions,
+    DatasetCrawlerOutput,
     ckan_candidates_from_payload,
     crawl_dataset_sources,
     cmr_candidates_from_payload,
@@ -32,8 +33,7 @@ from api_launcher.dataset_discovery import (
     stac_candidates_from_payload,
     zenodo_candidates_from_payload,
 )
-from api_launcher.crawlers import html_index
-from api_launcher.crawlers import dataset_sources
+from api_launcher.crawlers import dataset_sources, html_index, socrata
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
     render_dataset_seed_coverage_markdown,
@@ -864,6 +864,52 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertIn("q=taxi+trips", url)
         self.assertNotIn("limit=999", url)
 
+    def test_socrata_full_crawl_reports_remote_has_more_when_page_cap_stops(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="nyc_open_data_socrata_catalog",
+            provider_id="nyc_open_data_socrata",
+            name="NYC Open Data Socrata catalog",
+            source_type="socrata_catalog_search",
+            endpoint_url="https://api.us.socrata.com/api/catalog/v1?domains=data.cityofnewyork.us",
+        )
+        original_fetch_json = socrata.fetch_json
+
+        def fake_fetch_json(_url: str, timeout: float = 0) -> dict[str, object]:
+            return {
+                "results": [
+                    {
+                        "resource": {
+                            "id": "t29m-gskq",
+                            "name": "2018 Yellow Taxi Trip Data",
+                            "type": "dataset",
+                            "columns_name": ["trip_distance"],
+                            "columns_field_name": ["trip_distance"],
+                            "columns_datatype": ["Number"],
+                        },
+                        "metadata": {"domain": "data.cityofnewyork.us"},
+                    }
+                ],
+                "resultSetSize": 2,
+            }
+
+        socrata.fetch_json = fake_fetch_json
+        try:
+            output = socrata.socrata_catalog_candidates_for_source(
+                source,
+                timeout=1.0,
+                limit=1,
+                search_terms=("",),
+                full_crawl=True,
+                max_pages=1,
+            )
+        finally:
+            socrata.fetch_json = original_fetch_json
+
+        self.assertEqual(1, len(output.candidates))
+        self.assertEqual("has_more", output.remote_pagination_status)
+        self.assertFalse(output.remote_exhausted)
+        self.assertEqual("1", output.remote_next_page_token)
+
     def test_ckan_package_search_payload_extracts_resource_metadata(self) -> None:
         source = DatasetDiscoverySource(
             source_id="data_gov_package_search",
@@ -1005,9 +1051,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 endpoint_url="https://example.test/bad",
             ),
         ]
-        original = dataset_sources.discover_dataset_candidates_for_source
-
-        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+        def fake_discover(source: DatasetDiscoverySource, _options: DatasetCrawlOptions):
             if source.source_id == "bad_source":
                 raise RuntimeError("network down")
             return [
@@ -1028,11 +1072,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 )
             ]
 
-        dataset_sources.discover_dataset_candidates_for_source = fake_discover
-        try:
-            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=3, full_crawl=True))
-        finally:
-            dataset_sources.discover_dataset_candidates_for_source = original
+        result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=3, full_crawl=True), source_crawler=fake_discover)
 
         self.assertEqual(1, result.candidate_count)
         self.assertEqual(1, result.duplicate_count)
@@ -1065,9 +1105,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 endpoint_url="https://example.test/duplicates",
             )
         ]
-        original = dataset_sources.discover_dataset_candidates_for_source
-
-        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+        def fake_discover(source: DatasetDiscoverySource, _options: DatasetCrawlOptions):
             # 同一 source 內大量重複通常代表分頁停條件、ID mapping 或 parser shape 壞掉；不能當成正常成功。
             return [
                 dataset_sources.DatasetCandidate(
@@ -1088,11 +1126,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 for index in range(3)
             ]
 
-        dataset_sources.discover_dataset_candidates_for_source = fake_discover
-        try:
-            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1))
-        finally:
-            dataset_sources.discover_dataset_candidates_for_source = original
+        result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1), source_crawler=fake_discover)
 
         source_result = result.source_results[0]
         self.assertEqual(1, result.candidate_count)
@@ -1112,16 +1146,10 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 endpoint_url="https://example.test/empty",
             )
         ]
-        original = dataset_sources.discover_dataset_candidates_for_source
-
-        def fake_discover(source: DatasetDiscoverySource, **_kwargs: object):
+        def fake_discover(_source: DatasetDiscoverySource, _options: DatasetCrawlOptions):
             return []
 
-        dataset_sources.discover_dataset_candidates_for_source = fake_discover
-        try:
-            result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1))
-        finally:
-            dataset_sources.discover_dataset_candidates_for_source = original
+        result = crawl_dataset_sources(sources, DatasetCrawlOptions(max_workers=1), source_crawler=fake_discover)
 
         self.assertEqual(0, result.candidate_count)
         self.assertEqual(0, result.error_count)
@@ -1130,6 +1158,47 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertIn("zero_candidates", result.source_results[0].warnings[0])
         self.assertEqual(("zero_candidates",), result.source_results[0].warning_codes)
         self.assertEqual("repair_crawler_query_or_parser", result.source_results[0].next_action)
+
+    def test_dataset_crawler_orchestrator_preserves_remote_pagination_metadata(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="paginated_source",
+            provider_id="sample_provider",
+            name="Paginated Source",
+            source_type="sample",
+            endpoint_url="https://example.test/page",
+        )
+        candidate = dataset_sources.DatasetCandidate(
+            dataset=Dataset(
+                dataset_uid="sample_provider:dataset_a",
+                provider_id="sample_provider",
+                dataset_id="dataset_a",
+                title="Dataset A",
+                categories=("test",),
+                metadata={"candidate_status": "needs_review"},
+            ),
+            source_id=source.source_id,
+            source_type=source.source_type,
+            source_url=source.endpoint_url,
+            confidence=0.9,
+            evidence=("unit test",),
+        )
+
+        def fake_crawler(_source: DatasetDiscoverySource, _options: DatasetCrawlOptions) -> DatasetCrawlerOutput:
+            return DatasetCrawlerOutput(
+                candidates=(candidate,),
+                remote_pagination_status="has_more",
+                remote_exhausted=False,
+                remote_next_page_token="cursor-2",
+            )
+
+        result = crawl_dataset_sources([source], DatasetCrawlOptions(max_workers=1), source_crawler=fake_crawler)
+        source_result = result.source_results[0]
+
+        self.assertEqual(1, result.candidate_count)
+        self.assertEqual("has_more", source_result.remote_pagination_status)
+        self.assertFalse(source_result.remote_exhausted)
+        self.assertTrue(source_result.remote_next_page_token_present)
+        self.assertEqual("cursor-2", source_result.remote_next_page_token)
 
     def test_payload_shape_mismatch_is_not_silent_success(self) -> None:
         source = DatasetDiscoverySource(

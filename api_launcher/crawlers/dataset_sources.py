@@ -80,6 +80,7 @@ from api_launcher.crawlers.stac import (
 )
 from api_launcher.crawlers.types import (
     DatasetCandidate,
+    DatasetCrawlerOutput,
     DatasetDiscoverySource,
     dataset_to_dict,
     dataset_with_candidate_metadata,
@@ -97,7 +98,7 @@ LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 DEFAULT_FULL_CRAWL_PAGE_SIZE = 100
 DatasetSourceCrawler = Callable[
     [DatasetDiscoverySource, float, int, tuple[str, ...], bool, int],
-    list[DatasetCandidate],
+    list[DatasetCandidate] | tuple[DatasetCandidate, ...] | DatasetCrawlerOutput,
 ]
 
 
@@ -143,6 +144,34 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
     "openalex_works_search": openalex_candidates_for_source,
 }
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
+
+
+def discover_dataset_candidate_output_for_source(
+    source: DatasetDiscoverySource,
+    timeout: float = 12.0,
+    max_results_override: int = 0,
+    search_terms_override: tuple[str, ...] = (),
+    full_crawl: bool = False,
+    max_pages: int = 0,
+) -> DatasetCrawlerOutput:
+    # 保留歷史 list-returning API，同時讓 orchestrator 可以接住新 handler
+    # 回報的遠端 pagination metadata。
+    limit = max_results_override or source.max_results
+    if full_crawl and not max_results_override:
+        limit = max(limit, DEFAULT_FULL_CRAWL_PAGE_SIZE)
+    search_terms = search_terms_override or source.search_terms
+    handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
+    if handler is not None:
+        return dataset_crawler_output(handler(source, timeout, limit, search_terms, full_crawl, max_pages))
+    raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
+
+
+def dataset_crawler_output(
+    value: list[DatasetCandidate] | tuple[DatasetCandidate, ...] | DatasetCrawlerOutput,
+) -> DatasetCrawlerOutput:
+    if isinstance(value, DatasetCrawlerOutput):
+        return value
+    return DatasetCrawlerOutput(candidates=tuple(value))
 
 
 def load_dataset_discovery_sources(path: str | Path) -> list[DatasetDiscoverySource]:
@@ -278,6 +307,6 @@ def discover_dataset_candidates_for_source(
     search_terms = search_terms_override or source.search_terms
     handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
     if handler is not None:
-        return handler(source, timeout, limit, search_terms, full_crawl, max_pages)
+        return list(dataset_crawler_output(handler(source, timeout, limit, search_terms, full_crawl, max_pages)).candidates)
     # 不支援的 source_type 必須明確失敗，否則 portal intake 會以為 crawler 已接好。
     raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")

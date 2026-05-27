@@ -6,9 +6,11 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from api_launcher.crawlers import dataset_sources
-from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
+from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 
-DatasetCandidateRunner = Callable[[DatasetDiscoverySource, "DatasetCrawlOptions"], list[DatasetCandidate]]
+
+DatasetCandidateRunnerOutput = list[DatasetCandidate] | tuple[DatasetCandidate, ...] | DatasetCrawlerOutput
+DatasetCandidateRunner = Callable[[DatasetDiscoverySource, "DatasetCrawlOptions"], DatasetCandidateRunnerOutput]
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,9 @@ class DatasetSourceCrawlResult:
     error: str = ""
     warnings: tuple[str, ...] = ()
     candidates: tuple[DatasetCandidate, ...] = ()
+    remote_pagination_status: str = "not_reported"
+    remote_exhausted: bool | None = None
+    remote_next_page_token: str = ""
 
     @property
     def warning_count(self) -> int:
@@ -70,6 +75,10 @@ class DatasetSourceCrawlResult:
         if "all_candidates_duplicate" in codes or "duplicate_heavy_output" in codes:
             return "review_source_overlap_or_dedupe"
         return "inspect_crawler_audit_warnings"
+
+    @property
+    def remote_next_page_token_present(self) -> bool:
+        return bool(str(self.remote_next_page_token or "").strip())
 
 
 @dataclass(frozen=True)
@@ -238,7 +247,7 @@ def crawl_dataset_sources(
 def default_source_crawler(source: DatasetDiscoverySource, options: DatasetCrawlOptions) -> list[DatasetCandidate]:
     """執行正式 crawler handler；測試/contract smoke 可注入替身而不碰 live 網路。"""
 
-    return dataset_sources.discover_dataset_candidates_for_source(
+    return dataset_sources.discover_dataset_candidate_output_for_source(
         source,
         timeout=options.timeout,
         max_results_override=options.max_results_override,
@@ -254,7 +263,7 @@ def _crawl_one_source(
     source_crawler: DatasetCandidateRunner,
 ) -> DatasetSourceCrawlResult:
     try:
-        candidates = source_crawler(source, options)
+        output = dataset_crawler_output(source_crawler(source, options))
     except Exception as exc:
         return DatasetSourceCrawlResult(
             source_id=source.source_id,
@@ -262,6 +271,7 @@ def _crawl_one_source(
             source_type=source.source_type,
             error=f"{type(exc).__name__}: {exc}",
         )
+    candidates = list(output.candidates)
     warnings = audit_source_candidates(source, candidates, options)
     return DatasetSourceCrawlResult(
         source_id=source.source_id,
@@ -269,8 +279,25 @@ def _crawl_one_source(
         source_type=source.source_type,
         candidate_count=len(candidates),
         warnings=warnings,
-        candidates=tuple(candidates),
+        candidates=output.candidates,
+        remote_pagination_status=output.remote_pagination_status,
+        remote_exhausted=output.remote_exhausted,
+        remote_next_page_token=output.remote_next_page_token,
     )
+
+
+def dataset_crawler_output(value: DatasetCandidateRunnerOutput) -> DatasetCrawlerOutput:
+    """正規化舊 list-returning handler 與 richer handler。
+
+    這讓 crawler contract 保持向後相容，也允許逐一把 handler 升級成可回報
+    遠端 pagination / exhaustion metadata。
+    """
+
+    if isinstance(value, DatasetCrawlerOutput):
+        return value
+    if isinstance(value, (list, tuple)):
+        return DatasetCrawlerOutput(candidates=tuple(value))
+    raise TypeError(f"crawler handler returned unsupported output type: {type(value).__name__}")
 
 
 def audit_source_candidates(

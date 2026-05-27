@@ -2,6 +2,8 @@
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
+- `DatasetCrawlerOutput` 是 crawler handler 回報遠端分頁狀態的第一個後端 contract。舊 handler 可維持回傳 candidate list；支援分頁的 handler 應逐步改成回傳 candidates 加 `remote_pagination_status` / `remote_exhausted` / `remote_next_page_token`，讓 UI 呈現 seed 枚舉完整度而不用自行猜測。
+- Socrata full crawl 已接上這個 contract：當 Socrata catalog 因本機 `max_pages` 上限停止而遠端仍可能有更多 seed 時，listing payload 會回報 `remote_pagination.status=has_more` 與 `completion_confidence=remote_has_more`；raw pagination token 只留在後端，不進 UI payload。
 - Seed enumeration payload 現在有 `remote_pagination` 與 `completion_confidence`。`remote_pagination.status=not_reported` 代表 handler 尚未回報遠端是否還有下一頁；`has_more` 代表 handler 有下一頁 token；`exhausted` 代表遠端已明確回報列完。UI 只能呈現這份 payload，不應自行把本機 `max_results` 當成遠端完整證據。
 - `completion_confidence=local_limit_only` 是目前最重要的防誤導狀態：它表示本機安全上限被碰到，遠端可能還有更多 seed。後續 handler 若支援 pagination，應把 raw token 留在後端，只讓 UI 看到 `next_page_token_present=true`。
 

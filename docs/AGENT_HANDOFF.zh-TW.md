@@ -4,6 +4,12 @@
 - 目前優先順序仍是 MVP 閉環：`seed -> crawler -> candidate -> plan -> download -> import -> UI`。現有 Python adapter / service / registry 先保持可測、可用、可交付。
 - 後續只在規則已穩定且重複出現時，逐步抽成 UI state contract、dynamic bounds form contract、content parser/importer capability contract、adapter review/download plan contract、feature flags、source profile metadata。Socrata 或 HTML file index 可作第一個 PoC，但必須有 fixture、blocked/unknown、zero-candidate 測試。
 
+## 2026-05-27 Crawler handler pagination output contract
+- 新增 `DatasetCrawlerOutput` 作為 handler 的相容 richer return contract。舊 handler 仍可只回傳 `list[DatasetCandidate]`；新 handler 可額外回報 `remote_pagination_status`、`remote_exhausted` 與 `remote_next_page_token`。
+- `crawl_dataset_sources()` / orchestrator 會把 richer output 保留到 `DatasetSourceCrawlResult`，`run_crawler_asset_listing()` 再把第一個 source result 的遠端 pagination metadata 帶入 `CrawlerAssetListingResult` 與 `seed_enumeration` payload。
+- Socrata full crawl 是第一個真 handler PoC：若 `max_pages` 安全上限截斷 catalog 枚舉，後端會回報 `remote_pagination.status=has_more`、`remote_exhausted=false`，並只向 UI 暴露 `next_page_token_present=true`，不暴露 raw token。
+- 本切片已用 targeted tests 驗證：orchestrator 保留 pagination metadata、Socrata page cap 會回報 has-more、crawler asset listing payload 不洩漏 raw token。下一步是把 OpenAlex / DataCite / Zenodo / CKAN / CMR 等已有 cursor、next link 或 result-count 的 handler 逐一接上，而不是在 UI 加猜測。
+
 ## 2026-05-27 Seed remote pagination contract
 - `CrawlerAssetListingResult` 現在帶 `remote_pagination_status`、`remote_exhausted` 與 `remote_next_page_token`。輸出的 `remote_pagination` payload 只暴露 status、exhausted 與 `next_page_token_present`，不把 raw token 交給 UI。
 - `seed_enumeration` 現在帶 `completion_confidence`。`local_limit_only` 表示達到本機安全上限但遠端未明確回報 exhausted；`remote_reported_exhausted` 表示 handler 已明確知道遠端列完。Web/Tk/Qt 不應再把 `candidate_count >= max_results` 解讀為「遠端完整」。

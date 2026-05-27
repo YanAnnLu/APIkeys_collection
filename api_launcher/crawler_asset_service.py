@@ -232,6 +232,7 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
     error_count = int(result.error_count or 0)
     remote_pagination = crawler_remote_pagination_payload(result)
     remote_exhausted = remote_pagination["exhausted"] is True
+    remote_has_more = remote_pagination["status"] == "has_more"
     if result.blocked:
         return {
             "status": "blocked",
@@ -296,7 +297,13 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "candidate_count": candidate_count,
             "max_results": max_results,
             "remote_pagination": remote_pagination,
-            "completion_confidence": "remote_reported_exhausted" if remote_exhausted else "warning_with_unknown_remote_completion",
+            "completion_confidence": (
+                "remote_reported_exhausted"
+                if remote_exhausted
+                else "remote_has_more"
+                if remote_has_more
+                else "warning_with_unknown_remote_completion"
+            ),
         }
     if result.complete_seed:
         return {
@@ -309,7 +316,13 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "candidate_count": candidate_count,
             "max_results": max_results,
             "remote_pagination": remote_pagination,
-            "completion_confidence": "remote_reported_exhausted" if remote_exhausted else "within_current_local_limits",
+            "completion_confidence": (
+                "remote_reported_exhausted"
+                if remote_exhausted
+                else "remote_has_more"
+                if remote_has_more
+                else "within_current_local_limits"
+            ),
         }
     return {
         "status": "bounded_sample",
@@ -474,6 +487,7 @@ def run_crawler_asset_listing(
         ),
     )
     upserted, skipped = upsert_crawler_asset_candidates(conn, result.candidates)
+    source_result = result.source_results[0] if result.source_results else None
     return CrawlerAssetListingResult(
         asset_id=asset_key,
         source_found=True,
@@ -491,6 +505,9 @@ def run_crawler_asset_listing(
         full_crawl=full_crawl,
         complete_seed=complete_seed,
         search_scope=search_scope,
+        remote_pagination_status=source_result.remote_pagination_status if source_result is not None else "not_reported",
+        remote_exhausted=source_result.remote_exhausted if source_result is not None else None,
+        remote_next_page_token=source_result.remote_next_page_token if source_result is not None else "",
     )
 
 

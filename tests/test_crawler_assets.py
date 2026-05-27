@@ -822,6 +822,92 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertFalse(payload["remote_pagination"]["next_page_token_present"])
         self.assertEqual("local_limit_only", payload["completion_confidence"])
 
+    def test_service_carries_source_remote_pagination_into_listing_payload(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path = Path(tmp) / "sources.json"
+            local_path = Path(tmp) / "local_sources.json"
+            source_path.write_text(
+                """
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "demo_index",
+      "provider_id": "demo_provider",
+      "name": "Demo Index",
+      "source_type": "html_file_index",
+      "endpoint_url": "https://example.test/index.html"
+    }
+  ]
+}
+""".strip(),
+                encoding="utf-8",
+            )
+            conn = connect_db(Path(tmp) / "catalog.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                    )
+                )
+                candidate = DatasetCandidate(
+                    dataset=Dataset(
+                        dataset_uid="demo_provider:dataset_a",
+                        provider_id="demo_provider",
+                        dataset_id="dataset_a",
+                        title="Dataset A",
+                        categories=("demo",),
+                        native_format="csv",
+                    ),
+                    source_id="demo_index",
+                    source_type="html_file_index",
+                    source_url="https://example.test/index.html",
+                    confidence=0.9,
+                    evidence=("unit-test",),
+                )
+
+                def fake_runner(_sources, _options):
+                    return DatasetCrawlResult(
+                        candidates=(candidate,),
+                        source_results=(
+                            DatasetSourceCrawlResult(
+                                source_id="demo_index",
+                                provider_id="demo_provider",
+                                source_type="html_file_index",
+                                candidate_count=1,
+                                candidates=(candidate,),
+                                remote_pagination_status="has_more",
+                                remote_exhausted=False,
+                                remote_next_page_token="cursor-2",
+                            ),
+                        ),
+                    )
+
+                result = run_crawler_asset_listing(
+                    "demo_index",
+                    conn,
+                    primary_path=source_path,
+                    local_path=local_path,
+                    crawl_runner=fake_runner,
+                )
+            finally:
+                conn.close()
+
+        payload = result.to_dict()["seed_enumeration"]
+
+        self.assertEqual("has_more", payload["remote_pagination"]["status"])
+        self.assertFalse(payload["remote_pagination"]["exhausted"])
+        self.assertTrue(payload["remote_pagination"]["next_page_token_present"])
+        self.assertEqual("remote_has_more", payload["completion_confidence"])
+        self.assertNotIn("cursor-2", repr(payload))
+
     def test_listing_result_honors_remote_exhausted_status(self) -> None:
         result = CrawlerAssetListingResult(
             asset_id="demo_index",
