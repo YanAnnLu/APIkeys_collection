@@ -1,3 +1,19 @@
+"""Build frontend-neutral bounds forms for crawler assets.
+
+This module is the contract layer between crawler capability metadata and UI
+input controls.  It intentionally does not import Tk, Web, or Qt code.  The
+service receives backend facets such as ``time`` or ``bbox`` and expands them
+into stable form fields, presets, recommendations, and a normalized payload
+that crawler/download services can consume.
+
+The important boundary is:
+
+``bounds facets -> form spec -> user values -> normalized bounds payload``
+
+UI shells may render the form differently, but they should not reimplement the
+facet expansion or payload normalization rules here.
+"""
+
 from __future__ import annotations
 
 import csv
@@ -8,6 +24,9 @@ from api_launcher.crawler_asset_bounds import CrawlerAssetBoundFacet
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
+# Presets are UX helpers, not hidden crawler defaults.  They give first-time
+# users a safe one-click starting point while still preserving the explicit
+# payload that will be sent to the backend.
 BBOX_REGION_PRESETS: tuple[dict[str, object], ...] = (
     {
         "preset_id": "global",
@@ -64,6 +83,8 @@ BBOX_REGION_PRESETS: tuple[dict[str, object], ...] = (
 
 @dataclass(frozen=True)
 class CrawlerAssetBoundPreset:
+    """One suggested set of field values that a UI may apply on demand."""
+
     preset_id: str
     label_zh_TW: str
     label_en: str
@@ -179,6 +200,14 @@ class CrawlerAssetBoundFormField:
 
 @dataclass(frozen=True)
 class CrawlerAssetBoundFormSpec:
+    """Complete UI-neutral form contract for one crawler asset.
+
+    ``fields`` describes what should be rendered.  ``recommended_values`` and
+    ``presets`` are optional helpers that reduce blind typing.  ``warning_codes``
+    keeps schema-probe and preset availability visible to UI shells without
+    forcing the UI to inspect every field.
+    """
+
     asset_id: str
     status: str
     fields: tuple[CrawlerAssetBoundFormField, ...] = ()
@@ -211,6 +240,13 @@ class CrawlerAssetBoundFormSpec:
 
 
 def crawler_asset_bound_form_profile(spec: CrawlerAssetBoundFormSpec) -> CrawlerAssetBoundFormProfile:
+    """Summarize a full form spec into the compact status profile used by UI cards.
+
+    The profile is derived from the full spec on purpose.  Keeping one source of
+    truth prevents Tk/Web/Qt from drifting into three different interpretations
+    of the same form.
+    """
+
     fields = spec.fields
     required_field_ids = tuple(field.field_id for field in fields if field.required)
     optional_field_ids = tuple(field.field_id for field in fields if not field.required)
@@ -298,6 +334,13 @@ def build_crawler_asset_bound_form_spec(
     *,
     source: DatasetDiscoverySource | None = None,
 ) -> CrawlerAssetBoundFormSpec:
+    """Expand backend bounds facets into a concrete form specification.
+
+    A source type owns the supported facets; this builder only turns those
+    facets into renderable fields and first-click UX helpers.  It should stay
+    free of provider-specific download behavior.
+    """
+
     fields: list[CrawlerAssetBoundFormField] = []
     for facet in bounds_schema:
         fields.extend(fields_for_facet(facet))
@@ -366,6 +409,8 @@ def bound_form_presets(
     *,
     source: DatasetDiscoverySource | None = None,
 ) -> tuple[CrawlerAssetBoundPreset, ...]:
+    """Return applicable presets for a form without changing field defaults."""
+
     field_ids = {field.field_id for field in fields}
     presets: list[CrawlerAssetBoundPreset] = []
     if {"bbox_west", "bbox_south", "bbox_east", "bbox_north"}.issubset(field_ids):
@@ -374,6 +419,8 @@ def bound_form_presets(
 
 
 def region_bbox_presets(source: DatasetDiscoverySource | None = None) -> tuple[CrawlerAssetBoundPreset, ...]:
+    """Rank coarse bbox presets from source hints while keeping the list short."""
+
     scope = " ".join(
         str(part or "").lower()
         for part in (
@@ -427,6 +474,13 @@ def bounded_positive_int(value: object, *, fallback: int, upper: int) -> int:
 
 
 def fields_for_facet(facet: CrawlerAssetBoundFacet) -> tuple[CrawlerAssetBoundFormField, ...]:
+    """Translate one logical facet into one or more visible form fields.
+
+    Composite facets are expanded here: ``time`` becomes time field/start/end,
+    and ``bbox`` becomes west/south/east/north.  This keeps UI code from knowing
+    which backend facet is single-field versus multi-field.
+    """
+
     base = {
         "facet_id": facet.facet_id,
         "group": facet.group,
@@ -514,6 +568,13 @@ def crawler_asset_bound_payload_from_form_values(
     spec: CrawlerAssetBoundFormSpec,
     values: Mapping[str, object],
 ) -> CrawlerAssetBoundPayload:
+    """Normalize raw UI values into the backend-facing bounds payload.
+
+    The output keeps both the original field values and facet-level values.  That
+    dual shape is deliberate: display code can show what the user typed, while
+    planner/downloader code can consume the normalized facet contract.
+    """
+
     field_values: dict[str, object] = {}
     for field in spec.fields:
         field_values[field.field_id] = normalize_field_value(field, values.get(field.field_id))

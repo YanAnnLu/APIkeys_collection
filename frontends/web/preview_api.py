@@ -1,3 +1,15 @@
+"""Backend API helpers for the RRKAL Web Preview surface.
+
+The Web Preview is the UI/UX lead surface, but it should still behave like a
+thin frontend.  This module adapts backend services into browser-friendly JSON:
+asset cards, detail payloads, seed pages, credential status, download/import
+actions, and developer diagnostics.
+
+Do not place crawler, resolver, importer, or credential policy decisions in the
+JavaScript layer.  When a new UI state is needed, add it to the backend display
+or service contract first, then expose it here.
+"""
+
 from __future__ import annotations
 
 import contextlib
@@ -48,6 +60,9 @@ from api_launcher.web_real_download_demo import run_web_real_download_demo
 
 WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
 WEB_PREVIEW_EVENT_LIMIT = 80
+# Web asks for a broad seed enumeration by default so users can see an entrance
+# has many seeds.  The backend still applies source-level page caps, rate limits,
+# credential gates, and remote pagination status.
 WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT = 1000
 CREDENTIAL_BLOCKING_STATUSES = frozenset(
     {
@@ -162,6 +177,8 @@ def crawler_asset_card(
     latest_listing: dict[str, object] | None = None,
     env_path: str | Path | None = None,
 ) -> dict[str, object]:
+    """Build the compact card payload shown in the asset rail."""
+
     return {
         "asset_id": asset.asset_id,
         "display_name": asset.display_name,
@@ -197,6 +214,8 @@ def crawler_asset_detail(
     profile_path: str | Path | None = None,
     env_path: str | Path | None = None,
 ) -> dict[str, object]:
+    """Return detail payload for one asset, including form and flow contracts."""
+
     asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     form_spec = crawler_asset_bound_form(
         asset_id,

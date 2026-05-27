@@ -1,3 +1,16 @@
+"""Seed paging and favorite state for crawler assets.
+
+Crawler listing can enumerate many seeds into the local catalog.  UI surfaces
+should not rerun discovery just because the user scrolls a seed list.  This
+module provides the shared read/write contract:
+
+- read a bounded page of already-enumerated seeds from the catalog
+- mark favorite seeds at seed level, not crawler-asset level
+
+The result payloads are frontend-neutral so Tk, Web, CLI, and future Qt can use
+the same paging/favorite semantics.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +19,9 @@ from typing import Iterable
 from api_launcher.crawler_asset_profiles import set_crawler_asset_seed_favorite
 
 
+# Keep pages intentionally small.  "Show more" expands the local view while the
+# actual enumeration completeness is tracked separately by crawler listing
+# status and remote pagination metadata.
 MAX_CRAWLER_SEED_PAGE_SIZE = 50
 DEFAULT_CRAWLER_SEED_PAGE_SIZE = 50
 
@@ -104,7 +120,11 @@ def list_crawler_asset_seed_candidates(
     asset_id: str,
     provider_id: str,
 ) -> list[object]:
-    """List catalog candidates that belong to one crawler asset source."""
+    """List catalog candidates that belong to one crawler asset source.
+
+    This is a catalog filter, not a live crawler call.  Discovery/listing code is
+    responsible for putting seed candidates into the repository first.
+    """
 
     candidates = [
         dataset
@@ -121,6 +141,8 @@ def list_crawler_asset_seed_candidates(
 
 
 def crawler_seed_belongs_to_asset(dataset: object, asset_id: str) -> bool:
+    """Check the discovery-source marker written during crawler listing."""
+
     metadata = getattr(dataset, "metadata", {})
     if not isinstance(metadata, dict):
         return False
@@ -159,7 +181,11 @@ def crawler_seed_row(
 
 
 def crawler_seed_favorite_key(dataset: object) -> str:
-    """Return the stable key used by seed favorite state."""
+    """Return the stable key used by seed favorite state.
+
+    ``dataset_uid`` is preferred because it survives title changes.  The
+    fallback chain keeps older or partially imported candidates selectable.
+    """
 
     for attr in ("dataset_uid", "dataset_id", "title"):
         value = str(getattr(dataset, attr, "") or "").strip()

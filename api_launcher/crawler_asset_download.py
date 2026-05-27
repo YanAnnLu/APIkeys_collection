@@ -1,3 +1,19 @@
+"""Formal crawler asset download/import service.
+
+This module is the production-shaped path behind "download/import this crawler
+asset" and "download/import this seed".  It keeps Web/Tk/Qt out of the details:
+the UI passes an asset id, optional bounds payload, and destination, then
+receives a structured result containing plan, download, import, and artifact
+locations.
+
+The boundary is deliberately explicit:
+
+``crawler asset/seed -> resolved download plan -> direct downloads -> import``
+
+Review-only, credential-blocked, or unsupported content paths still return a
+result object; they are not silently treated as successful downloads.
+"""
+
 from __future__ import annotations
 
 import json
@@ -87,6 +103,9 @@ def run_crawler_asset_download_import(
     pipeline result; they are not treated as successful downloads.
     """
 
+    # Destination creation is the only filesystem side effect before the plan is
+    # resolved.  Everything after this point flows through the standard download
+    # and import pipeline so UI shells do not need their own shortcut path.
     destination = Path(downloads_root).expanduser()
     destination.mkdir(parents=True, exist_ok=True)
     curated_sqlite = Path(import_sqlite_path) if import_sqlite_path is not None else destination / "curated_sources.db"
@@ -107,6 +126,8 @@ def run_crawler_asset_download_import(
     if output_plan_path is not None:
         output_plan_path.parent.mkdir(parents=True, exist_ok=True)
         output_plan_path.write_text(json.dumps(resolved_plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    # The import pipeline is responsible for deciding which downloaded artifacts
+    # are actually importable.  This service does not guess content formats.
     pipeline = run_download_import_slice(
         resolved_plan,
         repository,
@@ -144,7 +165,12 @@ def run_crawler_seed_download_import(
     download_limit: int = 1,
     import_existing_table_policy: str = "rename",
 ) -> CrawlerAssetDownloadImportResult:
-    """Build, run, and import a formal plan for one visible seed row."""
+    """Build, run, and import a formal plan for one visible seed row.
+
+    The seed must already belong to the selected crawler asset.  This path does
+    not rerun live discovery; it turns one catalog seed into a bounded download
+    plan and then uses the same import pipeline as the asset-level action.
+    """
 
     destination = Path(downloads_root).expanduser()
     destination.mkdir(parents=True, exist_ok=True)

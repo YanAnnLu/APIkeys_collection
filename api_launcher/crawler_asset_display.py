@@ -1,3 +1,11 @@
+"""Display-safe crawler asset payload helpers.
+
+The backend owns status interpretation.  Tk, Web Preview, and future Qt should
+receive labels, tones, summaries, and next-action strings from this module
+instead of translating raw outcome buckets by themselves.  This prevents UI
+surfaces from drifting when crawler/download/import behavior changes.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,12 +17,16 @@ from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, Crawler
 from api_launcher.crawler_assets import CrawlerAsset
 
 
+# Stable backend ids -> human labels.  Raw capability ids remain in payloads for
+# tests and agents; these labels are the shared presentation contract.
 CAPABILITY_DISPLAY_LABELS = {
     "fetch_metadata": "抓取元資料",
     "list_datasets": "擷取資料清單",
     "build_download_plan": "建立下載計畫",
 }
 
+# Field text belongs here rather than in Tk/Web widgets.  The same field id can
+# then render consistently in every UI surface.
 FIELD_DISPLAY_TEXT = {
     "collection": ("資料集合", "選擇或輸入入口中的 collection、package 或 dataset 名稱。"),
     "time_field": ("時間欄位", "資料集中代表時間的欄位名稱；未來 schema probe 可改成欄位選擇器。"),
@@ -45,6 +57,8 @@ BOUND_GROUP_DISPLAY_TEXT = {
     "VersionBounds": ("版本控制", "可指定精確版本；留空時改用版本上限避免誤選不存在的版本。"),
 }
 
+# Outcome buckets are machine contracts.  This table is the UI-neutral display
+# layer for those buckets.
 PLAN_OUTCOME_DISPLAY = {
     "ready_to_download": {
         "display_label": "可開始下載",
@@ -171,6 +185,8 @@ class CrawlerAssetFlowStep:
 def crawler_asset_card_capabilities(
     capabilities: Iterable[CrawlerAssetCapability],
 ) -> list[dict[str, object]]:
+    """Return compact capability rows for asset cards and lists."""
+
     return [
         {
             "capability_id": capability.capability_id,
@@ -184,6 +200,8 @@ def crawler_asset_card_capabilities(
 
 
 def crawler_asset_bound_form_payload(spec: CrawlerAssetBoundFormSpec) -> dict[str, object]:
+    """Decorate a form spec with shared display labels and group help text."""
+
     payload = spec.to_dict()
     payload["fields"] = [crawler_asset_bound_field_payload(field) for field in spec.fields]
     payload["group_display"] = [crawler_asset_bound_group_payload(group) for group in spec.groups]
@@ -290,6 +308,9 @@ def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) 
     display strings here are only the shared presentation layer.
     """
 
+    # Keep the bucket as the stable machine-readable value, then attach display
+    # metadata next to it.  Frontends should prefer display_profile for text and
+    # tone, not branch directly on the bucket unless they are doing diagnostics.
     bucket = str(getattr(result, "outcome_bucket", "") or "empty_plan")
     direct = _safe_int(getattr(result, "direct_download_count", 0))
     review = _safe_int(getattr(result, "review_required_count", 0))

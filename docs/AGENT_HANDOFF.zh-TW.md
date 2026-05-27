@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-27 23:41 Architecture comment pass handoff
+- 本輪依使用者要求提高現有檔案註釋密度，先做不改行為的可讀性切片。已在 `api_launcher/crawler_asset_bound_forms.py`、`api_launcher/crawler_capability_profiles.py`、`api_launcher/crawler_asset_display.py`、`api_launcher/crawler_asset_download.py`、`api_launcher/crawler_seed_registry.py` 與 `frontends/web/preview_api.py` 補上模組 docstring 與架構邊界註解。
+- 註解重點是讓接手者看懂資料流與責任邊界：bounds facets 如何變成 form spec / payload、capability profile 為何不是 universal interpreter、display profile 為何要讓後端持有 UI 文案、formal download/import service 的邊界、seed page 為何只讀本機 catalog，以及 Web Preview 為何只能做 thin frontend。
+- 本輪不改函式簽名、不改 UI 行為、不改 crawler / resolver / downloader / importer 邏輯。已驗證：`py -B -m py_compile api_launcher\crawler_asset_bound_forms.py api_launcher\crawler_capability_profiles.py api_launcher\crawler_asset_display.py api_launcher\crawler_asset_download.py api_launcher\crawler_seed_registry.py frontends\web\preview_api.py` OK；`py -B -m unittest tests.test_crawler_assets` 42 tests OK；`py -B -m unittest tests.test_web_preview` 37 tests OK；`py -B -m unittest tests.test_tk_dialogs` 52 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，795 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260527_234318.log`。待 commit / push / CI。
+
 ## 2026-05-27 22:55 Bounds form profile handoff
 - 依宣告式架構方向，將 crawler asset bounds form 的狀態收斂成 typed `CrawlerAssetBoundFormProfile`。`api_launcher/crawler_asset_bound_forms.py` 現在提供 `CrawlerAssetBoundFormProfile` 與 `crawler_asset_bound_form_profile()`，並讓 `CrawlerAssetBoundFormSpec.to_dict()` 輸出 `form_profile`。
 - 這層只做 compact profile：欄位數、required/optional 欄位、facet、groups、control types、schema probe 欄位、preset ids、recommended value keys、warning codes 與 next action。完整欄位細節仍保留在既有 `fields` / `presets` / `recommended_values`，所以 Web/Tk 相容 payload 不破壞。

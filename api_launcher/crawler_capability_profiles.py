@@ -1,3 +1,17 @@
+"""Typed capability profiles for crawler source routing.
+
+This module is the first concrete form of the medium-term
+``Matrix Cell -> Validated Profile -> Capability Gateway`` idea.  It does not
+replace existing crawler handlers and it is not a universal YAML interpreter.
+Instead, it gathers the decisions that were starting to spread across UI,
+resolver, and crawler code into one typed profile:
+
+source type + auth + pagination + content hints + bounds + request policy
+
+Downstream layers can read the profile and render/guard/route consistently
+without repeating ``if source_type == ...`` in every surface.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -9,6 +23,10 @@ from api_launcher.crawlers.source_type_registry import source_uses_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
 
 
+# Source type -> pagination style is a capability decision, not a UI decision.
+# Keeping it here lets future middleware choose a page driver without teaching
+# every frontend the details of CKAN offset, CMR page numbers, STAC next links,
+# or HTML linked-index traversal.
 PAGINATION_MODE_BY_SOURCE_TYPE: dict[str, str] = {
     "ckan_package_search": "offset",
     "socrata_catalog_search": "offset",
@@ -26,6 +44,9 @@ PAGINATION_MODE_BY_SOURCE_TYPE: dict[str, str] = {
     "ogc_wms_capabilities": "single_capabilities_document",
 }
 
+# These are hints about likely payloads, not parser guarantees.  The content
+# parser/import registry still owns the final answer to "can this artifact be
+# imported automatically?"
 CONTENT_FORMAT_HINTS_BY_SOURCE_TYPE: dict[str, tuple[str, ...]] = {
     "ckan_package_search": ("csv", "json", "zip", "excel", "pdf", "unknown"),
     "socrata_catalog_search": ("csv", "json", "geojson"),
@@ -87,6 +108,13 @@ def crawler_capability_profile(
     max_results_override: int = 0,
     full_crawl: bool = False,
 ) -> CrawlerCapabilityProfile:
+    """Build a validated profile for one configured source.
+
+    This is intentionally a read/describe operation.  It does not crawl, write
+    the catalog, or build a download plan.  The profile tells later layers which
+    guards and drivers should wrap the existing handler.
+    """
+
     policy = source_request_policy(
         source,
         fallback_timeout=fallback_timeout,
@@ -115,12 +143,16 @@ def crawler_capability_profile(
 
 
 def pagination_mode_for_source(source: DatasetDiscoverySource) -> str:
+    """Return the pagination driver id that should wrap this source handler."""
+
     if source_uses_file_index(source):
         return "linked_index_pages"
     return PAGINATION_MODE_BY_SOURCE_TYPE.get(source.source_type, "unknown")
 
 
 def content_format_hints_for_source(source: DatasetDiscoverySource) -> tuple[str, ...]:
+    """Return normalized payload format hints from explicit source metadata first."""
+
     native = tuple(
         token.strip().lower()
         for token in str(source.native_format or "").replace(";", ",").replace("|", ",").split(",")
@@ -137,6 +169,13 @@ def middleware_for_profile(
     policy: SourceRequestPolicy,
     pagination_mode: str,
 ) -> tuple[str, ...]:
+    """List middleware ids needed for this source profile.
+
+    The ids are declarative labels for the gateway; they avoid hiding control
+    flow in Python decorators too early.  A later pipeline can map these ids to
+    concrete functions once the pattern stabilizes.
+    """
+
     middleware: list[str] = []
     if policy.credential_mode == "user_credential_required":
         middleware.append("credential_guard")
@@ -154,6 +193,8 @@ def middleware_for_profile(
 
 
 def failure_policy_for_profile(policy: SourceRequestPolicy) -> dict[str, str]:
+    """Map common failure buckets to user-facing next actions."""
+
     missing_credentials_action = (
         "open_credential_editor"
         if policy.credential_mode == "user_credential_required"
