@@ -10,6 +10,7 @@ from api_launcher.crawler_asset_service import (
     CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
     crawler_asset_listing_event_context,
+    crawler_remote_pagination_payload,
     run_crawler_asset_listing,
     source_download_options_from_crawler_asset_payload,
 )
@@ -794,6 +795,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(0, result.skipped_provider_count)
         self.assertEqual("within_current_limits", result.to_dict()["seed_enumeration"]["status"])
         self.assertFalse(result.to_dict()["seed_enumeration"]["limited_by_max_results"])
+        self.assertEqual("not_reported", result.to_dict()["seed_enumeration"]["remote_pagination"]["status"])
         self.assertEqual(1, len(datasets))
         self.assertEqual("Dataset A", datasets[0].title)
         self.assertEqual("demo_index", datasets[0].metadata["discovery_source_id"])
@@ -815,6 +817,48 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("local_limit_reached", payload["status"])
         self.assertTrue(payload["limited_by_max_results"])
         self.assertEqual("narrow_bounds_or_raise_seed_limit", payload["next_action"])
+        self.assertEqual("not_reported", payload["remote_pagination"]["status"])
+        self.assertIsNone(payload["remote_pagination"]["exhausted"])
+        self.assertFalse(payload["remote_pagination"]["next_page_token_present"])
+        self.assertEqual("local_limit_only", payload["completion_confidence"])
+
+    def test_listing_result_honors_remote_exhausted_status(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_index",
+            source_found=True,
+            listing_mode="complete_seed",
+            candidate_count=1000,
+            upserted_count=1000,
+            max_results=1000,
+            complete_seed=True,
+            remote_exhausted=True,
+            next_action="review_or_upsert_dataset_candidates",
+        )
+
+        payload = result.to_dict()["seed_enumeration"]
+        context = crawler_asset_listing_event_context(result)
+
+        self.assertEqual("within_current_limits", payload["status"])
+        self.assertFalse(payload["limited_by_max_results"])
+        self.assertEqual("exhausted", payload["remote_pagination"]["status"])
+        self.assertTrue(payload["remote_pagination"]["exhausted"])
+        self.assertEqual("remote_reported_exhausted", payload["completion_confidence"])
+        self.assertEqual("exhausted", context["remote_pagination"]["status"])
+
+    def test_remote_pagination_payload_reports_token_presence_without_token(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_index",
+            source_found=True,
+            remote_exhausted=False,
+            remote_next_page_token="secret-token",
+        )
+
+        payload = crawler_remote_pagination_payload(result)
+
+        self.assertEqual("has_more", payload["status"])
+        self.assertFalse(payload["exhausted"])
+        self.assertTrue(payload["next_page_token_present"])
+        self.assertNotIn("secret-token", repr(payload))
 
     def test_download_plan_result_routes_review_required_bucket(self) -> None:
         plan_build = self._plan_build_stub(

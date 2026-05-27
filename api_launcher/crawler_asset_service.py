@@ -50,6 +50,9 @@ class CrawlerAssetListingResult:
     full_crawl: bool = True
     complete_seed: bool = False
     search_scope: str = "configured_terms"
+    remote_pagination_status: str = "not_reported"
+    remote_exhausted: bool | None = None
+    remote_next_page_token: str = ""
 
     @property
     def blocked(self) -> bool:
@@ -75,6 +78,7 @@ class CrawlerAssetListingResult:
             "full_crawl": self.full_crawl,
             "complete_seed": self.complete_seed,
             "search_scope": self.search_scope,
+            "remote_pagination": crawler_remote_pagination_payload(self),
             "seed_enumeration": crawler_seed_enumeration_payload(self),
         }
         payload["run_record"] = crawler_run_record(
@@ -226,6 +230,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
     max_results = int(result.max_results or 0)
     warning_count = int(result.warning_count or 0)
     error_count = int(result.error_count or 0)
+    remote_pagination = crawler_remote_pagination_payload(result)
+    remote_exhausted = remote_pagination["exhausted"] is True
     if result.blocked:
         return {
             "status": "blocked",
@@ -236,6 +242,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": False,
             "candidate_count": candidate_count,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "blocked",
         }
     if error_count:
         return {
@@ -247,6 +255,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": False,
             "candidate_count": candidate_count,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "error",
         }
     if candidate_count <= 0:
         return {
@@ -258,8 +268,10 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": False,
             "candidate_count": 0,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "zero_candidates",
         }
-    limited = bool(result.complete_seed and max_results > 0 and candidate_count >= max_results)
+    limited = bool(result.complete_seed and max_results > 0 and candidate_count >= max_results and not remote_exhausted)
     if limited:
         return {
             "status": "local_limit_reached",
@@ -270,6 +282,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": True,
             "candidate_count": candidate_count,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "local_limit_only",
         }
     if warning_count:
         return {
@@ -281,6 +295,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": False,
             "candidate_count": candidate_count,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "remote_reported_exhausted" if remote_exhausted else "warning_with_unknown_remote_completion",
         }
     if result.complete_seed:
         return {
@@ -292,6 +308,8 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
             "limited_by_max_results": False,
             "candidate_count": candidate_count,
             "max_results": max_results,
+            "remote_pagination": remote_pagination,
+            "completion_confidence": "remote_reported_exhausted" if remote_exhausted else "within_current_local_limits",
         }
     return {
         "status": "bounded_sample",
@@ -302,6 +320,25 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
         "limited_by_max_results": False,
         "candidate_count": candidate_count,
         "max_results": max_results,
+        "remote_pagination": remote_pagination,
+        "completion_confidence": "bounded_sample",
+    }
+
+
+def crawler_remote_pagination_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
+    """Return explicit remote pagination evidence without exposing raw tokens."""
+
+    status = str(result.remote_pagination_status or "").strip() or "not_reported"
+    token_present = bool(str(result.remote_next_page_token or "").strip())
+    exhausted = result.remote_exhausted
+    if exhausted is True:
+        status = "exhausted"
+    elif exhausted is False and token_present and status == "not_reported":
+        status = "has_more"
+    return {
+        "status": status,
+        "exhausted": exhausted,
+        "next_page_token_present": token_present,
     }
 
 
@@ -335,6 +372,7 @@ def crawler_asset_listing_event_context(result: CrawlerAssetListingResult) -> di
         "max_pages": int(result.max_pages or 0),
         "complete_seed": bool(result.complete_seed),
         "search_scope": str(result.search_scope or ""),
+        "remote_pagination": crawler_remote_pagination_payload(result),
         "seed_enumeration": crawler_seed_enumeration_payload(result),
         "run_record": crawler_run_record_from_result(result),
     }

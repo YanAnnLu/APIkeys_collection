@@ -2,6 +2,9 @@
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
+- Seed enumeration payload 現在有 `remote_pagination` 與 `completion_confidence`。`remote_pagination.status=not_reported` 代表 handler 尚未回報遠端是否還有下一頁；`has_more` 代表 handler 有下一頁 token；`exhausted` 代表遠端已明確回報列完。UI 只能呈現這份 payload，不應自行把本機 `max_results` 當成遠端完整證據。
+- `completion_confidence=local_limit_only` 是目前最重要的防誤導狀態：它表示本機安全上限被碰到，遠端可能還有更多 seed。後續 handler 若支援 pagination，應把 raw token 留在後端，只讓 UI 看到 `next_page_token_present=true`。
+
 - Crawler asset listing 現在要被視為「入口 seed 枚舉」的後端動作，而不是只為 UI 產生一份小樣本。Web Preview 選取入口時會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 觸發 listing，並將候選寫回本機 catalog。
 - 既有 crawler handler 仍保留安全邊界；`search_terms_override=("",)` 是目前用來避免 sample search term 縮小入口清單的 sentinel。這代表「完整枚舉嘗試」，不代表所有外部平台都已能證明走到遠端末頁。
 - UI 展示 seed 清單時，不應重新打 crawler。Web Preview 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，從 catalog 讀取 `metadata.discovery_source_id == asset_id` 的候選，先顯示 50 筆，使用者按「顯示更多 seed」才展開下一批。
