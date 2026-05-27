@@ -1,3 +1,15 @@
+"""Tk workflow for the crawler asset tab.
+
+This mixin is the plain desktop control panel for crawler assets.  It should
+collect user intent, call backend services, and render structured results.  The
+actual crawler, profile, download-plan, seed paging, credential, and import
+rules belong in ``api_launcher`` services.
+
+Keep this file as a workflow adapter: if a branch starts deciding source type,
+content parser, provider policy, or download safety, that branch belongs in a
+backend contract first.
+"""
+
 from __future__ import annotations
 
 import json
@@ -45,7 +57,12 @@ from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
 
 class CrawlerAssetWorkflowMixin:
-    """爬蟲資產分頁：先管理入口與能力，再把任務交給下載器。"""
+    """爬蟲資產分頁：先管理入口與能力，再把任務交給下載器。
+
+    The mixin owns Tk widgets and background-thread handoff only.  Backend
+    services own the semantics of listing, plan building, seed paging, and
+    seed download/import.
+    """
 
     def _build_crawler_asset_tab(self, parent: ttk.Frame, outer_pad: int) -> None:
         # 這個分頁只呈現入口爬蟲資產，不直接塞來源特例，避免 Tk 再變成巨型流程檔。
@@ -182,6 +199,9 @@ class CrawlerAssetWorkflowMixin:
             command=self.show_more_selected_crawler_asset_seeds,
         ).pack(anchor="w", padx=14, pady=(8, 0))
 
+        # These caches are UI state derived from backend payloads or structured
+        # events.  They are not the source of truth; reload/rebuild actions must
+        # call the backend services again.
         self.crawler_assets_by_id: dict[str, CrawlerAsset] = {}
         self.crawler_asset_plan_outcomes: dict[str, str] = {}
         self.crawler_asset_content_review_outcomes: dict[str, str] = {}
@@ -193,7 +213,12 @@ class CrawlerAssetWorkflowMixin:
         self.refresh_crawler_asset_tab()
 
     def load_crawler_asset_plan_outcomes_from_events(self) -> None:
-        """從 structured event 恢復最近送進下載器的可視狀態，避免重開 UI 後全部消失。"""
+        """從 structured event 恢復最近送進下載器的可視狀態，避免重開 UI 後全部消失。
+
+        Events provide display continuity only.  They should not be treated as a
+        fresh resolved plan unless the downstream action explicitly reloads the
+        saved plan path.
+        """
 
         self.crawler_asset_plan_outcomes = {}
         self.crawler_asset_content_review_outcomes = {}
@@ -245,6 +270,8 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_listing_outcomes[asset_id] = crawler_asset_listing_event_preview_payload(context)
 
     def refresh_crawler_asset_tab(self) -> None:
+        """Reload crawler asset cards from profile/source metadata."""
+
         if not hasattr(self, "crawler_asset_tree"):
             return
         try:
@@ -293,6 +320,8 @@ class CrawlerAssetWorkflowMixin:
         return self.crawler_assets_by_id.get(str(selected[0]))
 
     def on_crawler_asset_select(self, _event: object | None = None) -> None:
+        """Render the right-side passport for the selected crawler asset."""
+
         asset = self.selected_crawler_asset()
         if asset is None:
             return
@@ -365,9 +394,13 @@ class CrawlerAssetWorkflowMixin:
         )
 
     def on_crawler_asset_double_click(self, _event: object | None = None) -> None:
+        """Double-click follows the download-manager mental model: prepare plan."""
+
         self.prepare_selected_crawler_asset_download()
 
     def open_source_pattern_draft_dialog(self) -> None:
+        """Collect one URL and send it to the backend source-pattern detector."""
+
         dialog = SourcePatternDraftDialog(getattr(self, "root", None), self.tr)
         if dialog.result is None:
             return
@@ -572,7 +605,12 @@ class CrawlerAssetWorkflowMixin:
         self.load_crawler_asset_seed_page(asset, page=next_page)
 
     def load_crawler_asset_seed_page(self, asset: CrawlerAsset, *, page: int = 1) -> None:
-        """讀取本機 catalog seed page；不重新打遠端 crawler。"""
+        """讀取本機 catalog seed page；不重新打遠端 crawler。
+
+        "Show more" expands the local catalog window.  Live enumeration belongs
+        to ``run_selected_crawler_asset_listing`` and must remain a separate
+        explicit user action.
+        """
 
         provider_id = asset.provider_id
         source = load_crawler_asset_source(asset.asset_id)
@@ -727,7 +765,11 @@ class CrawlerAssetWorkflowMixin:
         dataset_uid: str,
         bounds_payload: CrawlerAssetBoundPayload | None,
     ) -> None:
-        """Background worker for one seed row's formal download/import path."""
+        """Background worker for one seed row's formal download/import path.
+
+        The worker only wraps the backend service in a Tk-safe thread.  All plan,
+        download, import, and credential behavior stays inside api_launcher.
+        """
 
         try:
             safe_asset = safe_path_part(asset_id)[:96]

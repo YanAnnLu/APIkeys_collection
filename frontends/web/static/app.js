@@ -1,3 +1,15 @@
+/*
+ * RRKAL Web Preview frontend.
+ *
+ * This file is intentionally a UI adapter. Backend services decide crawler
+ * readiness, credential gates, download-plan outcomes, seed paging, and import
+ * status. JavaScript keeps temporary screen state, calls JSON endpoints, and
+ * renders the backend display contracts.
+ */
+
+// Page-level state mirrors backend payloads for rendering only. The maps below
+// should not become a second source of business truth; refresh actions must call
+// the API again.
 let assets = [];
 let selectedAssetId = "";
 let selectedAssetDetail = null;
@@ -20,6 +32,8 @@ const defaultSeedEnumerationRequest = Object.freeze({
 });
 const seedPageSize = 50;
 
+// DOM anchors are collected once at startup. Most render functions below are
+// pure-ish transformations from current state to HTML fragments.
 const assetGrid = document.querySelector("#assetGrid");
 const assetFilter = document.querySelector("#assetFilter");
 const healthFilter = document.querySelector("#healthFilter");
@@ -69,6 +83,8 @@ renderMissionQueue();
 showWorkspace(activeWorkspace);
 
 async function loadAssets(options = {}) {
+  // Main refresh path: health -> asset cards -> filters -> selected asset
+  // detail. Auto-enumeration is guarded so reloads do not repeatedly crawl.
   const autoEnumerateSelected = options.autoEnumerateSelected !== false;
   setServerState("讀取中", "neutral");
   try {
@@ -184,6 +200,8 @@ function renderAssetGrid() {
 }
 
 function showWorkspace(name) {
+  // Workspaces are presentation tabs. Switching tabs should not mutate backend
+  // state; it only rerenders the relevant cached payloads.
   activeWorkspace = name || "assets";
   workspaceButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.workspace === activeWorkspace);
@@ -223,6 +241,8 @@ function renderDownloaderWorkspace() {
 }
 
 async function runCrawlerAssetDownloadImportById(assetId) {
+  // Formal asset-level path: bounds form values -> backend resolved plan ->
+  // download/import pipeline. This is not the old public CSV demo route.
   if (!assetId) {
     addMission("請先選擇爬蟲資產", "下載 / 匯入需要一個已選取的入口資產。");
     return;
@@ -270,6 +290,8 @@ async function runCrawlerAssetDownloadImportById(assetId) {
 }
 
 async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
+  // Seed-level path acts on one catalog seed row that the user can see. It does
+  // not rerun source discovery; the backend validates seed ownership.
   if (!assetId || !datasetUid) {
     addMission("請先選擇 seed", "seed 下載 / 匯入需要一個已枚舉的 dataset_uid。");
     return;
@@ -413,6 +435,8 @@ async function focusAssetFromWorkspace(assetId) {
 }
 
 async function loadSeedPage(assetId, page = 1, { append = false } = {}) {
+  // Read already-enumerated local catalog seeds. "Show more" appends another
+  // local page; live remote completeness is shown through listing metadata.
   const payload = await getJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/seeds?page=${page}&page_size=${seedPageSize}`);
   rememberSeedFavorites(payload.seeds || []);
   if (append && assetSeedPages.has(assetId)) {
@@ -442,6 +466,8 @@ async function showMoreSeeds(assetId) {
 }
 
 async function runCrawlerAssetListingById(assetId, options = {}) {
+  // Explicit seed enumeration. This is the crawler/listing action and the only
+  // place this frontend asks the backend to refresh local seed candidates.
   const asset = assets.find((item) => item.asset_id === assetId);
   const request = options.request || defaultSeedEnumerationRequest;
   addMission(options.auto ? "自動枚舉 seed" : "重新枚舉 seed", asset?.display_name || assetId);
@@ -646,6 +672,8 @@ function assetSlotHtml(asset) {
 }
 
 async function selectAsset(assetId, options = {}) {
+  // Select -> detail -> passport/form render. The detail endpoint carries the
+  // form/display contracts; JS should not infer source-type-specific forms.
   selectedAssetId = assetId;
   renderAssetGrid();
   try {
@@ -667,6 +695,8 @@ async function selectAsset(assetId, options = {}) {
 }
 
 function shouldAutoEnumerateSeeds(card = {}) {
+  // Auto enumeration is a first-use UX helper, not a crawler policy. Credential
+  // guards and archive/enable state still live in backend payloads.
   if (!card.asset_id || autoEnumeratedAssetIds.has(card.asset_id)) return false;
   if (card.archived || card.enabled === false) return false;
   if (credentialBlocksLivePlan(card.credentials || {})) return false;
@@ -807,6 +837,8 @@ function credentialGuardBanner(credentials = {}, assetId = "") {
 }
 
 async function openCredentialEditorById(assetId) {
+  // Credentials are local-machine setup. The frontend only renders editable
+  // fields returned by the backend credential profile.
   try {
     const status = await getJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/credentials`);
     showCredentialEditor(assetId, status);
@@ -944,6 +976,8 @@ function closeCredentialEditor() {
 }
 
 function renderBoundsForm(spec) {
+  // Dynamic bounds form renderer. Field groups, labels, presets, and warning
+  // status come from the backend form contract.
   boundsForm.innerHTML = "";
   setContentReviewBadge(null);
   const fields = spec.fields || [];
@@ -1196,6 +1230,8 @@ function inputForField(field) {
 }
 
 async function submitBounds(execute) {
+  // execute=false previews the normalized payload; execute=true builds the
+  // backend plan and records display-safe plan outcome/passport payloads.
   if (!selectedAssetId) return;
   if (execute && credentialBlocksLivePlan(selectedAssetDetail?.card?.credentials || {})) {
     handleBuildPlanClick();

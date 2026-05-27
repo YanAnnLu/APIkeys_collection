@@ -1,3 +1,15 @@
+"""Crawler asset orchestration services.
+
+This module is the backend seam between configured crawler assets and the rest
+of the RRKAL pipeline.  It keeps the full MVP path explicit:
+
+``asset -> source listing -> catalog candidates -> download plan -> review gate``
+
+UI shells should call these services and render the returned payloads.  They
+should not reimplement source lookup, profile enable/archive guards, crawler
+execution, candidate upsert, download-plan resolution, or seed validation.
+"""
+
 from __future__ import annotations
 
 import sqlite3
@@ -44,7 +56,12 @@ CrawlerRunner = Callable[[list[DatasetDiscoverySource], DatasetCrawlOptions], Da
 
 @dataclass(frozen=True)
 class CrawlerAssetListingResult:
-    """單一 crawler asset 執行 listing 後，回給 UI/Qt/CLI 的穩定結果。"""
+    """Stable listing result returned to UI/CLI surfaces.
+
+    Listing is the "enumerate seeds into the local catalog" action.  The result
+    records both local write counts and remote pagination evidence so a frontend
+    can say "show more locally" versus "remote may have more" without guessing.
+    """
 
     asset_id: str
     source_found: bool
@@ -221,6 +238,8 @@ class CrawlerAssetDownloadPlanResult:
 
 
 def crawler_listing_record_status(result: CrawlerAssetListingResult) -> str:
+    """Collapse listing details into the compact run-record status."""
+
     if result.blocked:
         return "blocked"
     if result.error_count:
@@ -369,6 +388,8 @@ def crawler_remote_pagination_payload(result: CrawlerAssetListingResult) -> dict
 
 
 def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
+    """Collapse plan outcome details into the compact run-record status."""
+
     if result.blocked:
         return "blocked"
     if result.outcome_bucket in {"ready_to_download", "partial_review_required"}:
@@ -379,7 +400,12 @@ def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
 
 
 def crawler_asset_listing_event_context(result: CrawlerAssetListingResult) -> dict[str, object]:
-    """Return the compact listing-event payload shared by Tk/Web/CLI callers."""
+    """Return the compact listing-event payload shared by Tk/Web/CLI callers.
+
+    Structured events are handoff evidence.  Keep this payload bounded and
+    display-safe; do not store full candidate lists or raw remote pagination
+    tokens here.
+    """
 
     return {
         "asset_id": str(result.asset_id or ""),
@@ -425,6 +451,9 @@ def run_crawler_asset_listing(
     顯示這個 service 回傳的阻擋理由、候選數與 upsert 統計。
     """
 
+    # The three early guards below are intentionally service-side.  UI callers
+    # may gray out buttons, but the backend must still protect archived/disabled
+    # assets and missing source profiles because CLI/Web/Tk can all reach here.
     asset_key = asset_id.strip()
     if not asset_key:
         return CrawlerAssetListingResult(
@@ -488,6 +517,8 @@ def run_crawler_asset_listing(
     else:
         search_scope = "configured_terms" if source.search_terms else "unbounded"
 
+    # Injecting ``crawl_runner`` keeps this orchestration testable without live
+    # network.  Production callers use ``crawl_dataset_sources``.
     result = crawl_runner(
         [source],
         DatasetCrawlOptions(
@@ -546,6 +577,9 @@ def build_crawler_asset_download_plan(
     yet; unresolved entries stay in adapter review.
     """
 
+    # Plan building mirrors listing guards, but it does not upsert candidates by
+    # itself.  It resolves whichever candidates the source-download service
+    # returns into direct-download or adapter-review plan entries.
     asset_key = asset_id.strip()
     if not asset_key:
         return CrawlerAssetDownloadPlanResult(
@@ -580,6 +614,9 @@ def build_crawler_asset_download_plan(
             next_action="enable_before_building_download_plan",
         )
 
+    # Bounds payloads come from the dynamic form contract.  The translation into
+    # SourceDownloadOptions happens once here so UI shells do not know internal
+    # SourceDownloadBounds field names.
     options = source_download_options_from_crawler_asset_payload(
         bounds_payload,
         timeout=timeout,
@@ -636,6 +673,8 @@ def build_crawler_seed_download_plan(
     avoids a fresh source crawl so a user can act on the visible seed list.
     """
 
+    # Seed downloads are intentionally catalog-first.  They let the user act on
+    # a visible seed row without triggering a new live crawl.
     asset_key = asset_id.strip()
     dataset_key = dataset_uid.strip()
     if not asset_key:
@@ -800,7 +839,13 @@ def source_download_options_from_crawler_asset_payload(
     full_crawl: bool = True,
     max_pages: int = 0,
 ) -> SourceDownloadOptions:
-    """Translate frontend-neutral crawler bounds into source-download options."""
+    """Translate frontend-neutral crawler bounds into source-download options.
+
+    This is the main adapter from dynamic UI form output to the older
+    source-download service.  Keep new form fields mapped through
+    ``CrawlerAssetBoundPayload.maps_to_values`` rather than adding UI-specific
+    branches in Tk or Web.
+    """
 
     bounds = source_download_bounds_from_crawler_asset_payload(payload)
     effective_max_results = bounds.candidate_limit or max_results
@@ -818,7 +863,12 @@ def source_download_options_from_crawler_asset_payload(
 
 
 def source_download_bounds_from_crawler_asset_payload(payload: CrawlerAssetBoundPayload | None) -> SourceDownloadBounds:
-    """Convert crawler asset bounds payload into the backend bounds contract."""
+    """Convert crawler asset bounds payload into the backend bounds contract.
+
+    ``maps_to_values`` is authoritative for backend field names.  ``facet_values``
+    is used as a fallback for composite user concepts such as time, bbox, and
+    dataset selectors.
+    """
 
     if payload is None:
         return SourceDownloadBounds()
@@ -874,6 +924,8 @@ def selected_versions_from_crawler_asset_payload(payload: CrawlerAssetBoundPaylo
 
 
 def selector_terms_from_facets(facets: dict[str, object]) -> tuple[str, ...]:
+    """Build broad source-query terms from selector facets when no query exists."""
+
     terms: list[str] = []
     for key in ("dataset", "collection", "package", "resource", "file_pattern", "format"):
         terms.extend(tuple_bound(facets.get(key)))
@@ -923,7 +975,13 @@ def upsert_crawler_asset_candidates(
     conn: sqlite3.Connection,
     candidates: tuple[DatasetCandidate, ...] | list[DatasetCandidate],
 ) -> tuple[int, int]:
-    """把 crawler candidates 收斂進 catalog，並保留 provider 缺失的跳過統計。"""
+    """把 crawler candidates 收斂進 catalog，並保留 provider 缺失的跳過統計。
+
+    Crawler handlers may find datasets before the provider catalog is complete.
+    Skipping unknown providers here keeps listing non-destructive and makes the
+    missing-provider count visible to the caller instead of failing the whole
+    crawl.
+    """
 
     existing_provider_ids = {provider.provider_id for provider in load_providers(conn)}
     repository = ApiCatalogRepository(conn)

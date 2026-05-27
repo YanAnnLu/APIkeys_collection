@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-27
+最後更新：2026-05-28
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,6 +14,12 @@
 - 每筆使用表格欄位：`時間`、`開發階段`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
+
+### 2026-05-28
+
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:17 | Maintainability / Flow Comments | **LOCAL PASS / 待推送** | `local` | `local` | Add crawler asset flow comments | 依使用者要求繼續提高現有檔案註釋密度，做第二批不改行為的可讀性切片：在 `api_launcher/crawler_asset_service.py`、`frontends/tk/crawler_asset_workflows.py` 與 `frontends/web/static/app.js` 補上模組 docstring、流程邊界註解與 service/UI/Web adapter 的責任說明。這輪只說明 crawler asset listing、seed download/import、source download options/bounds、Tk workflow adapter 與 Web Preview state/render/action flow，不改函式簽名、不改 UI 行為、不改 crawler/download/import 邏輯。已驗證：`py -B -m py_compile api_launcher\crawler_asset_service.py frontends\tk\crawler_asset_workflows.py` OK；`node --check frontends\web\static\app.js` OK；`py -B -m unittest tests.test_crawler_assets` 42 tests OK；`py -B -m unittest tests.test_crawler_asset_download` 2 tests OK；`py -B -m unittest tests.test_crawler_seed_registry` 13 tests OK；`py -B -m unittest tests.test_tk_dialogs tests.test_launcher_ui` 82 tests OK；`py -B -m unittest tests.test_web_preview` 37 tests OK；`git diff --check` OK（僅 `frontends/web/static/app.js` CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，795 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_001723.log`。 |
 
 ### 2026-05-27
 
