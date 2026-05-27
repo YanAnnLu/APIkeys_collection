@@ -32,6 +32,16 @@ DEFAULT_HTML_FILE_INDEX_REGEX = (
     rf"(?i)\.({HTML_DATA_FILE_EXTENSION_ALTERNATION})(?:$|[?#])"
 )
 SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION = "review_source_profile_or_add_detector"
+SOURCE_PATTERN_DRAFT_NEXT_ACTION_LABELS = {
+    SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION: {
+        "zh_TW": "檢查來源入口；若它是常用範式，補 detector 或 source profile",
+        "en": "Review the source URL; add a detector or source profile if it is a reusable pattern.",
+    },
+    LOCAL_DISCOVERY_AUDIT_NEXT_ACTION: {
+        "zh_TW": "先執行本機 discovery audit，通過後再提升 catalog",
+        "en": "Run the local discovery audit before promoting the source into the catalog.",
+    },
+}
 
 
 class SourcePatternDraftError(ValueError):
@@ -65,6 +75,7 @@ class SourcePatternDraftError(ValueError):
         }
         if self.detected_source_type:
             skipped_item["detected_source_type"] = self.detected_source_type
+        action_labels = source_pattern_draft_next_action_labels(SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION)
         return {
             "schema_version": 1,
             "role": "source pattern draft blocked for review; no local source was written",
@@ -75,10 +86,28 @@ class SourcePatternDraftError(ValueError):
             "review_message": str(self),
             "minimum_confidence": self.minimum_confidence,
             "next_action": SOURCE_PATTERN_DRAFT_REVIEW_NEXT_ACTION,
+            "next_action_label": action_labels["zh_TW"],
+            "next_action_label_zh_TW": action_labels["zh_TW"],
+            "next_action_label_en": action_labels["en"],
             "source_pattern_detection": detection_payload,
             "sources": [],
             "skipped": [skipped_item],
         }
+
+
+def source_pattern_draft_next_action_labels(action: str) -> dict[str, str]:
+    """Return UI text for source-draft next-action codes.
+
+    The machine-readable ``next_action`` remains stable for agents and JSON
+    handoff.  Human surfaces should prefer these labels so they do not expose
+    review codes such as ``review_source_profile_or_add_detector``.
+    """
+
+    action_id = str(action or "").strip()
+    labels = SOURCE_PATTERN_DRAFT_NEXT_ACTION_LABELS.get(action_id)
+    if labels is None:
+        return {"zh_TW": action_id, "en": action_id}
+    return labels
 
 
 def dataset_source_from_detected_url(
@@ -198,6 +227,7 @@ def write_source_draft_from_url(
     append_dataset_discovery_source(output, source)
     source_payload = source_to_dict(source)
     source_payload["source_pattern_detection"] = detection.to_dict()
+    action_labels = source_pattern_draft_next_action_labels(LOCAL_DISCOVERY_AUDIT_NEXT_ACTION)
     return {
         "schema_version": 1,
         "role": "local dataset discovery source draft from source pattern detector; ignored local config only",
@@ -206,6 +236,9 @@ def write_source_draft_from_url(
         "source_draft_count": 1,
         "skipped_count": 0,
         "next_action": LOCAL_DISCOVERY_AUDIT_NEXT_ACTION,
+        "next_action_label": action_labels["zh_TW"],
+        "next_action_label_zh_TW": action_labels["zh_TW"],
+        "next_action_label_en": action_labels["en"],
         "audit_command": LOCAL_DISCOVERY_AUDIT_COMMAND,
         "audit_source_ids": [source.source_id],
         "source_pattern_detection": detection.to_dict(),

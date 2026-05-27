@@ -46,6 +46,9 @@ class SourcePatternDraftTest(unittest.TestCase):
         self.assertEqual(["satellite", "raster"], source["categories"])
         self.assertEqual(5, source["max_results"])
         self.assertIn("--promote-local-discovery-dry-run", str(summary["audit_command"]))
+        self.assertEqual("run_local_discovery_audit_before_catalog_promotion", summary["next_action"])
+        self.assertIn("discovery audit", summary["next_action_label_en"])
+        self.assertIn("本機 discovery audit", summary["next_action_label_zh_TW"])
 
     def test_html_file_index_draft_gets_default_file_regex_for_followup_audit(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
@@ -281,6 +284,8 @@ class SourcePatternDraftTest(unittest.TestCase):
         payload = caught.exception.to_dict()
         self.assertEqual("source_pattern_unknown", payload["review_reason"])
         self.assertEqual("review_source_profile_or_add_detector", payload["next_action"])
+        self.assertIn("Review the source URL", payload["next_action_label_en"])
+        self.assertIn("檢查來源入口", payload["next_action_label_zh_TW"])
         self.assertEqual(0, payload["source_draft_count"])
         self.assertEqual("unknown", payload["source_pattern_detection"]["pattern_id"])
         self.assertEqual("source_pattern_unknown", payload["skipped"][0]["reason_code"])

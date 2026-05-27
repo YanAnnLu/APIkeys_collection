@@ -409,12 +409,13 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, writer.call_args.kwargs["minimum_confidence"])
 
-    def test_source_pattern_draft_review_message_keeps_next_action_visible(self) -> None:
+    def test_source_pattern_draft_review_message_uses_human_next_action_label(self) -> None:
         ui = object.__new__(CrawlerAssetWorkflowMixin)
         ui.tr = lambda _zh, en: en
         summary = {
             "review_reason": "source_pattern_unknown",
             "next_action": "review_source_profile_or_add_detector",
+            "next_action_label_en": "Review the source URL before adding a detector.",
             "source_pattern_detection": {
                 "pattern_id": "unknown",
                 "confidence": 0.1,
@@ -429,7 +430,31 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("source_pattern_unknown", message)
         self.assertIn("unknown", message)
         self.assertIn("0.10", message)
-        self.assertIn("review_source_profile_or_add_detector", message)
+        self.assertIn("Review the source URL", message)
+        self.assertNotIn("review_source_profile_or_add_detector", message)
+
+    def test_source_pattern_draft_success_message_uses_human_next_action_label(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        summary = {
+            "dataset_source_path": "state/private/dataset_discovery_sources.local.json",
+            "audit_command": "python APIkeys_collection.py --promote-local-discovery-dry-run",
+            "next_action": "run_local_discovery_audit_before_catalog_promotion",
+            "next_action_label_en": "Run the local discovery audit before promotion.",
+            "source_pattern_detection": {
+                "pattern_id": "stac",
+                "confidence": 0.95,
+                "source_type_hint": "stac_collections",
+                "evidence": ["json_contains_stac_version"],
+            },
+            "sources": [{"source_id": "demo_stac", "source_type": "stac_collections", "endpoint_url": "https://example.test/stac"}],
+        }
+
+        message = CrawlerAssetWorkflowMixin.source_pattern_draft_message(ui, summary)
+
+        self.assertIn("Run the local discovery audit", message)
+        self.assertIn("Command: python APIkeys_collection.py", message)
+        self.assertNotIn("run_local_discovery_audit_before_catalog_promotion", message)
 
     def test_source_pattern_draft_worker_shows_review_warning_for_structured_block(self) -> None:
         ui = object.__new__(CrawlerAssetWorkflowMixin)

@@ -525,6 +525,18 @@ class CrawlerAssetWorkflowMixin:
             confidence_text = f"{float(detection.get('confidence')):.2f}"
         except (TypeError, ValueError):
             confidence_text = "-"
+        next_action_zh = str(
+            data.get("next_action_label_zh_TW")
+            or data.get("next_action_label")
+            or data.get("next_action")
+            or "-"
+        ).strip()
+        next_action_en = str(
+            data.get("next_action_label_en")
+            or data.get("next_action")
+            or "-"
+        ).strip()
+        audit_command = str(data.get("audit_command") or "").strip()
         return self.tr(
             (
                 "已建立本機資料源草稿。\n\n"
@@ -536,7 +548,8 @@ class CrawlerAssetWorkflowMixin:
                 f"Endpoint：{source.get('endpoint_url') or '-'}\n\n"
                 f"證據：\n{evidence_preview}\n\n"
                 f"Local draft：{data.get('dataset_source_path') or '-'}\n"
-                f"下一步：{data.get('audit_command') or data.get('next_action') or '-'}"
+                f"下一步：{next_action_zh or '-'}"
+                + (f"\n可重跑命令：{audit_command}" if audit_command else "")
             ),
             (
                 "Local dataset source draft created.\n\n"
@@ -548,7 +561,8 @@ class CrawlerAssetWorkflowMixin:
                 f"Endpoint: {source.get('endpoint_url') or '-'}\n\n"
                 f"Evidence:\n{evidence_preview}\n\n"
                 f"Local draft: {data.get('dataset_source_path') or '-'}\n"
-                f"Next: {data.get('audit_command') or data.get('next_action') or '-'}"
+                f"Next: {next_action_en or '-'}"
+                + (f"\nCommand: {audit_command}" if audit_command else "")
             ),
         )
 
@@ -561,6 +575,13 @@ class CrawlerAssetWorkflowMixin:
             confidence_text = f"{float(detection.get('confidence')):.2f}"
         except (TypeError, ValueError):
             confidence_text = "-"
+        next_action_zh = str(
+            data.get("next_action_label_zh_TW")
+            or data.get("next_action_label")
+            or data.get("next_action")
+            or "-"
+        ).strip()
+        next_action_en = str(data.get("next_action_label_en") or data.get("next_action") or "-").strip()
         return self.tr(
             (
                 "來源草稿已保留在人工審核，沒有寫入本機 source draft。\n\n"
@@ -569,7 +590,7 @@ class CrawlerAssetWorkflowMixin:
                 f"信心分數：{confidence_text}\n"
                 f"Source type hint：{detection.get('source_type_hint') or '-'}\n\n"
                 f"證據：\n{evidence_preview}\n\n"
-                f"下一步：{data.get('next_action') or '-'}"
+                f"下一步：{next_action_zh or '-'}"
             ),
             (
                 "Source draft was kept in review; no local source draft was written.\n\n"
@@ -578,7 +599,7 @@ class CrawlerAssetWorkflowMixin:
                 f"Confidence: {confidence_text}\n"
                 f"Source type hint: {detection.get('source_type_hint') or '-'}\n\n"
                 f"Evidence:\n{evidence_preview}\n\n"
-                f"Next: {data.get('next_action') or '-'}"
+                f"Next: {next_action_en or '-'}"
             ),
         )
 

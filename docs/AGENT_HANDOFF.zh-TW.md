@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 03:53 Source draft next-action label handoff
+- 本輪把 source pattern draft 的 next-action 顯示也收斂成 UI-neutral label。`api_launcher/source_pattern_drafts.py` 現在會在成功與 blocked review payload 中輸出 `next_action_label`、`next_action_label_zh_TW`、`next_action_label_en`；machine-readable `next_action` 保留給 JSON / agent。
+- `frontends/tk/crawler_asset_workflows.py` 的 source draft 成功與保留審核訊息改成優先顯示人類下一步；成功路徑的 audit command 仍保留在「可重跑命令 / Command」行，不再把 `run_local_discovery_audit_before_catalog_promotion` 或 `review_source_profile_or_add_detector` 當主文案。
+- 本地驗證已通過：不寫 pyc 的 in-memory Python syntax check OK；`py -3 -B -m unittest tests.test_source_pattern_drafts tests.test_tk_dialogs -v` 74 tests OK；`git diff --check` OK；docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，808 tests / 4 skipped，MVP demo smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_035402.log`。尚未推送 / GitHub CI。
+
 ## 2026-05-28 03:36 Tk credential next-action label handoff
 - 本輪把 credential next-action label 的 UI-neutral contract 補回 Tk guard prompt。`frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_credential_summary_text()` 與 `crawler_asset_credential_guard_message()` 現在會優先讀 `display_profile.next_action_label_zh_TW/en` 或 top-level `next_action_label_zh_TW/en`，讓 Tk 顯示「先完成登入設定，再下載資料」，而不是把 `edit_local_credentials_before_live_download` 這種機器碼直接丟給使用者。
 - 新增 / 更新 `tests/test_tk_dialogs.py` regression：credential summary fallback 與 guard message 都要使用人類可讀 next-action label，並確認 raw machine `next_action` 不出現在使用者訊息裡。raw `next_action` 仍保留給 JSON / event / agent debug。
