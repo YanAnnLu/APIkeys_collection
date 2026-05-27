@@ -211,6 +211,61 @@ class SourcePatternDraftTest(unittest.TestCase):
             source.endpoint_url,
         )
 
+    def test_vendor_api_detection_creates_supported_source_drafts_without_live_fetch(self) -> None:
+        def fetcher(_url: str, _timeout: float):
+            return None
+
+        cases = (
+            (
+                "https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=global-hourly",
+                "ncei",
+                "ncei_search",
+                "https://www.ncei.noaa.gov/access/services/search/v1/datasets",
+            ),
+            (
+                "https://api.gbif.org/v1/dataset/search?q=birds",
+                "gbif",
+                "gbif_dataset_search",
+                "https://api.gbif.org/v1/dataset/search",
+            ),
+            (
+                "https://demo.dataverse.org/api/search?q=ocean",
+                "dataverse",
+                "dataverse_search",
+                "https://demo.dataverse.org/api/search",
+            ),
+            (
+                "https://zenodo.org/api/records?q=climate",
+                "zenodo",
+                "zenodo_records_search",
+                "https://zenodo.org/api/records",
+            ),
+            (
+                "https://api.datacite.org/dois?query=geodata",
+                "datacite",
+                "datacite_dois",
+                "https://api.datacite.org/dois",
+            ),
+            (
+                "https://api.openalex.org/works?search=gis",
+                "openalex",
+                "openalex_works_search",
+                "https://api.openalex.org/works",
+            ),
+        )
+
+        for url, pattern_id, source_type, endpoint_url in cases:
+            with self.subTest(source_type=source_type):
+                source, detection = dataset_source_from_detected_url(
+                    url,
+                    provider_id="sample_provider",
+                    fetcher=fetcher,
+                )
+
+                self.assertEqual(pattern_id, detection.pattern_id)
+                self.assertEqual(source_type, source.source_type)
+                self.assertEqual(endpoint_url, source.endpoint_url)
+
     def test_unknown_detection_stays_in_review(self) -> None:
         def detector(_url: str) -> SourcePatternDetection:
             return SourcePatternDetection(

@@ -12,6 +12,7 @@ from api_launcher.paths import local_config_file
 
 
 LOCAL_CRAWLER_ASSET_PROFILES_NAME = "crawler_asset_profiles.local.json"
+MAX_FAVORITE_SEEDS_PER_ASSET = 5000
 CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
     {
         "asset_id",
@@ -91,6 +92,7 @@ class CrawlerAssetProfile:
     logo_source: str = ""
     logo_license_note: str = ""
     latest_plan_passport: dict[str, object] = field(default_factory=dict)
+    favorite_seed_uids: tuple[str, ...] = ()
 
     @property
     def active(self) -> bool:
@@ -122,6 +124,7 @@ class CrawlerAssetProfile:
             "logo_source": self.logo_source,
             "logo_license_note": self.logo_license_note,
             "latest_plan_passport": dict(self.latest_plan_passport),
+            "favorite_seed_uids": list(self.favorite_seed_uids),
         }
 
 
@@ -169,6 +172,7 @@ def crawler_asset_profile_from_dict(asset_id: str, raw: dict[str, object]) -> Cr
         logo_source=str(raw.get("logo_source") or "").strip(),
         logo_license_note=str(raw.get("logo_license_note") or "").strip(),
         latest_plan_passport=compact_crawler_asset_plan_passport(raw.get("latest_plan_passport")),
+        favorite_seed_uids=clean_favorite_seed_uids(raw.get("favorite_seed_uids")),
     )
 
 
@@ -418,6 +422,67 @@ def update_crawler_asset_plan_passport(
     return updated
 
 
+def crawler_asset_favorite_seed_uids(
+    asset_id: str,
+    path: str | Path | None = None,
+) -> tuple[str, ...]:
+    """Return the user's seed-level favorites for one crawler asset."""
+
+    return crawler_asset_profile_for(asset_id, load_crawler_asset_profiles(path)).favorite_seed_uids
+
+
+def set_crawler_asset_seed_favorite(
+    asset_id: str,
+    dataset_uid: str,
+    favorite: bool,
+    path: str | Path | None = None,
+) -> CrawlerAssetProfile:
+    """Persist a seed-level favorite in the local crawler asset profile.
+
+    Favorites belong to enumerated seeds, not to the crawler asset itself.  The
+    UI can still render an asset card, but the persisted identity is the
+    dataset/seed uid so future Tk/Web/Qt surfaces can share the same preference.
+    """
+
+    asset_key = asset_id.strip()
+    seed_uid = clean_seed_uid(dataset_uid)
+    if not asset_key:
+        raise ValueError("crawler asset id is required")
+    if not seed_uid:
+        raise ValueError("dataset_uid is required")
+    profiles = load_crawler_asset_profiles(path)
+    current = profiles.get(asset_key) or default_crawler_asset_profile(asset_key)
+    favorites = list(current.favorite_seed_uids)
+    if favorite and seed_uid not in favorites:
+        favorites.append(seed_uid)
+    elif not favorite:
+        favorites = [uid for uid in favorites if uid != seed_uid]
+    updated = replace(current, favorite_seed_uids=tuple(favorites[:MAX_FAVORITE_SEEDS_PER_ASSET]))
+    profiles[asset_key] = updated
+    save_crawler_asset_profiles(profiles, path)
+    return updated
+
+
+def clean_favorite_seed_uids(raw: object) -> tuple[str, ...]:
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    favorites: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        seed_uid = clean_seed_uid(str(item or ""))
+        if not seed_uid or seed_uid in seen:
+            continue
+        seen.add(seed_uid)
+        favorites.append(seed_uid)
+        if len(favorites) >= MAX_FAVORITE_SEEDS_PER_ASSET:
+            break
+    return tuple(favorites)
+
+
+def clean_seed_uid(value: str) -> str:
+    return str(value or "").strip()[:512]
+
+
 def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -450,8 +515,11 @@ def toggle_crawler_asset_archived(
 
 __all__ = [
     "CrawlerAssetProfile",
+    "clean_favorite_seed_uids",
+    "clean_seed_uid",
     "compact_crawler_asset_plan_passport",
     "crawler_asset_bounds_signature",
+    "crawler_asset_favorite_seed_uids",
     "crawler_asset_plan_passport_for_profile",
     "crawler_asset_profile_for",
     "crawler_asset_profiles_path",
@@ -459,6 +527,7 @@ __all__ = [
     "default_crawler_asset_profile",
     "load_crawler_asset_profiles",
     "save_crawler_asset_profiles",
+    "set_crawler_asset_seed_favorite",
     "set_crawler_asset_archived",
     "stale_plan_passport_display",
     "toggle_crawler_asset_archived",

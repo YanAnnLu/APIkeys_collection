@@ -6,8 +6,19 @@ let activeWorkspace = "assets";
 let latestAdapterReview = null;
 let recentEvents = [];
 let missions = [];
+let realDownloadDemoResult = null;
 const assetPlanOutcomes = new Map();
 const assetPlanPassports = new Map();
+const assetListingOutcomes = new Map();
+const autoEnumeratedAssetIds = new Set();
+const assetSeedPages = new Map();
+const favoriteSeedUids = new Set();
+const defaultSeedEnumerationRequest = Object.freeze({
+  listing_mode: "complete_seed",
+  max_results: 1000,
+  max_pages: 0,
+});
+const seedPageSize = 50;
 
 const assetGrid = document.querySelector("#assetGrid");
 const assetFilter = document.querySelector("#assetFilter");
@@ -33,6 +44,7 @@ const refreshButton = document.querySelector("#refreshButton");
 const copyJsonButton = document.querySelector("#copyJsonButton");
 const workspaceButtons = document.querySelectorAll("[data-workspace]");
 const workspacePanels = document.querySelectorAll("[data-workspace-panel]");
+const realDownloadDemoButton = document.querySelector("#realDownloadDemoButton");
 const downloaderRefreshButton = document.querySelector("#downloaderRefreshButton");
 const downloaderQueue = document.querySelector("#downloaderQueue");
 const reviewReturnButton = document.querySelector("#reviewReturnButton");
@@ -44,9 +56,10 @@ refreshButton.addEventListener("click", loadAssets);
 assetFilter.addEventListener("input", renderAssetGrid);
 healthFilter.addEventListener("change", renderAssetGrid);
 payloadPreviewButton.addEventListener("click", () => submitBounds(false));
-buildPlanButton.addEventListener("click", () => submitBounds(true));
+buildPlanButton.addEventListener("click", handleBuildPlanClick);
 copyJsonButton.addEventListener("click", copyJson);
 workspaceButtons.forEach((button) => button.addEventListener("click", () => showWorkspace(button.dataset.workspace)));
+realDownloadDemoButton.addEventListener("click", runRealDownloadDemo);
 downloaderRefreshButton.addEventListener("click", renderDownloaderWorkspace);
 reviewReturnButton.addEventListener("click", () => showWorkspace("assets"));
 eventRefreshButton.addEventListener("click", () => loadRecentEvents());
@@ -55,7 +68,8 @@ loadAssets();
 renderMissionQueue();
 showWorkspace(activeWorkspace);
 
-async function loadAssets() {
+async function loadAssets(options = {}) {
+  const autoEnumerateSelected = options.autoEnumerateSelected !== false;
   setServerState("讀取中", "neutral");
   try {
     const health = await getJson("/api/health");
@@ -70,9 +84,9 @@ async function loadAssets() {
     renderReviewWorkspace();
     addMission("Web Preview 已連線", `讀取 ${assets.length} 個 crawler asset / ${serverRuntimeLabel(health)}`);
     if (!selectedAssetId && assets.length) {
-      await selectAsset(assets[0].asset_id);
+      await selectAsset(assets[0].asset_id, { autoEnumerate: autoEnumerateSelected });
     } else if (selectedAssetId) {
-      await selectAsset(selectedAssetId);
+      await selectAsset(selectedAssetId, { autoEnumerate: autoEnumerateSelected });
     }
   } catch (error) {
     setServerState("讀取失敗", "danger");
@@ -191,7 +205,12 @@ function renderDownloaderWorkspace() {
   const queueAssets = assets.filter((asset) => (
     hasPlanOutcomeBadge(latestPlanOutcomeForAsset(asset)) || hasPlanPassport(latestPlanPassportForAsset(asset))
   ));
-  if (!queueAssets.length) {
+  const rows = [];
+  if (realDownloadDemoResult) {
+    rows.push(realDownloadDemoRowHtml(realDownloadDemoResult));
+  }
+  rows.push(...queueAssets.map((asset) => downloaderRowHtml(asset)));
+  if (!rows.length) {
     downloaderQueue.innerHTML = `
       <div class="empty-state wide">
         <strong>尚無下載計畫結果</strong>
@@ -200,7 +219,71 @@ function renderDownloaderWorkspace() {
     `;
     return;
   }
-  downloaderQueue.innerHTML = queueAssets.map((asset) => downloaderRowHtml(asset)).join("");
+  downloaderQueue.innerHTML = rows.join("");
+}
+
+async function runRealDownloadDemo() {
+  if (!realDownloadDemoButton) return;
+  const originalText = realDownloadDemoButton.textContent;
+  realDownloadDemoButton.disabled = true;
+  realDownloadDemoButton.textContent = "下載中...";
+  addMission("真下載示範開始", "公開 CSV -> manifest -> SQLite import");
+  try {
+    const payload = await postJson("/api/demo/real-download", {});
+    realDownloadDemoResult = payload;
+    writeJson(payload);
+    const artifacts = payload.artifacts || {};
+    const rowCount = Number(payload.row_count || 0);
+    if (payload.succeeded) {
+      addMission("真下載示範完成", `${rowCount} rows / ${artifacts.downloaded_file || "downloaded file"}`);
+    } else {
+      addMission("真下載示範未完成", payload.next_action || payload.stage || "review required");
+    }
+    renderDownloaderWorkspace();
+    loadRecentEvents({ quiet: true });
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "/api/demo/real-download" });
+    addMission("真下載示範失敗", String(error));
+  } finally {
+    realDownloadDemoButton.disabled = false;
+    realDownloadDemoButton.textContent = originalText;
+  }
+}
+
+function realDownloadDemoRowHtml(payload) {
+  const artifacts = payload.artifacts || {};
+  const succeeded = Boolean(payload.succeeded);
+  const tone = succeeded ? "success" : "warning";
+  const label = succeeded ? "真下載完成" : "需要檢查";
+  return `
+    <article class="download-row ${tone} real-download-demo">
+      <div class="download-row-head">
+        <div>
+          <span class="eyebrow">Real Download Demo</span>
+          <strong>公開 CSV 真下載示範</strong>
+        </div>
+        <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
+      </div>
+      <div class="queue-metrics">
+        ${heroMetric("Rows", payload.row_count || 0)}
+        ${heroMetric("Stage", payload.stage || "unknown")}
+        ${heroMetric("SQLite", artifacts.curated_sqlite ? "OK" : "-")}
+        ${heroMetric("Manifest", artifacts.manifest ? "OK" : "-")}
+      </div>
+      <div class="context-chip-row">
+        <span class="context-chip">real_http_download</span>
+        <span class="context-chip">csv_import</span>
+        <span class="context-chip">${escapeHtml(payload.table_name || "table")}</span>
+      </div>
+      <p>${escapeHtml(payload.next_action || "open_downloaded_file_or_review_sqlite_import")}</p>
+      <dl class="artifact-list">
+        <div><dt>Source</dt><dd>${escapeHtml(payload.source_url || "")}</dd></div>
+        <div><dt>File</dt><dd>${escapeHtml(artifacts.downloaded_file || "")}</dd></div>
+        <div><dt>Manifest</dt><dd>${escapeHtml(artifacts.manifest || "")}</dd></div>
+        <div><dt>SQLite</dt><dd>${escapeHtml(artifacts.curated_sqlite || "")}</dd></div>
+      </dl>
+    </article>
+  `;
 }
 
 function downloaderRowHtml(asset) {
@@ -251,6 +334,60 @@ function downloaderRowHtml(asset) {
 async function focusAssetFromWorkspace(assetId) {
   await selectAsset(assetId);
   showWorkspace("assets");
+}
+
+async function loadSeedPage(assetId, page = 1, { append = false } = {}) {
+  const payload = await getJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/seeds?page=${page}&page_size=${seedPageSize}`);
+  rememberSeedFavorites(payload.seeds || []);
+  if (append && assetSeedPages.has(assetId)) {
+    const previous = assetSeedPages.get(assetId);
+    assetSeedPages.set(assetId, {
+      ...payload,
+      seeds: [...(previous.seeds || []), ...(payload.seeds || [])],
+    });
+  } else {
+    assetSeedPages.set(assetId, payload);
+  }
+  if (selectedAssetDetail?.card?.asset_id === assetId) {
+    renderPassport(selectedAssetDetail.card, selectedAssetDetail.asset);
+    renderSelectedHero(selectedAssetDetail.card, selectedAssetDetail.flow_steps || []);
+  }
+  return payload;
+}
+
+async function showMoreSeeds(assetId) {
+  const current = assetSeedPages.get(assetId) || { page: 0, seeds: [] };
+  try {
+    await loadSeedPage(assetId, Number(current.page || 0) + 1, { append: true });
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "seeds", asset_id: assetId });
+    addMission("seed 清單展開失敗", String(error));
+  }
+}
+
+async function runCrawlerAssetListingById(assetId, options = {}) {
+  const asset = assets.find((item) => item.asset_id === assetId);
+  const request = options.request || defaultSeedEnumerationRequest;
+  addMission(options.auto ? "自動枚舉 seed" : "重新枚舉 seed", asset?.display_name || assetId);
+  try {
+    const payload = await postJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/list-datasets`, request);
+    writeJson(payload);
+    const result = payload.listing_result || {};
+    rememberCrawlerAssetListing(assetId, result);
+    if (result.blocked && payload.next_action === "edit_local_credentials_before_live_download") {
+      addMission("需要登入才能枚舉 seed", asset?.display_name || assetId);
+      openCredentialEditorById(assetId);
+      return;
+    }
+    addMission("seed 枚舉完成", seedEnumerationDetail(result) || payload.next_action || "review candidates");
+    loadRecentEvents({ quiet: true });
+    await loadAssets({ autoEnumerateSelected: false });
+    await selectAsset(assetId, { autoEnumerate: false });
+    await loadSeedPage(assetId, 1);
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "list_datasets", asset_id: assetId });
+    addMission("seed 枚舉失敗", String(error));
+  }
 }
 
 function renderReviewWorkspace() {
@@ -414,6 +551,7 @@ function assetSlotHtml(asset) {
     <div class="slot-topline">
       <span class="surface-pill">${escapeHtml(surfaceLabel(asset.source_surface))}</span>
       ${statePill(status)}
+      ${credentialBadgeHtml(asset)}
     </div>
     ${planBadgeHtml(asset)}
     <div class="slot-emblem"><span>${escapeHtml(initials)}</span></div>
@@ -431,7 +569,7 @@ function assetSlotHtml(asset) {
   `;
 }
 
-async function selectAsset(assetId) {
+async function selectAsset(assetId, options = {}) {
   selectedAssetId = assetId;
   renderAssetGrid();
   try {
@@ -441,11 +579,22 @@ async function selectAsset(assetId) {
     renderSelectedHero(detail.card, detail.flow_steps || []);
     renderBoundsForm(detail.bound_form);
     writeJson(detail.bound_form);
+    if (options.autoEnumerate !== false && shouldAutoEnumerateSeeds(detail.card)) {
+      autoEnumeratedAssetIds.add(assetId);
+      runCrawlerAssetListingById(assetId, { auto: true });
+    }
     addMission("載入資產護照", detail.card.display_name);
   } catch (error) {
     selectedAssetDetail = null;
     writeJson({ error: String(error), asset_id: assetId });
   }
+}
+
+function shouldAutoEnumerateSeeds(card = {}) {
+  if (!card.asset_id || autoEnumeratedAssetIds.has(card.asset_id)) return false;
+  if (card.archived || card.enabled === false) return false;
+  if (credentialBlocksLivePlan(card.credentials || {})) return false;
+  return true;
 }
 
 function renderPassport(card, asset) {
@@ -484,6 +633,8 @@ function renderPassport(card, asset) {
 
     ${planOutcomePanelHtml(card)}
     ${planPassportPanelHtml(card)}
+    ${seedListPanelHtml(card)}
+    ${credentialPanelHtml(card.credentials, card.asset_id)}
 
     <div class="trust-radar">
       <div><span>Trust</span><strong>${escapeHtml(String(boundedPercent(card.trust_score)))}</strong></div>
@@ -497,27 +648,244 @@ function renderPassport(card, asset) {
     </section>
 
     <div class="passport-actions">
+      <button type="button" class="primary-button" onclick="runCrawlerAssetListingById('${escapeAttr(card.asset_id)}')">重新枚舉 seed</button>
+      <button type="button" class="secondary-button" onclick="openCredentialEditorById('${escapeAttr(card.asset_id)}')">登入設定</button>
       <button type="button" class="secondary-button" onclick="prepareOpenCommandById('${escapeAttr(card.asset_id)}')">準備開啟 IDE</button>
       <button type="button" class="secondary-button" onclick="createRepairMission('${escapeAttr(card.asset_id)}')">AI 診斷任務</button>
     </div>
   `;
 }
 
+function credentialBadgeHtml(asset) {
+  const credentials = asset.credentials || {};
+  const label = credentials.display_label || "";
+  if (!label || credentials.status === "public_no_credentials") {
+    return "";
+  }
+  const tone = toneClass(credentials.display_tone);
+  return `<span class="credential-badge ${tone}" title="${escapeAttr(credentials.next_action || label)}">${escapeHtml(label)}</span>`;
+}
+
+function credentialPanelHtml(credentials = {}, assetId = "") {
+  const fields = credentials.fields || [];
+  const tone = toneClass(credentials.display_tone);
+  const entryLink = credentials.credential_entry_url
+    ? `<a class="credential-entry-link" href="${escapeAttr(credentials.credential_entry_url)}" target="_blank" rel="noreferrer">${escapeHtml(credentials.credential_entry_label || "開啟官方登入 / 申請 API Key")}</a>`
+    : "";
+  const docsLink = credentials.docs_url
+    ? `<a href="${escapeAttr(credentials.docs_url)}" target="_blank" rel="noreferrer">官方文件</a>`
+    : "";
+  const signupLink = credentials.signup_url
+    ? `<a href="${escapeAttr(credentials.signup_url)}" target="_blank" rel="noreferrer">登入 / 申請金鑰</a>`
+    : "";
+  const fieldRows = fields.length
+    ? fields.map((field) => `
+        <div class="credential-field-row ${field.configured ? "configured" : "missing"}">
+          <span>${escapeHtml(field.label || "登入資訊")}</span>
+          <strong>${escapeHtml(field.configured ? field.value_preview || "已設定" : "尚未設定")}</strong>
+          <small>${escapeHtml(field.env_var || "")}</small>
+        </div>
+      `).join("")
+    : '<p class="muted">這個來源沒有可編輯的本機登入欄位；若仍需要登入，請先補 crawler credential profile。</p>';
+  return `
+    <section class="credential-panel ${tone}">
+      <div class="credential-panel-head">
+        <div>
+          <span class="eyebrow">登入設定</span>
+          <strong>${escapeHtml(credentials.display_label || "登入狀態")}</strong>
+        </div>
+        <button type="button" class="secondary-button small" onclick="openCredentialEditorById('${escapeAttr(assetId)}')">編輯</button>
+      </div>
+      <p>${escapeHtml(credentials.safety_note_zh_TW || "登入資訊只留在這台電腦，不會寫進事件紀錄。")}</p>
+      <div class="credential-links">
+        ${entryLink}
+        ${docsLink}
+        ${signupLink}
+        <span>${escapeHtml(credentials.env_file_exists ? "這台電腦已有登入設定" : "尚未記住帳號")}</span>
+      </div>
+      <div class="credential-field-list">${fieldRows}</div>
+    </section>
+  `;
+}
+
+function credentialBlocksLivePlan(credentials = {}) {
+  return ["missing_credentials", "partial_credentials", "credential_profile_required"].includes(credentials.status || "");
+}
+
+function credentialGuardBanner(credentials = {}, assetId = "") {
+  if (!credentialBlocksLivePlan(credentials)) return null;
+  const panel = document.createElement("section");
+  panel.className = `credential-guard-banner ${toneClass(credentials.display_tone)}`;
+  panel.innerHTML = `
+    <div>
+      <strong>${escapeHtml(credentials.display_label || "需要登入 / API Key")}</strong>
+      <p>${escapeHtml(credentials.safety_note_zh_TW || "這個來源需要先完成登入設定；像登入 Email 一樣，先到官方入口取得金鑰，再回到這裡貼上。")}</p>
+    </div>
+    <div class="credential-guard-actions">
+      ${credentials.credential_entry_url ? `<a class="secondary-button small" href="${escapeAttr(credentials.credential_entry_url)}" target="_blank" rel="noreferrer">${escapeHtml(credentials.credential_entry_label || "開啟官方登入 / 申請 API Key")}</a>` : ""}
+      <button type="button" class="primary-button small">登入設定</button>
+    </div>
+  `;
+  panel.querySelector("button").addEventListener("click", () => openCredentialEditorById(assetId));
+  return panel;
+}
+
+async function openCredentialEditorById(assetId) {
+  try {
+    const status = await getJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/credentials`);
+    showCredentialEditor(assetId, status);
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "credentials", asset_id: assetId });
+    addMission("登入設定讀取失敗", String(error));
+  }
+}
+
+function showCredentialEditor(assetId, status) {
+  closeCredentialEditor();
+  const overlay = document.createElement("div");
+  overlay.className = "credential-modal-backdrop";
+  overlay.dataset.credentialEditor = "active";
+  overlay.innerHTML = `
+    <section class="credential-modal" role="dialog" aria-modal="true" aria-label="登入設定">
+      <div class="credential-modal-head">
+        <div>
+          <span class="eyebrow">Login / API Key</span>
+          <h2>${escapeHtml(status.provider_name || status.provider_id || assetId)}</h2>
+          <p>${escapeHtml(status.safety_note_zh_TW || "開官方入口取得金鑰後貼回這裡；登入資訊只留在這台電腦。")}</p>
+        </div>
+        <button type="button" class="ghost-button small" data-credential-close>關閉</button>
+      </div>
+      ${credentialLoginStepsHtml(status)}
+      <div class="credential-links">
+        ${status.credential_entry_url ? `<a class="credential-entry-link" href="${escapeAttr(status.credential_entry_url)}" target="_blank" rel="noreferrer">${escapeHtml(status.credential_entry_label || "開啟官方登入 / 申請 API Key")}</a>` : ""}
+        ${status.docs_url ? `<a href="${escapeAttr(status.docs_url)}" target="_blank" rel="noreferrer">官方文件</a>` : ""}
+        ${status.signup_url ? `<a href="${escapeAttr(status.signup_url)}" target="_blank" rel="noreferrer">登入 / 申請金鑰</a>` : ""}
+        <span>${escapeHtml(status.env_file_exists ? "這台電腦已有登入設定" : "尚未記住帳號")}</span>
+      </div>
+      <form class="credential-edit-form" data-credential-form>
+        ${credentialEditorFieldsHtml(status.fields || [])}
+        <label class="credential-remember-row">
+          <input type="checkbox" data-remember-local ${status.remember_local_default === false ? "" : "checked"} />
+          <span>
+            <strong>記住我的帳號</strong>
+            <small>下次開啟仍可使用；取消勾選時，只在目前 Web Preview 進程暫時使用。</small>
+          </span>
+        </label>
+      </form>
+      <div class="credential-modal-actions">
+        <button type="button" class="secondary-button" data-credential-close>取消</button>
+        <button type="button" class="primary-button" data-credential-save>完成登入設定</button>
+      </div>
+    </section>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelectorAll("[data-credential-close]").forEach((button) => {
+    button.addEventListener("click", closeCredentialEditor);
+  });
+  overlay.querySelector("[data-credential-save]").addEventListener("click", () => saveCredentialEditor(assetId));
+}
+
+function credentialLoginStepsHtml(status) {
+  const entryLabel = status.credential_entry_label || "開啟官方登入 / 申請 API Key";
+  return `
+    <ol class="credential-login-steps">
+      <li><strong>開官方入口</strong><span>${escapeHtml(entryLabel)}，用官方流程登入或申請金鑰。</span></li>
+      <li><strong>取得金鑰</strong><span>複製官方提供的 API Key、Token、帳號或密碼。</span></li>
+      <li><strong>回到 RRKAL 儲存</strong><span>貼上後按「完成登入設定」，再重新建立下載計畫。</span></li>
+    </ol>
+  `;
+}
+
+function credentialEditorFieldsHtml(fields) {
+  if (!fields.length) {
+    return `
+      <div class="empty-state">
+        <strong>尚未定義登入欄位</strong>
+        <p>這個來源標示需要登入，但目前沒有可編輯的帳號或 API Key 欄位；請先補 crawler credential profile。</p>
+      </div>
+    `;
+  }
+  return fields.map((field) => `
+    <label class="credential-edit-field">
+      <span>
+        <strong>${escapeHtml(field.label || "登入資訊")}</strong>
+        <small>${escapeHtml(field.configured ? `已設定：${field.value_preview}` : "尚未設定")}</small>
+        <small>${escapeHtml(field.env_var || "")}</small>
+      </span>
+      <input
+        class="credential-input"
+        type="password"
+        autocomplete="off"
+        data-env-var="${escapeAttr(field.env_var)}"
+        placeholder="${escapeAttr(field.configured ? "留空代表不變；輸入新值才會更新" : "貼上官方提供的 API Key / Token / 密碼")}"
+      />
+      <label class="credential-clear-row">
+        <input type="checkbox" data-clear-env-var="${escapeAttr(field.env_var)}" />
+        <span>清除這個登入資訊</span>
+      </label>
+    </label>
+  `).join("");
+}
+
+async function saveCredentialEditor(assetId) {
+  const overlay = document.querySelector("[data-credential-editor='active']");
+  if (!overlay) return;
+  const values = {};
+  const clear = [];
+  overlay.querySelectorAll("[data-env-var]").forEach((input) => {
+    const envVar = input.dataset.envVar;
+    if (envVar && input.value) {
+      values[envVar] = input.value;
+    }
+  });
+  overlay.querySelectorAll("[data-clear-env-var]").forEach((input) => {
+    if (input.checked && input.dataset.clearEnvVar) {
+      clear.push(input.dataset.clearEnvVar);
+    }
+  });
+  const rememberLocal = Boolean(overlay.querySelector("[data-remember-local]")?.checked);
+  try {
+    const status = await postJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/credentials`, {
+      values,
+      clear,
+      remember_local: rememberLocal,
+    });
+    writeJson(status);
+    addMission("登入設定已更新", `${assetId} / ${status.display_label || status.status}`);
+    closeCredentialEditor();
+    await loadAssets();
+    if (assetId) {
+      await selectAsset(assetId);
+    }
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "save_credentials", asset_id: assetId });
+    addMission("登入設定儲存失敗", String(error));
+  }
+}
+
+function closeCredentialEditor() {
+  document.querySelectorAll("[data-credential-editor='active']").forEach((node) => node.remove());
+}
+
 function renderBoundsForm(spec) {
   boundsForm.innerHTML = "";
   setContentReviewBadge(null);
   const fields = spec.fields || [];
+  const credentials = selectedAssetDetail?.card?.credentials || {};
+  configureBuildPlanButton(credentials);
   if (!fields.length) {
     formState.textContent = "不需界域";
     formState.className = "state-pill warning";
     payloadPreviewButton.disabled = true;
-    buildPlanButton.disabled = true;
+    buildPlanButton.disabled = !selectedAssetId;
     boundsForm.innerHTML = `
       <div class="empty-state">
         <strong>這個爬蟲資產沒有動態界域表單</strong>
         <p>後端沒有提供 bounds schema。它可能是固定索引來源，或仍需要能力設定。</p>
       </div>
     `;
+    const guard = credentialGuardBanner(credentials, selectedAssetId);
+    if (guard) boundsForm.prepend(guard);
     return;
   }
 
@@ -525,6 +893,16 @@ function renderBoundsForm(spec) {
   formState.className = "state-pill success";
   payloadPreviewButton.disabled = !selectedAssetId;
   buildPlanButton.disabled = !selectedAssetId;
+  const guard = credentialGuardBanner(credentials, selectedAssetId);
+  if (guard) {
+    formState.textContent = credentials.display_label || "需要登入 / API Key";
+    formState.className = `state-pill ${toneClass(credentials.display_tone)}`;
+    boundsForm.appendChild(guard);
+  }
+  const presetPanel = boundPresetPanel(spec);
+  if (presetPanel) {
+    boundsForm.appendChild(presetPanel);
+  }
   for (const group of groupedBoundFields(spec, fields)) {
     const section = document.createElement("section");
     section.className = "bounds-group";
@@ -554,6 +932,107 @@ function renderBoundsForm(spec) {
     section.appendChild(fieldGrid);
     boundsForm.appendChild(section);
   }
+  applyRecommendedValuesSilently(spec);
+}
+
+function configureBuildPlanButton(credentials = {}) {
+  const blocked = credentialBlocksLivePlan(credentials);
+  buildPlanButton.dataset.action = blocked ? "credentials" : "build-plan";
+  buildPlanButton.textContent = blocked ? "先設定登入 / API Key" : "建立下載計畫";
+  buildPlanButton.title = blocked
+    ? "此來源需要登入設定；按下會開啟登入設定，不會直接送出遠端請求。"
+    : "用目前界域建立後端下載計畫。";
+}
+
+function handleBuildPlanClick() {
+  if (!selectedAssetId) return;
+  const credentials = selectedAssetDetail?.card?.credentials || {};
+  if (buildPlanButton.dataset.action === "credentials" || credentialBlocksLivePlan(credentials)) {
+    addMission("先設定登入 / API Key", selectedAssetId);
+    openCredentialEditorById(selectedAssetId);
+    return;
+  }
+  submitBounds(true);
+}
+
+function applyRecommendedValuesSilently(spec) {
+  const values = spec.recommended_values || {};
+  let appliedCount = 0;
+  for (const [key, value] of Object.entries(values)) {
+    const element = boundsForm.elements.namedItem(key);
+    if (!element || element.value) continue;
+    element.value = String(value);
+    appliedCount += 1;
+  }
+  if (!appliedCount) return;
+  const note = document.createElement("div");
+  note.className = "bounds-autofill-note";
+  note.textContent = `已自動套用 ${appliedCount} 個推薦值；仍可手動修改或改用常用區域。`;
+  boundsForm.prepend(note);
+}
+
+function boundPresetPanel(spec) {
+  const recommendedValues = spec.recommended_values || {};
+  const presets = spec.presets || [];
+  const hasRecommended = Object.keys(recommendedValues).length > 0;
+  if (!hasRecommended && !presets.length && !spec.guidance_zh_TW) {
+    return null;
+  }
+
+  const panel = document.createElement("section");
+  panel.className = "bounds-preset-panel";
+
+  const head = document.createElement("div");
+  head.className = "bounds-preset-head";
+  const title = document.createElement("strong");
+  title.textContent = "快速界域";
+  const help = document.createElement("span");
+  help.textContent = spec.guidance_zh_TW || "先套用推薦值，再預覽 payload。";
+  head.append(title, help);
+  panel.appendChild(head);
+
+  const buttons = document.createElement("div");
+  buttons.className = "bounds-preset-actions";
+  if (hasRecommended) {
+    const button = presetButton("套用推薦設定", "success");
+    button.addEventListener("click", () => applyBoundPreset("recommended", "套用推薦設定", recommendedValues));
+    buttons.appendChild(button);
+  }
+  for (const preset of presets) {
+    const label = preset.label_zh_TW || preset.label_en || preset.preset_id;
+    const button = presetButton(label, preset.tone || "neutral", preset.description_zh_TW || preset.description_en || "");
+    button.addEventListener("click", () => applyBoundPreset(preset.preset_id, label, preset.values || {}));
+    buttons.appendChild(button);
+  }
+  panel.appendChild(buttons);
+  return panel;
+}
+
+function presetButton(label, tone, title = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `preset-button ${toneClass(tone)}`;
+  button.textContent = label;
+  button.title = title;
+  return button;
+}
+
+function applyBoundPreset(presetId, label, values) {
+  const applied = {};
+  for (const [key, value] of Object.entries(values || {})) {
+    const element = boundsForm.elements.namedItem(key);
+    if (!element) continue;
+    element.value = String(value);
+    applied[key] = value;
+  }
+  addMission("套用界域 preset", `${label} / ${Object.keys(applied).length} 欄位`);
+  writeJson({
+    asset_id: selectedAssetId,
+    applied_bound_preset: presetId,
+    applied_label: label,
+    values: applied,
+    next_action: "preview_payload_before_building_plan",
+  });
 }
 
 function groupedBoundFields(spec, fields) {
@@ -619,6 +1098,9 @@ function inputForField(field) {
     for (const option of field.options) {
       select.appendChild(new Option(option, option));
     }
+    if (field.default !== undefined && field.default !== null && field.default !== "") {
+      select.value = String(field.default);
+    }
     return select;
   }
   const input = document.createElement("input");
@@ -639,6 +1121,10 @@ function inputForField(field) {
 
 async function submitBounds(execute) {
   if (!selectedAssetId) return;
+  if (execute && credentialBlocksLivePlan(selectedAssetDetail?.card?.credentials || {})) {
+    handleBuildPlanClick();
+    return;
+  }
   const values = {};
   for (const element of boundsForm.elements) {
     if (element.name) {
@@ -711,6 +1197,137 @@ function refreshSelectedAssetOutcomeViews() {
   renderSelectedHero(selectedAssetDetail.card, selectedAssetDetail.flow_steps || []);
 }
 
+function seedListPanelHtml(card) {
+  const listing = latestListingForAsset(card) || {};
+  const seedPage = assetSeedPages.get(card.asset_id) || {};
+  const seeds = seedPage.seeds || [];
+  const total = Number(seedPage.total || listing.candidate_count || 0);
+  const shown = seeds.length;
+  const enumeration = listing.seed_enumeration || {};
+  const status = enumeration.label
+    || (listing.blocked ? "需要登入或啟用後才能枚舉" : `已枚舉 ${Number(listing.candidate_count || total || 0)} 筆 seed`);
+  const help = enumeration.help
+    || (shown ? `目前顯示 ${shown}/${total || shown} 筆` : "枚舉後會先顯示前 50 筆；按「顯示更多」展開更多。");
+  const limitBadge = enumeration.limited_by_max_results
+    ? `<span class="seed-limit-badge">本機上限 ${Number(enumeration.max_results || 0)} 筆</span>`
+    : "";
+  const rows = seeds.map(seedRowHtml).join("");
+  const moreButton = seedPage.has_more
+    ? `<button type="button" class="secondary-button small" onclick="showMoreSeeds('${escapeAttr(card.asset_id)}')">顯示更多 seed（再 50 筆）</button>`
+    : "";
+  return `
+    <section class="seed-list-panel">
+      <div class="seed-list-head">
+        <div>
+          <span class="eyebrow">Seed List</span>
+          <strong>${escapeHtml(status)}${limitBadge}</strong>
+          <small>${escapeHtml(help)}${shown ? ` · ${escapeHtml(`目前顯示 ${shown}/${total || shown} 筆`)}` : ""}</small>
+        </div>
+        <button type="button" class="ghost-button small" onclick="runCrawlerAssetListingById('${escapeAttr(card.asset_id)}')">重新枚舉</button>
+      </div>
+      <div class="seed-list-viewport">
+        ${rows || '<div class="empty-state"><strong>尚未顯示 seed</strong><p>選取入口後會自動枚舉；若來源需要登入，請先完成登入設定。</p></div>'}
+      </div>
+      <div class="seed-list-actions">${moreButton}</div>
+    </section>
+  `;
+}
+
+function seedRowHtml(seed) {
+  const uid = seed.favorite_key || seed.dataset_uid || seed.dataset_id || seed.title || "";
+  const favored = Boolean(seed.favorite) || favoriteSeedUids.has(uid);
+  const title = seed.title || seed.dataset_id || uid || "未命名 seed";
+  const meta = [seed.native_format, seed.data_type || seed.data_family, seed.version].filter(Boolean).join(" / ");
+  return `
+    <article class="seed-row ${favored ? "favorite" : ""}">
+      <button type="button" class="seed-favorite-button" onclick="toggleSeedFavorite('${escapeAttr(uid)}')" title="收藏 seed">${favored ? "★" : "☆"}</button>
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(meta || "metadata pending")}</span>
+      </div>
+      <small>${escapeHtml(seed.dataset_id || uid)}</small>
+    </article>
+  `;
+}
+
+async function toggleSeedFavorite(seedUid) {
+  const assetId = selectedAssetDetail?.card?.asset_id || selectedAssetId;
+  if (!seedUid || !assetId) return;
+  const nextFavorite = !favoriteSeedUids.has(seedUid);
+  try {
+    const result = await postJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/seed-favorites`, {
+      dataset_uid: seedUid,
+      favorite: nextFavorite,
+    });
+    setSeedFavoriteState(assetId, seedUid, Boolean(result.favorite));
+    addMission("seed 收藏已更新", `${Number(result.favorite_seed_count || 0)} 筆收藏`);
+    if (selectedAssetDetail) {
+      renderPassport(selectedAssetDetail.card, selectedAssetDetail.asset);
+    }
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "seed_favorites", asset_id: assetId, dataset_uid: seedUid });
+    addMission("seed 收藏失敗", String(error));
+  }
+}
+
+function rememberSeedFavorites(seeds) {
+  for (const seed of seeds) {
+    const uid = seed.favorite_key || seed.dataset_uid || seed.dataset_id || seed.title || "";
+    if (!uid) continue;
+    if (seed.favorite) {
+      favoriteSeedUids.add(uid);
+    } else {
+      favoriteSeedUids.delete(uid);
+    }
+  }
+}
+
+function setSeedFavoriteState(assetId, seedUid, favorite) {
+  if (favorite) {
+    favoriteSeedUids.add(seedUid);
+  } else {
+    favoriteSeedUids.delete(seedUid);
+  }
+  const seedPage = assetSeedPages.get(assetId);
+  if (!seedPage || !Array.isArray(seedPage.seeds)) return;
+  assetSeedPages.set(assetId, {
+    ...seedPage,
+    seeds: seedPage.seeds.map((seed) => {
+      const uid = seed.favorite_key || seed.dataset_uid || seed.dataset_id || seed.title || "";
+      return uid === seedUid ? { ...seed, favorite } : seed;
+    }),
+  });
+}
+
+function rememberCrawlerAssetListing(assetId, listing) {
+  if (!assetId || !listing) return;
+  assetListingOutcomes.set(assetId, listing);
+  const asset = assets.find((item) => item.asset_id === assetId);
+  if (asset) {
+    asset.latest_listing = listing;
+  }
+  if (selectedAssetDetail?.card?.asset_id === assetId) {
+    selectedAssetDetail.card.latest_listing = listing;
+  }
+}
+
+function latestListingForAsset(asset) {
+  if (!asset) return null;
+  return assetListingOutcomes.get(asset.asset_id) || asset.latest_listing || null;
+}
+
+function seedEnumerationDetail(result = {}) {
+  const enumeration = result.seed_enumeration || {};
+  const parts = [
+    enumeration.label || `已枚舉 ${Number(result.candidate_count || 0)} 筆`,
+    `寫入清單 ${Number(result.upserted_count || 0)} 筆`,
+    enumeration.limited_by_max_results ? "已達本機枚舉上限" : "",
+    result.warning_count ? `警告 ${result.warning_count}` : "",
+    result.error_count ? `錯誤 ${result.error_count}` : "",
+  ].filter(Boolean);
+  return parts.join(" / ");
+}
+
 function prepareOpenCommand(asset) {
   const command = `code --goto ${asset.provider_id}/${asset.source_type}/${asset.asset_id}:1`;
   addMission("準備開啟 IDE", command);
@@ -764,6 +1381,7 @@ function renderSelectedHero(card, flowSteps = []) {
       </div>
       ${planOutcomeHeroHtml(card)}
       <div class="hero-actions">
+        <button type="button" class="secondary-button" onclick="runCrawlerAssetListingById('${escapeAttr(card.asset_id)}')">重新枚舉 seed</button>
         <button type="button" class="primary-button" onclick="document.querySelector('#payloadPreviewButton')?.click()">預覽界域 payload</button>
         <button type="button" class="secondary-button" onclick="document.querySelector('#buildPlanButton')?.click()">建立下載計畫</button>
       </div>
@@ -1128,6 +1746,9 @@ function shortPattern(value) {
 function surfaceLabel(value) {
   const labels = {
     api: "API",
+    catalog: "目錄",
+    file_index: "檔案索引",
+    map_service: "地圖服務",
     clearnet: "公開網路",
     authenticated: "需認證",
     archive: "檔案索引",

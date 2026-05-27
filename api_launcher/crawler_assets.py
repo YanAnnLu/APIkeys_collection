@@ -38,9 +38,18 @@ SOURCE_SURFACE_LABELS: dict[str, str] = {
     # endpoint shape detection in source_surface_label().
     "html_file_index": "file_index",
     "ogc_wms_capabilities": "map_service",
+    "stac_collections": "catalog",
+    "ogc_api_records": "catalog",
     "ncei_search": "api",
+    "erddap_all_datasets": "api",
     "cmr_collections": "api",
     "ckan_package_search": "api",
+    "socrata_catalog_search": "api",
+    "gbif_dataset_search": "api",
+    "dataverse_search": "api",
+    "zenodo_records_search": "api",
+    "datacite_dois": "api",
+    "openalex_works_search": "api",
 }
 
 

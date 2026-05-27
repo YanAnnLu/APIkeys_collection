@@ -9,6 +9,7 @@ from api_launcher.crawler_asset_service import (
     CrawlerAssetDownloadPlanResult,
     CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
+    crawler_asset_listing_event_context,
     run_crawler_asset_listing,
     source_download_options_from_crawler_asset_payload,
 )
@@ -21,6 +22,7 @@ from api_launcher.crawler_asset_profiles import (
     crawler_asset_source_signature,
     load_crawler_asset_profiles,
     set_crawler_asset_archived,
+    set_crawler_asset_seed_favorite,
     toggle_crawler_asset_archived,
     update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
@@ -32,6 +34,7 @@ from api_launcher.crawler_asset_bound_forms import (
 from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
+    SOURCE_SURFACE_LABELS,
     crawler_asset_from_source,
     load_crawler_asset_source,
     load_crawler_assets,
@@ -182,7 +185,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertTrue(schema[2].requires_schema_probe)
 
     def test_source_bounds_facet_registry_tracks_supported_crawlers(self) -> None:
-        self.assertLessEqual(set(SOURCE_BOUND_FACETS), set(SUPPORTED_DATASET_SOURCE_TYPES))
+        self.assertEqual(set(SOURCE_BOUND_FACETS), set(SUPPORTED_DATASET_SOURCE_TYPES))
         self.assertIn("ogc_wms_capabilities", SOURCE_BOUND_FACETS)
         for source_type, facets in SOURCE_BOUND_FACETS.items():
             self.assertEqual(len(facets), len(set(facets)), source_type)
@@ -196,6 +199,9 @@ class CrawlerAssetTest(unittest.TestCase):
         )
 
         self.assertEqual(("collection", "bbox", "time", "format", "limit"), bounds_facets_for_source(source))
+
+    def test_source_surface_registry_tracks_supported_crawlers(self) -> None:
+        self.assertEqual(set(SOURCE_SURFACE_LABELS), set(SUPPORTED_DATASET_SOURCE_TYPES))
 
     def test_capability_to_dict_includes_bounds_schema_for_frontends(self) -> None:
         source = DatasetDiscoverySource(
@@ -252,6 +258,34 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("2026-01-01", payload.facet_values["time"]["start_date"])
         self.assertEqual(10, payload.facet_values["limit"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), payload.maps_to_values["SourceDownloadBounds.bbox"])
+
+    def test_bounds_form_spec_exposes_safe_recommendations_and_region_presets(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            search_terms=("landsat",),
+            categories=("geospatial",),
+            geographic_scope="taiwan",
+            max_results=80,
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(
+            asset.asset_id,
+            asset.capabilities[2].bounds_schema,
+            source=source,
+        )
+
+        self.assertEqual(25, form_spec.recommended_values["limit"])
+        self.assertIn("preset_available", form_spec.warning_codes)
+        preset_payloads = [preset.to_dict() for preset in form_spec.presets]
+        preset_ids = [preset["preset_id"] for preset in preset_payloads]
+        self.assertEqual("taiwan", preset_ids[0])
+        taiwan = preset_payloads[0]
+        self.assertEqual({"bbox_west": 119.0, "bbox_south": 21.5, "bbox_east": 123.5, "bbox_north": 25.5}, taiwan["values"])
+        self.assertIn("預覽", form_spec.guidance_zh_TW)
 
     def test_bounds_payload_converts_to_source_download_options(self) -> None:
         source = DatasetDiscoverySource(
@@ -379,6 +413,20 @@ class CrawlerAssetTest(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 update_crawler_asset_profile("demo_index", profile_path, api_key_env_var="sk-secret")
+
+    def test_profile_persists_seed_level_favorites(self) -> None:
+        with TemporaryDirectory() as tmp:
+            profile_path = Path(tmp) / "crawler_asset_profiles.local.json"
+
+            favorited = set_crawler_asset_seed_favorite("demo_index", "seed-001", True, profile_path)
+            set_crawler_asset_seed_favorite("demo_index", "seed-001", True, profile_path)
+            set_crawler_asset_seed_favorite("demo_index", "seed-002", True, profile_path)
+            unfavorited = set_crawler_asset_seed_favorite("demo_index", "seed-001", False, profile_path)
+            profiles = load_crawler_asset_profiles(profile_path)
+
+        self.assertEqual(("seed-001",), favorited.favorite_seed_uids)
+        self.assertEqual(("seed-002",), unfavorited.favorite_seed_uids)
+        self.assertEqual(("seed-002",), profiles["demo_index"].favorite_seed_uids)
 
     def test_profile_plan_passport_keeps_only_compact_status(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -713,6 +761,9 @@ class CrawlerAssetTest(unittest.TestCase):
                 def fake_runner(sources, options):
                     self.assertEqual(["demo_index"], [source.source_id for source in sources])
                     self.assertIsInstance(options, DatasetCrawlOptions)
+                    self.assertTrue(options.full_crawl)
+                    self.assertEqual(1000, options.max_results_override)
+                    self.assertEqual(("",), options.search_terms_override)
                     return DatasetCrawlResult(
                         candidates=(candidate,),
                         source_results=(
@@ -741,9 +792,29 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual(1, result.candidate_count)
         self.assertEqual(1, result.upserted_count)
         self.assertEqual(0, result.skipped_provider_count)
+        self.assertEqual("within_current_limits", result.to_dict()["seed_enumeration"]["status"])
+        self.assertFalse(result.to_dict()["seed_enumeration"]["limited_by_max_results"])
         self.assertEqual(1, len(datasets))
         self.assertEqual("Dataset A", datasets[0].title)
         self.assertEqual("demo_index", datasets[0].metadata["discovery_source_id"])
+
+    def test_listing_result_marks_seed_enumeration_local_limit(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_index",
+            source_found=True,
+            listing_mode="complete_seed",
+            candidate_count=1000,
+            upserted_count=1000,
+            max_results=1000,
+            complete_seed=True,
+            next_action="review_or_upsert_dataset_candidates",
+        )
+
+        payload = result.to_dict()["seed_enumeration"]
+
+        self.assertEqual("local_limit_reached", payload["status"])
+        self.assertTrue(payload["limited_by_max_results"])
+        self.assertEqual("narrow_bounds_or_raise_seed_limit", payload["next_action"])
 
     def test_download_plan_result_routes_review_required_bucket(self) -> None:
         plan_build = self._plan_build_stub(

@@ -14,9 +14,15 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from frontends.web.preview_api import (
     crawler_asset_cards,
+    crawler_asset_credential_detail,
     crawler_asset_detail,
+    crawler_asset_listing,
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
+    crawler_asset_seed_page,
+    save_crawler_asset_credentials,
+    save_crawler_asset_seed_favorite,
+    web_real_download_demo,
     web_preview_recent_events,
     web_preview_status,
 )
@@ -51,6 +57,15 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 if suffix == "/bounds-form":
                     self.write_json(crawler_asset_detail(asset_id)["bound_form"])
                     return
+                if suffix == "/credentials":
+                    self.write_json(crawler_asset_credential_detail(asset_id))
+                    return
+                if suffix == "/seeds":
+                    query = parse_qs(parsed.query)
+                    page = int(first_query_value(query, "page") or "1")
+                    page_size = int(first_query_value(query, "page_size") or "50")
+                    self.write_json(crawler_asset_seed_page(asset_id, page=page, page_size=page_size))
+                    return
             self.serve_static(path)
         except KeyError as exc:
             self.write_error(HTTPStatus.NOT_FOUND, str(exc))
@@ -63,17 +78,32 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         try:
+            if path == "/api/demo/real-download":
+                self.write_json(web_real_download_demo())
+                return
             if path.startswith("/api/crawler-assets/"):
                 asset_id, suffix = self.parse_asset_route(path)
                 if suffix == "/bounds-payload":
                     values = self.read_json_body()
                     self.write_json(crawler_asset_payload_from_web_values(asset_id, values).to_dict())
                     return
+                if suffix == "/list-datasets":
+                    values = self.read_json_body()
+                    self.write_json(crawler_asset_listing(asset_id, options=values))
+                    return
                 if suffix == "/plan-preview":
                     values = self.read_json_body()
                     query = parse_qs(parsed.query)
                     execute = first_query_value(query, "execute").lower() in {"1", "true", "yes", "on"}
                     self.write_json(crawler_asset_plan_preview(asset_id, values, execute=execute))
+                    return
+                if suffix == "/credentials":
+                    values = self.read_json_body()
+                    self.write_json(save_crawler_asset_credentials(asset_id, values))
+                    return
+                if suffix == "/seed-favorites":
+                    values = self.read_json_body()
+                    self.write_json(save_crawler_asset_seed_favorite(asset_id, values))
                     return
             self.write_error(HTTPStatus.NOT_FOUND, "unknown endpoint")
         except KeyError as exc:

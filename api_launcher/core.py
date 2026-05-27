@@ -50,6 +50,7 @@ from api_launcher.cli_dataset_discovery import (
 from api_launcher.cli_flags import command_requested
 from api_launcher.cli_portal_intake import add_portal_intake_args, portal_intake_cli
 from api_launcher.cli_database_repair import run_database_repairs
+from api_launcher.cli_crawler_assets import add_crawler_asset_args, run_crawler_asset_cli
 from api_launcher.cli_crawler_run_records import add_crawler_run_record_args, run_crawler_run_record_cli
 from api_launcher.cli_download_plan import run_download_plan_cli
 from api_launcher.cli_manifest_import import (
@@ -669,6 +670,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--manifest-health", action="store_true", help="print SQLite dataset manifest health summary")
     parser.add_argument("--list-manifests", action="store_true", help="print registered dataset asset manifests")
     parser.add_argument("--show-logs", type=int, default=0, help="print recent structured launcher log events")
+    add_crawler_asset_args(parser)
     add_crawler_run_record_args(parser)
     parser.add_argument("--handoff-report", help="write a Markdown handoff report for humans and agents")
     parser.add_argument("--handoff-report-json", action="store_true", help="emit handoff snapshot as agent-readable JSON")
@@ -808,6 +810,7 @@ class CatalogLauncherCli:
             self.show_manifest_health()
             self.list_manifests()
             self.show_logs()
+            run_crawler_asset_cli(self.args, self.repository, log_event)
             run_crawler_run_record_cli(self.args)
             self.write_handoff_report()
             self.run_heartbeat_report()
@@ -862,6 +865,7 @@ class CatalogLauncherCli:
             or self.args.manual_import_json
             or self.args.dataset_discovery_seed_coverage_json
             or self.args.handoff_report_json
+            or self.args.crawler_asset_listing_json
             or self.args.crawler_run_summary_json
             or self.args.heartbeat_plan_json
             or self.args.library_actions_json

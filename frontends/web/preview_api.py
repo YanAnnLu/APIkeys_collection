@@ -21,19 +21,38 @@ from api_launcher.crawler_asset_display import (
 )
 from api_launcher.crawler_asset_profiles import (
     compact_crawler_asset_plan_passport,
+    crawler_asset_favorite_seed_uids,
+    set_crawler_asset_seed_favorite,
     update_crawler_asset_plan_passport,
 )
-from api_launcher.crawler_asset_service import build_crawler_asset_download_plan
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_assets
+from api_launcher.crawler_asset_service import (
+    CrawlerRunner,
+    CrawlerAssetListingResult,
+    build_crawler_asset_download_plan,
+    crawler_asset_listing_event_context,
+    crawler_seed_enumeration_payload,
+    run_crawler_asset_listing,
+)
+from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
+from api_launcher.local_credentials import crawler_asset_credential_status, update_crawler_asset_credentials
 from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.repository import ApiCatalogRepository
+from api_launcher.web_real_download_demo import run_web_real_download_demo
 
 
 WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
 WEB_PREVIEW_EVENT_LIMIT = 80
+WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT = 1000
+CREDENTIAL_BLOCKING_STATUSES = frozenset(
+    {
+        "missing_credentials",
+        "partial_credentials",
+        "credential_profile_required",
+    }
+)
 
 
 def web_preview_status() -> dict[str, object]:
@@ -47,11 +66,42 @@ def web_preview_status() -> dict[str, object]:
     }
 
 
+def web_real_download_demo() -> dict[str, object]:
+    """Run the narrow real-download proof path for Web Preview.
+
+    這個 endpoint 是展示用的真資料閉環：瀏覽器觸發後端既有
+    download/import pipeline，實際抓取小型公開 CSV，寫 sidecar manifest，
+    再匯入 isolated SQLite。它不是 crawler 全覆蓋宣告。
+    """
+
+    result = run_web_real_download_demo()
+    payload = result.to_dict()
+    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
+    log_event(
+        "web_real_download_demo_completed",
+        "Web Preview completed a real public CSV download/import demo.",
+        component="web.demo",
+        context={
+            "stage": payload.get("stage"),
+            "succeeded": payload.get("succeeded"),
+            "row_count": payload.get("row_count"),
+            "table_name": payload.get("table_name"),
+            "source_url": payload.get("source_url"),
+            "downloaded_file": artifacts.get("downloaded_file"),
+            "manifest": artifacts.get("manifest"),
+            "curated_sqlite": artifacts.get("curated_sqlite"),
+            "next_action": payload.get("next_action"),
+        },
+    )
+    return payload
+
+
 def crawler_asset_cards(
     *,
     primary_path: str | Path | None = None,
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
 ) -> dict[str, object]:
     """Return cards for the Web Preview asset rail.
 
@@ -63,6 +113,7 @@ def crawler_asset_cards(
     assets = load_crawler_assets(primary_path, local_path, profile_path)
     latest_plan_outcomes = recent_crawler_asset_plan_outcomes()
     latest_plan_passports = recent_crawler_asset_plan_passports()
+    latest_listings = recent_crawler_asset_listing_outcomes()
     return {
         "count": len(assets),
         "assets": [
@@ -70,6 +121,8 @@ def crawler_asset_cards(
                 asset,
                 latest_plan_outcome=latest_plan_outcomes.get(asset.asset_id),
                 latest_plan_passport=asset.latest_plan_passport or latest_plan_passports.get(asset.asset_id),
+                latest_listing=latest_listings.get(asset.asset_id),
+                env_path=env_path,
             )
             for asset in assets
         ],
@@ -81,6 +134,8 @@ def crawler_asset_card(
     *,
     latest_plan_outcome: dict[str, object] | None = None,
     latest_plan_passport: dict[str, object] | None = None,
+    latest_listing: dict[str, object] | None = None,
+    env_path: str | Path | None = None,
 ) -> dict[str, object]:
     return {
         "asset_id": asset.asset_id,
@@ -101,7 +156,9 @@ def crawler_asset_card(
         "archived": asset.archived,
         "health": asset.health.to_dict(),
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
+        "credentials": crawler_asset_credential_status(asset, env_path=env_path),
         "next_action": asset.next_action,
+        "latest_listing": latest_listing or {},
         "latest_plan_outcome": latest_plan_outcome or {},
         "latest_plan_passport": latest_plan_passport or {},
     }
@@ -113,6 +170,7 @@ def crawler_asset_detail(
     primary_path: str | Path | None = None,
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
 ) -> dict[str, object]:
     asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     form_spec = crawler_asset_bound_form(
@@ -128,9 +186,321 @@ def crawler_asset_detail(
             latest_plan_outcome=recent_crawler_asset_plan_outcomes().get(asset.asset_id),
             latest_plan_passport=asset.latest_plan_passport
             or recent_crawler_asset_plan_passports().get(asset.asset_id),
+            latest_listing=recent_crawler_asset_listing_outcomes().get(asset.asset_id),
+            env_path=env_path,
         ),
         "bound_form": crawler_asset_bound_form_payload(form_spec),
         "flow_steps": crawler_asset_flow_steps(asset, form_spec),
+    }
+
+
+def crawler_asset_seed_page(
+    asset_id: str,
+    *,
+    page: int = 1,
+    page_size: int = 50,
+    db_path: str | Path | None = None,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Return a paged view of seeds already enumerated into the local catalog."""
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    favorite_seed_uids = set(crawler_asset_favorite_seed_uids(asset.asset_id, profile_path))
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    safe_page_size = min(max(1, int(page_size or 50)), 50)
+    safe_page = max(1, int(page or 1))
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        candidates = [
+            dataset
+            for dataset in repository.list_dataset_candidates(status="all", provider_id=asset.provider_id)
+            if str(dataset.metadata.get("discovery_source_id") or "").strip() == asset.asset_id
+        ]
+    total = len(candidates)
+    start = (safe_page - 1) * safe_page_size
+    rows = candidates[start : start + safe_page_size]
+    return {
+        "asset_id": asset.asset_id,
+        "provider_id": asset.provider_id,
+        "page": safe_page,
+        "page_size": safe_page_size,
+        "total": total,
+        "has_more": start + safe_page_size < total,
+        "favorite_seed_count": len(favorite_seed_uids),
+        "seeds": [crawler_asset_seed_row(dataset, favorite_seed_uids=favorite_seed_uids) for dataset in rows],
+    }
+
+
+def crawler_asset_seed_row(
+    dataset: object,
+    *,
+    favorite_seed_uids: set[str] | frozenset[str] | None = None,
+) -> dict[str, object]:
+    metadata = getattr(dataset, "metadata", {}) if isinstance(getattr(dataset, "metadata", {}), dict) else {}
+    dataset_uid = str(getattr(dataset, "dataset_uid", "") or "")
+    dataset_id = str(getattr(dataset, "dataset_id", "") or "")
+    title = str(getattr(dataset, "title", "") or "")
+    favorite_key = dataset_uid or dataset_id or title
+    favorites = favorite_seed_uids or set()
+    return {
+        "dataset_uid": dataset_uid,
+        "dataset_id": dataset_id,
+        "title": title,
+        "favorite_key": favorite_key,
+        "native_format": str(getattr(dataset, "native_format", "") or ""),
+        "data_type": str(getattr(dataset, "data_type", "") or ""),
+        "version": str(getattr(dataset, "version", "") or ""),
+        "landing_url": str(getattr(dataset, "landing_url", "") or ""),
+        "api_url": str(getattr(dataset, "api_url", "") or ""),
+        "candidate_status": str(metadata.get("candidate_status") or ""),
+        "source_type": str(metadata.get("discovery_source_type") or ""),
+        "data_family": str(metadata.get("data_family") or ""),
+        "favorite": favorite_key in favorites,
+    }
+
+
+def save_crawler_asset_seed_favorite(
+    asset_id: str,
+    payload: Mapping[str, object],
+    *,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Persist a seed-level favorite for Web/Tk/Qt shared profile state."""
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    dataset_uid = str(payload.get("dataset_uid") or "").strip()
+    if not dataset_uid:
+        raise ValueError("dataset_uid is required")
+    favorite = bool(payload.get("favorite", True))
+    profile = set_crawler_asset_seed_favorite(asset.asset_id, dataset_uid, favorite, profile_path)
+    is_favorite = dataset_uid in profile.favorite_seed_uids
+    result = {
+        "asset_id": asset.asset_id,
+        "dataset_uid": dataset_uid,
+        "favorite": is_favorite,
+        "favorite_seed_count": len(profile.favorite_seed_uids),
+        "next_action": "seed_favorite_saved",
+    }
+    log_event(
+        "crawler_asset_seed_favorite_updated",
+        "Web Preview updated a seed-level favorite.",
+        component="web.crawler_assets",
+        context=result,
+    )
+    return result
+
+
+def crawler_asset_credential_detail(
+    asset_id: str,
+    *,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> dict[str, object]:
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    return crawler_asset_credential_status(asset, env_path=env_path)
+
+
+def crawler_asset_listing(
+    asset_id: str,
+    *,
+    db_path: str | Path | None = None,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+    options: Mapping[str, object] | None = None,
+    crawler_runner: CrawlerRunner | None = None,
+) -> dict[str, object]:
+    """Run the crawler asset listing path for Web/Tk/Qt-style UX.
+
+    This is the first real crawler action a human should try before building a
+    download plan: it refreshes the source candidate list, records a compact
+    audit event, and keeps credential-gated assets out of doomed live requests.
+    """
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
+    listing_options = crawler_asset_listing_options(options)
+    response: dict[str, object] = {
+        "asset_id": asset.asset_id,
+        "credential_guard": credential_guard,
+        "listing_options": listing_options,
+        "next_action": "review_candidates_or_build_download_plan",
+    }
+    if credential_status_blocks_plan(credential_guard):
+        blocked_result = CrawlerAssetListingResult(
+            asset_id=asset.asset_id,
+            source_found=True,
+            listing_mode=listing_options["listing_mode"],
+            blocked_reason="credential_setup_required",
+            next_action="edit_local_credentials_before_live_download",
+            max_results=listing_options["max_results"],
+            max_pages=listing_options["max_pages"],
+            full_crawl=True,
+            complete_seed=listing_options["complete_seed"],
+            search_scope="blocked_by_credentials",
+        )
+        response["listing_result"] = {
+            "asset_id": asset.asset_id,
+            "source_found": True,
+            "listing_mode": listing_options["listing_mode"],
+            "blocked": True,
+            "blocked_reason": "credential_setup_required",
+            "candidate_count": 0,
+            "upserted_count": 0,
+            "skipped_provider_count": 0,
+            "duplicate_count": 0,
+            "error_count": 0,
+            "warning_count": 0,
+            "next_action": "edit_local_credentials_before_live_download",
+            "audit_summary": {},
+            "max_results": listing_options["max_results"],
+            "max_pages": listing_options["max_pages"],
+            "full_crawl": True,
+            "complete_seed": listing_options["complete_seed"],
+            "search_scope": "blocked_by_credentials",
+            "seed_enumeration": crawler_seed_enumeration_payload(blocked_result),
+        }
+        response["next_action"] = "edit_local_credentials_before_live_download"
+        return response
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        repository.seed_builtin_providers()
+        kwargs: dict[str, object] = {
+            "primary_path": primary_path,
+            "local_path": local_path,
+            "profile_path": profile_path,
+            "max_results": listing_options["max_results"],
+            "max_pages": listing_options["max_pages"],
+            "full_crawl": True,
+            "complete_seed": listing_options["complete_seed"],
+        }
+        if crawler_runner is not None:
+            kwargs["crawl_runner"] = crawler_runner
+        result = run_crawler_asset_listing(asset.asset_id, conn, **kwargs)
+        conn.commit()
+
+    payload = result.to_dict()
+    response["listing_result"] = payload
+    response["audit_summary"] = payload.get("audit_summary", {})
+    response["next_action"] = result.next_action
+    log_event(
+        "crawler_asset_listing_recorded",
+        "Web Preview crawler asset workflow recorded the visible listing outcome.",
+        component="web.crawler_assets",
+        context=crawler_asset_listing_event_context(result),
+    )
+    return response
+
+
+def crawler_asset_listing_options(options: Mapping[str, object] | None) -> dict[str, object]:
+    """Normalize Web listing controls into backend crawler bounds.
+
+    入口分頁的預設心流是「選入口就枚舉 seed」。這個 helper 讓 Web/Tk/Qt
+    後續都能共用同一組安全上限，而不是在 UI 內各自猜 crawler 參數。
+    """
+
+    values = dict(options or {})
+    requested_mode = str(values.get("listing_mode") or values.get("mode") or "complete_seed").strip()
+    complete_seed = requested_mode not in {"bounded", "sample", "quick_sample"}
+    listing_mode = "complete_seed" if complete_seed else "bounded"
+    return {
+        "listing_mode": listing_mode,
+        "complete_seed": complete_seed,
+        "max_results": positive_int(values.get("max_results"), WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT),
+        "max_pages": non_negative_int(values.get("max_pages"), 0),
+    }
+
+
+def positive_int(value: object, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def non_negative_int(value: object, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0, parsed)
+
+
+def save_crawler_asset_credentials(
+    asset_id: str,
+    payload: Mapping[str, object],
+    *,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> dict[str, object]:
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    status = update_crawler_asset_credentials(asset, payload, env_path=env_path)
+    log_event(
+        "crawler_asset_local_credentials_updated",
+        "Web Preview updated local credential settings for a crawler asset.",
+        component="web.credentials",
+        context={
+            "asset_id": asset.asset_id,
+            "provider_id": asset.provider_id,
+            "status": status.get("status"),
+            "configured_count": status.get("configured_count"),
+            "field_count": status.get("field_count"),
+            "env_vars": [field.get("env_var") for field in status.get("fields", []) if isinstance(field, dict)],
+            "next_action": status.get("next_action"),
+        },
+    )
+    return status
+
+
+def recent_crawler_asset_listing_outcomes(*, limit: int = 200) -> dict[str, dict[str, object]]:
+    """Return the newest seed-enumeration summary for each crawler asset."""
+
+    outcomes: dict[str, dict[str, object]] = {}
+    for event in latest_events(limit):
+        if event.get("event") != "crawler_asset_listing_recorded":
+            continue
+        context = event.get("context")
+        if not isinstance(context, dict):
+            continue
+        asset_id = str(context.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        outcomes[asset_id] = compact_listing_outcome(context)
+    return outcomes
+
+
+def compact_listing_outcome(context: Mapping[str, object]) -> dict[str, object]:
+    """Keep listing summaries small enough for cards and hero panels."""
+
+    run_record = context.get("run_record")
+    return {
+        "asset_id": str(context.get("asset_id") or ""),
+        "listing_mode": str(context.get("listing_mode") or ""),
+        "candidate_count": int(context.get("candidate_count") or 0),
+        "upserted_count": int(context.get("upserted_count") or 0),
+        "duplicate_count": int(context.get("duplicate_count") or 0),
+        "warning_count": int(context.get("warning_count") or 0),
+        "error_count": int(context.get("error_count") or 0),
+        "max_results": int(context.get("max_results") or 0),
+        "max_pages": int(context.get("max_pages") or 0),
+        "complete_seed": bool(context.get("complete_seed")),
+        "search_scope": str(context.get("search_scope") or ""),
+        "next_action": str(context.get("next_action") or ""),
+        "run_record": run_record if isinstance(run_record, dict) else {},
     }
 
 
@@ -229,7 +599,8 @@ def crawler_asset_bound_form(
         None,
     )
     bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
-    return build_crawler_asset_bound_form_spec(asset.asset_id, bounds_schema)
+    source = load_crawler_asset_source(asset_id, primary_path, local_path)
+    return build_crawler_asset_bound_form_spec(asset.asset_id, bounds_schema, source=source)
 
 
 def crawler_asset_payload_from_web_values(
@@ -259,6 +630,7 @@ def crawler_asset_plan_preview(
     primary_path: str | Path | None = None,
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
 ) -> dict[str, object]:
     """Preview or execute the crawler-asset plan build.
 
@@ -268,6 +640,8 @@ def crawler_asset_plan_preview(
     existing crawler asset service and keeps unresolved work in adapter review.
     """
 
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
     payload = crawler_asset_payload_from_web_values(
         asset_id,
         values,
@@ -279,9 +653,17 @@ def crawler_asset_plan_preview(
         "asset_id": asset_id,
         "execute": execute,
         "bounds_payload": payload.to_dict(),
+        "credential_guard": credential_guard,
         "next_action": "click_build_plan_to_call_backend" if not execute else "review_plan_outcome",
     }
     if not execute:
+        return response
+    if credential_status_blocks_plan(credential_guard):
+        # 防呆邊界：需要帳號/API Key 的來源先停在本機憑證設定，
+        # 不讓 Web Preview 發出必然失敗的 live crawler request。
+        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
+        response["plan_passport"] = credential_blocked_plan_passport(asset_id, credential_guard)
+        response["next_action"] = "edit_local_credentials_before_live_download"
         return response
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
@@ -315,6 +697,49 @@ def crawler_asset_plan_preview(
         context=crawler_asset_plan_event_context(result, plan_outcome, plan_passport=plan_passport),
     )
     return response
+
+
+def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
+    return str(credential_guard.get("status") or "") in CREDENTIAL_BLOCKING_STATUSES
+
+
+def credential_blocked_plan_outcome(credential_guard: Mapping[str, object]) -> dict[str, object]:
+    missing = credential_guard.get("missing_required")
+    missing_count = len(missing) if isinstance(missing, list) else 0
+    suffix = f"（缺 {missing_count} 欄）" if missing_count else ""
+    return {
+        "outcome_bucket": "credential_setup_required",
+        "display_label": f"先設定登入 / API Key{suffix}",
+        "short_label": "需要登入",
+        "display_tone": "warning",
+        "summary": "這個來源需要本機憑證。已先停止建立下載計畫，避免送出必然失敗的遠端請求。",
+        "next_action": "edit_local_credentials_before_live_download",
+        "next_action_label": "先編輯本機憑證，再建立下載計畫",
+        "direct_download_count": 0,
+        "review_required_count": 0,
+        "content_review_label": "",
+        "content_review": {},
+    }
+
+
+def credential_blocked_plan_passport(
+    asset_id: str,
+    credential_guard: Mapping[str, object],
+) -> dict[str, object]:
+    return {
+        "asset_id": asset_id,
+        "has_resolved_plan": False,
+        "outcome_bucket": "credential_setup_required",
+        "short_label": "需要登入",
+        "display_tone": "warning",
+        "candidate_count": 0,
+        "direct_download_count": 0,
+        "review_required_count": 0,
+        "adapter_review_count": 0,
+        "content_review_count": 0,
+        "blocked_credential_count": len(credential_guard.get("missing_required") or ()),
+        "next_action": "edit_local_credentials_before_live_download",
+    }
 
 
 def crawler_asset_plan_event_context(

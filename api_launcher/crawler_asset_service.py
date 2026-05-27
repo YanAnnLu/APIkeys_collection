@@ -14,7 +14,7 @@ from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
 )
 from api_launcher.crawler_assets import load_crawler_asset_source
-from api_launcher.crawler_run_records import crawler_run_record
+from api_launcher.crawler_run_records import crawler_run_record, crawler_run_record_from_result
 from api_launcher.crawlers.orchestrator import DatasetCrawlOptions, DatasetCrawlResult, crawl_dataset_sources
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource, dataset_with_candidate_metadata
 from api_launcher.repository import ApiCatalogRepository, load_providers
@@ -35,6 +35,7 @@ class CrawlerAssetListingResult:
 
     asset_id: str
     source_found: bool
+    listing_mode: str = "bounded"
     blocked_reason: str = ""
     candidate_count: int = 0
     upserted_count: int = 0
@@ -44,6 +45,11 @@ class CrawlerAssetListingResult:
     warning_count: int = 0
     next_action: str = ""
     audit_summary: dict[str, object] = field(default_factory=dict)
+    max_results: int = 1000
+    max_pages: int = 0
+    full_crawl: bool = True
+    complete_seed: bool = False
+    search_scope: str = "configured_terms"
 
     @property
     def blocked(self) -> bool:
@@ -53,6 +59,7 @@ class CrawlerAssetListingResult:
         payload = {
             "asset_id": self.asset_id,
             "source_found": self.source_found,
+            "listing_mode": self.listing_mode,
             "blocked": self.blocked,
             "blocked_reason": self.blocked_reason,
             "candidate_count": self.candidate_count,
@@ -63,6 +70,12 @@ class CrawlerAssetListingResult:
             "warning_count": self.warning_count,
             "next_action": self.next_action,
             "audit_summary": self.audit_summary,
+            "max_results": self.max_results,
+            "max_pages": self.max_pages,
+            "full_crawl": self.full_crawl,
+            "complete_seed": self.complete_seed,
+            "search_scope": self.search_scope,
+            "seed_enumeration": crawler_seed_enumeration_payload(self),
         }
         payload["run_record"] = crawler_run_record(
             stage="crawler_listing",
@@ -200,6 +213,98 @@ def crawler_listing_record_status(result: CrawlerAssetListingResult) -> str:
     return "completed"
 
 
+def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
+    """Return display-safe seed enumeration status for UI shells.
+
+    Candidate count alone is ambiguous: 1,000 candidates can mean "complete"
+    for a small catalog or "local safety limit reached" for a large portal.
+    This payload keeps the interpretation in the service layer so Web/Tk/Qt
+    do not duplicate count heuristics.
+    """
+
+    candidate_count = int(result.candidate_count or 0)
+    max_results = int(result.max_results or 0)
+    warning_count = int(result.warning_count or 0)
+    error_count = int(result.error_count or 0)
+    if result.blocked:
+        return {
+            "status": "blocked",
+            "display_tone": "warning",
+            "label": "需要登入或啟用後才能枚舉 seed",
+            "help": "完成登入設定、解除封存或啟用入口後再重新枚舉。",
+            "next_action": result.next_action,
+            "limited_by_max_results": False,
+            "candidate_count": candidate_count,
+            "max_results": max_results,
+        }
+    if error_count:
+        return {
+            "status": "error",
+            "display_tone": "danger",
+            "label": "seed 枚舉發生錯誤",
+            "help": "請查看 crawler audit 或事件紀錄中的錯誤來源。",
+            "next_action": result.next_action or "inspect_crawler_error",
+            "limited_by_max_results": False,
+            "candidate_count": candidate_count,
+            "max_results": max_results,
+        }
+    if candidate_count <= 0:
+        return {
+            "status": "empty",
+            "display_tone": "warning",
+            "label": "尚未找到 seed",
+            "help": "可調整界域、檢查入口 URL、登入狀態或 crawler parser。",
+            "next_action": result.next_action or "adjust_bounds_or_refresh_source_listing",
+            "limited_by_max_results": False,
+            "candidate_count": 0,
+            "max_results": max_results,
+        }
+    limited = bool(result.complete_seed and max_results > 0 and candidate_count >= max_results)
+    if limited:
+        return {
+            "status": "local_limit_reached",
+            "display_tone": "warning",
+            "label": f"已枚舉前 {candidate_count} 筆 seed",
+            "help": "結果已達本機安全上限，遠端可能還有更多 seed；可縮小界域或提高枚舉上限。",
+            "next_action": "narrow_bounds_or_raise_seed_limit",
+            "limited_by_max_results": True,
+            "candidate_count": candidate_count,
+            "max_results": max_results,
+        }
+    if warning_count:
+        return {
+            "status": "warning",
+            "display_tone": "warning",
+            "label": f"已枚舉 {candidate_count} 筆 seed，但有 {warning_count} 個警告",
+            "help": "候選已寫入本機 catalog；建議先查看 crawler audit，再建立下載計畫。",
+            "next_action": result.next_action or "inspect_source_audit_results_before_upsert_or_promotion",
+            "limited_by_max_results": False,
+            "candidate_count": candidate_count,
+            "max_results": max_results,
+        }
+    if result.complete_seed:
+        return {
+            "status": "within_current_limits",
+            "display_tone": "success",
+            "label": f"已枚舉 {candidate_count} 筆 seed",
+            "help": "結果低於本機枚舉上限；若來源支援遠端分頁，完整性仍以 crawler audit 為準。",
+            "next_action": result.next_action or "review_seed_list_or_build_download_plan",
+            "limited_by_max_results": False,
+            "candidate_count": candidate_count,
+            "max_results": max_results,
+        }
+    return {
+        "status": "bounded_sample",
+        "display_tone": "info",
+        "label": f"已取得 {candidate_count} 筆 seed 樣本",
+        "help": "這是 bounded/sample 模式；若要完整列入口 seed，請重新枚舉 seed。",
+        "next_action": result.next_action or "rerun_complete_seed_enumeration",
+        "limited_by_max_results": False,
+        "candidate_count": candidate_count,
+        "max_results": max_results,
+    }
+
+
 def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
     if result.blocked:
         return "blocked"
@@ -210,6 +315,31 @@ def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
     return "empty"
 
 
+def crawler_asset_listing_event_context(result: CrawlerAssetListingResult) -> dict[str, object]:
+    """Return the compact listing-event payload shared by Tk/Web/CLI callers."""
+
+    return {
+        "asset_id": str(result.asset_id or ""),
+        "listing_mode": str(result.listing_mode or ""),
+        "source_found": bool(result.source_found),
+        "blocked": bool(result.blocked),
+        "blocked_reason": str(result.blocked_reason or ""),
+        "candidate_count": int(result.candidate_count or 0),
+        "upserted_count": int(result.upserted_count or 0),
+        "skipped_provider_count": int(result.skipped_provider_count or 0),
+        "duplicate_count": int(result.duplicate_count or 0),
+        "error_count": int(result.error_count or 0),
+        "warning_count": int(result.warning_count or 0),
+        "next_action": str(result.next_action or ""),
+        "max_results": int(result.max_results or 0),
+        "max_pages": int(result.max_pages or 0),
+        "complete_seed": bool(result.complete_seed),
+        "search_scope": str(result.search_scope or ""),
+        "seed_enumeration": crawler_seed_enumeration_payload(result),
+        "run_record": crawler_run_record_from_result(result),
+    }
+
+
 def run_crawler_asset_listing(
     asset_id: str,
     conn: sqlite3.Connection,
@@ -218,9 +348,11 @@ def run_crawler_asset_listing(
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
     timeout: float = 12.0,
-    max_results: int = 100,
+    max_results: int = 1000,
     full_crawl: bool = True,
     max_pages: int = 0,
+    complete_seed: bool = True,
+    search_terms_override: tuple[str, ...] = (),
     crawl_runner: CrawlerRunner = crawl_dataset_sources,
 ) -> CrawlerAssetListingResult:
     """執行「入口爬蟲資產 -> candidates -> catalog upsert」的單一後端閉環。
@@ -234,8 +366,13 @@ def run_crawler_asset_listing(
         return CrawlerAssetListingResult(
             asset_id=asset_id,
             source_found=False,
+            listing_mode="complete_seed" if complete_seed else "bounded",
             blocked_reason="missing_asset_id",
             next_action="select_crawler_asset",
+            max_results=max_results,
+            max_pages=max_pages,
+            full_crawl=full_crawl,
+            complete_seed=complete_seed,
         )
 
     source = load_crawler_asset_source(asset_key, primary_path, local_path)
@@ -243,8 +380,13 @@ def run_crawler_asset_listing(
         return CrawlerAssetListingResult(
             asset_id=asset_key,
             source_found=False,
+            listing_mode="complete_seed" if complete_seed else "bounded",
             blocked_reason="source_not_found",
             next_action="refresh_or_repair_crawler_source_catalog",
+            max_results=max_results,
+            max_pages=max_pages,
+            full_crawl=full_crawl,
+            complete_seed=complete_seed,
         )
 
     profile = crawler_asset_profile_for(asset_key, load_crawler_asset_profiles(profile_path))
@@ -252,22 +394,42 @@ def run_crawler_asset_listing(
         return CrawlerAssetListingResult(
             asset_id=asset_key,
             source_found=True,
+            listing_mode="complete_seed" if complete_seed else "bounded",
             blocked_reason="archived",
             next_action="unarchive_before_crawl",
+            max_results=max_results,
+            max_pages=max_pages,
+            full_crawl=full_crawl,
+            complete_seed=complete_seed,
         )
     if not profile.enabled:
         return CrawlerAssetListingResult(
             asset_id=asset_key,
             source_found=True,
+            listing_mode="complete_seed" if complete_seed else "bounded",
             blocked_reason="disabled",
             next_action="enable_before_crawl",
+            max_results=max_results,
+            max_pages=max_pages,
+            full_crawl=full_crawl,
+            complete_seed=complete_seed,
         )
+
+    effective_search_terms = search_terms_override
+    if complete_seed and not effective_search_terms:
+        # 空字串是現有 crawler handler 的「不套關鍵字」哨兵，用來要求入口盡量枚舉所有 seed。
+        effective_search_terms = ("",)
+    if effective_search_terms:
+        search_scope = "complete_seed" if complete_seed else "override_terms"
+    else:
+        search_scope = "configured_terms" if source.search_terms else "unbounded"
 
     result = crawl_runner(
         [source],
         DatasetCrawlOptions(
             timeout=timeout,
             max_results_override=max_results,
+            search_terms_override=effective_search_terms,
             full_crawl=full_crawl,
             max_pages=max_pages,
             max_workers=1,
@@ -277,6 +439,7 @@ def run_crawler_asset_listing(
     return CrawlerAssetListingResult(
         asset_id=asset_key,
         source_found=True,
+        listing_mode="complete_seed" if complete_seed else "bounded",
         candidate_count=result.candidate_count,
         upserted_count=upserted,
         skipped_provider_count=skipped,
@@ -285,6 +448,11 @@ def run_crawler_asset_listing(
         warning_count=result.warning_count,
         next_action=result.next_action,
         audit_summary=result.audit_summary,
+        max_results=max_results,
+        max_pages=max_pages,
+        full_crawl=full_crawl,
+        complete_seed=complete_seed,
+        search_scope=search_scope,
     )
 
 

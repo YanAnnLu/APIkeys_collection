@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from api_launcher.cli_database_repair import database_repair_command_active
+from api_launcher.cli_crawler_assets import crawler_asset_command_active
 from api_launcher.cli_crawler_run_records import crawler_run_record_command_active
 from api_launcher.cli_dataset_discovery import dataset_discovery_command_active
 from api_launcher.cli_discovery import discovery_command_active
@@ -44,6 +45,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.manifest_health,
         args.list_manifests,
         args.show_logs > 0,
+        crawler_asset_command_active(args),
         crawler_run_record_command_active(args),
         bool(args.handoff_report),
         args.handoff_report_json,

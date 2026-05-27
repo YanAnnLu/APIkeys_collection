@@ -80,5 +80,6 @@ K 槽教材與 CODE_KM 是概念樣本庫，不是產品碼來源。
 - 是否影響 UI/CLI 操作、按鈕、選單或展示流程？更新 `docs/USER_GUIDE.zh-TW.md` 或 `docs/USER_MANUAL.zh-TW.md`。
 - 是否新增、移動或重新定位文件入口？更新 `docs/DOCS_INDEX.zh-TW.md`。
 - 是否改了架構邊界、服務分層或資料流？更新 `docs/TECHNICAL_OVERVIEW.zh-TW.md` 或 `docs/ARCHITECTURE.md`。
+- 是否已做到可驗證 checkpoint，即使 GitHub push / CI 因帳號、網路或平台問題失敗，也要更新 `docs/DEVELOPMENT_LOG.zh-TW.md`，明確標成 `WORKING / 未推送`、`LOCAL PASS / CI 未完成` 或 `CI 失敗`，並寫出本地驗證與剩餘風險。
 
 如果都沒有影響，回報時明確說「本切片不需更新文檔」。這不是行政負擔，而是防止下次 agent 從錯誤地圖開始工作。

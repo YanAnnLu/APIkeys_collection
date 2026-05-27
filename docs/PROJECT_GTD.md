@@ -1,6 +1,19 @@
 ﻿# RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
+
+## 2026-05-27 Crawler source pattern / asset registry 對齊
+- [x] Source pattern detector 現在不只辨識第一階段通用範式，也能把已存在 handler 的 vendor/science API URL 導到既有 crawler：NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex。
+- [x] `SOURCE_TYPE_HINTS` 已用 regression 鎖成「每個已接 `SUPPORTED_DATASET_SOURCE_TYPES` 都有 detector hint」，避免 handler 已存在但貼 URL 建來源草稿仍被擋成 `unknown`。
+- [x] Source draft 測試已覆蓋上述 vendor/science API URL 在不做 live fetch 的情況下可建立 supported local source draft，並會正規化成對應 crawler endpoint。
+- [x] Crawler asset 的 bounds facet registry 與 source surface registry 都已鎖成覆蓋全部 supported crawler source type；新增 handler 時若漏接 UI 表單或表面分類，測試會直接失敗。
+- [x] Web Preview 修正無界域欄位時「建立下載計畫」按鈕被反向停用的問題；同時補上 `file_index` / `map_service` / `catalog` 的使用者可讀來源表面標籤。
+- [x] Web Preview 選取爬蟲入口後，預設走 seed 枚舉心流：`crawler_asset_listing` 會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口內 seed，並把候選寫回本機 catalog。
+- [x] Web Preview 新增 seed 分頁讀取：`/api/crawler-assets/{asset_id}/seeds?page=&page_size=50` 只從已枚舉的 catalog 候選讀取 `[0..49]`、`[50..99]` 這類視窗；按「顯示更多 seed」只展開下一批 50 筆，不重新跑 crawler。
+- [x] 收藏心流已明確落在 seed 層：Web 會呼叫 `/api/crawler-assets/{asset_id}/seed-favorites`，由後端寫入 crawler asset profile 的 `favorite_seed_uids`，不再把收藏對象設計成 crawler asset / 入口本身。
+- [x] Seed 枚舉結果現在有後端 structured status：`seed_enumeration.status/label/help/limited_by_max_results` 會說明目前是完整落在本機上限內、零候選、警告、需要登入，或已達本機安全上限。Web 只呈現這份 service payload，不再從 `candidate_count` 自己猜完整度。
+- [ ] 下一步：把 source pattern / source draft 的「全 handler 覆蓋」延伸到實際 crawler audit smoke，逐一確認每種 source type 的 zero-candidate / warning / next_action 都能用同一套 run_record 與 UI 狀態呈現。
+- [ ] 下一步：把 seed 收藏再從 crawler asset profile 欄位提升成正式 seed registry / 跨 UI 查詢入口，並補上 handler 層的遠端 pagination token / exhausted 狀態，讓 `seed_enumeration` 不只靠本機安全上限推斷。
 
 ## 2026-05-26 Crawler Run Registry Handoff Payload
 - [x] 新增 `api_launcher/crawler_run_records.py`，先把 crawler listing 與 download-plan build 的執行狀態整理成 compact `run_record`，供 Tk/Web/Qt/agent 讀同一份 structured payload。
@@ -71,6 +84,9 @@ Last updated: 2026-05-26
 - [x] `plan_passport` 已收斂為 asset profile 的 compact 欄位：Tk 與 Web 建立下載計畫後會只保存白名單狀態欄位與簡化 bounds，不保存完整 `providers` 或 resolved plan body。Web card/detail 會優先讀 profile passport，再退回近期 event；這讓跨 session 狀態比單純 event fallback 更穩。
 - [x] 下載計畫護照已包含候選 snapshot digest，讓 Web/Tk/Qt 能追溯本次 plan 來自哪一批候選資料。
 - [x] explicit fresh crawl / rebuild plan 流程已可比較 `candidate_snapshot_signature` 並保存 `candidate_snapshot_changed`，讓 Web/Tk/未來 Qt 只在後端真的重跑候選清單後顯示候選快照變更。
+- [x] Web Preview 已接上本機登入設定防呆流程：`api_launcher/local_credentials.py` 依 crawler asset / provider catalog 產生可編輯 env var 欄位，Web 透過 localhost API 保存到本機 ignored credential file；UI 主文案使用「登入設定 / 記住我的帳號」，不把 `.env` 當成使用者日常操作術語。回傳與 structured event 只保存遮蔽狀態與欄位名稱，不回傳明文金鑰。
+- [x] Web Preview 的憑證流程已改成日常登入心智：缺登入 / API Key 時，建立下載計畫會先被後端擋下，不會發出必然失敗的 live crawler request；畫面提供「開啟官方登入 / 申請 API Key」入口、三步驟登入說明、貼上欄位，以及「記住我的帳號」勾選。勾選時保存到本機設定檔；取消勾選時只保存在目前 Web Preview 進程。
+- [ ] 下一步：把同一份 `local_credentials` service 接回 Tk 爬蟲資產設定入口，並把「需要登入 / API Key」的阻擋與修復提示同步到 Tk。
 
 ## 2026-05-25 Web Preview / UIUX 對照層
 

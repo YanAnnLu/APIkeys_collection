@@ -1,5 +1,5 @@
 ﻿# Web Preview UI/UX 對照層
-最後更新：2026-05-26
+最後更新：2026-05-27
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
@@ -10,6 +10,15 @@
 - Web/Tk/未來 Qt 只顯示後端給的 `stale_label` / `stale_next_action`，例如「資產已停用，啟用後重新建立下載計畫」或「來源設定已改變，請重新建立下載計畫」，不在 UI 端翻譯 raw `stale_reason` 或重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
 - `plan_passport` 會保存 `candidate_snapshot_signature` 與 `candidate_snapshot_count`，表示本次下載計畫由哪一批 crawler candidate 形成。這是追溯資訊，不是 live freshness check；Web/Tk/Qt 不應在沒有 fresh crawl 的情況下自行宣稱遠端候選清單已改變。
 - `candidate_snapshot_changed` 只代表這次使用者明確重跑 crawl / rebuild plan 後，後端把上一版 profile 護照 digest 與本次 digest 比較出不同；前端可以顯示這個旗標，但不能在單純讀取卡片或 profile 時自行推測遠端更新。
+
+## 2026-05-27 操作 guard
+
+- `surfaceLabel()` 已補上 `file_index`、`map_service`、`catalog` 的使用者可讀文案。Web Preview 不應把 raw `source_surface` 當主文案丟給使用者；缺標籤時才 fallback。
+- 沒有動態界域欄位的資產仍應允許使用者按「建立下載計畫」或「先設定登入 / API Key」。不要用 credential guard 的反值去 disable build-plan 按鈕；按鈕是否進入登入設定或建立計畫，交給 `configureBuildPlanButton()` / `handleBuildPlanClick()` 判斷。
+- 選取一個爬蟲入口後，預設動作是枚舉該入口的 seed。不要把「更新清單」設計成使用者理解入口內容的必要前置動作；「重新枚舉 seed」只能是次要刷新。
+- Seed 清單要用分頁視窗呈現：第一屏顯示前 50 筆，按「顯示更多 seed」再展開下一批 50 筆。這是從本機已枚舉 catalog 讀取，不是每按一次就重新打遠端 crawler。
+- 收藏功能的對象是 seed，不是 crawler asset / 入口。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續正式化時再提升成 seed registry / 跨 UI 查詢入口。
+- Seed 枚舉狀態要吃後端 `seed_enumeration` payload：`label` / `help` / `display_tone` / `limited_by_max_results` 由 service 判斷。Web 只能呈現，不要用候選數自行猜「完整」或「被截斷」。若 `limited_by_max_results=true`，UI 應明確提示「已達本機安全上限，遠端可能還有更多」。
 
 ## 定位
 
@@ -49,6 +58,7 @@ Web Preview 不做的事：
 - `frontends/shared/ui_tokens.json`：Tk / Web / 未來 Qt 可共用的設計 token 種子。
 - `scripts/run_web_preview.cmd`：本機啟動入口。
 - `api_launcher/crawler_asset_display.py`：Web/Tk/Qt 共用的顯示 schema。它把 `field_id`、`capability_id`、`outcome_bucket`、Adapter review `by_outcome` 轉成 `display_label`、`display_help`、`display_tone`、`summary` 與 `next_action_label`，避免每個 UI 外殼自行推理後端狀態。
+- `api_launcher/local_credentials.py`：Web/Tk/Qt 可共用的本機登入設定 service。它讀取 crawler asset/profile/provider catalog 需要的 env var，回傳遮蔽狀態，並可由 localhost API 保存到本機 ignored credential file。
 
 資料流：
 
@@ -107,11 +117,17 @@ http://127.0.0.1:8765/
 - Web 事件摘要改由 `api_launcher.crawler_run_records.crawler_run_context_summary()` 產生；前端 JS 只渲染 summary，不維護自己的 event 白名單或 `run_record` 壓縮規則。
 - Web Preview 的 crawler asset card/detail 會優先讀 asset profile 裡的 compact `latest_plan_passport`，再退回近期 `crawler_asset_plan_outcome_recorded` event。兩條路徑都只保留 asset id、resolved-plan presence、candidate/direct/review/content-review counts、credential/provider gate、簡化 bounds 與 next action 等白名單欄位；完整 `providers` / resolved plan body 不會進入 profile 或事件還原 payload。這讓頁面重載後的「下載器」分頁與資產護照仍能顯示真實後端狀態，而不是依賴 JS localStorage。
 - 其中 `candidate_snapshot_signature` / `candidate_snapshot_count` 是後端 plan build 的候選快照摘要。前端可以顯示或保留它，但不能把它當成遠端自動更新通知；`candidate_snapshot_changed` 也必須由使用者明確重跑 crawl / rebuild plan 後，讓後端比較新舊 digest 才能更新。Web Preview 目前只在下載器列與 Plan Passport 面板顯示這個旗標，不在 JS 端重做比較。
+- 本機登入設定已接到資產護照：Web 會顯示「免登入 / 需要登入 / 已設定登入」狀態、是否已記住帳號、官方文件與註冊連結；按「登入設定」會開啟欄位表單，儲存時透過 `/api/crawler-assets/{asset_id}/credentials` 交給後端處理。瀏覽器 JS 不直接碰檔案；檔案寫入由本機 localhost server 執行。回傳與 structured event 只包含遮蔽值、欄位名稱與狀態，不包含明文金鑰。
+- 憑證 UI 的主語言改用「登入」心智：缺登入 / API Key 的來源會先阻擋建立下載計畫，提供「開啟官方登入 / 申請 API Key」、三步驟說明、貼上欄位與「記住我的帳號」勾選。勾選代表保存到本機設定檔，下次開啟仍可使用；取消勾選代表只在目前 Web Preview 進程有效。`.env` 是進階/技術說明，不應作為主按鈕文案。
+- Seed 枚舉已成為入口選取的預設行為：Web 會呼叫後端 listing service 嘗試列出入口 seed，並透過 `/api/crawler-assets/{asset_id}/seeds` 從本機 catalog 分頁讀回顯示資料。右側清單只顯示目前視窗，不把大量 seed 一次塞進 DOM。
+- Seed 收藏目前是 seed-level profile-backed prototype：星號會呼叫 localhost API，後端寫入 crawler asset profile 的 `favorite_seed_uids`。這不是正式跨裝置同步，也不是收藏入口；後續要收斂到正式 seed registry。
+- Seed 面板現在會呈現 `seed_enumeration.label/help`，並在本機枚舉上限被打滿時顯示 `seed-limit-badge`。這是 UX 防呆：候選數達到 1000 不代表入口只有 1000 筆，而是這次枚舉到達本機安全上限。
 
 ## 下一步
 
 - 將 Web `下載器` / `匯入審核` 從狀態預覽逐步接到正式 library action，但仍共用後端 JSON contract，不在 JS 內直接執行下載或匯入。
 - 讓狀態與錯誤提示更接近使用者語言，而不是只顯示原始 JSON。
+- 把本機登入設定的同一份 service 接回 Tk，讓需要帳號 / API Key 的 crawler 在建立下載計畫前提供「登入 / 貼金鑰 / 開官方申請頁」的明確修復路徑。
 - 將穩定的 CSS token 映射成 Qt/QSS 草稿。
 - 在 Tk 新增後端功能時，建立簡短 checklist：是否需要同步 Web Preview、是否需要同步文件。
 

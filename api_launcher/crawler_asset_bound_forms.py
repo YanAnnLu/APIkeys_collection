@@ -5,6 +5,83 @@ from dataclasses import dataclass, field
 from typing import Mapping
 
 from api_launcher.crawler_asset_bounds import CrawlerAssetBoundFacet
+from api_launcher.crawlers.types import DatasetDiscoverySource
+
+
+BBOX_REGION_PRESETS: tuple[dict[str, object], ...] = (
+    {
+        "preset_id": "global",
+        "label_zh_TW": "全球",
+        "label_en": "Global",
+        "description_zh_TW": "用全球經緯度範圍做第一次探索；適合還不確定區域時使用。",
+        "description_en": "Use global lon/lat bounds for a first exploration pass.",
+        "scope_tokens": ("global", "world", "ocean"),
+        "values": {"bbox_west": -180, "bbox_south": -90, "bbox_east": 180, "bbox_north": 90},
+        "tone": "neutral",
+    },
+    {
+        "preset_id": "taiwan",
+        "label_zh_TW": "台灣",
+        "label_en": "Taiwan",
+        "description_zh_TW": "常用台灣本島與近海粗略界域，適合展示或初次試抓。",
+        "description_en": "A coarse Taiwan and nearshore bounding box for demos and first runs.",
+        "scope_tokens": ("taiwan", "tw", "asia"),
+        "values": {"bbox_west": 119.0, "bbox_south": 21.5, "bbox_east": 123.5, "bbox_north": 25.5},
+        "tone": "success",
+    },
+    {
+        "preset_id": "continental_us",
+        "label_zh_TW": "美國本土",
+        "label_en": "Continental US",
+        "description_zh_TW": "美國本土粗略界域，適合 NOAA / data.gov 類型入口的第一輪查詢。",
+        "description_en": "A coarse continental-US bounding box for NOAA/data.gov-style first runs.",
+        "scope_tokens": ("us", "usa", "global/us", "coastal"),
+        "values": {"bbox_west": -125.0, "bbox_south": 24.0, "bbox_east": -66.0, "bbox_north": 50.0},
+        "tone": "neutral",
+    },
+    {
+        "preset_id": "nyc",
+        "label_zh_TW": "紐約市",
+        "label_en": "New York City",
+        "description_zh_TW": "NYC Open Data 類型表格與地理欄位的常用示範界域。",
+        "description_en": "A common demo box for NYC Open Data tables with geospatial fields.",
+        "scope_tokens": ("nyc", "new_york", "new york"),
+        "values": {"bbox_west": -74.3, "bbox_south": 40.45, "bbox_east": -73.65, "bbox_north": 40.95},
+        "tone": "neutral",
+    },
+    {
+        "preset_id": "san_francisco",
+        "label_zh_TW": "舊金山",
+        "label_en": "San Francisco",
+        "description_zh_TW": "SF Open Data 類型表格與地理欄位的常用示範界域。",
+        "description_en": "A common demo box for San Francisco Open Data geospatial tables.",
+        "scope_tokens": ("san_francisco", "sf", "bay"),
+        "values": {"bbox_west": -122.55, "bbox_south": 37.68, "bbox_east": -122.33, "bbox_north": 37.84},
+        "tone": "neutral",
+    },
+)
+
+
+@dataclass(frozen=True)
+class CrawlerAssetBoundPreset:
+    preset_id: str
+    label_zh_TW: str
+    label_en: str
+    description_zh_TW: str
+    description_en: str
+    values: Mapping[str, object]
+    tone: str = "neutral"
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "preset_id": self.preset_id,
+            "label_zh_TW": self.label_zh_TW,
+            "label_en": self.label_en,
+            "description_zh_TW": self.description_zh_TW,
+            "description_en": self.description_en,
+            "values": dict(self.values),
+            "tone": self.tone,
+        }
 
 
 @dataclass(frozen=True)
@@ -57,6 +134,10 @@ class CrawlerAssetBoundFormSpec:
     schema_probe_required_count: int = 0
     groups: tuple[str, ...] = ()
     warning_codes: tuple[str, ...] = ()
+    recommended_values: Mapping[str, object] = field(default_factory=dict)
+    presets: tuple[CrawlerAssetBoundPreset, ...] = ()
+    guidance_zh_TW: str = ""
+    guidance_en: str = ""
 
     @property
     def succeeded(self) -> bool:
@@ -70,6 +151,10 @@ class CrawlerAssetBoundFormSpec:
             "schema_probe_required_count": self.schema_probe_required_count,
             "groups": list(self.groups),
             "warning_codes": list(self.warning_codes),
+            "recommended_values": dict(self.recommended_values),
+            "presets": [preset.to_dict() for preset in self.presets],
+            "guidance_zh_TW": self.guidance_zh_TW,
+            "guidance_en": self.guidance_en,
         }
 
 
@@ -107,15 +192,21 @@ class CrawlerAssetBoundPayload:
 def build_crawler_asset_bound_form_spec(
     asset_id: str,
     bounds_schema: tuple[CrawlerAssetBoundFacet, ...],
+    *,
+    source: DatasetDiscoverySource | None = None,
 ) -> CrawlerAssetBoundFormSpec:
     fields: list[CrawlerAssetBoundFormField] = []
     for facet in bounds_schema:
         fields.extend(fields_for_facet(facet))
     groups = tuple(dict.fromkeys(field.group for field in fields))
     schema_probe_required_count = sum(1 for field in fields if field.requires_schema_probe)
+    recommended_values = recommended_form_values(tuple(fields), source=source)
+    presets = bound_form_presets(tuple(fields), source=source)
     warnings: list[str] = []
     if schema_probe_required_count:
         warnings.append("schema_probe_recommended")
+    if presets:
+        warnings.append("preset_available")
     return CrawlerAssetBoundFormSpec(
         asset_id=asset_id,
         status="ready" if fields else "empty",
@@ -123,7 +214,113 @@ def build_crawler_asset_bound_form_spec(
         schema_probe_required_count=schema_probe_required_count,
         groups=groups,
         warning_codes=tuple(warnings),
+        recommended_values=recommended_values,
+        presets=presets,
+        guidance_zh_TW=bound_form_guidance(tuple(fields), source=source),
+        guidance_en="Start with recommended values or a region preset, then preview the payload before building a plan.",
     )
+
+
+def recommended_form_values(
+    fields: tuple[CrawlerAssetBoundFormField, ...],
+    *,
+    source: DatasetDiscoverySource | None = None,
+) -> dict[str, object]:
+    """Build safe first-click defaults without guessing unavailable schema values.
+
+    The recommendation layer is intentionally separate from field defaults:
+    defaults are backend contract values, while recommendations are UX helpers
+    that a UI may apply on demand.
+    """
+
+    field_ids = {field.field_id for field in fields}
+    values: dict[str, object] = {}
+    if "limit" in field_ids:
+        values["limit"] = bounded_positive_int(getattr(source, "max_results", 0), fallback=25, upper=25)
+    if "max_results" in field_ids:
+        values["max_results"] = bounded_positive_int(getattr(source, "max_results", 0), fallback=25, upper=50)
+    if "max_pages" in field_ids:
+        values["max_pages"] = 1
+    if "version_limit" in field_ids:
+        values["version_limit"] = 1
+    if source is None:
+        return values
+    if "search_terms" in field_ids and source.search_terms:
+        values["search_terms"] = ", ".join(source.search_terms)
+    if "file_pattern" in field_ids and source.file_url_regex:
+        values["file_pattern"] = source.file_url_regex
+    if source.dataset_id:
+        for field_id in ("dataset", "collection", "package"):
+            if field_id in field_ids:
+                values[field_id] = source.dataset_id
+    if "format" in field_ids and source.native_format:
+        values["format"] = source.native_format.lower()
+    return values
+
+
+def bound_form_presets(
+    fields: tuple[CrawlerAssetBoundFormField, ...],
+    *,
+    source: DatasetDiscoverySource | None = None,
+) -> tuple[CrawlerAssetBoundPreset, ...]:
+    field_ids = {field.field_id for field in fields}
+    presets: list[CrawlerAssetBoundPreset] = []
+    if {"bbox_west", "bbox_south", "bbox_east", "bbox_north"}.issubset(field_ids):
+        presets.extend(region_bbox_presets(source))
+    return tuple(presets)
+
+
+def region_bbox_presets(source: DatasetDiscoverySource | None = None) -> tuple[CrawlerAssetBoundPreset, ...]:
+    scope = " ".join(
+        str(part or "").lower()
+        for part in (
+            getattr(source, "geographic_scope", ""),
+            " ".join(getattr(source, "categories", ()) or ()),
+            getattr(source, "name", ""),
+        )
+    )
+    ranked: list[tuple[int, dict[str, object]]] = []
+    for index, preset in enumerate(BBOX_REGION_PRESETS):
+        score = -index
+        if any(token and token in scope for token in preset["scope_tokens"]):  # type: ignore[index]
+            score += 100
+        ranked.append((score, preset))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    # 保留少量常用 preset，避免 UI 又變成另一種選擇壓力。
+    return tuple(
+        CrawlerAssetBoundPreset(
+            preset_id=str(preset["preset_id"]),
+            label_zh_TW=str(preset["label_zh_TW"]),
+            label_en=str(preset["label_en"]),
+            description_zh_TW=str(preset["description_zh_TW"]),
+            description_en=str(preset["description_en"]),
+            values=preset["values"],  # type: ignore[arg-type]
+            tone=str(preset["tone"]),
+        )
+        for _, preset in ranked[:4]
+    )
+
+
+def bound_form_guidance(
+    fields: tuple[CrawlerAssetBoundFormField, ...],
+    *,
+    source: DatasetDiscoverySource | None = None,
+) -> str:
+    if not fields:
+        return "這個入口目前沒有需要使用者輸入的界域。"
+    if any(field.requires_schema_probe for field in fields):
+        return "先套用推薦值或常用區域，再用預覽確認 payload；需要欄位清單的項目後續會接 schema/head probe。"
+    return "先套用推薦值，再預覽 payload；確認後再建立下載計畫。"
+
+
+def bounded_positive_int(value: object, *, fallback: int, upper: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    if parsed <= 0:
+        return fallback
+    return min(parsed, upper)
 
 
 def fields_for_facet(facet: CrawlerAssetBoundFacet) -> tuple[CrawlerAssetBoundFormField, ...]:
@@ -310,9 +507,12 @@ def build_maps_to_values(
 
 __all__ = [
     "CrawlerAssetBoundFormField",
+    "CrawlerAssetBoundPreset",
     "CrawlerAssetBoundFormSpec",
     "CrawlerAssetBoundPayload",
     "build_crawler_asset_bound_form_spec",
+    "bound_form_presets",
     "crawler_asset_bound_payload_from_form_values",
     "fields_for_facet",
+    "recommended_form_values",
 ]

@@ -21,7 +21,11 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
 )
-from api_launcher.crawler_asset_service import build_crawler_asset_download_plan, run_crawler_asset_listing
+from api_launcher.crawler_asset_service import (
+    build_crawler_asset_download_plan,
+    crawler_asset_listing_event_context,
+    run_crawler_asset_listing,
+)
 from api_launcher.crawler_run_records import crawler_run_record_from_result
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
@@ -579,19 +583,7 @@ class CrawlerAssetWorkflowMixin:
                 "Tk crawler asset workflow recorded the visible listing outcome.",
                 component="ui.crawler_assets",
                 context={
-                    "asset_id": str(getattr(result, "asset_id", "") or ""),
-                    "source_found": bool(getattr(result, "source_found", False)),
-                    "blocked": bool(getattr(result, "blocked", False)),
-                    "blocked_reason": str(getattr(result, "blocked_reason", "") or ""),
-                    "candidate_count": int(getattr(result, "candidate_count", 0) or 0),
-                    "upserted_count": int(getattr(result, "upserted_count", 0) or 0),
-                    "skipped_provider_count": int(getattr(result, "skipped_provider_count", 0) or 0),
-                    "duplicate_count": int(getattr(result, "duplicate_count", 0) or 0),
-                    "error_count": int(getattr(result, "error_count", 0) or 0),
-                    "warning_count": int(getattr(result, "warning_count", 0) or 0),
-                    "next_action": str(getattr(result, "next_action", "") or ""),
-                    "run_record": crawler_run_record_from_result(result),
-                },
+                context=crawler_asset_listing_event_context(result),
             )
         except Exception:
             # event log 是 handoff 輔助，不應阻斷 UI listing 完成路徑。

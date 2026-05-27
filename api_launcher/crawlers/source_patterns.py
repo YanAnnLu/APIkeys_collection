@@ -23,6 +23,12 @@ SOURCE_TYPE_HINTS: dict[str, str] = {
     "ogc": "ogc_api_records",
     "ogc_wms": "ogc_wms_capabilities",
     "cmr": "cmr_collections",
+    "ncei": "ncei_search",
+    "gbif": "gbif_dataset_search",
+    "dataverse": "dataverse_search",
+    "zenodo": "zenodo_records_search",
+    "datacite": "datacite_dois",
+    "openalex": "openalex_works_search",
     "html_file_index": "html_file_index",
 }
 
@@ -266,6 +272,72 @@ def detect_cmr(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatte
     return score_pattern("cmr", evidence)
 
 
+def detect_ncei(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if "ncei.noaa.gov" in parsed.netloc.lower():
+        evidence.append("host_is_noaa_ncei")
+    if "/access/services/search/v1" in path:
+        evidence.append("ncei_search_api_path")
+    return score_pattern("ncei", evidence)
+
+
+def detect_gbif(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if parsed.netloc.lower() == "api.gbif.org":
+        evidence.append("host_is_gbif_api")
+    if "/v1/dataset" in path:
+        evidence.append("gbif_dataset_api_path")
+    return score_pattern("gbif", evidence)
+
+
+def detect_dataverse(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if "dataverse" in parsed.netloc.lower():
+        evidence.append("host_mentions_dataverse")
+    if path.endswith("/api/search") or "/api/search/" in path:
+        evidence.append("dataverse_search_api_path")
+    return score_pattern("dataverse", evidence)
+
+
+def detect_zenodo(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if parsed.netloc.lower().endswith("zenodo.org"):
+        evidence.append("host_is_zenodo")
+    if path.startswith("/api/records"):
+        evidence.append("zenodo_records_api_path")
+    return score_pattern("zenodo", evidence)
+
+
+def detect_datacite(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if parsed.netloc.lower() == "api.datacite.org":
+        evidence.append("host_is_datacite_api")
+    if path.startswith("/dois"):
+        evidence.append("datacite_dois_api_path")
+    return score_pattern("datacite", evidence)
+
+
+def detect_openalex(url: str, _fetcher: PatternFetcher, _timeout: float) -> SourcePatternCandidate:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+    evidence: list[str] = []
+    if parsed.netloc.lower() == "api.openalex.org":
+        evidence.append("host_is_openalex_api")
+    if path.startswith("/works"):
+        evidence.append("openalex_works_api_path")
+    return score_pattern("openalex", evidence)
+
+
 def detect_html_file_index(url: str, fetcher: PatternFetcher, timeout: float) -> SourcePatternCandidate:
     evidence: list[str] = []
     response = fetcher(url, timeout)
@@ -397,6 +469,12 @@ DETECTORS: tuple[PatternDetector, ...] = (
     detect_socrata,
     detect_ogc,
     detect_cmr,
+    detect_ncei,
+    detect_gbif,
+    detect_dataverse,
+    detect_zenodo,
+    detect_datacite,
+    detect_openalex,
     detect_html_file_index,
 )
 

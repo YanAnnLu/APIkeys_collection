@@ -5,9 +5,11 @@ import unittest
 from api_launcher.crawlers.source_patterns import (
     DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
     PatternProbeResponse,
+    SOURCE_TYPE_HINTS,
     UNKNOWN_PATTERN_ID,
     detect_source_interface_pattern,
 )
+from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 
 
 class SourcePatternDetectorTest(unittest.TestCase):
@@ -365,6 +367,64 @@ class SourcePatternDetectorTest(unittest.TestCase):
 
         self.assertNotEqual("cmr", result.pattern_id)
         self.assertNotIn("https://cmr.earthdata.nasa.gov/search/collections.json?page_size=1", calls)
+
+    def test_vendor_science_api_urls_map_to_existing_crawler_handlers(self) -> None:
+        def fetcher(_url: str, _timeout: float) -> PatternProbeResponse | None:
+            return None
+
+        cases = (
+            (
+                "https://www.ncei.noaa.gov/access/services/search/v1/datasets",
+                "ncei",
+                "ncei_search",
+                "ncei_search_api_path",
+            ),
+            (
+                "https://api.gbif.org/v1/dataset/search?q=ocean",
+                "gbif",
+                "gbif_dataset_search",
+                "gbif_dataset_api_path",
+            ),
+            (
+                "https://demo.dataverse.org/api/search?q=climate",
+                "dataverse",
+                "dataverse_search",
+                "dataverse_search_api_path",
+            ),
+            (
+                "https://zenodo.org/api/records?q=geodata",
+                "zenodo",
+                "zenodo_records_search",
+                "zenodo_records_api_path",
+            ),
+            (
+                "https://api.datacite.org/dois?query=climate",
+                "datacite",
+                "datacite_dois",
+                "datacite_dois_api_path",
+            ),
+            (
+                "https://api.openalex.org/works?search=gis",
+                "openalex",
+                "openalex_works_search",
+                "openalex_works_api_path",
+            ),
+        )
+
+        for url, pattern_id, source_type_hint, evidence in cases:
+            with self.subTest(url=url):
+                result = detect_source_interface_pattern(url, fetcher=fetcher)
+
+                self.assertEqual(pattern_id, result.pattern_id)
+                self.assertEqual(source_type_hint, result.source_type_hint)
+                self.assertGreaterEqual(result.confidence, DEFAULT_PATTERN_MINIMUM_CONFIDENCE)
+                self.assertIn(evidence, result.evidence)
+
+    def test_pattern_source_type_hints_are_supported_crawler_source_types(self) -> None:
+        # 「貼 URL 建來源草稿」會先走 source pattern detector；這裡鎖住每個
+        # 已接 handler 的 source_type 都至少有一條 detector hint，避免 crawler
+        # 明明存在但 UI/CLI URL 入口仍被擋成 unknown。
+        self.assertEqual(set(SOURCE_TYPE_HINTS.values()), set(SUPPORTED_DATASET_SOURCE_TYPES))
 
     def test_fetcher_exceptions_fall_back_to_unknown_pattern(self) -> None:
         def fetcher(_url: str, _timeout: float) -> PatternProbeResponse | None:

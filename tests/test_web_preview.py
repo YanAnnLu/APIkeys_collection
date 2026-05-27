@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import unittest
 from pathlib import Path
@@ -14,17 +15,34 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_passport_payload,
     plan_entry_content_status_payload,
 )
+from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
+    set_crawler_asset_seed_favorite,
     update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
 )
+from api_launcher.web_real_download_demo import (
+    WEB_REAL_DEMO_TABLE,
+    WEB_REAL_DEMO_URL,
+    build_web_real_download_plan,
+)
+from api_launcher.local_credentials import read_env_values
+from api_launcher.db import connect_db
+from api_launcher.models import Dataset, Provider
+from api_launcher.repository import ApiCatalogRepository
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
     crawler_asset_cards,
+    crawler_asset_credential_detail,
     crawler_asset_detail,
+    crawler_asset_listing,
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
+    crawler_asset_seed_page,
+    save_crawler_asset_seed_favorite,
+    save_crawler_asset_credentials,
+    web_real_download_demo,
     web_preview_recent_events,
     web_preview_status,
 )
@@ -37,6 +55,54 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("web_preview", status["surface"])
         self.assertEqual("uiux_review", status["purpose"])
         self.assertEqual("api_launcher", status["business_logic_owner"])
+
+    def test_web_real_download_demo_plan_uses_public_csv_import_contract(self) -> None:
+        with TemporaryDirectory() as tmp:
+            payload = build_web_real_download_plan(downloads_root=Path(tmp) / "downloads", version="test-version")
+
+        entry = payload["providers"][0]
+        self.assertEqual("web_preview_real_public_csv_download", payload["plan_name"])
+        self.assertEqual(WEB_REAL_DEMO_URL, entry["download_url"])
+        self.assertEqual("direct_download", entry["download_eligibility"]["status"])
+        self.assertEqual("csv", entry["source_format"])
+        self.assertEqual("supported_after_download", entry["import_plan"]["status"])
+        self.assertEqual("csv_to_sqlite", entry["import_plan"]["importer"])
+        self.assertEqual(WEB_REAL_DEMO_TABLE, entry["import_plan"]["table_hint"])
+        self.assertEqual("web_preview_real_download_demo", payload["source"]["kind"])
+
+    def test_web_real_download_demo_endpoint_returns_payload_and_logs_event(self) -> None:
+        fake_result = SimpleNamespace(
+            to_dict=lambda: {
+                "demo_id": "web_real_download_public_csv",
+                "source_url": WEB_REAL_DEMO_URL,
+                "stage": "download_import_completed",
+                "succeeded": True,
+                "row_count": 249,
+                "table_name": WEB_REAL_DEMO_TABLE,
+                "artifacts": {
+                    "downloaded_file": "state/web_demo/downloads/data.csv",
+                    "manifest": "state/web_demo/downloads/data.csv.manifest.json",
+                    "curated_sqlite": "state/web_demo/web_real_download_curated.sqlite",
+                },
+                "next_action": "open_downloaded_file_or_review_sqlite_import",
+            }
+        )
+
+        with patch("frontends.web.preview_api.run_web_real_download_demo", return_value=fake_result) as run_demo:
+            with patch("frontends.web.preview_api.log_event") as log_event:
+                payload = web_real_download_demo()
+
+        run_demo.assert_called_once_with()
+        self.assertTrue(payload["succeeded"])
+        self.assertEqual(249, payload["row_count"])
+        self.assertEqual(WEB_REAL_DEMO_TABLE, payload["table_name"])
+        log_event.assert_called_once()
+        event_name = log_event.call_args.args[0]
+        context = log_event.call_args.kwargs["context"]
+        self.assertEqual("web_real_download_demo_completed", event_name)
+        self.assertTrue(context["succeeded"])
+        self.assertEqual(249, context["row_count"])
+        self.assertEqual("state/web_demo/downloads/data.csv", context["downloaded_file"])
 
     def test_server_runtime_status_reports_actual_port(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
@@ -406,6 +472,167 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(2, summary["run_record"]["duplicate_count"])
         self.assertEqual(1, summary["run_record"]["warning_count"])
 
+    def test_crawler_asset_listing_endpoint_records_event_payload(self) -> None:
+        listing_result = CrawlerAssetListingResult(
+            asset_id="demo_stac",
+            source_found=True,
+            listing_mode="complete_seed",
+            candidate_count=3,
+            upserted_count=2,
+            skipped_provider_count=1,
+            duplicate_count=1,
+            warning_count=0,
+            next_action="review_or_upsert_dataset_candidates",
+            audit_summary={"status": "pass", "candidate_count": 3},
+            max_results=1000,
+            complete_seed=True,
+        )
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            with patch("frontends.web.preview_api.run_crawler_asset_listing", return_value=listing_result) as run_listing:
+                with patch("frontends.web.preview_api.log_event") as log_event:
+                    payload = crawler_asset_listing(
+                        "demo_stac",
+                        db_path=Path(tmp) / "web-preview.sqlite",
+                        primary_path=source_path,
+                        local_path=local_path,
+                        profile_path=profile_path,
+                    )
+
+        run_listing.assert_called_once()
+        listing_kwargs = run_listing.call_args.kwargs
+        self.assertTrue(listing_kwargs["complete_seed"])
+        self.assertEqual(1000, listing_kwargs["max_results"])
+        self.assertEqual(0, listing_kwargs["max_pages"])
+        self.assertEqual("demo_stac", payload["asset_id"])
+        self.assertEqual("review_or_upsert_dataset_candidates", payload["next_action"])
+        self.assertEqual(3, payload["listing_result"]["candidate_count"])
+        self.assertEqual("complete_seed", payload["listing_options"]["listing_mode"])
+        self.assertEqual(2, payload["listing_result"]["upserted_count"])
+        self.assertEqual("within_current_limits", payload["listing_result"]["seed_enumeration"]["status"])
+        self.assertEqual({"status": "pass", "candidate_count": 3}, payload["audit_summary"])
+        log_event.assert_called_once()
+        event_name = log_event.call_args.args[0]
+        context = log_event.call_args.kwargs["context"]
+        self.assertEqual("crawler_asset_listing_recorded", event_name)
+        self.assertEqual("crawler_listing", context["run_record"]["stage"])
+        self.assertEqual(3, context["candidate_count"])
+        self.assertEqual("within_current_limits", context["seed_enumeration"]["status"])
+
+    def test_crawler_asset_listing_blocks_missing_credentials_before_live_crawler(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+            with patch("frontends.web.preview_api.run_crawler_asset_listing") as run_listing:
+                payload = crawler_asset_listing(
+                    "demo_cmr",
+                    db_path=Path(tmp) / "web-preview.sqlite",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        run_listing.assert_not_called()
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
+        self.assertTrue(payload["listing_result"]["blocked"])
+        self.assertEqual("credential_setup_required", payload["listing_result"]["blocked_reason"])
+        self.assertEqual("blocked", payload["listing_result"]["seed_enumeration"]["status"])
+
+    def test_crawler_asset_seed_page_returns_first_50_then_more(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            db_path = Path(tmp) / "web-preview.sqlite"
+            conn = connect_db(db_path)
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                    )
+                )
+                for index in range(55):
+                    repo.upsert_dataset(
+                        Dataset(
+                            dataset_uid=f"demo_provider:seed_{index:02d}",
+                            provider_id="demo_provider",
+                            dataset_id=f"seed_{index:02d}",
+                            title=f"Seed {index:02d}",
+                            categories=("demo",),
+                            native_format="csv",
+                            metadata={
+                                "candidate_status": "needs_review",
+                                "discovery_source_id": "demo_stac",
+                                "discovery_source_type": "stac_collections",
+                            },
+                        )
+                    )
+            finally:
+                conn.close()
+            set_crawler_asset_seed_favorite("demo_stac", "demo_provider:seed_00", True, profile_path)
+
+            page1 = crawler_asset_seed_page(
+                "demo_stac",
+                page=1,
+                page_size=50,
+                db_path=db_path,
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+            page2 = crawler_asset_seed_page(
+                "demo_stac",
+                page=2,
+                page_size=50,
+                db_path=db_path,
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+
+        self.assertEqual(55, page1["total"])
+        self.assertEqual(50, len(page1["seeds"]))
+        self.assertTrue(page1["has_more"])
+        self.assertEqual("seed_00", page1["seeds"][0]["dataset_id"])
+        self.assertEqual("demo_provider:seed_00", page1["seeds"][0]["favorite_key"])
+        self.assertTrue(page1["seeds"][0]["favorite"])
+        self.assertEqual(1, page1["favorite_seed_count"])
+        self.assertEqual(5, len(page2["seeds"]))
+        self.assertFalse(page2["has_more"])
+
+    def test_save_crawler_asset_seed_favorite_persists_to_profile(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+
+            saved = save_crawler_asset_seed_favorite(
+                "demo_stac",
+                {"dataset_uid": "demo_provider:seed_01", "favorite": True},
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+            removed = save_crawler_asset_seed_favorite(
+                "demo_stac",
+                {"dataset_uid": "demo_provider:seed_01", "favorite": False},
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+            )
+            profiles = load_crawler_asset_profiles(profile_path)
+
+        self.assertTrue(saved["favorite"])
+        self.assertEqual(1, saved["favorite_seed_count"])
+        self.assertFalse(removed["favorite"])
+        self.assertEqual(0, removed["favorite_seed_count"])
+        self.assertEqual((), profiles["demo_stac"].favorite_seed_uids)
+
     def test_plan_passport_summarizes_resolved_plan_without_copying_body(self) -> None:
         result = SimpleNamespace(
             asset_id="demo_stac",
@@ -480,12 +707,164 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("資料集選擇", group_display["DatasetBounds"]["display_label"])
         self.assertEqual("時間界域", group_display["TimeBounds"]["display_label"])
         self.assertEqual("空間界域", group_display["SpatialBounds"]["display_label"])
+        self.assertEqual(10, detail["bound_form"]["recommended_values"]["limit"])
+        self.assertTrue(detail["bound_form"]["presets"])
+        self.assertEqual("global", detail["bound_form"]["presets"][0]["preset_id"])
+        self.assertIn("bbox_west", detail["bound_form"]["presets"][0]["values"])
         flow_step_ids = [step["step_id"] for step in detail["flow_steps"]]
         self.assertEqual(
             ["seed", "source_pattern", "bounds", "download_plan", "review_gate"],
             flow_step_ids,
         )
         self.assertEqual("Seed 註冊", detail["flow_steps"][0]["label"])
+
+    def test_detail_surfaces_local_credential_status_without_secret_values(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "NASA_EARTHDATA_TOKEN": "",
+                    "NASA_EARTHDATA_USERNAME": "",
+                    "NASA_EARTHDATA_PASSWORD": "",
+                },
+                clear=False,
+            ):
+                detail = crawler_asset_detail(
+                    "demo_cmr",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        credentials = detail["card"]["credentials"]
+        self.assertTrue(credentials["requires_credentials"])
+        self.assertEqual("missing_credentials", credentials["status"])
+        field_names = {field["env_var"] for field in credentials["fields"]}
+        self.assertIn("NASA_EARTHDATA_TOKEN", field_names)
+        self.assertIn("NASA_EARTHDATA_USERNAME", field_names)
+        self.assertIn("NASA_EARTHDATA_PASSWORD", field_names)
+        self.assertNotIn("token-secret", json.dumps(credentials, ensure_ascii=False))
+
+    def test_save_crawler_asset_credentials_writes_local_env_and_masks_response(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "NASA_EARTHDATA_TOKEN": "",
+                    "NASA_EARTHDATA_USERNAME": "",
+                    "NASA_EARTHDATA_PASSWORD": "",
+                },
+                clear=False,
+            ):
+                status = save_crawler_asset_credentials(
+                    "demo_cmr",
+                    {
+                        "values": {
+                            "NASA_EARTHDATA_TOKEN": "token-secret-1234",
+                            "NASA_EARTHDATA_USERNAME": "earth-user",
+                            "NASA_EARTHDATA_PASSWORD": "earth-password",
+                        }
+                    },
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+                env_values = read_env_values(env_path)
+                refreshed = crawler_asset_credential_detail(
+                    "demo_cmr",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        self.assertEqual("configured", status["status"])
+        self.assertEqual("configured", refreshed["status"])
+        self.assertEqual("token-secret-1234", env_values["NASA_EARTHDATA_TOKEN"])
+        self.assertEqual("earth-user", env_values["NASA_EARTHDATA_USERNAME"])
+        self.assertEqual("earth-password", env_values["NASA_EARTHDATA_PASSWORD"])
+        response_text = json.dumps(status, ensure_ascii=False)
+        self.assertNotIn("token-secret-1234", response_text)
+        self.assertNotIn("earth-password", response_text)
+        previews = {field["env_var"]: field["value_preview"] for field in status["fields"]}
+        self.assertTrue(previews["NASA_EARTHDATA_TOKEN"].endswith("1234"))
+        self.assertNotIn("token-secret", previews["NASA_EARTHDATA_TOKEN"])
+
+    def test_save_crawler_asset_credentials_can_remember_session_only(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "NASA_EARTHDATA_TOKEN": "",
+                    "NASA_EARTHDATA_USERNAME": "",
+                    "NASA_EARTHDATA_PASSWORD": "",
+                },
+                clear=False,
+            ):
+                status = save_crawler_asset_credentials(
+                    "demo_cmr",
+                    {
+                        "values": {
+                            "NASA_EARTHDATA_TOKEN": "session-token-1234",
+                            "NASA_EARTHDATA_USERNAME": "session-user",
+                            "NASA_EARTHDATA_PASSWORD": "session-password",
+                        },
+                        "remember_local": False,
+                    },
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+                env_values = read_env_values(env_path)
+                self.assertEqual("session-token-1234", os.environ["NASA_EARTHDATA_TOKEN"])
+
+        self.assertEqual("configured", status["status"])
+        self.assertFalse(status["remember_local"])
+        self.assertEqual({}, env_values)
+
+    def test_plan_preview_execute_blocks_missing_credentials_before_live_crawler(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "NASA_EARTHDATA_TOKEN": "",
+                    "NASA_EARTHDATA_USERNAME": "",
+                    "NASA_EARTHDATA_PASSWORD": "",
+                },
+                clear=False,
+            ):
+                with patch("frontends.web.preview_api.build_crawler_asset_download_plan") as build_plan:
+                    payload = crawler_asset_plan_preview(
+                        "demo_cmr",
+                        {"limit": "5"},
+                        execute=True,
+                        primary_path=source_path,
+                        local_path=local_path,
+                        profile_path=profile_path,
+                        env_path=env_path,
+                    )
+
+        build_plan.assert_not_called()
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
+        self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual("需要登入", payload["plan_passport"]["short_label"])
+        self.assertFalse(payload["plan_passport"]["has_resolved_plan"])
 
     def test_detail_returns_separate_version_and_version_limit_form_fields(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -534,6 +913,38 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("refreshSelectedAssetOutcomeViews", combined)
         self.assertIn("selectedAssetDetail.card.latest_plan_outcome", combined)
         self.assertIn("planOutcomeLabel", combined)
+        self.assertIn("boundPresetPanel", combined)
+        self.assertIn("applyBoundPreset", combined)
+        self.assertIn("credentialPanelHtml", combined)
+        self.assertIn("credentialGuardBanner", combined)
+        self.assertIn("credentialBlocksLivePlan", combined)
+        self.assertIn("openCredentialEditorById", combined)
+        self.assertIn("saveCredentialEditor", combined)
+        self.assertIn("handleBuildPlanClick", combined)
+        self.assertIn("applyRecommendedValuesSilently", combined)
+        self.assertIn("runCrawlerAssetListingById", combined)
+        self.assertIn("/list-datasets", combined)
+        self.assertIn("自動枚舉 seed", combined)
+        self.assertIn("/seeds?page=", combined)
+        self.assertIn("seed_enumeration", combined)
+        self.assertIn("seed-limit-badge", combined)
+        self.assertIn("顯示更多 seed", combined)
+        self.assertIn("toggleSeedFavorite", combined)
+        self.assertIn("/seed-favorites", combined)
+        self.assertIn("rememberSeedFavorites", combined)
+        self.assertNotIn("rrkal.favoriteSeeds", combined)
+        self.assertIn("credentialLoginStepsHtml", combined)
+        self.assertIn("credential_entry_url", combined)
+        self.assertIn("先設定登入 / API Key", combined)
+        self.assertIn("記住我的帳號", combined)
+        self.assertIn("完成登入設定", combined)
+        self.assertIn("file_index", combined)
+        self.assertIn("map_service", combined)
+        self.assertNotIn("buildPlanButton.disabled = !credentialBlocksLivePlan(credentials);", combined)
+        self.assertNotIn("儲存到本機 .env", combined)
+        self.assertNotIn("本機憑證", combined)
+        self.assertIn("/credentials", combined)
+        self.assertIn("快速界域", combined)
         self.assertIn("planPassportLabel", combined)
         self.assertIn("reviewOutcomeLabel", combined)
         self.assertNotIn("outcome.short_label || outcome.display_label || outcome.outcome_bucket", combined)
@@ -553,6 +964,14 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("/api/events/recent", combined)
         self.assertIn("content-review-badge", styles)
         self.assertIn("bounds-group", styles)
+        self.assertIn("bounds-preset-panel", styles)
+        self.assertIn("credential-panel", styles)
+        self.assertIn("credential-modal", styles)
+        self.assertIn("credential-badge", styles)
+        self.assertIn("credential-guard-banner", styles)
+        self.assertIn("credential-remember-row", styles)
+        self.assertIn("credential-login-steps", styles)
+        self.assertIn("bounds-autofill-note", styles)
         self.assertIn("plan-badge", styles)
         self.assertIn("plan-outcome-panel", styles)
         self.assertIn("plan-passport-panel", styles)
@@ -821,6 +1240,35 @@ def write_preview_file_index_source(tmpdir: str) -> tuple[Path, Path, Path]:
                         "source_type": "html_file_index",
                         "endpoint_url": "https://example.test/files/",
                         "search_terms": ["csv"],
+                        "categories": ["geospatial"],
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return source_path, local_path, profile_path
+
+
+def write_preview_credential_source(tmpdir: str) -> tuple[Path, Path, Path]:
+    root = Path(tmpdir)
+    source_path = root / "sources.json"
+    local_path = root / "missing-local-sources.json"
+    profile_path = root / "missing-profiles.json"
+    source_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "sources": [
+                    {
+                        "source_id": "demo_cmr",
+                        "provider_id": "nasa_earthdata",
+                        "name": "Demo CMR Earthdata",
+                        "source_type": "cmr_collections",
+                        "endpoint_url": "https://cmr.earthdata.nasa.gov/search/collections.json",
+                        "docs_url": "https://www.earthdata.nasa.gov/learn/use-data/data-use-policy/api",
+                        "search_terms": ["modis"],
                         "categories": ["geospatial"],
                     }
                 ],

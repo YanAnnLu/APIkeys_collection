@@ -1,4 +1,17 @@
 ﻿# Agent 接力卡
+## 2026-05-27 Source Pattern / Crawler Asset registry coverage
+- `api_launcher/crawlers/source_patterns.py` 已補上 NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex 的 URL shape detector。這些 detector 只做入口類型辨識與 source type hint，不下載資料，也不取代 crawler audit。
+- `SOURCE_TYPE_HINTS` 現在由測試鎖成完全覆蓋 `SUPPORTED_DATASET_SOURCE_TYPES`。新增 crawler handler 時，必須同步補 detector hint、source draft 正規化、bounds facet、surface label 與測試；不要讓「handler 有了但貼 URL 建來源草稿仍 unknown」再發生。
+- `tests.test_source_pattern_drafts` 已確認 vendor/science API URL 在 fake fetcher / no live network 下可建立 supported local source draft，並正規化到對應 crawler endpoint。這是 URL -> source draft -> crawler audit 的第一段閉環，不代表正式 catalog promotion 或下載。
+- `api_launcher/crawler_assets.py::SOURCE_SURFACE_LABELS` 與 `api_launcher/crawler_asset_bounds.py::SOURCE_BOUND_FACETS` 現在也由測試鎖成覆蓋所有 supported source type。後續若 UI 出現 raw `source_surface` 或弱表單，先查這兩個 registry。
+- Web Preview 修正了無動態界域欄位時 build-plan 按鈕被反向停用的 bug；`surfaceLabel()` 也補上 `file_index`、`map_service`、`catalog`。如果前端看起來「點不了建立計畫」，先檢查 credential guard 與 `selectedAssetId`，不要再回到舊的反向 disabled 判斷。
+- Web Preview 的爬蟲資產選取現在預設觸發 seed 枚舉，而不是要求使用者先按「更新」。後端以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 嘗試列出入口 seed，並將候選 upsert 到本機 catalog。
+- Web 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，右側 seed 清單只讀本機已枚舉候選並以 50 筆為一個視窗展開。這個 endpoint 不重新打遠端 crawler；「顯示更多 seed」只是顯示下一批已枚舉結果。
+- 收藏對象已改為 seed。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續若要產品化，應再提升到正式 seed registry，而不是收藏 crawler asset 入口。
+- `CrawlerAssetListingResult.to_dict()` 與 listing event context 現在包含 `seed_enumeration`：`status`、`display_tone`、`label`、`help`、`limited_by_max_results`、`candidate_count`、`max_results`。Web/Tk/Qt 應呈現這份後端 payload，不要用 `candidate_count >= max_results` 之類的前端 heuristic 自行推論。
+- 當 `seed_enumeration.status=local_limit_reached` 時，意思是「達到本機安全枚舉上限，遠端可能還有更多」，不是錯誤，也不是入口失效。下一步應是縮小界域、提高上限，或等 handler 層補遠端 pagination / exhausted 狀態。
+- UI 文案請避免回到「更新資料清單」作為主流程。入口卡片可以保留「重新枚舉 seed」作為次要刷新，但使用者選入口時就應能看到已枚舉的 seed 清單。
+
 ## 2026-05-26 Crawler run record handoff payload
 - `api_launcher/crawler_run_records.py` 現在提供 compact `crawler_run_record()`，用同一份 payload 描述 crawler listing 與 download-plan build 的 stage、status、outcome bucket、候選/下載/review/error/warning/duplicate counts、signature、`next_action` 與穩定 `record_key`。
 - `CrawlerAssetListingResult.to_dict()` 與 `CrawlerAssetDownloadPlanResult.to_dict()` 都已輸出 `run_record`。下一位 agent / Tk / Web / Qt 應優先讀 `payload["run_record"]` 做狀態交接，不要各自從 `candidate_count`、`warning_count`、`outcome_bucket` 等分散欄位重新推理。
@@ -56,6 +69,7 @@
 - Web Preview 側欄目前四個工作區都已啟用：`爬蟲資產` 是原本的界域/資產護照主流程；`下載器` 只視覺化已建立的 `plan_outcome` / `plan_passport`；`匯入審核` 只視覺化最近 plan build 回傳的 Adapter review / content parser 待辦；`事件紀錄` 讀 `/api/events/recent` 的 bounded structured event 摘要。這是 UIUX 前導層，不是正式 Web downloader；不要在 `app.js` 內新增下載、匯入或 adapter 判斷規則。
 - 事件紀錄分頁的 chip 會優先顯示 `run_record` 與 crawler/download 核心 counts；前端只負責排序摘要，不自行推導 run 狀態。
 - `frontends/web/static/app.js` 已改成優先使用後端 `display_label` / `display_help` / `display_tone` / `summary`，只把本地對照表留作 fallback，避免 mojibake label 或平台差異直接污染 UI。
+- Web Preview 現在有登入式本機登入設定流程：右側資產護照以「登入設定 / 記住我的帳號」作為主語言，顯示已設定、尚未記住帳號、官方文件與註冊連結；`.env` 只保留在技術層與後端說明，不作為主按鈕文案。`/api/crawler-assets/{asset_id}/credentials` 可讀遮蔽狀態並寫入本機 ignored credential file。缺登入 / API Key 時，`/plan-preview?execute=true` 會先回傳 `credential_setup_required`，不呼叫 live crawler；前端按「建立下載計畫」會改成開登入設定表單。表單提供官方登入/申請入口、三步驟登入說明與「記住我的帳號」勾選；勾選時保存到這台電腦，取消勾選時只寫入目前 process env。後端界線在 `api_launcher/local_credentials.py`；UI 只送 env var values / clear list / remember flag，event log 與 API response 不保存明文。這是早期本機開發便利入口，不是遠端 OAuth 或多使用者 credential vault。
 - 已驗證：`node --check frontends\web\static\app.js`、`py -B -m unittest tests.test_web_preview tests.test_source_patterns tests.test_source_pattern_drafts tests.test_dataset_discovery tests.test_crawler_assets`、臨時 pycache `py_compile`、Web Preview HTTP smoke。
 - Tk 的爬蟲資產分頁已開始使用同一份 display schema：表格短狀態改取 `plan_outcome.short_label`，避免 Tk/Web/Qt 各自維護 outcome bucket 文案。下一位 agent 若繼續 Web/Tk/Qt 對齊，優先把 Adapter resolving 結果回寫成卡片 badge / 待辦徽章；不要把外部參考命名搬回 UI。
 - Tk Adapter 待辦表格也已開始使用共用 display schema：表格 outcome 欄顯示 `adapter_review_outcome_label()` 的人類可讀短標籤，detail 仍保留 raw `outcome_bucket`，所以 UI 不再把 `source_resolution_required` 直接丟給使用者，但 agent 仍可複製細節比對 JSON。

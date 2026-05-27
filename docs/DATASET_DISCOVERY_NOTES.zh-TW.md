@@ -1,5 +1,22 @@
 # Dataset Discovery 補充說明
 
+## 2026-05-27 Seed enumeration / Web Preview paging
+
+- Crawler asset listing 現在要被視為「入口 seed 枚舉」的後端動作，而不是只為 UI 產生一份小樣本。Web Preview 選取入口時會以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 觸發 listing，並將候選寫回本機 catalog。
+- 既有 crawler handler 仍保留安全邊界；`search_terms_override=("",)` 是目前用來避免 sample search term 縮小入口清單的 sentinel。這代表「完整枚舉嘗試」，不代表所有外部平台都已能證明走到遠端末頁。
+- UI 展示 seed 清單時，不應重新打 crawler。Web Preview 新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50`，從 catalog 讀取 `metadata.discovery_source_id == asset_id` 的候選，先顯示 50 筆，使用者按「顯示更多 seed」才展開下一批。
+- 收藏功能應落在 seed 層。Web 會透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續要把收藏提升到正式 seed registry，並保留 dataset uid、title、source URL、版本與來源 pattern 等可追溯欄位。
+- Listing result 已補 `seed_enumeration` 結構化狀態，先處理 blocked / error / empty / warning / within-current-limits / local-limit-reached / bounded-sample 這幾種 UI 分流。它能避免 UI 只從候選數猜測枚舉完整度。
+- 後續 hardening：handler 層仍應補「是否抵達遠端末頁 / 下一頁 token / 遠端總數」等更精確欄位。現在的 `local_limit_reached` 只表示碰到本機 `max_results` 安全上限，不能證明遠端已到末頁。
+
+## 2026-05-27 Source pattern detector coverage
+
+- `source_patterns.py` 現在把已接 crawler handler 的 source type 全部納入 `SOURCE_TYPE_HINTS`，包含 STAC、CKAN、Socrata、OGC API Records、OGC WMS、CMR、ERDDAP、HTML file index，以及 NCEI、GBIF、Dataverse、Zenodo、DataCite、OpenAlex 這類 vendor/science API。
+- 新增的 NCEI / GBIF / Dataverse / Zenodo / DataCite / OpenAlex detector 只依 URL host/path 形狀辨識「這個入口應交給哪個已存在 crawler handler」，不下載資料、不做 catalog promotion，也不代表已通過 crawler audit。
+- `tests.test_source_patterns` 會確認 `SOURCE_TYPE_HINTS.values()` 等於 `SUPPORTED_DATASET_SOURCE_TYPES`；以後新增 handler 時，必須同步補 source pattern hint 或明確調整契約，避免 UI/CLI 貼 URL 時仍被 `unknown` 擋下。
+- `tests.test_source_pattern_drafts` 會確認 vendor/science API URL 在 fake fetcher / no live network 下可建立 supported local source draft，並由 `discovery_drafts.py` 正規化為各 crawler 的 canonical endpoint。這是 `URL -> source draft -> crawler audit` 的第一段閉環，不是直接下載。
+- `SOURCE_BOUND_FACETS` 與 `SOURCE_SURFACE_LABELS` 現在也被測試鎖成覆蓋所有 supported crawler source type。新增來源類型時，除了 handler 外，也要同步補 UI 中立界域 facet 與來源表面標籤，否則 crawler asset 分頁會退化成弱表單或 raw label。
+
 ## 2026-05-26 Crawler run record / registry handoff
 
 - `crawler_run_summary.summary_scope` 會描述摘要掃描範圍、latest listing / plan build event timestamp、`status`、`missing_event_names` 與 `next_action`；它只用來讓 agent 判斷這份 handoff 來自哪個事件視窗，不代表來源 freshness 或遠端資料是否已變更。

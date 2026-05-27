@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-26
+最後更新：2026-05-27
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,6 +14,14 @@
 - 每筆使用表格欄位：`時間`、`開發階段`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
+
+### 2026-05-27
+
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 07:55 | Web Preview / Seed Enumeration UX | **WORKING / 未推送** | `local` | `local` | Add seed enumeration status payload | Crawler asset listing result 新增 `seed_enumeration` display-safe payload，統一輸出 blocked、error、empty、warning、within-current-limits、local-limit-reached、bounded-sample 等狀態，包含 `label`、`help`、`display_tone`、`limited_by_max_results`、`candidate_count` 與 `max_results`。Web seed 面板改吃這份後端 payload，候選數打滿本機上限時會顯示本機上限徽章，避免使用者誤以為入口只有這些 seed。同步更新 GTD、handoff、Web Preview UIUX 與 discovery notes。驗證：`node --check frontends\web\static\app.js` OK、`py_compile` OK、`tests.test_web_preview tests.test_crawler_assets` 65 tests OK；尚未 commit / push。 |
+| 01:44 | Docs / Workflow | **WORKING / 未推送** | `local` | `local` | Document checkpoint-before-push rule | 依使用者校正，將「文檔更新觸發點是做到 checkpoint，不是 GitHub push 成功」寫入 `docs/AGENT_START_HERE.zh-TW.md`。後續若本地已完成可驗證切片，即使 GitHub push / CI 因帳號、網路或平台問題失敗，也要更新 `DEVELOPMENT_LOG`，並標成 `WORKING / 未推送`、`LOCAL PASS / CI 未完成` 或 `CI 失敗`，寫清本地驗證與剩餘風險。 |
+| 01:42 | Web Preview / Seed Enumeration UX | **WORKING / 未推送** | `local` | `local` | Seed enumeration paging and seed favorites | Web Preview 選取爬蟲入口後，預設以 `complete_seed=true`、`full_crawl=true`、`max_results=1000` 觸發 seed 枚舉，並新增 `/api/crawler-assets/{asset_id}/seeds?page=&page_size=50` 從本機 catalog 分頁讀取已枚舉 seed；UI 顯示前 50 筆，按「顯示更多 seed」展開下一批。收藏語意已修正為「收藏 seed」，不是收藏 crawler asset / 入口；收藏 API 已往 profile-backed 方向收斂，Web 透過 `/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`，並用同一個 `favorite_key` 對齊後端回傳與前端點選。同步更新 `PROJECT_GTD`、`AGENT_HANDOFF`、`WEB_PREVIEW_UIUX`、`DATASET_DISCOVERY_NOTES`。目前已驗證：`node --check frontends\web\static\app.js` OK、`py_compile` OK、`tests.test_web_preview tests.test_crawler_assets` 64 tests OK、`git diff --check` 無 whitespace error（僅既有 CRLF warning）。尚未 commit / push，避免把現有多檔 dirty working tree 混成未審核 checkpoint。 |
 
 ### 2026-05-26
 
