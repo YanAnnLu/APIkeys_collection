@@ -19,6 +19,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
 )
+from api_launcher.crawler_asset_download import run_crawler_asset_download_import
 from api_launcher.crawler_asset_profiles import (
     compact_crawler_asset_plan_passport,
     crawler_asset_favorite_seed_uids,
@@ -655,6 +656,9 @@ def crawler_asset_plan_preview(
             primary_path=primary_path,
             local_path=local_path,
             profile_path=profile_path,
+            timeout=8.0,
+            max_results=1,
+            max_pages=1,
         )
         conn.commit()
     response["plan_result"] = result.to_dict()
@@ -670,6 +674,106 @@ def crawler_asset_plan_preview(
         "Web Preview crawler asset workflow recorded the visible plan outcome.",
         component="web.crawler_assets",
         context=crawler_asset_plan_event_context(result, plan_outcome, plan_passport=plan_passport),
+    )
+    return response
+
+
+def crawler_asset_download_import(
+    asset_id: str,
+    values: Mapping[str, object],
+    *,
+    db_path: str | Path | None = None,
+    downloads_root: str | Path | None = None,
+    import_sqlite_path: str | Path | None = None,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Run the formal crawler-asset download/import path for Web Preview.
+
+    Unlike ``web_real_download_demo()``, this endpoint starts from the selected
+    crawler asset and dynamic bounds form.  Review-only sources still return a
+    structured blocked/review result instead of pretending a download happened.
+    """
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
+    payload = crawler_asset_payload_from_web_values(
+        asset_id,
+        values,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
+    response: dict[str, object] = {
+        "asset_id": asset.asset_id,
+        "bounds_payload": payload.to_dict(),
+        "credential_guard": credential_guard,
+        "next_action": "run_crawler_asset_download_import",
+    }
+    if credential_status_blocks_plan(credential_guard):
+        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
+        response["plan_passport"] = credential_blocked_plan_passport(asset.asset_id, credential_guard)
+        response["download_import"] = {
+            "stage": "blocked_before_download",
+            "succeeded": False,
+            "next_action": "edit_local_credentials_before_live_download",
+        }
+        response["next_action"] = "edit_local_credentials_before_live_download"
+        return response
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    target_downloads = (
+        Path(downloads_root)
+        if downloads_root is not None
+        else default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset.asset_id
+    )
+    target_import_sqlite = (
+        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
+    )
+    plan_path = target_downloads / "resolved_download_plan.json"
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        repository.seed_builtin_providers()
+        result = run_crawler_asset_download_import(
+            asset.asset_id,
+            repository,
+            target_downloads,
+            bounds_payload=payload,
+            import_sqlite_path=target_import_sqlite,
+            plan_path=plan_path,
+            primary_path=primary_path,
+            local_path=local_path,
+            profile_path=profile_path,
+            timeout=8.0,
+            max_results=1,
+            max_pages=1,
+        )
+        conn.commit()
+
+    response["download_result"] = result.to_dict()
+    response["plan_result"] = result.plan_result.to_dict()
+    plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
+    response["plan_outcome"] = plan_outcome
+    plan_passport = crawler_asset_plan_passport_payload(result.plan_result, plan_outcome=plan_outcome)
+    response["plan_passport"] = plan_passport
+    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
+    response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
+    response["download_import"] = result.pipeline.to_dict()
+    response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
+    log_event(
+        "crawler_asset_download_import_completed",
+        "Web Preview ran the formal crawler asset download/import path.",
+        component="web.crawler_assets",
+        context={
+            **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
+            "stage": result.pipeline.stage,
+            "succeeded": result.succeeded,
+            "download_import": result.pipeline.to_dict(),
+            "artifacts": result.to_dict().get("artifacts", {}),
+        },
     )
     return response
 

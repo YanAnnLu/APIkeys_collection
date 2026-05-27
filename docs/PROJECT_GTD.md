@@ -12,6 +12,14 @@ Last updated: 2026-05-27
 - [x] Mojibake 風險已拆成「檔案真的損壞」與「PowerShell 顯示 codepage 問題」兩類；全域 skill 已要求讀寫中文時明確指定 UTF-8，並新增 Python strict UTF-8 scanner。RRKAL docs 掃描目前通過。
 - [x] GUI-level audit 已補完：Web Preview 透過 HTTP/API 與 in-app browser 驗證四分頁、下載器的 `執行真下載示範`、NASA CMR credential guard / `記住我的帳號`、seed page 與 seed favorite 入口；Tk 透過 `window_layout_workflows.py` 入口查證與 `tests.test_tk_dialogs` / `tests.test_launcher_ui` headless tests 驗證「爬蟲資產」第一分頁、「下載器」第二分頁、展示模式工具選單、開發者 diagnostics、下載器雙擊與開始/暫停行為。文件漂移審計可結束，下一輪回到主線開發。
 
+## 2026-05-27 Formal crawler asset download/import / Web 主流程接線
+- [x] 新增 `api_launcher/crawler_asset_download.py`，把正式下載 / 匯入流程收成 service：`crawler asset + bounds payload -> resolved download plan -> direct download -> import pipeline`。這是 Web `真下載示範` 的正式替代路徑起點，不再以硬編碼 demo CSV 作為主要使用者下載入口。
+- [x] Web Preview 新增 `POST /api/crawler-assets/{asset_id}/download-import`，會先套 credential guard；缺登入/API Key 時回傳 `blocked_before_download` 與 `edit_local_credentials_before_live_download`，不發出必然失敗的 live request。
+- [x] Web 下載器主按鈕已改為「下載 / 匯入目前資產」，下載器清單每個資產也有「下載 / 匯入」動作。結果列顯示 Submitted、Completed、Imported、Downloads、Plan、SQLite artifacts，讓使用者看到正式 pipeline 的實際輸出。
+- [x] 本輪 live smoke 確認 K/RaiDrive 上直接匯入 SQLite 可能遇到 `database is locked`；同一路徑改用本地 temp/downloads 後成功完成 `download_import_completed`、`submitted=1`、`completed=1`、`imported=1`。後續 GUI/smoke/展示下載匯入仍應用本地 clone 或本機 Downloads/Temp。
+- [x] 已新增 regression：`tests.test_crawler_asset_download` 鎖住 service 會建立 formal resolved plan 並呼叫 download/import pipeline；`tests.test_web_preview` 鎖住 Web endpoint 會呼叫 formal service、記錄 structured event 並回傳 display payload。
+- [ ] 下一步：把舊 `/api/demo/real-download` 移到 developer/demo-only 區塊或刪除；在這之前它只保留為 regression / 教學過渡，不再作為主按鈕。
+
 ## 2026-05-27 Code health audit / 匯入、crawler fetch、credential 寫入硬化
 - [x] 新增 `docs/CODE_HEALTH_AUDIT.zh-TW.md`，用 P0/P1/P2/P3 記錄本輪程式健康審計。結論：本輪沒有發現 P0；已修三個 P1 級資料/資源/credential 耐久性風險。
 - [x] `api_launcher/importers/csv_importer.py` 的 replace import 已改為先寫 SQLite 暫存表，再於成功後 swap target table；失敗時保留既有 curated table。`tests.test_csv_importer` 已補失敗保留舊表與成功替換 regression。
@@ -24,7 +32,7 @@ Last updated: 2026-05-27
 - [x] Source profile 已承接 `credential_mode` 與 `terms_risk` 明示欄位；crawler asset capability 先讀 source profile，再退回既有文字 heuristic，避免 UI 或資料集層自己猜登入/API key 與條款風險。
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
-- [ ] 下一步 hardening：source profile / crawler capability 可再收斂更正式的 request policy metadata；正式 crawler asset public-source download/import path 完成後，再移除或降級 Web `真下載示範`。
+- [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。剩餘工作是將舊 Web `真下載示範` 移到 developer/demo-only 或移除。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

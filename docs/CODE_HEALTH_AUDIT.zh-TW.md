@@ -80,12 +80,12 @@
 - 修法：`DatasetCrawlerOutput` 新增 `warnings`；HTML file index full crawl 會把 linked page fetch failure 轉成 `index_page_fetch_failed` warning 並保留已找到候選，orchestrator 會把 handler warning 合併到 source audit。
 - 測試：`tests.test_dataset_discovery.DatasetDiscoveryTests.test_html_file_index_full_crawl_keeps_candidates_when_linked_page_fails`。
 
-### P2-3 Web `真下載示範` 仍是過渡功能
+### P2-3 Web `真下載示範` 仍是過渡功能（主 CTA 已退場）
 
-- 現況：`web_real_download_demo` 已被文件標記為 transitional / demo-only。
-- 風險：若長期保留在主要 UI，容易讓使用者誤以為它代表所有 crawler source 都已完成正式下載 / 匯入。
-- 建議：在正式 crawler asset 下載 / import 路徑完全打通後，將它移到 developer/demo diagnostics 或移除。
-- 需要測試：UI 不再把 demo CTA 當成主要正式下載入口；正式 downloader path 可完成至少一個 public source。
+- 現況：Web Preview 主 CTA 已改成 `下載 / 匯入目前資產`，呼叫 `POST /api/crawler-assets/{asset_id}/download-import` 與 `api_launcher.crawler_asset_download.run_crawler_asset_download_import()`。舊 `web_real_download_demo` 與 `/api/demo/real-download` 仍保留 regression / developer demo。
+- 風險：如果舊 demo endpoint 長期留在正式產品敘述中，仍可能讓使用者誤以為 demo CSV 代表所有 crawler source 都已完成正式下載 / 匯入。
+- 建議：下一個 UI cleanup slice 將 `/api/demo/real-download` 移到 developer/demo diagnostics 或移除；保留正式 crawler asset path 作為唯一主流程。
+- 已補測試：`tests.test_crawler_asset_download` 鎖住 formal service 建 plan 並呼叫 download/import pipeline；`tests.test_web_preview.test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event` 鎖住 Web endpoint/event payload。
 
 ## P3 Findings / 架構債
 
@@ -102,11 +102,11 @@
 ## 下一步建議
 
 1. 先把本輪三個 P1 修補跑完整 pre-push smoke，推送後看 GitHub Actions。
-2. 下一個 hardening slice 可處理 source-profile rate-limit metadata / middleware，或挑一個 public-source 正式 crawler asset download/import path 取代 Web real demo。
-3. 接著回到產品主線：正式 crawler asset 的 public-source download/import path，而不是繼續依賴 Web real demo。
+2. 下一個 cleanup slice 可移除或 developer-only 化 `/api/demo/real-download`，並把 Web 文案中剩餘的 demo 說法收斂成測試 / 教學用途。
+3. 接著回到產品主線：把更多 public source 的 formal crawler asset download/import path 接到同一個 service，而不是繼續依賴 Web real demo。
 
 ## Docs drift check
 
-- 已更新：本文件、`DOCS_INDEX.zh-TW.md`、`PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`、`DEVELOPMENT_LOG.zh-TW.md`。
-- 未更新：使用者指南與 Web Preview UIUX。理由是本輪沒有改使用者操作流程，只改後端安全性與審計紀錄。
-- 已知剩餘漂移：若未來使用者指南仍把 `真下載示範` 表述得像正式 feature，需在正式下載入口完成後再次修補。
+- 已更新：本文件、`PROJECT_GTD.md`、`AGENT_HANDOFF.zh-TW.md`、`DEVELOPMENT_LOG.zh-TW.md`、`USER_GUIDE.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`。
+- 未更新：`DOCS_INDEX.zh-TW.md`。理由是本輪沒有新增或移動文件入口。
+- 已知剩餘漂移：舊 `/api/demo/real-download` 仍存在於程式與測試中，後續 cleanup 前不得把它寫成正式使用者主流程。

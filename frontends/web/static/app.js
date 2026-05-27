@@ -6,7 +6,7 @@ let activeWorkspace = "assets";
 let latestAdapterReview = null;
 let recentEvents = [];
 let missions = [];
-let realDownloadDemoResult = null;
+let crawlerAssetDownloadImportResult = null;
 const assetPlanOutcomes = new Map();
 const assetPlanPassports = new Map();
 const assetListingOutcomes = new Map();
@@ -44,7 +44,7 @@ const refreshButton = document.querySelector("#refreshButton");
 const copyJsonButton = document.querySelector("#copyJsonButton");
 const workspaceButtons = document.querySelectorAll("[data-workspace]");
 const workspacePanels = document.querySelectorAll("[data-workspace-panel]");
-const realDownloadDemoButton = document.querySelector("#realDownloadDemoButton");
+const crawlerAssetDownloadButton = document.querySelector("#crawlerAssetDownloadButton");
 const downloaderRefreshButton = document.querySelector("#downloaderRefreshButton");
 const downloaderQueue = document.querySelector("#downloaderQueue");
 const reviewReturnButton = document.querySelector("#reviewReturnButton");
@@ -59,7 +59,7 @@ payloadPreviewButton.addEventListener("click", () => submitBounds(false));
 buildPlanButton.addEventListener("click", handleBuildPlanClick);
 copyJsonButton.addEventListener("click", copyJson);
 workspaceButtons.forEach((button) => button.addEventListener("click", () => showWorkspace(button.dataset.workspace)));
-realDownloadDemoButton.addEventListener("click", runRealDownloadDemo);
+crawlerAssetDownloadButton.addEventListener("click", () => runCrawlerAssetDownloadImportById(selectedAssetId));
 downloaderRefreshButton.addEventListener("click", renderDownloaderWorkspace);
 reviewReturnButton.addEventListener("click", () => showWorkspace("assets"));
 eventRefreshButton.addEventListener("click", () => loadRecentEvents());
@@ -206,8 +206,8 @@ function renderDownloaderWorkspace() {
     hasPlanOutcomeBadge(latestPlanOutcomeForAsset(asset)) || hasPlanPassport(latestPlanPassportForAsset(asset))
   ));
   const rows = [];
-  if (realDownloadDemoResult) {
-    rows.push(realDownloadDemoRowHtml(realDownloadDemoResult));
+  if (crawlerAssetDownloadImportResult) {
+    rows.push(crawlerAssetDownloadImportRowHtml(crawlerAssetDownloadImportResult));
   }
   rows.push(...queueAssets.map((asset) => downloaderRowHtml(asset)));
   if (!rows.length) {
@@ -222,64 +222,96 @@ function renderDownloaderWorkspace() {
   downloaderQueue.innerHTML = rows.join("");
 }
 
-async function runRealDownloadDemo() {
-  if (!realDownloadDemoButton) return;
-  const originalText = realDownloadDemoButton.textContent;
-  realDownloadDemoButton.disabled = true;
-  realDownloadDemoButton.textContent = "下載中...";
-  addMission("真下載示範開始", "公開 CSV -> manifest -> SQLite import");
+async function runCrawlerAssetDownloadImportById(assetId) {
+  if (!assetId) {
+    addMission("請先選擇爬蟲資產", "下載 / 匯入需要一個已選取的入口資產。");
+    return;
+  }
+  if (!crawlerAssetDownloadButton) return;
+  const asset = assets.find((item) => item.asset_id === assetId);
+  const originalText = crawlerAssetDownloadButton.textContent;
+  crawlerAssetDownloadButton.disabled = true;
+  crawlerAssetDownloadButton.textContent = "下載中...";
+  addMission("正式下載 / 匯入開始", asset?.display_name || assetId);
   try {
-    const payload = await postJson("/api/demo/real-download", {});
-    realDownloadDemoResult = payload;
+    if (selectedAssetId !== assetId) {
+      await selectAsset(assetId, { autoEnumerate: false });
+    }
+    const payload = await postJson(
+      `/api/crawler-assets/${encodeURIComponent(assetId)}/download-import`,
+      currentBoundsFormValues(),
+    );
+    crawlerAssetDownloadImportResult = payload;
     writeJson(payload);
-    const artifacts = payload.artifacts || {};
-    const rowCount = Number(payload.row_count || 0);
-    if (payload.succeeded) {
-      addMission("真下載示範完成", `${rowCount} rows / ${artifacts.downloaded_file || "downloaded file"}`);
+    if (payload.plan_outcome) {
+      rememberAssetPlanOutcome(assetId, payload.plan_outcome);
+      rememberAssetPlanPassport(assetId, payload.plan_passport);
+    }
+    if (payload.adapter_review) {
+      latestAdapterReview = payload.adapter_review;
+      renderReviewWorkspace();
+    }
+    const downloadImport = payload.download_import || {};
+    if (downloadImport.succeeded) {
+      addMission("正式下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${asset?.display_name || assetId}`);
     } else {
-      addMission("真下載示範未完成", payload.next_action || payload.stage || "review required");
+      addMission("正式下載 / 匯入未完成", payload.next_action || downloadImport.stage || "review required");
     }
     renderDownloaderWorkspace();
+    refreshSelectedAssetOutcomeViews();
     loadRecentEvents({ quiet: true });
   } catch (error) {
-    writeJson({ error: String(error), endpoint: "/api/demo/real-download" });
-    addMission("真下載示範失敗", String(error));
+    writeJson({ error: String(error), endpoint: "crawler_asset_download_import", asset_id: assetId });
+    addMission("正式下載 / 匯入失敗", String(error));
   } finally {
-    realDownloadDemoButton.disabled = false;
-    realDownloadDemoButton.textContent = originalText;
+    crawlerAssetDownloadButton.disabled = false;
+    crawlerAssetDownloadButton.textContent = originalText;
   }
 }
 
-function realDownloadDemoRowHtml(payload) {
-  const artifacts = payload.artifacts || {};
-  const succeeded = Boolean(payload.succeeded);
+function currentBoundsFormValues() {
+  const values = {};
+  if (!boundsForm) return values;
+  for (const element of boundsForm.elements) {
+    if (element.name) {
+      values[element.name] = element.value;
+    }
+  }
+  return values;
+}
+
+function crawlerAssetDownloadImportRowHtml(payload) {
+  const result = payload.download_result || {};
+  const artifacts = result.artifacts || {};
+  const downloadImport = payload.download_import || result.download_import || {};
+  const succeeded = Boolean(downloadImport.succeeded || result.succeeded);
   const tone = succeeded ? "success" : "warning";
-  const label = succeeded ? "真下載完成" : "需要檢查";
+  const label = succeeded ? "下載 / 匯入完成" : "需要檢查";
   return `
-    <article class="download-row ${tone} real-download-demo">
+    <article class="download-row ${tone}">
       <div class="download-row-head">
         <div>
-          <span class="eyebrow">Real Download Demo</span>
-          <strong>公開 CSV 真下載示範</strong>
+          <span class="eyebrow">Crawler Asset Download</span>
+          <strong>${escapeHtml(payload.asset_id || result.asset_id || "crawler asset")}</strong>
         </div>
         <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
       </div>
       <div class="queue-metrics">
-        ${heroMetric("Rows", payload.row_count || 0)}
-        ${heroMetric("Stage", payload.stage || "unknown")}
+        ${heroMetric("Stage", downloadImport.stage || result.stage || "unknown")}
+        ${heroMetric("Submitted", downloadImport.result?.submitted || 0)}
+        ${heroMetric("Completed", downloadImport.result?.completed || 0)}
+        ${heroMetric("Imported", downloadImport.result?.imported || 0)}
         ${heroMetric("SQLite", artifacts.curated_sqlite ? "OK" : "-")}
-        ${heroMetric("Manifest", artifacts.manifest ? "OK" : "-")}
       </div>
       <div class="context-chip-row">
-        <span class="context-chip">real_http_download</span>
-        <span class="context-chip">csv_import</span>
-        <span class="context-chip">${escapeHtml(payload.table_name || "table")}</span>
+        <span class="context-chip">crawler_asset_path</span>
+        <span class="context-chip">download_import_pipeline</span>
+        <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || payload.outcome_bucket || "plan")}</span>
       </div>
-      <p>${escapeHtml(payload.next_action || "open_downloaded_file_or_review_sqlite_import")}</p>
+      <p>${escapeHtml(payload.next_action || downloadImport.next_action || "review result")}</p>
       <dl class="artifact-list">
-        <div><dt>Source</dt><dd>${escapeHtml(payload.source_url || "")}</dd></div>
-        <div><dt>File</dt><dd>${escapeHtml(artifacts.downloaded_file || "")}</dd></div>
-        <div><dt>Manifest</dt><dd>${escapeHtml(artifacts.manifest || "")}</dd></div>
+        <div><dt>Downloads</dt><dd>${escapeHtml(artifacts.downloads_root || "")}</dd></div>
+        <div><dt>Plan</dt><dd>${escapeHtml(artifacts.plan || "")}</dd></div>
         <div><dt>SQLite</dt><dd>${escapeHtml(artifacts.curated_sqlite || "")}</dd></div>
       </dl>
     </article>
@@ -325,6 +357,7 @@ function downloaderRowHtml(asset) {
       </div>
       <p>${escapeHtml(nextAction)}</p>
       <div class="download-row-actions">
+        <button type="button" class="primary-button" onclick="runCrawlerAssetDownloadImportById('${escapeAttr(asset.asset_id)}')">下載 / 匯入</button>
         <button type="button" class="secondary-button" onclick="focusAssetFromWorkspace('${escapeAttr(asset.asset_id)}')">檢視資產</button>
       </div>
     </article>

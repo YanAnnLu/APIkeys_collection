@@ -36,6 +36,7 @@ from frontends.web.preview_api import (
     crawler_asset_cards,
     crawler_asset_credential_detail,
     crawler_asset_detail,
+    crawler_asset_download_import,
     crawler_asset_listing,
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
@@ -120,6 +121,82 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(context["succeeded"])
         self.assertEqual(249, context["row_count"])
         self.assertEqual("state/web_demo/downloads/data.csv", context["downloaded_file"])
+
+    def test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            fake_plan_build = SimpleNamespace(
+                candidate_count=1,
+                candidate_snapshot_signature="candidate-demo",
+                candidate_snapshot_count=1,
+                upserted_candidate_count=1,
+                selected_version_count=1,
+                filtered_version_count=0,
+                credential_gates=(),
+                blocked_credential_count=0,
+                missing_provider_ids=(),
+            )
+            fake_plan_result = SimpleNamespace(
+                asset_id="demo_stac",
+                outcome_bucket="ready_to_download",
+                direct_download_count=1,
+                review_required_count=0,
+                blocked=False,
+                blocked_reason="",
+                user_next_action="open_downloader_and_start_or_pause_queue",
+                next_action="",
+                resolved_plan={"summary": {"direct_download_count": 1}},
+                plan_build=fake_plan_build,
+                candidate_snapshot_changed=False,
+                bounds=SimpleNamespace(to_dict=lambda: {}),
+                source_signature="source-demo",
+                bounds_signature="bounds-demo",
+                to_dict=lambda: {"asset_id": "demo_stac", "outcome_bucket": "ready_to_download"},
+            )
+            fake_pipeline = SimpleNamespace(
+                stage="download_import_completed",
+                succeeded=True,
+                next_action="",
+                to_dict=lambda: {"stage": "download_import_completed", "succeeded": True},
+            )
+            fake_result = SimpleNamespace(
+                asset_id="demo_stac",
+                plan_result=fake_plan_result,
+                pipeline=fake_pipeline,
+                succeeded=True,
+                to_dict=lambda: {
+                    "asset_id": "demo_stac",
+                    "stage": "download_import_completed",
+                    "succeeded": True,
+                    "artifacts": {
+                        "downloads_root": "state/web_preview/downloads/demo_stac",
+                        "curated_sqlite": "state/web_preview/downloads/demo_stac/curated_sources.db",
+                    },
+                },
+            )
+
+            with patch("frontends.web.preview_api.run_crawler_asset_download_import", return_value=fake_result) as run_service:
+                with patch("frontends.web.preview_api.log_event") as log_event:
+                    payload = crawler_asset_download_import(
+                        "demo_stac",
+                        {},
+                        db_path=Path(tmp) / "preview.sqlite",
+                        downloads_root=Path(tmp) / "downloads",
+                        primary_path=source_path,
+                        local_path=local_path,
+                        profile_path=profile_path,
+                    )
+
+        run_service.assert_called_once()
+        self.assertEqual("demo_stac", payload["asset_id"])
+        self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual(1, payload["plan_passport"]["direct_download_count"])
+        log_event.assert_called_once()
+        self.assertEqual("crawler_asset_download_import_completed", log_event.call_args.args[0])
+        context = log_event.call_args.kwargs["context"]
+        self.assertTrue(context["succeeded"])
+        self.assertEqual("download_import_completed", context["stage"])
 
     def test_server_runtime_status_reports_actual_port(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:

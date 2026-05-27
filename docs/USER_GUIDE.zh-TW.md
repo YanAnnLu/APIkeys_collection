@@ -9,10 +9,10 @@
 本文件已用第二輪文件漂移審計重新校準。請注意：
 
 - Web Preview 的後端 API 已用 in-process HTTP smoke 驗證：`/api/health`、`/api/crawler-assets`、`/api/diagnostics/crawler-handler-smoke`、`/api/events/recent` 可回應；本機 crawler asset card 數為 23，handler diagnostics 顯示 14 個 source type 的離線 contract smoke 為 pass。
-- Web Preview 也已用瀏覽器實際開啟驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器仍有過渡用的「執行真下載示範」；選取 NASA Earthdata CMR 會出現「需要登入 / API Key」與「記住我的帳號」登入設定流程。
+- Web Preview 也已用瀏覽器實際開啟驗證：四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；下載器主按鈕已改為「下載 / 匯入目前資產」，會呼叫正式 crawler asset download/import endpoint；選取 NASA Earthdata CMR 會出現「需要登入 / API Key」與「記住我的帳號」登入設定流程。
 - `--handoff-report-json` 驗證 canonical MVP demo 仍可跑到 `download_import_completed`，目前 demo 匯入表為 `nyc_open_data_socrata_socrata_311_sample_190`、`row_count=3`。
 - `--crawler-run-summary-json` 目前回報 `summary_scope.status=missing_listing`，代表本機事件視窗沒有最新 crawler listing event。若要向人展示「某入口目前已枚舉的 seed 清單」，請先在 Web/Tk 重新枚舉該入口，不要把舊文件描述當成最新 seed 狀態。
-- 「真下載示範」與「展示模式」是過渡 / demo-only surface，用來證明下載、manifest、SQLite import 或續傳能力，不代表所有 crawler source 都已完全打通。正式使用者主流程仍應回到 crawler asset -> seed listing -> bounds/credential -> download plan -> download/import。
+- 舊「真下載示範」與「展示模式」是過渡 / demo-only surface，用來證明下載、manifest、SQLite import 或續傳能力，不代表所有 crawler source 都已完全打通。Web Preview 的主要下載心流已改回 crawler asset -> seed listing -> bounds/credential -> download plan -> download/import；舊 demo endpoint 暫時只保留給 regression / developer demo。
 
 ## 啟動方式
 
@@ -67,6 +67,8 @@ http://127.0.0.1:8765/
 ```
 
 Web Preview 會顯示 crawler asset 清單、Crawler Passport、動態界域表單、任務互動紀錄與後端 JSON 結果。建立下載計畫後，如果後端回報仍有內容 Parser / 內容格式待辦，界域表單狀態列會用同一份 `plan_outcome.content_review` 顯示待辦徽章。Web 右側資產護照與 Tk Crawler Passport 都會顯示 compact `plan_passport` 摘要，包含候選、可下載、待 Adapter、內容待辦、憑證與缺 Provider 狀態；完整 resolved plan 仍留在 review/download path，不會複製到 UI 狀態。這不是另一套後端，也不會重寫 crawler；它只呼叫 `api_launcher` 的既有 JSON contract。Tk 可以維持樸素穩定的控制台語言，Web Preview 則可以用更完整的視覺和互動設計來討論 UIUX、響應式版面與未來 QSS token。
+
+下載器分頁的「下載 / 匯入目前資產」會使用目前選取的 crawler asset 與表單值，呼叫 `POST /api/crawler-assets/{asset_id}/download-import`。這條路徑會先建立 resolved download plan，再只提交 bounded direct download/import slice；若來源需要登入或 API Key，會先停在「記住我的帳號」設定流程，不會假裝下載成功。正式下載匯入的輸出預設寫到本機下載資料夾下的 `RuRuKa Asset Launcher Web Preview`，避免把 live SQLite import 壓在 K 槽雲端同步路徑上。
 
 若 8765 已經被其他前端工具或另一份本地 clone 使用，Web Preview 會自動改用下一個可用 port，終端機會印出實際網址。不要為了預覽 UI 去終止不明程序。
 
@@ -477,7 +479,7 @@ GUI 展示入口：
 - 穩定可展示的功能放在 `展示模式` 選單；仍在實驗中的完整來源爬蟲、全量 seed、SQL/MySQL/PostgreSQL 對接與轉接器補齊，留在開發或審核流程。
 - 「小樣本」不是固定玩具資料，展示者可在 GUI 輸入筆數上限控制大小；真正大型或無界感的下載展示改走大型 CSV 續傳線。
 - 資料夾選擇預設會指到系統 Downloads；若展示者手動選擇雲端同步資料夾，系統不會阻擋。雲端資料夾可能較慢或有短暫鎖檔，因此展示時若遇到外部網路或同步延遲，可用同一個下載面板重試或續傳。
-- Web Preview 裡的 `執行真下載示範` 也是同一類過渡功能。它只是讓人快速看到公開 CSV 真的能下載、寫 manifest、匯入 SQLite；等正式 crawler download flow 全面接通後，這個 demo helper 應移除或改放開發者區，不應成為一般使用者主按鈕。
+- Web Preview 目前主下載按鈕已改為 `下載 / 匯入目前資產`，它會走正式 crawler asset download/import endpoint。舊 `/api/demo/real-download` 仍是同一類過渡 demo helper：只用來快速看到公開 CSV 真的能下載、寫 manifest、匯入 SQLite；後續應移除或改放開發者區，不應再成為一般使用者主按鈕。
 
 如果只需要給 agent 或自動化工具讀取的 JSON：
 

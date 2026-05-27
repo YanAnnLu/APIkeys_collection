@@ -16,6 +16,7 @@ from frontends.web.preview_api import (
     crawler_asset_cards,
     crawler_asset_credential_detail,
     crawler_asset_detail,
+    crawler_asset_download_import,
     crawler_asset_listing,
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
@@ -100,6 +101,10 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                     query = parse_qs(parsed.query)
                     execute = first_query_value(query, "execute").lower() in {"1", "true", "yes", "on"}
                     self.write_json(crawler_asset_plan_preview(asset_id, values, execute=execute))
+                    return
+                if suffix == "/download-import":
+                    values = self.read_json_body()
+                    self.write_json(crawler_asset_download_import(asset_id, values))
                     return
                 if suffix == "/credentials":
                     values = self.read_json_body()

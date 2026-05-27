@@ -1,6 +1,6 @@
 # 文件漂移審計
 
-最後更新：2026-05-27 13:01 Asia/Taipei
+最後更新：2026-05-27 16:25 Asia/Taipei
 
 本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
 
@@ -21,6 +21,7 @@
 - GUI-level Web audit：用 in-app browser 開啟本機 Web Preview，確認四個工作區「爬蟲資產 / 下載器 / 匯入審核 / 事件紀錄」可見；切到「下載器」後可見「執行真下載示範」且文字仍定位為 transitional demo helper；選取 NASA Earthdata CMR 後可見「需要登入 / API Key」、官方登入入口與「記住我的帳號」設定流程，且主文案沒有把 `.env` 當成一般使用者操作語言。
 - Web API / DOM audit：`/api/crawler-assets` 回傳 23 張資產卡；`/api/crawler-assets/noaa_ncei_dataset_search/seeds?page=1&page_size=50` 回傳 49 筆本機 seed 視窗與 `next_action=seed_page_complete`；`/api/crawler-assets/nasa_earthdata_cmr_collections` 回傳 credential status `missing_credentials`、label `需要登入 / API Key`、3 個 credential 欄位；靜態 HTML/JS 中存在四分頁、`執行真下載示範`、`顯示更多 seed`、`記住我的帳號`、`/credentials`、`/seed-favorites`。
 - Tk audit：`frontends/tk/window_layout_workflows.py` 確認主分頁順序為「爬蟲資產」第一、「下載器」第二；工具選單仍有三個展示模式入口與「開發者：Crawler handler diagnostics」。`tests.test_tk_dialogs` / `tests.test_launcher_ui` 的 targeted headless tests 已覆蓋下載器雙擊、開始/暫停主按鈕、爬蟲資產送進下載器、developer diagnostics 與 dialog 文案。
+- Formal Web download/import audit：本輪 Web 下載器主 CTA 已從「執行真下載示範」改成「下載 / 匯入目前資產」，正式路徑為 `POST /api/crawler-assets/{asset_id}/download-import`。本地 temp/downloads live smoke 已驗證 public Socrata asset 可完成 `download_import_completed`、`submitted=1`、`completed=1`、`imported=1`；K/RaiDrive live import 曾遇到 SQLite `database is locked`，因此文件已補上 GUI/smoke/展示下載匯入要用本地 clone 或本機 Downloads/Temp 的規則。
 
 本輪已修正 / 標註：
 
@@ -30,6 +31,7 @@
 - `TECHNICAL_OVERVIEW.zh-TW.md`、`ARCHITECTURE.zh-TW.md`：補上校準註記，把它們定位為架構背景與邊界文件；最新能力仍以 verified behavior、GTD、handoff、專題文件為準。
 - 全域 skill 已補強 UTF-8 explicit rule 與 Python strict scanner；RRKAL docs 也已用 scanner 驗證無 mojibake 風險。
 - `PROJECT_GTD.md`、本文件、`AGENT_HANDOFF.zh-TW.md`、`DEVELOPMENT_LOG.zh-TW.md` 補上 GUI-level audit 完成紀錄，並把 12:55 文檔審計從本地 `WORKING` 對齊到已推送 checkpoint。
+- `USER_GUIDE.zh-TW.md`、`WEB_PREVIEW_UIUX.zh-TW.md`、`CODE_HEALTH_AUDIT.zh-TW.md` 已把 Web 主流程從舊 demo CTA 對齊到 formal crawler asset download/import endpoint；舊 `/api/demo/real-download` 只保留為 regression / developer demo，不能再被寫成正式使用者主流程。
 
 ## 本輪審計範圍
 
