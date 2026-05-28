@@ -5,6 +5,7 @@
 - Device-code polling 使用 `("oauth_device_poll", profile_id, device_code)` job key；使用者重複按「重新檢查登入」時只更新狀態，不再重疊發出 token polling request。
 - 這不改 OAuth authorization URL、PKCE、callback server、device-code polling、token exchange、token 保存或本機 credential storage；只把登入入口的背景 thread 收斂到共用 helper。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\oauth_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_oauth_device tests.test_tk_dialogs -v` 107 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，889 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_022611.log`。
+- 已推送 `0278a93 Guard Tk OAuth login background jobs`；GitHub Actions run `26594347795` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk OAuth/login 入口的背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 02:11 Tk showcase download single-flight guard
