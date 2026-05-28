@@ -3,6 +3,7 @@
 - 本輪做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.web_download_import_credential_blocked_response()`，asset-level 與 seed-level download/import endpoint 遇到缺憑證時共用同一份 blocked payload。
 - 這不改 credential guard、正式下載/匯入 service 或 response shape；只是移除兩段重複的 `blocked_before_download` / `edit_local_credentials_before_live_download` 組裝，避免 Web endpoint 後續分叉。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 46 tests OK，新增 asset/seed download-import 缺憑證時不呼叫正式 service 的 regression；docs/Web mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，865 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_223514.log`。
+- 已推送 `ab9cf83 Extract Web download import credential block helper`；GitHub Actions run `26581728210` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪不改使用者操作流程，只收斂 Web endpoint 內部重複 blocked payload；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-28 22:19 Tk seed download/import UI message helper
