@@ -94,6 +94,24 @@ def crawler_seed_dialog_recommended_text(
     )
 
 
+def crawler_seed_dialog_schema_probe_entry(row: dict[str, object]) -> dict[str, object]:
+    """Return the minimal backend entry needed for a seed schema probe.
+
+    Tk does not know how Socrata, CKAN, STAC, or HTML index probing works.  It
+    only forwards the best URL already present on the seed row, and the workflow
+    layer sends that to the shared schema probe service.
+    """
+
+    api_url = str(row.get("api_url") or "").strip()
+    if api_url:
+        return {"api_url": api_url}
+    for key in ("download_url", "content_url", "landing_url", "source_url"):
+        value = str(row.get(key) or "").strip()
+        if value:
+            return {"download_url": value}
+    return {}
+
+
 class CrawlerAssetSeedDialog:
     """Seed row picker for crawler assets.
 
@@ -197,6 +215,7 @@ class CrawlerAssetSeedDialog:
         ttk.Button(buttons, text=self.tr("下載此 Seed", "Download this seed"), style="Action.TButton", command=self.download).pack(side=RIGHT, padx=(10, 0))
         if recommended_uid:
             ttk.Button(buttons, text=self.tr("下載推薦 Seed", "Download recommended seed"), style="Action.TButton", command=self.download_recommended).pack(side=RIGHT, padx=(10, 0))
+        ttk.Button(buttons, text=self.tr("探測欄位", "Probe fields"), style="Action.TButton", command=self.schema_probe).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("收藏 / 取消收藏", "Favorite / unfavorite"), style="Action.TButton", command=self.favorite).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("關閉", "Close"), style="Action.TButton", command=self.cancel).pack(side=RIGHT)
 
@@ -232,6 +251,18 @@ class CrawlerAssetSeedDialog:
         self.result = {"action": "download", "dataset_uid": dataset_uid}
         self.window.destroy()
 
+    def schema_probe(self) -> None:
+        row = self.selected_row()
+        dataset_uid = self._selected_dataset_uid()
+        if not dataset_uid or row is None:
+            return
+        entry = crawler_seed_dialog_schema_probe_entry(row)
+        if not entry:
+            self.message_var.set(self.tr("這筆 seed 沒有可探測 URL。", "This seed has no URL that can be probed."))
+            return
+        self.result = {"action": "schema_probe", "dataset_uid": dataset_uid, "entry": entry}
+        self.window.destroy()
+
     def favorite(self) -> None:
         row = self.selected_row()
         dataset_uid = self._selected_dataset_uid()
@@ -257,4 +288,5 @@ __all__ = [
     "crawler_seed_dialog_recommended_uid",
     "crawler_seed_dialog_row_values",
     "crawler_seed_dialog_rows",
+    "crawler_seed_dialog_schema_probe_entry",
 ]

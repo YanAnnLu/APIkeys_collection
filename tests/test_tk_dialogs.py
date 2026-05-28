@@ -29,6 +29,7 @@ from frontends.tk.crawler_asset_seed_dialog import (
     crawler_seed_dialog_recommended_uid,
     crawler_seed_dialog_row_values,
     crawler_seed_dialog_rows,
+    crawler_seed_dialog_schema_probe_entry,
 )
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 from frontends.tk.dialogs import (
@@ -901,6 +902,21 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("Seed 1", text)
         self.assertIn("下載推薦 Seed", text)
 
+    def test_crawler_asset_seed_dialog_schema_probe_entry_prefers_api_url(self) -> None:
+        entry = crawler_seed_dialog_schema_probe_entry(
+            {
+                "api_url": "https://example.test/api.json",
+                "landing_url": "https://example.test/page",
+            }
+        )
+
+        self.assertEqual({"api_url": "https://example.test/api.json"}, entry)
+        self.assertEqual(
+            {"download_url": "https://example.test/page"},
+            crawler_seed_dialog_schema_probe_entry({"landing_url": "https://example.test/page"}),
+        )
+        self.assertEqual({}, crawler_seed_dialog_schema_probe_entry({"title": "No URL"}))
+
     def test_open_selected_crawler_asset_seed_dialog_routes_favorite_action(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_index",
@@ -939,6 +955,97 @@ class TkDialogModuleTest(unittest.TestCase):
         event_log.assert_called_once()
         self.assertEqual([("demo_index", 2)], reloaded)
         self.assertIn("Seed 收藏已加入", ui.status_var.value)
+
+    def test_open_selected_crawler_asset_seed_dialog_routes_schema_probe_action(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = {
+            "asset_id": "demo_index",
+            "page": 1,
+            "total": 1,
+            "seeds": [{"dataset_uid": "demo_provider:seed_1", "title": "Seed 1", "api_url": "https://example.test/api.json"}],
+        }
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.tr = lambda zh, _en: zh
+        ui.root = object()
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_seed_pages = {"demo_index": payload}
+        calls: list[tuple[str, str, dict[str, object]]] = []
+        ui.run_crawler_asset_seed_schema_probe_from_ui = (
+            lambda selected_asset, dataset_uid, entry: calls.append((selected_asset.asset_id, dataset_uid, entry))
+        )
+
+        with patch(
+            "frontends.tk.crawler_asset_workflows.CrawlerAssetSeedDialog",
+            return_value=SimpleNamespace(
+                result={
+                    "action": "schema_probe",
+                    "dataset_uid": "demo_provider:seed_1",
+                    "entry": {"api_url": "https://example.test/api.json"},
+                }
+            ),
+        ):
+            CrawlerAssetWorkflowMixin.open_selected_crawler_asset_seed_dialog(ui)
+
+        self.assertEqual([("demo_index", "demo_provider:seed_1", {"api_url": "https://example.test/api.json"})], calls)
+
+    def test_seed_schema_probe_worker_enriches_bounds_form_and_stores_payload(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        bounds_schema = asset.capabilities[2].bounds_schema
+        payload = CrawlerAssetBoundPayload(
+            asset_id="demo_stac",
+            facet_values={"time": {"time_field": "created_at"}},
+            field_values={"time_field": "created_at"},
+            maps_to_values={"SourceDownloadBounds.time_field": "created_at"},
+        )
+        probe = SchemaProbeResult(
+            status="ok",
+            source_url="https://example.test/api.json",
+            probe_url="https://example.test/api.json?$limit=5",
+            row_count=1,
+            columns=(SchemaProbeColumn("created_at", "2026-01-01", "date"), SchemaProbeColumn("value", "1", "integer")),
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.load_crawler_asset_source", return_value=source),
+            patch("frontends.tk.crawler_asset_workflows.probe_plan_entry_schema", return_value=probe) as probe_schema,
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class,
+            patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+        ):
+            CrawlerAssetWorkflowMixin._crawler_asset_seed_schema_probe_worker(
+                ui,
+                "demo_stac",
+                "demo_provider:seed_1",
+                {"api_url": "https://example.test/api.json"},
+                bounds_schema,
+            )
+
+        probe_schema.assert_called_once()
+        dialog_class.assert_called_once()
+        spec = dialog_class.call_args.args[1]
+        time_field = next(field for field in spec.fields if field.field_id == "time_field")
+        self.assertIn("created_at", time_field.options)
+        self.assertEqual(payload.to_dict(), ui.crawler_asset_bound_payloads["demo_stac"])
+        event_log.assert_called_once()
+        self.assertIn("已用 seed 欄位探測更新界域", ui.status_var.value)
 
     def test_run_crawler_asset_seed_download_import_starts_background_worker(self) -> None:
         source = DatasetDiscoverySource(

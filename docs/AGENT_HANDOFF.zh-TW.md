@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 16:xx Tk seed schema probe action
+- 本輪把 Web 已有的 seed-level schema/head probe 心流補到 Tk：`CrawlerAssetSeedDialog` 新增「探測欄位」動作，只把選中 seed 的 `api_url` / `download_url` / `landing_url` 包成 entry，不在 dialog 內推斷欄位或 source type。
+- `CrawlerAssetWorkflowMixin` 新增 `run_crawler_asset_seed_schema_probe_from_ui()`：背景呼叫既有 `probe_plan_entry_schema()`，再用 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 產生 enriched bounds form，最後開同一個 `CrawlerAssetBoundDialog` 讓使用者套用界域。套用後的 bounds payload 會暫存在 `crawler_asset_bound_payloads[asset_id]`，後續「下載此 Seed」仍走 formal seed download/import service。
+- 這是 Tk/Web 對齊切片，不改 schema probe 後端、不改 crawler/download/import，也不把 source-specific schema 規則塞進 Tk。已補 regression：seed row URL helper、seed dialog action routing、schema probe worker enrichment / bounds payload storage。已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_seed_dialog.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 69 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_web_preview tests.test_crawler_assets -v` 154 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，843 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_160421.log`。仍待 push / CI。
+
 ## 2026-05-28 15:43 Web seed schema probe action
 - 本輪先在 Web Preview 接上 seed-level schema/head probe 動作：推薦 seed 面板與每筆 seed row 現在都有「探測欄位」按鈕，會把可見 seed 的 `api_url` / `download_url` / `landing_url` 包成 entry，呼叫既有 `POST /api/crawler-assets/{asset_id}/bounds-form/schema-probe`。
 - 這是 UI 防盲填接線，不改 schema probe 後端、不改 crawler/download/import。Web 只負責選取使用者已看見的 seed URL；欄位推論、`time_field` / `columns` selector enrichment 仍由後端 `crawler_asset_bound_form_schema_probe()` 與 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 負責。

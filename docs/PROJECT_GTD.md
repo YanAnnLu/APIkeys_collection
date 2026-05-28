@@ -8,7 +8,7 @@ Last updated: 2026-05-28
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
 - [x] Tk Seed 清單 dialog 已把同一個 `recommended_seed_uid` 接成「推薦 seed」摘要與「下載推薦 Seed」按鈕；Tk 也不自行挑 seed。
 - [x] Tk 界域表單已接上後端 `recommended_values` / `presets`：使用者可按「套用推薦值」或區域預設按鈕先填入安全 limit / bbox，不必第一次就盲填所有欄位。
-- [x] Schema/head probe enrichment 已先接到後端 form contract 與 Web Preview API：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；實際 Web/Tk 按鈕與 seed 選取自動觸發仍是下一步。
+- [x] Schema/head probe enrichment 已接到後端 form contract、Web Preview 與 Tk Seed 清單：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；Web/Tk 都只把 seed URL 交給後端 probe service，不自行推斷欄位。
 - [x] Crawler source handler 已有第一版宣告式 registry 相容層：14 個既有 handler 先登記成 `CrawlerSpec`，並由 registry 生成現有 `SOURCE_CRAWLER_HANDLERS`；這不是重寫 handler，只是把 source_type 分派往 profile/gateway 方向收束。
 - [x] Crawler registry 已補第一版 4-bit capability address / mask index：固定維度為來源表面、transport、auth、輸出形狀，讓 Web/Tk/CLI/debug 工具未來可用 prefix/mask 查詢「同一類能力」，而不是重新手寫 source_type 分支。這是輔助索引，不改 14 個 handler 行為。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
@@ -21,7 +21,8 @@ Last updated: 2026-05-28
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
 - [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
 - [x] Web Preview 已先把 schema/head probe 接到 seed 操作：推薦 seed 與每筆 seed row 都有「探測欄位」按鈕，會用該 seed 的 URL 呼叫後端 schema probe，再回填同一份 bounds form contract，減少使用者盲填欄位。
-- [ ] 下一個實作焦點：把同一條 schema/head probe 操作接到 Tk seed dialog，或把 Web seed probe 的結果做得更可視化（例如探測中狀態、欄位摘要、失敗下一步）。
+- [x] Tk Seed 清單 dialog 已接上同一條 schema/head probe：選一筆 seed 後按「探測欄位」，Tk 會背景呼叫 `probe_plan_entry_schema()`，用 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 回填界域表單，並把使用者套用後的 bounds payload 暫存給後續 seed download/import。
+- [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。

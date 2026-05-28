@@ -27,7 +27,11 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_profile,
 )
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets, status_label
-from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
+from api_launcher.crawler_asset_bound_forms import (
+    CrawlerAssetBoundPayload,
+    apply_schema_probe_to_crawler_asset_bound_form_spec,
+    build_crawler_asset_bound_form_spec,
+)
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
@@ -54,6 +58,7 @@ from api_launcher.local_credentials import (
 )
 from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
+from api_launcher.schema_probe import probe_plan_entry_schema
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialDialog
@@ -767,6 +772,13 @@ class CrawlerAssetWorkflowMixin:
             )
         elif action == "download":
             self.run_crawler_asset_seed_download_import_from_ui(asset, dataset_uid=dataset_uid)
+        elif action == "schema_probe":
+            entry = dialog.result.get("entry")
+            self.run_crawler_asset_seed_schema_probe_from_ui(
+                asset,
+                dataset_uid=dataset_uid,
+                entry=dict(entry) if isinstance(entry, dict) else {},
+            )
 
     def toggle_crawler_asset_seed_favorite(
         self,
@@ -804,6 +816,109 @@ class CrawlerAssetWorkflowMixin:
             self.tr(
                 f"Seed 收藏已{'加入' if favorite else '取消'}：{dataset_uid}",
                 f"Seed favorite {'saved' if favorite else 'removed'}: {dataset_uid}",
+            )
+        )
+
+    def run_crawler_asset_seed_schema_probe_from_ui(
+        self,
+        asset: CrawlerAsset,
+        *,
+        dataset_uid: str,
+        entry: dict[str, object],
+    ) -> None:
+        """Probe one seed URL, then open the shared bounds form with selectors.
+
+        The seed dialog only chooses the row.  The workflow invokes the same
+        backend schema probe used by Web, then renders the returned form spec in
+        Tk so source-specific schema rules stay outside the UI shell.
+        """
+
+        if not dataset_uid:
+            self.status_var.set(self.tr("這筆 seed 缺少可用 ID，無法探測欄位。", "This seed has no usable ID to probe."))
+            return
+        if asset.archived:
+            self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再探測欄位。", "This crawler is archived; unarchive it before probing fields."))
+            return
+        if not entry:
+            self.status_var.set(self.tr("這筆 seed 缺少可探測 URL。", "This seed has no probeable URL."))
+            return
+        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
+        bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
+        if not bounds_schema:
+            self.status_var.set(self.tr("這個爬蟲資產沒有可探測的界域表單。", "This crawler asset has no bounds form to enrich."))
+            return
+        self.status_var.set(
+            self.tr(
+                f"正在探測 seed 欄位：{dataset_uid}",
+                f"Probing seed fields: {dataset_uid}",
+            )
+        )
+        threading.Thread(
+            target=self._crawler_asset_seed_schema_probe_worker,
+            args=(asset.asset_id, dataset_uid, dict(entry), tuple(bounds_schema)),
+            daemon=True,
+        ).start()
+
+    def _crawler_asset_seed_schema_probe_worker(
+        self,
+        asset_id: str,
+        dataset_uid: str,
+        entry: dict[str, object],
+        bounds_schema: tuple[object, ...],
+    ) -> None:
+        try:
+            source = load_crawler_asset_source(asset_id)
+            base_spec = build_crawler_asset_bound_form_spec(asset_id, bounds_schema, source=source)
+            probe = probe_plan_entry_schema(entry, row_limit=5, timeout=8.0)
+            spec = apply_schema_probe_to_crawler_asset_bound_form_spec(base_spec, probe)
+        except Exception as exc:
+            log_exception(
+                "crawler_seed_schema_probe_failed",
+                exc,
+                component="ui.crawler_assets",
+                context={"asset_id": asset_id, "dataset_uid": dataset_uid},
+            )
+            self.root.after(0, lambda: messagebox.showerror(self.tr("Seed 欄位探測失敗", "Seed schema probe failed"), str(exc), parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"Seed 欄位探測失敗：{exc}", f"Seed schema probe failed: {exc}")))
+            return
+
+        log_event(
+            "crawler_seed_schema_probe_completed",
+            "Tk crawler asset workflow probed one seed and opened the shared bounds form.",
+            component="ui.crawler_assets",
+            context={
+                "asset_id": asset_id,
+                "dataset_uid": dataset_uid,
+                "probe": probe.to_dict(),
+                "schema_probe_required_count": spec.schema_probe_required_count,
+                "warning_codes": list(spec.warning_codes),
+            },
+        )
+        self.root.after(0, lambda: self._finish_crawler_asset_seed_schema_probe(dataset_uid, probe, spec))
+
+    def _finish_crawler_asset_seed_schema_probe(self, dataset_uid: str, probe: object, spec: object) -> None:
+        probe_status = str(getattr(probe, "status", "") or "").strip()
+        probe_error = str(getattr(probe, "error", "") or "").strip()
+        if probe_status != "ok":
+            messagebox.showwarning(
+                self.tr("Seed 欄位探測未完成", "Seed schema probe incomplete"),
+                self.tr(
+                    f"未取得欄位清單：{probe_error or probe_status or '-'}\n仍會開啟原本界域表單；你可以套用推薦值或手動輸入。",
+                    f"Could not fetch columns: {probe_error or probe_status or '-'}\nThe original bounds form will still open; use recommendations or enter values manually.",
+                ),
+                parent=getattr(self, "root", None),
+            )
+        dialog = CrawlerAssetBoundDialog(getattr(self, "root", None), spec, self.tr)
+        if dialog.result is None:
+            self.status_var.set(self.tr("欄位探測後的界域設定已取消。", "Bounds setup after field probe was cancelled."))
+            return
+        if not hasattr(self, "crawler_asset_bound_payloads"):
+            self.crawler_asset_bound_payloads = {}
+        self.crawler_asset_bound_payloads[spec.asset_id] = dialog.result.to_dict()
+        self.status_var.set(
+            self.tr(
+                f"已用 seed 欄位探測更新界域：{dataset_uid}",
+                f"Bounds updated from seed schema probe: {dataset_uid}",
             )
         )
 
