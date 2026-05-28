@@ -8,13 +8,13 @@ repository 回寫集中在這裡，避免 profile/login 狀態邏輯散落在主
 from __future__ import annotations
 
 import os
-import threading
 from tkinter import messagebox
 
 import APIkeys_collection as core
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, saved_ai_api_key_status
 from api_launcher.event_log import log_exception
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
+from frontends.tk.background_jobs import start_single_flight_thread
 
 
 class AiSummaryWorkflowMixin:
@@ -94,8 +94,18 @@ class AiSummaryWorkflowMixin:
             profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), profile)
         self.selected_ai_profile_id = profile.id
         self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
-        thread = threading.Thread(target=self._summary_worker, args=(row.provider_id, profile.id), daemon=True)
-        thread.start()
+        job_key = ("ai_summary", row.provider_id, profile.id)
+        start_single_flight_thread(
+            self,
+            job_key,
+            self._summary_worker,
+            (row.provider_id, profile.id),
+            active_jobs_attr="ai_summary_active_jobs",
+            active_jobs_lock_attr="ai_summary_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("AI 摘要已在執行中，請等待目前工作完成。", "AI summary is already running; please wait for it to finish.")
+            ),
+        )
 
     def _summary_worker(self, provider_id: str, profile_id: str) -> None:
         saved_summary = False
