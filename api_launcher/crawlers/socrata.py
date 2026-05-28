@@ -15,6 +15,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap, polite_crawl_delay
+from api_launcher.crawlers.registry import crawler
 from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -223,6 +224,14 @@ def paginated_socrata_catalog_output(
     )
 
 
+@crawler(
+    source_type="socrata_catalog_search",
+    source_family="catalog_search",
+    transport="json",
+    auth_profile="optional_api_key",
+    result_shape="dataset_list",
+    supports_full_crawl=True,
+)
 def socrata_catalog_candidates_for_source(
     source: DatasetDiscoverySource,
     timeout: float,

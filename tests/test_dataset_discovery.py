@@ -429,6 +429,8 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("optional_api_key", specs["socrata_catalog_search"].auth_profile)
         self.assertEqual("html", specs["html_file_index"].transport)
         self.assertEqual("layer_list", specs["ogc_wms_capabilities"].result_shape)
+        self.assertEqual("api_launcher.crawlers.erddap", specs["erddap_all_datasets"].handler.__module__)
+        self.assertEqual("api_launcher.crawlers.html_index", specs["html_file_index"].handler.__module__)
 
     def test_crawler_registry_partial_dimension_queries(self) -> None:
         catalog_json = dataset_sources.list_crawlers_by_dims(source_family="catalog_search", transport="json")

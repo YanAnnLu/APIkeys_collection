@@ -68,7 +68,6 @@ from api_launcher.crawlers.pagination import append_new_candidates, discovery_pa
 from api_launcher.crawlers.registry import (
     CrawlerSpec,
     DatasetSourceCrawler,
-    crawler,
     crawler_capability_index,
     crawler_handler,
     crawler_handlers_by_source_type,
@@ -111,91 +110,9 @@ DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
 
 
-def _erddap_source_crawler(
-    source: DatasetDiscoverySource,
-    timeout: float,
-    limit: int,
-    search_terms: tuple[str, ...],
-    _full_crawl: bool,
-    _max_pages: int,
-) -> list[DatasetCandidate]:
-    # ERDDAP allDatasets 是單頁目錄型來源；full_crawl 參數在這裡沒有額外意義。
-    return erddap_candidates_for_source(source, timeout, limit, search_terms)
-
-
-def _html_file_index_source_crawler(
-    source: DatasetDiscoverySource,
-    timeout: float,
-    limit: int,
-    _search_terms: tuple[str, ...],
-    full_crawl: bool,
-    max_pages: int,
-) -> list[DatasetCandidate] | DatasetCrawlerOutput:
-    # HTML index 沒有標準分頁；只在 full_crawl 時用 max_pages 跟同網域索引頁。
-    return html_file_index_candidates_for_source(source, timeout, limit, full_crawl, max_pages=max_pages)
-
-
-CURSOR_PAGINATED_CATALOG_SPEC = {
-    "source_family": "catalog_search",
-    "transport": "json",
-    "auth_profile": "none",
-    "result_shape": "dataset_list",
-    "supports_full_crawl": True,
-}
-
-# This is the first declarative registry pass.  The Python handlers stay in
-# their current modules, but the dispatch table below is now generated from
-# CrawlerSpec metadata instead of being a loose source_type -> function dict.
-crawler(
-    source_type="ncei_search",
-    source_family="catalog_search",
-    transport="json",
-    auth_profile="none",
-    result_shape="dataset_list",
-    supports_full_crawl=True,
-)(ncei_candidates_for_source)
-crawler(
-    source_type="erddap_all_datasets",
-    source_family="catalog_index",
-    transport="json",
-    auth_profile="none",
-    result_shape="dataset_list",
-    supports_full_crawl=False,
-)(_erddap_source_crawler)
-crawler(
-    source_type="html_file_index",
-    source_family="index_scan",
-    transport="html",
-    auth_profile="none",
-    result_shape="file_links",
-    supports_full_crawl=True,
-)(_html_file_index_source_crawler)
-crawler(source_type="cmr_collections", **CURSOR_PAGINATED_CATALOG_SPEC)(cmr_candidates_for_source)
-crawler(source_type="stac_collections", **CURSOR_PAGINATED_CATALOG_SPEC)(stac_candidates_for_source)
-crawler(source_type="gbif_dataset_search", **CURSOR_PAGINATED_CATALOG_SPEC)(gbif_candidates_for_source)
-crawler(source_type="dataverse_search", **CURSOR_PAGINATED_CATALOG_SPEC)(dataverse_candidates_for_source)
-crawler(source_type="zenodo_records_search", **CURSOR_PAGINATED_CATALOG_SPEC)(zenodo_candidates_for_source)
-crawler(source_type="ckan_package_search", **CURSOR_PAGINATED_CATALOG_SPEC)(ckan_candidates_for_source)
-crawler(source_type="datacite_dois", **CURSOR_PAGINATED_CATALOG_SPEC)(datacite_candidates_for_source)
-crawler(source_type="ogc_api_records", **CURSOR_PAGINATED_CATALOG_SPEC)(ogc_records_candidates_for_source)
-crawler(
-    source_type="ogc_wms_capabilities",
-    source_family="map_capabilities",
-    transport="xml",
-    auth_profile="none",
-    result_shape="layer_list",
-    supports_full_crawl=False,
-)(ogc_wms_candidates_for_source)
-crawler(
-    source_type="socrata_catalog_search",
-    source_family="catalog_search",
-    transport="json",
-    auth_profile="optional_api_key",
-    result_shape="dataset_list",
-    supports_full_crawl=True,
-)(socrata_catalog_candidates_for_source)
-crawler(source_type="openalex_works_search", **CURSOR_PAGINATED_CATALOG_SPEC)(openalex_candidates_for_source)
-
+# Importing the crawler modules above now registers their handlers with
+# @crawler decorators near the implementation.  dataset_sources keeps the
+# compatibility constants below, but it no longer owns the source_type mapping.
 SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = crawler_handlers_by_source_type()
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(sorted(SOURCE_CRAWLER_HANDLERS))
 CRAWLER_SPECS_BY_SOURCE_TYPE = crawler_specs_by_source_type()

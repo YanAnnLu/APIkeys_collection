@@ -15,6 +15,7 @@ from api_launcher.crawlers.metadata import (
     viewer_hint_for_family,
 )
 from api_launcher.crawlers.pagination import discovery_page_cap, polite_crawl_delay
+from api_launcher.crawlers.registry import crawler
 from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
 from api_launcher.discovery import extract_links
 from api_launcher.models import Dataset
@@ -163,6 +164,27 @@ def html_file_index_candidates_for_source(
     if warnings:
         return DatasetCrawlerOutput(candidates=tuple(candidates), warnings=tuple(warnings))
     return candidates
+
+
+@crawler(
+    source_type="html_file_index",
+    source_family="index_scan",
+    transport="html",
+    auth_profile="none",
+    result_shape="file_links",
+    supports_full_crawl=True,
+)
+def html_file_index_source_crawler(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    _search_terms: tuple[str, ...],
+    full_crawl: bool,
+    max_pages: int,
+) -> list[DatasetCandidate] | DatasetCrawlerOutput:
+    # HTML index discovery has no standard query term channel; traversal is
+    # controlled by full_crawl/max_pages and guarded by domain + seen-page caps.
+    return html_file_index_candidates_for_source(source, timeout, limit, full_crawl, max_pages=max_pages)
 
 
 def should_follow_html_index_page(base_url: str, link: str, file_url_regex: str) -> bool:

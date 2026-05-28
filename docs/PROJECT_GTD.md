@@ -11,6 +11,7 @@ Last updated: 2026-05-29
 - [x] Schema/head probe enrichment 已接到後端 form contract、Web Preview 與 Tk Seed 清單：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；Web/Tk 都只把 seed URL 交給後端 probe service，不自行推斷欄位。
 - [x] Crawler source handler 已有第一版宣告式 registry 相容層：14 個既有 handler 先登記成 `CrawlerSpec`，並由 registry 生成現有 `SOURCE_CRAWLER_HANDLERS`；這不是重寫 handler，只是把 source_type 分派往 profile/gateway 方向收束。
 - [x] Crawler dispatch 已改為直接讀 `CrawlerSpec` registry：`SOURCE_CRAWLER_HANDLERS` 仍保留為相容/診斷 surface，但正式 `discover_dataset_candidate_output_for_source()` / `discover_dataset_candidates_for_source()` 會透過 `crawler_handler()` fail-fast 取得 handler；新增 partial-dimension query API，讓 UI/CLI/debug 可按 family / transport / auth / result shape 查 crawler 能力。
+- [x] Crawler registry ownership 已推進到各 handler 模組：14 個 crawler 的 `@crawler(...)` metadata 現在貼在 implementation 附近，`dataset_sources.py` 只保留匯入觸發、相容常數與 registry facade；新增 crawler 不再需要回中心檔加 mapping。
 - [x] Developer diagnostics 已接上 crawler registry report：後端可輸出 source type count、dimension counters、matrix cells、capability groups 與 compact `registry_summary`，供 Tk/Web/未來 Qt 診斷面讀同一份 registry contract，不必各自重建 source_type 分組。
 - [x] Crawler registry report 已接成 agent-readable CLI JSON：`--crawler-registry-report-json` 可直接輸出 registry matrix / capability report，並保持 stdout 純 JSON，讓後續 automation、CI、Tk/Web/Qt diagnostics 不必解析人類文字。
 - [x] Crawler registry 已補第一版 4-bit capability address / mask index：固定維度為來源表面、transport、auth、輸出形狀，讓 Web/Tk/CLI/debug 工具未來可用 prefix/mask 查詢「同一類能力」，而不是重新手寫 source_type 分支。這是輔助索引，不改 14 個 handler 行為。

@@ -13,6 +13,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.registry import crawler
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -107,3 +108,24 @@ def erddap_candidates_for_source(
     # ERDDAP allDatasets JSON 已是目錄端點；這層只負責抓取後交給 parser。
     payload = fetch_json(source.endpoint_url, timeout=timeout)
     return erddap_candidates_from_payload(source, payload, source.endpoint_url, limit, search_terms)
+
+
+@crawler(
+    source_type="erddap_all_datasets",
+    source_family="catalog_index",
+    transport="json",
+    auth_profile="none",
+    result_shape="dataset_list",
+    supports_full_crawl=False,
+)
+def erddap_source_crawler(
+    source: DatasetDiscoverySource,
+    timeout: float,
+    limit: int,
+    search_terms: tuple[str, ...],
+    _full_crawl: bool,
+    _max_pages: int,
+) -> list[DatasetCandidate]:
+    # The registry expects the common six-argument crawler signature.  ERDDAP
+    # itself is still a single endpoint, so full_crawl/max_pages are ignored.
+    return erddap_candidates_for_source(source, timeout, limit, search_terms)

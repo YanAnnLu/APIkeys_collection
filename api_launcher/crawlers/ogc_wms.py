@@ -13,6 +13,7 @@ from api_launcher.crawlers.metadata import (
     storage_hint_for_family,
     viewer_hint_for_family,
 )
+from api_launcher.crawlers.registry import crawler
 from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.models import Dataset
 
@@ -36,6 +37,14 @@ def ogc_wms_capabilities_url(endpoint_url: str) -> str:
     )
 
 
+@crawler(
+    source_type="ogc_wms_capabilities",
+    source_family="map_capabilities",
+    transport="xml",
+    auth_profile="none",
+    result_shape="layer_list",
+    supports_full_crawl=False,
+)
 def ogc_wms_candidates_for_source(
     source: DatasetDiscoverySource,
     timeout: float,

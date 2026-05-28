@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 03:26 Crawler decorators own registry metadata
+- 本輪把 14 個 crawler 的 `@crawler(...)` 註冊移到各自 handler 模組附近；`dataset_sources.py` 不再持有中心宣告式 mapping，只保留匯入觸發、相容常數與 matrix/query facade。
+- ERDDAP 與 HTML file index 因 handler signature 與共用六參數 crawler signature 不同，已在各自模組新增薄 wrapper：`erddap_source_crawler()` 與 `html_file_index_source_crawler()`；正式抓取/解析邏輯仍留在原有 `erddap_candidates_for_source()` / `html_file_index_candidates_for_source()`。
+- 這不改 14 個 source type、capability bits、crawler output、download/import 或 UI payload；只是把 source_type metadata ownership 從中心檔移到 handler 檔，讓新增 crawler 更接近「加 handler + 裝飾器」的準宣告式流程。
+- 已驗證：crawler 模組與 `tests/test_dataset_discovery.py` py_compile OK；`py -3 -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v` 149 tests OK；`py -3 -B -m unittest tests.test_crawler_audit_smoke tests.test_developer_diagnostics tests.test_source_patterns tests.test_discovery_drafts -v` 51 tests OK；`api_launcher/crawlers` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，893 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_032740.log`。
+- 待完成：本輪尚未 push / watch GitHub Actions；下一步 commit / push / watch CI。
+- Docs drift check：本輪改 crawler registry ownership 與 source metadata contract；已同步 GTD、handoff 與 development log，不改使用者操作文件。
+
 ## 2026-05-29 03:05 Tk crawler asset thread mock cleanup
 - 本輪完成 Tk scheduler guard consolidation 的小尾巴：`frontends/tk/crawler_asset_workflows.py` 移除已不再使用的 `threading` import，測試也改 patch 真正的共用背景工作入口 `frontends.tk.background_jobs.threading.Thread`。
 - 這不改 crawler asset listing、source pattern draft、seed schema probe、seed download/import、download plan build 或 credential guard 行為；只讓產品碼與測試都指向同一個 single-flight helper 邊界，避免舊 UI workflow 模組被誤認為 thread owner。
