@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 07:29 Tk plan event context reuse
+- 本輪把 Tk 的 `record_crawler_asset_plan_outcome()` 也接到 backend `crawler_asset_plan_event_context()`：Tk 不再手寫 asset id、outcome counts、content review、run record 與 plan passport event keys。
+- Tk 仍保留本地 resolved plan path 作為事件中的 `resolved_plan`，並保留 `review_queue_count` 使用 resolved plan adapter review count；這兩個是 Tk 寫檔 / 顯示 queue 的本地 artifact，不移回 Web。
+- 移除 `frontends/tk/crawler_asset_workflows.py` 對 `crawler_run_record_from_result` 的直接 import；run record 由 backend display helper 產生。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 105 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，910 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_073145.log`。
+- Docs drift check：本輪改 Tk plan event context helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 07:16 Plan event context display contract
 - 本輪繼續 Web Preview bounded consolidation：`crawler_asset_plan_event_context()` 從 `frontends/web/preview_api.py` 移到 `api_launcher/crawler_asset_display.py`，與 plan badge / plan outcome display helpers 放在同一個 UI-neutral display contract module。
 - Web Preview 仍負責在 plan preview 與 download/import completion 時寫 structured event，但 compact event shape、run record 與 plan passport 壓縮規則改由後端 helper 擁有，避免未來 Tk/Web/Qt 各自發明 event keys。

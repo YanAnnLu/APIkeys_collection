@@ -35,6 +35,7 @@ from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_sch
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
     adapter_review_display_payload,
+    crawler_asset_plan_event_context,
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
     next_action_display_label,
@@ -44,7 +45,6 @@ from api_launcher.crawler_asset_service import (
     crawler_asset_listing_event_context,
     run_crawler_asset_listing,
 )
-from api_launcher.crawler_run_records import crawler_run_record_from_result
 from api_launcher.crawler_seed_registry import crawler_seed_page, save_crawler_seed_favorite
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
@@ -1373,9 +1373,6 @@ class CrawlerAssetWorkflowMixin:
         """把 UI 可見結果寫成事件，供 handoff、重開 UI 與後續 agent 讀取。"""
 
         outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
-        content_review_payload = (
-            outcome_payload.get("content_review") if isinstance(outcome_payload.get("content_review"), dict) else {}
-        )
         plan_passport_payload = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
         try:
             update_crawler_asset_plan_passport(str(getattr(result, "asset_id", "") or ""), plan_passport_payload)
@@ -1386,25 +1383,22 @@ class CrawlerAssetWorkflowMixin:
                 component="ui.crawler_assets",
                 context={"asset_id": str(getattr(result, "asset_id", "") or "")},
             )
+        event_context = crawler_asset_plan_event_context(
+            result,
+            outcome_payload,
+            added_count=added_count,
+            plan_passport=plan_passport_payload,
+        )
+        # Tk writes the resolved plan path to disk; Web logs only a compact
+        # event.  Keep that UI-local artifact pointer as an override while the
+        # shared backend helper owns all status/count/review fields.
+        event_context["resolved_plan"] = written_paths.get("resolved", "")
+        event_context["review_queue_count"] = crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None))
         log_event(
             "crawler_asset_plan_outcome_recorded",
             "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",
             component="ui.crawler_assets",
-            context={
-                "asset_id": str(getattr(result, "asset_id", "") or ""),
-                "outcome_bucket": str(getattr(result, "outcome_bucket", "") or ""),
-                "outcome_label": crawler_asset_plan_outcome_label(result, added_count),
-                "added_count": added_count,
-                "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
-                "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
-                "review_queue_count": crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None)),
-                "content_review_label": str(outcome_payload.get("content_review_label") or ""),
-                "content_review": content_review_payload,
-                "run_record": crawler_run_record_from_result(result),
-                "plan_passport": plan_passport_payload,
-                "resolved_plan": written_paths.get("resolved", ""),
-                "user_next_action": str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or ""),
-            },
+            context=event_context,
         )
 
     def refresh_crawler_asset_plan_row(self, asset_id: str) -> None:

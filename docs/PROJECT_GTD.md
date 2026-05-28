@@ -65,6 +65,7 @@ Last updated: 2026-05-29
 - [x] Web Preview listing payload 已抽成 helper：blocked 與 live listing 分支共用 `CrawlerAssetListingResult.to_dict()`，Web 只附加 `next_action_label`，不再手寫 candidate counts、seed enumeration 或 run-record 形狀。
 - [x] Credential-blocked plan 顯示 payload 已抽回 backend display contract：缺登入 / API Key 時的 plan outcome 與 plan passport 由 `crawler_asset_display.py` 產生，Web Preview 不再手寫 `credential_setup_required` 形狀。
 - [x] Plan event context 已抽回 backend display contract：Web Preview 仍寫 structured event，但 `crawler_asset_plan_event_context()` 的 compact event shape、run record 與 plan passport 壓縮規則由 `crawler_asset_display.py` 擁有。
+- [x] Tk plan outcome event 也已接上同一份 backend helper：Tk 不再手寫 run record / content review / plan passport event keys，只覆寫本地 resolved plan path 與 review queue count。
 - [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，減少連點造成的重複 dialog 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
 - [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
