@@ -17,6 +17,7 @@
 3. 來源介面類型只回答「資料在哪裡、怎麼列資源」；CSV、JSON、NetCDF、GeoTIFF、ZIP 等內容格式要由 content detector / parser registry 另行處理。
 4. Tk 仍是目前可用 UI；未來 Qt 只是換皮，後端服務、crawler asset、bounds schema、capability contract 必須保持可重用。
 5. K 槽主工作區 `K:\APIkeys_collection` 是提交來源；GUI/showcase/full smoke 可 clone 到本地磁碟測試，通過後回補 K 槽再 commit/push。
+6. 若使用者問「整體進度多少」，不要回單一百分比；先讀 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md` 或跑 `--project-maturity-json`，用成熟度矩陣回答。
 
 ## 不要做什麼
 

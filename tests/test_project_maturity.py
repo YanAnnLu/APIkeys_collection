@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+import io
+import json
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
+
+from api_launcher.core import main
+from api_launcher.project_maturity import build_project_maturity_payload, render_project_maturity_markdown
+
+
+class ProjectMaturityTests(unittest.TestCase):
+    def test_project_maturity_payload_scopes_delivery_without_single_percent(self) -> None:
+        with patch(
+            "api_launcher.project_maturity.build_mvp_readiness_payload",
+            return_value={
+                "closure_id": "canonical_mvp_demo_closure",
+                "closure_percent": 100,
+                "status": "ready_for_mvp_demo",
+                "scope": "bounded demo scope",
+                "not_product_scope": "not whole product",
+            },
+        ):
+            payload = build_project_maturity_payload(object())  # type: ignore[arg-type]
+
+        self.assertNotIn("overall_percent", payload)
+        self.assertIn("Do not report RRKAL progress as one percentage", payload["reporting_rule"])
+        self.assertEqual(100, payload["canonical_delivery_scope"]["closure_percent"])
+        rows = {row["area_id"]: row for row in payload["rows"]}
+        self.assertEqual("deliverable_100", rows["canonical_mvp_demo_closure"]["maturity_level"])
+        self.assertEqual("partial_bounded", rows["provider_specific_deep_adapters"]["maturity_level"])
+        self.assertEqual(3, rows["provider_specific_deep_adapters"]["metrics"]["dataset_adapter_count"])
+        self.assertEqual("contract_only", rows["renderer_unreal_simulation"]["maturity_level"])
+        self.assertGreater(
+            rows["source_pattern_and_crawler_handlers"]["metrics"]["supported_source_type_count"],
+            0,
+        )
+
+    def test_project_maturity_markdown_renders_matrix_without_claiming_all_done(self) -> None:
+        payload = {
+            "matrix_version": "test",
+            "reporting_rule": "Use matrix.",
+            "why_no_single_percent": "No single percent.",
+            "canonical_delivery_scope": {
+                "closure_id": "canonical_mvp_demo_closure",
+                "closure_percent": 100,
+                "status": "ready_for_mvp_demo",
+                "scope": "bounded",
+                "not_product_scope": "not all",
+            },
+            "rows": [
+                {
+                    "area_label": "Renderer",
+                    "maturity_level": "contract_only",
+                    "maturity_label_zh_TW": "合約 / planned",
+                    "deliverable_scope": "contract",
+                    "current_limitations": ["no real I/O"],
+                    "next_actions": ["implement real I/O"],
+                }
+            ],
+        }
+
+        markdown = render_project_maturity_markdown(payload)
+
+        self.assertIn("# RRKAL Project Maturity Matrix", markdown)
+        self.assertIn("closure_percent: 100", markdown)
+        self.assertIn("合約 / planned", markdown)
+        self.assertIn("no real I/O", markdown)
+
+    def test_cli_emits_project_maturity_json_without_human_setup_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = io.StringIO()
+            with patch(
+                "api_launcher.core.build_project_maturity_payload",
+                return_value={
+                    "matrix_version": "test",
+                    "reporting_rule": "Use matrix.",
+                    "rows": [],
+                    "canonical_delivery_scope": {"closure_percent": 100},
+                },
+            ):
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            str(Path(tmpdir) / "launcher.sqlite"),
+                            "--init-db",
+                            "--seed",
+                            "--project-maturity-json",
+                        ]
+                    )
+            payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual("test", payload["matrix_version"])
+        self.assertEqual(100, payload["canonical_delivery_scope"]["closure_percent"])
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()

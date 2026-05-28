@@ -40,6 +40,7 @@
 | 檢查文件是否漂移 | `DOCS_DRIFT_AUDIT.zh-TW.md` -> `AGENT_HANDOFF.zh-TW.md` -> 實際 CLI/test/UI/CI 證據 | 先看已知漂移與本輪修補，再用已驗證行為判斷文件是否可採信。 |
 | 檢查程式健康 / 風險 | `CODE_HEALTH_AUDIT.zh-TW.md` -> 相關測試 -> `CODE_RELATIONSHIP_MAP.zh-TW.md` | 先看已確認的 P1/P2/P3 風險、已修補項目與下一個 hardening slice。 |
 | 要看版本變更 | `DEVELOPMENT_LOG.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 先看每個已推送 checkpoint 屬於哪個開發階段、改了什麼、如何驗證、還有什麼風險。 |
+| 要回答整體進度 / 成熟度 | `PROJECT_MATURITY_MATRIX.zh-TW.md` -> `PROJECT_GTD.md` -> `AGENT_HANDOFF.zh-TW.md` | 不再用單一百分比；用成熟度矩陣區分可交付小閉環、bounded、partial、contract-only 與 planned。 |
 | 想理解產品 | `PRODUCT_POSITIONING.zh-TW.md` -> `TECHNICAL_OVERVIEW.zh-TW.md` -> `ARCHITECTURE.zh-TW.md` | 先理解「資料工程版 Steam」和整體資料管線。 |
 | 想理解中長期資料資產平台概念 | `DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` -> `PRODUCT_POSITIONING.zh-TW.md` -> `PROJECT_GTD.md` | 先看資料資產、Discovery Tool、爬蟲資產 / Crawler Asset、湖倉/K8S、Render Studio、ML 與 connector 的總體概念，再回到 MVP 收束。 |
 | 要改 crawler / adapter | `DATASET_DISCOVERY_NOTES.zh-TW.md` -> `MVP_FLOW_AUDIT.zh-TW.md` -> `PROJECT_GTD.md` | 避免把資料集硬寫死，維持 crawler-first，並確認候選、resolver、下載與匯入是否真的閉環。 |
@@ -58,6 +59,7 @@
 | `AGENT_HANDOFF.zh-TW.md` | 跨機器/跨 Agent 接力卡，記錄最新狀態、雷點與下一步。 | 每次穩定節點、commit/push 前後、跨 Agent 前更新。 |
 | `AGENT_START_HERE.zh-TW.md` | Agent 最短入口地圖，定義權威順序、目前主線、不要做什麼、K 槽參考邊界。 | 文檔分層、工作流或主線方向改變時更新；平常保持短。 |
 | `PROJECT_GTD.md` | 進度主索引，列出每個產品區塊目前狀態與下一步。 | 每完成或改變一個功能閉環後更新。 |
+| `PROJECT_MATURITY_MATRIX.zh-TW.md` | 整體進度與成熟度口徑，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`。 | 問「整體進度多少」、新增可交付 closure、或 source/adapter/renderer/UI 成熟度改變時更新。 |
 | `DEVELOPMENT_LOG.zh-TW.md` | 開發日誌，從 2026-05-21 起用流水帳記錄 push / CI run；最近日期與同日內最新時間放最上方，成功 run 用 `**CHECKPOINT**` 標醒目，失敗 run 保留為 `**CI 失敗**`，每筆都要有 `開發階段` 與中文說明。 | 每次完成並推送一個版本 checkpoint 後追加，不重寫舊紀錄；需要回補時可用 GitHub Actions run list 反推。 |
 | `HEARTBEAT_AUTOMATION.zh-TW.md` | heartbeat automation 的安全規則、CLI/script 入口、外部排程與 agent runner 邊界。 | 更改 heartbeat CLI、scheduler、停止條件或自動推進規則時更新。 |
 | `DOCS_INDEX.zh-TW.md` | 文件地圖與整理規則。 | 新增、移動、合併文件時更新。 |

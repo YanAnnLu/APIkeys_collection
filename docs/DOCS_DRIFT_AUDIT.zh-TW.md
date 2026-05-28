@@ -1,8 +1,27 @@
 # 文件漂移審計
 
-最後更新：2026-05-28 06:25 Asia/Taipei
+最後更新：2026-05-28 07:45 Asia/Taipei
 
 本文件記錄 RRKAL 文件是否仍對齊實際專案狀態。它不是 roadmap，也不是產品規格；它是「文件可不可信」的審計紀錄。
+
+## 第五輪補洞：整體進度改用成熟度矩陣（2026-05-28）
+
+這一輪把「之後不能再用單一 94% 回答整體進度」從對話規則落成可驗證 artifact。
+
+已落地的 verified behavior：
+
+- 新增 `api_launcher/project_maturity.py`。
+- CLI 新增 `--project-maturity-json`、`--write-project-maturity-json`、`--project-maturity-markdown`。
+- 新增 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md`，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`。
+- 成熟度矩陣會把 canonical MVP demo closure 的 `closure_percent=100` 放在 `canonical_delivery_scope`，並明確保留 `not_product_scope`。
+
+文件口徑：
+
+- 可以寫：可交付小閉環是 100%。
+- 可以寫：整體專案要用成熟度矩陣回答。
+- 不可以寫：整體 RRKAL 是 94%、100%，或任何未定義邊界的單一百分比。
+
+後續若新增第二條 bounded closure，例如某個 public live source 的完整 `seed -> bounds -> download -> import -> UI` 路徑，應新增自己的 readiness artifact 或矩陣 row，而不是覆蓋 canonical MVP demo 的 100%。
 
 ## 第四輪補洞：小閉環 100% 與整體成熟度拆分（2026-05-28）
 

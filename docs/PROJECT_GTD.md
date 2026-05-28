@@ -10,14 +10,16 @@ Last updated: 2026-05-28
 - [x] 修補 `event_log.latest_events()`：改為從檔尾 bounded 讀取，不再整份讀取大型 JSONL；同時移除每次 log 寫入時可能卡住的 `platform.*` 探測，避免 handoff/readiness 因長期事件紀錄或平台 probe 卡死。
 - [x] 修補平台探測：`rendering_profiles.py`、`environment.py`、`platform_paths.py`、`integrations.py` 不再走可能卡住的 `platform.system()` / `platform.machine()`，改用 `sys.platform` 與環境變數做保守推斷。
 - [x] 修補 `scripts/pre_push_smoke.ps1` upstream 探測：K/RaiDrive 偶發 `git rev-parse @{u}` 讀不到 cwd 時只跳過 optional pending-push diff，不再讓整個 smoke 提早失敗。
-- [ ] 下一步：把「成熟度矩陣」正式寫成一份短文件 / CLI summary，之後使用者問整體進度時回報矩陣，不再回單一百分比。
+- [x] 新增 `api_launcher/project_maturity.py` 與 CLI `--project-maturity-json` / `--write-project-maturity-json` / `--project-maturity-markdown`，把「整體進度」改成正式成熟度矩陣 artifact，不再以單一百分比混合 bounded closure、partial path、contract-only 與 planned work。
+- [x] 新增 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md`，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`，並固定之後回答整體進度時使用矩陣。
+- [ ] 下一步：挑一條 live public source 做第二個 bounded closure readiness artifact，而不是把所有 crawler 一次推成 100%。
 
 ## 2026-05-28 Source-code maturity / 能力成熟度邊界審計
 - [x] 針對 `dataset_adapters.py`、`api_launcher/adapters/`、`simulation_bridge.py`、`unreal_bridge.py` 做源碼實體抽查，確認第二輪文檔審計仍缺一個「能力成熟度」判準。
 - [x] 明確標示 `simulation_bridge.py` 目前是 `contract_only`，不能被寫成已實作物理模擬；`unreal_bridge.py` 目前只產生 `planned` bridge target，不能被寫成已完成 Unreal Content 實體導入。
 - [x] 明確拆分 source crawler handler、provider-specific dataset adapter、adapter plan resolver、content parser/importer capability、renderer/simulation bridge。`SUPPORTED_DATASET_SOURCE_TYPES` 代表 source handler / offline audit contract 覆蓋，不代表每個來源都有 deep adapter / curated import / renderer bridge。
 - [x] 更新 `DOCS_DRIFT_AUDIT.zh-TW.md` 與 `DATASET_DISCOVERY_NOTES.zh-TW.md`，要求後續文件描述「支援某來源」時必須標明 discovery、bounded plan、download、import、renderer bridge 或 contract-only 層級。
-- [ ] 後續若要量化整體進度，必須以能力成熟度矩陣重新估算，不得再用單一百分比混合 contract、offline smoke、live download 與 renderer bridge。
+- [x] 後續若要量化整體進度，必須以能力成熟度矩陣重新估算，不得再用單一百分比混合 contract、offline smoke、live download 與 renderer bridge。
 
 ## 2026-05-27 Documentation drift audit / 協作文件對齊
 - [x] 追加 Documentation Drift Guard 到全域 Codex skills，要求 agent 不盲信文檔，先以 verified behavior（tests / CLI JSON / smoke / UI / git diff / CI）建立現況。
