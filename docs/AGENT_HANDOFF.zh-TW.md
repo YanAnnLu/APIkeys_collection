@@ -5,6 +5,7 @@
 - 移除 `preview_api.py` 對 `crawler_seed_enumeration_payload` 的直接 import，避免 Web endpoint 自己重建 seed enumeration。
 - 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_web_crawler_asset_listing_payload_adds_label_without_rebuilding_shape`，並補強 listing endpoint 測試確認 nested `listing_result.next_action_label` 也存在。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 51 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，909 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_064048.log`。
+- 已推送 `a54a931 Normalize web listing payloads`；GitHub Actions run `26606736921` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Web listing endpoint 內部 payload helper；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 06:23 Web crawler action context helper
