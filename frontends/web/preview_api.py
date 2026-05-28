@@ -25,6 +25,7 @@ from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
     crawler_asset_bound_form_payload,
     crawler_asset_card_capabilities,
+    crawler_asset_download_import_display_payload,
     crawler_asset_flow_steps,
     crawler_asset_plan_event_badge_payload,
     crawler_asset_plan_outcome_payload,
@@ -811,24 +812,10 @@ def crawler_asset_download_import(
         )
         conn.commit()
 
-    download_result = result.to_dict()
-    response["download_result"] = download_result
-    response["plan_result"] = result.plan_result.to_dict()
-    plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
-    response["plan_outcome"] = plan_outcome
-    plan_passport = crawler_asset_plan_passport_payload(result.plan_result, plan_outcome=plan_outcome)
-    response["plan_passport"] = plan_passport
+    response.update(crawler_asset_download_import_display_payload(result))
+    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
+    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
-    response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
-    download_import = result.pipeline.to_dict()
-    response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
-    response["next_action_label"] = str(
-        download_result.get("next_action_label")
-        or plan_outcome.get("next_action_label")
-        or response["next_action"]
-    )
-    download_import["next_action_label"] = response["next_action_label"]
-    response["download_import"] = download_import
     log_event(
         "crawler_asset_download_import_completed",
         "Web Preview ran the formal crawler asset download/import path.",
@@ -920,24 +907,10 @@ def crawler_seed_download_import(
         )
         conn.commit()
 
-    download_result = result.to_dict()
-    response["download_result"] = download_result
-    response["plan_result"] = result.plan_result.to_dict()
-    plan_outcome = crawler_asset_plan_outcome_payload(result.plan_result)
-    response["plan_outcome"] = plan_outcome
-    plan_passport = crawler_asset_plan_passport_payload(result.plan_result, plan_outcome=plan_outcome)
-    response["plan_passport"] = plan_passport
+    response.update(crawler_asset_download_import_display_payload(result))
+    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
+    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
-    response["adapter_review"] = adapter_review_display_payload(result.plan_result.resolved_plan)
-    download_import = result.pipeline.to_dict()
-    response["next_action"] = result.pipeline.next_action or result.plan_result.user_next_action
-    response["next_action_label"] = str(
-        download_result.get("next_action_label")
-        or plan_outcome.get("next_action_label")
-        or response["next_action"]
-    )
-    download_import["next_action_label"] = response["next_action_label"]
-    response["download_import"] = download_import
     log_event(
         "crawler_seed_download_import_completed",
         "Web Preview ran the formal seed download/import path.",

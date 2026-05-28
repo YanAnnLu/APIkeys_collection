@@ -6,6 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload
 from api_launcher.crawler_asset_download import (
     CrawlerAssetDownloadImportResult,
     run_crawler_asset_download_import,
@@ -263,6 +264,47 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
             "先處理 Adapter 審核或解析計畫，再下載",
             payload["next_action_label"],
         )
+
+    def test_download_import_display_payload_packages_shared_ui_state(self) -> None:
+        plan_result = unittest.mock.Mock()
+        plan_result.asset_id = "demo_index"
+        plan_result.outcome_bucket = "ready_to_download"
+        plan_result.direct_download_count = 1
+        plan_result.review_required_count = 0
+        plan_result.user_next_action = "open_downloader_and_start_or_pause_queue"
+        plan_result.next_action = ""
+        plan_result.resolved_plan = {"summary": {"direct_download_count": 1}}
+        plan_result.plan_build = None
+        plan_result.to_dict.return_value = {"asset_id": "demo_index", "outcome_bucket": "ready_to_download"}
+        pipeline = DownloadImportPipelineRun(
+            result=DownloadPlanRunResult(
+                entry_count=1,
+                submitted=1,
+                completed=1,
+                failed=0,
+                skipped=0,
+                registered_assets=1,
+                imported=1,
+            ),
+            stage="download_import_completed",
+            import_requested=True,
+        )
+        result = CrawlerAssetDownloadImportResult(
+            asset_id="demo_index",
+            dataset_uid="demo_provider:dataset_a",
+            plan_result=plan_result,
+            pipeline=pipeline,
+            downloads_root=Path("downloads"),
+            curated_sqlite_path=Path("downloads") / "curated_sources.db",
+        )
+
+        payload = crawler_asset_download_import_display_payload(result)
+
+        self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual(1, payload["plan_passport"]["direct_download_count"])
+        self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
 
 
 if __name__ == "__main__":

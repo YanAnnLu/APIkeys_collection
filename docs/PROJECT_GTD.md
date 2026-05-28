@@ -33,6 +33,7 @@ Last updated: 2026-05-28
 - [x] Tk crawler asset 背景工作已加 single-flight guard：seed 欄位探測、seed 下載 / 匯入、入口清單擷取、下載計畫建立會用 `(job_type, asset_id, dataset_uid)` 或 asset-level key 擋掉重複背景 thread，先降低連點造成的重複 worker、SQLite/download path 與 bounds dialog 競爭風險。
 - [x] Tk single-flight guard 已抽出可測 helper：`frontends/tk/background_jobs.py` 集中 active job set / lock / duplicate guard / release，不讓 `crawler_asset_workflows.py` 繼續吸收 scheduler 細節；其他 Tk workflow 後續可逐步共用同一個 bounded job pattern。
 - [x] Schema/head probe + bounds form enrichment 已從 Web/Tk 邊界抽回 `api_launcher/crawler_asset_schema_probe.py`：Web Preview 仍保留相容 API，Tk seed probe worker 改吃同一個 UI-neutral service result，避免 `preview_api.py` 與 `crawler_asset_workflows.py` 各自組合 probe/form/enrichment 邏輯。
+- [x] Formal download/import 顯示 payload 已從 Web endpoint 抽回 `crawler_asset_display.py`：Web 的 asset-level / seed-level download-import endpoint 共用 `crawler_asset_download_import_display_payload()`，不再各自重組 plan outcome、plan passport、adapter review、download/import 與 next-action label。
 - [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

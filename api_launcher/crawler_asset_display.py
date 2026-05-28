@@ -577,6 +577,63 @@ def crawler_asset_plan_passport_payload(
     }
 
 
+def crawler_asset_download_import_display_payload(
+    result: object,
+    *,
+    plan_outcome: Mapping[str, object] | None = None,
+    plan_passport: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Build the shared Web/Tk/Qt payload for a download/import run.
+
+    The download/import service already owns plan, download, and import state.
+    This helper only packages that state for UI surfaces so endpoints do not
+    each rebuild next-action labels, adapter review summaries, and plan badges.
+    """
+
+    download_result = result.to_dict() if hasattr(result, "to_dict") else {}
+    if not isinstance(download_result, dict):
+        download_result = {}
+    plan_result = getattr(result, "plan_result", None)
+    plan_result_payload = plan_result.to_dict() if hasattr(plan_result, "to_dict") else {}
+    if not isinstance(plan_result_payload, dict):
+        plan_result_payload = {}
+    outcome = dict(plan_outcome) if isinstance(plan_outcome, Mapping) else crawler_asset_plan_outcome_payload(plan_result)
+    passport = (
+        dict(plan_passport)
+        if isinstance(plan_passport, Mapping)
+        else crawler_asset_plan_passport_payload(plan_result, plan_outcome=outcome)
+    )
+    resolved_plan = getattr(plan_result, "resolved_plan", None)
+    adapter_review = adapter_review_display_payload(resolved_plan if isinstance(resolved_plan, dict) else {})
+    pipeline = getattr(result, "pipeline", None)
+    download_import = pipeline.to_dict() if hasattr(pipeline, "to_dict") else download_result.get("download_import", {})
+    if not isinstance(download_import, dict):
+        download_import = {}
+    next_action = str(
+        getattr(pipeline, "next_action", "")
+        or getattr(plan_result, "user_next_action", "")
+        or download_result.get("next_action")
+        or ""
+    )
+    next_action_label = str(
+        download_result.get("next_action_label")
+        or outcome.get("next_action_label")
+        or NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action)
+        or ""
+    )
+    download_import["next_action_label"] = next_action_label
+    return {
+        "download_result": download_result,
+        "plan_result": plan_result_payload,
+        "plan_outcome": outcome,
+        "plan_passport": passport,
+        "adapter_review": adapter_review,
+        "download_import": download_import,
+        "next_action": next_action,
+        "next_action_label": next_action_label,
+    }
+
+
 def crawler_asset_plan_event_badge_payload(context: Mapping[str, object]) -> dict[str, object]:
     """Rebuild a compact plan-outcome badge from a structured event context.
 
@@ -984,6 +1041,7 @@ __all__ = [
     "crawler_asset_bound_form_payload",
     "crawler_asset_card_capabilities",
     "crawler_asset_flow_steps",
+    "crawler_asset_download_import_display_payload",
     "crawler_asset_plan_event_badge_payload",
     "crawler_asset_plan_outcome_payload",
     "crawler_asset_plan_passport_payload",
