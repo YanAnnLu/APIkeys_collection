@@ -2,7 +2,7 @@
 ## 2026-05-28 18:54 Log timestamp correction
 - 本輪修正文檔治理漂移：`docs/DEVELOPMENT_LOG.zh-TW.md` 與本 handoff 先前把尚未完成的 checkpoint 寫成「小時精確、分鐘佔位」格式，後續 commit / CI 完成後沒有回填實際分鐘。這不是 GitHub 或系統自動改寫，而是 agent 在 checkpoint 尚未收束時留下佔位值。
 - 已將近期 checkpoint 時間改為可追溯的實際本地時間：18:42、18:29、18:07、17:52、17:40、17:25、17:06、16:51、16:09。後續正式 log 不應再提交分鐘佔位；若 checkpoint 尚未完成，應先不寫正式 log，或寫明 `pending` 並在 commit 前回填精確 `HH:mm`。
-- 已驗證：時間佔位掃描無結果；`git diff --check` OK；docs mojibake scan OK。
+- 已推送 `55f357e Fix exact checkpoint times in docs`；GitHub Actions run `26570514520` 已通過 Ubuntu、Windows 與 real DB smoke。先前本地驗證：時間佔位掃描無結果；`git diff --check` OK；docs mojibake scan OK。
 
 ## 2026-05-28 18:42 Tk background job helper extraction
 - 本輪做小型 consolidation：新增 `frontends/tk/background_jobs.py`，把 single-flight active job set、lock、duplicate guard、release 的共通邏輯從 `crawler_asset_workflows.py` 抽出。`CrawlerAssetWorkflowMixin` 仍保留 crawler asset 專用薄包裝與 UI 狀態文案，但不再直接維護 active job set 細節。
