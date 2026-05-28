@@ -4,6 +4,7 @@
 - `frontends/web/preview_api.py` 的 plan preview、asset download/import、seed download/import credential-blocked 分支改為消費這兩個 helper；Web 仍負責 endpoint-level next action 與 credential guard，不再自己組 `credential_setup_required` 形狀。
 - 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_credential_blocked_plan_payloads_are_backend_display_contract`。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 52 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，910 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_065819.log`。
+- 已推送 `deeb96b Move credential-blocked plan display payloads`；GitHub Actions run `26607436050` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Web credential-blocked 內部 display helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 06:38 Web listing payload helper
