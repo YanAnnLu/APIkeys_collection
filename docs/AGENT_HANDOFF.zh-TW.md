@@ -4,6 +4,7 @@
 - 根因是 local Web Preview server 對不需要 request body 的 POST（developer diagnostic 與 unknown endpoint）會直接回短 JSON，沒有先 drain `Content-Length` body；Windows localhost runner 偶爾會 abort 這種短連線，測試 helper 因重試而重跑有副作用 endpoint。
 - `frontends/web/server.py` 新增 `discard_request_body()`，developer diagnostic 與 unknown POST route 會先讀掉 unused body 再回 JSON；`tests/test_web_preview.py` 的 `post_json_to_preview_server()` 改成預設不重試 POST，只有 legacy 404 route 顯式 opt-in retry，避免重複執行真 workflow / diagnostics。
 - 已驗證：`py -3 -B -m py_compile frontends\web\server.py tests\test_web_preview.py` OK；targeted route tests OK；`py -3 -B -m unittest tests.test_web_preview -v` 48 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，874 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_010020.log`。
+- 已推送 `8883f1f Harden Web preview POST body drain`；GitHub Actions run `26589864084` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪是 Web Preview local server / test hardening，不改使用者主操作流程；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 00:44 Tk MVP demo smoke single-flight guard
