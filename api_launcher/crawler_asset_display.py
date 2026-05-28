@@ -609,6 +609,12 @@ def crawler_asset_download_import_display_payload(
     download_import = pipeline.to_dict() if hasattr(pipeline, "to_dict") else download_result.get("download_import", {})
     if not isinstance(download_import, dict):
         download_import = {}
+    if "stage" not in download_import and "stage" in download_result:
+        download_import["stage"] = download_result["stage"]
+    if "succeeded" not in download_import and "succeeded" in download_result:
+        download_import["succeeded"] = download_result["succeeded"]
+    if "next_action" not in download_import and "next_action" in download_result:
+        download_import["next_action"] = download_result["next_action"]
     next_action = str(
         getattr(pipeline, "next_action", "")
         or getattr(plan_result, "user_next_action", "")

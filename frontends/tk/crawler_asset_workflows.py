@@ -36,6 +36,7 @@ from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_sch
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
     adapter_review_display_payload,
+    crawler_asset_download_import_display_payload,
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
     next_action_display_label,
@@ -1115,16 +1116,25 @@ class CrawlerAssetWorkflowMixin:
         self.root.after(0, lambda: self._finish_crawler_asset_seed_download_import(result))
 
     def _finish_crawler_asset_seed_download_import(self, result: object) -> None:
-        raw_payload = result.to_dict() if hasattr(result, "to_dict") else {}
+        display_payload = crawler_asset_download_import_display_payload(result)
+        raw_payload = display_payload.get("download_result")
         payload = raw_payload if isinstance(raw_payload, dict) else {}
-        stage = str(payload.get("stage") or getattr(getattr(result, "pipeline", None), "stage", "") or "-")
-        succeeded = bool(payload.get("succeeded") if "succeeded" in payload else getattr(result, "succeeded", False))
+        raw_download_import = display_payload.get("download_import")
+        download_import = raw_download_import if isinstance(raw_download_import, dict) else {}
+        stage = str(download_import.get("stage") or payload.get("stage") or getattr(getattr(result, "pipeline", None), "stage", "") or "-")
+        succeeded = bool(
+            download_import.get("succeeded")
+            if "succeeded" in download_import
+            else payload.get("succeeded")
+            if "succeeded" in payload
+            else getattr(result, "succeeded", False)
+        )
         artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
         downloads_root = str(artifacts.get("downloads_root") or "")
         curated_sqlite = str(artifacts.get("curated_sqlite") or "")
         dataset_uid = str(payload.get("dataset_uid") or "").strip()
-        next_action = str(payload.get("next_action") or "").strip()
-        next_action_label = str(payload.get("next_action_label") or next_action).strip()
+        next_action = str(display_payload.get("next_action") or download_import.get("next_action") or payload.get("next_action") or "").strip()
+        next_action_label = str(display_payload.get("next_action_label") or payload.get("next_action_label") or next_action).strip()
         message = self.tr(
             (
                 f"Seed：{dataset_uid or '-'}\n"
