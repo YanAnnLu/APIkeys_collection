@@ -93,6 +93,27 @@ class WebPreviewRepositorySession:
     repository: ApiCatalogRepository
 
 
+def web_next_action_payload(next_action: object) -> dict[str, str]:
+    """Pair a backend next_action id with the shared display label.
+
+    Web endpoints should pass this small contract through to JavaScript instead
+    of making the browser translate backend workflow states.  Keeping the pair
+    together here also makes future Tk/Qt parity checks easier.
+    """
+
+    action = str(next_action or "").strip()
+    return {
+        "next_action": action,
+        "next_action_label": next_action_display_label(action),
+    }
+
+
+def apply_web_next_action(response: dict[str, object], next_action: object) -> None:
+    """Update an existing Web payload with the shared next-action contract."""
+
+    response.update(web_next_action_payload(next_action))
+
+
 def web_preview_status() -> dict[str, object]:
     """Return a small machine-readable status for browser smoke checks."""
 
@@ -370,7 +391,7 @@ def crawler_asset_listing(
         "asset_id": asset.asset_id,
         "credential_guard": credential_guard,
         "listing_options": listing_options,
-        "next_action": "review_candidates_or_build_download_plan",
+        **web_next_action_payload("review_candidates_or_build_download_plan"),
     }
     if credential_status_blocks_plan(credential_guard):
         blocked_result = CrawlerAssetListingResult(
@@ -397,8 +418,7 @@ def crawler_asset_listing(
             "duplicate_count": 0,
             "error_count": 0,
             "warning_count": 0,
-            "next_action": "edit_local_credentials_before_live_download",
-            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
+            **web_next_action_payload("edit_local_credentials_before_live_download"),
             "audit_summary": {},
             "max_results": listing_options["max_results"],
             "max_pages": listing_options["max_pages"],
@@ -407,8 +427,7 @@ def crawler_asset_listing(
             "search_scope": "blocked_by_credentials",
             "seed_enumeration": crawler_seed_enumeration_payload(blocked_result),
         }
-        response["next_action"] = "edit_local_credentials_before_live_download"
-        response["next_action_label"] = next_action_display_label(response["next_action"])
+        apply_web_next_action(response, "edit_local_credentials_before_live_download")
         return response
 
     with web_preview_repository_context(db_path, seed_builtin_providers=True) as session:
@@ -429,8 +448,7 @@ def crawler_asset_listing(
     payload = result.to_dict()
     response["listing_result"] = payload
     response["audit_summary"] = payload.get("audit_summary", {})
-    response["next_action"] = result.next_action
-    response["next_action_label"] = next_action_display_label(response["next_action"])
+    apply_web_next_action(response, result.next_action)
     log_event(
         "crawler_asset_listing_recorded",
         "Web Preview crawler asset workflow recorded the visible listing outcome.",
@@ -693,9 +711,8 @@ def crawler_asset_plan_preview(
         "execute": execute,
         "bounds_payload": payload.to_dict(),
         "credential_guard": credential_guard,
-        "next_action": "click_build_plan_to_call_backend" if not execute else "review_plan_outcome",
+        **web_next_action_payload("click_build_plan_to_call_backend" if not execute else "review_plan_outcome"),
     }
-    response["next_action_label"] = next_action_display_label(response["next_action"])
     if not execute:
         return response
     if credential_status_blocks_plan(credential_guard):
@@ -703,8 +720,7 @@ def crawler_asset_plan_preview(
         # 不讓 Web Preview 發出必然失敗的 live crawler request。
         response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
         response["plan_passport"] = credential_blocked_plan_passport(asset_id, credential_guard)
-        response["next_action"] = "edit_local_credentials_before_live_download"
-        response["next_action_label"] = next_action_display_label(response["next_action"])
+        apply_web_next_action(response, "edit_local_credentials_before_live_download")
         return response
 
     target_downloads = Path(downloads_root) if downloads_root is not None else default_local_downloads_root()
@@ -729,8 +745,9 @@ def crawler_asset_plan_preview(
     response["plan_passport"] = plan_passport
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
     response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
-    response["next_action"] = result.user_next_action
-    response["next_action_label"] = str(plan_outcome.get("next_action_label") or next_action_display_label(response["next_action"]))
+    apply_web_next_action(response, result.user_next_action)
+    if plan_outcome.get("next_action_label"):
+        response["next_action_label"] = str(plan_outcome["next_action_label"])
     log_event(
         "crawler_asset_plan_outcome_recorded",
         "Web Preview crawler asset workflow recorded the visible plan outcome.",
@@ -772,7 +789,7 @@ def crawler_asset_download_import(
         "asset_id": asset.asset_id,
         "bounds_payload": payload.to_dict(),
         "credential_guard": credential_guard,
-        "next_action": "run_crawler_asset_download_import",
+        **web_next_action_payload("run_crawler_asset_download_import"),
     }
     if credential_status_blocks_plan(credential_guard):
         return web_download_import_credential_blocked_response(
@@ -849,7 +866,7 @@ def crawler_seed_download_import(
         "dataset_uid": dataset_uid,
         "bounds_payload": payload.to_dict(),
         "credential_guard": credential_guard,
-        "next_action": "run_crawler_seed_download_import",
+        **web_next_action_payload("run_crawler_seed_download_import"),
     }
     if credential_status_blocks_plan(credential_guard):
         return web_download_import_credential_blocked_response(
@@ -997,20 +1014,18 @@ def web_download_import_credential_blocked_response(
         "asset_id": asset_id,
         "bounds_payload": dict(bounds_payload),
         "credential_guard": credential_guard,
-        "next_action": initial_next_action,
+        **web_next_action_payload(initial_next_action),
         "plan_outcome": credential_blocked_plan_outcome(credential_guard),
         "plan_passport": credential_blocked_plan_passport(asset_id, credential_guard),
         "download_import": {
             "stage": "blocked_before_download",
             "succeeded": False,
-            "next_action": next_action,
-            "next_action_label": next_action_display_label(next_action),
+            **web_next_action_payload(next_action),
         },
     }
     if dataset_uid:
         response["dataset_uid"] = dataset_uid
-    response["next_action"] = next_action
-    response["next_action_label"] = next_action_display_label(next_action)
+    apply_web_next_action(response, next_action)
     return response
 
 

@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 06:07 Web next-action payload helper
+- 本輪做 Web Preview endpoint 狀態 payload 的小型 consolidation：`frontends/web/preview_api.py` 新增 `web_next_action_payload()` 與 `apply_web_next_action()`，集中產生 `next_action` + `next_action_label`。
+- `crawler_asset_listing()`、`crawler_asset_plan_preview()`、asset-level download/import、seed-level download/import 與 credential-blocked download/import payload 改用同一個 helper，避免 Web endpoint 各自呼叫 `next_action_display_label()` 或手動組 action/label。
+- 這不改 crawler、download/import、credential guard、plan outcome、plan passport、Web route 或 JavaScript 操作流程；只是讓 Web Preview 更像 thin UI adapter，後續 Tk/Qt parity 檢查可直接比對同一種 action-label contract。
+- 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_web_next_action_payload_pairs_backend_id_with_display_label`。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 49 tests OK；`frontends\web` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，907 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_060852.log`。
+- Docs drift check：本輪改 Web endpoint 內部 payload 組裝；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 05:51 Tk metadata / AI background capacity guard
 - 本輪把 provider metadata crawl 與 AI summary 兩類外部工作量入口也補上 capacity guard：`frontends/tk/source_action_workflows.py` 新增 `MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS = 2`，`frontends/tk/ai_summary_workflows.py` 新增 `MAX_TK_AI_SUMMARY_BACKGROUND_JOBS = 2`。
 - `SourceActionWorkflowMixin.crawl_provider_ids()` 仍保留 provider scope single-flight key；不同 provider scope 已有 2 個 metadata crawl worker 時，第三個入口只更新 status，不再開新 worker。

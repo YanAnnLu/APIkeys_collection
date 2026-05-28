@@ -54,6 +54,7 @@ from frontends.web.preview_api import (
     save_crawler_asset_credentials,
     web_real_download_demo,
     web_download_import_target_paths,
+    web_next_action_payload,
     web_project_maturity,
     web_preview_recent_events,
     web_preview_status,
@@ -99,6 +100,12 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("web_preview", status["surface"])
         self.assertEqual("uiux_review", status["purpose"])
         self.assertEqual("api_launcher", status["business_logic_owner"])
+
+    def test_web_next_action_payload_pairs_backend_id_with_display_label(self) -> None:
+        payload = web_next_action_payload("edit_local_credentials_before_live_download")
+
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
 
     def test_crawler_handler_smoke_diagnostics_is_developer_only_and_compact(self) -> None:
         payload = crawler_handler_smoke_diagnostics()
