@@ -4,6 +4,7 @@
 - 兩條匯入入口共用 `("sqlite_import", sqlite_path, "")` job key；同一 curated SQLite 正在匯入時，Tk 只更新 status，不再開啟第二個匯入 worker，也不會在本機檔案匯入時先彈出檔案選擇器。
 - 這不改 importer、manifest、existing-table policy、local file provenance review 或 ingestion pipeline 規則；只在 Tk 入口加一層同 SQLite path 的背景工作 gate，降低連點造成的 DB lock / 重複匯入風險。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\import_workflows.py tests\test_tk_dialogs.py` OK；targeted 4 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs tests.test_launcher_ui -v` 125 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，885 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_015909.log`。
+- 已推送 `24f1a1a Guard Tk import SQLite jobs`；GitHub Actions run `26592898718` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk 匯入入口的背景 job / SQLite write gate；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 01:44 Tk AI summary single-flight guard
