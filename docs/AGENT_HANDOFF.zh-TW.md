@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 11:48 Tk bounds quick values handoff
+- 本輪先確認另一 agent 的 `api_launcher/cli_flags.py` lazy import 變更已安全落地：HEAD `055a9fc`，`cli_flags.py` 目前無未提交 diff；`py -3 -B -m unittest tests.test_cli_flags tests.test_handoff -v`，22 tests OK，所以不需回退或修補該檔。
+- 同輪把 Tk 界域表單接上既有後端 `CrawlerAssetBoundFormSpec.recommended_values` 與 `presets`。Dialog 現在會顯示「快速界域 / Quick bounds」、「套用推薦值」與最多 4 個後端區域預設按鈕；按下後只複製後端明確提供的值，不在 Tk 內自行猜 collection、time field、bbox 或版本。
+- 已補 headless regression：`apply_recommended_values()` 會套用安全 limit，但不會把 STAC search term 誤填成 collection；`apply_preset("taiwan")` 會套用台灣 bbox，找不到 preset 時回 `False`。已驗證：`py -3 -B -m unittest tests.test_tk_dialogs -v`，66 tests OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_tk_dialogs -v`，108 tests OK。下一步仍是 schema/head probe，讓版本、時間欄位與欄位選擇從「推薦值」進一步變成遠端可選清單。
+
 ## 2026-05-28 11:27 CLI lazy import hardening handoff
 - 工作樹接回時有 `api_launcher/cli_flags.py` 的延遲導入變更。本輪將它收成正式 hardening：`command_requested()` 內才導入各 CLI 子命令活性判斷函式，避免 import `api_launcher.cli_flags` 或普通啟動路徑預先載入所有 CLI workflow 依賴。
 - 新增 `tests/test_cli_flags.py`，用 fresh subprocess 驗證 import `api_launcher.cli_flags` 時不會連帶載入其他 `api_launcher.cli_*` command module。已驗證：不寫 pyc 的 compile OK；`py -3 -B -m unittest tests.test_cli_flags tests.test_handoff -v`，22 tests OK。

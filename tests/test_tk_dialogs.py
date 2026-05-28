@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
 from api_launcher.source_download import SourceDownloadBounds
-from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_assets import crawler_asset_from_source
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE, SourcePatternDetection
@@ -290,6 +290,64 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("2026-01-01", values["start_date"])
         self.assertEqual("10", values["limit"])
         self.assertEqual(["datetime"], values["columns"])
+
+    def test_crawler_asset_bound_dialog_applies_recommended_values_without_guessing(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            search_terms=("landsat",),
+            geographic_scope="taiwan",
+            max_results=80,
+        )
+        asset = crawler_asset_from_source(source)
+        spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema, source=source)
+        dialog = object.__new__(CrawlerAssetBoundDialog)
+        dialog.spec = spec
+        dialog.vars = {
+            field.field_id: _FakeVar("")
+            for field in spec.fields
+            if field.control != "multiselect"
+        }
+        dialog.multi_vars = {}
+
+        dialog.apply_recommended_values()
+
+        self.assertEqual("25", dialog.vars["limit"].get())
+        self.assertEqual("", dialog.vars["collection"].get())
+        self.assertEqual("", dialog.vars["time_field"].get())
+        self.assertEqual("", dialog.vars["bbox_west"].get())
+
+    def test_crawler_asset_bound_dialog_applies_named_bbox_preset(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            geographic_scope="taiwan",
+        )
+        asset = crawler_asset_from_source(source)
+        spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema, source=source)
+        dialog = object.__new__(CrawlerAssetBoundDialog)
+        dialog.spec = spec
+        dialog.vars = {
+            field.field_id: _FakeVar("")
+            for field in spec.fields
+            if field.control != "multiselect"
+        }
+        dialog.multi_vars = {}
+
+        applied = dialog.apply_preset("taiwan")
+
+        self.assertTrue(applied)
+        self.assertEqual("119.0", dialog.vars["bbox_west"].get())
+        self.assertEqual("21.5", dialog.vars["bbox_south"].get())
+        self.assertEqual("123.5", dialog.vars["bbox_east"].get())
+        self.assertEqual("25.5", dialog.vars["bbox_north"].get())
+        self.assertFalse(dialog.apply_preset("missing_region"))
 
     def test_crawler_asset_workflow_stores_bounds_payload_before_building_plan(self) -> None:
         source = DatasetDiscoverySource(

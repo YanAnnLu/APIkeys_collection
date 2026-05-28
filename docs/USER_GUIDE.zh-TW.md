@@ -523,6 +523,8 @@ py -3 -B APIkeys_collection.py --discover-dataset-candidates --dataset-discovery
    - 按 `開 Seed 表格 / 下載` 會開啟本頁 seed 表格。選一筆 seed 後，可以切換收藏，或按 `下載此 Seed` 走正式 seed-level download/import service。Tk 不會在表格裡重新爬遠端，也不會自行猜 provider 規則。
 2. 按「送進下載器」或同等下載計畫動作。
 3. 如果該爬蟲支援界域，系統會依後端 `bounds_schema` 動態產生表單，例如 limit、bbox、time range、collection、format。
+   - Tk 界域表單會顯示「快速界域」區塊。按「套用推薦值」會填入後端提供的安全預設，例如保守筆數上限；若來源有地理範圍預設，也會顯示全域、台灣、美國本土、NYC、San Francisco 等區域按鈕。
+   - 這些快速值只來自後端 `CrawlerAssetBoundFormSpec`，UI 不會自行猜資料集版本、collection、時間欄位或 bbox。精準版本清單、時間欄位下拉與欄位選擇仍需要後續 schema/head probe 補齊。
 4. 送出後，UI 會在背景建立下載計畫，並把可直接下載的項目加入下方下載器。
 5. 建立結果會用明確狀態提示下一步：
    - `可直接下載`：已加入下載器，可到下載器使用開始 / 暫停控制隊列。

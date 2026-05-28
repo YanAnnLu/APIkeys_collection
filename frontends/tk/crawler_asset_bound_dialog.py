@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from tkinter import BOTH, RIGHT, WORD, BooleanVar, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
+from typing import Mapping
 
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundFormField,
@@ -51,6 +52,34 @@ class CrawlerAssetBoundDialog:
             ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", pady=(8, 12))
+
+        if self.spec.guidance_zh_TW or self.spec.guidance_en:
+            ttk.Label(
+                frame,
+                text=self.tr(self.spec.guidance_zh_TW, self.spec.guidance_en),
+                style="DetailMuted.TLabel",
+            ).pack(anchor="w", pady=(0, 10))
+
+        if self.spec.recommended_values or self.spec.presets:
+            quick = ttk.Frame(frame, style="Panel.TFrame")
+            quick.pack(fill="x", pady=(0, 12))
+            ttk.Label(quick, text=self.tr("快速界域", "Quick bounds"), style="DetailSection.TLabel").pack(anchor="w", pady=(0, 6))
+            actions = ttk.Frame(quick, style="Panel.TFrame")
+            actions.pack(fill="x")
+            if self.spec.recommended_values:
+                ttk.Button(
+                    actions,
+                    text=self.tr("套用推薦值", "Apply recommended"),
+                    style="Action.TButton",
+                    command=self.apply_recommended_values,
+                ).pack(side="left", padx=(0, 8), pady=2)
+            for preset in self.spec.presets[:4]:
+                ttk.Button(
+                    actions,
+                    text=self.tr(preset.label_zh_TW, preset.label_en),
+                    style="Action.TButton",
+                    command=lambda preset_id=preset.preset_id: self.apply_preset(preset_id),
+                ).pack(side="left", padx=(0, 8), pady=2)
 
         for field in self.spec.fields:
             self._build_field(frame, field)
@@ -111,6 +140,32 @@ class CrawlerAssetBoundDialog:
         for field_id, options in self.multi_vars.items():
             values[field_id] = [name for name, var in options.items() if var.get()]
         return values
+
+    def apply_recommended_values(self) -> None:
+        self.apply_form_values(self.spec.recommended_values)
+
+    def apply_preset(self, preset_id: str) -> bool:
+        for preset in self.spec.presets:
+            if preset.preset_id == preset_id:
+                self.apply_form_values(preset.values)
+                return True
+        return False
+
+    def apply_form_values(self, values: Mapping[str, object]) -> None:
+        """Apply backend-provided UX helpers without changing the form contract.
+
+        Presets and recommendations come from ``CrawlerAssetBoundFormSpec``.
+        The dialog only copies those explicit values into visible variables; it
+        does not infer bbox, time fields, versions, or dataset ids by itself.
+        """
+
+        for field_id, value in values.items():
+            if field_id in self.vars:
+                self.vars[field_id].set("" if value is None else str(value))
+            if field_id in self.multi_vars:
+                selected = {str(item) for item in value} if isinstance(value, (list, tuple, set)) else {str(value)}
+                for option, var in self.multi_vars[field_id].items():
+                    var.set(option in selected)
 
     def save(self) -> None:
         try:

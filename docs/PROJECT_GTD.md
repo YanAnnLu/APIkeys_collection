@@ -7,7 +7,8 @@ Last updated: 2026-05-28
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
 - [x] Tk Seed 清單 dialog 已把同一個 `recommended_seed_uid` 接成「推薦 seed」摘要與「下載推薦 Seed」按鈕；Tk 也不自行挑 seed。
-- [ ] 下一個實作焦點：為第二條 live public source 建立 bounded closure readiness artifact，或補 schema/head probe 讓界域表單從盲填改成可選。
+- [x] Tk 界域表單已接上後端 `recommended_values` / `presets`：使用者可按「套用推薦值」或區域預設按鈕先填入安全 limit / bbox，不必第一次就盲填所有欄位。
+- [ ] 下一個實作焦點：為第二條 live public source 建立 bounded closure readiness artifact，或補 schema/head probe 讓版本、時間欄位、資料欄位從手填逐步變成遠端可選清單。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
