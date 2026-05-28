@@ -815,13 +815,7 @@ def crawler_asset_download_import(
         "crawler_asset_download_import_completed",
         "Web Preview ran the formal crawler asset download/import path.",
         component="web.crawler_assets",
-        context={
-            **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
-            "stage": result.pipeline.stage,
-            "succeeded": result.succeeded,
-            "download_import": result.pipeline.to_dict(),
-            "artifacts": result.to_dict().get("artifacts", {}),
-        },
+        context=web_download_import_event_context(result, plan_outcome, plan_passport),
     )
     return response
 
@@ -906,20 +900,34 @@ def crawler_seed_download_import(
         "crawler_seed_download_import_completed",
         "Web Preview ran the formal seed download/import path.",
         component="web.crawler_assets",
-        context={
-            **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
-            "dataset_uid": dataset_uid,
-            "stage": result.pipeline.stage,
-            "succeeded": result.succeeded,
-            "download_import": result.pipeline.to_dict(),
-            "artifacts": result.to_dict().get("artifacts", {}),
-        },
+        context=web_download_import_event_context(result, plan_outcome, plan_passport, dataset_uid=dataset_uid),
     )
     return response
 
 
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)
+
+
+def web_download_import_event_context(
+    result: object,
+    plan_outcome: Mapping[str, object],
+    plan_passport: Mapping[str, object],
+    *,
+    dataset_uid: str = "",
+) -> dict[str, object]:
+    """Build the shared event payload for Web download/import completion."""
+
+    context = {
+        **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
+        "stage": result.pipeline.stage,
+        "succeeded": result.succeeded,
+        "download_import": result.pipeline.to_dict(),
+        "artifacts": result.to_dict().get("artifacts", {}),
+    }
+    if dataset_uid:
+        context["dataset_uid"] = dataset_uid
+    return context
 
 
 def web_download_import_credential_blocked_response(
