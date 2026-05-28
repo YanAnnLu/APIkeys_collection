@@ -1,7 +1,6 @@
 ﻿from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from pathlib import Path
 
 from api_launcher.crawlers.ckan import (
@@ -66,6 +65,14 @@ from api_launcher.crawlers.openalex import (
     paginated_openalex_candidates,
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
+from api_launcher.crawlers.registry import (
+    DatasetSourceCrawler,
+    crawler,
+    crawler_handlers_by_source_type,
+    crawler_matrix,
+    crawler_specs,
+    crawler_specs_by_source_type,
+)
 from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.crawlers.socrata import (
     paginated_socrata_catalog_candidates,
@@ -98,10 +105,6 @@ from api_launcher.crawlers.zenodo import (
 
 DEFAULT_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.json"
 LOCAL_DATASET_DISCOVERY_SOURCES_NAME = "dataset_discovery_sources.local.json"
-DatasetSourceCrawler = Callable[
-    [DatasetDiscoverySource, float, int, tuple[str, ...], bool, int],
-    list[DatasetCandidate] | tuple[DatasetCandidate, ...] | DatasetCrawlerOutput,
-]
 
 
 def _erddap_source_crawler(
@@ -128,24 +131,72 @@ def _html_file_index_source_crawler(
     return html_file_index_candidates_for_source(source, timeout, limit, full_crawl, max_pages=max_pages)
 
 
-SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = {
-    # source_type 的唯一 dispatch 表；新增 crawler 時要從這裡接入，避免 portal intake 與 CLI 分歧。
-    "ncei_search": ncei_candidates_for_source,
-    "erddap_all_datasets": _erddap_source_crawler,
-    "html_file_index": _html_file_index_source_crawler,
-    "cmr_collections": cmr_candidates_for_source,
-    "stac_collections": stac_candidates_for_source,
-    "gbif_dataset_search": gbif_candidates_for_source,
-    "dataverse_search": dataverse_candidates_for_source,
-    "zenodo_records_search": zenodo_candidates_for_source,
-    "ckan_package_search": ckan_candidates_for_source,
-    "datacite_dois": datacite_candidates_for_source,
-    "ogc_api_records": ogc_records_candidates_for_source,
-    "ogc_wms_capabilities": ogc_wms_candidates_for_source,
-    "socrata_catalog_search": socrata_catalog_candidates_for_source,
-    "openalex_works_search": openalex_candidates_for_source,
+CURSOR_PAGINATED_CATALOG_SPEC = {
+    "source_family": "catalog_search",
+    "transport": "json",
+    "auth_profile": "none",
+    "result_shape": "dataset_list",
+    "supports_full_crawl": True,
 }
+
+# This is the first declarative registry pass.  The Python handlers stay in
+# their current modules, but the dispatch table below is now generated from
+# CrawlerSpec metadata instead of being a loose source_type -> function dict.
+crawler(
+    source_type="ncei_search",
+    source_family="catalog_search",
+    transport="json",
+    auth_profile="none",
+    result_shape="dataset_list",
+    supports_full_crawl=True,
+)(ncei_candidates_for_source)
+crawler(
+    source_type="erddap_all_datasets",
+    source_family="catalog_index",
+    transport="json",
+    auth_profile="none",
+    result_shape="dataset_list",
+    supports_full_crawl=False,
+)(_erddap_source_crawler)
+crawler(
+    source_type="html_file_index",
+    source_family="index_scan",
+    transport="html",
+    auth_profile="none",
+    result_shape="file_links",
+    supports_full_crawl=True,
+)(_html_file_index_source_crawler)
+crawler(source_type="cmr_collections", **CURSOR_PAGINATED_CATALOG_SPEC)(cmr_candidates_for_source)
+crawler(source_type="stac_collections", **CURSOR_PAGINATED_CATALOG_SPEC)(stac_candidates_for_source)
+crawler(source_type="gbif_dataset_search", **CURSOR_PAGINATED_CATALOG_SPEC)(gbif_candidates_for_source)
+crawler(source_type="dataverse_search", **CURSOR_PAGINATED_CATALOG_SPEC)(dataverse_candidates_for_source)
+crawler(source_type="zenodo_records_search", **CURSOR_PAGINATED_CATALOG_SPEC)(zenodo_candidates_for_source)
+crawler(source_type="ckan_package_search", **CURSOR_PAGINATED_CATALOG_SPEC)(ckan_candidates_for_source)
+crawler(source_type="datacite_dois", **CURSOR_PAGINATED_CATALOG_SPEC)(datacite_candidates_for_source)
+crawler(source_type="ogc_api_records", **CURSOR_PAGINATED_CATALOG_SPEC)(ogc_records_candidates_for_source)
+crawler(
+    source_type="ogc_wms_capabilities",
+    source_family="map_capabilities",
+    transport="xml",
+    auth_profile="none",
+    result_shape="layer_list",
+    supports_full_crawl=False,
+)(ogc_wms_candidates_for_source)
+crawler(
+    source_type="socrata_catalog_search",
+    source_family="catalog_search",
+    transport="json",
+    auth_profile="optional_api_key",
+    result_shape="dataset_list",
+    supports_full_crawl=True,
+)(socrata_catalog_candidates_for_source)
+crawler(source_type="openalex_works_search", **CURSOR_PAGINATED_CATALOG_SPEC)(openalex_candidates_for_source)
+
+SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = crawler_handlers_by_source_type()
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
+CRAWLER_SPECS_BY_SOURCE_TYPE = crawler_specs_by_source_type()
+CRAWLER_SPEC_MATRIX = crawler_matrix()
+CRAWLER_SPECS = crawler_specs()
 
 
 def discover_dataset_candidate_output_for_source(

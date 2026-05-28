@@ -407,6 +407,20 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual(supported_types, SUPPORTED_CRAWLER_TYPES)
         self.assertEqual(set(dataset_sources.SOURCE_CRAWLER_HANDLERS), supported_types)
 
+    def test_crawler_registry_specs_cover_dispatch_table(self) -> None:
+        specs = dataset_sources.CRAWLER_SPECS_BY_SOURCE_TYPE
+        handlers = dataset_sources.SOURCE_CRAWLER_HANDLERS
+
+        self.assertEqual(set(handlers), set(specs))
+        for source_type, handler in handlers.items():
+            self.assertIs(handler, specs[source_type].handler)
+
+        catalog_key = ("catalog_search", "json", "none", "dataset_list")
+        self.assertIn("ckan_package_search", dataset_sources.CRAWLER_SPEC_MATRIX[catalog_key])
+        self.assertEqual("optional_api_key", specs["socrata_catalog_search"].auth_profile)
+        self.assertEqual("html", specs["html_file_index"].transport)
+        self.assertEqual("layer_list", specs["ogc_wms_capabilities"].result_shape)
+
     def test_ncei_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(
             source_id="noaa_ncei_dataset_search",

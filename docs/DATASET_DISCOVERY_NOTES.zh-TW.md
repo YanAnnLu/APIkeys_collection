@@ -1,5 +1,11 @@
 # Dataset Discovery 補充說明
 
+## 2026-05-28 CrawlerSpec registry compatibility layer
+
+- `api_launcher/crawlers/registry.py` 是第一版 crawler 宣告式規格表。它定義 `CrawlerSpec`、`@crawler(...)` decorator、`crawler_specs_by_source_type()` 與 `crawler_matrix()`，用來描述每個 handler 的來源家族、transport、auth profile、result shape 與是否支援 full crawl。
+- 這一層目前是相容層，不是重寫。14 個既有 crawler handler 仍保留原本 Python 函式與模組；`dataset_sources.py` 只是把它們註冊成 specs，再由 registry 生成既有 `SOURCE_CRAWLER_HANDLERS`。這能維持舊 API 與測試，同時讓下一步 gateway/profile 化有穩定入口。
+- 後續新增 crawler 時，應新增 handler + `CrawlerSpec` metadata，不要只把函式塞進鬆散 dict。等 registry 穩定後，再逐步把 `discover_dataset_candidate_output_for_source()` 的 dispatch 改成讀 spec/gateway，而不是一次性搬動所有 handler。
+
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
 - Source profile 現在可宣告第一組 politeness defaults：`crawl_timeout_seconds`、`crawl_max_pages`、`crawl_page_size` 與 `crawl_rate_limit_seconds`。它們存在於 `DatasetDiscoverySource` / `dataset_discovery_sources*.json` 層，屬於「這個來源本身應如何被有禮貌地探測」的設定，不是 UI 專屬選項。
