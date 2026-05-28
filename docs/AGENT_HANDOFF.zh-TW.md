@@ -1,4 +1,13 @@
 # Agent 接力卡
+## 2026-05-29 05:51 Tk metadata / AI background capacity guard
+- 本輪把 provider metadata crawl 與 AI summary 兩類外部工作量入口也補上 capacity guard：`frontends/tk/source_action_workflows.py` 新增 `MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS = 2`，`frontends/tk/ai_summary_workflows.py` 新增 `MAX_TK_AI_SUMMARY_BACKGROUND_JOBS = 2`。
+- `SourceActionWorkflowMixin.crawl_provider_ids()` 仍保留 provider scope single-flight key；不同 provider scope 已有 2 個 metadata crawl worker 時，第三個入口只更新 status，不再開新 worker。
+- `AiSummaryWorkflowMixin.generate_active_summary()` 仍保留 provider/profile single-flight key；已有 2 個 AI summary worker 時，第三個入口只更新 status，不再開新 worker。這降低雲端 / 本機 AI 呼叫與 repository notes 回寫併發壓力。
+- 這不改 metadata crawler、provider row action、AI profile、credential 檢查、summary generation 或 repository upsert 行為。
+- 新增 regression：`test_source_action_metadata_crawl_blocks_when_queue_full` 與 `test_ai_summary_blocks_when_queue_full`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\source_action_workflows.py frontends\tk\ai_summary_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 109 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` / `frontends/tk/ai_summary_workflows.py` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，906 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_055235.log`。
+- Docs drift check：本輪改 Tk metadata crawl / AI summary 背景工作 capacity guard；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 05:39 Tk discovery background capacity guard
 - 本輪把 Tk discovery / crawler-audit 類背景工作再加一層 capacity guard：`frontends/tk/discovery_workflows.py` 新增 `MAX_TK_DISCOVERY_BACKGROUND_JOBS = 2` 與 `notify_discovery_queue_full()`。
 - Provider candidate discovery、dataset candidate discovery、local discovery dry-run audit 仍保留各自 single-flight key；現在同一 UI 已有 2 個 discovery/audit worker 時，第三個入口只更新 status「Discovery 背景工作已達上限」，不再開新 daemon thread。

@@ -15,8 +15,19 @@ from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_REPAIR_ACTION_STATUSES, TABLE_COLUMNS
 
 
+MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS = 2
+
+
 class SourceActionWorkflowMixin:
     """封裝 Treeview row action、library action 與 metadata crawler dispatch。"""
+
+    def notify_source_action_queue_full(self) -> None:
+        self.status_var.set(
+            self.tr(
+                "Metadata 背景工作已達上限，請等待目前工作完成。",
+                "Metadata background jobs are at capacity; wait for one to finish.",
+            )
+        )
 
     def on_tree_click(self, event: object) -> None:
         # 第一欄切 star、第二欄切下載計畫；dataset child row 的第二/動作欄則加入計畫。
@@ -344,6 +355,8 @@ class SourceActionWorkflowMixin:
             on_duplicate=lambda: self.status_var.set(
                 self.tr("Metadata 抓取已在執行中。", "Metadata crawl is already running.")
             ),
+            max_active_jobs=MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS,
+            on_capacity=self.notify_source_action_queue_full,
         )
 
     def _crawl_worker(self, provider_ids: list[str]) -> None:

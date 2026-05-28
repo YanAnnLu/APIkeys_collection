@@ -403,6 +403,21 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
 
+    def test_source_action_metadata_crawl_blocks_when_queue_full(self) -> None:
+        ui = object.__new__(SourceActionWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.source_action_active_jobs = {
+            ("metadata_crawl", "provider_a", ""),
+            ("metadata_crawl", "provider_b", ""),
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            SourceActionWorkflowMixin.crawl_provider_ids(ui, ["provider_c"])
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
+
     def test_ai_summary_uses_single_flight_job(self) -> None:
         ui = object.__new__(AiSummaryWorkflowMixin)
         ui.tr = lambda _zh, en: en
@@ -448,6 +463,27 @@ class TkDialogModuleTest(unittest.TestCase):
 
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
+
+    def test_ai_summary_blocks_when_queue_full(self) -> None:
+        ui = object.__new__(AiSummaryWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.active_provider_id = "provider_c"
+        ui.selected_ai_profile_id = "local_ollama"
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_c", name="Provider C")
+        ui.ai_summary_active_jobs = {
+            ("ai_summary", "provider_a", "local_ollama"),
+            ("ai_summary", "provider_b", "local_ollama"),
+        }
+        profile = SimpleNamespace(id="local_ollama", label="Local Ollama", kind="ollama", enabled=True)
+
+        with patch("frontends.tk.ai_summary_workflows.core.ai_summary_profiles", return_value=[profile]), patch(
+            "frontends.tk.background_jobs.threading.Thread"
+        ) as thread_class:
+            AiSummaryWorkflowMixin.generate_active_summary(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
 
     def test_detail_panel_module_keeps_widget_dependencies_local(self) -> None:
         # launcher_ui.py 不再集中 import 所有 Tk 元件；detail panel mixin 自己要帶齊用到的 widget/helper。

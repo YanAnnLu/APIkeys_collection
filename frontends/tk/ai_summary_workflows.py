@@ -17,8 +17,19 @@ from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_to
 from frontends.tk.background_jobs import start_single_flight_thread
 
 
+MAX_TK_AI_SUMMARY_BACKGROUND_JOBS = 2
+
+
 class AiSummaryWorkflowMixin:
     """封裝 AI profile 狀態與 provider summary 生成流程。"""
+
+    def notify_ai_summary_queue_full(self) -> None:
+        self.status_var.set(
+            self.tr(
+                "AI 摘要背景工作已達上限，請等待目前工作完成。",
+                "AI summary background jobs are at capacity; wait for one to finish.",
+            )
+        )
 
     def load_saved_ai_api_keys_for_startup(self) -> None:
         """Startup may read local private API-key state, but must not trigger OAuth/login UI."""
@@ -105,6 +116,8 @@ class AiSummaryWorkflowMixin:
             on_duplicate=lambda: self.status_var.set(
                 self.tr("AI 摘要已在執行中，請等待目前工作完成。", "AI summary is already running; please wait for it to finish.")
             ),
+            max_active_jobs=MAX_TK_AI_SUMMARY_BACKGROUND_JOBS,
+            on_capacity=self.notify_ai_summary_queue_full,
         )
 
     def _summary_worker(self, provider_id: str, profile_id: str) -> None:
