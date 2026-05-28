@@ -4,6 +4,7 @@
 - Showcase download 使用 `("showcase_download", "bounded_public", "")` job key；同一展示下載工作已在執行時，Tk 不再開第二個 worker，避免展示連點造成重複公開資料下載、manifest 寫入與展示 `.db` 匯入。
 - 這不改 showcase download 的有界 demo source、sample limit、progress dialog、download/import service 或 resumable showcase download queue；只把 bounded showcase 入口的背景 thread 收斂到共用 helper。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\showcase_workflows.py tests\test_tk_dialogs.py` OK；targeted 2 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs tests.test_showcase_workflows -v` 99 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，887 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_021213.log`。
+- 已推送 `d972c7c Guard Tk showcase download job`；GitHub Actions run `26593575008` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk showcase bounded download 入口的背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 01:58 Tk import SQLite single-flight gate
