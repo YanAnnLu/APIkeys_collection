@@ -64,9 +64,9 @@ def post_json_to_preview_server(
     path: str,
     payload: dict[str, object] | None = None,
     *,
-    retries: int = 1,
+    retries: int = 3,
 ) -> tuple[int, dict[str, object]]:
-    """POST JSON to the local preview server with one Windows socket retry.
+    """POST JSON to the local preview server with bounded Windows socket retry.
 
     A few Windows hosts occasionally abort a localhost connection immediately
     after the preview server writes a short 404 response.  Retrying keeps this
@@ -75,7 +75,7 @@ def post_json_to_preview_server(
     """
 
     body = json.dumps(payload or {}).encode("utf-8")
-    headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
+    headers = {"Content-Type": "application/json", "Content-Length": str(len(body)), "Connection": "close"}
     for attempt in range(max(0, retries) + 1):
         conn = http.client.HTTPConnection(host, port, timeout=5)
         try:

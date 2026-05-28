@@ -176,8 +176,14 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        # Local preview tests open many short-lived localhost connections.
+        # Explicit close semantics avoid Windows runners keeping half-open 404
+        # responses around long enough for host security software to abort reads.
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(data)
+        self.wfile.flush()
+        self.close_connection = True
 
     def write_error(self, status: HTTPStatus, message: str) -> None:
         self.write_json({"error": message, "status": int(status)}, status=status)
