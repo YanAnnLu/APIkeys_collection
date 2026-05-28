@@ -4,6 +4,7 @@
 - 前端不重新判斷 callback error 是否代表下載失敗，只消費 backend `callback_diagnostics.display_label` / `next_action_label` / `errors`；成功 download/import 仍維持成功，callback diagnostics 只是 observer/UI progress warning。
 - 已補 `tests/test_tk_ui_helpers.py::test_crawler_seed_download_import_ui_message_surfaces_callback_diagnostics`，並在 Web static contract 測試鎖住 `downloadImportCallbackDiagnostics()` / `callbackDiagnosticsHtml()` / `addCallbackDiagnosticsMission()` 與使用者可讀 warning 文案。
 - 已驗證：`node --check frontends\web\static\app.js` OK；in-memory compile `frontends\tk\ui_helpers.py` / tests OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_web_preview tests.test_tk_dialogs -v` 154 tests OK；Web/Tk touched files mojibake scan OK；`git diff --check` OK（僅 CRLF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，898 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_045827.log`。
+- 已推送 `9dbe3d2 Show callback diagnostics in Web and Tk`；GitHub Actions run `26602160525` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Web/Tk 顯示 callback diagnostics 的文字 surface，不改按鈕或操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 04:42 Crawler asset callback diagnostics display payload
