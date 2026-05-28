@@ -93,6 +93,8 @@
 - 不建議現在一次搬家或大重寫。比較安全的節奏是每 2-3 個功能切片安排一次 consolidation slice：拆 service、補測試、保留相容 wrapper、更新 `CODE_RELATIONSHIP_MAP.zh-TW.md` / `WORKSPACE_LAYOUT.zh-TW.md`。
 - `source_type` 分支目前大多集中在 registry / capability / bounds 之類合理位置，沒有看到需要立刻全面改寫的擴散失控。但新增 handler 時仍要優先走 registry / adapter，不要散到 UI。
 - 遞迴是受控工具，不是預設 crawler 架構。遠端 crawler、網站探索、分頁、目錄掃描與匯入主路徑應用 iterative queue/stack/deque，加 `max_depth`、`max_pages`、`max_nodes`、`seen`、timeout、rate-limit；互動式遠端探索預設 `max_depth=2`，無明確 profile/測試/使用者確認時不超過 `max_depth=4`。若碰到限制，回 structured warning / next_action，不宣稱已列完整來源。
+- 迴圈 sentinel 要被審查：優先用 protocol response、profile budget、range、slice、page window 與 iterator `islice()` 表達停止條件或可見範圍。硬寫 magic sentinel / magic page size 若不可避免，必須命名、可覆寫、可測，並回 structured `limit_reached` 類狀態。
+- 裝飾器適合註冊 handler metadata、建立 registry / matrix 索引、保留 handler identity；不適合吞掉 handler 回傳值或把核心業務控制流藏起來。`@crawler(...)` 應讓 dispatch 更清楚，而不是讓候選、warning、pagination metadata 變得更難追。
 
 ## 本輪不建議現在重構的項目
 

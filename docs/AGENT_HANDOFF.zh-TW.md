@@ -1,8 +1,16 @@
 # Agent 接力卡
+## 2026-05-28 13:46 Loop sentinel / range / slice / decorator return guard
+- 本輪補充 loop / ordered collection / decorator 設計規則，不改產品程式碼。結論：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget、schema size、remote pagination metadata 或 runtime policy。
+- 硬寫哨兵值或 magic page size 不是完全禁止，但必須先被審查；若不可避免，應命名成常數或 profile 欄位、可覆寫、可測，並在 payload 回報 `limit_reached` / `sentinel_stop` 類 structured warning。UI 顯示 seed/candidate preview 時應呈現 `shown_start`、`shown_end`、`page_size`、`has_more`、`remaining`，不要把 `[0:49]` / `[0:99]` 的窗口硬編成假全集。
+- 裝飾器方向採納為「註冊與標註」：`@crawler(...)` 可以把 handler 與 `CrawlerSpec` 登記到 registry / matrix，但 handler 原本的 `DatasetCandidate[]` / `DatasetCrawlerOutput` 回傳值與 warning / pagination metadata 不應被 decorator 吞掉。decorator 讓 dispatch 更優雅，核心資料流仍要可追蹤、可測。
+- 使用者進一步釐清：目標不是上帝 YAML，而是混合式準宣告式架構。允許 pipeline / array / registry / profile / decorator 搭配少量條件分支、迴圈與受控淺遞迴；判斷要集中在 gateway / policy / adapter 邊界，不要散落到 UI，也不要為了消滅所有 `if` 創造更難 debug 的自製 DSL。
+- 已更新 `DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`、`DATASET_DISCOVERY_NOTES.zh-TW.md`、`CODE_HEALTH_AUDIT.zh-TW.md` 與 `PROJECT_GTD.md`。下一輪若碰到 seed page / candidate preview / schema preview / queue 顯示，優先用 range/slice/islice 與後端 page contract，不要把數字散落在 Tk/Web。
+
 ## 2026-05-28 13:45 Recursion and pipeline/declarative architecture guard
 - 本輪補充架構決策，不改產品程式碼。結論：宣告式與管道式不是二選一；RRKAL 應採「profile 宣告能力/政策/budget，pipeline 負責按順序安全執行」。不要偏向萬能 YAML，也不要回到散落手寫流程。
 - 遞迴不是禁用，但遠端 crawler、網站探索、HTML index traversal、pagination、下載/匯入主路徑預設不用 recursive call stack，改用 queue / stack / `deque` + `seen` + `max_depth` + `max_pages` + `max_nodes` + timeout/rate-limit。互動式遠端探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`；沒有明確 source profile、測試與使用者確認時，不得超過 `max_depth=4`。
 - 已更新 `DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`、`DATASET_DISCOVERY_NOTES.zh-TW.md`、`CODE_HEALTH_AUDIT.zh-TW.md` 與 `PROJECT_GTD.md`。下一個實作若碰到 crawler/link traversal，必須把 depth/page/node budget 放進 source profile / request policy，不要寫死在 UI 或單一 handler。
+- 已推送 `f1b38b8 Document recursion and pipeline guardrails`；GitHub Actions run `26557008628` 已通過 Ubuntu、Windows 與 real DB smoke。本地檢查：`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK。此輪是 docs-only checkpoint，因此沒有跑產品單元測試。
 
 ## 2026-05-28 13:29 Governance intake before next implementation
 - 本輪是文檔治理 checkpoint，不改產品程式碼、crawler、download、import、Tk/Web 行為，也不寫入 `K:\CODE_KM` 或其他 K 槽專案。工作樹接手時乾淨，HEAD 為 `b89202d Record crawler capability profile CI checkpoint`。

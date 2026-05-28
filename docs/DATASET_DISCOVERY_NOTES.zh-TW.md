@@ -14,6 +14,11 @@
 - 本機 preview / artifact scan 也不能無界。UI preview 應限制節點數與深度，例如 `max_depth<=6`、`max_nodes<=1000`；背景 job 若要放寬，必須有進度、取消、memory guard 與 structured event。
 - 若碰到 traversal budget，handler 不應回報 `exhausted`。應回報 `remote_pagination.status=has_more`、`completion_confidence=local_limit_only` 或 warning code，例如 `traversal_limit_reached` / `pagination_limit_reached`，讓 Web/Tk/Qt 顯示「顯示更多 seed」或「縮小界域」。
 - 這條規則與宣告式 profile 並行：profile 宣告 traversal budget，pipeline 執行 bounded fetch / pagination / dedupe / audit warning。不要把 depth / page cap 寫死在 UI 或單一 handler 裡。
+- 迴圈停止條件要先看遠端回應、profile budget、使用者 bounds 與 runtime policy；硬寫哨兵值只作最後安全網。若需要 sentinel，請把它命名成可測欄位或常數，並在 payload 回報 `limit_reached` / `sentinel_stop`，不要讓 UI 誤以為已列完整來源。
+- 建 seed 清單與分頁時，優先使用 range / slice window：例如 page 0 顯示 `[0:50]`，展開後顯示 `[0:100]` 或下一個 page window。payload 應帶 `shown_start`、`shown_end`、`page_size`、`has_more`、`remaining`，而不是把 `50` / `100` 這類數字硬編在前端。
+- `itertools.islice()` 適合處理 iterator 型候選流，避免為了 preview 一次載入過大遠端或本機資料。slice 只代表目前視窗，不代表遠端 exhausted；是否 exhausted 仍以 `remote_pagination` / `completion_confidence` 為準。
+- 裝飾器可用來把 crawler handler 註冊到 `CrawlerSpec` / matrix，但 handler 原本的回傳值仍應原樣進入 `dataset_crawler_output()` 或 gateway。不要讓 decorator 吞掉 candidates、warnings、pagination metadata 或 next_action；它應提供 metadata 與組裝入口，不應隱藏核心資料流。
+- 這裡的宣告式方向是混合式準宣告式：registry/profile/matrix/pipeline/decorator 集中重複規則，少量條件分支與迴圈保留在 gateway / adapter / policy 邊界。不要為了消滅所有 `if` 而做上帝 YAML；也不要為了快速接線讓 `source_type` 分支散回 UI。
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
