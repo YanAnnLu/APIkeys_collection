@@ -4,7 +4,7 @@
 - ERDDAP 與 HTML file index 因 handler signature 與共用六參數 crawler signature 不同，已在各自模組新增薄 wrapper：`erddap_source_crawler()` 與 `html_file_index_source_crawler()`；正式抓取/解析邏輯仍留在原有 `erddap_candidates_for_source()` / `html_file_index_candidates_for_source()`。
 - 這不改 14 個 source type、capability bits、crawler output、download/import 或 UI payload；只是把 source_type metadata ownership 從中心檔移到 handler 檔，讓新增 crawler 更接近「加 handler + 裝飾器」的準宣告式流程。
 - 已驗證：crawler 模組與 `tests/test_dataset_discovery.py` py_compile OK；`py -3 -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v` 149 tests OK；`py -3 -B -m unittest tests.test_crawler_audit_smoke tests.test_developer_diagnostics tests.test_source_patterns tests.test_discovery_drafts -v` 51 tests OK；`api_launcher/crawlers` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，893 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_032740.log`。
-- 待完成：本輪尚未 push / watch GitHub Actions；下一步 commit / push / watch CI。
+- 已推送 `54a8538 Move crawler registry metadata to handlers`；GitHub Actions run `26597565703` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 crawler registry ownership 與 source metadata contract；已同步 GTD、handoff 與 development log，不改使用者操作文件。
 
 ## 2026-05-29 03:05 Tk crawler asset thread mock cleanup
