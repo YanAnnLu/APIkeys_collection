@@ -1166,6 +1166,19 @@ p {
   color: var(--amber);
 }
 
+.capability-address-badge {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(72, 186, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(72, 186, 255, 0.1);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
 .credential-panel {
   display: grid;
   gap: 10px;

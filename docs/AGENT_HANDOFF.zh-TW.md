@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 15:31 Web capability address display
+- 本輪把 `CrawlerCapabilityProfile` 的 capability address 接到 Web Preview：`frontends/web/preview_api.py` 的 crawler asset card payload 現在包含 `capability_profile`，Web 卡片與 Passport 會顯示「能力 0000」、「能力位址」與「能力膠囊」摘要。
+- 這是 UI 顯示層接線，不改 crawler handler、download/import、source registry 或 capability 編碼規則。Web 只消費後端 payload，不自行用 `source_type` 推算能力分組。
+- 已補 `tests.test_web_preview` regression：鎖住 cards API 會輸出 `capability_profile.capability_binary` / `capability_bits` / `source_family`，並鎖住靜態 UI 文字與 `.capability-address-badge` 樣式存在。
+- 本地驗證已通過：`node --check frontends\web\static\app.js` OK；`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 41 tests OK；`py -3 -B -m unittest tests.test_web_preview tests.test_crawler_assets tests.test_dataset_discovery -v` 140 tests OK；臨時 Web server `127.0.0.1:8795` 驗證 `/api/health`、`/api/crawler-assets`、`/app.js`、`/styles.css` 均帶有 capability profile / badge 內容；`.\scripts\pre_push_smoke_brief.cmd` 通過，840 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_152601.log`。CI 尚待本 checkpoint push 後確認。
+
 ## 2026-05-28 15:08 Capability address surfaced in capability profile
 - 本輪把 `api_launcher/crawlers/registry.py` 的 4-bit `CrawlerCapabilityCode` 繼續往 `api_launcher/crawler_capability_profiles.py` 推進：`CrawlerCapabilityProfile` 現在會保存 `capability_code`，並在 `to_dict()` 中輸出 `capability_code`、`capability_bits`、`capability_binary`。
 - 這是 UI/agent 可讀的「能力膠囊地址」接線，不是 crawler 重寫、不改 14 個 handler、不改 download/import 行為。Web/Tk/未來 Qt 可以從同一個 `asset.to_dict()["capability_profile"]` 讀 capability address，而不是各自重建 source_type 分支。

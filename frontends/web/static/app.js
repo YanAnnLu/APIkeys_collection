@@ -664,12 +664,14 @@ function assetSlotHtml(asset) {
   const status = asset.health?.status_code || "unknown";
   const trust = boundedPercent(asset.trust_score);
   const initials = assetInitials(asset);
+  const capabilityAddress = capabilityAddressLabel(asset);
   return `
     <span class="slot-corner top-left"></span>
     <span class="slot-corner bottom-right"></span>
     <div class="slot-topline">
       <span class="surface-pill">${escapeHtml(surfaceLabel(asset.source_surface))}</span>
       ${statePill(status)}
+      ${capabilityAddressBadgeHtml(asset)}
       ${credentialBadgeHtml(asset)}
     </div>
     ${planBadgeHtml(asset)}
@@ -680,7 +682,7 @@ function assetSlotHtml(asset) {
     </div>
     <div class="slot-stat-grid">
       <div><span>信任</span><strong>${escapeHtml(String(trust))}</strong></div>
-      <div><span>範式</span><strong>${escapeHtml(shortPattern(asset.source_type))}</strong></div>
+      <div><span>位址</span><strong>${escapeHtml(capabilityAddress || shortPattern(asset.source_type))}</strong></div>
     </div>
     <div class="trust-meter" title="trust score ${trust}">
       <i style="width: ${trust}%"></i>
@@ -721,6 +723,9 @@ function shouldAutoEnumerateSeeds(card = {}) {
 }
 
 function renderPassport(card, asset) {
+  const capabilityProfile = card.capability_profile || asset.capability_profile || {};
+  const capabilityAddress = capabilityAddressLabel(card);
+  const capabilitySummary = capabilityProfileSummary(capabilityProfile);
   const capabilities = (card.capabilities || []).map((capability) => `
     <div class="capability-row">
       <strong>${escapeHtml(capabilityLabel(capability))}</strong>
@@ -749,6 +754,8 @@ function renderPassport(card, asset) {
       <div><dt>來源表面</dt><dd>${escapeHtml(surfaceLabel(card.source_surface))}</dd></div>
       <div><dt>成熟度</dt><dd>${escapeHtml(card.maturity || "unknown")}</dd></div>
       <div><dt>風險層級</dt><dd>${escapeHtml(asset.risk_tier || "unknown")}</dd></div>
+      <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
+      <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "unknown")}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
       <div><dt>下一步</dt><dd>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</dd></div>
@@ -789,6 +796,30 @@ function credentialBadgeHtml(asset) {
   const tone = toneClass(credentials.display_tone);
   const title = profile.next_action_label || credentials.next_action_label || credentials.next_action || label;
   return `<span class="credential-badge ${tone}" title="${escapeAttr(title)}">${escapeHtml(label)}</span>`;
+}
+
+function capabilityAddressLabel(asset) {
+  const profile = asset?.capability_profile || {};
+  const binary = String(profile.capability_binary || "").trim();
+  if (binary) return binary;
+  const bits = profile.capability_bits;
+  return Number.isInteger(bits) ? bits.toString(2).padStart(4, "0") : "";
+}
+
+function capabilityProfileSummary(profile = {}) {
+  return [
+    profile.source_family,
+    profile.transport,
+    profile.auth_mode,
+    profile.result_shape,
+  ].filter(Boolean).join(" / ");
+}
+
+function capabilityAddressBadgeHtml(asset) {
+  const address = capabilityAddressLabel(asset);
+  if (!address) return "";
+  const title = capabilityProfileSummary(asset.capability_profile || {}) || `capability ${address}`;
+  return `<span class="capability-address-badge" title="${escapeAttr(title)}">能力 ${escapeHtml(address)}</span>`;
 }
 
 function credentialPanelHtml(credentials = {}, assetId = "") {

@@ -13,13 +13,14 @@ Last updated: 2026-05-28
 - [x] Crawler registry 已補第一版 4-bit capability address / mask index：固定維度為來源表面、transport、auth、輸出形狀，讓 Web/Tk/CLI/debug 工具未來可用 prefix/mask 查詢「同一類能力」，而不是重新手寫 source_type 分支。這是輔助索引，不改 14 個 handler 行為。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
+- [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。
 - [x] 2026-05-28 governance intake 已收斂：大檔解耦要排進固定 consolidation slice；文檔治理可朝「Markdown source of truth + CSV/JSON/SQLite registry」演進；註釋要補在邊界與不變量，且行為改變時同步更新或刪除；未完整實裝能力必須在 UI/UX 顯示 `🚧` / construction / `contract_only` / `planned` 狀態，不能讓使用者誤以為已交付。
 - [x] 2026-05-28 架構 guardrail 補充：宣告式 profile 與 middleware pipeline 並不互斥；profile 描述能力/政策/budget，pipeline 負責按順序安全執行。遞迴可用但必須 bounded，遠端互動探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`，無明確 profile/測試/確認時不超過 `max_depth=4`。
 - [x] 2026-05-28 loop / decorator guardrail 補充：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget 或 runtime policy。硬寫哨兵值只能作最後安全網，且必須命名、可覆寫、可測並回報 `limit_reached` 類狀態。裝飾器可用於註冊 crawler metadata 與保留 handler 回傳值，不應吞掉 candidates、warnings 或 pagination metadata。宣告式方向採混合式準宣告式：registry/profile/matrix/pipeline/decorator 加少量條件分支、迴圈與受控淺遞迴，不做上帝 YAML。
 - [x] 2026-05-28 branch threshold / profile storage guardrail 補充：2 到 3 條路可保留簡單 `if/else`；4 條路已接近 `2 x 2` matrix，應考慮 table / registry / decorator dispatch。YAML/JSON/TOML/`.env` 用於人類可填、有語意的 profile；純邏輯高維分派優先用 typed Python table / dataclass / tuple index / dict registry。
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
 - [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
-- [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程；或把 crawler capability address 顯示到 preview/debug UI，讓使用者能看懂每個入口位於哪個能力膠囊。
+- [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程，讓 seed 選取後能自動補欄位 selector / presets，減少使用者盲填。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。

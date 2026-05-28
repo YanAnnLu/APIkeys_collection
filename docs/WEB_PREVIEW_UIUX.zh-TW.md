@@ -30,6 +30,7 @@
 - 收藏功能的對象是 seed，不是 crawler asset / 入口。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續正式化時再提升成 seed registry / 跨 UI 查詢入口。
 - Seed 枚舉狀態要吃後端 `seed_enumeration` payload：`label` / `help` / `display_tone` / `limited_by_max_results` 由 service 判斷。Web 只能呈現，不要用候選數自行猜「完整」或「被截斷」。若 `limited_by_max_results=true`，UI 應明確提示「已達本機安全上限，遠端可能還有更多」。
 - 若 seed page payload 帶有 `recommended_seed_uid`，Web 應顯示一個明確的推薦 seed 操作入口，並直接呼叫正式 seed-level download/import endpoint。推薦邏輯屬於後端 `crawler_seed_page()` contract，Web 不自行挑選第一筆、收藏 seed 或依 source type 推斷可下載性。
+- Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」與「能力膠囊」摘要，但 Web 不應以 `source_type` 重新計算分組。若後端回空地址，UI 應顯示未分類或省略 badge，不要假裝已歸類。
 
 ## 定位
 

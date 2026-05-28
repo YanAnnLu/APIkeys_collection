@@ -195,6 +195,7 @@ def crawler_asset_card(
         "enabled": asset.enabled,
         "archived": asset.archived,
         "health": asset.health.to_dict(),
+        "capability_profile": asset.capability_profile.to_dict(),
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "credentials": crawler_asset_credential_status(asset, env_path=env_path),
         "next_action": asset.next_action,
