@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.event_log import latest_events, log_event, log_exception
 
@@ -33,6 +34,17 @@ class EventLogTests(unittest.TestCase):
 
         self.assertEqual(["event_3", "event_4"], [event["event"] for event in events])
         self.assertEqual([], none_events)
+
+    def test_latest_events_falls_back_when_seek_tail_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "events.jsonl"
+            for index in range(4):
+                log_event(f"event_{index}", "hello", component="test", log_path=path)
+
+            with patch("api_launcher.event_log._tail_text_lines_seek", side_effect=OSError("cloud seek failed")):
+                events = latest_events(limit=2, log_path=path)
+
+        self.assertEqual(["event_2", "event_3"], [event["event"] for event in events])
 
     def test_exception_log_includes_error_type_and_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

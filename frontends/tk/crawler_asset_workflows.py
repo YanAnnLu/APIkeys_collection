@@ -116,6 +116,21 @@ class CrawlerAssetWorkflowMixin:
         threading.Thread(target=runner, args=args, daemon=True).start()
         return True
 
+    def _crawler_asset_background_job_is_active(
+        self,
+        job_key: tuple[str, str, str],
+        *,
+        duplicate_status_zh: str,
+        duplicate_status_en: str,
+    ) -> bool:
+        """Return whether a Tk crawler-asset job is already active."""
+
+        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
+        if isinstance(active_jobs, set) and job_key in active_jobs:
+            self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en))
+            return True
+        return False
+
     def _release_crawler_asset_background_job(self, job_key: tuple[str, str, str]) -> None:
         """Release a previously registered crawler-asset worker key."""
 
@@ -1165,13 +1180,20 @@ class CrawlerAssetWorkflowMixin:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再執行。", "This crawler is archived; unarchive it before running."))
             return
         self.active_provider_id = asset.provider_id
-        self.status_var.set(
-            self.tr(
-                f"正在擷取入口清單；入口：{asset.asset_id}。",
-                f"Listing datasets for source: {asset.asset_id}.",
-            )
+        started = self._start_crawler_asset_background_job(
+            ("asset_listing", asset.asset_id, ""),
+            self._crawler_asset_listing_worker,
+            (asset.asset_id,),
+            duplicate_status_zh=f"入口清單擷取已在執行：{asset.asset_id}",
+            duplicate_status_en=f"Dataset listing is already running: {asset.asset_id}",
         )
-        threading.Thread(target=self._crawler_asset_listing_worker, args=(asset.asset_id,), daemon=True).start()
+        if started:
+            self.status_var.set(
+                self.tr(
+                    f"正在擷取入口清單；入口：{asset.asset_id}。",
+                    f"Listing datasets for source: {asset.asset_id}.",
+                )
+            )
 
     def _crawler_asset_listing_worker(self, asset_id: str) -> None:
         # UI 只負責排 thread 與更新畫面；crawler/repository 寫入由 service 統一管理，
@@ -1239,6 +1261,13 @@ class CrawlerAssetWorkflowMixin:
         if asset.archived:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再送到下載器。", "This crawler is archived; unarchive it before sending it to Downloader."))
             return
+        job_key = ("asset_download_plan", asset.asset_id, "")
+        if self._crawler_asset_background_job_is_active(
+            job_key,
+            duplicate_status_zh=f"下載計畫建立已在執行：{asset.asset_id}",
+            duplicate_status_en=f"Download-plan build is already running: {asset.asset_id}",
+        ):
+            return
         bounds_payload = None
         plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
         if plan_capability is not None and plan_capability.bounds_schema:
@@ -1253,17 +1282,20 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_bound_payloads[asset.asset_id] = dialog.result.to_dict()
             bounds_payload = dialog.result
         self.active_provider_id = asset.provider_id
-        self.status_var.set(
-            self.tr(
-                f"正在用爬蟲資產建立下載計畫：{asset.display_name}",
-                f"Building download plan from crawler asset: {asset.display_name}",
-            )
+        started = self._start_crawler_asset_background_job(
+            job_key,
+            self._crawler_asset_download_plan_worker,
+            (asset.asset_id, bounds_payload),
+            duplicate_status_zh=f"下載計畫建立已在執行：{asset.asset_id}",
+            duplicate_status_en=f"Download-plan build is already running: {asset.asset_id}",
         )
-        threading.Thread(
-            target=self._crawler_asset_download_plan_worker,
-            args=(asset.asset_id, bounds_payload),
-            daemon=True,
-        ).start()
+        if started:
+            self.status_var.set(
+                self.tr(
+                    f"正在用爬蟲資產建立下載計畫：{asset.display_name}",
+                    f"Building download plan from crawler asset: {asset.display_name}",
+                )
+            )
 
     def _crawler_asset_download_plan_worker(self, asset_id: str, bounds_payload: CrawlerAssetBoundPayload | None) -> None:
         # crawler asset -> bounds -> plan 的實作放在 service；Tk 只做顯示與 plan 匯入。

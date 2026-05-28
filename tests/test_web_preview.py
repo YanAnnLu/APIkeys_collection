@@ -416,6 +416,30 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(3, runtime["port_scan"])
         self.assertEqual(f"http://127.0.0.1:{runtime['port']}/", runtime["url"])
 
+    def test_server_falls_back_to_os_port_when_scan_range_is_blocked(self) -> None:
+        calls: list[int] = []
+
+        def fake_configured_server(host: str, bind_port: int, port_scan: int, requested_port: int) -> object:
+            calls.append(bind_port)
+            if bind_port != 0:
+                exc = OSError("10013 blocked by host policy")
+                exc.errno = 10013
+                raise exc
+            return SimpleNamespace(
+                server_address=(host, 54321),
+                requested_port=requested_port,
+                port_scan=port_scan,
+            )
+
+        with patch("frontends.web.server._configured_server", side_effect=fake_configured_server):
+            server = build_web_preview_server("127.0.0.1", 8765, port_scan=3)
+
+        self.assertEqual([8765, 8766, 8767, 8768, 0], calls)
+        payload = web_preview_runtime_status(server)
+        self.assertEqual(8765, payload["server"]["requested_port"])
+        self.assertEqual(54321, payload["server"]["port"])
+        self.assertTrue(payload["server"]["port_scanned"])
+
     def test_crawler_asset_cards_use_backend_asset_contract(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)

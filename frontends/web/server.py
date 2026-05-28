@@ -221,6 +221,11 @@ def build_web_preview_server(
             last_error = exc
             if not port_is_unavailable(exc):
                 raise
+    if port_scan > 0 and last_error is not None and port_is_unavailable(last_error):
+        # Windows can reserve or security-block short port ranges.  The preview
+        # is local-only, so falling back to an OS-assigned port is safer than
+        # failing startup after every nearby candidate is unavailable.
+        return _configured_server(host, 0, port_scan, port)
     message = f"no available port found from {port} to {min(65535, port + attempts - 1)}"
     if last_error is not None:
         raise OSError(message) from last_error

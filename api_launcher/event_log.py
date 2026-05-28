@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import traceback
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -117,6 +118,17 @@ def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict
 
 def _tail_text_lines(path: Path, limit: int, block_size: int = 8192) -> list[str]:
     """Read the last N lines without loading or scanning the entire log file."""
+
+    try:
+        return _tail_text_lines_seek(path, limit, block_size=block_size)
+    except OSError:
+        # Some cloud-mounted Windows drives occasionally reject binary seek/read
+        # near EOF.  Handoff should degrade to a bounded streaming tail rather
+        # than failing the whole CLI JSON report.
+        return _tail_text_lines_stream(path, limit)
+
+
+def _tail_text_lines_seek(path: Path, limit: int, block_size: int = 8192) -> list[str]:
     chunks: list[bytes] = []
     newline_count = 0
     with path.open("rb") as handle:
@@ -131,6 +143,14 @@ def _tail_text_lines(path: Path, limit: int, block_size: int = 8192) -> list[str
             newline_count += chunk.count(b"\n")
     tail_bytes = b"".join(reversed(chunks))
     return [line.decode("utf-8", errors="replace") for line in tail_bytes.splitlines()[-limit:]]
+
+
+def _tail_text_lines_stream(path: Path, limit: int) -> list[str]:
+    tail: deque[str] = deque(maxlen=max(0, limit))
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            tail.append(line.rstrip("\r\n"))
+    return list(tail)
 
 
 def _append_jsonl(path: Path, record: LauncherEvent) -> None:

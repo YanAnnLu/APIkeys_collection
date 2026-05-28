@@ -397,6 +397,52 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(("demo_stac", payload), thread_call.args)
         self.assertIn("Building download plan from crawler asset", ui.status_var.value)
 
+    def test_crawler_asset_download_plan_is_single_flight_before_bounds_dialog(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        ui.crawler_asset_active_jobs = {("asset_download_plan", "demo_stac", "")}
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog") as dialog_class,
+            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+        ):
+            CrawlerAssetWorkflowMixin.prepare_selected_crawler_asset_download(ui)
+
+        dialog_class.assert_not_called()
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
+    def test_crawler_asset_listing_is_single_flight_per_asset(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        ui.crawler_asset_active_jobs = {("asset_listing", "demo_index", "")}
+
+        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+            CrawlerAssetWorkflowMixin.run_selected_crawler_asset_listing(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_source_pattern_draft_dialog_form_values_without_tk_mainloop(self) -> None:
         dialog = object.__new__(SourcePatternDraftDialog)
         dialog.tr = lambda zh, _en: zh
