@@ -4,6 +4,7 @@
 - 新增 discovery 專用 active job set / lock。Provider discovery 用 `("provider_discovery", "all", "")`，dataset candidate discovery 用選取 provider scope，local discovery audit 用 `("local_discovery_audit", "dry_run", "")`；同一邏輯任務重複觸發時只更新 status，不再重複開 worker。
 - 這不改 provider discovery、dataset crawler audit、local promotion dry-run、repository upsert 或 dialog 顯示語意；只是先把 Tk discovery 入口的背景工作排程收斂到共用 single-flight helper。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\discovery_workflows.py tests\test_tk_dialogs.py` OK；targeted 3 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 85 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，877 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_011717.log`。
+- 已推送 `e183ae0 Guard Tk discovery background jobs`；GitHub Actions run `26590713282` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk discovery 內部背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 01:00 Web Preview POST body drain hardening
