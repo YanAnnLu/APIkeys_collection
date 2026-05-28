@@ -39,7 +39,7 @@ Last updated: 2026-05-29
 - [x] Tk discovery workflow 已接上同一份 single-flight helper：provider candidate discovery、dataset candidate discovery 與 local discovery dry-run audit 會用 discovery active job set 擋掉重複 worker，避免連點造成重複 crawler audit、draft JSON 或 catalog/repository upsert 競爭。
 - [x] Tk source action metadata crawl 已接上同一份 single-flight helper：row action / selected provider metadata crawl 以 provider scope 做 job key，避免連點造成同一批 provider 重複 metadata crawler worker。
 - [x] Tk AI summary 產生說明已接上同一份 single-flight helper：同一 provider / AI profile 同時只會有一個 summary worker，避免連點造成重複雲端/本機 AI 呼叫與 repository notes 回寫競爭。
-- [x] Tk 匯入入口已加 SQLite path single-flight gate：下載結果匯入與本機檔案匯入共用同一 curated SQLite job key，避免連點或雙入口同時寫入造成 DB lock / 重複匯入；實際 manifest/import/pipeline 規則仍留在後端。
+- [x] Tk 匯入入口已加 SQLite path single-flight gate 與 capacity guard：下載結果匯入與本機檔案匯入共用同一 curated SQLite job key，且同一 UI 同時最多只允許 1 個 SQLite import worker；若 queue 已滿，Tk 會在 policy dialog / file picker 前先停下，避免連點、多入口或未來不同 SQLite 目標造成 DB lock / 重複匯入。實際 manifest/import/pipeline 規則仍留在後端。
 - [x] Tk bounded showcase download 已接上同一份 single-flight helper：保留既有展示下載進行中提示，同時用共用 job key 擋住重複展示下載 worker，避免現場展示連點造成重複下載、manifest 寫入與展示 `.db` 匯入。
 - [x] Tk OAuth/login 背景工作已接上同一份 single-flight helper：Google browser login 與 device-code polling 以 profile / device-code job key 擋住重複 worker，避免連點造成多個 callback server、browser login 或 token polling request；OAuth token exchange / storage 規則不變。
 - [x] Tk sidebar favicon 背景下載已接上同一份 single-flight helper：同一 provider/favicon 下載以 owner + favicon URL job key 擋住重複 worker；favicon URL 推導、cache、PNG 下載與 `PhotoImage` 主執行緒建立規則不變。

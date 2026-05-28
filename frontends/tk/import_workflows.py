@@ -40,8 +40,20 @@ from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
 from frontends.tk.ui_helpers import local_file_import_error_message, local_file_provenance_review_message
 
 
+MAX_TK_SQLITE_IMPORT_JOBS = 1
+
+
 class ImportWorkflowMixin:
     """封裝匯入相關 UI workflow；不直接改動 importer / pipeline 的安全規則。"""
+
+    def notify_sqlite_import_busy(self) -> None:
+        self.status_var.set(
+            self.tr("SQLite 匯入已在執行中，請等待目前工作完成。", "SQLite import is already running; please wait for it to finish.")
+        )
+
+    def sqlite_import_queue_is_full(self) -> bool:
+        active_jobs = getattr(self, "import_active_jobs", None)
+        return isinstance(active_jobs, set) and len(active_jobs) >= MAX_TK_SQLITE_IMPORT_JOBS
 
     def load_import_existing_table_policy_preference(self) -> str:
         return normalized_ui_import_policy(core.load_integration_config().get(UI_IMPORT_POLICY_CONFIG_KEY))
@@ -182,10 +194,10 @@ class ImportWorkflowMixin:
 
         sqlite_path = curated_imports_path()
         import_job_key = ("sqlite_import", str(sqlite_path), "")
-        duplicate_message = lambda: self.status_var.set(
-            self.tr("SQLite 匯入已在執行中，請等待目前工作完成。", "SQLite import is already running; please wait for it to finish.")
-        )
-        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=duplicate_message):
+        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=self.notify_sqlite_import_busy):
+            return
+        if self.sqlite_import_queue_is_full():
+            self.notify_sqlite_import_busy()
             return
         existing_table_policy = self.ask_import_existing_table_policy()
         if existing_table_policy is None:
@@ -214,7 +226,9 @@ class ImportWorkflowMixin:
             (supported, sqlite_path, existing_table_policy),
             active_jobs_attr="import_active_jobs",
             active_jobs_lock_attr="import_active_jobs_lock",
-            on_duplicate=duplicate_message,
+            on_duplicate=self.notify_sqlite_import_busy,
+            max_active_jobs=MAX_TK_SQLITE_IMPORT_JOBS,
+            on_capacity=self.notify_sqlite_import_busy,
         )
 
     def import_supported_plan_results_worker(
@@ -311,10 +325,10 @@ class ImportWorkflowMixin:
         # UI 手動匯入只處理使用者明確選取的一個檔案；不掃資料夾、不搬檔、不猜測來源。
         sqlite_path = curated_imports_path()
         import_job_key = ("sqlite_import", str(sqlite_path), "")
-        duplicate_message = lambda: self.status_var.set(
-            self.tr("SQLite 匯入已在執行中，請等待目前工作完成。", "SQLite import is already running; please wait for it to finish.")
-        )
-        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=duplicate_message):
+        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=self.notify_sqlite_import_busy):
+            return
+        if self.sqlite_import_queue_is_full():
+            self.notify_sqlite_import_busy()
             return
         selected = filedialog.askopenfilename(
             parent=self.root,
@@ -355,7 +369,9 @@ class ImportWorkflowMixin:
             (Path(selected), sqlite_path, table_name.strip()),
             active_jobs_attr="import_active_jobs",
             active_jobs_lock_attr="import_active_jobs_lock",
-            on_duplicate=duplicate_message,
+            on_duplicate=self.notify_sqlite_import_busy,
+            max_active_jobs=MAX_TK_SQLITE_IMPORT_JOBS,
+            on_capacity=self.notify_sqlite_import_busy,
         )
 
     def import_local_file_worker(self, input_path: Path, sqlite_path: Path, table_name: str) -> None:

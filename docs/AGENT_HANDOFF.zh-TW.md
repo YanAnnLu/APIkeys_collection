@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 05:25 Tk SQLite import capacity guard
+- 本輪把 Tk 匯入入口從「同一路徑 duplicate guard」再補成「同一 UI 同時最多一個 SQLite import worker」：`ImportWorkflowMixin` 新增 `MAX_TK_SQLITE_IMPORT_JOBS = 1`、`sqlite_import_queue_is_full()` 與共用 busy status helper。
+- `import_supported_plan_results_from_ui()` 與 `import_local_file_from_ui()` 會在開 policy dialog / file picker 前先檢查整體 import queue；已有其他 SQLite import worker 時只更新 status，不彈使用者流程，也不開新 worker。
+- `start_single_flight_thread()` 呼叫同步帶 `max_active_jobs=1` / `on_capacity`，作為前置 guard 之外的保險。這不改 manifest、existing-table policy、local file provenance review、importer 或 ingestion pipeline 規則。
+- 新增 regression：`test_import_supported_plan_results_blocks_when_sqlite_import_queue_full` 與 `test_import_local_file_blocks_when_sqlite_import_queue_full_before_file_picker`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\import_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 104 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，901 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_052631.log`。
+- Docs drift check：本輪改 Tk 匯入背景工作 capacity guard；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 05:10 Tk crawler asset background capacity guard
 - 本輪在 `frontends/tk/background_jobs.py` 的 `start_single_flight_thread()` 補 `max_active_jobs` / `on_capacity`，讓同一 owner 不只擋同 key duplicate，也能在不同 key 背景工作太多時拒絕開新 daemon thread。
 - `CrawlerAssetWorkflowMixin._start_crawler_asset_background_job()` 先把 crawler asset 分頁的並行背景工作上限設為 `MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4`；超過時只更新 status「爬蟲資產背景工作已達上限，請等目前工作完成」，不再開新 worker。
