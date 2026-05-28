@@ -3,6 +3,7 @@
 - 本輪做小型 consolidation：新增 `api_launcher.crawler_asset_display.crawler_asset_download_import_display_payload()`，集中包裝 formal asset-level / seed-level download-import run 的 `download_result`、`plan_result`、`plan_outcome`、`plan_passport`、`adapter_review`、`download_import` 與 `next_action_label`。
 - `frontends/web/preview_api.py` 的 `crawler_asset_download_import()` / `crawler_seed_download_import()` 改用這個後端 display helper，Web endpoint 只保留 endpoint-specific input、destination、profile passport update 與 event logging。這不改 crawler、plan、download、import 或 response shape。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_crawler_asset_download.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_crawler_asset_download tests.test_web_preview -v` 48 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，862 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_214932.log`。
+- 已推送 `3e3d7af Consolidate download import display payload`；GitHub Actions run `26579114791` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改的是 Web endpoint / backend display contract 邊界，已同步 GTD、handoff 與 development log；使用者操作流程與主要按鈕沒有改。
 
 ## 2026-05-28 21:29 Tk project maturity matrix
