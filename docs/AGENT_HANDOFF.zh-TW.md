@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 21:29 Tk project maturity matrix
+- 本輪把既有 `api_launcher.project_maturity` 後端成熟度矩陣接回 Tk 控制台：新增 `frontends/tk/project_maturity_workflows.py`，由 `project_maturity_payload()` 開 DB / repository 並回傳 `build_project_maturity_payload()`；Tk 不重新判斷成熟度、不計算單一專案百分比。
+- Tk 工具選單新增「專案成熟度矩陣」，顯示 canonical delivery scope、各成熟度 row、`🚧` 施工中 / 規劃中圖示、限制數與後端回答口徑。這是 Web 成熟度工作區的 Tk 對應入口，不改 crawler、download、import 或 maturity 判斷。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\project_maturity_workflows.py frontends\tk\launcher_ui.py frontends\tk\window_layout_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_launcher_ui tests.test_project_maturity -v` 109 tests OK；實跑 temp DB payload 確認 renderer / Qt rows 帶 `status_icon=🚧` 且 Tk message 含施工中圖示；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，861 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_213112.log`。
+- Docs drift check：本輪改了 Tk 操作入口，已同步 GTD、handoff 與 development log；未改使用者正式手冊，因為此入口是治理 / diagnostics 類工具，不改主要資料下載操作流程。
+
 ## 2026-05-28 20:47 Web project maturity workspace
 - 本輪把既有 `api_launcher.project_maturity` 後端成熟度矩陣接到 Web Preview：新增 `GET /api/project-maturity`，由 `frontends/web/preview_api.py::web_project_maturity()` 只負責開 DB / repository 並回傳 `build_project_maturity_payload()`，Web 不重新判斷成熟度。
 - Web Preview 新增「成熟度」工作區與 `maturityGrid` 卡片牆，顯示 canonical delivery scope、各成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。這是 UI contract 顯示層，不改 crawler、download、import 或 maturity 判斷。

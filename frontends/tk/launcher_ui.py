@@ -48,6 +48,7 @@ from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
+from frontends.tk.project_maturity_workflows import ProjectMaturityWorkflowMixin
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
 from frontends.tk.source_action_workflows import SourceActionWorkflowMixin
@@ -66,6 +67,7 @@ class ApiCollectionUi(
     AiSummaryWorkflowMixin,
     CrawlerAssetWorkflowMixin,
     DeveloperDiagnosticsWorkflowMixin,
+    ProjectMaturityWorkflowMixin,
     DiscoveryWorkflowMixin,
     PlanWorkflowMixin,
     ProviderSettingsWorkflowMixin,

@@ -82,6 +82,10 @@ from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
+from frontends.tk.project_maturity_workflows import (
+    ProjectMaturityWorkflowMixin,
+    project_maturity_message,
+)
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
@@ -161,6 +165,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(PlanWorkflowMixin))
         self.assertTrue(callable(PlanWorkflowMixin.current_download_plan_payload))
         self.assertTrue(callable(PlanWorkflowMixin.configure_selected_plan_bounds_from_ui))
+        self.assertTrue(callable(ProjectMaturityWorkflowMixin))
+        self.assertTrue(callable(ProjectMaturityWorkflowMixin.open_project_maturity_matrix))
         self.assertTrue(callable(ProviderSettingsWorkflowMixin))
         self.assertTrue(callable(ProviderSettingsWorkflowMixin.open_database_tool))
         self.assertTrue(callable(RepairWorkflowMixin))
@@ -224,6 +230,54 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("Crawler handler contract smoke", showinfo_mock.call_args.args[1])
         self.assertIn("Crawler handler", ui.status_var.get())
         self.assertEqual(1, log_event_mock.call_count)
+
+    def test_project_maturity_message_shows_backend_construction_state(self) -> None:
+        payload = {
+            "canonical_delivery_scope": {"closure_percent": 100, "status": "ready_for_mvp_demo"},
+            "answer_template_zh_TW": "不要用單一百分比回答。",
+            "rows": [
+                {
+                    "area_label": "Renderer / Unreal / simulation bridge",
+                    "status_icon": "🚧",
+                    "display_label": "施工中 / 合約",
+                    "current_limitations": ["contract only"],
+                }
+            ],
+        }
+
+        message = project_maturity_message(payload)
+
+        self.assertIn("100% / ready_for_mvp_demo", message)
+        self.assertIn("🚧 Renderer / Unreal / simulation bridge: 施工中 / 合約", message)
+        self.assertIn("does not calculate a single project percentage", message)
+
+    def test_project_maturity_dialog_uses_backend_payload_and_sets_status(self) -> None:
+        class _Ui(ProjectMaturityWorkflowMixin):
+            root = None
+
+            def __init__(self) -> None:
+                self.status_var = _FakeVar("")
+
+            def tr(self, zh_tw: str, en_us: str = "") -> str:
+                return zh_tw
+
+        ui = _Ui()
+        payload = {
+            "matrix_version": "test",
+            "canonical_delivery_scope": {"closure_percent": 100, "status": "ready_for_mvp_demo"},
+            "rows": [{"area_label": "Renderer", "status_icon": "🚧", "display_label": "施工中 / 合約"}],
+        }
+        with patch("frontends.tk.project_maturity_workflows.project_maturity_payload", return_value=payload) as backend, patch(
+            "frontends.tk.project_maturity_workflows.log_event"
+        ) as log_event_mock, patch("frontends.tk.project_maturity_workflows.messagebox.showinfo") as showinfo_mock:
+            result = ui.open_project_maturity_matrix()
+
+        backend.assert_called_once_with()
+        self.assertIs(result, payload)
+        self.assertIn("專案成熟度矩陣", showinfo_mock.call_args.args[0])
+        self.assertIn("🚧 Renderer", showinfo_mock.call_args.args[1])
+        self.assertIn("專案成熟度矩陣", ui.status_var.get())
+        log_event_mock.assert_called_once()
 
     def test_database_client_profile_label_marks_enabled_state(self) -> None:
         # _profile_label 是 dialog 內部資料呈現邊界，可在 headless CI 中直接測。

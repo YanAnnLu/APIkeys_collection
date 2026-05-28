@@ -108,6 +108,7 @@ class WindowLayoutWorkflowMixin:
         tools_menu.add_command(label=self.tr("產生 yfinance 離線 Demo plan", "Create yfinance offline demo plan"), command=self.write_yfinance_demo_plan_from_ui)
         tools_menu.add_command(label=self.tr("建立 yfinance live plan（需確認）", "Create yfinance live plan (requires acknowledgement)"), command=self.open_yfinance_live_plan_dialog)
         tools_menu.add_command(label=self.tr("產生 yfinance 儲存審查 dry-run", "Create yfinance storage review dry-run"), command=self.open_yfinance_storage_review_dialog)
+        tools_menu.add_command(label=self.tr("專案成熟度矩陣", "Project maturity matrix"), command=self.open_project_maturity_matrix)
         tools_menu.add_separator()
         tools_menu.add_command(label=self.tr("開發者 CLI", "Developer CLI"), command=self.open_developer_cli)
         tools_menu.add_command(
