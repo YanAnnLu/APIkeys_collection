@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 11:27 CLI lazy import hardening handoff
+- 工作樹接回時有 `api_launcher/cli_flags.py` 的延遲導入變更。本輪將它收成正式 hardening：`command_requested()` 內才導入各 CLI 子命令活性判斷函式，避免 import `api_launcher.cli_flags` 或普通啟動路徑預先載入所有 CLI workflow 依賴。
+- 新增 `tests/test_cli_flags.py`，用 fresh subprocess 驗證 import `api_launcher.cli_flags` 時不會連帶載入其他 `api_launcher.cli_*` command module。已驗證：不寫 pyc 的 compile OK；`py -3 -B -m unittest tests.test_cli_flags tests.test_handoff -v`，22 tests OK。
+- 本輪也修正 development log 漂移：`806b6cd Narrow active focus to crawler closure` 與 `22ccefa Add recommended seed action to Tk dialog` 均已改標成 `PUSHED / CI PASS`，對應 GitHub Actions run `26549667153` / `26552672553`。
+
 ## 2026-05-28 11:18 Tk recommended seed handoff
 - 本輪把 Tk Seed 清單 dialog 接上後端 `recommended_seed_uid`：dialog 現在會顯示「推薦 seed」摘要、自動選中推薦列，並提供「下載推薦 Seed」按鈕。推薦仍完全來自 `crawler_seed_page()` payload；Tk 不自行挑第一列、收藏列或依 source type 推斷可下載性。
 - 新增純 helper regression：`crawler_seed_dialog_recommended_text()` / `crawler_seed_dialog_recommended_uid()` 會呈現後端推薦 seed，並保留既有 `下載此 Seed` / 收藏 / formal seed download service flow。已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_seed_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v`，64 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_crawler_seed_registry tests.test_handoff -v`，107 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，827 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_111749.log`。

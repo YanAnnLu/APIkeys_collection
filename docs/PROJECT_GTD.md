@@ -71,6 +71,7 @@ Last updated: 2026-05-28
 - [x] Source profile access policy 已補白名單 normalization；未知 `credential_mode` / `terms_risk` 字串不會寫回 source JSON，也不會漏進 crawler asset capability contract，而是回到既有 public/review fallback heuristic。
 - [x] Source profile request/access policy 已抽成 `api_launcher.crawlers.request_policy.SourceRequestPolicy`；`dataset_sources.py` 只消費 typed effective policy，再交給既有 handler，為第二階段 middleware/decorator pipeline 留出明確接點。
 - [x] `scripts/pre_push_smoke.ps1` 已補 `$LASTEXITCODE` 檢查；`git diff --check`、`py_compile`、`unittest discover`、CLI summary 若失敗會立即讓 smoke 失敗，不再靠後續 summary/MVP smoke 掩蓋 native command failure。
+- [x] `api_launcher/cli_flags.py` 的 CLI command detection 已改成子命令活性判斷函式延遲導入；普通 import / 啟動路徑不再預先載入所有 CLI workflow module，並由 `tests/test_cli_flags.py` 鎖住。
 - [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
 - [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。這不是立即 asyncio 重寫理由；下一步應先設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
 
