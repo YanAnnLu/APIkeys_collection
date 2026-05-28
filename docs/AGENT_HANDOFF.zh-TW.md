@@ -4,6 +4,7 @@
 - `callback_diagnostics` 會把無錯誤狀態標成「進度回報正常」，有錯誤時標成 warning，並給 `inspect_event_logs_or_ui_callback` / 「檢查事件紀錄或 UI 進度回報」下一步；這仍是 observer/UI progress diagnostics，不把成功 download/import 重新分類成 failed。
 - 已補 `tests/test_crawler_asset_download.py::test_download_import_display_payload_packages_shared_ui_state` regression，鎖住 display payload 會保留 callback warning 與 next-action label。
 - 已驗證：in-memory compile `api_launcher\crawler_asset_display.py` / `tests\test_crawler_asset_download.py` OK（K 槽 `__pycache__` lock 曾讓 `py_compile` 寫 pyc 失敗，非語法錯誤）；`py -3 -B -m unittest tests.test_crawler_asset_download -v` 4 tests OK；`py -3 -B -m unittest tests.test_web_preview -v` 48 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 98 tests OK；`api_launcher\crawler_asset_display.py` 與 docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，897 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_044415.log`。
+- 已推送 `d8b7f54 Surface callback diagnostics in display payload`；GitHub Actions run `26601404592` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 shared backend display payload，讓 UI 可呈現 callback diagnostics；已同步 GTD、handoff 與 development log，user guide 不需更新，因使用者操作流程未改。
 
 ## 2026-05-29 04:26 Download plan callback diagnostics surface
