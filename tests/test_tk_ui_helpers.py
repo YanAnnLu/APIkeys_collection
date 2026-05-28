@@ -1,7 +1,9 @@
 import unittest
+from types import SimpleNamespace
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.ui_helpers import (
+    crawler_seed_download_import_ui_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
     yfinance_symbols_from_ui_text,
@@ -34,3 +36,26 @@ class YFinanceUiHelperTests(unittest.TestCase):
             PROJECT_ROOT / "state/storage_handoff.md",
             yfinance_project_path_from_ui_text("state/storage_handoff.md", "Handoff"),
         )
+
+    def test_crawler_seed_download_import_ui_message_uses_backend_display_payload(self) -> None:
+        result = SimpleNamespace(
+            to_dict=lambda: {
+                "dataset_uid": "demo_provider:dataset_a",
+                "stage": "blocked_before_download",
+                "succeeded": False,
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                },
+                "next_action": "run_adapter_review_or_resolve_adapter_plan_before_downloading",
+                "next_action_label": "先處理 Adapter 審核或解析計畫，再下載",
+            }
+        )
+
+        message = crawler_seed_download_import_ui_message(result, lambda zh, _en: zh)
+
+        self.assertFalse(message.succeeded)
+        self.assertEqual("blocked_before_download", message.stage)
+        self.assertIn("demo_provider:dataset_a", message.body)
+        self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message.body)
+        self.assertNotIn("run_adapter_review_or_resolve_adapter_plan_before_downloading", message.body)

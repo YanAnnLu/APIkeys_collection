@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from api_launcher.adapters.yfinance import normalize_yfinance_symbols
-from api_launcher.crawler_asset_display import next_action_display_label
+from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload, next_action_display_label
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.paths import PROJECT_ROOT, state_file
+
+
+@dataclass(frozen=True)
+class CrawlerSeedDownloadImportUiMessage:
+    """Display-ready Tk message for one seed download/import completion."""
+
+    succeeded: bool
+    stage: str
+    dataset_uid: str
+    title: str
+    status_message: str
+    body: str
 
 
 def database_sql_dry_run_available(suggestion: object) -> bool:
@@ -96,6 +110,70 @@ def mvp_demo_smoke_result_message(payload: dict[str, object], tr) -> str:
             "Repair guide: open Tools > Recent event logs to identify the failed stage. If the issue is manifest or import related, open Tools > Repair / verify assets to inspect sidecar manifests and SQLite table state.",
         )
     return message
+
+
+def crawler_seed_download_import_ui_message(
+    result: object,
+    tr: Callable[[str, str], str],
+) -> CrawlerSeedDownloadImportUiMessage:
+    """Convert backend download/import display payload into a Tk message.
+
+    The backend helper owns outcome, stage, next-action and artifact fields.
+    Tk only chooses whether the result is shown as an info or warning dialog.
+    """
+
+    display_payload = crawler_asset_download_import_display_payload(result)
+    raw_payload = display_payload.get("download_result")
+    payload = raw_payload if isinstance(raw_payload, dict) else {}
+    raw_download_import = display_payload.get("download_import")
+    download_import = raw_download_import if isinstance(raw_download_import, dict) else {}
+    stage = str(download_import.get("stage") or payload.get("stage") or getattr(getattr(result, "pipeline", None), "stage", "") or "-")
+    succeeded = bool(
+        download_import.get("succeeded")
+        if "succeeded" in download_import
+        else payload.get("succeeded")
+        if "succeeded" in payload
+        else getattr(result, "succeeded", False)
+    )
+    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
+    downloads_root = str(artifacts.get("downloads_root") or "")
+    curated_sqlite = str(artifacts.get("curated_sqlite") or "")
+    dataset_uid = str(payload.get("dataset_uid") or "").strip()
+    next_action = str(display_payload.get("next_action") or download_import.get("next_action") or payload.get("next_action") or "").strip()
+    next_action_label = str(display_payload.get("next_action_label") or payload.get("next_action_label") or next_action).strip()
+    body = tr(
+        (
+            f"Seed：{dataset_uid or '-'}\n"
+            f"Stage：{stage}\n"
+            f"Downloads：{downloads_root or '-'}\n"
+            f"SQLite：{curated_sqlite or '-'}\n"
+            f"下一步：{next_action_label or '-'}"
+        ),
+        (
+            f"Seed: {dataset_uid or '-'}\n"
+            f"Stage: {stage}\n"
+            f"Downloads: {downloads_root or '-'}\n"
+            f"SQLite: {curated_sqlite or '-'}\n"
+            f"Next: {next_action_label or '-'}"
+        ),
+    )
+    if succeeded:
+        return CrawlerSeedDownloadImportUiMessage(
+            succeeded=True,
+            stage=stage,
+            dataset_uid=dataset_uid,
+            title=tr("Seed 下載 / 匯入完成", "Seed download/import completed"),
+            status_message=tr(f"Seed 下載 / 匯入完成：{dataset_uid or '-'}", f"Seed download/import completed: {dataset_uid or '-'}"),
+            body=body,
+        )
+    return CrawlerSeedDownloadImportUiMessage(
+        succeeded=False,
+        stage=stage,
+        dataset_uid=dataset_uid,
+        title=tr("Seed 下載 / 匯入未完成", "Seed download/import incomplete"),
+        status_message=tr(f"Seed 下載 / 匯入未完成：{stage}", f"Seed download/import did not complete: {stage}"),
+        body=body,
+    )
 
 
 def mvp_demo_smoke_exception_message(error: Exception, flow_path: Path, tr) -> str:
