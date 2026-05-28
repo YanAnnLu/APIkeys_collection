@@ -5,6 +5,7 @@
 - `start_single_flight_thread()` 呼叫同步帶 `max_active_jobs=1` / `on_capacity`，作為前置 guard 之外的保險。這不改 manifest、existing-table policy、local file provenance review、importer 或 ingestion pipeline 規則。
 - 新增 regression：`test_import_supported_plan_results_blocks_when_sqlite_import_queue_full` 與 `test_import_local_file_blocks_when_sqlite_import_queue_full_before_file_picker`。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\import_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 104 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，901 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_052631.log`。
+- 已推送 `ac59e6f Cap Tk SQLite import jobs`；GitHub Actions run `26603488680` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Tk 匯入背景工作 capacity guard；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 05:10 Tk crawler asset background capacity guard
