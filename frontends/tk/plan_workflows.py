@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import json
-import threading
 import urllib.parse
 from pathlib import Path
 from tkinter import BooleanVar, messagebox
@@ -19,6 +18,7 @@ from api_launcher.paths import DOWNLOADS_DIR, state_file
 from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
 from api_launcher.source_download import apply_source_download_bounds
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
+from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
@@ -345,12 +345,22 @@ class PlanWorkflowMixin:
                 ),
             )
             return
-        self.status_var.set(self.tr("正在探測資料集欄位，準備動態界域表單...", "Probing dataset fields for a dynamic bounds form..."))
-        threading.Thread(
-            target=self._probe_plan_bounds_worker,
-            args=(plan_key, entry),
-            daemon=True,
-        ).start()
+        started = start_single_flight_thread(
+            self,
+            ("plan_bounds_probe", plan_key, ""),
+            self._probe_plan_bounds_worker,
+            (plan_key, entry),
+            active_jobs_attr="plan_bounds_active_jobs",
+            active_jobs_lock_attr="plan_bounds_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr(
+                    f"這個下載項目已在探測欄位：{plan_key}",
+                    f"Schema probe is already running for this plan item: {plan_key}",
+                )
+            ),
+        )
+        if started:
+            self.status_var.set(self.tr("正在探測資料集欄位，準備動態界域表單...", "Probing dataset fields for a dynamic bounds form..."))
 
     def _probe_plan_bounds_worker(self, plan_key: str, entry: dict[str, object]) -> None:
         # schema probe 會碰網路，必須離開 Tk 主執行緒；結果再用 root.after 回 UI。
