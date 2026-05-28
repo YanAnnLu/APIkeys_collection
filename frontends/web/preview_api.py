@@ -770,17 +770,12 @@ def crawler_asset_download_import(
         "next_action": "run_crawler_asset_download_import",
     }
     if credential_status_blocks_plan(credential_guard):
-        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
-        response["plan_passport"] = credential_blocked_plan_passport(asset.asset_id, credential_guard)
-        response["download_import"] = {
-            "stage": "blocked_before_download",
-            "succeeded": False,
-            "next_action": "edit_local_credentials_before_live_download",
-            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
-        }
-        response["next_action"] = "edit_local_credentials_before_live_download"
-        response["next_action_label"] = next_action_display_label(response["next_action"])
-        return response
+        return web_download_import_credential_blocked_response(
+            asset.asset_id,
+            payload.to_dict(),
+            credential_guard,
+            initial_next_action="run_crawler_asset_download_import",
+        )
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
     target_downloads = (
@@ -865,17 +860,13 @@ def crawler_seed_download_import(
         "next_action": "run_crawler_seed_download_import",
     }
     if credential_status_blocks_plan(credential_guard):
-        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
-        response["plan_passport"] = credential_blocked_plan_passport(asset.asset_id, credential_guard)
-        response["download_import"] = {
-            "stage": "blocked_before_download",
-            "succeeded": False,
-            "next_action": "edit_local_credentials_before_live_download",
-            "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
-        }
-        response["next_action"] = "edit_local_credentials_before_live_download"
-        response["next_action_label"] = next_action_display_label(response["next_action"])
-        return response
+        return web_download_import_credential_blocked_response(
+            asset.asset_id,
+            payload.to_dict(),
+            credential_guard,
+            dataset_uid=dataset_uid,
+            initial_next_action="run_crawler_seed_download_import",
+        )
 
     target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
     seed_dir = safe_path_part(dataset_uid)[:96]
@@ -929,6 +920,44 @@ def crawler_seed_download_import(
 
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)
+
+
+def web_download_import_credential_blocked_response(
+    asset_id: str,
+    bounds_payload: Mapping[str, object],
+    credential_guard: Mapping[str, object],
+    *,
+    dataset_uid: str = "",
+    initial_next_action: str,
+) -> dict[str, object]:
+    """Return the shared Web payload for download/import credential blocks.
+
+    Asset-level and seed-level download/import are different routes, but the
+    user-facing blocked contract is identical: no live request is made, the
+    plan passport is a credential block, and the next action is the login/API
+    key editor.
+    """
+
+    next_action = "edit_local_credentials_before_live_download"
+    response: dict[str, object] = {
+        "asset_id": asset_id,
+        "bounds_payload": dict(bounds_payload),
+        "credential_guard": credential_guard,
+        "next_action": initial_next_action,
+        "plan_outcome": credential_blocked_plan_outcome(credential_guard),
+        "plan_passport": credential_blocked_plan_passport(asset_id, credential_guard),
+        "download_import": {
+            "stage": "blocked_before_download",
+            "succeeded": False,
+            "next_action": next_action,
+            "next_action_label": next_action_display_label(next_action),
+        },
+    }
+    if dataset_uid:
+        response["dataset_uid"] = dataset_uid
+    response["next_action"] = next_action
+    response["next_action_label"] = next_action_display_label(next_action)
+    return response
 
 
 def credential_blocked_plan_outcome(credential_guard: Mapping[str, object]) -> dict[str, object]:

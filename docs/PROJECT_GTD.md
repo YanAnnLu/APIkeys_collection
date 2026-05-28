@@ -35,6 +35,7 @@ Last updated: 2026-05-28
 - [x] Schema/head probe + bounds form enrichment 已從 Web/Tk 邊界抽回 `api_launcher/crawler_asset_schema_probe.py`：Web Preview 仍保留相容 API，Tk seed probe worker 改吃同一個 UI-neutral service result，避免 `preview_api.py` 與 `crawler_asset_workflows.py` 各自組合 probe/form/enrichment 邏輯。
 - [x] Formal download/import 顯示 payload 已從 Web/Tk endpoint 抽回 `crawler_asset_display.py`：Web 的 asset-level / seed-level download-import endpoint 與 Tk seed completion message 共用 `crawler_asset_download_import_display_payload()`，不再各自重組 plan outcome、plan passport、adapter review、download/import 與 next-action label。
 - [x] Tk seed download/import message 組裝已抽到 `frontends/tk/ui_helpers.py`：`crawler_asset_workflows.py` 只消費 helper 回傳的 title/status/body，不再直接拆 backend display payload 組 messagebox 文案。
+- [x] Web download/import 缺憑證 blocked payload 已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_credential_blocked_response()`，避免 `blocked_before_download` 與 login next-action payload 分叉。
 - [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

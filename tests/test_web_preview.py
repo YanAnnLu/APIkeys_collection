@@ -356,6 +356,28 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(context["succeeded"])
         self.assertEqual("download_import_completed", context["stage"])
 
+    def test_crawler_asset_download_import_blocks_missing_credentials_before_service(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+            with patch("frontends.web.preview_api.run_crawler_asset_download_import") as run_service:
+                payload = crawler_asset_download_import(
+                    "demo_cmr",
+                    {"limit": "5"},
+                    db_path=Path(tmp) / "preview.sqlite",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        run_service.assert_not_called()
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
+        self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
+        self.assertFalse(payload["download_import"]["succeeded"])
+        self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
+
     def test_crawler_seed_download_import_uses_selected_seed_and_logs_event(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)
@@ -435,6 +457,29 @@ class WebPreviewApiTest(unittest.TestCase):
         context = log_event.call_args.kwargs["context"]
         self.assertEqual("demo_provider:dataset_a", context["dataset_uid"])
         self.assertTrue(context["succeeded"])
+
+    def test_crawler_seed_download_import_blocks_missing_credentials_before_service(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+            with patch("frontends.web.preview_api.run_crawler_seed_download_import") as run_service:
+                payload = crawler_seed_download_import(
+                    "demo_cmr",
+                    {"dataset_uid": "demo_provider:dataset_a", "limit": "5"},
+                    db_path=Path(tmp) / "preview.sqlite",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        run_service.assert_not_called()
+        self.assertEqual("demo_provider:dataset_a", payload["dataset_uid"])
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["download_import"]["next_action_label"])
+        self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
+        self.assertFalse(payload["download_import"]["succeeded"])
+        self.assertEqual("credential_setup_required", payload["plan_passport"]["outcome_bucket"])
 
     def test_server_runtime_status_reports_actual_port(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
