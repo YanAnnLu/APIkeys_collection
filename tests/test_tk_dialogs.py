@@ -247,6 +247,40 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn(("local_discovery_audit", "dry_run", ""), ui.discovery_active_jobs)
         self.assertIn("Auditing local discovery drafts", ui.status_var.value)
 
+    def test_source_action_metadata_crawl_uses_single_flight_job(self) -> None:
+        ui = object.__new__(SourceActionWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        provider_ids = ["provider_b", "provider_a"]
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            SourceActionWorkflowMixin.crawl_provider_ids(ui, provider_ids)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual((provider_ids,), thread_call.args)
+        self.assertIn(("metadata_crawl", "provider_a,provider_b", ""), ui.source_action_active_jobs)
+
+    def test_source_action_metadata_crawl_is_single_flight_per_provider_scope(self) -> None:
+        ui = object.__new__(SourceActionWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.source_action_active_jobs = {("metadata_crawl", "provider_a,provider_b", "")}
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            SourceActionWorkflowMixin.crawl_provider_ids(ui, ["provider_b", "provider_a"])
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_detail_panel_module_keeps_widget_dependencies_local(self) -> None:
         # launcher_ui.py 不再集中 import 所有 Tk 元件；detail panel mixin 自己要帶齊用到的 widget/helper。
         self.assertTrue(callable(detail_panel_module.StringVar))

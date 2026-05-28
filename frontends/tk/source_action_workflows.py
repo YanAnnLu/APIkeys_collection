@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import threading
 import webbrowser
 from tkinter import Menu, messagebox
 
@@ -11,6 +10,7 @@ import APIkeys_collection as core
 from api_launcher.downloads.repair import repair_suggestion_for_result, verify_manifest_file
 from api_launcher.event_log import log_exception
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
+from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_REPAIR_ACTION_STATUSES, TABLE_COLUMNS
 
@@ -333,8 +333,18 @@ class SourceActionWorkflowMixin:
         self.crawl_provider_ids(provider_ids)
 
     def crawl_provider_ids(self, provider_ids: list[str]) -> None:
-        thread = threading.Thread(target=self._crawl_worker, args=(provider_ids,), daemon=True)
-        thread.start()
+        job_scope = ",".join(sorted(provider_ids)) if provider_ids else "all"
+        start_single_flight_thread(
+            self,
+            ("metadata_crawl", job_scope, ""),
+            self._crawl_worker,
+            (provider_ids,),
+            active_jobs_attr="source_action_active_jobs",
+            active_jobs_lock_attr="source_action_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("Metadata 抓取已在執行中。", "Metadata crawl is already running.")
+            ),
+        )
 
     def _crawl_worker(self, provider_ids: list[str]) -> None:
         try:
