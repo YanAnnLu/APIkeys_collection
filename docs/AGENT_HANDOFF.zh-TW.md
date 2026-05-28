@@ -4,6 +4,7 @@
 - Metadata crawl 的 job key 以排序後 provider scope 建立，例如 `("metadata_crawl", "provider_a,provider_b", "")`；同一批 provider metadata crawl 已在執行時，Tk 只更新 status，不再重複開 worker。
 - 這不改 provider metadata crawler、repair/self-check、row action、repository update 或 UI menu 語意；只把 row action 入口的背景工作排程收斂到共用 single-flight helper。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\source_action_workflows.py tests\test_tk_dialogs.py` OK；targeted 2 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 87 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，879 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_012947.log`。
+- 已推送 `1dac898 Guard Tk metadata crawl background job`；GitHub Actions run `26591378222` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk source action metadata crawl 內部背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 01:20 Tk discovery workflow single-flight guard
