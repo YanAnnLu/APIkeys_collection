@@ -14,12 +14,11 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Mapping
 
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundFormSpec,
     CrawlerAssetBoundPayload,
-    apply_schema_probe_to_crawler_asset_bound_form_spec,
     build_crawler_asset_bound_form_spec,
     crawler_asset_bound_payload_from_form_values,
 )
@@ -38,6 +37,9 @@ from api_launcher.crawler_asset_profiles import (
     compact_crawler_asset_plan_passport,
     crawler_asset_favorite_seed_uids,
     update_crawler_asset_plan_passport,
+)
+from api_launcher.crawler_asset_schema_probe import (
+    crawler_asset_bound_form_schema_probe,
 )
 from api_launcher.crawler_asset_service import (
     CrawlerRunner,
@@ -61,7 +63,6 @@ from api_launcher.local_credentials import (
 )
 from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.repository import ApiCatalogRepository
-from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
 from api_launcher.web_real_download_demo import run_web_real_download_demo
 
 
@@ -448,14 +449,6 @@ def non_negative_int(value: object, default: int) -> int:
     return max(0, parsed)
 
 
-def bounded_float(value: object, *, default: float, lower: float, upper: float) -> float:
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return default
-    return min(upper, max(lower, parsed))
-
-
 def save_crawler_asset_credentials(
     asset_id: str,
     payload: Mapping[str, object],
@@ -623,64 +616,6 @@ def crawler_asset_bound_form(
     bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
     source = load_crawler_asset_source(asset_id, primary_path, local_path)
     return build_crawler_asset_bound_form_spec(asset.asset_id, bounds_schema, source=source)
-
-
-def crawler_asset_bound_form_schema_probe(
-    asset_id: str,
-    payload: Mapping[str, object],
-    *,
-    primary_path: str | Path | None = None,
-    local_path: str | Path | None = None,
-    profile_path: str | Path | None = None,
-    schema_probe_runner: Callable[..., SchemaProbeResult] = probe_plan_entry_schema,
-) -> dict[str, object]:
-    """Probe a candidate entry and return the enriched UI-neutral bounds form.
-
-    This route is intentionally thin: Web/Tk/Qt can ask the backend to inspect a
-    known candidate URL, but they still receive a normal ``bound_form`` payload.
-    The frontend does not infer time columns, content fields, or source-specific
-    behavior on its own.
-    """
-
-    entry = schema_probe_entry_from_payload(payload)
-    row_limit = min(25, positive_int(payload.get("row_limit"), 5))
-    timeout = bounded_float(payload.get("timeout"), default=8.0, lower=1.0, upper=20.0)
-    form_spec = crawler_asset_bound_form(
-        asset_id,
-        primary_path=primary_path,
-        local_path=local_path,
-        profile_path=profile_path,
-    )
-    probe = schema_probe_runner(entry, row_limit=row_limit, timeout=timeout)
-    enriched = apply_schema_probe_to_crawler_asset_bound_form_spec(form_spec, probe)
-    return {
-        "asset_id": asset_id,
-        "schema_probe": probe.to_dict(),
-        "bound_form": crawler_asset_bound_form_payload(enriched),
-        "next_action": "choose_schema_backed_bounds",
-        "next_action_label": next_action_display_label("choose_schema_backed_bounds"),
-    }
-
-
-def schema_probe_entry_from_payload(payload: Mapping[str, object]) -> dict[str, object]:
-    entry = payload.get("entry")
-    if isinstance(entry, Mapping):
-        probe_entry = dict(entry)
-        if "download_url" not in probe_entry and "api_url" not in probe_entry:
-            url = str(probe_entry.get("url") or probe_entry.get("content_url") or "").strip()
-            if url:
-                probe_entry["download_url"] = url
-        return probe_entry
-    probe_entry = {
-        key: payload[key]
-        for key in ("download_url", "api_url")
-        if isinstance(payload.get(key), str) and str(payload.get(key)).strip()
-    }
-    if not probe_entry:
-        url = str(payload.get("url") or payload.get("content_url") or "").strip()
-        if url:
-            probe_entry["download_url"] = url
-    return probe_entry
 
 
 def crawler_asset_payload_from_web_values(

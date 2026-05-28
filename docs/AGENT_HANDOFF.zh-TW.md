@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 19:18 Schema probe service consolidation
+- 本輪做 bounded consolidation：新增 `api_launcher/crawler_asset_schema_probe.py`，把 seed/resource URL 正規化、schema probe、bounds form spec 建立、probe enrichment、`next_action_label` payload 打包成 UI-neutral backend service。這讓 Web Preview / Tk / 未來 Qt 都能吃同一份 schema-probe contract。
+- `frontends/web/preview_api.py` 仍重新匯出 `crawler_asset_bound_form_schema_probe()`，所以現有 server route 與測試 import 不需要改；但 Web 不再保存 probe runner、timeout/row-limit bounded parsing、entry normalization、form enrichment 這些後端邏輯。
+- `frontends/tk/crawler_asset_workflows.py` 的 seed schema probe worker 改呼叫 `crawler_asset_bound_form_schema_probe_result()`，只負責開 Tk dialog 與保存 bounds payload；欄位推論與 form enrichment 不再散在 Tk worker 內。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_schema_probe.py frontends\web\preview_api.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py tests\test_web_preview.py` OK；focused schema probe tests OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_web_preview tests.test_crawler_assets -v` 160 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，856 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_191340.log`。
+
 ## 2026-05-28 18:54 Log timestamp correction
 - 本輪修正文檔治理漂移：`docs/DEVELOPMENT_LOG.zh-TW.md` 與本 handoff 先前把尚未完成的 checkpoint 寫成「小時精確、分鐘佔位」格式，後續 commit / CI 完成後沒有回填實際分鐘。這不是 GitHub 或系統自動改寫，而是 agent 在 checkpoint 尚未收束時留下佔位值。
 - 已將近期 checkpoint 時間改為可追溯的實際本地時間：18:42、18:29、18:07、17:52、17:40、17:25、17:06、16:51、16:09。後續正式 log 不應再提交分鐘佔位；若 checkpoint 尚未完成，應先不寫正式 log，或寫明 `pending` 並在 commit 前回填精確 `HH:mm`。

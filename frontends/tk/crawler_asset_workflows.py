@@ -29,10 +29,10 @@ from api_launcher.crawler_asset_profiles import (
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets, status_label
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundPayload,
-    apply_schema_probe_to_crawler_asset_bound_form_spec,
     build_crawler_asset_bound_form_spec,
 )
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
+from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_schema_probe_result
 from api_launcher.crawler_asset_display import (
     adapter_review_content_summary_label,
     adapter_review_display_payload,
@@ -58,7 +58,6 @@ from api_launcher.local_credentials import (
 )
 from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
-from api_launcher.schema_probe import probe_plan_entry_schema
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.background_jobs import (
     release_single_flight_job,
@@ -907,7 +906,7 @@ class CrawlerAssetWorkflowMixin:
         started = self._start_crawler_asset_background_job(
             ("seed_schema_probe", asset.asset_id, dataset_uid),
             self._crawler_asset_seed_schema_probe_worker,
-            (asset.asset_id, dataset_uid, dict(entry), tuple(bounds_schema)),
+            (asset.asset_id, dataset_uid, dict(entry)),
             duplicate_status_zh=f"Seed 欄位探測已在執行：{dataset_uid}",
             duplicate_status_en=f"Seed field probe is already running: {dataset_uid}",
         )
@@ -924,13 +923,14 @@ class CrawlerAssetWorkflowMixin:
         asset_id: str,
         dataset_uid: str,
         entry: dict[str, object],
-        bounds_schema: tuple[object, ...],
     ) -> None:
         try:
-            source = load_crawler_asset_source(asset_id)
-            base_spec = build_crawler_asset_bound_form_spec(asset_id, bounds_schema, source=source)
-            probe = probe_plan_entry_schema(entry, row_limit=5, timeout=8.0)
-            spec = apply_schema_probe_to_crawler_asset_bound_form_spec(base_spec, probe)
+            result = crawler_asset_bound_form_schema_probe_result(
+                asset_id,
+                {"entry": entry, "row_limit": 5, "timeout": 8.0},
+            )
+            probe = result.probe
+            spec = result.bound_form
         except Exception as exc:
             log_exception(
                 "crawler_seed_schema_probe_failed",

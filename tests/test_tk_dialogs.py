@@ -9,7 +9,12 @@ from unittest.mock import patch
 
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult, json_schema_probe
 from api_launcher.source_download import SourceDownloadBounds
-from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload, build_crawler_asset_bound_form_spec
+from api_launcher.crawler_asset_bound_forms import (
+    CrawlerAssetBoundPayload,
+    apply_schema_probe_to_crawler_asset_bound_form_spec,
+    build_crawler_asset_bound_form_spec,
+)
+from api_launcher.crawler_asset_schema_probe import CrawlerAssetSchemaProbeResult
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_assets import crawler_asset_from_source
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE, SourcePatternDetection
@@ -1070,9 +1075,18 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
         ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
 
+        base_spec = build_crawler_asset_bound_form_spec("demo_stac", bounds_schema, source=source)
+        service_result = CrawlerAssetSchemaProbeResult(
+            asset_id="demo_stac",
+            probe=probe,
+            bound_form=apply_schema_probe_to_crawler_asset_bound_form_spec(base_spec, probe),
+        )
+
         with (
-            patch("frontends.tk.crawler_asset_workflows.load_crawler_asset_source", return_value=source),
-            patch("frontends.tk.crawler_asset_workflows.probe_plan_entry_schema", return_value=probe) as probe_schema,
+            patch(
+                "frontends.tk.crawler_asset_workflows.crawler_asset_bound_form_schema_probe_result",
+                return_value=service_result,
+            ) as schema_probe_service,
             patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class,
             patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
         ):
@@ -1081,10 +1095,12 @@ class TkDialogModuleTest(unittest.TestCase):
                 "demo_stac",
                 "demo_provider:seed_1",
                 {"api_url": "https://example.test/api.json"},
-                bounds_schema,
             )
 
-        probe_schema.assert_called_once()
+        schema_probe_service.assert_called_once_with(
+            "demo_stac",
+            {"entry": {"api_url": "https://example.test/api.json"}, "row_limit": 5, "timeout": 8.0},
+        )
         dialog_class.assert_called_once()
         spec = dialog_class.call_args.args[1]
         time_field = next(field for field in spec.fields if field.field_id == "time_field")
