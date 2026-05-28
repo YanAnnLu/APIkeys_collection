@@ -345,6 +345,7 @@ async function runCrawlerAssetDownloadImportById(assetId) {
     } else {
       addMission("正式下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
     }
+    addCallbackDiagnosticsMission(payload);
     renderDownloaderWorkspace();
     refreshSelectedAssetOutcomeViews();
     loadRecentEvents({ quiet: true });
@@ -393,6 +394,7 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     } else {
       addMission("seed 下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
     }
+    addCallbackDiagnosticsMission(payload);
     renderDownloaderWorkspace();
     refreshSelectedAssetOutcomeViews();
     loadRecentEvents({ quiet: true });
@@ -456,6 +458,10 @@ function crawlerAssetDownloadImportRowHtml(payload) {
   const succeeded = Boolean(downloadImport.succeeded || result.succeeded);
   const tone = succeeded ? "success" : "warning";
   const label = succeeded ? "下載 / 匯入完成" : "需要檢查";
+  const callbackDiagnostics = downloadImportCallbackDiagnostics(payload);
+  const callbackChip = callbackDiagnostics.count
+    ? `<span class="context-chip warning">${escapeHtml(callbackDiagnostics.displayLabel)} ${escapeHtml(String(callbackDiagnostics.count))}</span>`
+    : "";
   return `
     <article class="download-row ${tone}">
       <div class="download-row-head">
@@ -476,8 +482,10 @@ function crawlerAssetDownloadImportRowHtml(payload) {
         <span class="context-chip">crawler_asset_path</span>
         <span class="context-chip">download_import_pipeline</span>
         <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || payload.outcome_bucket || "plan")}</span>
+        ${callbackChip}
       </div>
       <p>${escapeHtml(payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.next_action || "review result")}</p>
+      ${callbackDiagnosticsHtml(callbackDiagnostics)}
       <dl class="artifact-list">
         <div><dt>Downloads</dt><dd>${escapeHtml(artifacts.downloads_root || "")}</dd></div>
         <div><dt>Plan</dt><dd>${escapeHtml(artifacts.plan || "")}</dd></div>
@@ -485,6 +493,44 @@ function crawlerAssetDownloadImportRowHtml(payload) {
       </dl>
     </article>
   `;
+}
+
+function downloadImportCallbackDiagnostics(payload) {
+  const downloadImport = payload.download_import || {};
+  const diagnostics = payload.callback_diagnostics || downloadImport.callback_diagnostics || {};
+  const errors = Array.isArray(diagnostics.errors)
+    ? diagnostics.errors
+    : Array.isArray(downloadImport.callback_errors)
+      ? downloadImport.callback_errors
+      : [];
+  const count = Number(diagnostics.count || downloadImport.callback_error_count || errors.length || 0);
+  return {
+    count: Number.isFinite(count) ? count : 0,
+    displayLabel: diagnostics.display_label || (count ? "進度回報有警告" : "進度回報正常"),
+    nextActionLabel: diagnostics.next_action_label || "",
+    summary: diagnostics.summary || "",
+    errors,
+  };
+}
+
+function callbackDiagnosticsHtml(diagnostics) {
+  if (!diagnostics.count) return "";
+  const errorPreview = diagnostics.errors.slice(0, 2).join(" / ");
+  return `
+    <p class="callback-diagnostics">
+      ${escapeHtml(diagnostics.displayLabel)}：${escapeHtml(diagnostics.nextActionLabel || diagnostics.summary || "檢查事件紀錄或 UI 進度回報")}
+      ${errorPreview ? `<br><small>${escapeHtml(errorPreview)}</small>` : ""}
+    </p>
+  `;
+}
+
+function addCallbackDiagnosticsMission(payload) {
+  const diagnostics = downloadImportCallbackDiagnostics(payload);
+  if (!diagnostics.count) return;
+  addMission(
+    diagnostics.displayLabel,
+    diagnostics.nextActionLabel || diagnostics.summary || "檢查事件紀錄或 UI 進度回報",
+  );
 }
 
 function downloaderRowHtml(asset) {

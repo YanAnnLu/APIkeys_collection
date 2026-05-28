@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 04:57 Web/Tk callback diagnostics visible surface
+- 本輪把上一個 checkpoint 的 backend `callback_diagnostics` 顯示契約接到 Web / Tk：Web download/import result row 會顯示 `進度回報有警告` chip、下一步與前兩筆 callback error preview，並在 mission list 補一筆 callback diagnostics mission；Tk seed download/import completion message 也會把 callback warning 與「檢查事件紀錄或 UI 進度回報」寫進 message body。
+- 前端不重新判斷 callback error 是否代表下載失敗，只消費 backend `callback_diagnostics.display_label` / `next_action_label` / `errors`；成功 download/import 仍維持成功，callback diagnostics 只是 observer/UI progress warning。
+- 已補 `tests/test_tk_ui_helpers.py::test_crawler_seed_download_import_ui_message_surfaces_callback_diagnostics`，並在 Web static contract 測試鎖住 `downloadImportCallbackDiagnostics()` / `callbackDiagnosticsHtml()` / `addCallbackDiagnosticsMission()` 與使用者可讀 warning 文案。
+- 已驗證：`node --check frontends\web\static\app.js` OK；in-memory compile `frontends\tk\ui_helpers.py` / tests OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_web_preview tests.test_tk_dialogs -v` 154 tests OK；Web/Tk touched files mojibake scan OK；`git diff --check` OK（僅 CRLF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，898 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_045827.log`。
+- Docs drift check：本輪改 Web/Tk 顯示 callback diagnostics 的文字 surface，不改按鈕或操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 04:42 Crawler asset callback diagnostics display payload
 - 本輪把 `DownloadPlanRunResult.callback_errors` 再往 UI-neutral crawler asset 顯示 payload 接一層：`crawler_asset_download_import_display_payload()` 現在會輸出 top-level `callback_diagnostics`，並在 nested `download_import` 內提供 `callback_error_count`、`callback_errors` 與 `callback_diagnostics`。
 - `callback_diagnostics` 會把無錯誤狀態標成「進度回報正常」，有錯誤時標成 warning，並給 `inspect_event_logs_or_ui_callback` / 「檢查事件紀錄或 UI 進度回報」下一步；這仍是 observer/UI progress diagnostics，不把成功 download/import 重新分類成 failed。

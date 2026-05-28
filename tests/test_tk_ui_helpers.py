@@ -63,6 +63,34 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message.body)
         self.assertNotIn("run_adapter_review_or_resolve_adapter_plan_before_downloading", message.body)
 
+    def test_crawler_seed_download_import_ui_message_surfaces_callback_diagnostics(self) -> None:
+        result = SimpleNamespace(
+            pipeline=SimpleNamespace(
+                to_dict=lambda: {
+                    "stage": "download_import_completed",
+                    "succeeded": True,
+                    "result": {
+                        "callback_errors": ["job-1 progress: RuntimeError: ui callback down"],
+                    },
+                }
+            ),
+            to_dict=lambda: {
+                "dataset_uid": "demo_provider:dataset_a",
+                "stage": "download_import_completed",
+                "succeeded": True,
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                },
+            },
+        )
+
+        message = crawler_seed_download_import_ui_message(result, lambda zh, _en: zh)
+
+        self.assertTrue(message.succeeded)
+        self.assertIn("進度回報：進度回報有警告 (1)", message.body)
+        self.assertIn("檢查事件紀錄或 UI 進度回報", message.body)
+
     def test_crawler_seed_download_import_target_paths_sanitizes_asset_and_seed(self) -> None:
         with patch("frontends.tk.ui_helpers.default_local_downloads_root", return_value=Path("C:/downloads")):
             targets = crawler_seed_download_import_target_paths("asset/demo", "provider:dataset/a")

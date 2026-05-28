@@ -167,6 +167,11 @@ def crawler_seed_download_import_ui_message(
     dataset_uid = str(payload.get("dataset_uid") or "").strip()
     next_action = str(display_payload.get("next_action") or download_import.get("next_action") or payload.get("next_action") or "").strip()
     next_action_label = str(display_payload.get("next_action_label") or payload.get("next_action_label") or next_action).strip()
+    raw_callback_diagnostics = display_payload.get("callback_diagnostics")
+    callback_diagnostics = raw_callback_diagnostics if isinstance(raw_callback_diagnostics, dict) else {}
+    callback_count = int(callback_diagnostics.get("count") or download_import.get("callback_error_count") or 0)
+    callback_label = str(callback_diagnostics.get("display_label") or "").strip()
+    callback_next_action = str(callback_diagnostics.get("next_action_label") or callback_diagnostics.get("summary") or "").strip()
     body = tr(
         (
             f"Seed：{dataset_uid or '-'}\n"
@@ -183,6 +188,11 @@ def crawler_seed_download_import_ui_message(
             f"Next: {next_action_label or '-'}"
         ),
     )
+    if callback_count:
+        body += "\n" + tr(
+            f"\n進度回報：{callback_label or '進度回報有警告'} ({callback_count})\n建議：{callback_next_action or '檢查事件紀錄或 UI 進度回報'}",
+            f"\nProgress callback: {callback_label or 'callback warning'} ({callback_count})\nNext: {callback_next_action or 'Inspect event logs or UI progress callbacks'}",
+        )
     if succeeded:
         return CrawlerSeedDownloadImportUiMessage(
             succeeded=True,
