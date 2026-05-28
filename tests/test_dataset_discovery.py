@@ -45,6 +45,7 @@ from api_launcher.crawlers import (
     ncei,
     ogc_records,
     openalex,
+    registry as crawler_registry,
     socrata,
     stac,
     zenodo,
@@ -189,8 +190,13 @@ class DatasetDiscoveryTests(unittest.TestCase):
             calls.append((timeout, max_pages, limit, full_crawl))
             return []
 
-        original_handler = dataset_sources.SOURCE_CRAWLER_HANDLERS.get(source.source_type)
-        dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type] = fake_handler
+        crawler(
+            source_type=source.source_type,
+            source_family="catalog_search",
+            transport="json",
+            auth_profile="none",
+            result_shape="dataset_list",
+        )(fake_handler)
         try:
             crawl_dataset_sources(
                 [source],
@@ -213,10 +219,7 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 ),
             )
         finally:
-            if original_handler is None:
-                del dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type]
-            else:
-                dataset_sources.SOURCE_CRAWLER_HANDLERS[source.source_type] = original_handler
+            crawler_registry._REGISTRY.pop(source.source_type, None)
 
         self.assertEqual((3.5, 7, 25, True), calls[0])
         self.assertEqual((3.5, 2, 25, True), calls[1])
@@ -426,6 +429,26 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("optional_api_key", specs["socrata_catalog_search"].auth_profile)
         self.assertEqual("html", specs["html_file_index"].transport)
         self.assertEqual("layer_list", specs["ogc_wms_capabilities"].result_shape)
+
+    def test_crawler_registry_partial_dimension_queries(self) -> None:
+        catalog_json = dataset_sources.list_crawlers_by_dims(source_family="catalog_search", transport="json")
+        catalog_json_types = {spec.source_type for spec in catalog_json}
+        self.assertIn("ckan_package_search", catalog_json_types)
+        self.assertIn("socrata_catalog_search", catalog_json_types)
+        self.assertNotIn("html_file_index", catalog_json_types)
+        self.assertNotIn("erddap_all_datasets", catalog_json_types)
+
+        credential_types = {
+            spec.source_type
+            for spec in dataset_sources.list_crawlers_by_dims(auth_profile="optional_api_key")
+        }
+        self.assertEqual({"socrata_catalog_search"}, credential_types)
+
+        file_link_types = {
+            spec.source_type
+            for spec in dataset_sources.list_crawlers_by_dims(result_shape="file_links")
+        }
+        self.assertEqual({"html_file_index"}, file_link_types)
 
     def test_crawler_capability_address_groups_existing_handlers(self) -> None:
         index = dataset_sources.CRAWLER_CAPABILITY_INDEX

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 from api_launcher.crawlers.types import DatasetCandidate, DatasetCrawlerOutput, DatasetDiscoverySource
@@ -262,6 +262,49 @@ def crawler_specs() -> tuple[CrawlerSpec, ...]:
     return tuple(_REGISTRY[source_type] for source_type in sorted(_REGISTRY))
 
 
+def iter_crawler_specs_by_dims(
+    *,
+    source_family: str | None = None,
+    transport: str | None = None,
+    auth_profile: str | None = None,
+    result_shape: str | None = None,
+) -> Iterator[CrawlerSpec]:
+    """Yield registered specs matching any provided capability dimensions.
+
+    This is the read side of the declarative matrix.  Callers can ask for
+    "all JSON catalog crawlers" or "all credential-aware crawlers" without
+    writing source_type branches in UI, CLI, or import code.
+    """
+
+    for spec in crawler_specs():
+        if source_family is not None and spec.source_family != source_family:
+            continue
+        if transport is not None and spec.transport != transport:
+            continue
+        if auth_profile is not None and spec.auth_profile != auth_profile:
+            continue
+        if result_shape is not None and spec.result_shape != result_shape:
+            continue
+        yield spec
+
+
+def crawler_specs_by_dims(
+    *,
+    source_family: str | None = None,
+    transport: str | None = None,
+    auth_profile: str | None = None,
+    result_shape: str | None = None,
+) -> tuple[CrawlerSpec, ...]:
+    return tuple(
+        iter_crawler_specs_by_dims(
+            source_family=source_family,
+            transport=transport,
+            auth_profile=auth_profile,
+            result_shape=result_shape,
+        )
+    )
+
+
 def crawler_handlers_by_source_type() -> dict[str, DatasetSourceCrawler]:
     return {source_type: spec.handler for source_type, spec in _REGISTRY.items()}
 
@@ -309,5 +352,7 @@ __all__ = [
     "crawler_spec",
     "crawler_specs",
     "crawler_specs_by_capability_mask",
+    "crawler_specs_by_dims",
     "crawler_specs_by_source_type",
+    "iter_crawler_specs_by_dims",
 ]

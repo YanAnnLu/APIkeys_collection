@@ -66,12 +66,15 @@ from api_launcher.crawlers.openalex import (
 )
 from api_launcher.crawlers.pagination import append_new_candidates, discovery_page_cap
 from api_launcher.crawlers.registry import (
+    CrawlerSpec,
     DatasetSourceCrawler,
     crawler,
     crawler_capability_index,
+    crawler_handler,
     crawler_handlers_by_source_type,
     crawler_matrix,
     crawler_specs,
+    crawler_specs_by_dims,
     crawler_specs_by_source_type,
 )
 from api_launcher.crawlers.request_policy import source_request_policy
@@ -194,11 +197,34 @@ crawler(
 crawler(source_type="openalex_works_search", **CURSOR_PAGINATED_CATALOG_SPEC)(openalex_candidates_for_source)
 
 SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = crawler_handlers_by_source_type()
-SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
+SUPPORTED_DATASET_SOURCE_TYPES = tuple(sorted(SOURCE_CRAWLER_HANDLERS))
 CRAWLER_SPECS_BY_SOURCE_TYPE = crawler_specs_by_source_type()
 CRAWLER_SPEC_MATRIX = crawler_matrix()
 CRAWLER_CAPABILITY_INDEX = crawler_capability_index()
 CRAWLER_SPECS = crawler_specs()
+
+
+def list_registered_crawlers() -> tuple[CrawlerSpec, ...]:
+    """Return crawler specs for CLI/UI diagnostics without exposing globals."""
+
+    return crawler_specs()
+
+
+def list_crawlers_by_dims(
+    *,
+    source_family: str | None = None,
+    transport: str | None = None,
+    auth_profile: str | None = None,
+    result_shape: str | None = None,
+) -> tuple[CrawlerSpec, ...]:
+    """Query the crawler matrix by partial capability dimensions."""
+
+    return crawler_specs_by_dims(
+        source_family=source_family,
+        transport=transport,
+        auth_profile=auth_profile,
+        result_shape=result_shape,
+    )
 
 
 def discover_dataset_candidate_output_for_source(
@@ -219,12 +245,10 @@ def discover_dataset_candidate_output_for_source(
         full_crawl=full_crawl,
     )
     search_terms = search_terms_override or source.search_terms
-    handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
-    if handler is not None:
-        return dataset_crawler_output(
-            handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
-        )
-    raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
+    handler = crawler_handler(source.source_type)
+    return dataset_crawler_output(
+        handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
+    )
 
 
 def dataset_crawler_output(
@@ -390,15 +414,12 @@ def discover_dataset_candidates_for_source(
         full_crawl=full_crawl,
     )
     search_terms = search_terms_override or source.search_terms
-    handler = SOURCE_CRAWLER_HANDLERS.get(source.source_type)
-    if handler is not None:
-        return list(
-            dataset_crawler_output(
-                handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
-            ).candidates
-        )
-    # 不支援的 source_type 必須明確失敗，否則 portal intake 會以為 crawler 已接好。
-    raise ValueError(f"Unsupported dataset discovery source_type: {source.source_type}")
+    handler = crawler_handler(source.source_type)
+    return list(
+        dataset_crawler_output(
+            handler(source, policy.timeout_seconds, policy.page_size, search_terms, full_crawl, policy.max_pages)
+        ).candidates
+    )
 
 
 def _positive_float(value: object, default: float = 0.0) -> float:

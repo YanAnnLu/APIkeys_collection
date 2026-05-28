@@ -10,6 +10,7 @@ Last updated: 2026-05-28
 - [x] Tk 界域表單已接上後端 `recommended_values` / `presets`：使用者可按「套用推薦值」或區域預設按鈕先填入安全 limit / bbox，不必第一次就盲填所有欄位。
 - [x] Schema/head probe enrichment 已接到後端 form contract、Web Preview 與 Tk Seed 清單：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；Web/Tk 都只把 seed URL 交給後端 probe service，不自行推斷欄位。
 - [x] Crawler source handler 已有第一版宣告式 registry 相容層：14 個既有 handler 先登記成 `CrawlerSpec`，並由 registry 生成現有 `SOURCE_CRAWLER_HANDLERS`；這不是重寫 handler，只是把 source_type 分派往 profile/gateway 方向收束。
+- [x] Crawler dispatch 已改為直接讀 `CrawlerSpec` registry：`SOURCE_CRAWLER_HANDLERS` 仍保留為相容/診斷 surface，但正式 `discover_dataset_candidate_output_for_source()` / `discover_dataset_candidates_for_source()` 會透過 `crawler_handler()` fail-fast 取得 handler；新增 partial-dimension query API，讓 UI/CLI/debug 可按 family / transport / auth / result shape 查 crawler 能力。
 - [x] Crawler registry 已補第一版 4-bit capability address / mask index：固定維度為來源表面、transport、auth、輸出形狀，讓 Web/Tk/CLI/debug 工具未來可用 prefix/mask 查詢「同一類能力」，而不是重新手寫 source_type 分支。這是輔助索引，不改 14 個 handler 行為。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
