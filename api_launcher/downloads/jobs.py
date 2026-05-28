@@ -52,6 +52,16 @@ class DownloadCancelled(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class DownloadCallbackError:
+    # Callback failures are observer/UI problems, not download failures.
+    job_id: str
+    provider_id: str
+    callback_name: str
+    error: str
+    updated_at: str = field(default_factory=utc_now_iso)
+
+
 class DownloadJobController:
     def __init__(self) -> None:
         # pause/cancel 用 Event，不讓 UI thread 阻塞在 worker 內部鎖。
@@ -99,9 +109,11 @@ class NonBlockingDownloadQueue:
         self.futures: dict[str, concurrent.futures.Future[None]] = {}
         self.progress: dict[str, DownloadProgress] = {}
         self.callbacks: list[ProgressCallback] = []
+        self.callback_errors: list[DownloadCallbackError] = []
 
     def add_callback(self, callback: ProgressCallback) -> None:
-        self.callbacks.append(callback)
+        with self.lock:
+            self.callbacks.append(callback)
 
     def submit(self, plan_entry: dict[str, object]) -> DownloadJob:
         provider_id = str(plan_entry.get("provider_id") or "").strip()
@@ -159,6 +171,10 @@ class NonBlockingDownloadQueue:
             if job_id not in self.progress:
                 raise KeyError(f"Unknown download job: {job_id}")
             return self.progress[job_id]
+
+    def callback_error_snapshot(self) -> tuple[DownloadCallbackError, ...]:
+        with self.lock:
+            return tuple(self.callback_errors)
 
     def wait(self, job_id: str, timeout: float | None = None) -> None:
         self.futures[job_id].result(timeout=timeout)
@@ -222,6 +238,25 @@ class NonBlockingDownloadQueue:
     def _publish(self, update: DownloadProgress) -> None:
         with self.lock:
             self.progress[update.job_id] = update
-        # callback 可能是 UI bridge；不要在這裡假設 callback 可長時間阻塞。
-        for callback in self.callbacks:
-            callback(update)
+            callbacks = tuple(self.callbacks)
+        # Callback failures should not mark the download itself as failed.
+        for callback in callbacks:
+            try:
+                callback(update)
+            except Exception as exc:
+                failure = DownloadCallbackError(
+                    job_id=update.job_id,
+                    provider_id=update.provider_id,
+                    callback_name=_callback_name(callback),
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+                with self.lock:
+                    self.callback_errors.append(failure)
+
+
+def _callback_name(callback: ProgressCallback) -> str:
+    return str(
+        getattr(callback, "__qualname__", "")
+        or getattr(callback, "__name__", "")
+        or type(callback).__name__
+    )

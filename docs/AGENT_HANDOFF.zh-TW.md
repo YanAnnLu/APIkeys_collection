@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 03:45 Download queue callback isolation
+- 本輪把 `api_launcher/downloads/jobs.py` 的 progress callback 從下載 worker 狀態中隔離：callback 例外會記錄成 `DownloadCallbackError`，但不會把實際下載 job 標記為 `failed`。
+- `NonBlockingDownloadQueue.add_callback()` 現在在 lock 內註冊 callback，`_publish()` 會先 snapshot callback list 再逐一呼叫，避免 callback list 在 publish 期間被修改。
+- 新增 `callback_error_snapshot()`，讓 UI/agent/test 可讀取 callback 失敗紀錄；這是 observer/UI diagnostics，不改 downloader、HTTP adapter、manifest 或 import 行為。
+- 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\downloads\jobs.py tests\test_download_jobs.py` OK；`py -3 -B -m unittest tests.test_download_jobs -v` 3 tests OK；`py -3 -B -m unittest tests.test_http_downloader tests.test_download_plan_runner tests.test_download_jobs -v` 22 tests OK；`git diff --check` OK；`api_launcher/downloads` mojibake scan OK。
+- Docs drift check：本輪改下載 queue 的 observer/callback hardening，不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 03:26 Crawler decorators own registry metadata
 - 本輪把 14 個 crawler 的 `@crawler(...)` 註冊移到各自 handler 模組附近；`dataset_sources.py` 不再持有中心宣告式 mapping，只保留匯入觸發、相容常數與 matrix/query facade。
 - ERDDAP 與 HTML file index 因 handler signature 與共用六參數 crawler signature 不同，已在各自模組新增薄 wrapper：`erddap_source_crawler()` 與 `html_file_index_source_crawler()`；正式抓取/解析邏輯仍留在原有 `erddap_candidates_for_source()` / `html_file_index_candidates_for_source()`。

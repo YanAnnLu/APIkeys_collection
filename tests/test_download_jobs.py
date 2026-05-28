@@ -34,6 +34,18 @@ class BlockingFakeAdapter:
         )
 
 
+class ImmediateFakeAdapter:
+    def run(self, job, controller):
+        yield DownloadProgress(
+            job_id=job.job_id,
+            provider_id=job.provider_id,
+            status=JobStatus.RUNNING,
+            bytes_done=1,
+            bytes_total=1,
+            message="Only chunk",
+        )
+
+
 class DownloadQueueTests(unittest.TestCase):
     def test_nonblocking_queue_tracks_progress_and_completion(self) -> None:
         adapter = BlockingFakeAdapter()
@@ -69,6 +81,32 @@ class DownloadQueueTests(unittest.TestCase):
             adapter.continue_download.set()
             queue.wait(job.job_id, timeout=2)
             self.assertEqual(queue.snapshot(job.job_id).status, JobStatus.CANCELLED)
+        finally:
+            queue.shutdown()
+
+    def test_callback_failure_does_not_fail_download_job(self) -> None:
+        queue = NonBlockingDownloadQueue(ImmediateFakeAdapter(), max_workers=1)
+        received: list[JobStatus] = []
+
+        def broken_callback(update: DownloadProgress) -> None:
+            raise RuntimeError(f"callback failed at {update.status}")
+
+        def collecting_callback(update: DownloadProgress) -> None:
+            received.append(update.status)
+
+        queue.add_callback(broken_callback)
+        queue.add_callback(collecting_callback)
+        try:
+            job = queue.submit({"provider_id": "gebco"})
+            queue.wait(job.job_id, timeout=2)
+
+            final = queue.snapshot(job.job_id)
+            self.assertEqual(final.status, JobStatus.COMPLETED)
+            self.assertIn(JobStatus.COMPLETED, received)
+            callback_errors = queue.callback_error_snapshot()
+            self.assertGreaterEqual(len(callback_errors), 1)
+            self.assertEqual(callback_errors[0].job_id, job.job_id)
+            self.assertIn("RuntimeError", callback_errors[0].error)
         finally:
             queue.shutdown()
 
