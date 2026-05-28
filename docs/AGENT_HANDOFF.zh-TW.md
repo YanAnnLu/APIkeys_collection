@@ -5,6 +5,7 @@
 - 這是 bounded scheduler consolidation 的小步：不改 crawler/listing/schema probe/seed download/import service，不導入 asyncio，只先降低連點或多 seed 操作造成的無限制 thread / SQLite path 競爭風險。
 - 新增 `tests/test_tk_background_jobs.py::test_start_single_flight_thread_rejects_capacity_before_spawning_thread`。
 - 已驗證：in-memory compile `frontends\tk\background_jobs.py` / `frontends\tk\crawler_asset_workflows.py` / `tests\test_tk_background_jobs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 102 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，899 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_051203.log`。
+- 已推送 `2a657bc Cap Tk crawler asset background jobs`；GitHub Actions run `26602836368` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Tk crawler asset 背景工作 capacity guard；已同步 GTD、handoff 與 development log，user guide 不需更新，因操作入口未改。
 
 ## 2026-05-29 04:57 Web/Tk callback diagnostics visible surface
