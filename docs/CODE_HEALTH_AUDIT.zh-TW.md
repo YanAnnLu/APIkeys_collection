@@ -1,6 +1,6 @@
 # 程式健康審計
 
-最後更新：2026-05-27 15:48 Asia/Taipei
+最後更新：2026-05-28 13:45 Asia/Taipei
 
 本文件記錄 2026-05-27 文檔漂移審計後的程式健康審計結果。它不是風格清單，而是把已驗證的行為風險、已修補項目、剩餘風險與下一步可測切片整理給下一位 agent。
 
@@ -92,6 +92,7 @@
 - 大檔仍是重構訊號：`frontends/tk/dialogs.py`、`api_launcher/core.py`、`frontends/web/static/app.js`、`api_launcher/repository.py`、`api_launcher/adapter_plan_resolver.py`、`frontends/tk/crawler_asset_workflows.py`。
 - 不建議現在一次搬家或大重寫。比較安全的節奏是每 2-3 個功能切片安排一次 consolidation slice：拆 service、補測試、保留相容 wrapper、更新 `CODE_RELATIONSHIP_MAP.zh-TW.md` / `WORKSPACE_LAYOUT.zh-TW.md`。
 - `source_type` 分支目前大多集中在 registry / capability / bounds 之類合理位置，沒有看到需要立刻全面改寫的擴散失控。但新增 handler 時仍要優先走 registry / adapter，不要散到 UI。
+- 遞迴是受控工具，不是預設 crawler 架構。遠端 crawler、網站探索、分頁、目錄掃描與匯入主路徑應用 iterative queue/stack/deque，加 `max_depth`、`max_pages`、`max_nodes`、`seen`、timeout、rate-limit；互動式遠端探索預設 `max_depth=2`，無明確 profile/測試/使用者確認時不超過 `max_depth=4`。若碰到限制，回 structured warning / next_action，不宣稱已列完整來源。
 
 ## 本輪不建議現在重構的項目
 

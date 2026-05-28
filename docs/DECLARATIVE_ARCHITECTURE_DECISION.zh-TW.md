@@ -1,12 +1,21 @@
 # 宣告式架構分階段決策
 
-最後更新：2026-05-27
+最後更新：2026-05-28
 
 本文件記錄 RRKAL / `APIkeys_collection` 對「宣告式架構」的階段性結論。這是一份架構決策，不是要求立刻全面重寫 crawler、importer 或 UI 的任務清單。
 
 ## 結論
 
 我們採納宣告式架構作為中期收斂方向，但第一階段不做全面重構。
+
+宣告式與管道式不是互斥架構。RRKAL 的方向應是：
+
+```text
+Declarative profile says what is allowed / requested.
+Middleware pipeline controls how it runs safely.
+```
+
+也就是 profile 描述 source type、credential、pagination、bounds、content hint、recursion / traversal budget、failure policy；pipeline 負責依序套用 credential guard、bounded fetch、pagination、rate limit、dedupe、audit warning、content detection 與 import handoff。不要偏向「全 YAML」或「全手寫流程」任何一端；可維護、可測、可給 UI/agent 讀懂才是標準。
 
 第一階段仍以 MVP 閉環為最高優先：
 
@@ -24,6 +33,20 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
 - Python adapter 負責「這類來源介面怎麼抓」。
 - profile / config 負責「這個來源是什麼」。
 - UI 只呼叫 service、呈現後端 structured payload，不自行推理業務狀態。
+
+## 遞迴與低算力裝置基準
+
+RRKAL 的產品原則包含全平台與低成本設備可運行。不能假設使用者一定在高階桌機上跑完整 crawler。遞迴不是禁用，但必須受明確 budget 約束，並以 Raspberry Pi-class 裝置可承受的互動體驗作為預設基準。
+
+守則：
+
+- Crawler、網站探索、HTML index traversal、遠端目錄掃描、pagination、下載/匯入主路徑，預設不要用 Python recursive call stack。用 queue / stack / `collections.deque`、`seen` set、`max_depth`、`max_pages`、`max_nodes`、timeout、rate limit 控制。
+- 遠端互動探索預設 `max_depth=2`。若來源 profile 需要更深，必須明確宣告，且沒有 OpenSpec / 測試 / 使用者確認時不得超過 `max_depth=4`。
+- Local filesystem 或本機 artifact 掃描可以用較高 budget，但仍要用 iterative traversal；互動 UI preview 預設應限制 `max_depth<=6`、`max_nodes<=1000`，背景 job 才能在有進度、取消與 memory guard 時放寬。
+- JSON / XML / schema / tree-like metadata parser 若使用遞迴 helper，必須傳入 `depth` / `max_depth` / `node_count` guard；預設 `max_depth<=20`，且不得在遞迴內做網路請求、資料庫寫入或 UI 更新。
+- 若碰到 budget，回傳 structured warning，例如 `traversal_limit_reached`、`recursion_depth_limited`、`pagination_limit_reached`，並讓 UI 顯示「可展開更多」或「需要更窄界域」，不要假裝已列完整個來源。
+
+這些數字是安全預設，不是永久上限。若未來有實測證據、來源 profile、CI fixture 與 UI 防呆，可針對特定來源調整；但調整必須留在 profile / policy，不要散落在 crawler 或 UI 裡。
 
 ## 第二階段收斂順序
 

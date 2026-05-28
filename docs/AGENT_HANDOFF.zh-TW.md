@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 13:45 Recursion and pipeline/declarative architecture guard
+- 本輪補充架構決策，不改產品程式碼。結論：宣告式與管道式不是二選一；RRKAL 應採「profile 宣告能力/政策/budget，pipeline 負責按順序安全執行」。不要偏向萬能 YAML，也不要回到散落手寫流程。
+- 遞迴不是禁用，但遠端 crawler、網站探索、HTML index traversal、pagination、下載/匯入主路徑預設不用 recursive call stack，改用 queue / stack / `deque` + `seen` + `max_depth` + `max_pages` + `max_nodes` + timeout/rate-limit。互動式遠端探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`；沒有明確 source profile、測試與使用者確認時，不得超過 `max_depth=4`。
+- 已更新 `DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`、`DATASET_DISCOVERY_NOTES.zh-TW.md`、`CODE_HEALTH_AUDIT.zh-TW.md` 與 `PROJECT_GTD.md`。下一個實作若碰到 crawler/link traversal，必須把 depth/page/node budget 放進 source profile / request policy，不要寫死在 UI 或單一 handler。
+
 ## 2026-05-28 13:29 Governance intake before next implementation
 - 本輪是文檔治理 checkpoint，不改產品程式碼、crawler、download、import、Tk/Web 行為，也不寫入 `K:\CODE_KM` 或其他 K 槽專案。工作樹接手時乾淨，HEAD 為 `b89202d Record crawler capability profile CI checkpoint`。
 - 已消化並落入協作文件的規則：大檔解耦要排進固定 consolidation slice；後端邏輯邊界先於資料夾搬家；文檔可作為資料資產治理，先用 CSV/JSON registry，後續再評估 SQLite catalog；註釋要說明 ownership、guard 與不變量，行為改變時同步更新或刪除；未完整實作的 UI surface 要顯示 `🚧` / construction / `contract_only` / `planned`，避免使用者或驗收把空殼當交付。

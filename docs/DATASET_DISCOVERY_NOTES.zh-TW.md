@@ -7,6 +7,14 @@
 - `CrawlerCapabilityProfile` 已開始消費這份 registry metadata。Crawler asset payload 會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓前端與 agent 能讀 source capability contract，而不是從 raw `source_type` 猜能力。
 - 後續新增 crawler 時，應新增 handler + `CrawlerSpec` metadata，不要只把函式塞進鬆散 dict。等 registry 穩定後，再逐步把 `discover_dataset_candidate_output_for_source()` 的 dispatch 改成讀 spec/gateway，而不是一次性搬動所有 handler。
 
+## 2026-05-28 Recursion / traversal budget guard
+
+- 遠端 seed 枚舉、HTML file index full crawl、STAC / OGC link traversal、CKAN/Socrata pagination 這類 crawler 主路徑，預設要用 queue / stack / `deque` 的 iterative traversal，不用 recursive call stack。每條路徑都要有 `seen` set、`max_pages`、`max_depth`、timeout 與 rate-limit。
+- 互動式遠端探索以 Raspberry Pi-class 裝置為安全基準：預設 `max_depth=2`；沒有明確 source profile、測試與使用者確認時，不得超過 `max_depth=4`。深度以「索引頁追索引頁」或「catalog link 追 catalog link」計算；資料檔、跨網域頁與登入後頁面不應被自動深追。
+- 本機 preview / artifact scan 也不能無界。UI preview 應限制節點數與深度，例如 `max_depth<=6`、`max_nodes<=1000`；背景 job 若要放寬，必須有進度、取消、memory guard 與 structured event。
+- 若碰到 traversal budget，handler 不應回報 `exhausted`。應回報 `remote_pagination.status=has_more`、`completion_confidence=local_limit_only` 或 warning code，例如 `traversal_limit_reached` / `pagination_limit_reached`，讓 Web/Tk/Qt 顯示「顯示更多 seed」或「縮小界域」。
+- 這條規則與宣告式 profile 並行：profile 宣告 traversal budget，pipeline 執行 bounded fetch / pagination / dedupe / audit warning。不要把 depth / page cap 寫死在 UI 或單一 handler 裡。
+
 ## 2026-05-27 Seed enumeration / Web Preview paging
 
 - Source profile 現在可宣告第一組 politeness defaults：`crawl_timeout_seconds`、`crawl_max_pages`、`crawl_page_size` 與 `crawl_rate_limit_seconds`。它們存在於 `DatasetDiscoverySource` / `dataset_discovery_sources*.json` 層，屬於「這個來源本身應如何被有禮貌地探測」的設定，不是 UI 專屬選項。
