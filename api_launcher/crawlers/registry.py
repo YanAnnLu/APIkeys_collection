@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
@@ -172,6 +173,7 @@ class CrawlerSpec:
 
 
 _REGISTRY: dict[str, CrawlerSpec] = {}
+_HANDLER_SIGNATURE_SAMPLE_ARGS = (None, 1.0, 1, (), False, 1)
 
 
 def _validate_bit_width(value: int, width: int, *, field_name: str) -> None:
@@ -225,6 +227,7 @@ def crawler(
             raise ValueError("Crawler source_type must not be blank")
         if normalized_source_type in _REGISTRY:
             raise ValueError(f"Duplicate crawler source_type: {normalized_source_type}")
+        _validate_handler_signature(func, normalized_source_type)
         capability_code = capability_code_for(
             normalized_source_family,
             normalized_transport,
@@ -244,6 +247,17 @@ def crawler(
         return func
 
     return decorator
+
+
+def _validate_handler_signature(func: DatasetSourceCrawler, source_type: str) -> None:
+    try:
+        signature = inspect.signature(func)
+        signature.bind(*_HANDLER_SIGNATURE_SAMPLE_ARGS)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "Crawler handler must accept the shared six-argument signature "
+            f"(source, timeout, limit, search_terms, full_crawl, max_pages): {source_type}"
+        ) from exc
 
 
 def crawler_spec(source_type: str) -> CrawlerSpec:

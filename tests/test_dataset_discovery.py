@@ -493,6 +493,19 @@ class DatasetDiscoveryTests(unittest.TestCase):
                 result_shape="dataset_list",
             )(ncei_candidates_from_payload)  # type: ignore[arg-type]
 
+    def test_crawler_registry_rejects_handler_signature_mismatch(self) -> None:
+        def bad_handler(_source: DatasetDiscoverySource) -> list[dataset_sources.DatasetCandidate]:
+            return []
+
+        with self.assertRaisesRegex(TypeError, "six-argument signature"):
+            crawler(
+                source_type="unit_bad_signature",
+                source_family="catalog_search",
+                transport="json",
+                auth_profile="none",
+                result_shape="dataset_list",
+            )(bad_handler)  # type: ignore[arg-type]
+
     def test_ncei_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(
             source_id="noaa_ncei_dataset_search",

@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 04:00 Crawler registry handler signature guard
+- 本輪補上 `api_launcher/crawlers/registry.py` 的 handler signature fail-fast：`@crawler(...)` 註冊時會用共用六參數 signature `(source, timeout, limit, search_terms, full_crawl, max_pages)` 檢查 handler。
+- 這補齊宣告式 registry 任務單裡「handler 簽章不符要在 import/registration 階段報錯」的 contract，避免未來新增 crawler 時到 UI 或下載流程才出錯。
+- 新增 `tests/test_dataset_discovery.py::test_crawler_registry_rejects_handler_signature_mismatch`，確認錯誤 handler 會被 registry 拒絕；既有 14 個 handler 行為不變。
+- 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\crawlers\registry.py tests\test_dataset_discovery.py` OK；`py -3 -B -m unittest tests.test_dataset_discovery -v` 57 tests OK；`api_launcher/crawlers` mojibake scan OK。
+- Docs drift check：本輪只硬化 crawler registry contract，不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 03:45 Download queue callback isolation
 - 本輪把 `api_launcher/downloads/jobs.py` 的 progress callback 從下載 worker 狀態中隔離：callback 例外會記錄成 `DownloadCallbackError`，但不會把實際下載 job 標記為 `failed`。
 - `NonBlockingDownloadQueue.add_callback()` 現在在 lock 內註冊 callback，`_publish()` 會先 snapshot callback list 再逐一呼叫，避免 callback list 在 publish 期間被修改。
