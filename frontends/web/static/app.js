@@ -334,6 +334,42 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
   }
 }
 
+async function runSeedSchemaProbeById(assetId, datasetUid) {
+  // Seed probe is a UI convenience wrapper over the backend schema-probe
+  // endpoint. It picks a visible seed URL, but the backend still owns column
+  // inference and bounds-form enrichment.
+  if (!assetId || !datasetUid) {
+    addMission("請先選擇 seed", "欄位探測需要一筆已枚舉 seed。");
+    return;
+  }
+  const seed = findVisibleSeed(assetId, datasetUid);
+  const entry = schemaProbeEntryForSeed(seed);
+  if (!Object.keys(entry).length) {
+    addMission("seed 缺少可探測 URL", datasetUid);
+    writeJson({ asset_id: assetId, dataset_uid: datasetUid, next_action: "choose_seed_with_api_url" });
+    return;
+  }
+  addMission("探測 seed 欄位", `${assetId} / ${datasetUid}`);
+  try {
+    if (selectedAssetId !== assetId) {
+      await selectAsset(assetId, { autoEnumerate: false });
+    }
+    const payload = await postJson(
+      `/api/crawler-assets/${encodeURIComponent(assetId)}/bounds-form/schema-probe`,
+      { entry, row_limit: 5 },
+    );
+    if (selectedAssetDetail?.card?.asset_id === assetId) {
+      selectedAssetDetail.bound_form = payload.bound_form;
+    }
+    renderBoundsForm(payload.bound_form);
+    writeJson(payload);
+    addMission("欄位探測完成", payload.next_action_label || payload.schema_probe?.status || datasetUid);
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "seed_schema_probe", asset_id: assetId, dataset_uid: datasetUid, entry });
+    addMission("欄位探測失敗", String(error));
+  }
+}
+
 function currentBoundsFormValues() {
   const values = {};
   if (!boundsForm) return values;
@@ -1427,7 +1463,10 @@ function seedRecommendedPanelHtml(card, seedPage) {
         <strong>${escapeHtml(title)}</strong>
         <small>${escapeHtml(label)} · 由後端推薦，適合第一次測試下載</small>
       </div>
-      <button type="button" class="primary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">下載推薦 seed</button>
+      <div class="seed-row-actions">
+        <button type="button" class="secondary-button small" onclick="runSeedSchemaProbeById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">探測欄位</button>
+        <button type="button" class="primary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">下載推薦 seed</button>
+      </div>
     </div>
   `;
 }
@@ -1448,10 +1487,34 @@ function seedRowHtml(seed) {
       </div>
       <small>${escapeHtml(seed.dataset_id || uid)}</small>
       <div class="seed-row-actions">
+        <button type="button" class="secondary-button small" onclick="runSeedSchemaProbeById('${escapeAttr(selectedAssetId || "")}', '${escapeAttr(downloadUid)}')">探測欄位</button>
         <button type="button" class="secondary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(selectedAssetId || "")}', '${escapeAttr(downloadUid)}')">下載此 seed</button>
       </div>
     </article>
   `;
+}
+
+function findVisibleSeed(assetId, datasetUid) {
+  const page = assetSeedPages.get(assetId) || {};
+  const seeds = Array.isArray(page.seeds) ? page.seeds : [];
+  return seeds.find((seed) => seedMatchesDatasetUid(seed, datasetUid)) || {};
+}
+
+function seedMatchesDatasetUid(seed, datasetUid) {
+  const expected = String(datasetUid || "");
+  return [
+    seed.dataset_uid,
+    seed.favorite_key,
+    seed.dataset_id,
+    seed.title,
+  ].some((value) => String(value || "") === expected);
+}
+
+function schemaProbeEntryForSeed(seed = {}) {
+  const apiUrl = String(seed.api_url || "").trim();
+  if (apiUrl) return { api_url: apiUrl };
+  const downloadUrl = String(seed.download_url || seed.content_url || seed.landing_url || "").trim();
+  return downloadUrl ? { download_url: downloadUrl } : {};
 }
 
 function seedImportBadgeHtml(seed) {

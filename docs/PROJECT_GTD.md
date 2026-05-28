@@ -20,7 +20,8 @@ Last updated: 2026-05-28
 - [x] 2026-05-28 branch threshold / profile storage guardrail 補充：2 到 3 條路可保留簡單 `if/else`；4 條路已接近 `2 x 2` matrix，應考慮 table / registry / decorator dispatch。YAML/JSON/TOML/`.env` 用於人類可填、有語意的 profile；純邏輯高維分派優先用 typed Python table / dataclass / tuple index / dict registry。
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
 - [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
-- [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程，讓 seed 選取後能自動補欄位 selector / presets，減少使用者盲填。
+- [x] Web Preview 已先把 schema/head probe 接到 seed 操作：推薦 seed 與每筆 seed row 都有「探測欄位」按鈕，會用該 seed 的 URL 呼叫後端 schema probe，再回填同一份 bounds form contract，減少使用者盲填欄位。
+- [ ] 下一個實作焦點：把同一條 schema/head probe 操作接到 Tk seed dialog，或把 Web seed probe 的結果做得更可視化（例如探測中狀態、欄位摘要、失敗下一步）。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。

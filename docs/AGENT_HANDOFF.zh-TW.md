@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 15:43 Web seed schema probe action
+- 本輪先在 Web Preview 接上 seed-level schema/head probe 動作：推薦 seed 面板與每筆 seed row 現在都有「探測欄位」按鈕，會把可見 seed 的 `api_url` / `download_url` / `landing_url` 包成 entry，呼叫既有 `POST /api/crawler-assets/{asset_id}/bounds-form/schema-probe`。
+- 這是 UI 防盲填接線，不改 schema probe 後端、不改 crawler/download/import。Web 只負責選取使用者已看見的 seed URL；欄位推論、`time_field` / `columns` selector enrichment 仍由後端 `crawler_asset_bound_form_schema_probe()` 與 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 負責。
+- 已補 `tests.test_web_preview` static regression，鎖住 `runSeedSchemaProbeById`、`schemaProbeEntryForSeed`、`/bounds-form/schema-probe` 與「探測欄位」文案存在。驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 41 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，840 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_154516.log`。CI 尚待本 checkpoint push 後確認。
+
 ## 2026-05-28 15:31 Web capability address display
 - 本輪把 `CrawlerCapabilityProfile` 的 capability address 接到 Web Preview：`frontends/web/preview_api.py` 的 crawler asset card payload 現在包含 `capability_profile`，Web 卡片與 Passport 會顯示「能力 0000」、「能力位址」與「能力膠囊」摘要。
 - 這是 UI 顯示層接線，不改 crawler handler、download/import、source registry 或 capability 編碼規則。Web 只消費後端 payload，不自行用 `source_type` 推算能力分組。
