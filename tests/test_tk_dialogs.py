@@ -2354,6 +2354,52 @@ class TkDialogModuleTest(unittest.TestCase):
             DeveloperCliDialog.split_command('python APIkeys_collection.py --summary "hello world"'),
         )
 
+    def test_developer_cli_run_command_uses_single_flight_job(self) -> None:
+        dialog = object.__new__(DeveloperCliDialog)
+        dialog.command_var = _FakeVar('python APIkeys_collection.py --summary "hello world"')
+        dialog.ui = SimpleNamespace(
+            tr=lambda _zh, en: en,
+            status_var=SimpleNamespace(value="", set=lambda value: setattr(dialog.ui.status_var, "value", value)),
+        )
+        outputs: list[str] = []
+        dialog.set_output = lambda text: outputs.append(text)
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            DeveloperCliDialog.run_command(dialog)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual((["python", "APIkeys_collection.py", "--summary", "hello world"],), thread_call.args)
+        self.assertIn(("developer_cli", "command", ""), dialog.developer_cli_active_jobs)
+        self.assertEqual('$ python APIkeys_collection.py --summary "hello world"\n\n', outputs[0])
+        self.assertIn("Running CLI", dialog.ui.status_var.value)
+
+    def test_developer_cli_run_command_blocks_duplicate_without_clearing_output(self) -> None:
+        dialog = object.__new__(DeveloperCliDialog)
+        dialog.command_var = _FakeVar("python APIkeys_collection.py --summary")
+        dialog.developer_cli_active_jobs = {("developer_cli", "command", "")}
+        dialog.ui = SimpleNamespace(
+            tr=lambda _zh, en: en,
+            status_var=SimpleNamespace(value="", set=lambda value: setattr(dialog.ui.status_var, "value", value)),
+        )
+        outputs: list[str] = []
+        dialog.set_output = lambda text: outputs.append(text)
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            DeveloperCliDialog.run_command(dialog)
+
+        thread_class.assert_not_called()
+        self.assertEqual([], outputs)
+        self.assertIn("still running", dialog.ui.status_var.value)
+
     def test_ui_language_codes_by_label_round_trips_display_labels(self) -> None:
         # 語言 combobox 顯示 label，但設定檔需要寫回穩定語言代碼。
         self.assertEqual(

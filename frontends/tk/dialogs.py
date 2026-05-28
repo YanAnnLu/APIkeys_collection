@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import shlex
 import subprocess
-import threading
 import webbrowser
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, StringVar, Text, Tk, Toplevel, messagebox
 from tkinter import ttk
@@ -34,6 +33,7 @@ from api_launcher.import_policies import normalized_ui_import_policy
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
 from api_launcher.paths import PROJECT_ROOT, local_config_file, log_file
+from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
 from frontends.tk.desktop_integration import reveal_path_in_file_manager
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import COLORS, DB_PATH, DEFAULT_UI_LANGUAGE, UI_LANGUAGES
@@ -342,9 +342,29 @@ class DeveloperCliDialog:
         except ValueError as exc:
             self.set_output(self.ui.tr(f"命令解析失敗：{exc}", f"Command parse failed: {exc}"))
             return
+        job_key = ("developer_cli", "command", "")
+        if single_flight_job_is_active(
+            self,
+            job_key,
+            active_jobs_attr="developer_cli_active_jobs",
+            on_duplicate=lambda: self.ui.status_var.set(
+                self.ui.tr("CLI 命令仍在執行中，請等待目前命令完成。", "CLI command is still running; wait for it to finish.")
+            ),
+        ):
+            return
         self.set_output(f"$ {command}\n\n")
         self.ui.status_var.set(self.ui.tr(f"正在執行 CLI：{command}", f"Running CLI: {command}"))
-        threading.Thread(target=lambda: self._run_command_worker(args), daemon=True).start()
+        start_single_flight_thread(
+            self,
+            job_key,
+            self._run_command_worker,
+            (args,),
+            active_jobs_attr="developer_cli_active_jobs",
+            active_jobs_lock_attr="developer_cli_active_jobs_lock",
+            on_duplicate=lambda: self.ui.status_var.set(
+                self.ui.tr("CLI 命令仍在執行中，請等待目前命令完成。", "CLI command is still running; wait for it to finish.")
+            ),
+        )
 
     def _run_command_worker(self, args: list[str]) -> None:
         try:

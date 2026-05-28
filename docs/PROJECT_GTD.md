@@ -41,6 +41,7 @@ Last updated: 2026-05-29
 - [x] Tk bounded showcase download 已接上同一份 single-flight helper：保留既有展示下載進行中提示，同時用共用 job key 擋住重複展示下載 worker，避免現場展示連點造成重複下載、manifest 寫入與展示 `.db` 匯入。
 - [x] Tk OAuth/login 背景工作已接上同一份 single-flight helper：Google browser login 與 device-code polling 以 profile / device-code job key 擋住重複 worker，避免連點造成多個 callback server、browser login 或 token polling request；OAuth token exchange / storage 規則不變。
 - [x] Tk sidebar favicon 背景下載已接上同一份 single-flight helper：同一 provider/favicon 下載以 owner + favicon URL job key 擋住重複 worker；favicon URL 推導、cache、PNG 下載與 `PhotoImage` 主執行緒建立規則不變。
+- [x] Tk Developer CLI dialog 已接上同一份 single-flight helper：同一 dialog 仍有 command 執行中時不再清空輸出或開第二個 subprocess worker；command parsing、timeout 與 stdout/stderr capture 規則不變。
 - [x] Schema/head probe + bounds form enrichment 已從 Web/Tk 邊界抽回 `api_launcher/crawler_asset_schema_probe.py`：Web Preview 仍保留相容 API，Tk seed probe worker 改吃同一個 UI-neutral service result，避免 `preview_api.py` 與 `crawler_asset_workflows.py` 各自組合 probe/form/enrichment 邏輯。
 - [x] Formal download/import 顯示 payload 已從 Web/Tk endpoint 抽回 `crawler_asset_display.py`：Web 的 asset-level / seed-level download-import endpoint 與 Tk seed completion message 共用 `crawler_asset_download_import_display_payload()`，不再各自重組 plan outcome、plan passport、adapter review、download/import 與 next-action label。
 - [x] Tk seed download/import message 組裝已抽到 `frontends/tk/ui_helpers.py`：`crawler_asset_workflows.py` 只消費 helper 回傳的 title/status/body，不再直接拆 backend display payload 組 messagebox 文案。

@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 02:52 Tk Developer CLI single-flight guard
+- 本輪完成 Tk raw thread consolidation 的最後一個產品 UI 入口：`DeveloperCliDialog.run_command()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- Developer CLI 使用 `("developer_cli", "command", "")` job key；同一 dialog 仍有 CLI command 執行中時，Tk 不再清空輸出或開第二個 subprocess worker。
+- 這不改 command parsing、working directory、subprocess timeout、stdout/stderr capture 或 status/output 顯示語意；只把 developer-only CLI runner 的背景 thread 收斂到共用 helper。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 101 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，893 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_025254.log`。
+- Docs drift check：本輪只收斂 Tk developer CLI dialog 的背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 02:37 Tk sidebar favicon single-flight guard
 - 本輪繼續 Tk scheduler guard consolidation：`SidebarWorkflowMixin.fetch_provider_icon_async()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - Provider favicon fetch 使用 `("provider_favicon", owner, favicon_url)` job key；同一 provider/favicon 下載已在執行時，Tk 不再開第二個 worker。
