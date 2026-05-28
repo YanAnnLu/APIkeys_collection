@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import threading
 import time
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog
@@ -35,6 +34,7 @@ from api_launcher.manual_import import (
 from api_launcher.paths import state_file
 from api_launcher.crawler_asset_display import plan_entry_content_status_payload
 from frontends.tk.dialogs import ImportExistingTablePolicyDialog
+from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
 from frontends.tk.ui_helpers import local_file_import_error_message, local_file_provenance_review_message
@@ -181,6 +181,12 @@ class ImportWorkflowMixin:
             return
 
         sqlite_path = curated_imports_path()
+        import_job_key = ("sqlite_import", str(sqlite_path), "")
+        duplicate_message = lambda: self.status_var.set(
+            self.tr("SQLite 匯入已在執行中，請等待目前工作完成。", "SQLite import is already running; please wait for it to finish.")
+        )
+        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=duplicate_message):
+            return
         existing_table_policy = self.ask_import_existing_table_policy()
         if existing_table_policy is None:
             return
@@ -201,11 +207,15 @@ class ImportWorkflowMixin:
             return
 
         self.status_var.set(self.tr(f"正在匯入 {len(supported)} 個下載結果到 SQLite...", f"Importing {len(supported)} downloaded results into SQLite..."))
-        threading.Thread(
-            target=self.import_supported_plan_results_worker,
-            args=(supported, sqlite_path, existing_table_policy),
-            daemon=True,
-        ).start()
+        start_single_flight_thread(
+            self,
+            import_job_key,
+            self.import_supported_plan_results_worker,
+            (supported, sqlite_path, existing_table_policy),
+            active_jobs_attr="import_active_jobs",
+            active_jobs_lock_attr="import_active_jobs_lock",
+            on_duplicate=duplicate_message,
+        )
 
     def import_supported_plan_results_worker(
         self,
@@ -299,6 +309,13 @@ class ImportWorkflowMixin:
 
     def import_local_file_from_ui(self) -> None:
         # UI 手動匯入只處理使用者明確選取的一個檔案；不掃資料夾、不搬檔、不猜測來源。
+        sqlite_path = curated_imports_path()
+        import_job_key = ("sqlite_import", str(sqlite_path), "")
+        duplicate_message = lambda: self.status_var.set(
+            self.tr("SQLite 匯入已在執行中，請等待目前工作完成。", "SQLite import is already running; please wait for it to finish.")
+        )
+        if single_flight_job_is_active(self, import_job_key, active_jobs_attr="import_active_jobs", on_duplicate=duplicate_message):
+            return
         selected = filedialog.askopenfilename(
             parent=self.root,
             title=self.tr("選擇本機 CSV/JSON 檔", "Choose local CSV/JSON file"),
@@ -321,7 +338,6 @@ class ImportWorkflowMixin:
         )
         if table_name is None:
             return
-        sqlite_path = curated_imports_path()
         confirmed = messagebox.askyesno(
             self.tr("匯入本機檔案", "Import local file"),
             self.tr(
@@ -332,11 +348,15 @@ class ImportWorkflowMixin:
         if not confirmed:
             return
         self.status_var.set(self.tr("正在匯入本機檔案到 SQLite...", "Importing local file into SQLite..."))
-        threading.Thread(
-            target=self.import_local_file_worker,
-            args=(Path(selected), sqlite_path, table_name.strip()),
-            daemon=True,
-        ).start()
+        start_single_flight_thread(
+            self,
+            import_job_key,
+            self.import_local_file_worker,
+            (Path(selected), sqlite_path, table_name.strip()),
+            active_jobs_attr="import_active_jobs",
+            active_jobs_lock_attr="import_active_jobs_lock",
+            on_duplicate=duplicate_message,
+        )
 
     def import_local_file_worker(self, input_path: Path, sqlite_path: Path, table_name: str) -> None:
         manifest_path = Path("")

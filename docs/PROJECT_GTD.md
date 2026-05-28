@@ -37,6 +37,7 @@ Last updated: 2026-05-29
 - [x] Tk discovery workflow 已接上同一份 single-flight helper：provider candidate discovery、dataset candidate discovery 與 local discovery dry-run audit 會用 discovery active job set 擋掉重複 worker，避免連點造成重複 crawler audit、draft JSON 或 catalog/repository upsert 競爭。
 - [x] Tk source action metadata crawl 已接上同一份 single-flight helper：row action / selected provider metadata crawl 以 provider scope 做 job key，避免連點造成同一批 provider 重複 metadata crawler worker。
 - [x] Tk AI summary 產生說明已接上同一份 single-flight helper：同一 provider / AI profile 同時只會有一個 summary worker，避免連點造成重複雲端/本機 AI 呼叫與 repository notes 回寫競爭。
+- [x] Tk 匯入入口已加 SQLite path single-flight gate：下載結果匯入與本機檔案匯入共用同一 curated SQLite job key，避免連點或雙入口同時寫入造成 DB lock / 重複匯入；實際 manifest/import/pipeline 規則仍留在後端。
 - [x] Schema/head probe + bounds form enrichment 已從 Web/Tk 邊界抽回 `api_launcher/crawler_asset_schema_probe.py`：Web Preview 仍保留相容 API，Tk seed probe worker 改吃同一個 UI-neutral service result，避免 `preview_api.py` 與 `crawler_asset_workflows.py` 各自組合 probe/form/enrichment 邏輯。
 - [x] Formal download/import 顯示 payload 已從 Web/Tk endpoint 抽回 `crawler_asset_display.py`：Web 的 asset-level / seed-level download-import endpoint 與 Tk seed completion message 共用 `crawler_asset_download_import_display_payload()`，不再各自重組 plan outcome、plan passport、adapter review、download/import 與 next-action label。
 - [x] Tk seed download/import message 組裝已抽到 `frontends/tk/ui_helpers.py`：`crawler_asset_workflows.py` 只消費 helper 回傳的 title/status/body，不再直接拆 backend display payload 組 messagebox 文案。

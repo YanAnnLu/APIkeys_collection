@@ -2012,6 +2012,114 @@ class TkDialogModuleTest(unittest.TestCase):
             ImportWorkflowMixin.import_status_label(ui, "plan-1"),
         )
 
+    def test_import_supported_plan_results_uses_single_flight_job(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        sqlite_path = Path("state/test_curated.sqlite")
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.selected_plan_items = lambda: [("plan-1", SimpleNamespace(name="Direct CSV"), None)]
+        ui.plan_item_label = lambda _plan_key, row, _option=None: row.name
+        ui.download_plan_entries_by_provider = {
+            "plan-1": {
+                "import_plan": {"status": "supported_after_download"},
+                "download_url": "https://example.test/data.csv",
+            }
+        }
+        ui.ask_import_existing_table_policy = lambda: "rename"
+        ui.import_existing_table_policy_label = lambda _policy: "rename"
+        ui.import_skipped_detail_message = lambda _skipped, limit=6: ""
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.import_workflows.curated_imports_path", return_value=sqlite_path), patch(
+            "frontends.tk.import_workflows.messagebox.askyesno", return_value=True
+        ), patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            ImportWorkflowMixin.import_supported_plan_results_from_ui(ui)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual(sqlite_path, thread_call.args[1])
+        self.assertEqual("rename", thread_call.args[2])
+        self.assertIn(("sqlite_import", str(sqlite_path), ""), ui.import_active_jobs)
+        self.assertIn("Importing 1 downloaded results", ui.status_var.value)
+
+    def test_import_supported_plan_results_blocks_duplicate_sqlite_import(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        sqlite_path = Path("state/test_curated.sqlite")
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.selected_plan_items = lambda: [("plan-1", SimpleNamespace(name="Direct CSV"), None)]
+        ui.plan_item_label = lambda _plan_key, row, _option=None: row.name
+        ui.download_plan_entries_by_provider = {
+            "plan-1": {
+                "import_plan": {"status": "supported_after_download"},
+                "download_url": "https://example.test/data.csv",
+            }
+        }
+        ui.import_active_jobs = {("sqlite_import", str(sqlite_path), "")}
+        policy_calls: list[str] = []
+        ui.ask_import_existing_table_policy = lambda: policy_calls.append("called") or "rename"
+
+        with patch("frontends.tk.import_workflows.curated_imports_path", return_value=sqlite_path), patch(
+            "frontends.tk.background_jobs.threading.Thread"
+        ) as thread_class:
+            ImportWorkflowMixin.import_supported_plan_results_from_ui(ui)
+
+        thread_class.assert_not_called()
+        self.assertEqual([], policy_calls)
+        self.assertIn("already running", ui.status_var.value)
+
+    def test_import_local_file_uses_single_flight_job(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        sqlite_path = Path("state/test_curated.sqlite")
+        ui.root = None
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.import_workflows.curated_imports_path", return_value=sqlite_path), patch(
+            "frontends.tk.import_workflows.filedialog.askopenfilename", return_value="C:/tmp/data.csv"
+        ), patch("frontends.tk.import_workflows.simpledialog.askstring", return_value="demo_table"), patch(
+            "frontends.tk.import_workflows.messagebox.askyesno", return_value=True
+        ), patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            ImportWorkflowMixin.import_local_file_from_ui(ui)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual(Path("C:/tmp/data.csv"), thread_call.args[0])
+        self.assertEqual(sqlite_path, thread_call.args[1])
+        self.assertEqual("demo_table", thread_call.args[2])
+        self.assertIn(("sqlite_import", str(sqlite_path), ""), ui.import_active_jobs)
+
+    def test_import_local_file_blocks_duplicate_before_file_picker(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        sqlite_path = Path("state/test_curated.sqlite")
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.import_active_jobs = {("sqlite_import", str(sqlite_path), "")}
+
+        with patch("frontends.tk.import_workflows.curated_imports_path", return_value=sqlite_path), patch(
+            "frontends.tk.import_workflows.filedialog.askopenfilename"
+        ) as file_picker, patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            ImportWorkflowMixin.import_local_file_from_ui(ui)
+
+        file_picker.assert_not_called()
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_download_primary_action_label_reflects_selected_job_status(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
         ui.download_primary_action_var = _FakeVar("")
