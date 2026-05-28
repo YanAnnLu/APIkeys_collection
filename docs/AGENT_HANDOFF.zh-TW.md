@@ -3,6 +3,7 @@
 - 本輪是文檔治理 checkpoint，不改產品程式碼、crawler、download、import、Tk/Web 行為，也不寫入 `K:\CODE_KM` 或其他 K 槽專案。工作樹接手時乾淨，HEAD 為 `b89202d Record crawler capability profile CI checkpoint`。
 - 已消化並落入協作文件的規則：大檔解耦要排進固定 consolidation slice；後端邏輯邊界先於資料夾搬家；文檔可作為資料資產治理，先用 CSV/JSON registry，後續再評估 SQLite catalog；註釋要說明 ownership、guard 與不變量，行為改變時同步更新或刪除；未完整實作的 UI surface 要顯示 `🚧` / construction / `contract_only` / `planned`，避免使用者或驗收把空殼當交付。
 - K 槽其他工作區仍只作 read-only 概念參考：`CODE_KM` 的 manifest / run state / review gate / next_action label 可借鏡；`video_downloader` 的 config matrix / queue scheduler 可借鏡；`rrkal-renderer` 的 artifact schema 與 render report 可借鏡；`auto_trading` 的 domain split 可借鏡。不得直接搬程式碼，也不得寫入那些專案。
+- 已推送 `835d673 Record governance intake before implementation`；GitHub Actions run `26556736959` 已通過 Ubuntu、Windows 與 real DB smoke。本地檢查：`git diff --check` OK（僅 CRLF/LF warning）；docs mojibake scan OK。此輪是 docs-only checkpoint，因此沒有跑產品單元測試。
 - 下一個產品實作切片建議二選一：第一，延伸 crawler registry，讓 dispatch/gateway 真正讀 `CrawlerSpec` 並補 partial matrix query / duplicate guard 測試；第二，把 schema/head probe 觸發接到 Web/Tk seed 選取流程，讓 bounds 表單更少盲填。兩者都應保持小切片、先測 service，再接 UI。
 
 ## 2026-05-28 12:45 Crawler capability profile consumes registry metadata
