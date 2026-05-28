@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from api_launcher.crawler_asset_display import next_action_display_label
 from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
+from api_launcher.crawler_registry_report import crawler_registry_summary
 
 
 CRAWLER_HANDLER_SMOKE_DIAGNOSTIC_ID = "crawler_handler_contract_smoke"
@@ -23,6 +24,7 @@ def crawler_handler_smoke_diagnostics_payload(surface: str) -> dict[str, object]
         "developer_only": True,
         "scope": OFFLINE_CONTRACT_SMOKE_SCOPE,
         "summary": crawler_handler_audit_smoke_summary(),
+        "registry_summary": crawler_registry_summary(),
         "next_action": HANDLER_SMOKE_NEXT_ACTION,
         "next_action_label": next_action_display_label(HANDLER_SMOKE_NEXT_ACTION),
     }

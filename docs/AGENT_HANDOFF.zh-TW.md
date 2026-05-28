@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 17:xx Crawler registry report diagnostics
+- 本輪新增 `api_launcher/crawler_registry_report.py`，把 `CrawlerSpec` registry 轉成 UI-neutral report / summary：包含 source type count、dimension counters、matrix cells、capability groups 與 spec payload。這不打 live source，也不做 crawler smoke，只描述目前正式 dispatch 已使用的 registry。
+- `api_launcher/developer_diagnostics.py` 的 `crawler_handler_smoke_diagnostics_payload()` 現在會帶 `registry_summary`，因此 Tk/Web/未來 Qt 的 developer-only diagnostics 可讀同一份 registry 維度摘要，不需要各自掃 globals 或重建 source_type 分組。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_registry_report.py api_launcher\developer_diagnostics.py tests\test_developer_diagnostics.py` OK；`py -3 -B -m unittest tests.test_developer_diagnostics tests.test_tk_dialogs tests.test_web_preview -v` 113 tests OK；docs/api_launcher mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，845 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_165956.log`。仍待 commit、push 與 CI。
+
 ## 2026-05-28 16:xx Crawler registry dispatch consolidation
 - 本輪把 crawler dispatch 往宣告式 registry 再收一刀：`discover_dataset_candidate_output_for_source()` 與 `discover_dataset_candidates_for_source()` 現在直接透過 `crawler_handler(source.source_type)` 讀 `CrawlerSpec` registry；`SOURCE_CRAWLER_HANDLERS` 保留為相容/診斷 surface，但不再承載正式分派責任。
 - `api_launcher/crawlers/registry.py` 新增 `iter_crawler_specs_by_dims()` / `crawler_specs_by_dims()`，`dataset_sources.py` 新增 `list_registered_crawlers()` / `list_crawlers_by_dims()`，讓 CLI/UI/debug 可以按 `source_family`、`transport`、`auth_profile`、`result_shape` 做 partial matrix query，不必回到散落的 `source_type` 分支。
