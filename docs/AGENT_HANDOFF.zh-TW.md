@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 18:xx Crawler registry CLI JSON
+- 本輪把 `api_launcher/crawler_registry_report.py` 接成正式 CLI JSON 入口：`py -3 -B APIkeys_collection.py --crawler-registry-report-json` 會輸出 source type count、dimension counters、matrix cells、capability groups 與 spec payload，供 agent / CI / diagnostics 直接讀取，不必解析 Web/Tk 或人類文字。
+- `api_launcher/cli_flags.py` 維持 lazy import，並將原本已壞掉的註解重寫成乾淨 ASCII 維護註解；`core.py` 只新增薄入口 `show_crawler_registry_report()`，不在 core 內重建 registry 邏輯。
+- 已驗證：`py -3 -B -m py_compile api_launcher\cli_flags.py api_launcher\core.py api_launcher\crawler_registry_report.py tests\test_developer_diagnostics.py` OK；`py -3 -B -m unittest tests.test_developer_diagnostics tests.test_cli_flags tests.test_project_maturity -v` 8 tests OK；實跑 `py -3 -B APIkeys_collection.py --db state\tmp\crawler_registry_report.sqlite --init-db --seed --crawler-registry-report-json` 只輸出 JSON，無 `[db]` / `[seed]` 人類訊息；docs/api_launcher mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，846 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_171845.log`。仍待 commit、push 與 CI。
+
 ## 2026-05-28 17:xx Crawler registry report diagnostics
 - 本輪新增 `api_launcher/crawler_registry_report.py`，把 `CrawlerSpec` registry 轉成 UI-neutral report / summary：包含 source type count、dimension counters、matrix cells、capability groups 與 spec payload。這不打 live source，也不做 crawler smoke，只描述目前正式 dispatch 已使用的 registry。
 - `api_launcher/developer_diagnostics.py` 的 `crawler_handler_smoke_diagnostics_payload()` 現在會帶 `registry_summary`，因此 Tk/Web/未來 Qt 的 developer-only diagnostics 可讀同一份 registry 維度摘要，不需要各自掃 globals 或重建 source_type 分組。

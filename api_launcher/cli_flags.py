@@ -5,9 +5,10 @@ import argparse
 
 def command_requested(args: argparse.Namespace) -> bool:
     """
-    集中判斷是否進入命令模式，避免 core.py 每次新增 CLI flag 都忘記。
-    為了實現模組解耦，防止啟動時載入過重的業務依賴與循環導入，
-    我們在此函數內進行各子命令活性判定函數的本地延遲導入 (Lazy Import)。
+    Return True when any explicit CLI command flag is present.
+
+    Keep heavyweight command module imports inside this function so importing
+    cli_flags stays cheap and side-effect-light during startup checks.
     """
     from api_launcher.cli_database_repair import database_repair_command_active
     from api_launcher.cli_crawler_assets import crawler_asset_command_active
@@ -20,8 +21,8 @@ def command_requested(args: argparse.Namespace) -> bool:
     from api_launcher.cli_portal_intake import portal_intake_command_active
     from api_launcher.cli_yfinance import yfinance_command_active
 
+    # Keep this tuple in the same conceptual order as core.parse_args().
     command_flags = (
-        # 這個 tuple 必須保持與 parser 新增的命令型 flag 同步；漏掉會導致意外開 UI。
         args.init_db,
         args.seed,
         bool(args.seed_json),
@@ -41,6 +42,7 @@ def command_requested(args: argparse.Namespace) -> bool:
         args.project_maturity_json,
         bool(args.write_project_maturity_json),
         bool(args.project_maturity_markdown),
+        args.crawler_registry_report_json,
         yfinance_command_active(args),
         bool(args.adapter_review_plan),
         args.adapter_review_json,
