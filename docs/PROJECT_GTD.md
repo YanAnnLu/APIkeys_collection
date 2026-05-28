@@ -61,6 +61,7 @@ Last updated: 2026-05-29
 - [x] Web download/import target path 組裝已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_target_paths()`，避免 DB、downloads root、curated SQLite 與 resolved plan path 計算分叉；seed-level 預設路徑仍保留穩定 seed 子目錄，明確傳入 downloads root 時不自動改寫呼叫端路徑。
 - [x] Web Preview repository bootstrap 已抽成 helper：多個 endpoint 共用 `web_preview_repository_context()` 開 SQLite / repository / schema / optional builtin providers；endpoint 仍明確決定 commit，不把交易邊界藏進 helper。
 - [x] Web Preview next-action payload 已抽成 helper：多個 endpoint 共用 `web_next_action_payload()` / `apply_web_next_action()` 產生 `next_action` 與 `next_action_label`，避免 Web route 各自翻譯後端 workflow 狀態；crawler、download/import、credential guard 與 JS 操作流程不變。
+- [x] Web Preview crawler action setup 已抽成 helper：plan preview、asset download/import 與 seed download/import 共用 `web_crawler_asset_action_context()` 解析 asset、credential guard 與 bounds payload；credential blocking、plan build、download/import 與 event logging 仍留在 endpoint 明確處理。
 - [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，減少連點造成的重複 dialog 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
 - [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。

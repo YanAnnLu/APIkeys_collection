@@ -93,6 +93,13 @@ class WebPreviewRepositorySession:
     repository: ApiCatalogRepository
 
 
+@dataclass(frozen=True)
+class WebCrawlerAssetActionContext:
+    asset: CrawlerAsset
+    credential_guard: Mapping[str, object]
+    bounds_payload: CrawlerAssetBoundPayload
+
+
 def web_next_action_payload(next_action: object) -> dict[str, str]:
     """Pair a backend next_action id with the shared display label.
 
@@ -112,6 +119,38 @@ def apply_web_next_action(response: dict[str, object], next_action: object) -> N
     """Update an existing Web payload with the shared next-action contract."""
 
     response.update(web_next_action_payload(next_action))
+
+
+def web_crawler_asset_action_context(
+    asset_id: str,
+    values: Mapping[str, object],
+    *,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> WebCrawlerAssetActionContext:
+    """Resolve the repeated Web endpoint inputs without making policy choices.
+
+    Plan preview, asset download/import, and seed download/import all need the
+    same asset, credential guard, and bounds payload before they can decide
+    their route-specific behavior.  Keeping this setup in one helper prevents
+    those endpoints from drifting while leaving blocking, planning, and import
+    decisions explicit in the endpoint functions.
+    """
+
+    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    return WebCrawlerAssetActionContext(
+        asset=asset,
+        credential_guard=crawler_asset_credential_status(asset, env_path=env_path),
+        bounds_payload=crawler_asset_payload_from_web_values(
+            asset_id,
+            values,
+            primary_path=primary_path,
+            local_path=local_path,
+            profile_path=profile_path,
+        ),
+    )
 
 
 def web_preview_status() -> dict[str, object]:
@@ -697,15 +736,17 @@ def crawler_asset_plan_preview(
     existing crawler asset service and keeps unresolved work in adapter review.
     """
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
-    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
-    payload = crawler_asset_payload_from_web_values(
+    action_context = web_crawler_asset_action_context(
         asset_id,
         values,
         primary_path=primary_path,
         local_path=local_path,
         profile_path=profile_path,
+        env_path=env_path,
     )
+    asset = action_context.asset
+    credential_guard = action_context.credential_guard
+    payload = action_context.bounds_payload
     response: dict[str, object] = {
         "asset_id": asset_id,
         "execute": execute,
@@ -776,15 +817,17 @@ def crawler_asset_download_import(
     structured blocked/review result instead of pretending a download happened.
     """
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
-    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
-    payload = crawler_asset_payload_from_web_values(
+    action_context = web_crawler_asset_action_context(
         asset_id,
         values,
         primary_path=primary_path,
         local_path=local_path,
         profile_path=profile_path,
+        env_path=env_path,
     )
+    asset = action_context.asset
+    credential_guard = action_context.credential_guard
+    payload = action_context.bounds_payload
     response: dict[str, object] = {
         "asset_id": asset.asset_id,
         "bounds_payload": payload.to_dict(),
@@ -849,18 +892,20 @@ def crawler_seed_download_import(
 ) -> dict[str, object]:
     """Run the formal download/import path for one visible seed row."""
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     dataset_uid = str(values.get("dataset_uid") or "").strip()
     if not dataset_uid:
         raise ValueError("dataset_uid is required")
-    credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
-    payload = crawler_asset_payload_from_web_values(
+    action_context = web_crawler_asset_action_context(
         asset_id,
         values,
         primary_path=primary_path,
         local_path=local_path,
         profile_path=profile_path,
+        env_path=env_path,
     )
+    asset = action_context.asset
+    credential_guard = action_context.credential_guard
+    payload = action_context.bounds_payload
     response: dict[str, object] = {
         "asset_id": asset.asset_id,
         "dataset_uid": dataset_uid,

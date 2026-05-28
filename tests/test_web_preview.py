@@ -43,6 +43,7 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
+    web_crawler_asset_action_context,
     compact_listing_outcome,
     crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
@@ -106,6 +107,24 @@ class WebPreviewApiTest(unittest.TestCase):
 
         self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
         self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
+
+    def test_web_crawler_asset_action_context_resolves_asset_credentials_and_bounds(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+
+            context = web_crawler_asset_action_context(
+                "demo_cmr",
+                {"granule_limit": "5"},
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+                env_path=env_path,
+            )
+
+        self.assertEqual("demo_cmr", context.asset.asset_id)
+        self.assertEqual("missing_credentials", context.credential_guard["status"])
+        self.assertEqual(5, context.bounds_payload.to_dict()["facet_values"]["granule_limit"])
 
     def test_crawler_handler_smoke_diagnostics_is_developer_only_and_compact(self) -> None:
         payload = crawler_handler_smoke_diagnostics()

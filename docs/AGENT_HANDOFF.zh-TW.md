@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 06:23 Web crawler action context helper
+- 本輪繼續 Web Preview bounded consolidation：`frontends/web/preview_api.py` 新增 `WebCrawlerAssetActionContext` 與 `web_crawler_asset_action_context()`，集中 plan preview、asset download/import、seed download/import 三條 endpoint 共用的 asset lookup、credential guard 與 bounds payload 解析。
+- Endpoint 仍明確保留各自的 credential blocking、plan build、download/import、passport update 與 event logging；helper 只收斂重複 setup，不隱藏交易或業務決策。
+- 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_web_crawler_asset_action_context_resolves_asset_credentials_and_bounds`。
+- 驗證過程中先寫錯測試假設：credential demo asset 的 limit facet 是 `granule_limit`，不是通用 `limit`。已改成檢查後端 facet key，避免測試用 UI 欄位名稱猜 backend contract。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 50 tests OK；`frontends\web` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，908 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_062631.log`。
+- Docs drift check：本輪改 Web endpoint 內部 setup helper；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 06:07 Web next-action payload helper
 - 本輪做 Web Preview endpoint 狀態 payload 的小型 consolidation：`frontends/web/preview_api.py` 新增 `web_next_action_payload()` 與 `apply_web_next_action()`，集中產生 `next_action` + `next_action_label`。
 - `crawler_asset_listing()`、`crawler_asset_plan_preview()`、asset-level download/import、seed-level download/import 與 credential-blocked download/import payload 改用同一個 helper，避免 Web endpoint 各自呼叫 `next_action_display_label()` 或手動組 action/label。
