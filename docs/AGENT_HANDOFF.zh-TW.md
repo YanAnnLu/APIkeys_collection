@@ -4,6 +4,7 @@
 - `NonBlockingDownloadQueue.add_callback()` 現在在 lock 內註冊 callback，`_publish()` 會先 snapshot callback list 再逐一呼叫，避免 callback list 在 publish 期間被修改。
 - 新增 `callback_error_snapshot()`，讓 UI/agent/test 可讀取 callback 失敗紀錄；這是 observer/UI diagnostics，不改 downloader、HTTP adapter、manifest 或 import 行為。
 - 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\downloads\jobs.py tests\test_download_jobs.py` OK；`py -3 -B -m unittest tests.test_download_jobs -v` 3 tests OK；`py -3 -B -m unittest tests.test_http_downloader tests.test_download_plan_runner tests.test_download_jobs -v` 22 tests OK；`git diff --check` OK；`api_launcher/downloads` mojibake scan OK。
+- 已推送 `fb8e0d6 Isolate download progress callback failures`；GitHub Actions run `26598592970` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改下載 queue 的 observer/callback hardening，不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 03:26 Crawler decorators own registry metadata
