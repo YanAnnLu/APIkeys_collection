@@ -19,6 +19,8 @@
 - `itertools.islice()` 適合處理 iterator 型候選流，避免為了 preview 一次載入過大遠端或本機資料。slice 只代表目前視窗，不代表遠端 exhausted；是否 exhausted 仍以 `remote_pagination` / `completion_confidence` 為準。
 - 裝飾器可用來把 crawler handler 註冊到 `CrawlerSpec` / matrix，但 handler 原本的回傳值仍應原樣進入 `dataset_crawler_output()` 或 gateway。不要讓 decorator 吞掉 candidates、warnings、pagination metadata 或 next_action；它應提供 metadata 與組裝入口，不應隱藏核心資料流。
 - 這裡的宣告式方向是混合式準宣告式：registry/profile/matrix/pipeline/decorator 集中重複規則，少量條件分支與迴圈保留在 gateway / adapter / policy 邊界。不要為了消滅所有 `if` 而做上帝 YAML；也不要為了快速接線讓 `source_type` 分支散回 UI。
+- Crawler 主路徑可以視為「主管道中的分流膠囊」：主管道把 source / bounds / policy 正規化，膠囊內用 registry array、decorator metadata 與少量 policy branch 選 handler，handler 回傳後再 normalize 回 `DatasetCrawlerOutput`。膠囊外的 plan / download / import / UI 只讀標準 contract，不知道內部分支。
+- 條件分支只做真正的 route selection：選 handler、policy、middleware、fallback。不要讓每個 branch 自己做 payload 包裝、warning 正規化、UI 文案或 in-box-return；這些應在 gateway/normalizer 出口集中處理。
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 

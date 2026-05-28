@@ -34,6 +34,21 @@ seed -> crawler -> candidate -> plan -> download -> import -> UI
 - 保留必要迴圈、range、slice、`islice()` 與 bounded queue traversal，用來處理分頁、可見窗口、批次與資料流。
 - 遞迴只作淺層、可證明有 budget 的樹狀 metadata helper；crawler / download / import 主路徑不用深遞迴。
 
+可實作成「主管道 + 分流膠囊」：
+
+```text
+main pipeline
+  -> normalized input
+  -> branch capsule: registry array + decorator metadata + small policy branch
+  -> handler returns DatasetCandidate[] / DatasetCrawlerOutput
+  -> normalize back to main pipeline contract
+  -> plan / download / import / UI
+```
+
+分流膠囊內可以有陣列、裝飾器、少量條件分支、迴圈或受控淺遞迴；膠囊外只看標準回傳 contract。這能把 `source_type` 分支收束在 gateway/adapter 邊界，避免 UI、downloader、importer 到處判斷同一件事。
+
+條件分支本身只負責選路，例如選 adapter、policy、middleware 或 fallback。不要讓分支同時做 in-box-return、payload 包裝、UI 文案、錯誤正規化或狀態回填；這些收斂動作應由膠囊出口 / gateway / normalizer 統一處理。否則分支雖然被搬進膠囊，仍會變成新的雜物箱。
+
 ## 第一階段原則
 
 - 不把 13 個 crawler 一次重寫成 `universal_interpreter`。
