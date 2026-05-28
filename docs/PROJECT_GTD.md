@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-28
 
+## 目前工作焦點 / Active Focus
+- [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
+- [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
+- [ ] 下一個實作焦點：把 recommended seed / resolver-backed importability 接成 Web/Tk 可直接操作的一鍵推薦下載，或為第二條 live public source 建立 bounded closure readiness artifact。
+
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
 - [x] `api_launcher/mvp_readiness.py` 明確標示此 100% 只代表 canonical offline Socrata 311 小閉環：`seed -> candidate -> plan -> download -> manifest -> SQLite import -> JSON handoff`，不得被寫成全產品、全 crawler、renderer 或 Qt/Web 成熟度。

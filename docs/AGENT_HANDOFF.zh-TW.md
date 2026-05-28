@@ -1,8 +1,12 @@
 # Agent 接力卡
+## 2026-05-28 09:45 Focus narrowing handoff
+- 使用者更新目前目標：完成手邊任務後，近期主線收斂到 crawler / data asset 的小閉環，暫時略過資料渲染與 Unreal 5 對接。後續不要把 `simulation_bridge.py`、`unreal_bridge.py`、renderer contracts 當作近期交付焦點；它們維持 maturity matrix 內的 `contract_only` / planned work。
+- 下一個有效切片應優先服務「入口 -> 枚舉 seed -> 推薦 seed -> 有界下載 / 匯入 -> 可驗收 JSON/UI」這條線，例如 live public source readiness artifact、Web/Tk 使用 recommended seed 的一鍵操作、或將 bounds/defaults contract 接進 UI。
+
 ## 2026-05-28 09:37 Seed page recommended default handoff
 - 本輪在 seed page payload 補上推薦預設 seed：`crawler_seed_page()` 現在會從目前可見頁面挑第一筆可直接進 `sqlite_curated_import` 且不需 review 的 seed，輸出 `recommended_seed`、`recommended_seed_uid` 與 `recommended_seed_next_action=download_recommended_seed`。這是 Web/Tk 後續做「懶人一鍵推薦下載」的後端契約，不讓前端自行猜哪筆 seed 最安全。
 - 已用 live Socrata temp catalog 驗證：`nyc_open_data_socrata_catalog` 第一頁會推薦 `ds_5dce200fd403246bca0031d5` / `Civil Service List (Active)`，且 `recommended_seed.content_display_label=可有界匯入 SQLite`。PowerShell 文字管線可能把中文顯示成 `?`，本輪用 Python `subprocess.run(..., encoding='utf-8')` 捕捉 stdout 驗證檔案/JSON 本身沒有 mojibake。
-- 本輪驗證：in-memory syntax compile OK；`py -3 -B -m unittest tests.test_crawler_seed_registry tests.test_handoff -v` 43 tests OK；docs / source / tests mojibake scan 0 hits；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，826 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_093628.log`。尚待收尾：commit / push / 看 CI。
+- 已推送：`8083578 Add recommended crawler seed payload`；GitHub Actions run `26549445961` 已通過 Ubuntu、Windows 與 real DB smoke。本輪驗證：in-memory syntax compile OK；`py -3 -B -m unittest tests.test_crawler_seed_registry tests.test_handoff -v` 43 tests OK；docs / source / tests mojibake scan 0 hits；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，826 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_093628.log`。
 
 ## 2026-05-28 09:19 Socrata seed importability display handoff
 - 本輪修正 seed 清單的內容能力契約：`socrata_resource` 不再被 `content_registry` 標成「未知內容格式 / adapter_review」，而是標成 resolver-backed API resource。它會由 `socrata_bounded_sample_query_resolver` 先轉成有界 JSON sample，再走既有 JSON -> SQLite 匯入。
