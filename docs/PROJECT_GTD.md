@@ -29,6 +29,7 @@ Last updated: 2026-05-28
 - [x] Web Preview JSON response close contract 已補強：Windows GitHub Actions 曾在 developer-only legacy 404 route 測試讀短 JSON body 時遇到 `ConnectionAbortedError: [WinError 10053]`；server 現在明確回 `Connection: close`、flush body 並關閉 preview 連線，測試 helper 也使用 close header 與 bounded retry。
 - [x] 本地 smoke 韌性已補兩個雲端碟 / Windows fallback：`event_log.latest_events()` 遇到 cloud-mounted binary seek/read 失敗時退回 bounded streaming tail；Web Preview port scan 遇到整段候選 port 被保留或安全阻擋時退回 OS-assigned local port，避免 handoff JSON 與 local preview startup 因環境因素阻斷 checkpoint。
 - [x] Tk crawler asset 背景工作已加 single-flight guard：seed 欄位探測、seed 下載 / 匯入、入口清單擷取、下載計畫建立會用 `(job_type, asset_id, dataset_uid)` 或 asset-level key 擋掉重複背景 thread，先降低連點造成的重複 worker、SQLite/download path 與 bounds dialog 競爭風險。
+- [x] Tk single-flight guard 已抽出可測 helper：`frontends/tk/background_jobs.py` 集中 active job set / lock / duplicate guard / release，不讓 `crawler_asset_workflows.py` 繼續吸收 scheduler 細節；其他 Tk workflow 後續可逐步共用同一個 bounded job pattern。
 - [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

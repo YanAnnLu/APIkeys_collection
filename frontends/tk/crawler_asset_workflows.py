@@ -60,6 +60,11 @@ from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, loca
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.schema_probe import probe_plan_entry_schema
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
+from frontends.tk.background_jobs import (
+    release_single_flight_job,
+    single_flight_job_is_active,
+    start_single_flight_thread,
+)
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
@@ -92,29 +97,15 @@ class CrawlerAssetWorkflowMixin:
         jobs that compete for the same files, SQLite path, or user dialog state.
         """
 
-        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
-        if not isinstance(active_jobs, set):
-            active_jobs = set()
-            self.crawler_asset_active_jobs = active_jobs
-        active_jobs_lock = getattr(self, "crawler_asset_active_jobs_lock", None)
-        if active_jobs_lock is None:
-            active_jobs_lock = threading.Lock()
-            self.crawler_asset_active_jobs_lock = active_jobs_lock
-
-        with active_jobs_lock:
-            if job_key in active_jobs:
-                self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en))
-                return False
-            active_jobs.add(job_key)
-
-        def runner(*worker_args: object) -> None:
-            try:
-                target(*worker_args)
-            finally:
-                self._release_crawler_asset_background_job(job_key)
-
-        threading.Thread(target=runner, args=args, daemon=True).start()
-        return True
+        return start_single_flight_thread(
+            self,
+            job_key,
+            target,
+            args,
+            active_jobs_attr="crawler_asset_active_jobs",
+            active_jobs_lock_attr="crawler_asset_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en)),
+        )
 
     def _crawler_asset_background_job_is_active(
         self,
@@ -125,24 +116,22 @@ class CrawlerAssetWorkflowMixin:
     ) -> bool:
         """Return whether a Tk crawler-asset job is already active."""
 
-        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
-        if isinstance(active_jobs, set) and job_key in active_jobs:
-            self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en))
-            return True
-        return False
+        return single_flight_job_is_active(
+            self,
+            job_key,
+            active_jobs_attr="crawler_asset_active_jobs",
+            on_duplicate=lambda: self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en)),
+        )
 
     def _release_crawler_asset_background_job(self, job_key: tuple[str, str, str]) -> None:
         """Release a previously registered crawler-asset worker key."""
 
-        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
-        if not isinstance(active_jobs, set):
-            return
-        active_jobs_lock = getattr(self, "crawler_asset_active_jobs_lock", None)
-        if active_jobs_lock is None:
-            active_jobs.discard(job_key)
-            return
-        with active_jobs_lock:
-            active_jobs.discard(job_key)
+        release_single_flight_job(
+            self,
+            job_key,
+            active_jobs_attr="crawler_asset_active_jobs",
+            active_jobs_lock_attr="crawler_asset_active_jobs_lock",
+        )
 
     def _build_crawler_asset_tab(self, parent: ttk.Frame, outer_pad: int) -> None:
         # 這個分頁只呈現入口爬蟲資產，不直接塞來源特例，避免 Tk 再變成巨型流程檔。

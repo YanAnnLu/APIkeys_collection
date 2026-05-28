@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 18:xx Tk background job helper extraction
+- 本輪做小型 consolidation：新增 `frontends/tk/background_jobs.py`，把 single-flight active job set、lock、duplicate guard、release 的共通邏輯從 `crawler_asset_workflows.py` 抽出。`CrawlerAssetWorkflowMixin` 仍保留 crawler asset 專用薄包裝與 UI 狀態文案，但不再直接維護 active job set 細節。
+- 這不改 crawler/listing/plan/download/import 行為，也不把 Tk 全面改成 async；只是先建立可測 helper，讓後續其他 Tk workflow 若需要 bounded scheduler / single-flight guard 時，不必再複製 thread/lock 模式。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\background_jobs.py frontends\tk\crawler_asset_workflows.py tests\test_tk_background_jobs.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs -v` 3 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 73 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs tests.test_web_preview -v` 118 tests OK；`git diff --check` OK（僅 CRLF/LF warning）；docs/frontends/tk/tests mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，856 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_183726.log`。仍待 commit/push/CI。
+
 ## 2026-05-28 18:xx Tk crawler asset job guard expansion
 - 本輪延伸上一個 single-flight guard：`run_selected_crawler_asset_listing()` 與 `prepare_selected_crawler_asset_download()` 也改用 `_start_crawler_asset_background_job()`。同一 crawler asset 的清單擷取或下載計畫建立正在執行時，Tk 不再開第二個 worker；下載計畫會在打開 bounds dialog 前先檢查 active job，避免連點時重複彈表單。
 - 仍然沒有改後端 crawler/listing/plan/download/import 語意，也沒有引入全面 async；這只是 Tk control panel 的 bounded job guard，先降低 repeated-click 對 repository、plan 檔案與使用者對話框狀態的競爭。
