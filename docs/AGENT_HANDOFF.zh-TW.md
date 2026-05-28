@@ -3,6 +3,7 @@
 - 本輪繼續做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.web_download_import_event_context()`，asset-level 與 seed-level download/import 完成事件共用同一份 event context builder。
 - 這不改 Web API response、正式下載/匯入 service 或 event 欄位；只是移除兩段重複的 stage、success、download_import、artifacts event context 組裝，讓 endpoint 更薄。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 46 tests OK；docs/Web mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，865 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_224847.log`。
+- 已推送 `b8e32ed Extract Web download import event context helper`；GitHub Actions run `26582485477` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪不改使用者操作流程，只收斂 Web endpoint 內部 event payload helper；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-28 22:34 Web download/import credential block helper
