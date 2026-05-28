@@ -54,6 +54,46 @@ def crawler_seed_dialog_row_values(row: dict[str, object]) -> tuple[str, str, st
     return favorite, title, native_format, import_label, version, dataset_uid, status
 
 
+def crawler_seed_dialog_recommended_seed(payload: object) -> dict[str, object]:
+    """Return the backend-selected recommended seed for this page.
+
+    The recommendation is intentionally read from the backend payload.  Tk does
+    not pick the first row, favorites, or source-specific defaults on its own.
+    """
+
+    if not isinstance(payload, dict):
+        return {}
+    recommended = payload.get("recommended_seed")
+    return dict(recommended) if isinstance(recommended, dict) else {}
+
+
+def crawler_seed_dialog_recommended_uid(payload: object) -> str:
+    """Return the dataset uid that should power the one-click recommended action."""
+
+    if not isinstance(payload, dict):
+        return ""
+    recommended = crawler_seed_dialog_recommended_seed(payload)
+    return str(payload.get("recommended_seed_uid") or recommended.get("dataset_uid") or "").strip()
+
+
+def crawler_seed_dialog_recommended_text(
+    payload: object,
+    tr: Callable[[str, str], str] = lambda zh, _en: zh,
+) -> str:
+    """Return a human-readable summary for the backend-recommended seed."""
+
+    recommended = crawler_seed_dialog_recommended_seed(payload)
+    uid = crawler_seed_dialog_recommended_uid(payload)
+    if not uid:
+        return ""
+    title = str(recommended.get("title") or recommended.get("dataset_id") or uid).strip()
+    import_label = crawler_seed_dialog_import_label(recommended) or tr("後端推薦 seed", "Backend recommended seed")
+    return tr(
+        f"推薦 seed：{title}（{import_label}）。可直接按「下載推薦 Seed」。",
+        f"Recommended seed: {title} ({import_label}). Use Download recommended seed to start.",
+    )
+
+
 class CrawlerAssetSeedDialog:
     """Seed row picker for crawler assets.
 
@@ -103,6 +143,9 @@ class CrawlerAssetSeedDialog:
             ),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, pady=(4, 12))
+        recommended_text = crawler_seed_dialog_recommended_text(self.payload, self.tr)
+        if recommended_text:
+            ttk.Label(frame, text=recommended_text, style="DetailText.TLabel", wraplength=820).pack(anchor="w", fill=X, pady=(0, 12))
 
         table_frame = ttk.Frame(frame, style="Panel.TFrame")
         table_frame.pack(fill=BOTH, expand=True)
@@ -126,13 +169,19 @@ class CrawlerAssetSeedDialog:
         y_scrollbar.pack(side=RIGHT, fill=Y)
         self.tree.bind("<Double-1>", lambda _event: self.download())
 
+        recommended_uid = crawler_seed_dialog_recommended_uid(self.payload)
+        recommended_iid = ""
         for index, row in enumerate(self.rows):
             iid = str(index)
             self.row_by_iid[iid] = row
             self.tree.insert("", END, iid=iid, values=crawler_seed_dialog_row_values(row))
+            row_uid = str(row.get("dataset_uid") or row.get("dataset_id") or "").strip()
+            if recommended_uid and row_uid == recommended_uid:
+                recommended_iid = iid
         if self.rows:
-            self.tree.selection_set("0")
-            self.tree.focus("0")
+            selected_iid = recommended_iid or "0"
+            self.tree.selection_set(selected_iid)
+            self.tree.focus(selected_iid)
         else:
             self.message_var.set(
                 self.tr(
@@ -146,6 +195,8 @@ class CrawlerAssetSeedDialog:
         buttons = ttk.Frame(frame, style="Panel.TFrame")
         buttons.pack(fill=X, pady=(18, 0))
         ttk.Button(buttons, text=self.tr("下載此 Seed", "Download this seed"), style="Action.TButton", command=self.download).pack(side=RIGHT, padx=(10, 0))
+        if recommended_uid:
+            ttk.Button(buttons, text=self.tr("下載推薦 Seed", "Download recommended seed"), style="Action.TButton", command=self.download_recommended).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("收藏 / 取消收藏", "Favorite / unfavorite"), style="Action.TButton", command=self.favorite).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("關閉", "Close"), style="Action.TButton", command=self.cancel).pack(side=RIGHT)
 
@@ -173,6 +224,14 @@ class CrawlerAssetSeedDialog:
         self.result = {"action": "download", "dataset_uid": dataset_uid}
         self.window.destroy()
 
+    def download_recommended(self) -> None:
+        dataset_uid = crawler_seed_dialog_recommended_uid(self.payload)
+        if not dataset_uid:
+            self.message_var.set(self.tr("目前沒有後端推薦 seed。", "No backend recommended seed is available."))
+            return
+        self.result = {"action": "download", "dataset_uid": dataset_uid}
+        self.window.destroy()
+
     def favorite(self) -> None:
         row = self.selected_row()
         dataset_uid = self._selected_dataset_uid()
@@ -193,6 +252,9 @@ class CrawlerAssetSeedDialog:
 __all__ = [
     "CrawlerAssetSeedDialog",
     "crawler_seed_dialog_import_label",
+    "crawler_seed_dialog_recommended_seed",
+    "crawler_seed_dialog_recommended_text",
+    "crawler_seed_dialog_recommended_uid",
     "crawler_seed_dialog_row_values",
     "crawler_seed_dialog_rows",
 ]

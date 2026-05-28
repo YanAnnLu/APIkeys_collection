@@ -25,6 +25,8 @@ from frontends.tk.crawler_asset_credential_dialog import crawler_asset_credentia
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import (
     CrawlerAssetSeedDialog,
+    crawler_seed_dialog_recommended_text,
+    crawler_seed_dialog_recommended_uid,
     crawler_seed_dialog_row_values,
     crawler_seed_dialog_rows,
 )
@@ -823,6 +825,23 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertEqual(1, len(rows))
         self.assertEqual(("★", "Seed 1", "csv", "可匯入 SQLite", "2026", "demo_provider:seed_1", "new"), values)
+
+    def test_crawler_asset_seed_dialog_surfaces_backend_recommended_seed(self) -> None:
+        payload = {
+            "recommended_seed_uid": "demo_provider:seed_1",
+            "recommended_seed": {
+                "dataset_uid": "demo_provider:seed_1",
+                "title": "Seed 1",
+                "content_display_label": "可匯入 SQLite",
+            },
+        }
+
+        text = crawler_seed_dialog_recommended_text(payload, lambda zh, _en: zh)
+
+        self.assertEqual("demo_provider:seed_1", crawler_seed_dialog_recommended_uid(payload))
+        self.assertIn("推薦 seed", text)
+        self.assertIn("Seed 1", text)
+        self.assertIn("下載推薦 Seed", text)
 
     def test_open_selected_crawler_asset_seed_dialog_routes_favorite_action(self) -> None:
         source = DatasetDiscoverySource(

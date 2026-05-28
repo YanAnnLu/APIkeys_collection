@@ -6,7 +6,8 @@ Last updated: 2026-05-28
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
-- [ ] 下一個實作焦點：把同一個 recommended seed 一鍵入口接回 Tk，或為第二條 live public source 建立 bounded closure readiness artifact。
+- [x] Tk Seed 清單 dialog 已把同一個 `recommended_seed_uid` 接成「推薦 seed」摘要與「下載推薦 Seed」按鈕；Tk 也不自行挑 seed。
+- [ ] 下一個實作焦點：為第二條 live public source 建立 bounded closure readiness artifact，或補 schema/head probe 讓界域表單從盲填改成可選。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
@@ -22,6 +23,7 @@ Last updated: 2026-05-28
 - [x] 修正 Socrata seed 清單的內容能力顯示：`socrata_resource` 會顯示為 resolver-backed「可有界匯入 SQLite」，不再誤標成未知內容格式。已用 live public Socrata seed page JSON 驗證第一筆 seed 顯示 `parser_id=socrata_bounded_sample_query_resolver`、`review_required=false`。
 - [x] Seed page payload 補上 `recommended_seed` / `recommended_seed_uid` / `recommended_seed_next_action`，由後端挑出目前可見頁面的第一筆可匯入 seed，給 Web/Tk 未來「一鍵推薦下載」使用，不讓前端自行猜預設值。
 - [x] Web Preview seed 清單已顯示後端推薦 seed 面板與「下載推薦 seed」按鈕，直接呼叫正式 seed-level `POST /api/crawler-assets/{asset_id}/seed-download-import`，不走舊 demo route。
+- [x] Tk Seed 清單 dialog 已顯示同一份後端推薦 seed，並提供「下載推薦 Seed」按鈕；dialog 會自動選中推薦列，下載仍走既有 formal seed-level service。
 - [ ] 下一步：挑一條 live public source 做第二個 bounded closure readiness artifact，而不是把所有 crawler 一次推成 100%。
 
 ## 2026-05-28 Source-code maturity / 能力成熟度邊界審計
