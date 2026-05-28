@@ -15,7 +15,8 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from sqlite3 import Connection
+from typing import Iterator, Mapping
 
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundFormSpec,
@@ -85,6 +86,13 @@ class WebDownloadImportTargetPaths:
     plan_path: Path
 
 
+@dataclass(frozen=True)
+class WebPreviewRepositorySession:
+    db_path: Path
+    conn: Connection
+    repository: ApiCatalogRepository
+
+
 def web_preview_status() -> dict[str, object]:
     """Return a small machine-readable status for browser smoke checks."""
 
@@ -104,11 +112,8 @@ def web_project_maturity(*, db_path: str | Path | None = None) -> dict[str, obje
     without re-implementing maturity rules.
     """
 
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    with contextlib.closing(connect_db(target_db)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        return build_project_maturity_payload(repository, db_path=target_db)
+    with web_preview_repository_context(db_path) as session:
+        return build_project_maturity_payload(session.repository, db_path=session.db_path)
 
 
 def crawler_handler_smoke_diagnostics() -> dict[str, object]:
@@ -281,12 +286,9 @@ def crawler_asset_seed_page(
 
     asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
     favorite_seed_uids = set(crawler_asset_favorite_seed_uids(asset.asset_id, profile_path))
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    with contextlib.closing(connect_db(target_db)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
+    with web_preview_repository_context(db_path) as session:
         return crawler_seed_page(
-            repository,
+            session.repository,
             asset_id=asset.asset_id,
             provider_id=asset.provider_id,
             page=page,
@@ -409,11 +411,7 @@ def crawler_asset_listing(
         response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    with contextlib.closing(connect_db(target_db)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        repository.seed_builtin_providers()
+    with web_preview_repository_context(db_path, seed_builtin_providers=True) as session:
         kwargs: dict[str, object] = {
             "primary_path": primary_path,
             "local_path": local_path,
@@ -425,8 +423,8 @@ def crawler_asset_listing(
         }
         if crawler_runner is not None:
             kwargs["crawl_runner"] = crawler_runner
-        result = run_crawler_asset_listing(asset.asset_id, conn, **kwargs)
-        conn.commit()
+        result = run_crawler_asset_listing(asset.asset_id, session.conn, **kwargs)
+        session.conn.commit()
 
     payload = result.to_dict()
     response["listing_result"] = payload
@@ -709,15 +707,11 @@ def crawler_asset_plan_preview(
         response["next_action_label"] = next_action_display_label(response["next_action"])
         return response
 
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
     target_downloads = Path(downloads_root) if downloads_root is not None else default_local_downloads_root()
-    with contextlib.closing(connect_db(target_db)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        repository.seed_builtin_providers()
+    with web_preview_repository_context(db_path, seed_builtin_providers=True) as session:
         result = build_crawler_asset_download_plan(
             asset_id,
-            conn,
+            session.conn,
             bounds_payload=payload,
             downloads_root=target_downloads,
             primary_path=primary_path,
@@ -727,7 +721,7 @@ def crawler_asset_plan_preview(
             max_results=1,
             max_pages=1,
         )
-        conn.commit()
+        session.conn.commit()
     response["plan_result"] = result.to_dict()
     plan_outcome = crawler_asset_plan_outcome_payload(result)
     response["plan_outcome"] = plan_outcome
@@ -794,13 +788,10 @@ def crawler_asset_download_import(
         downloads_root=downloads_root,
         import_sqlite_path=import_sqlite_path,
     )
-    with contextlib.closing(connect_db(targets.db_path)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        repository.seed_builtin_providers()
+    with web_preview_repository_context(targets.db_path, seed_builtin_providers=True) as session:
         result = run_crawler_asset_download_import(
             asset.asset_id,
-            repository,
+            session.repository,
             targets.downloads_root,
             bounds_payload=payload,
             import_sqlite_path=targets.import_sqlite_path,
@@ -812,7 +803,7 @@ def crawler_asset_download_import(
             max_results=1,
             max_pages=1,
         )
-        conn.commit()
+        session.conn.commit()
 
     response.update(crawler_asset_download_import_display_payload(result))
     plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
@@ -876,14 +867,11 @@ def crawler_seed_download_import(
         downloads_root=downloads_root,
         import_sqlite_path=import_sqlite_path,
     )
-    with contextlib.closing(connect_db(targets.db_path)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        repository.seed_builtin_providers()
+    with web_preview_repository_context(targets.db_path, seed_builtin_providers=True) as session:
         result = run_crawler_seed_download_import(
             asset.asset_id,
             dataset_uid,
-            repository,
+            session.repository,
             targets.downloads_root,
             bounds_payload=payload,
             import_sqlite_path=targets.import_sqlite_path,
@@ -893,7 +881,7 @@ def crawler_seed_download_import(
             profile_path=profile_path,
             timeout=8.0,
         )
-        conn.commit()
+        session.conn.commit()
 
     response.update(crawler_asset_download_import_display_payload(result))
     plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
@@ -910,6 +898,27 @@ def crawler_seed_download_import(
 
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)
+
+
+@contextlib.contextmanager
+def web_preview_repository_context(
+    db_path: str | Path | None = None,
+    *,
+    seed_builtin_providers: bool = False,
+) -> Iterator[WebPreviewRepositorySession]:
+    """Open a Web Preview repository session without hiding commit policy.
+
+    The endpoint still decides when to commit.  This helper only centralizes the
+    repeated connection/schema/provider bootstrap so route functions stay thin.
+    """
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        if seed_builtin_providers:
+            repository.seed_builtin_providers()
+        yield WebPreviewRepositorySession(db_path=target_db, conn=conn, repository=repository)
 
 
 def web_download_import_target_paths(
