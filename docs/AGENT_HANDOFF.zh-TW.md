@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 02:37 Tk sidebar favicon single-flight guard
+- 本輪繼續 Tk scheduler guard consolidation：`SidebarWorkflowMixin.fetch_provider_icon_async()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- Provider favicon fetch 使用 `("provider_favicon", owner, favicon_url)` job key；同一 provider/favicon 下載已在執行時，Tk 不再開第二個 worker。
+- 這不改 favicon URL 推導、cache path、PNG 下載、`PhotoImage` 建立或 sidebar provider filter 顯示語意；只把 favicon 下載入口的背景 thread 收斂到共用 helper。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\sidebar_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 99 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，891 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_023718.log`。
+- Docs drift check：本輪只收斂 Tk sidebar favicon 入口的背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 02:26 Tk OAuth login single-flight guard
 - 本輪繼續 Tk scheduler guard consolidation：`OAuthWorkflowMixin` 新增 `_start_oauth_background_job()`，把 OAuth/login 對話中的背景 worker 收斂到 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - Google browser login 使用 `("oauth_browser_login", profile_id, "")` job key；同一 profile 登入流程已在執行時，Tk 不再開第二個 callback server / browser login worker。

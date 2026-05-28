@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import threading
 from tkinter import LEFT, X, PhotoImage, TclError
 from tkinter import ttk
 
@@ -14,6 +13,7 @@ from api_launcher.favicons import (
     favicon_url_for_page,
     provider_home_url,
 )
+from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
 from frontends.tk.ui_config import COLORS
 
 
@@ -114,6 +114,9 @@ class SidebarWorkflowMixin:
         favicon_url = self.favicon_url_for_owner(owner)
         if not favicon_url:
             return
+        job_key = ("provider_favicon", owner, favicon_url)
+        if single_flight_job_is_active(self, job_key, active_jobs_attr="sidebar_active_jobs"):
+            return
         self.provider_icon_loading.add(owner)
 
         def worker() -> None:
@@ -142,7 +145,15 @@ class SidebarWorkflowMixin:
 
             self.after_on_root(apply_icon)
 
-        threading.Thread(target=worker, daemon=True).start()
+        start_single_flight_thread(
+            self,
+            job_key,
+            worker,
+            (),
+            active_jobs_attr="sidebar_active_jobs",
+            active_jobs_lock_attr="sidebar_active_jobs_lock",
+            on_duplicate=lambda: self.provider_icon_loading.discard(owner),
+        )
 
     def after_on_root(self, callback: object) -> None:
         # 背景 thread 更新 UI 的唯一入口；root 已關閉時忽略排程錯誤。
