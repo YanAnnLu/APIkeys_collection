@@ -3,7 +3,8 @@
 - 本輪把既有 `api_launcher.project_maturity` 後端成熟度矩陣接到 Web Preview：新增 `GET /api/project-maturity`，由 `frontends/web/preview_api.py::web_project_maturity()` 只負責開 DB / repository 並回傳 `build_project_maturity_payload()`，Web 不重新判斷成熟度。
 - Web Preview 新增「成熟度」工作區與 `maturityGrid` 卡片牆，顯示 canonical delivery scope、各成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。這是 UI contract 顯示層，不改 crawler、download、import 或 maturity 判斷。
 - 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview tests.test_project_maturity -v` 48 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`.\scripts\pre_push_smoke_brief.cmd` 通過，859 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_204151.log`。
-- Docs drift check：已同步 GTD、Web Preview UIUX 文件與 development log；目前此 checkpoint 尚未推送，完成 CI 後需回填 commit / run 狀態。
+- 已推送 `6e51329 Add Web project maturity workspace`；GitHub Actions run `26575702230` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：已同步 GTD、Web Preview UIUX 文件與 development log，並以本段回填 commit / CI 狀態。
 
 ## 2026-05-28 19:42 Project maturity construction display profile
 - 本輪做小型 UI-neutral contract 修補：`api_launcher/project_maturity.py` 的 `MaturityMatrixRow.to_dict()` 現在輸出 `status_icon`、`display_tone`、`display_label` 與 `display_profile`。
