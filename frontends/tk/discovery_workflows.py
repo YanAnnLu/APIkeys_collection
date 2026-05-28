@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import json
-import threading
 from pathlib import Path
 from tkinter import messagebox
 
@@ -20,6 +19,7 @@ from api_launcher.discovery_promotion import promote_local_discovery_catalog
 from api_launcher.event_log import log_event, log_exception
 from api_launcher.paths import catalog_file, local_config_file, state_file
 from api_launcher.registry import PROVIDER_CATALOG_NAME
+from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.dialogs import DatasetCandidateReviewDialog, ProviderCandidateReviewDialog
 from frontends.tk.ui_labels import crawler_next_action_label as crawler_next_action_label_text
 
@@ -128,7 +128,17 @@ class DiscoveryWorkflowMixin:
 
             self.root.after(0, finish)
 
-        threading.Thread(target=worker, daemon=True).start()
+        start_single_flight_thread(
+            self,
+            ("provider_discovery", "all", ""),
+            worker,
+            (),
+            active_jobs_attr="discovery_active_jobs",
+            active_jobs_lock_attr="discovery_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("Provider 候選發現已在執行中。", "Provider discovery is already running.")
+            ),
+        )
 
     def crawler_next_action_label(self, action: str) -> str:
         return crawler_next_action_label_text(action, self.tr)
@@ -214,8 +224,18 @@ class DiscoveryWorkflowMixin:
             else self.tr("所有已設定 crawler 的資料源", "all configured crawler sources")
         )
         self.status_var.set(self.tr(f"正在並行發現資料集候選：{scope}", f"Discovering dataset candidates concurrently: {scope}"))
-        thread = threading.Thread(target=self._dataset_candidate_discovery_worker, args=(selected_provider_ids,), daemon=True)
-        thread.start()
+        job_scope = ",".join(selected_provider_ids) if selected_provider_ids else "all"
+        start_single_flight_thread(
+            self,
+            ("dataset_candidate_discovery", job_scope, ""),
+            self._dataset_candidate_discovery_worker,
+            (selected_provider_ids,),
+            active_jobs_attr="discovery_active_jobs",
+            active_jobs_lock_attr="discovery_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("資料集候選發現已在執行中。", "Dataset discovery is already running.")
+            ),
+        )
 
     def _dataset_candidate_discovery_worker(self, provider_ids: tuple[str, ...]) -> None:
         try:
@@ -373,4 +393,14 @@ class DiscoveryWorkflowMixin:
 
             self.root.after(0, finish)
 
-        threading.Thread(target=worker, daemon=True).start()
+        start_single_flight_thread(
+            self,
+            ("local_discovery_audit", "dry_run", ""),
+            worker,
+            (),
+            active_jobs_attr="discovery_active_jobs",
+            active_jobs_lock_attr="discovery_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("本機 discovery 審核已在執行中。", "Local discovery audit is already running.")
+            ),
+        )

@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 01:20 Tk discovery workflow single-flight guard
+- 本輪繼續 bounded scheduler consolidation：`DiscoveryWorkflowMixin` 的 provider candidate discovery、dataset candidate discovery 與 local discovery dry-run audit 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- 新增 discovery 專用 active job set / lock。Provider discovery 用 `("provider_discovery", "all", "")`，dataset candidate discovery 用選取 provider scope，local discovery audit 用 `("local_discovery_audit", "dry_run", "")`；同一邏輯任務重複觸發時只更新 status，不再重複開 worker。
+- 這不改 provider discovery、dataset crawler audit、local promotion dry-run、repository upsert 或 dialog 顯示語意；只是先把 Tk discovery 入口的背景工作排程收斂到共用 single-flight helper。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\discovery_workflows.py tests\test_tk_dialogs.py` OK；targeted 3 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 85 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，877 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_011717.log`。
+- Docs drift check：本輪只收斂 Tk discovery 內部背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 01:00 Web Preview POST body drain hardening
 - 本輪回應 docs-only checkpoint `505ecbf` 的 GitHub Actions Windows failure：`tests.test_web_preview.WebPreviewApiTest.test_real_download_demo_route_is_developer_diagnostic_only` 看到 developer diagnostic POST 被測試 retry helper 重送，導致 `developer_real_download_demo()` mock 被呼叫兩次。
 - 根因是 local Web Preview server 對不需要 request body 的 POST（developer diagnostic 與 unknown endpoint）會直接回短 JSON，沒有先 drain `Content-Length` body；Windows localhost runner 偶爾會 abort 這種短連線，測試 helper 因重試而重跑有副作用 endpoint。
