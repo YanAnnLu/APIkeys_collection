@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import threading
 from pathlib import Path
 from tkinter import messagebox
 
@@ -20,6 +19,7 @@ from api_launcher.mvp_demo import (
     write_mvp_demo_flow as write_mvp_demo_flow_files,
 )
 from api_launcher.paths import catalog_file, state_file
+from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.ui_config import MVP_DEMO_FLOW_NAME
 from frontends.tk.ui_helpers import (
     mvp_demo_smoke_exception_message,
@@ -78,9 +78,22 @@ class MvpDemoWorkflowMixin:
             )
             return
         flow_path = state_file(MVP_DEMO_FLOW_NAME)
+        started = start_single_flight_thread(
+            self,
+            ("mvp_demo_smoke", "canonical", ""),
+            self.run_mvp_demo_smoke_worker,
+            (flow_path,),
+            active_jobs_attr="mvp_demo_active_jobs",
+            active_jobs_lock_attr="mvp_demo_active_jobs_lock",
+            on_duplicate=lambda: messagebox.showinfo(
+                self.tr("MVP Demo Smoke 進行中", "MVP demo smoke is running"),
+                self.tr("目前已經有一個 MVP Demo Smoke 在執行，請等它完成。", "An MVP demo smoke run is already in progress. Wait for it to finish."),
+            ),
+        )
+        if not started:
+            return
         self.mvp_demo_smoke_running = True
         self.status_var.set(self.tr("正在一鍵驗證 MVP Demo Flow...", "Running MVP demo smoke..."))
-        threading.Thread(target=self.run_mvp_demo_smoke_worker, args=(flow_path,), daemon=True).start()
 
     def run_mvp_demo_smoke_worker(self, flow_path: Path) -> None:
         payload: dict[str, object] = {}

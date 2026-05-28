@@ -19,6 +19,7 @@ from frontends.tk.startup_helpers import (
     contextlib_suppress_tcl_error,
     tk_startup_failure_message,
 )
+from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.ui_helpers import (
     data_store_env_template_path,
     database_sql_dry_run_available,
@@ -255,6 +256,52 @@ class CrawlerAuditUiHelperTests(unittest.TestCase):
 
 
 class DownloadPlanPanelUiTests(unittest.TestCase):
+    def test_mvp_demo_smoke_starts_single_flight_job(self) -> None:
+        ui = object.__new__(MvpDemoWorkflowMixin)
+        ui.mvp_demo_smoke_running = False
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        flow_path = PROJECT_ROOT / "state/mvp_demo/flow.json"
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with (
+            patch("frontends.tk.mvp_demo_workflows.state_file", return_value=flow_path),
+            patch("frontends.tk.background_jobs.threading.Thread", FakeThread),
+        ):
+            MvpDemoWorkflowMixin.run_mvp_demo_smoke_from_ui(ui)
+
+        self.assertTrue(ui.mvp_demo_smoke_running)
+        self.assertTrue(thread_call.started)
+        self.assertEqual((flow_path,), thread_call.args)
+        self.assertIn(("mvp_demo_smoke", "canonical", ""), ui.mvp_demo_active_jobs)
+        self.assertIn("Running MVP demo smoke", ui.status_var.value)
+
+    def test_mvp_demo_smoke_single_flight_duplicate_does_not_start_thread(self) -> None:
+        ui = object.__new__(MvpDemoWorkflowMixin)
+        ui.mvp_demo_smoke_running = False
+        ui.mvp_demo_active_jobs = {("mvp_demo_smoke", "canonical", "")}
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+
+        with (
+            patch("frontends.tk.mvp_demo_workflows.state_file", return_value=PROJECT_ROOT / "state/mvp_demo/flow.json"),
+            patch("frontends.tk.background_jobs.threading.Thread") as thread_class,
+            patch("frontends.tk.mvp_demo_workflows.messagebox.showinfo") as showinfo,
+        ):
+            MvpDemoWorkflowMixin.run_mvp_demo_smoke_from_ui(ui)
+
+        thread_class.assert_not_called()
+        showinfo.assert_called_once()
+        self.assertFalse(ui.mvp_demo_smoke_running)
+
     def test_mvp_demo_smoke_result_message_summarizes_user_visible_closure(self) -> None:
         payload = {
             "stage": "download_import_completed",

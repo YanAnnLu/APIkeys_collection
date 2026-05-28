@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 00:44 Tk MVP demo smoke single-flight guard
+- 本輪繼續做 Tk scheduler guard 小切片：`MvpDemoWorkflowMixin.run_mvp_demo_smoke_from_ui()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- 這保留既有 `mvp_demo_smoke_running` 使用者提示，同時讓 canonical MVP demo smoke 也使用統一 single-flight active job set / lock / release 機制；避免展示或驗收時連點造成重複 demo DB / flow artifacts / event log 寫入。MVP demo smoke 的下載、匯入與 closure 判斷本身沒有改。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\mvp_demo_workflows.py tests\test_launcher_ui.py` OK；`py -3 -B -m unittest tests.test_launcher_ui -v` 32 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，874 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_004114.log`。
+- 尚未推送 / 尚未看 GitHub Actions；下一步是跑 docs mojibake scan、時間佔位掃描、`git diff --check`，再 commit / push / watch CI。
+- Docs drift check：本輪只收斂 Tk MVP demo smoke 內部背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 00:33 Tk plan bounds probe single-flight guard
 - 本輪繼續做 Tk scheduler guard 小切片：`PlanWorkflowMixin.configure_selected_plan_bounds_from_ui()` 的下載計畫界域欄位探測不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - 這讓同一個 plan item 的 schema/bounds probe 同時只能跑一個，避免連點造成多個欄位探測、重複界域 dialog 或 `download_plan_entries_by_provider` 競爭。Tk 仍只負責選取 plan item、排背景 worker 與顯示界域表單；欄位探測與 bounds 套用規則不移進 UI。
