@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 14:09 Branch threshold / decorator dispatch / profile storage guard
+- 使用者補充準宣告式架構的三個邊界，本輪先收進文檔，不改產品程式碼。第一，`if/else` 適合 2 到 3 條人類可一眼讀懂的簡單分支；到 4 條路時已接近 `2 x 2` matrix，若再疊 source type、auth、pagination、content format、bounds facet 等維度，就應改用 table / registry / gateway 收束。
+- 第二，decorator 不只是語義標籤；在大量條件分支下，它可以是避免中心 `if/elif` 膨脹的註冊/分派寫法。`@crawler(...)` 應讓 handler 主動掛到 registry / matrix，再由 gateway 選路；但 decorator 不負責改寫 handler 回傳值，payload 包裝與狀態正規化仍在 normalizer 出口。
+- 第三，外部 YAML / JSON / TOML / `.env` 適合放有人類語意、需要使用者或維護者打開填寫的 source/provider/credential/rate-limit profile；純邏輯高維分支若不需要人類直接填寫，優先用 typed Python table / dataclass / tuple index / dict registry，不為了「宣告式」把機器分派矩陣硬塞進 YAML。
+- 已更新 `DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md` 與 `DATASET_DISCOVERY_NOTES.zh-TW.md`。下一輪實作 crawler dispatch/gateway 時，先用 typed table / registry 做機器分派；只有 source/profile/credential 類人類可填設定才考慮外部檔案。
+
 ## 2026-05-28 13:46 Loop sentinel / range / slice / decorator return guard
 - 本輪補充 loop / ordered collection / decorator 設計規則，不改產品程式碼。結論：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget、schema size、remote pagination metadata 或 runtime policy。
 - 硬寫哨兵值或 magic page size 不是完全禁止，但必須先被審查；若不可避免，應命名成常數或 profile 欄位、可覆寫、可測，並在 payload 回報 `limit_reached` / `sentinel_stop` 類 structured warning。UI 顯示 seed/candidate preview 時應呈現 `shown_start`、`shown_end`、`page_size`、`has_more`、`remaining`，不要把 `[0:49]` / `[0:99]` 的窗口硬編成假全集。

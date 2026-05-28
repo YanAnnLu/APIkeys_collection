@@ -21,6 +21,8 @@
 - 這裡的宣告式方向是混合式準宣告式：registry/profile/matrix/pipeline/decorator 集中重複規則，少量條件分支與迴圈保留在 gateway / adapter / policy 邊界。不要為了消滅所有 `if` 而做上帝 YAML；也不要為了快速接線讓 `source_type` 分支散回 UI。
 - Crawler 主路徑可以視為「主管道中的分流膠囊」：主管道把 source / bounds / policy 正規化，膠囊內用 registry array、decorator metadata 與少量 policy branch 選 handler，handler 回傳後再 normalize 回 `DatasetCrawlerOutput`。膠囊外的 plan / download / import / UI 只讀標準 contract，不知道內部分支。
 - 條件分支只做真正的 route selection：選 handler、policy、middleware、fallback。不要讓每個 branch 自己做 payload 包裝、warning 正規化、UI 文案或 in-box-return；這些應在 gateway/normalizer 出口集中處理。
+- 分支數量本身是設計判斷：2 到 3 條路可以保留簡單 `if/else`；4 條路已經接近 `2 x 2` matrix，應考慮 table / registry / decorator dispatch。crawler source type、auth、pagination、content format、bounds facet 這類維度一旦疊加，不應繼續用中心 `if/elif` 延長。
+- YAML / JSON / TOML profile 適合放有人類語意、需要維護者填寫的 source/provider/credential/rate-limit 設定；純邏輯條件分支則優先用 typed Python table / dataclass / tuple index / dict registry。不要把機器分派矩陣硬包成使用者要讀的 YAML。
 
 ## 2026-05-27 Seed enumeration / Web Preview paging
 

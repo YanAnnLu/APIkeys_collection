@@ -49,6 +49,19 @@ main pipeline
 
 條件分支本身只負責選路，例如選 adapter、policy、middleware 或 fallback。不要讓分支同時做 in-box-return、payload 包裝、UI 文案、錯誤正規化或狀態回填；這些收斂動作應由膠囊出口 / gateway / normalizer 統一處理。否則分支雖然被搬進膠囊，仍會變成新的雜物箱。
 
+分支數量是架構訊號：
+
+- `if/else` 適合人類可一眼讀懂的簡單分支，通常是 2 到 3 條路。
+- 到 4 條路時，實際上已經接近一個 `2 x 2` 矩陣；若再加 source type、auth、pagination、content format 等維度，就應改用 table / registry / gateway 收束。
+- decorator 不只是語義標籤；在大量分支時，它可以作為註冊與分派機制，讓 handler 主動掛到 registry / matrix，而不是在中心檔堆 `if/elif`。
+- 但 decorator 仍不應負責改寫回傳值。它負責把候選路線放進表，gateway 負責選路，normalizer 負責回到主管道 contract。
+
+資料形態也要分層：
+
+- 有人類語意、需要使用者或維護者打開檔案填寫的設定，適合放 YAML / JSON / TOML / `.env` 或其他外部 profile 檔，例如 credential profile、source profile、provider endpoint、terms/rate-limit policy。
+- 純邏輯的高維條件分支，若不需要人類直接填寫，優先留在 typed Python table / dataclass / tuple index / dict registry。這能保留型別、IDE、測試與 refactor 安全。
+- 不要因為「宣告式」就把所有邏輯搬進 YAML；檔案類型本身帶有人類使用語意。人類要填的用檔案；機器要快速分派的用 table / registry。
+
 ## 第一階段原則
 
 - 不把 13 個 crawler 一次重寫成 `universal_interpreter`。
