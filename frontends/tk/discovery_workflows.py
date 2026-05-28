@@ -24,8 +24,19 @@ from frontends.tk.dialogs import DatasetCandidateReviewDialog, ProviderCandidate
 from frontends.tk.ui_labels import crawler_next_action_label as crawler_next_action_label_text
 
 
+MAX_TK_DISCOVERY_BACKGROUND_JOBS = 2
+
+
 class DiscoveryWorkflowMixin:
     """封裝 Tk discovery / crawler audit UI workflow。"""
+
+    def notify_discovery_queue_full(self) -> None:
+        self.status_var.set(
+            self.tr(
+                "Discovery 背景工作已達上限，請等待目前工作完成。",
+                "Discovery background jobs are at capacity; wait for one to finish.",
+            )
+        )
 
     def open_dataset_candidate_review_panel(self) -> None:
         DatasetCandidateReviewDialog(self)
@@ -138,6 +149,8 @@ class DiscoveryWorkflowMixin:
             on_duplicate=lambda: self.status_var.set(
                 self.tr("Provider 候選發現已在執行中。", "Provider discovery is already running.")
             ),
+            max_active_jobs=MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+            on_capacity=self.notify_discovery_queue_full,
         )
 
     def crawler_next_action_label(self, action: str) -> str:
@@ -235,6 +248,8 @@ class DiscoveryWorkflowMixin:
             on_duplicate=lambda: self.status_var.set(
                 self.tr("資料集候選發現已在執行中。", "Dataset discovery is already running.")
             ),
+            max_active_jobs=MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+            on_capacity=self.notify_discovery_queue_full,
         )
 
     def _dataset_candidate_discovery_worker(self, provider_ids: tuple[str, ...]) -> None:
@@ -403,4 +418,6 @@ class DiscoveryWorkflowMixin:
             on_duplicate=lambda: self.status_var.set(
                 self.tr("本機 discovery 審核已在執行中。", "Local discovery audit is already running.")
             ),
+            max_active_jobs=MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+            on_capacity=self.notify_discovery_queue_full,
         )

@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 05:39 Tk discovery background capacity guard
+- 本輪把 Tk discovery / crawler-audit 類背景工作再加一層 capacity guard：`frontends/tk/discovery_workflows.py` 新增 `MAX_TK_DISCOVERY_BACKGROUND_JOBS = 2` 與 `notify_discovery_queue_full()`。
+- Provider candidate discovery、dataset candidate discovery、local discovery dry-run audit 仍保留各自 single-flight key；現在同一 UI 已有 2 個 discovery/audit worker 時，第三個入口只更新 status「Discovery 背景工作已達上限」，不再開新 daemon thread。
+- 這不改 provider discovery、dataset crawler audit、local promotion dry-run、repository upsert 或 review dialog；只是降低連點 / 低算力設備下的 discovery worker 併發壓力。
+- 新增 regression：`test_provider_discovery_blocks_when_discovery_queue_full`、`test_dataset_candidate_discovery_blocks_when_discovery_queue_full`、`test_local_discovery_audit_blocks_when_discovery_queue_full`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\discovery_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 107 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` / `frontends/tk/discovery_workflows.py` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，904 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_054019.log`。
+- Docs drift check：本輪改 Tk discovery 背景工作 capacity guard；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 05:25 Tk SQLite import capacity guard
 - 本輪把 Tk 匯入入口從「同一路徑 duplicate guard」再補成「同一 UI 同時最多一個 SQLite import worker」：`ImportWorkflowMixin` 新增 `MAX_TK_SQLITE_IMPORT_JOBS = 1`、`sqlite_import_queue_is_full()` 與共用 busy status helper。
 - `import_supported_plan_results_from_ui()` 與 `import_local_file_from_ui()` 會在開 policy dialog / file picker 前先檢查整體 import queue；已有其他 SQLite import worker 時只更新 status，不彈使用者流程，也不開新 worker。

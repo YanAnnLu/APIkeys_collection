@@ -288,6 +288,21 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn(("provider_discovery", "all", ""), ui.discovery_active_jobs)
         self.assertIn("Discovering provider candidates", ui.status_var.value)
 
+    def test_provider_discovery_blocks_when_discovery_queue_full(self) -> None:
+        ui = object.__new__(DiscoveryWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.discovery_active_jobs = {
+            ("dataset_candidate_discovery", "provider_a", ""),
+            ("local_discovery_audit", "dry_run", ""),
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            DiscoveryWorkflowMixin.discover_provider_candidates_from_ui(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
+
     def test_dataset_candidate_discovery_is_single_flight_per_scope(self) -> None:
         ui = object.__new__(DiscoveryWorkflowMixin)
         ui.tr = lambda _zh, en: en
@@ -300,6 +315,22 @@ class TkDialogModuleTest(unittest.TestCase):
 
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
+
+    def test_dataset_candidate_discovery_blocks_when_discovery_queue_full(self) -> None:
+        ui = object.__new__(DiscoveryWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.selected_provider_ids = lambda: ("provider_c",)
+        ui.discovery_active_jobs = {
+            ("provider_discovery", "all", ""),
+            ("local_discovery_audit", "dry_run", ""),
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            DiscoveryWorkflowMixin.discover_dataset_candidates_from_ui(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
 
     def test_local_discovery_audit_uses_single_flight_job(self) -> None:
         ui = object.__new__(DiscoveryWorkflowMixin)
@@ -322,6 +353,21 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual((), thread_call.args)
         self.assertIn(("local_discovery_audit", "dry_run", ""), ui.discovery_active_jobs)
         self.assertIn("Auditing local discovery drafts", ui.status_var.value)
+
+    def test_local_discovery_audit_blocks_when_discovery_queue_full(self) -> None:
+        ui = object.__new__(DiscoveryWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.discovery_active_jobs = {
+            ("provider_discovery", "all", ""),
+            ("dataset_candidate_discovery", "provider_a", ""),
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            DiscoveryWorkflowMixin.audit_local_discovery_from_ui(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
 
     def test_source_action_metadata_crawl_uses_single_flight_job(self) -> None:
         ui = object.__new__(SourceActionWorkflowMixin)

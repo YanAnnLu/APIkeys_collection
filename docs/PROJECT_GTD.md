@@ -37,6 +37,7 @@ Last updated: 2026-05-29
 - [x] Tk crawler asset 背景工作已加 single-flight guard：seed 欄位探測、seed 下載 / 匯入、入口清單擷取、下載計畫建立會用 `(job_type, asset_id, dataset_uid)` 或 asset-level key 擋掉重複背景 thread，先降低連點造成的重複 worker、SQLite/download path 與 bounds dialog 競爭風險。
 - [x] Tk single-flight guard 已抽出可測 helper：`frontends/tk/background_jobs.py` 集中 active job set / lock / duplicate guard / release，不讓 `crawler_asset_workflows.py` 繼續吸收 scheduler 細節；其他 Tk workflow 後續可逐步共用同一個 bounded job pattern。
 - [x] Tk discovery workflow 已接上同一份 single-flight helper：provider candidate discovery、dataset candidate discovery 與 local discovery dry-run audit 會用 discovery active job set 擋掉重複 worker，避免連點造成重複 crawler audit、draft JSON 或 catalog/repository upsert 競爭。
+- [x] Tk discovery workflow 已補 capacity guard：provider candidate discovery、dataset candidate discovery 與 local discovery dry-run audit 同一 UI 同時最多 2 個 discovery/audit worker；超過時只更新 status，不開新 thread，降低連點與低算力設備的併發壓力。
 - [x] Tk source action metadata crawl 已接上同一份 single-flight helper：row action / selected provider metadata crawl 以 provider scope 做 job key，避免連點造成同一批 provider 重複 metadata crawler worker。
 - [x] Tk AI summary 產生說明已接上同一份 single-flight helper：同一 provider / AI profile 同時只會有一個 summary worker，避免連點造成重複雲端/本機 AI 呼叫與 repository notes 回寫競爭。
 - [x] Tk 匯入入口已加 SQLite path single-flight gate 與 capacity guard：下載結果匯入與本機檔案匯入共用同一 curated SQLite job key，且同一 UI 同時最多只允許 1 個 SQLite import worker；若 queue 已滿，Tk 會在 policy dialog / file picker 前先停下，避免連點、多入口或未來不同 SQLite 目標造成 DB lock / 重複匯入。實際 manifest/import/pipeline 規則仍留在後端。
