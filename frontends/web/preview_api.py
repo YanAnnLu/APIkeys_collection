@@ -19,7 +19,6 @@ from typing import Mapping
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundFormSpec,
     CrawlerAssetBoundPayload,
-    build_crawler_asset_bound_form_spec,
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_display import (
@@ -39,6 +38,7 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_plan_passport,
 )
 from api_launcher.crawler_asset_schema_probe import (
+    crawler_asset_bound_form_spec,
     crawler_asset_bound_form_schema_probe,
 )
 from api_launcher.crawler_asset_service import (
@@ -49,7 +49,7 @@ from api_launcher.crawler_asset_service import (
     crawler_seed_enumeration_payload,
     run_crawler_asset_listing,
 )
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
+from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
 from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
@@ -608,14 +608,12 @@ def crawler_asset_bound_form(
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
 ) -> CrawlerAssetBoundFormSpec:
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
-    plan_capability = next(
-        (capability for capability in asset.capabilities if capability.capability_id == BUILD_DOWNLOAD_PLAN),
-        None,
+    return crawler_asset_bound_form_spec(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
     )
-    bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
-    source = load_crawler_asset_source(asset_id, primary_path, local_path)
-    return build_crawler_asset_bound_form_spec(asset.asset_id, bounds_schema, source=source)
 
 
 def crawler_asset_payload_from_web_values(

@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 19:31 Web base bounds form delegation
+- 本輪延續 schema probe service consolidation：`frontends/web/preview_api.py::crawler_asset_bound_form()` 現在直接委託 `api_launcher.crawler_asset_schema_probe.crawler_asset_bound_form_spec()`，Web 不再自己讀 `BUILD_DOWNLOAD_PLAN` capability、載入 source、組 base form spec。
+- 這不改 Web route、payload shape、bounds form 欄位或 schema probe 行為；只是把 base bounds form 組裝邏輯一併收回 backend service module，讓 Web Preview 繼續保持薄 adapter。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py api_launcher\crawler_asset_schema_probe.py` OK；focused Web bounds/schema tests OK；`py -3 -B -m unittest tests.test_web_preview tests.test_crawler_assets -v` 87 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，856 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_192824.log`。
+
 ## 2026-05-28 19:18 Schema probe service consolidation
 - 本輪做 bounded consolidation：新增 `api_launcher/crawler_asset_schema_probe.py`，把 seed/resource URL 正規化、schema probe、bounds form spec 建立、probe enrichment、`next_action_label` payload 打包成 UI-neutral backend service。這讓 Web Preview / Tk / 未來 Qt 都能吃同一份 schema-probe contract。
 - `frontends/web/preview_api.py` 仍重新匯出 `crawler_asset_bound_form_schema_probe()`，所以現有 server route 與測試 import 不需要改；但 Web 不再保存 probe runner、timeout/row-limit bounded parsing、entry normalization、form enrichment 這些後端邏輯。
