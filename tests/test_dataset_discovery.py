@@ -49,6 +49,12 @@ from api_launcher.crawlers import (
     stac,
     zenodo,
 )
+from api_launcher.crawlers.registry import (
+    CrawlerCapabilityMask,
+    capability_code_for,
+    crawler,
+    crawler_specs_by_capability_mask,
+)
 from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
@@ -420,6 +426,47 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("optional_api_key", specs["socrata_catalog_search"].auth_profile)
         self.assertEqual("html", specs["html_file_index"].transport)
         self.assertEqual("layer_list", specs["ogc_wms_capabilities"].result_shape)
+
+    def test_crawler_capability_address_groups_existing_handlers(self) -> None:
+        index = dataset_sources.CRAWLER_CAPABILITY_INDEX
+
+        self.assertEqual(10, len(index[0b0000]))
+        self.assertIn("ckan_package_search", index[0b0000])
+        self.assertEqual(("socrata_catalog_search",), index[0b0010])
+        self.assertEqual(("erddap_all_datasets",), index[0b1000])
+        self.assertEqual(("html_file_index", "ogc_wms_capabilities"), index[0b1101])
+
+        specs = dataset_sources.CRAWLER_SPECS_BY_SOURCE_TYPE
+        self.assertEqual("0000", specs["ckan_package_search"].capability_binary)
+        self.assertEqual("0010", specs["socrata_catalog_search"].capability_binary)
+        self.assertEqual("1101", specs["html_file_index"].capability_binary)
+
+    def test_crawler_capability_mask_supports_prefix_queries(self) -> None:
+        catalog_json_mask = CrawlerCapabilityMask.from_prefix(0b0000, prefix_len=2)
+        source_types = {spec.source_type for spec in crawler_specs_by_capability_mask(catalog_json_mask)}
+
+        self.assertIn("ckan_package_search", source_types)
+        self.assertIn("socrata_catalog_search", source_types)
+        self.assertNotIn("html_file_index", source_types)
+        self.assertNotIn("erddap_all_datasets", source_types)
+
+        credential_mask = CrawlerCapabilityMask(bits=0b0010, mask=0b0010)
+        credential_types = {spec.source_type for spec in crawler_specs_by_capability_mask(credential_mask)}
+        self.assertEqual({"socrata_catalog_search"}, credential_types)
+
+    def test_crawler_capability_code_rejects_unknown_dimension(self) -> None:
+        with self.assertRaises(ValueError):
+            capability_code_for("unknown_family", "json", "none", "dataset_list")
+
+    def test_crawler_registry_rejects_duplicate_source_type(self) -> None:
+        with self.assertRaises(ValueError):
+            crawler(
+                source_type="ncei_search",
+                source_family="catalog_search",
+                transport="json",
+                auth_profile="none",
+                result_shape="dataset_list",
+            )(ncei_candidates_from_payload)  # type: ignore[arg-type]
 
     def test_ncei_payload_becomes_reviewable_dataset_candidate(self) -> None:
         source = DatasetDiscoverySource(

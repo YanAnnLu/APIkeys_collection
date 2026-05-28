@@ -62,6 +62,32 @@ main pipeline
 - 純邏輯的高維條件分支，若不需要人類直接填寫，優先留在 typed Python table / dataclass / tuple index / dict registry。這能保留型別、IDE、測試與 refactor 安全。
 - 不要因為「宣告式」就把所有邏輯搬進 YAML；檔案類型本身帶有人類使用語意。人類要填的用檔案；機器要快速分派的用 table / registry。
 
+## Crawler capability address PoC
+
+2026-05-28 已把「固定高維 table / mask」概念先落成 crawler registry 的輔助索引。這不是新 dispatcher，也不是第二套 source type 清單，而是在 `CrawlerSpec` 旁邊新增一個可遮罩查詢的 4-bit capability address。
+
+目前 4 個維度固定如下：
+
+```text
+bit 3: source surface      catalog/search = 0, index/capabilities = 1
+bit 2: transport           JSON = 0, text/markup/XML/HTML = 1
+bit 1: auth awareness      none/public = 0, credential-aware = 1
+bit 0: output shape        dataset list = 0, resource/layer links = 1
+```
+
+範例：
+
+```text
+0000 -> JSON catalog dataset list
+0010 -> credential-aware JSON catalog dataset list
+1000 -> JSON index scan dataset list
+1101 -> text/XML index or capabilities returning resource/layer links
+```
+
+這個索引的價值是把「四條以上分支」收束成可查表的能力膠囊：UI/debug 工具可以問「所有 JSON catalog crawler」或「所有 credential-aware crawler」，而不用重新寫 `if source_type == ...`。它仍保留現有 Python handler；handler 回傳值、warning、pagination metadata 仍走既有 `DatasetCrawlerOutput` contract。
+
+若未來 bit space 不夠，下一步不是硬塞更多魔法，而是版本化擴寬 address width，並用測試保證舊 code / mask 不漂移。人類可填的 provider/source/credential profile 仍適合放外部 JSON/YAML；純邏輯 route address 則優先留在 typed Python registry。
+
 ## 第一階段原則
 
 - 不把 13 個 crawler 一次重寫成 `universal_interpreter`。

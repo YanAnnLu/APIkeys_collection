@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 14:40 Crawler capability address / mask index
+- 本輪開始把使用者提出的 IPv4/CIDR 類比落成小型 PoC：在 `api_launcher/crawlers/registry.py` 內新增 4-bit `CrawlerCapabilityCode` 與 `CrawlerCapabilityMask`，用固定維度描述 crawler 分流能力，而不是把 source type 分支散回 UI 或 importer。
+- 目前 4 個位元的維度是：來源表面（catalog vs index/capabilities）、transport（JSON vs text/markup）、auth（none vs credential-aware）、輸出形狀（dataset list vs resource/layer links）。這是輔助索引，不取代 `CrawlerSpec`，也不改現有 14 個 handler 的行為。
+- 目前分組結果：`0000` 是一般 JSON catalog dataset list（NCEI/CKAN/CMR/STAC/GBIF/Dataverse/Zenodo/DataCite/OGC Records/OpenAlex）；`0010` 是 credential-aware JSON catalog（Socrata）；`1000` 是 JSON index scan（ERDDAP）；`1101` 是 text/XML index 或 capabilities 產生 resource/layer links（HTML file index、OGC WMS）。
+- 已補 focused tests：`tests.test_dataset_discovery` 驗證 4-bit 分組、prefix mask 查詢、credential mask 查詢、未知維度 fail-fast 與重複 source_type fail-fast。當前本地驗證：`py -3 -B -m unittest tests.test_dataset_discovery -v` 55 tests OK；`py -3 -B -m unittest tests.test_dataset_discovery tests.test_crawler_assets tests.test_web_preview -v` 140 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，840 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_144419.log`。尚未 push，後續需補 GitHub Actions 結果。
+
 ## 2026-05-28 14:09 Branch threshold / decorator dispatch / profile storage guard
 - 使用者補充準宣告式架構的三個邊界，本輪先收進文檔，不改產品程式碼。第一，`if/else` 適合 2 到 3 條人類可一眼讀懂的簡單分支；到 4 條路時已接近 `2 x 2` matrix，若再疊 source type、auth、pagination、content format、bounds facet 等維度，就應改用 table / registry / gateway 收束。
 - 第二，decorator 不只是語義標籤；在大量條件分支下，它可以是避免中心 `if/elif` 膨脹的註冊/分派寫法。`@crawler(...)` 應讓 handler 主動掛到 registry / matrix，再由 gateway 選路；但 decorator 不負責改寫 handler 回傳值，payload 包裝與狀態正規化仍在 normalizer 出口。

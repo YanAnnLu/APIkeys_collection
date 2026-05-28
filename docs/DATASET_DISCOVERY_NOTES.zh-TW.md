@@ -3,6 +3,8 @@
 ## 2026-05-28 CrawlerSpec registry compatibility layer
 
 - `api_launcher/crawlers/registry.py` 是第一版 crawler 宣告式規格表。它定義 `CrawlerSpec`、`@crawler(...)` decorator、`crawler_specs_by_source_type()` 與 `crawler_matrix()`，用來描述每個 handler 的來源家族、transport、auth profile、result shape 與是否支援 full crawl。
+- 同一個 registry 現在也提供 4-bit `CrawlerCapabilityCode` 與 `CrawlerCapabilityMask`。這是使用者提出的「固定高維 table / CIDR-style mask」概念的第一個小型落地：用來源表面、transport、auth、輸出形狀四個固定維度，替 14 個 handler 建立可遮罩查詢的能力位址。
+- 目前分組刻意保守：`0000` 是一般 JSON catalog dataset list；`0010` 是 credential-aware JSON catalog；`1000` 是 JSON index scan；`1101` 是 text/XML index 或 capabilities 產生 resource/layer links。這只是輔助索引，不改 crawler 行為，也不代表下載/匯入能力成熟度。
 - 這一層目前是相容層，不是重寫。14 個既有 crawler handler 仍保留原本 Python 函式與模組；`dataset_sources.py` 只是把它們註冊成 specs，再由 registry 生成既有 `SOURCE_CRAWLER_HANDLERS`。這能維持舊 API 與測試，同時讓下一步 gateway/profile 化有穩定入口。
 - `CrawlerCapabilityProfile` 已開始消費這份 registry metadata。Crawler asset payload 會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓前端與 agent 能讀 source capability contract，而不是從 raw `source_type` 猜能力。
 - 後續新增 crawler 時，應新增 handler + `CrawlerSpec` metadata，不要只把函式塞進鬆散 dict。等 registry 穩定後，再逐步把 `discover_dataset_candidate_output_for_source()` 的 dispatch 改成讀 spec/gateway，而不是一次性搬動所有 handler。

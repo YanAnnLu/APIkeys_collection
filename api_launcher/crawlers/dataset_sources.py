@@ -68,6 +68,7 @@ from api_launcher.crawlers.pagination import append_new_candidates, discovery_pa
 from api_launcher.crawlers.registry import (
     DatasetSourceCrawler,
     crawler,
+    crawler_capability_index,
     crawler_handlers_by_source_type,
     crawler_matrix,
     crawler_specs,
@@ -196,6 +197,7 @@ SOURCE_CRAWLER_HANDLERS: dict[str, DatasetSourceCrawler] = crawler_handlers_by_s
 SUPPORTED_DATASET_SOURCE_TYPES = tuple(SOURCE_CRAWLER_HANDLERS)
 CRAWLER_SPECS_BY_SOURCE_TYPE = crawler_specs_by_source_type()
 CRAWLER_SPEC_MATRIX = crawler_matrix()
+CRAWLER_CAPABILITY_INDEX = crawler_capability_index()
 CRAWLER_SPECS = crawler_specs()
 
 
