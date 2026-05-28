@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 04:26 Download plan callback diagnostics surface
+- 本輪把 `DownloadPlanRunResult.callback_errors` 往外接到 CLI/event surface：`download_plan_executed` structured event 現在會記錄 `callback_error_count` 與前 5 筆 `callback_errors` 預覽。
+- `render_download_import_cli_lines()` 現在會在 callback diagnostics 存在時輸出 `[download-plan] callback_errors=N` 與逐筆 callback diagnostic；這仍是 observer/UI diagnostics，不把成功下載改成 failed。
+- 新增 `tests/test_download_plan_runner.py::test_cli_render_lines_include_callback_diagnostics`，並在 `test_cli_emits_download_plan_json_summary` 鎖住 event context 的 callback diagnostics 欄位。
+- 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\cli_download_plan.py api_launcher\ingestion_pipeline.py tests\test_download_plan_runner.py` OK；`py -3 -B -m unittest tests.test_download_plan_runner -v` 13 tests OK；`py -3 -B -m unittest tests.test_download_jobs tests.test_download_plan_runner -v` 16 tests OK；`py -3 -B -m unittest tests.test_handoff -v` 21 tests OK；`git diff --check` OK；相關 source/docs mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，897 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_042759.log`。
+- Docs drift check：本輪改 CLI/event diagnostics payload 與 CLI 摘要，不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 04:12 Download plan callback diagnostics
 - 本輪把 queue callback isolation 的診斷出口接到 `api_launcher/downloads/plan_runner.py`：`DownloadPlanRunResult` 新增 `callback_errors`，`to_dict()` 也會輸出同欄位。
 - `run_download_plan_payload()` 會在 queue shutdown 前讀取 `queue.callback_error_snapshot()`；progress callback 失敗會進入 diagnostics，但不會增加 `failed`，也不會把已完成下載改成失敗。

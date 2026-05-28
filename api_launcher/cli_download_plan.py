@@ -62,6 +62,11 @@ def run_download_plan_cli(args: argparse.Namespace, repository: ApiCatalogReposi
             "import_failed": run.result.import_failed,
             "skip_summary": run.result.skip_summary,
             "error_count": len(run.result.errors),
+            "callback_error_count": len(run.result.callback_errors),
+            # Callback errors are observer/UI diagnostics. Keep a bounded
+            # preview in event logs so handoff can flag them without turning a
+            # successful download into a failed pipeline run.
+            "callback_errors": list(run.result.callback_errors[:5]),
         },
     )
     if args.run_download_plan_json:

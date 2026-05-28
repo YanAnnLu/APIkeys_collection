@@ -17,8 +17,9 @@ from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.db import connect_db
-from api_launcher.downloads.plan_runner import run_download_plan_payload
+from api_launcher.downloads.plan_runner import DownloadPlanRunResult, run_download_plan_payload
 from api_launcher.downloads.policy import PoliteDownloadPolicy
+from api_launcher.ingestion_pipeline import DownloadImportPipelineRun, render_download_import_cli_lines
 from api_launcher.repository import ApiCatalogRepository
 
 
@@ -246,6 +247,28 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual("download_completed", logged_context["stage"])
         self.assertEqual(1, logged_context["completed"])
         self.assertEqual({"adapter_required": 1}, logged_context["skip_summary"])
+        self.assertEqual(0, logged_context["callback_error_count"])
+        self.assertEqual([], logged_context["callback_errors"])
+
+    def test_cli_render_lines_include_callback_diagnostics(self) -> None:
+        run = DownloadImportPipelineRun(
+            result=DownloadPlanRunResult(
+                entry_count=1,
+                submitted=1,
+                completed=1,
+                failed=0,
+                skipped=0,
+                registered_assets=1,
+                callback_errors=("job-1 broken_callback: RuntimeError: ui callback down",),
+            ),
+            stage="download_completed",
+            import_requested=False,
+        )
+
+        lines = render_download_import_cli_lines(run)
+
+        self.assertIn("[download-plan] callback_errors=1", lines)
+        self.assertIn("[download-plan] callback_error job-1 broken_callback: RuntimeError: ui callback down", lines)
 
     def test_cli_can_import_supported_plan_results_after_download(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture(CSV_BYTES) as url:

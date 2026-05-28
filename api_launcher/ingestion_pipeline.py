@@ -297,4 +297,7 @@ def render_download_import_cli_lines(run: DownloadImportPipelineRun) -> list[str
     if run.next_action:
         lines.append(f"[download-plan] next_action={run.next_action}")
     lines.extend(f"[download-plan] error {error}" for error in result.errors)
+    if result.callback_errors:
+        lines.append(f"[download-plan] callback_errors={len(result.callback_errors)}")
+        lines.extend(f"[download-plan] callback_error {error}" for error in result.callback_errors)
     return lines
