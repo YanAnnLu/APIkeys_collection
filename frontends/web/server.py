@@ -90,6 +90,7 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         path = parsed.path
         try:
             if path == "/api/diagnostics/real-download-demo":
+                self.discard_request_body()
                 self.write_json(developer_real_download_demo())
                 return
             if path.startswith("/api/crawler-assets/"):
@@ -128,6 +129,7 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                     values = self.read_json_body()
                     self.write_json(save_crawler_asset_seed_favorite(asset_id, values))
                     return
+            self.discard_request_body()
             self.write_error(HTTPStatus.NOT_FOUND, "unknown endpoint")
         except KeyError as exc:
             self.write_error(HTTPStatus.NOT_FOUND, str(exc))
@@ -155,6 +157,13 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         if not isinstance(payload, dict):
             raise ValueError("JSON body must be an object")
         return payload
+
+    def discard_request_body(self) -> None:
+        """Drain unused POST bodies before sending short local JSON responses."""
+
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length > 0:
+            self.rfile.read(length)
 
     def serve_static(self, path: str) -> None:
         if path in {"", "/"}:

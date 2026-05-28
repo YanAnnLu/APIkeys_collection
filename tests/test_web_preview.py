@@ -66,14 +66,13 @@ def post_json_to_preview_server(
     path: str,
     payload: dict[str, object] | None = None,
     *,
-    retries: int = 3,
+    retries: int = 0,
 ) -> tuple[int, dict[str, object]]:
-    """POST JSON to the local preview server with bounded Windows socket retry.
+    """POST JSON to the local preview server with optional socket retry.
 
-    A few Windows hosts occasionally abort a localhost connection immediately
-    after the preview server writes a short 404 response.  Retrying keeps this
-    route-removal regression focused on HTTP status/body instead of a local
-    socket flake.
+    Retry is intentionally opt-in because POST endpoints can have side effects.
+    Use it only for route-removal or other idempotent diagnostics where a
+    duplicate request cannot run a real workflow twice.
     """
 
     body = json.dumps(payload or {}).encode("utf-8")
@@ -220,6 +219,7 @@ class WebPreviewApiTest(unittest.TestCase):
                         host,
                         port,
                         "/api/demo/real-download",
+                        retries=3,
                     )
             finally:
                 server.shutdown()
