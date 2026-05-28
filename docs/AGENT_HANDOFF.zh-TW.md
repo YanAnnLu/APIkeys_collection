@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 18:xx Tk seed job single-flight guard
+- 本輪做 bounded scheduler/consolidation 小切片：`frontends/tk/crawler_asset_workflows.py` 新增 `_start_crawler_asset_background_job()` / `_release_crawler_asset_background_job()`，用 `(job_type, asset_id, dataset_uid)` 登記 active Tk 背景任務。同一 seed 的欄位探測或 seed download/import 已在執行時，Tk 不再重複開 `threading.Thread`，而是回報「already running」狀態。
+- 這不是全面改 async/await，也不改後端 `api_launcher` 下載、匯入、schema probe 或 crawler 行為；只是先在 Tk 薄殼上加 single-flight guard，降低連點造成的重複 worker、SQLite path / download path 競爭與對話框狀態混亂風險。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；targeted 3 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 71 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_web_preview tests.test_crawler_assets -v` 157 tests OK；docs/Tk mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，849 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_180047.log`。仍待 commit/push/CI。
+
 ## 2026-05-28 18:xx Web Preview Windows socket hardening
 - `a862a7c Move seed enumeration display into profile` 已推送，但 GitHub Actions run `26567064570` 的 Windows job 在 `tests.test_web_preview.WebPreviewApiTest.test_real_download_demo_route_is_developer_diagnostic_only` 發生 localhost 404 短 JSON 回應讀取中斷：`ConnectionAbortedError: [WinError 10053]`。Ubuntu 與 real DB smoke 已通過，失敗點集中在 Web Preview 測試/HTTP close contract，不是 seed enumeration display refactor 本身。
 - 本輪後續修補 Web Preview JSON response close semantics：`frontends/web/server.py` 的 `write_json()` 現在對 JSON/錯誤回應明確送出 `Connection: close`、flush body，並設定 `close_connection = True`；`tests/test_web_preview.py` 的 preview POST helper 也送出 `Connection: close` 並使用 bounded retry，避免 Windows runner 的 localhost/host security software 在短 404 body 上造成 flaky failure。

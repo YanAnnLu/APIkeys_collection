@@ -27,6 +27,7 @@ Last updated: 2026-05-28
 - [x] Tk Seed 清單 dialog 已接上同一條 schema/head probe：選一筆 seed 後按「探測欄位」，Tk 會背景呼叫 `probe_plan_entry_schema()`，用 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 回填界域表單，並把使用者套用後的 bounds payload 暫存給後續 seed download/import。
 - [x] Seed enumeration 顯示 contract 已從 service 抽到 `crawler_asset_display.py`：service 只負責判斷 blocked/error/empty/local-limit/warning/within-limits/sample 狀態，Tk/Web/未來 Qt 繼續讀同一份 `seed_enumeration` payload，不在 UI 端重建枚舉完成度與本機上限判斷。
 - [x] Web Preview JSON response close contract 已補強：Windows GitHub Actions 曾在 developer-only legacy 404 route 測試讀短 JSON body 時遇到 `ConnectionAbortedError: [WinError 10053]`；server 現在明確回 `Connection: close`、flush body 並關閉 preview 連線，測試 helper 也使用 close header 與 bounded retry。
+- [x] Tk seed 欄位探測與 seed 下載 / 匯入已加 single-flight guard：同一 `(job_type, asset_id, dataset_uid)` 已在執行時不再重複開背景 thread，先降低連點造成的重複 worker 與 SQLite/download path 競爭風險。
 - [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

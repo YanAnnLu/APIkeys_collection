@@ -76,6 +76,59 @@ class CrawlerAssetWorkflowMixin:
     seed download/import.
     """
 
+    def _start_crawler_asset_background_job(
+        self,
+        job_key: tuple[str, str, str],
+        target: Callable[..., None],
+        args: tuple[object, ...],
+        *,
+        duplicate_status_zh: str,
+        duplicate_status_en: str,
+    ) -> bool:
+        """Start one bounded crawler-asset worker unless that job is active.
+
+        Tk remains a thin shell, but it still needs a small single-flight guard:
+        repeated clicks on the same seed should not spawn parallel probe/download
+        jobs that compete for the same files, SQLite path, or user dialog state.
+        """
+
+        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
+        if not isinstance(active_jobs, set):
+            active_jobs = set()
+            self.crawler_asset_active_jobs = active_jobs
+        active_jobs_lock = getattr(self, "crawler_asset_active_jobs_lock", None)
+        if active_jobs_lock is None:
+            active_jobs_lock = threading.Lock()
+            self.crawler_asset_active_jobs_lock = active_jobs_lock
+
+        with active_jobs_lock:
+            if job_key in active_jobs:
+                self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en))
+                return False
+            active_jobs.add(job_key)
+
+        def runner(*worker_args: object) -> None:
+            try:
+                target(*worker_args)
+            finally:
+                self._release_crawler_asset_background_job(job_key)
+
+        threading.Thread(target=runner, args=args, daemon=True).start()
+        return True
+
+    def _release_crawler_asset_background_job(self, job_key: tuple[str, str, str]) -> None:
+        """Release a previously registered crawler-asset worker key."""
+
+        active_jobs = getattr(self, "crawler_asset_active_jobs", None)
+        if not isinstance(active_jobs, set):
+            return
+        active_jobs_lock = getattr(self, "crawler_asset_active_jobs_lock", None)
+        if active_jobs_lock is None:
+            active_jobs.discard(job_key)
+            return
+        with active_jobs_lock:
+            active_jobs.discard(job_key)
+
     def _build_crawler_asset_tab(self, parent: ttk.Frame, outer_pad: int) -> None:
         # 這個分頁只呈現入口爬蟲資產，不直接塞來源特例，避免 Tk 再變成巨型流程檔。
         toolbar = ttk.Frame(parent, style="App.TFrame")
@@ -847,17 +900,20 @@ class CrawlerAssetWorkflowMixin:
         if not bounds_schema:
             self.status_var.set(self.tr("這個爬蟲資產沒有可探測的界域表單。", "This crawler asset has no bounds form to enrich."))
             return
-        self.status_var.set(
-            self.tr(
-                f"正在探測 seed 欄位：{dataset_uid}",
-                f"Probing seed fields: {dataset_uid}",
-            )
+        started = self._start_crawler_asset_background_job(
+            ("seed_schema_probe", asset.asset_id, dataset_uid),
+            self._crawler_asset_seed_schema_probe_worker,
+            (asset.asset_id, dataset_uid, dict(entry), tuple(bounds_schema)),
+            duplicate_status_zh=f"Seed 欄位探測已在執行：{dataset_uid}",
+            duplicate_status_en=f"Seed field probe is already running: {dataset_uid}",
         )
-        threading.Thread(
-            target=self._crawler_asset_seed_schema_probe_worker,
-            args=(asset.asset_id, dataset_uid, dict(entry), tuple(bounds_schema)),
-            daemon=True,
-        ).start()
+        if started:
+            self.status_var.set(
+                self.tr(
+                    f"正在探測 seed 欄位：{dataset_uid}",
+                    f"Probing seed fields: {dataset_uid}",
+                )
+            )
 
     def _crawler_asset_seed_schema_probe_worker(
         self,
@@ -959,17 +1015,20 @@ class CrawlerAssetWorkflowMixin:
             )
             return
         bounds_payload = self.crawler_asset_bound_payload_for_asset(asset.asset_id)
-        self.status_var.set(
-            self.tr(
-                f"正在下載 / 匯入 seed：{dataset_uid}",
-                f"Downloading / importing seed: {dataset_uid}",
-            )
+        started = self._start_crawler_asset_background_job(
+            ("seed_download_import", asset.asset_id, dataset_uid),
+            self._crawler_asset_seed_download_import_worker,
+            (asset.asset_id, dataset_uid, bounds_payload),
+            duplicate_status_zh=f"Seed 下載 / 匯入已在執行：{dataset_uid}",
+            duplicate_status_en=f"Seed download/import is already running: {dataset_uid}",
         )
-        threading.Thread(
-            target=self._crawler_asset_seed_download_import_worker,
-            args=(asset.asset_id, dataset_uid, bounds_payload),
-            daemon=True,
-        ).start()
+        if started:
+            self.status_var.set(
+                self.tr(
+                    f"正在下載 / 匯入 seed：{dataset_uid}",
+                    f"Downloading / importing seed: {dataset_uid}",
+                )
+            )
 
     def crawler_asset_bound_payload_for_asset(self, asset_id: str) -> CrawlerAssetBoundPayload | None:
         """Return the latest bounds payload captured by the Tk bounds dialog."""

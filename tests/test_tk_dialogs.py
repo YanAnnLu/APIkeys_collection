@@ -1086,6 +1086,55 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual({"limit": 5}, thread_call.args[2].facet_values)
         self.assertIn("Downloading / importing seed", ui.status_var.value)
 
+    def test_seed_background_jobs_are_single_flight_per_seed_action(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_active_jobs = {("seed_download_import", "demo_index", "demo_provider:seed_1")}
+
+        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+            CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
+                ui,
+                asset,
+                dataset_uid="demo_provider:seed_1",
+            )
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
+    def test_seed_schema_probe_is_single_flight_per_seed(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_active_jobs = {("seed_schema_probe", "demo_stac", "demo_provider:seed_1")}
+
+        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+            CrawlerAssetWorkflowMixin.run_crawler_asset_seed_schema_probe_from_ui(
+                ui,
+                asset,
+                dataset_uid="demo_provider:seed_1",
+                entry={"api_url": "https://example.test/api.json"},
+            )
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_credential_dialog_payload_keeps_values_and_clear_flags_separate(self) -> None:
         payload = crawler_asset_credential_edit_payload(
             {"EARTHDATA_TOKEN": " token-secret ", "FRED_API_KEY": ""},
