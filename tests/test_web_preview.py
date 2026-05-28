@@ -53,6 +53,7 @@ from frontends.web.preview_api import (
     save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
+    web_project_maturity,
     web_preview_recent_events,
     web_preview_status,
 )
@@ -114,6 +115,17 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("warning", summary["empty_case_status"])
         self.assertEqual("pass", summary["candidate_case_status"])
         self.assertNotIn("source_results", json.dumps(payload, ensure_ascii=False))
+
+    def test_web_project_maturity_exposes_backend_display_profile(self) -> None:
+        with TemporaryDirectory() as tmp:
+            payload = web_project_maturity(db_path=Path(tmp) / "web_preview.sqlite")
+
+        rows = {row["area_id"]: row for row in payload["rows"]}
+        renderer = rows["renderer_unreal_simulation"]
+        self.assertEqual("contract_only", renderer["maturity_level"])
+        self.assertEqual("🚧", renderer["status_icon"])
+        self.assertEqual("review", renderer["display_tone"])
+        self.assertEqual("施工中 / 合約", renderer["display_label"])
 
     def test_web_real_download_demo_plan_uses_public_csv_import_contract(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -217,6 +229,30 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(body["developer_only"])
         self.assertEqual(404, legacy_status)
         self.assertEqual(404, legacy_body["status"])
+
+    def test_server_routes_project_maturity(self) -> None:
+        with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+            host, port = server.server_address
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "frontends.web.server.web_project_maturity",
+                    return_value={"matrix_version": "test", "rows": [{"area_id": "renderer", "status_icon": "🚧"}]},
+                ) as maturity:
+                    conn = http.client.HTTPConnection(host, port, timeout=5)
+                    conn.request("GET", "/api/project-maturity", headers={"Connection": "close"})
+                    response = conn.getresponse()
+                    body = json.loads(response.read().decode("utf-8"))
+                    conn.close()
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+        maturity.assert_called_once_with()
+        self.assertEqual(200, response.status)
+        self.assertEqual("test", body["matrix_version"])
+        self.assertEqual("🚧", body["rows"][0]["status_icon"])
 
     def test_server_routes_bounds_form_schema_probe(self) -> None:
         with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
@@ -1416,7 +1452,12 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("passport.stale_label || passport.stale_reason", combined)
         self.assertNotIn("計畫需重建：${passport.stale_reason", combined)
         self.assertIn('data-workspace="downloader"', combined)
+        self.assertIn('data-workspace="maturity"', combined)
         self.assertIn("downloaderQueue", combined)
+        self.assertIn("maturityGrid", combined)
+        self.assertIn("renderMaturityWorkspace", combined)
+        self.assertIn("/api/project-maturity", combined)
+        self.assertIn("🚧", combined)
         self.assertIn("reviewSummary", combined)
         self.assertIn("eventList", combined)
         self.assertIn("eventRefreshButton", combined)
@@ -1440,6 +1481,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("plan-passport-panel", styles)
         self.assertIn("queue-grid", styles)
         self.assertIn("review-summary", styles)
+        self.assertIn("maturity-grid", styles)
+        self.assertIn("maturity-card", styles)
         self.assertIn("event-row", styles)
         self.assertIn("@media (max-width: 980px)", styles)
         self.assertIn("中寬度仍要保留中文標籤", styles)

@@ -153,6 +153,109 @@ code {
   line-height: 1.6;
 }
 
+.maturity-summary {
+  margin-top: 12px;
+}
+
+.maturity-summary-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 20, 31, 0.72);
+}
+
+.maturity-summary-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.maturity-summary-card p {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.maturity-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.maturity-card {
+  min-height: 188px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 24, 37, 0.78);
+}
+
+.maturity-card.success {
+  border-color: rgba(71, 210, 143, 0.46);
+}
+
+.maturity-card.warning {
+  border-color: rgba(255, 193, 94, 0.5);
+}
+
+.maturity-card.danger {
+  border-color: rgba(255, 102, 102, 0.52);
+}
+
+.maturity-card-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.maturity-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 18px;
+}
+
+.maturity-card-head strong,
+.maturity-card-head span,
+.maturity-card p,
+.maturity-card li,
+.maturity-card footer {
+  overflow-wrap: anywhere;
+}
+
+.maturity-card-head span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.maturity-card p,
+.maturity-card li,
+.maturity-card footer {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.maturity-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.maturity-card footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
 .sidebar-heading {
   display: flex;
   align-items: center;

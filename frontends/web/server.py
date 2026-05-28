@@ -27,6 +27,7 @@ from frontends.web.preview_api import (
     developer_real_download_demo,
     save_crawler_asset_credentials,
     save_crawler_asset_seed_favorite,
+    web_project_maturity,
     web_preview_recent_events,
     web_preview_status,
 )
@@ -47,6 +48,9 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/crawler-assets":
                 self.write_json(crawler_asset_cards())
+                return
+            if path == "/api/project-maturity":
+                self.write_json(web_project_maturity())
                 return
             if path == "/api/events/recent":
                 query = parse_qs(parsed.query)

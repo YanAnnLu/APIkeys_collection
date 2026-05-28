@@ -62,6 +62,7 @@ from api_launcher.local_credentials import (
     update_crawler_asset_credentials,
 )
 from api_launcher.paths import default_local_downloads_root, state_file
+from api_launcher.project_maturity import build_project_maturity_payload
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.web_real_download_demo import run_web_real_download_demo
 
@@ -81,6 +82,21 @@ def web_preview_status() -> dict[str, object]:
         "purpose": "uiux_review",
         "business_logic_owner": "api_launcher",
     }
+
+
+def web_project_maturity(*, db_path: str | Path | None = None) -> dict[str, object]:
+    """Return the maturity matrix for the Web Preview maturity tab.
+
+    The matrix itself is owned by `api_launcher.project_maturity`; Web only
+    exposes the payload so the browser can show construction/contract surfaces
+    without re-implementing maturity rules.
+    """
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    with contextlib.closing(connect_db(target_db)) as conn:
+        repository = ApiCatalogRepository(conn)
+        repository.init_schema()
+        return build_project_maturity_payload(repository, db_path=target_db)
 
 
 def crawler_handler_smoke_diagnostics() -> dict[str, object]:

@@ -21,6 +21,7 @@
           <button class="active" type="button" data-workspace="assets">爬蟲資產</button>
           <button type="button" data-workspace="downloader">下載器</button>
           <button type="button" data-workspace="review">匯入審核</button>
+          <button type="button" data-workspace="maturity">成熟度</button>
           <button type="button" data-workspace="events">事件紀錄</button>
         </nav>
 
@@ -178,6 +179,19 @@
           </div>
           <p class="workspace-note">審核分頁顯示最近一次建立下載計畫所回傳的 adapter review 與 content parser 待辦，避免把審核資訊藏在 JSON 區。</p>
           <div id="reviewSummary" class="review-summary"></div>
+        </section>
+
+        <section id="maturityWorkspace" class="workspace-surface workspace-panel hidden" data-workspace-panel="maturity" aria-label="成熟度矩陣">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">Maturity Matrix</span>
+              <h2>成熟度矩陣</h2>
+            </div>
+            <button id="maturityRefreshButton" class="ghost-button small" type="button">讀取成熟度</button>
+          </div>
+          <p class="workspace-note">這裡直接呈現後端成熟度矩陣；<code>🚧</code> 代表 contract-only、planned 或尚未可交付的能力，不應被當成正式功能。</p>
+          <div id="maturitySummary" class="maturity-summary"></div>
+          <div id="maturityGrid" class="maturity-grid"></div>
         </section>
 
         <section id="eventWorkspace" class="workspace-surface workspace-panel hidden" data-workspace-panel="events" aria-label="事件紀錄">

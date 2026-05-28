@@ -18,6 +18,7 @@ let activeWorkspace = "assets";
 let latestAdapterReview = null;
 let recentEvents = [];
 let missions = [];
+let projectMaturity = null;
 let crawlerAssetDownloadImportResult = null;
 const assetPlanOutcomes = new Map();
 const assetPlanPassports = new Map();
@@ -63,6 +64,9 @@ const downloaderRefreshButton = document.querySelector("#downloaderRefreshButton
 const downloaderQueue = document.querySelector("#downloaderQueue");
 const reviewReturnButton = document.querySelector("#reviewReturnButton");
 const reviewSummary = document.querySelector("#reviewSummary");
+const maturityRefreshButton = document.querySelector("#maturityRefreshButton");
+const maturitySummary = document.querySelector("#maturitySummary");
+const maturityGrid = document.querySelector("#maturityGrid");
 const eventRefreshButton = document.querySelector("#eventRefreshButton");
 const eventList = document.querySelector("#eventList");
 
@@ -76,6 +80,7 @@ workspaceButtons.forEach((button) => button.addEventListener("click", () => show
 crawlerAssetDownloadButton.addEventListener("click", () => runCrawlerAssetDownloadImportById(selectedAssetId));
 downloaderRefreshButton.addEventListener("click", renderDownloaderWorkspace);
 reviewReturnButton.addEventListener("click", () => showWorkspace("assets"));
+maturityRefreshButton.addEventListener("click", () => loadProjectMaturity());
 eventRefreshButton.addEventListener("click", () => loadRecentEvents());
 
 loadAssets();
@@ -91,6 +96,7 @@ async function loadAssets(options = {}) {
     const health = await getJson("/api/health");
     const payload = await getJson("/api/crawler-assets");
     assets = payload.assets || [];
+    await loadProjectMaturity({ quiet: true });
     selectedSourceType = selectedSourceTypeStillExists() ? selectedSourceType : "all";
     renderOverview(health);
     renderHealthFilter();
@@ -213,9 +219,71 @@ function showWorkspace(name) {
     renderDownloaderWorkspace();
   } else if (activeWorkspace === "review") {
     renderReviewWorkspace();
+  } else if (activeWorkspace === "maturity") {
+    loadProjectMaturity({ quiet: true });
   } else if (activeWorkspace === "events") {
     loadRecentEvents({ quiet: true });
   }
+}
+
+async function loadProjectMaturity(options = {}) {
+  if (!maturityGrid || !maturitySummary) return;
+  try {
+    projectMaturity = await getJson("/api/project-maturity");
+    renderMaturityWorkspace();
+    if (!options.quiet) {
+      addMission("成熟度矩陣已讀取", projectMaturity.matrix_version || "project maturity");
+      writeJson(projectMaturity);
+    }
+  } catch (error) {
+    maturitySummary.innerHTML = `<div class="empty-state wide"><strong>成熟度讀取失敗</strong><p>${escapeHtml(String(error))}</p></div>`;
+    if (!options.quiet) writeJson({ error: String(error), endpoint: "project_maturity" });
+  }
+}
+
+function renderMaturityWorkspace() {
+  if (!maturityGrid || !maturitySummary) return;
+  const payload = projectMaturity || {};
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+  const closure = payload.canonical_delivery_scope || {};
+  maturitySummary.innerHTML = `
+    <section class="maturity-summary-card">
+      <span class="eyebrow">Delivery Scope</span>
+      <strong>${escapeHtml(String(closure.closure_percent ?? "unknown"))}% / ${escapeHtml(closure.status || "unknown")}</strong>
+      <p>${escapeHtml(payload.answer_template_zh_TW || payload.reporting_rule || "請使用成熟度矩陣，不要用單一百分比描述整體產品。")}</p>
+    </section>
+  `;
+  if (!rows.length) {
+    maturityGrid.innerHTML = `
+      <div class="empty-state wide">
+        <strong>尚無成熟度列</strong>
+        <p>後端沒有回傳 rows；請檢查 project maturity JSON。</p>
+      </div>
+    `;
+    return;
+  }
+  maturityGrid.innerHTML = rows.map((row) => maturityCardHtml(row)).join("");
+}
+
+function maturityCardHtml(row) {
+  const tone = toneClass(row.display_tone || row.display_profile?.display_tone || "neutral");
+  const icon = row.status_icon || row.display_profile?.status_icon || "?";
+  const limitations = Array.isArray(row.current_limitations) ? row.current_limitations : [];
+  const nextActions = Array.isArray(row.next_actions) ? row.next_actions : [];
+  return `
+    <article class="maturity-card ${tone}">
+      <div class="maturity-card-head">
+        <span class="maturity-icon" aria-hidden="true">${escapeHtml(icon)}</span>
+        <div>
+          <strong>${escapeHtml(row.area_label || row.area_id || "maturity area")}</strong>
+          <span>${escapeHtml(row.display_label || row.maturity_label_zh_TW || row.maturity_level || "unknown")}</span>
+        </div>
+      </div>
+      <p>${escapeHtml(row.deliverable_scope || "")}</p>
+      ${limitations.length ? `<ul>${limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+      ${nextActions.length ? `<footer>${escapeHtml(nextActions[0])}</footer>` : ""}
+    </article>
+  `;
 }
 
 function renderDownloaderWorkspace() {
