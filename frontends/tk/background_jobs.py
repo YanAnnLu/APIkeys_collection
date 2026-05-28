@@ -23,14 +23,22 @@ def start_single_flight_thread(
     active_jobs_attr: str,
     active_jobs_lock_attr: str,
     on_duplicate: Callable[[], None],
+    max_active_jobs: int | None = None,
+    on_capacity: Callable[[], None] | None = None,
 ) -> bool:
-    """Start a daemon thread unless the key is already active on ``owner``."""
+    """Start a daemon thread unless the key or owner is already saturated."""
 
     active_jobs = _active_job_set(owner, active_jobs_attr)
     active_jobs_lock = _active_job_lock(owner, active_jobs_lock_attr)
     with active_jobs_lock:
         if job_key in active_jobs:
             on_duplicate()
+            return False
+        if max_active_jobs is not None and len(active_jobs) >= max_active_jobs:
+            if on_capacity is not None:
+                on_capacity()
+            else:
+                on_duplicate()
             return False
         active_jobs.add(job_key)
 

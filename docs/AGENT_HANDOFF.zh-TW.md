@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 05:10 Tk crawler asset background capacity guard
+- 本輪在 `frontends/tk/background_jobs.py` 的 `start_single_flight_thread()` 補 `max_active_jobs` / `on_capacity`，讓同一 owner 不只擋同 key duplicate，也能在不同 key 背景工作太多時拒絕開新 daemon thread。
+- `CrawlerAssetWorkflowMixin._start_crawler_asset_background_job()` 先把 crawler asset 分頁的並行背景工作上限設為 `MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4`；超過時只更新 status「爬蟲資產背景工作已達上限，請等目前工作完成」，不再開新 worker。
+- 這是 bounded scheduler consolidation 的小步：不改 crawler/listing/schema probe/seed download/import service，不導入 asyncio，只先降低連點或多 seed 操作造成的無限制 thread / SQLite path 競爭風險。
+- 新增 `tests/test_tk_background_jobs.py::test_start_single_flight_thread_rejects_capacity_before_spawning_thread`。
+- 已驗證：in-memory compile `frontends\tk\background_jobs.py` / `frontends\tk\crawler_asset_workflows.py` / `tests\test_tk_background_jobs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 102 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，899 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_051203.log`。
+- Docs drift check：本輪改 Tk crawler asset 背景工作 capacity guard；已同步 GTD、handoff 與 development log，user guide 不需更新，因操作入口未改。
+
 ## 2026-05-29 04:57 Web/Tk callback diagnostics visible surface
 - 本輪把上一個 checkpoint 的 backend `callback_diagnostics` 顯示契約接到 Web / Tk：Web download/import result row 會顯示 `進度回報有警告` chip、下一步與前兩筆 callback error preview，並在 mission list 補一筆 callback diagnostics mission；Tk seed download/import completion message 也會把 callback warning 與「檢查事件紀錄或 UI 進度回報」寫進 message body。
 - 前端不重新判斷 callback error 是否代表下載失敗，只消費 backend `callback_diagnostics.display_label` / `next_action_label` / `errors`；成功 download/import 仍維持成功，callback diagnostics 只是 observer/UI progress warning。

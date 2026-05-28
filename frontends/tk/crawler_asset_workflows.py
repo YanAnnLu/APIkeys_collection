@@ -71,6 +71,8 @@ from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 from frontends.tk.ui_helpers import crawler_seed_download_import_target_paths, crawler_seed_download_import_ui_message
 
+MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
+
 
 class CrawlerAssetWorkflowMixin:
     """爬蟲資產分頁：先管理入口與能力，再把任務交給下載器。
@@ -104,6 +106,13 @@ class CrawlerAssetWorkflowMixin:
             active_jobs_attr="crawler_asset_active_jobs",
             active_jobs_lock_attr="crawler_asset_active_jobs_lock",
             on_duplicate=lambda: self.status_var.set(self.tr(duplicate_status_zh, duplicate_status_en)),
+            max_active_jobs=MAX_CRAWLER_ASSET_BACKGROUND_JOBS,
+            on_capacity=lambda: self.status_var.set(
+                self.tr(
+                    "爬蟲資產背景工作已達上限，請等目前工作完成。",
+                    "Crawler asset background jobs are at capacity; wait for one to finish.",
+                )
+            ),
         )
 
     def _crawler_asset_background_job_is_active(

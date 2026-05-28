@@ -62,6 +62,33 @@ class TkBackgroundJobTests(unittest.TestCase):
         self.assertEqual(["duplicate"], duplicate_calls)
         thread_class.assert_not_called()
 
+    def test_start_single_flight_thread_rejects_capacity_before_spawning_thread(self) -> None:
+        owner = SimpleNamespace(
+            active_jobs={
+                ("seed_schema_probe", "asset_a", "seed_1"),
+                ("seed_download_import", "asset_b", "seed_2"),
+            },
+            active_jobs_lock=threading.Lock(),
+        )
+        calls: list[str] = []
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            started = start_single_flight_thread(
+                owner,
+                ("asset_listing", "asset_c", ""),
+                lambda: calls.append("ran"),
+                (),
+                active_jobs_attr="active_jobs",
+                active_jobs_lock_attr="active_jobs_lock",
+                on_duplicate=lambda: calls.append("duplicate"),
+                max_active_jobs=2,
+                on_capacity=lambda: calls.append("capacity"),
+            )
+
+        self.assertFalse(started)
+        self.assertEqual(["capacity"], calls)
+        thread_class.assert_not_called()
+
     def test_active_and_release_helpers_are_safe_without_lock(self) -> None:
         job_key = ("asset_download_plan", "demo_asset", "")
         owner = SimpleNamespace(active_jobs={job_key})

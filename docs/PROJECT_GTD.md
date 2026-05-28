@@ -45,6 +45,7 @@ Last updated: 2026-05-29
 - [x] Tk sidebar favicon 背景下載已接上同一份 single-flight helper：同一 provider/favicon 下載以 owner + favicon URL job key 擋住重複 worker；favicon URL 推導、cache、PNG 下載與 `PhotoImage` 主執行緒建立規則不變。
 - [x] Tk Developer CLI dialog 已接上同一份 single-flight helper：同一 dialog 仍有 command 執行中時不再清空輸出或開第二個 subprocess worker；command parsing、timeout 與 stdout/stderr capture 規則不變。
 - [x] Tk crawler asset workflow 已清掉最後的舊 thread ownership 痕跡：產品碼不再 import `threading`，相關 tests 改 patch `frontends.tk.background_jobs.threading.Thread`，讓 crawler asset listing / seed / source draft 測試都對準共用 single-flight helper。
+- [x] Tk crawler asset 背景工作已補 capacity guard：`start_single_flight_thread()` 支援 `max_active_jobs` / `on_capacity`，crawler asset 分頁先限制同時最多 4 個背景 worker，避免不同 seed / probe / listing job 被連點時無限制開 thread。
 - [x] 下載 queue 已補 callback isolation：`NonBlockingDownloadQueue` 會把 progress callback 例外記成 `DownloadCallbackError`，但不讓 UI/observer callback 失敗反向污染實際下載 job 狀態；callback 註冊與 publish 也改成 lock + snapshot。
 - [x] 下載計畫 runner 已把 callback diagnostics 接到 JSON result：`DownloadPlanRunResult.callback_errors` 會回報 progress callback 失敗，但不把 observer/UI callback 錯誤算成下載失敗。
 - [x] 下載計畫 CLI/event 已把 callback diagnostics 接成 structured surface：`download_plan_executed` event 會記錄 `callback_error_count` 與 bounded `callback_errors` 預覽，CLI 人類摘要也會在 callback diagnostics 存在時列出 `[download-plan] callback_errors=N`；這仍不影響 download/import stage 判定。
