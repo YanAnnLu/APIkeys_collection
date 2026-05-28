@@ -18,6 +18,7 @@ from dataclasses import dataclass, replace
 
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source
 from api_launcher.crawler_asset_capabilities import credential_mode_for_source, terms_risk_for_source
+from api_launcher.crawlers.registry import CrawlerSpec, crawler_spec
 from api_launcher.crawlers.request_policy import SourceRequestPolicy, source_request_policy
 from api_launcher.crawlers.source_type_registry import source_uses_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
@@ -76,8 +77,12 @@ class CrawlerCapabilityProfile:
 
     source_id: str
     source_type: str
+    source_family: str
+    transport: str
     auth_mode: str
     terms_risk: str
+    result_shape: str
+    supports_full_crawl: bool
     pagination_mode: str
     content_formats: tuple[str, ...]
     bound_facets: tuple[str, ...]
@@ -89,8 +94,12 @@ class CrawlerCapabilityProfile:
         return {
             "source_id": self.source_id,
             "source_type": self.source_type,
+            "source_family": self.source_family,
+            "transport": self.transport,
             "auth_mode": self.auth_mode,
             "terms_risk": self.terms_risk,
+            "result_shape": self.result_shape,
+            "supports_full_crawl": self.supports_full_crawl,
             "pagination_mode": self.pagination_mode,
             "content_formats": list(self.content_formats),
             "bound_facets": list(self.bound_facets),
@@ -128,11 +137,16 @@ def crawler_capability_profile(
         terms_risk=terms_risk_for_source(source),
     )
     pagination_mode = pagination_mode_for_source(source)
+    spec = crawler_spec_for_source_type(source.source_type)
     return CrawlerCapabilityProfile(
         source_id=source.source_id,
         source_type=source.source_type,
+        source_family=spec.source_family if spec else "unknown",
+        transport=spec.transport if spec else "unknown",
         auth_mode=policy.credential_mode,
         terms_risk=policy.terms_risk,
+        result_shape=spec.result_shape if spec else "unknown",
+        supports_full_crawl=bool(spec.supports_full_crawl) if spec else False,
         pagination_mode=pagination_mode,
         content_formats=content_format_hints_for_source(source),
         bound_facets=bounds_facets_for_source(source),
@@ -140,6 +154,15 @@ def crawler_capability_profile(
         failure_policy=failure_policy_for_profile(policy),
         request_policy=policy,
     )
+
+
+def crawler_spec_for_source_type(source_type: str) -> CrawlerSpec | None:
+    """Return registry metadata when this source type has a registered handler."""
+
+    try:
+        return crawler_spec(source_type)
+    except ValueError:
+        return None
 
 
 def pagination_mode_for_source(source: DatasetDiscoverySource) -> str:
@@ -213,6 +236,7 @@ __all__ = [
     "CrawlerCapabilityProfile",
     "content_format_hints_for_source",
     "crawler_capability_profile",
+    "crawler_spec_for_source_type",
     "failure_policy_for_profile",
     "middleware_for_profile",
     "pagination_mode_for_source",

@@ -10,7 +10,8 @@ Last updated: 2026-05-28
 - [x] Tk 界域表單已接上後端 `recommended_values` / `presets`：使用者可按「套用推薦值」或區域預設按鈕先填入安全 limit / bbox，不必第一次就盲填所有欄位。
 - [x] Schema/head probe enrichment 已先接到後端 form contract 與 Web Preview API：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；實際 Web/Tk 按鈕與 seed 選取自動觸發仍是下一步。
 - [x] Crawler source handler 已有第一版宣告式 registry 相容層：14 個既有 handler 先登記成 `CrawlerSpec`，並由 registry 生成現有 `SOURCE_CRAWLER_HANDLERS`；這不是重寫 handler，只是把 source_type 分派往 profile/gateway 方向收束。
-- [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程；或延伸 crawler registry，讓 dispatch 逐步讀 `CrawlerSpec`，而不是只把它當報表 metadata。
+- [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
+- [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程；或延伸 crawler registry，讓 dispatch 逐步讀 `CrawlerSpec` / gateway，而不是只把它當報表 metadata。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。

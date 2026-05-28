@@ -103,6 +103,10 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("1 configured", asset.seed_summary)
         self.assertEqual("public_or_review", asset.access_requirement)
         self.assertGreaterEqual(asset.trust_score, 50)
+        self.assertEqual("catalog_search", asset.capability_profile.source_family)
+        self.assertEqual("json", asset.capability_profile.transport)
+        self.assertEqual("dataset_list", asset.capability_profile.result_shape)
+        self.assertTrue(asset.capability_profile.supports_full_crawl)
         self.assertEqual("offset", asset.capability_profile.pagination_mode)
         self.assertEqual(("csv", "json", "zip", "excel", "pdf", "unknown"), asset.capability_profile.content_formats)
         self.assertEqual(("package", "resource", "format", "limit"), asset.capability_profile.bound_facets)
@@ -112,6 +116,10 @@ class CrawlerAssetTest(unittest.TestCase):
 
         payload = asset.to_dict()["capability_profile"]
         self.assertEqual("ckan_package_search", payload["source_type"])
+        self.assertEqual("catalog_search", payload["source_family"])
+        self.assertEqual("json", payload["transport"])
+        self.assertEqual("dataset_list", payload["result_shape"])
+        self.assertTrue(payload["supports_full_crawl"])
         self.assertEqual("offset", payload["pagination_mode"])
         self.assertEqual("public_or_review", payload["request_policy"]["credential_mode"])
 

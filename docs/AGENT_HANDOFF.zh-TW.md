@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 12:45 Crawler capability profile consumes registry metadata
+- 本輪把上一個 `CrawlerSpec` registry metadata 接進既有 `CrawlerCapabilityProfile`，讓 asset payload 直接帶 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`。這讓 Web/Tk/agent 不必再從 source type 或 handler 名稱猜來源能力。
+- 實作仍是 read/describe contract，不改 crawler、download、import 或 UI 行為；若 registry 尚未有該 source type，capability profile 會保守回 `unknown` / `False`，避免未支援來源被誤宣稱有完整能力。
+- 已驗證：`py -3 -B -m unittest tests.test_crawler_assets tests.test_dataset_discovery tests.test_web_preview -v`，136 tests OK；`crawler_capability_profiles.py` / `test_crawler_assets.py` in-memory compile OK；docs / source mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，836 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_124725.log`。後續提交 / 推送後需看 GitHub Actions。
+
 ## 2026-05-28 12:31 Crawler registry compatibility handoff
 - 本輪採納「CrawlerSpec + Registry + decorator」方向，但只做第一版相容層，不搬 14 個 crawler handler。新增 `api_launcher/crawlers/registry.py`，提供 `CrawlerSpec`、`@crawler(...)`、`crawler_specs_by_source_type()` 與 `crawler_matrix()`；`dataset_sources.py` 目前仍保留 `SOURCE_CRAWLER_HANDLERS` 給舊呼叫與測試，但這張表已由 registry specs 生成。
 - 目前 14 個 supported source type 都已有宣告式 metadata：`source_family`、`transport`、`auth_profile`、`result_shape`、`supports_full_crawl`。這是往 `Matrix Cell -> Validated Profile -> Capability Gateway -> Middleware Pipeline` 推進的薄層，還不是 universal YAML / decorator pipeline 重寫。
