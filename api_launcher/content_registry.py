@@ -27,6 +27,12 @@ GEOSPATIAL_ASSET_FORMATS = frozenset(
 COLUMNAR_FORMATS = frozenset({"parquet", "arrow", "feather"})
 DATABASE_SNAPSHOT_FORMATS = frozenset({"sqlite"})
 DOCUMENT_FORMATS = frozenset({"pdf", "xml", "html", "txt"})
+RESOLVABLE_API_RESOURCE_FORMATS: dict[str, tuple[str, str]] = {
+    "socrata_resource": (
+        "socrata_bounded_sample_query_resolver",
+        "Socrata resources are not downloaded as raw resource ids; the plan resolver turns them into bounded JSON sample URLs before download/import.",
+    ),
+}
 
 FORMAT_ALIASES = {
     "nc": "netcdf",
@@ -210,6 +216,16 @@ def content_parser_capability(source_format: str) -> ContentParserCapability:
                 else "This JSON-family format can be flattened into SQLite after download verification."
             ),
         )
+    resolver_profile = RESOLVABLE_API_RESOURCE_FORMATS.get(normalized)
+    if resolver_profile:
+        resolver_id, reason = resolver_profile
+        return ContentParserCapability(
+            source_format=normalized,
+            content_family="api_resource",
+            import_status="resolver_supported_before_download",
+            parser_id=resolver_id,
+            reason=reason,
+        )
     if normalized in ARCHIVE_OR_COMPRESSED_FORMATS:
         return ContentParserCapability(
             source_format=normalized,
@@ -297,6 +313,21 @@ def content_import_profile_from_capability(capability: ContentParserCapability) 
             display_label="可匯入 SQLite",
             display_tone="success",
             supported_importer=capability.parser_id,
+        )
+    if capability.import_status == "resolver_supported_before_download":
+        return ContentImportProfile(
+            source_format=capability.source_format,
+            content_family=capability.content_family,
+            import_status=capability.import_status,
+            parser_id=capability.parser_id,
+            importability="direct_sqlite_import_after_resolved_sample",
+            pipeline_lane="sqlite_curated_import",
+            review_required=False,
+            review_bucket="",
+            next_action="resolve_bounded_api_sample_then_download_import",
+            display_label="可有界匯入 SQLite",
+            display_tone="success",
+            supported_importer="json_to_sqlite",
         )
     if capability.import_status == "requires_unpack_or_adapter":
         return ContentImportProfile(

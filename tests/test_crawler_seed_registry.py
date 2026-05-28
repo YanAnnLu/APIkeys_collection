@@ -177,6 +177,31 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual("json", row["content_import_profile"]["source_format"])
         self.assertEqual("sqlite_curated_import", row["content_pipeline_lane"])
 
+    def test_seed_row_marks_socrata_resource_as_resolver_backed_import(self) -> None:
+        dataset = Dataset(
+            dataset_uid="nyc_open_data:ds_demo",
+            provider_id="nyc_open_data",
+            dataset_id="abcd-1234",
+            title="Socrata Seed",
+            categories=("open-data",),
+            native_format="socrata_resource",
+            api_url="https://data.cityofnewyork.us/resource/abcd-1234.json",
+            metadata={
+                "candidate_status": "needs_review",
+                "discovery_source_id": "nyc_open_data_socrata_catalog",
+                "discovery_source_type": "socrata_catalog_search",
+            },
+        )
+
+        row = crawler_seed_row(dataset)
+
+        self.assertEqual("socrata_resource", row["content_import_profile"]["source_format"])
+        self.assertEqual("socrata_bounded_sample_query_resolver", row["content_import_profile"]["parser_id"])
+        self.assertEqual("sqlite_curated_import", row["content_pipeline_lane"])
+        self.assertEqual("可有界匯入 SQLite", row["content_display_label"])
+        self.assertEqual("resolve_bounded_api_sample_then_download_import", row["content_next_action"])
+        self.assertFalse(row["content_review_required"])
+
     def test_seed_belongs_to_asset_requires_metadata_match(self) -> None:
         self.assertTrue(crawler_seed_belongs_to_asset(seed_dataset("seed_01"), "demo_asset"))
         self.assertFalse(crawler_seed_belongs_to_asset(seed_dataset("seed_01"), "other_asset"))

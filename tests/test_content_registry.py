@@ -59,6 +59,20 @@ class ContentRegistryTest(unittest.TestCase):
         self.assertEqual("adapter_review", unknown_profile.pipeline_lane)
         self.assertEqual("unsupported_payload_format", unknown_profile.review_bucket)
 
+    def test_socrata_resource_routes_to_resolver_backed_sqlite_import(self) -> None:
+        capability = content_parser_capability("socrata_resource")
+        profile = content_import_profile("socrata_resource")
+
+        self.assertEqual("resolver_supported_before_download", capability.import_status)
+        self.assertEqual("socrata_bounded_sample_query_resolver", capability.parser_id)
+        self.assertEqual("api_resource", capability.content_family)
+        self.assertEqual("direct_sqlite_import_after_resolved_sample", profile.importability)
+        self.assertEqual("sqlite_curated_import", profile.pipeline_lane)
+        self.assertEqual("json_to_sqlite", profile.supported_importer)
+        self.assertEqual("resolve_bounded_api_sample_then_download_import", profile.next_action)
+        self.assertEqual("可有界匯入 SQLite", profile.display_label)
+        self.assertFalse(profile.review_required)
+
     def test_dataset_import_plan_uses_content_registry(self) -> None:
         dataset = Dataset(
             dataset_uid="example:science_grid",
