@@ -527,6 +527,50 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(4.5, values["timeout"])
         self.assertEqual(0.6, values["minimum_confidence"])
 
+    def test_source_pattern_draft_dialog_uses_single_flight_job(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.root = object()
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        result = {"url": "https://example.test/stac", "provider_id": "demo_provider"}
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.SourcePatternDraftDialog", return_value=SimpleNamespace(result=result)),
+            patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread),
+        ):
+            CrawlerAssetWorkflowMixin.open_source_pattern_draft_dialog(ui)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual((result,), thread_call.args)
+        self.assertIn(("source_pattern_draft", "https://example.test/stac", ""), ui.crawler_asset_active_jobs)
+        self.assertIn("Detecting source URL", ui.status_var.value)
+
+    def test_source_pattern_draft_dialog_is_single_flight_per_url(self) -> None:
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.root = object()
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_active_jobs = {("source_pattern_draft", "https://example.test/stac", "")}
+        result = {"url": "https://example.test/stac", "provider_id": "demo_provider"}
+
+        with (
+            patch("frontends.tk.crawler_asset_workflows.SourcePatternDraftDialog", return_value=SimpleNamespace(result=result)),
+            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+        ):
+            CrawlerAssetWorkflowMixin.open_source_pattern_draft_dialog(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_source_pattern_draft_message_keeps_audit_next_step_visible(self) -> None:
         ui = object.__new__(CrawlerAssetWorkflowMixin)
         ui.tr = lambda zh, _en: zh

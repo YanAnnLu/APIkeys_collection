@@ -486,9 +486,17 @@ class CrawlerAssetWorkflowMixin:
         dialog = SourcePatternDraftDialog(getattr(self, "root", None), self.tr)
         if dialog.result is None:
             return
-        url = str(dialog.result.get("url") or "")
-        self.status_var.set(self.tr(f"正在辨識來源 URL：{url}", f"Detecting source URL: {url}"))
-        threading.Thread(target=self._source_pattern_draft_worker, args=(dict(dialog.result),), daemon=True).start()
+        values = dict(dialog.result)
+        url = str(values.get("url") or "")
+        started = self._start_crawler_asset_background_job(
+            ("source_pattern_draft", url, ""),
+            self._source_pattern_draft_worker,
+            (values,),
+            duplicate_status_zh=f"來源 URL 辨識已在執行：{url}",
+            duplicate_status_en=f"Source URL detection is already running: {url}",
+        )
+        if started:
+            self.status_var.set(self.tr(f"正在辨識來源 URL：{url}", f"Detecting source URL: {url}"))
 
     def _source_pattern_draft_worker(self, values: dict[str, object]) -> None:
         # URL -> local source draft 仍走後端 detector/service；Tk 只負責輸入與呈現，

@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-28
+最後更新：2026-05-29
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -14,6 +14,12 @@
 - 每筆使用表格欄位：`時間`、`開發階段`、`標記`、`SHA`、`Run`、`原始標題`、`中文說明`。
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
+
+### 2026-05-29
+
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:16 | Tk / Scheduler Guard | **LOCAL PASS / CI PENDING** | `pending` | `pending` | Route source draft through single-flight guard | 將 `open_source_pattern_draft_dialog()` 從裸 `threading.Thread` 改為既有 `_start_crawler_asset_background_job()` / `frontends.tk.background_jobs` single-flight helper；同一 source URL 的 detector / local source draft worker 同時只能跑一個，避免連點造成重複寫入 local discovery draft 或 UI/event 競爭。這不改 source-pattern detector、local draft service、crawler、download 或 import 行為。已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 77 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，870 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_001201.log`。 |
 
 ### 2026-05-28
 

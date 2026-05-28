@@ -1,6 +1,6 @@
 ﻿# RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 ## 目前工作焦點 / Active Focus
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
@@ -23,6 +23,7 @@ Last updated: 2026-05-28
 - [x] 2026-05-28 架構 guardrail 補充：宣告式 profile 與 middleware pipeline 並不互斥；profile 描述能力/政策/budget，pipeline 負責按順序安全執行。遞迴可用但必須 bounded，遠端互動探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`，無明確 profile/測試/確認時不超過 `max_depth=4`。
 - [x] 2026-05-28 loop / decorator guardrail 補充：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget 或 runtime policy。硬寫哨兵值只能作最後安全網，且必須命名、可覆寫、可測並回報 `limit_reached` 類狀態。裝飾器可用於註冊 crawler metadata 與保留 handler 回傳值，不應吞掉 candidates、warnings 或 pagination metadata。宣告式方向採混合式準宣告式：registry/profile/matrix/pipeline/decorator 加少量條件分支、迴圈與受控淺遞迴，不做上帝 YAML。
 - [x] 2026-05-28 branch threshold / profile storage guardrail 補充：2 到 3 條路可保留簡單 `if/else`；4 條路已接近 `2 x 2` matrix，應考慮 table / registry / decorator dispatch。YAML/JSON/TOML/`.env` 用於人類可填、有語意的 profile；純邏輯高維分派優先用 typed Python table / dataclass / tuple index / dict registry。
+- [x] 2026-05-29 Tk source pattern draft 背景 job 已納入 single-flight guard：`open_source_pattern_draft_dialog()` 會用同一份 crawler asset background job helper 擋住同一 URL 的重複 detector/source draft worker，不再直接建立裸 `threading.Thread`。
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
 - [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
 - [x] Web Preview 已先把 schema/head probe 接到 seed 操作：推薦 seed 與每筆 seed row 都有「探測欄位」按鈕，會用該 seed 的 URL 呼叫後端 schema probe，再回填同一份 bounds form contract，減少使用者盲填欄位。
@@ -40,7 +41,7 @@ Last updated: 2026-05-28
 - [x] Web download/import completion event context 已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_event_context()`，避免 stage、success、download_import、artifacts event payload 分叉。
 - [x] Web download/import target path 組裝已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_target_paths()`，避免 DB、downloads root、curated SQLite 與 resolved plan path 計算分叉；seed-level 預設路徑仍保留穩定 seed 子目錄，明確傳入 downloads root 時不自動改寫呼叫端路徑。
 - [x] Web Preview repository bootstrap 已抽成 helper：多個 endpoint 共用 `web_preview_repository_context()` 開 SQLite / repository / schema / optional builtin providers；endpoint 仍明確決定 commit，不把交易邊界藏進 helper。
-- [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
+- [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
