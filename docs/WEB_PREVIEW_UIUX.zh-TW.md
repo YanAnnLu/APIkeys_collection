@@ -1,5 +1,5 @@
 ﻿# Web Preview UI/UX 對照層
-最後更新：2026-05-27
+最後更新：2026-05-28
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
@@ -29,6 +29,7 @@
 - Seed 清單要用分頁視窗呈現：第一屏顯示前 50 筆，按「顯示更多 seed」再展開下一批 50 筆。這是從本機已枚舉 catalog 讀取，不是每按一次就重新打遠端 crawler。
 - 收藏功能的對象是 seed，不是 crawler asset / 入口。Web 目前透過 `/api/crawler-assets/{asset_id}/seed-favorites` 寫入 crawler asset profile 的 `favorite_seed_uids`；後續正式化時再提升成 seed registry / 跨 UI 查詢入口。
 - Seed 枚舉狀態要吃後端 `seed_enumeration` payload：`label` / `help` / `display_tone` / `limited_by_max_results` 由 service 判斷。Web 只能呈現，不要用候選數自行猜「完整」或「被截斷」。若 `limited_by_max_results=true`，UI 應明確提示「已達本機安全上限，遠端可能還有更多」。
+- 若 seed page payload 帶有 `recommended_seed_uid`，Web 應顯示一個明確的推薦 seed 操作入口，並直接呼叫正式 seed-level download/import endpoint。推薦邏輯屬於後端 `crawler_seed_page()` contract，Web 不自行挑選第一筆、收藏 seed 或依 source type 推斷可下載性。
 
 ## 定位
 
@@ -132,6 +133,7 @@ http://127.0.0.1:8765/
 - Seed 枚舉已成為入口選取的預設行為：Web 會呼叫後端 listing service 嘗試列出入口 seed，並透過 `/api/crawler-assets/{asset_id}/seeds` 從本機 catalog 分頁讀回顯示資料。右側清單只顯示目前視窗，不把大量 seed 一次塞進 DOM。
 - Seed 收藏目前是 seed-level profile-backed prototype：星號會呼叫 localhost API，後端寫入 crawler asset profile 的 `favorite_seed_uids`。這不是正式跨裝置同步，也不是收藏入口；後續要收斂到正式 seed registry。
 - Seed row 的「下載此 seed」是 Web Preview 目前最小的正式 seed-level download/import UX：它呼叫 `/api/crawler-assets/{asset_id}/seed-download-import`，後端用 catalog seed 建立 plan 並交給正式 pipeline。Web 只傳入 `dataset_uid` 與目前表單值，不自行判斷可下載性、憑證、adapter review 或 import policy。
+- Seed 面板若收到 `recommended_seed_uid`，會在列表上方顯示「下載推薦 seed」。這只是把後端推薦的安全預設 seed 做成顯眼入口；按鈕仍走同一條正式 seed-level download/import service，不是 demo 或 fake shortcut。
 - Seed 面板現在會呈現 `seed_enumeration.label/help`，並在本機枚舉上限被打滿時顯示 `seed-limit-badge`。這是 UX 防呆：候選數達到 1000 不代表入口只有 1000 筆，而是這次枚舉到達本機安全上限。
 
 ## 下一步

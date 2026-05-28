@@ -1468,6 +1468,31 @@ p {
   padding-right: 4px;
 }
 
+.seed-recommended-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(105, 230, 255, 0.3);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(105, 230, 255, 0.14), rgba(93, 232, 183, 0.08)),
+    rgba(10, 27, 41, 0.86);
+}
+
+.seed-recommended-panel strong,
+.seed-recommended-panel small {
+  display: block;
+  min-width: 0;
+}
+
+.seed-recommended-panel small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 .seed-row {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) minmax(80px, 170px) auto;

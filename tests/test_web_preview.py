@@ -56,6 +56,39 @@ from frontends.web.preview_api import (
 )
 
 
+def post_json_to_preview_server(
+    host: str,
+    port: int,
+    path: str,
+    payload: dict[str, object] | None = None,
+    *,
+    retries: int = 1,
+) -> tuple[int, dict[str, object]]:
+    """POST JSON to the local preview server with one Windows socket retry.
+
+    A few Windows hosts occasionally abort a localhost connection immediately
+    after the preview server writes a short 404 response.  Retrying keeps this
+    route-removal regression focused on HTTP status/body instead of a local
+    socket flake.
+    """
+
+    body = json.dumps(payload or {}).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
+    for attempt in range(max(0, retries) + 1):
+        conn = http.client.HTTPConnection(host, port, timeout=5)
+        try:
+            conn.request("POST", path, body=body, headers=headers)
+            response = conn.getresponse()
+            response_body = json.loads(response.read().decode("utf-8"))
+            return response.status, response_body
+        except (ConnectionAbortedError, ConnectionResetError, http.client.RemoteDisconnected):
+            if attempt >= retries:
+                raise
+        finally:
+            conn.close()
+    raise AssertionError("unreachable retry state")
+
+
 class WebPreviewApiTest(unittest.TestCase):
     def test_status_declares_thin_uiux_surface(self) -> None:
         status = web_preview_status()
@@ -163,25 +196,24 @@ class WebPreviewApiTest(unittest.TestCase):
                         "succeeded": True,
                     },
                 ) as demo:
-                    conn = http.client.HTTPConnection(host, port, timeout=5)
-                    conn.request("POST", "/api/diagnostics/real-download-demo", body="{}", headers={"Content-Type": "application/json"})
-                    response = conn.getresponse()
-                    body = json.loads(response.read().decode("utf-8"))
-                    conn.close()
-
-                    legacy = http.client.HTTPConnection(host, port, timeout=5)
-                    legacy.request("POST", "/api/demo/real-download", body="{}", headers={"Content-Type": "application/json"})
-                    legacy_response = legacy.getresponse()
-                    legacy_body = json.loads(legacy_response.read().decode("utf-8"))
-                    legacy.close()
+                    status, body = post_json_to_preview_server(
+                        host,
+                        port,
+                        "/api/diagnostics/real-download-demo",
+                    )
+                    legacy_status, legacy_body = post_json_to_preview_server(
+                        host,
+                        port,
+                        "/api/demo/real-download",
+                    )
             finally:
                 server.shutdown()
                 thread.join(timeout=5)
 
         demo.assert_called_once_with()
-        self.assertEqual(200, response.status)
+        self.assertEqual(200, status)
         self.assertTrue(body["developer_only"])
-        self.assertEqual(404, legacy_response.status)
+        self.assertEqual(404, legacy_status)
         self.assertEqual(404, legacy_body["status"])
 
     def test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event(self) -> None:
@@ -878,6 +910,9 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(page1["seeds"][0]["favorite"])
         self.assertEqual("sqlite_curated_import", page1["seeds"][0]["content_pipeline_lane"])
         self.assertEqual("可匯入 SQLite", page1["seeds"][0]["content_display_label"])
+        self.assertEqual("demo_provider:seed_00", page1["recommended_seed_uid"])
+        self.assertEqual("download_recommended_seed", page1["recommended_seed_next_action"])
+        self.assertEqual("Seed 00", page1["recommended_seed"]["title"])
         self.assertEqual(1, page1["favorite_seed_count"])
         self.assertEqual(5, len(page2["seeds"]))
         self.assertFalse(page2["has_more"])
@@ -1228,6 +1263,9 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("runCrawlerSeedDownloadImportById", combined)
         self.assertIn("/seed-download-import", combined)
         self.assertIn("下載此 seed", combined)
+        self.assertIn("seedRecommendedPanelHtml", combined)
+        self.assertIn("下載推薦 seed", combined)
+        self.assertIn("recommended_seed_uid", combined)
         self.assertIn("seedImportBadgeHtml", combined)
         self.assertIn("content_display_label", combined)
         self.assertNotIn("rrkal.favoriteSeeds", combined)

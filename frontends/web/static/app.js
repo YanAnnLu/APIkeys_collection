@@ -441,8 +441,16 @@ async function loadSeedPage(assetId, page = 1, { append = false } = {}) {
   rememberSeedFavorites(payload.seeds || []);
   if (append && assetSeedPages.has(assetId)) {
     const previous = assetSeedPages.get(assetId);
+    const previousRecommendation = previous.recommended_seed_uid
+      ? {
+          recommended_seed: previous.recommended_seed,
+          recommended_seed_uid: previous.recommended_seed_uid,
+          recommended_seed_next_action: previous.recommended_seed_next_action,
+        }
+      : {};
     assetSeedPages.set(assetId, {
       ...payload,
+      ...previousRecommendation,
       seeds: [...(previous.seeds || []), ...(payload.seeds || [])],
     });
   } else {
@@ -1350,6 +1358,7 @@ function seedListPanelHtml(card) {
     ? `<span class="seed-limit-badge">本機上限 ${Number(enumeration.max_results || 0)} 筆</span>`
     : "";
   const rows = seeds.map(seedRowHtml).join("");
+  const recommendedPanel = seedRecommendedPanelHtml(card, seedPage);
   const moreButton = seedPage.has_more
     ? `<button type="button" class="secondary-button small" onclick="showMoreSeeds('${escapeAttr(card.asset_id)}')">顯示更多 seed（再 50 筆）</button>`
     : "";
@@ -1363,11 +1372,32 @@ function seedListPanelHtml(card) {
         </div>
         <button type="button" class="ghost-button small" onclick="runCrawlerAssetListingById('${escapeAttr(card.asset_id)}')">重新枚舉</button>
       </div>
+      ${recommendedPanel}
       <div class="seed-list-viewport">
         ${rows || '<div class="empty-state"><strong>尚未顯示 seed</strong><p>選取入口後會自動枚舉；若來源需要登入，請先完成登入設定。</p></div>'}
       </div>
       <div class="seed-list-actions">${moreButton}</div>
     </section>
+  `;
+}
+
+function seedRecommendedPanelHtml(card, seedPage) {
+  // Backend chooses the default seed. Web only surfaces that choice so users do
+  // not have to inspect dozens of rows before running the first real download.
+  const recommended = seedPage.recommended_seed || {};
+  const recommendedUid = seedPage.recommended_seed_uid || recommended.dataset_uid || "";
+  if (!recommendedUid) return "";
+  const title = recommended.title || recommended.dataset_id || recommendedUid;
+  const label = recommended.content_display_label || "後端推薦 seed";
+  return `
+    <div class="seed-recommended-panel">
+      <div>
+        <span class="eyebrow">推薦 seed</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(label)} · 由後端推薦，適合第一次測試下載</small>
+      </div>
+      <button type="button" class="primary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">下載推薦 seed</button>
+    </div>
   `;
 }
 

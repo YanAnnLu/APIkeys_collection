@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 10:41 Web recommended seed UX handoff
+- 本輪把 Web Preview seed 清單接上後端 `recommended_seed_uid`：seed 面板現在會顯示「推薦 seed」區塊與「下載推薦 seed」按鈕，直接呼叫既有正式 `POST /api/crawler-assets/{asset_id}/seed-download-import`。前端只呈現 `crawler_seed_page()` 給的推薦，不自行挑 seed 或推斷 import policy。
+- 已補 regression：seed page API 測試確認第一頁會回傳 `recommended_seed_uid` / `recommended_seed_next_action`；靜態 Web asset 測試確認 `seedRecommendedPanelHtml`、`下載推薦 seed` 與 `recommended_seed_uid` 存在。完整 Web / seed / handoff focused suite 已通過：`py -3 -B -m unittest tests.test_web_preview tests.test_crawler_seed_registry tests.test_handoff -v`，81 tests OK。過程中也把 legacy demo route 的 localhost POST 測試補上一次 Windows socket retry，避免本機 `WinError 10053` flake 汙染 route-removal regression。瀏覽器驗證時選到 NOAA NCEI seed list，畫面可見「下載推薦 seed」，且沒有把 raw `download_recommended_seed` 顯示給使用者。`.\scripts\pre_push_smoke_brief.cmd` 也已通過，826 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_105848.log`。
+- 下一步可把同一份推薦 seed UX 接回 Tk seed dialog / Crawler Passport，或挑第二條 live public source 做 bounded closure readiness artifact。若繼續 Web 驗收，請在本地 clone 或本機路徑啟動 Web Preview，避免 K/RaiDrive 影響 server / SQLite。
+
 ## 2026-05-28 09:45 Focus narrowing handoff
 - 使用者更新目前目標：完成手邊任務後，近期主線收斂到 crawler / data asset 的小閉環，暫時略過資料渲染與 Unreal 5 對接。後續不要把 `simulation_bridge.py`、`unreal_bridge.py`、renderer contracts 當作近期交付焦點；它們維持 maturity matrix 內的 `contract_only` / planned work。
 - 下一個有效切片應優先服務「入口 -> 枚舉 seed -> 推薦 seed -> 有界下載 / 匯入 -> 可驗收 JSON/UI」這條線，例如 live public source readiness artifact、Web/Tk 使用 recommended seed 的一鍵操作、或將 bounds/defaults contract 接進 UI。
