@@ -578,6 +578,65 @@ def crawler_asset_plan_passport_payload(
     }
 
 
+def credential_blocked_plan_outcome_payload(credential_guard: Mapping[str, object]) -> dict[str, object]:
+    """Build the shared plan-outcome payload when credentials block live work.
+
+    Credential gating is backend policy, not a Web route concern.  Keeping this
+    payload here lets Tk/Web/Qt display the same review state whenever a source
+    needs local login or API-key setup before plan building or download/import.
+    """
+
+    missing = credential_guard.get("missing_required")
+    missing_required = (
+        list(missing)
+        if isinstance(missing, Iterable) and not isinstance(missing, (str, bytes))
+        else []
+    )
+    suffix = f"（缺 {len(missing_required)} 欄）" if missing_required else ""
+    return {
+        "outcome_bucket": "credential_setup_required",
+        "display_label": f"先設定登入 / API Key{suffix}",
+        "short_label": "需要登入",
+        "display_tone": "warning",
+        "summary": "這個來源需要本機憑證。已先停止建立下載計畫，避免送出必然失敗的遠端請求。",
+        "next_action": "edit_local_credentials_before_live_download",
+        "next_action_label": "先編輯本機憑證，再建立下載計畫",
+        "direct_download_count": 0,
+        "review_required_count": 0,
+        "content_review_label": "",
+        "content_review": {},
+    }
+
+
+def credential_blocked_plan_passport_payload(
+    asset_id: str,
+    credential_guard: Mapping[str, object],
+) -> dict[str, object]:
+    """Build the compact plan passport for credential-blocked crawler assets."""
+
+    missing = credential_guard.get("missing_required")
+    missing_required = (
+        list(missing)
+        if isinstance(missing, Iterable) and not isinstance(missing, (str, bytes))
+        else []
+    )
+    return {
+        "asset_id": asset_id,
+        "has_resolved_plan": False,
+        "outcome_bucket": "credential_setup_required",
+        "short_label": "需要登入",
+        "display_tone": "warning",
+        "candidate_count": 0,
+        "direct_download_count": 0,
+        "review_required_count": 0,
+        "adapter_review_count": 0,
+        "content_review_count": 0,
+        "blocked_credential_count": len(missing_required),
+        "next_action": "edit_local_credentials_before_live_download",
+        "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
+    }
+
+
 def crawler_asset_download_import_display_payload(
     result: object,
     *,
@@ -1092,6 +1151,8 @@ __all__ = [
     "crawler_asset_plan_event_badge_payload",
     "crawler_asset_plan_outcome_payload",
     "crawler_asset_plan_passport_payload",
+    "credential_blocked_plan_outcome_payload",
+    "credential_blocked_plan_passport_payload",
     "plan_entry_content_status_payload",
     "DisplayProfile",
     "SeedEnumerationDisplayProfile",

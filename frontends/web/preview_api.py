@@ -32,6 +32,8 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_badge_payload,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
+    credential_blocked_plan_outcome_payload,
+    credential_blocked_plan_passport_payload,
     next_action_display_label,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
@@ -751,8 +753,8 @@ def crawler_asset_plan_preview(
     if credential_status_blocks_plan(credential_guard):
         # 防呆邊界：需要帳號/API Key 的來源先停在本機憑證設定，
         # 不讓 Web Preview 發出必然失敗的 live crawler request。
-        response["plan_outcome"] = credential_blocked_plan_outcome(credential_guard)
-        response["plan_passport"] = credential_blocked_plan_passport(asset_id, credential_guard)
+        response["plan_outcome"] = credential_blocked_plan_outcome_payload(credential_guard)
+        response["plan_passport"] = credential_blocked_plan_passport_payload(asset_id, credential_guard)
         apply_web_next_action(response, "edit_local_credentials_before_live_download")
         return response
 
@@ -1052,8 +1054,8 @@ def web_download_import_credential_blocked_response(
         "bounds_payload": dict(bounds_payload),
         "credential_guard": credential_guard,
         **web_next_action_payload(initial_next_action),
-        "plan_outcome": credential_blocked_plan_outcome(credential_guard),
-        "plan_passport": credential_blocked_plan_passport(asset_id, credential_guard),
+        "plan_outcome": credential_blocked_plan_outcome_payload(credential_guard),
+        "plan_passport": credential_blocked_plan_passport_payload(asset_id, credential_guard),
         "download_import": {
             "stage": "blocked_before_download",
             "succeeded": False,
@@ -1064,46 +1066,6 @@ def web_download_import_credential_blocked_response(
         response["dataset_uid"] = dataset_uid
     apply_web_next_action(response, next_action)
     return response
-
-
-def credential_blocked_plan_outcome(credential_guard: Mapping[str, object]) -> dict[str, object]:
-    missing = credential_guard.get("missing_required")
-    missing_count = len(missing) if isinstance(missing, list) else 0
-    suffix = f"（缺 {missing_count} 欄）" if missing_count else ""
-    return {
-        "outcome_bucket": "credential_setup_required",
-        "display_label": f"先設定登入 / API Key{suffix}",
-        "short_label": "需要登入",
-        "display_tone": "warning",
-        "summary": "這個來源需要本機憑證。已先停止建立下載計畫，避免送出必然失敗的遠端請求。",
-        "next_action": "edit_local_credentials_before_live_download",
-        "next_action_label": "先編輯本機憑證，再建立下載計畫",
-        "direct_download_count": 0,
-        "review_required_count": 0,
-        "content_review_label": "",
-        "content_review": {},
-    }
-
-
-def credential_blocked_plan_passport(
-    asset_id: str,
-    credential_guard: Mapping[str, object],
-) -> dict[str, object]:
-    return {
-        "asset_id": asset_id,
-        "has_resolved_plan": False,
-        "outcome_bucket": "credential_setup_required",
-        "short_label": "需要登入",
-        "display_tone": "warning",
-        "candidate_count": 0,
-        "direct_download_count": 0,
-        "review_required_count": 0,
-        "adapter_review_count": 0,
-        "content_review_count": 0,
-        "blocked_credential_count": len(credential_guard.get("missing_required") or ()),
-        "next_action": "edit_local_credentials_before_live_download",
-        "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
-    }
 
 
 def crawler_asset_plan_event_context(

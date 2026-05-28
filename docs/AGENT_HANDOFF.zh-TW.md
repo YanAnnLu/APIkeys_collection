@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 06:56 Credential-blocked plan display payload
+- 本輪繼續 Web Preview bounded consolidation：`api_launcher/crawler_asset_display.py` 新增 `credential_blocked_plan_outcome_payload()` 與 `credential_blocked_plan_passport_payload()`，把缺登入 / API Key 時的 plan outcome 與 plan passport 從 Web route 移回 backend display contract。
+- `frontends/web/preview_api.py` 的 plan preview、asset download/import、seed download/import credential-blocked 分支改為消費這兩個 helper；Web 仍負責 endpoint-level next action 與 credential guard，不再自己組 `credential_setup_required` 形狀。
+- 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_credential_blocked_plan_payloads_are_backend_display_contract`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 52 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，910 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_065819.log`。
+- Docs drift check：本輪改 Web credential-blocked 內部 display helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 06:38 Web listing payload helper
 - 本輪繼續 Web Preview bounded consolidation：`frontends/web/preview_api.py` 新增 `web_crawler_asset_listing_payload()`，讓 listing blocked 分支與 live listing 成功分支都先使用 `CrawlerAssetListingResult.to_dict()` 的同一份 service-owned 結構，再由 Web 附加 `next_action_label`。
 - `crawler_asset_listing()` 的 credential-blocked 分支不再手寫 candidate counts、seed enumeration、search scope 等 listing payload；這些欄位由 `CrawlerAssetListingResult` dataclass 保持一致。Web 仍明確處理 credential guard 與 endpoint-level next action。

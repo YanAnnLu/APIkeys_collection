@@ -15,6 +15,8 @@ from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
+    credential_blocked_plan_outcome_payload,
+    credential_blocked_plan_passport_payload,
     plan_entry_content_status_payload,
     plan_outcome_display_profile,
 )
@@ -143,6 +145,22 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(2, payload["candidate_count"])
         self.assertEqual("within_current_limits", payload["seed_enumeration"]["status"])
         self.assertEqual("審核或寫入候選資料", payload["next_action_label"])
+
+    def test_credential_blocked_plan_payloads_are_backend_display_contract(self) -> None:
+        guard = {
+            "status": "missing_credentials",
+            "missing_required": ["NASA_EARTHDATA_TOKEN", "NASA_EARTHDATA_USERNAME"],
+        }
+
+        outcome = credential_blocked_plan_outcome_payload(guard)
+        passport = credential_blocked_plan_passport_payload("demo_cmr", guard)
+
+        self.assertEqual("credential_setup_required", outcome["outcome_bucket"])
+        self.assertEqual("先設定登入 / API Key（缺 2 欄）", outcome["display_label"])
+        self.assertEqual("先編輯本機憑證，再建立下載計畫", outcome["next_action_label"])
+        self.assertEqual("demo_cmr", passport["asset_id"])
+        self.assertEqual(2, passport["blocked_credential_count"])
+        self.assertEqual("先完成登入設定，再下載資料", passport["next_action_label"])
 
     def test_crawler_handler_smoke_diagnostics_is_developer_only_and_compact(self) -> None:
         payload = crawler_handler_smoke_diagnostics()
