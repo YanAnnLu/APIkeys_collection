@@ -190,6 +190,48 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(YfinanceWorkflowMixin))
         self.assertTrue(callable(YfinanceWorkflowMixin.write_yfinance_demo_plan_from_ui))
 
+    def test_oauth_background_job_uses_single_flight_helper(self) -> None:
+        ui = object.__new__(OAuthWorkflowMixin)
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            started = OAuthWorkflowMixin._start_oauth_background_job(
+                ui,
+                ("oauth_browser_login", "profile-a", ""),
+                lambda: None,
+                on_duplicate=lambda: None,
+            )
+
+        self.assertTrue(started)
+        self.assertTrue(thread_call.started)
+        self.assertEqual((), thread_call.args)
+        self.assertIn(("oauth_browser_login", "profile-a", ""), ui.oauth_active_jobs)
+
+    def test_oauth_background_job_rejects_duplicate_before_thread_start(self) -> None:
+        ui = object.__new__(OAuthWorkflowMixin)
+        ui.oauth_active_jobs = {("oauth_device_poll", "profile-a", "device-code")}
+        duplicate_calls: list[str] = []
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            started = OAuthWorkflowMixin._start_oauth_background_job(
+                ui,
+                ("oauth_device_poll", "profile-a", "device-code"),
+                lambda: None,
+                on_duplicate=lambda: duplicate_calls.append("duplicate"),
+            )
+
+        self.assertFalse(started)
+        thread_class.assert_not_called()
+        self.assertEqual(["duplicate"], duplicate_calls)
+
     def test_provider_discovery_uses_single_flight_job(self) -> None:
         ui = object.__new__(DiscoveryWorkflowMixin)
         ui.tr = lambda _zh, en: en

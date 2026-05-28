@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 02:26 Tk OAuth login single-flight guard
+- 本輪繼續 Tk scheduler guard consolidation：`OAuthWorkflowMixin` 新增 `_start_oauth_background_job()`，把 OAuth/login 對話中的背景 worker 收斂到 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- Google browser login 使用 `("oauth_browser_login", profile_id, "")` job key；同一 profile 登入流程已在執行時，Tk 不再開第二個 callback server / browser login worker。
+- Device-code polling 使用 `("oauth_device_poll", profile_id, device_code)` job key；使用者重複按「重新檢查登入」時只更新狀態，不再重疊發出 token polling request。
+- 這不改 OAuth authorization URL、PKCE、callback server、device-code polling、token exchange、token 保存或本機 credential storage；只把登入入口的背景 thread 收斂到共用 helper。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\oauth_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_oauth_device tests.test_tk_dialogs -v` 107 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，889 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_022611.log`。
+- Docs drift check：本輪只收斂 Tk OAuth/login 入口的背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 02:11 Tk showcase download single-flight guard
 - 本輪繼續 Tk scheduler guard consolidation：`ShowcaseWorkflowMixin.run_showcase_download_from_ui()` 保留既有 `showcase_download_running` 使用者提示，同時把 bounded showcase download worker 改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - Showcase download 使用 `("showcase_download", "bounded_public", "")` job key；同一展示下載工作已在執行時，Tk 不再開第二個 worker，避免展示連點造成重複公開資料下載、manifest 寫入與展示 `.db` 匯入。

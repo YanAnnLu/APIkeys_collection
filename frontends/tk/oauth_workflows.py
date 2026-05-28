@@ -9,10 +9,10 @@ from __future__ import annotations
 import html
 import os
 import secrets
-import threading
 import time
 import urllib.parse
 import webbrowser
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, StringVar, TclError, Text, Tk, Toplevel, messagebox, simpledialog
 from tkinter import ttk
@@ -32,11 +32,31 @@ from api_launcher.oauth_device import (
     save_oauth_config_token,
     save_oauth_device_token,
 )
+from frontends.tk.background_jobs import TkJobKey, start_single_flight_thread
 from frontends.tk.ui_config import COLORS, PRODUCT_DISPLAY_NAME
 
 
 class OAuthWorkflowMixin:
     """封裝 OAuth/login 對話流程；不改變目前的中期/開發者登入邊界。"""
+
+    def _start_oauth_background_job(
+        self,
+        job_key: TkJobKey,
+        worker: Callable[[], None],
+        *,
+        on_duplicate: Callable[[], None],
+    ) -> bool:
+        """Start one logical OAuth job per key without leaking scheduler state into dialogs."""
+
+        return start_single_flight_thread(
+            self,
+            job_key,
+            worker,
+            (),
+            active_jobs_attr="oauth_active_jobs",
+            active_jobs_lock_attr="oauth_active_jobs_lock",
+            on_duplicate=on_duplicate,
+        )
 
     def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:
         selection = table.selection()
@@ -590,7 +610,16 @@ class OAuthWorkflowMixin:
                     if server is not None:
                         server.server_close()
 
-            threading.Thread(target=worker, daemon=True).start()
+            self._start_oauth_background_job(
+                ("oauth_browser_login", profile.id, ""),
+                worker,
+                on_duplicate=lambda: set_status(
+                    self.tr(
+                        "Google 登入流程已在執行中，請先完成或取消目前流程。",
+                        "Google login is already running; finish or cancel the current flow first.",
+                    )
+                ),
+            )
 
         start_button = ttk.Button(actions, text=self.tr("開啟 Google 登入頁", "Open Google login page"), style="Action.TButton", command=start_login)
         start_button.pack(side=LEFT, padx=(0, 10))
@@ -710,7 +739,16 @@ class OAuthWorkflowMixin:
 
                 self.root.after(0, handle)
 
-            threading.Thread(target=worker, daemon=True).start()
+            self._start_oauth_background_job(
+                ("oauth_device_poll", profile.id, request.device_code or ""),
+                worker,
+                on_duplicate=lambda: status_var.set(
+                    self.tr(
+                        "正在檢查登入狀態，請稍候。",
+                        "Login status check is already running; please wait.",
+                    )
+                ),
+            )
 
         if request.device_code:
             schedule_poll(500)
