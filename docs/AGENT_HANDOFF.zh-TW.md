@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 02:11 Tk showcase download single-flight guard
+- 本輪繼續 Tk scheduler guard consolidation：`ShowcaseWorkflowMixin.run_showcase_download_from_ui()` 保留既有 `showcase_download_running` 使用者提示，同時把 bounded showcase download worker 改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
+- Showcase download 使用 `("showcase_download", "bounded_public", "")` job key；同一展示下載工作已在執行時，Tk 不再開第二個 worker，避免展示連點造成重複公開資料下載、manifest 寫入與展示 `.db` 匯入。
+- 這不改 showcase download 的有界 demo source、sample limit、progress dialog、download/import service 或 resumable showcase download queue；只把 bounded showcase 入口的背景 thread 收斂到共用 helper。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\showcase_workflows.py tests\test_tk_dialogs.py` OK；targeted 2 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs tests.test_showcase_workflows -v` 99 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，887 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_021213.log`。
+- Docs drift check：本輪只收斂 Tk showcase bounded download 入口的背景 job guard；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 01:58 Tk import SQLite single-flight gate
 - 本輪繼續 Tk scheduler guard consolidation：`ImportWorkflowMixin.import_supported_plan_results_from_ui()` 與 `import_local_file_from_ui()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - 兩條匯入入口共用 `("sqlite_import", sqlite_path, "")` job key；同一 curated SQLite 正在匯入時，Tk 只更新 status，不再開啟第二個匯入 worker，也不會在本機檔案匯入時先彈出檔案選擇器。

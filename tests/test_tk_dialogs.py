@@ -2120,6 +2120,49 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
 
+    def test_showcase_download_uses_single_flight_job(self) -> None:
+        ui = object.__new__(ShowcaseWorkflowMixin)
+        ui.root = None
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.open_showcase_download_progress_dialog = lambda destination, sample_limit: setattr(ui, "opened_progress", (destination, sample_limit))
+        ui.download_policy = None
+        thread_call = SimpleNamespace(args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.showcase_workflows.filedialog.askdirectory", return_value="C:/tmp/showcase"), patch(
+            "frontends.tk.showcase_workflows.simpledialog.askinteger", return_value=25
+        ), patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            ShowcaseWorkflowMixin.run_showcase_download_from_ui(ui)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual((Path("C:/tmp/showcase"), 25), thread_call.args)
+        self.assertIn(("showcase_download", "bounded_public", ""), ui.showcase_active_jobs)
+        self.assertTrue(ui.showcase_download_running)
+        self.assertIn("limit 25", ui.status_var.value)
+
+    def test_showcase_download_running_guard_does_not_prompt_for_folder(self) -> None:
+        ui = object.__new__(ShowcaseWorkflowMixin)
+        ui.root = None
+        ui.tr = lambda _zh, en: en
+        ui.showcase_download_running = True
+
+        with patch("frontends.tk.showcase_workflows.messagebox.showinfo") as showinfo, patch(
+            "frontends.tk.showcase_workflows.filedialog.askdirectory"
+        ) as askdirectory, patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            ShowcaseWorkflowMixin.run_showcase_download_from_ui(ui)
+
+        showinfo.assert_called_once()
+        askdirectory.assert_not_called()
+        thread_class.assert_not_called()
+
     def test_download_primary_action_label_reflects_selected_job_status(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
         ui.download_primary_action_var = _FakeVar("")

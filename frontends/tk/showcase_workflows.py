@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import threading
 from pathlib import Path
 from tkinter import Toplevel, filedialog, messagebox, simpledialog, ttk
 from typing import Callable
@@ -33,6 +32,7 @@ from api_launcher.showcase_download import (
     run_showcase_download_to_folder,
     seed_showcase_repository,
 )
+from frontends.tk.background_jobs import start_single_flight_thread
 
 
 SHOWCASE_SEED_COVERAGE_JSON = "showcase/dataset_seed_coverage.json"
@@ -304,7 +304,20 @@ class ShowcaseWorkflowMixin:
         self.showcase_download_running = True
         self.open_showcase_download_progress_dialog(Path(destination), sample_limit)
         self.status_var.set(self.tr(f"正在下載展示資料並建立本機 .db（上限 {sample_limit} 筆）...", f"Downloading showcase data and creating local .db (limit {sample_limit} rows)..."))
-        threading.Thread(target=self.run_showcase_download_worker, args=(Path(destination), sample_limit), daemon=True).start()
+        started = start_single_flight_thread(
+            self,
+            ("showcase_download", "bounded_public", ""),
+            self.run_showcase_download_worker,
+            (Path(destination), sample_limit),
+            active_jobs_attr="showcase_active_jobs",
+            active_jobs_lock_attr="showcase_active_jobs_lock",
+            on_duplicate=lambda: self.status_var.set(
+                self.tr("展示下載已在執行中，請等待目前工作完成。", "Showcase download is already running; please wait for it to finish.")
+            ),
+        )
+        if not started:
+            self.showcase_download_running = False
+            self.close_showcase_download_progress_dialog()
 
     def open_showcase_download_progress_dialog(self, destination: Path, sample_limit: int) -> None:
         # 展示模式的進度必須可追溯：整體流程用階段百分比，
