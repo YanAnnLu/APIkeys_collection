@@ -4,6 +4,7 @@
 - 這補齊宣告式 registry 任務單裡「handler 簽章不符要在 import/registration 階段報錯」的 contract，避免未來新增 crawler 時到 UI 或下載流程才出錯。
 - 新增 `tests/test_dataset_discovery.py::test_crawler_registry_rejects_handler_signature_mismatch`，確認錯誤 handler 會被 registry 拒絕；既有 14 個 handler 行為不變。
 - 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\crawlers\registry.py tests\test_dataset_discovery.py` OK；`py -3 -B -m unittest tests.test_dataset_discovery -v` 57 tests OK；`api_launcher/crawlers` mojibake scan OK。
+- 已推送 `fb03440 Guard crawler registry handler signatures`；GitHub Actions run `26599208635` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只硬化 crawler registry contract，不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 03:45 Download queue callback isolation
