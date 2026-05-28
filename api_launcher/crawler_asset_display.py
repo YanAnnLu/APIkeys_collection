@@ -14,7 +14,9 @@ from typing import Iterable, Mapping
 from api_launcher.adapter_review import adapter_review_agent_payload
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundFormField, CrawlerAssetBoundFormSpec
 from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, CrawlerAssetCapability
+from api_launcher.crawler_asset_profiles import compact_crawler_asset_plan_passport
 from api_launcher.crawler_assets import CrawlerAsset
+from api_launcher.crawler_run_records import crawler_run_record_from_result
 
 
 # Stable backend ids -> human labels.  Raw capability ids remain in payloads for
@@ -637,6 +639,48 @@ def credential_blocked_plan_passport_payload(
     }
 
 
+def crawler_asset_plan_event_context(
+    result: object,
+    plan_outcome: Mapping[str, object],
+    *,
+    added_count: int = 0,
+    plan_passport: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Build the shared event context used by Tk/Web/Qt plan-outcome badges.
+
+    UI surfaces should log a compact event context, not a full resolved plan.
+    Keeping this shape in the backend display module prevents each frontend from
+    inventing its own event keys for badges, recent events, and agent handoff.
+    """
+
+    content_review = plan_outcome.get("content_review")
+    return {
+        "asset_id": str(getattr(result, "asset_id", "") or ""),
+        "outcome_bucket": str(
+            getattr(result, "outcome_bucket", "")
+            or plan_outcome.get("outcome_bucket")
+            or ""
+        ),
+        "outcome_label": str(plan_outcome.get("short_label") or plan_outcome.get("display_label") or ""),
+        "added_count": added_count,
+        "direct_download_count": _safe_int(getattr(result, "direct_download_count", 0) or 0),
+        "review_required_count": _safe_int(getattr(result, "review_required_count", 0) or 0),
+        "review_queue_count": _safe_int(getattr(result, "review_required_count", 0) or 0),
+        "content_review_label": str(plan_outcome.get("content_review_label") or ""),
+        "content_review": content_review if isinstance(content_review, dict) else {},
+        "run_record": crawler_run_record_from_result(result),
+        "resolved_plan": "",
+        "resolved_plan_available": bool(getattr(result, "resolved_plan", None)),
+        "plan_passport": compact_crawler_asset_plan_passport(plan_passport),
+        "user_next_action": str(
+            getattr(result, "user_next_action", "")
+            or getattr(result, "next_action", "")
+            or plan_outcome.get("next_action")
+            or ""
+        ),
+    }
+
+
 def crawler_asset_download_import_display_payload(
     result: object,
     *,
@@ -1149,6 +1193,7 @@ __all__ = [
     "crawler_asset_flow_steps",
     "crawler_asset_download_import_display_payload",
     "crawler_asset_plan_event_badge_payload",
+    "crawler_asset_plan_event_context",
     "crawler_asset_plan_outcome_payload",
     "crawler_asset_plan_passport_payload",
     "credential_blocked_plan_outcome_payload",

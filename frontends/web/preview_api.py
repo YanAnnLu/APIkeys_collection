@@ -30,6 +30,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_download_import_display_payload,
     crawler_asset_flow_steps,
     crawler_asset_plan_event_badge_payload,
+    crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
     credential_blocked_plan_outcome_payload,
@@ -55,7 +56,7 @@ from api_launcher.crawler_asset_service import (
 )
 from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
 from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
-from api_launcher.crawler_run_records import crawler_run_context_summary, crawler_run_record_from_result
+from api_launcher.crawler_run_records import crawler_run_context_summary
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
 from api_launcher.db import connect_db
 from api_launcher.downloads.staging import safe_path_part
@@ -1066,48 +1067,6 @@ def web_download_import_credential_blocked_response(
         response["dataset_uid"] = dataset_uid
     apply_web_next_action(response, next_action)
     return response
-
-
-def crawler_asset_plan_event_context(
-    result: object,
-    plan_outcome: Mapping[str, object],
-    *,
-    added_count: int = 0,
-    plan_passport: Mapping[str, object] | None = None,
-) -> dict[str, object]:
-    """Build the shared event context used by Tk/Web/Qt plan-outcome badges.
-
-    Web Preview does not write a resolved-plan file like Tk does, so it records
-    a compact event context only.  The card badge can be rebuilt from this
-    payload without logging the full plan into JSONL.
-    """
-
-    content_review = plan_outcome.get("content_review")
-    return {
-        "asset_id": str(getattr(result, "asset_id", "") or ""),
-        "outcome_bucket": str(
-            getattr(result, "outcome_bucket", "")
-            or plan_outcome.get("outcome_bucket")
-            or ""
-        ),
-        "outcome_label": str(plan_outcome.get("short_label") or plan_outcome.get("display_label") or ""),
-        "added_count": added_count,
-        "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
-        "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
-        "review_queue_count": int(getattr(result, "review_required_count", 0) or 0),
-        "content_review_label": str(plan_outcome.get("content_review_label") or ""),
-        "content_review": content_review if isinstance(content_review, dict) else {},
-        "run_record": crawler_run_record_from_result(result),
-        "resolved_plan": "",
-        "resolved_plan_available": bool(getattr(result, "resolved_plan", None)),
-        "plan_passport": compact_web_plan_passport_payload(plan_passport),
-        "user_next_action": str(
-            getattr(result, "user_next_action", "")
-            or getattr(result, "next_action", "")
-            or plan_outcome.get("next_action")
-            or ""
-        ),
-    }
 
 
 def _crawler_asset(

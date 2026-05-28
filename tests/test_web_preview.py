@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
+    crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
     credential_blocked_plan_outcome_payload,
@@ -48,7 +49,6 @@ from frontends.web.preview_api import (
     web_crawler_asset_listing_payload,
     web_crawler_asset_action_context,
     compact_listing_outcome,
-    crawler_asset_plan_event_context,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
     crawler_seed_download_import,
