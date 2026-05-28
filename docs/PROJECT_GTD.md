@@ -46,6 +46,7 @@ Last updated: 2026-05-29
 - [x] Tk Developer CLI dialog 已接上同一份 single-flight helper：同一 dialog 仍有 command 執行中時不再清空輸出或開第二個 subprocess worker；command parsing、timeout 與 stdout/stderr capture 規則不變。
 - [x] Tk crawler asset workflow 已清掉最後的舊 thread ownership 痕跡：產品碼不再 import `threading`，相關 tests 改 patch `frontends.tk.background_jobs.threading.Thread`，讓 crawler asset listing / seed / source draft 測試都對準共用 single-flight helper。
 - [x] 下載 queue 已補 callback isolation：`NonBlockingDownloadQueue` 會把 progress callback 例外記成 `DownloadCallbackError`，但不讓 UI/observer callback 失敗反向污染實際下載 job 狀態；callback 註冊與 publish 也改成 lock + snapshot。
+- [x] 下載計畫 runner 已把 callback diagnostics 接到 JSON result：`DownloadPlanRunResult.callback_errors` 會回報 progress callback 失敗，但不把 observer/UI callback 錯誤算成下載失敗。
 - [x] Schema/head probe + bounds form enrichment 已從 Web/Tk 邊界抽回 `api_launcher/crawler_asset_schema_probe.py`：Web Preview 仍保留相容 API，Tk seed probe worker 改吃同一個 UI-neutral service result，避免 `preview_api.py` 與 `crawler_asset_workflows.py` 各自組合 probe/form/enrichment 邏輯。
 - [x] Formal download/import 顯示 payload 已從 Web/Tk endpoint 抽回 `crawler_asset_display.py`：Web 的 asset-level / seed-level download-import endpoint 與 Tk seed completion message 共用 `crawler_asset_download_import_display_payload()`，不再各自重組 plan outcome、plan passport、adapter review、download/import 與 next-action label。
 - [x] Tk seed download/import message 組裝已抽到 `frontends/tk/ui_helpers.py`：`crawler_asset_workflows.py` 只消費 helper 回傳的 title/status/body，不再直接拆 backend display payload 組 messagebox 文案。

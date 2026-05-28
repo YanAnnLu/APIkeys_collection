@@ -131,6 +131,35 @@ class DownloadPlanRunnerTests(unittest.TestCase):
         self.assertEqual(1, len(assets))
         self.assertEqual("file", assets[0].asset_kind)
 
+    def test_runner_reports_progress_callback_errors_without_failing_download(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture() as url:
+            output_path = Path(tmpdir) / "downloads" / "sample.bin"
+            conn = connect_db(Path(tmpdir) / "launcher.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.seed_builtin_providers()
+
+                def broken_progress_callback(_update: object) -> None:
+                    raise RuntimeError("ui progress callback down")
+
+                result = run_download_plan_payload(
+                    sample_plan(url, output_path),
+                    repo,
+                    policy=PoliteDownloadPolicy(max_parallel_jobs=1, min_delay_per_host_seconds=0),
+                    timeout=5,
+                    progress_callback=broken_progress_callback,
+                )
+            finally:
+                conn.close()
+
+        self.assertEqual(1, result.completed)
+        self.assertEqual(0, result.failed)
+        self.assertEqual((), result.errors)
+        self.assertGreaterEqual(len(result.callback_errors), 1)
+        self.assertIn("RuntimeError: ui progress callback down", result.callback_errors[0])
+        self.assertIn("callback_errors", result.to_dict())
+
     def test_cli_runs_download_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, HTTPServerFixture() as url:
             output_path = Path(tmpdir) / "downloads" / "sample.bin"

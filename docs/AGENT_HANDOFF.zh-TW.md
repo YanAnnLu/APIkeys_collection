@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 04:12 Download plan callback diagnostics
+- 本輪把 queue callback isolation 的診斷出口接到 `api_launcher/downloads/plan_runner.py`：`DownloadPlanRunResult` 新增 `callback_errors`，`to_dict()` 也會輸出同欄位。
+- `run_download_plan_payload()` 會在 queue shutdown 前讀取 `queue.callback_error_snapshot()`；progress callback 失敗會進入 diagnostics，但不會增加 `failed`，也不會把已完成下載改成失敗。
+- 新增 `tests/test_download_plan_runner.py::test_runner_reports_progress_callback_errors_without_failing_download`，驗證 UI/progress callback 壞掉時下載仍完成，且 JSON result 可看到 callback error。
+- 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\downloads\plan_runner.py tests\test_download_plan_runner.py` OK；`py -3 -B -m unittest tests.test_download_plan_runner tests.test_download_jobs -v` 15 tests OK。
+- Docs drift check：本輪改 agent-readable download plan result payload，多出 diagnostics 欄位但不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 04:00 Crawler registry handler signature guard
 - 本輪補上 `api_launcher/crawlers/registry.py` 的 handler signature fail-fast：`@crawler(...)` 註冊時會用共用六參數 signature `(source, timeout, limit, search_terms, full_crawl, max_pages)` 檢查 handler。
 - 這補齊宣告式 registry 任務單裡「handler 簽章不符要在 import/registration 階段報錯」的 contract，避免未來新增 crawler 時到 UI 或下載流程才出錯。

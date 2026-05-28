@@ -35,6 +35,7 @@ class DownloadPlanRunResult:
     import_failed: int = 0
     skip_summary: dict[str, int] = field(default_factory=dict)
     errors: tuple[str, ...] = field(default_factory=tuple)
+    callback_errors: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -49,6 +50,7 @@ class DownloadPlanRunResult:
             "import_failed": self.import_failed,
             "skip_summary": dict(self.skip_summary),
             "errors": list(self.errors),
+            "callback_errors": list(self.callback_errors),
         }
 
 
@@ -174,6 +176,7 @@ def run_download_plan_payload(
     imported = 0
     import_skipped = 0
     import_failed = 0
+    callback_errors: tuple[str, ...] = ()
     try:
         for entry in selected:
             jobs.append((queue.submit(entry), entry))
@@ -214,6 +217,10 @@ def run_download_plan_payload(
                 failed += 1
                 errors.append(f"{job.provider_id}: completed download did not produce a healthy manifest")
     finally:
+        callback_errors = tuple(
+            f"{item.job_id} {item.callback_name}: {item.error}"
+            for item in queue.callback_error_snapshot()
+        )
         queue.shutdown()
 
     return DownloadPlanRunResult(
@@ -228,6 +235,7 @@ def run_download_plan_payload(
         import_failed=import_failed,
         skip_summary=skip_summary,
         errors=tuple(errors),
+        callback_errors=callback_errors,
     )
 
 
