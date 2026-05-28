@@ -60,6 +60,8 @@ def crawler_seed_page(
         page_size=safe_page_size,
         row_count=len(rows),
     )
+    seed_rows = [crawler_seed_row(dataset, favorite_seed_uids=favorites) for dataset in rows]
+    recommended_seed = recommended_crawler_seed_row(seed_rows)
     return {
         "asset_id": clean_asset_id,
         "provider_id": clean_provider_id,
@@ -69,7 +71,10 @@ def crawler_seed_page(
         "has_more": bool(page_summary["has_more"]),
         "page_summary": page_summary,
         "favorite_seed_count": len(favorites),
-        "seeds": [crawler_seed_row(dataset, favorite_seed_uids=favorites) for dataset in rows],
+        "recommended_seed": recommended_seed,
+        "recommended_seed_uid": str(recommended_seed.get("dataset_uid") or ""),
+        "recommended_seed_next_action": "download_recommended_seed" if recommended_seed else "select_seed_manually",
+        "seeds": seed_rows,
     }
 
 
@@ -189,6 +194,31 @@ def crawler_seed_row(
     }
 
 
+def recommended_crawler_seed_row(seed_rows: Iterable[Mapping[str, object]]) -> dict[str, object]:
+    """Return a compact one-click default seed from the visible page.
+
+    UI shells should not guess which row is safest for a first download.  A seed
+    is recommended only when the backend content contract says it can enter the
+    SQLite import lane without adapter review.
+    """
+
+    for row in seed_rows:
+        if not isinstance(row, Mapping):
+            continue
+        if row.get("content_review_required"):
+            continue
+        if str(row.get("content_pipeline_lane") or "") != "sqlite_curated_import":
+            continue
+        return {
+            "dataset_uid": str(row.get("dataset_uid") or ""),
+            "dataset_id": str(row.get("dataset_id") or ""),
+            "title": str(row.get("title") or ""),
+            "content_display_label": str(row.get("content_display_label") or ""),
+            "content_next_action": str(row.get("content_next_action") or ""),
+        }
+    return {}
+
+
 def crawler_seed_content_import_profile(dataset: object) -> dict[str, object]:
     """Return the content import profile that a seed row should display.
 
@@ -299,5 +329,6 @@ __all__ = [
     "crawler_seed_row",
     "list_crawler_asset_seed_candidates",
     "normalize_crawler_seed_page",
+    "recommended_crawler_seed_row",
     "save_crawler_seed_favorite",
 ]

@@ -14,6 +14,7 @@ Last updated: 2026-05-28
 - [x] 新增 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md`，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`，並固定之後回答整體進度時使用矩陣。
 - [x] 補上 seed-level formal download/import 的 CLI JSON 入口：`--run-crawler-seed-download-import ASSET_ID DATASET_UID --crawler-seed-download-import-json`。這讓「選入口 -> 枚舉 seed -> 選 seed -> formal download/import」不只 Web/Tk 可操作，也能用 agent-readable CLI 驗收與自動化測試。
 - [x] 修正 Socrata seed 清單的內容能力顯示：`socrata_resource` 會顯示為 resolver-backed「可有界匯入 SQLite」，不再誤標成未知內容格式。已用 live public Socrata seed page JSON 驗證第一筆 seed 顯示 `parser_id=socrata_bounded_sample_query_resolver`、`review_required=false`。
+- [x] Seed page payload 補上 `recommended_seed` / `recommended_seed_uid` / `recommended_seed_next_action`，由後端挑出目前可見頁面的第一筆可匯入 seed，給 Web/Tk 未來「一鍵推薦下載」使用，不讓前端自行猜預設值。
 - [ ] 下一步：挑一條 live public source 做第二個 bounded closure readiness artifact，而不是把所有 crawler 一次推成 100%。
 
 ## 2026-05-28 Source-code maturity / 能力成熟度邊界審計

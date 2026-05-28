@@ -101,6 +101,9 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(1, page["favorite_seed_count"])
         self.assertEqual("seed_00", page["seeds"][0]["dataset_id"])
         self.assertTrue(page["seeds"][0]["favorite"])
+        self.assertEqual("demo_provider:seed_00", page["recommended_seed_uid"])
+        self.assertEqual("download_recommended_seed", page["recommended_seed_next_action"])
+        self.assertEqual("Seed 00", page["recommended_seed"]["title"])
 
     def test_seed_page_returns_later_window_without_refetch_semantics(self) -> None:
         repo = FakeSeedRepository([seed_dataset(f"seed_{index:02d}") for index in range(55)])
@@ -116,6 +119,15 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(0, page["page_summary"]["next_page"])
         self.assertEqual("seed_page_complete", page["page_summary"]["next_action"])
         self.assertEqual("seed_50", page["seeds"][0]["dataset_id"])
+
+    def test_seed_page_omits_recommendation_when_visible_seeds_need_review(self) -> None:
+        repo = FakeSeedRepository([replace(seed_dataset("seed_zip"), native_format="zip")])
+
+        page = crawler_seed_page(repo, asset_id="demo_asset", provider_id="demo_provider")
+
+        self.assertEqual({}, page["recommended_seed"])
+        self.assertEqual("", page["recommended_seed_uid"])
+        self.assertEqual("select_seed_manually", page["recommended_seed_next_action"])
 
     def test_seed_page_summary_handles_empty_and_more_pages(self) -> None:
         empty = crawler_seed_page_summary(total=0, page=1, page_size=50, row_count=0)
