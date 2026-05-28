@@ -3,7 +3,7 @@
 - 本輪繼續做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.WebPreviewRepositorySession` 與 `web_preview_repository_context()`，集中 Web endpoint 重複的 SQLite connection、`ApiCatalogRepository`、schema init 與 optional builtin provider bootstrap。
 - 這不改 Web API response、crawler/listing/plan/download/import service 或交易邊界；endpoint 仍明確決定何時 `commit()`，helper 只負責開 session 與初始化 repository。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 48 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK（僅既有 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，867 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_231815.log`。
-- 已推送 `71d498c Extract Web repository bootstrap helper`；GitHub Actions run `26584181347` 已通過 Ubuntu、Windows 與 real DB smoke。
+- 已推送 `71d498c Extract Web repository bootstrap helper`；GitHub Actions run `26584181347` 已通過 Ubuntu、Windows 與 real DB smoke。後續 docs-only checkpoint `851ea44` 的 run `26584356568` 也已通過。
 - Docs drift check：本輪只收斂 Web endpoint 內部 repository bootstrap；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-28 23:02 Web download/import target path helper
