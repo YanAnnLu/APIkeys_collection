@@ -658,7 +658,7 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with (
             patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog", return_value=SimpleNamespace(result=payload)) as dialog_class,
-            patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread),
+            patch("frontends.tk.background_jobs.threading.Thread", FakeThread),
         ):
             CrawlerAssetWorkflowMixin.prepare_selected_crawler_asset_download(ui)
 
@@ -686,7 +686,7 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with (
             patch("frontends.tk.crawler_asset_workflows.CrawlerAssetBoundDialog") as dialog_class,
-            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+            patch("frontends.tk.background_jobs.threading.Thread") as thread_class,
         ):
             CrawlerAssetWorkflowMixin.prepare_selected_crawler_asset_download(ui)
 
@@ -709,7 +709,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.tr = lambda _zh, en: en
         ui.crawler_asset_active_jobs = {("asset_listing", "demo_index", "")}
 
-        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
             CrawlerAssetWorkflowMixin.run_selected_crawler_asset_listing(ui)
 
         thread_class.assert_not_called()
@@ -758,7 +758,7 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with (
             patch("frontends.tk.crawler_asset_workflows.SourcePatternDraftDialog", return_value=SimpleNamespace(result=result)),
-            patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread),
+            patch("frontends.tk.background_jobs.threading.Thread", FakeThread),
         ):
             CrawlerAssetWorkflowMixin.open_source_pattern_draft_dialog(ui)
 
@@ -777,7 +777,7 @@ class TkDialogModuleTest(unittest.TestCase):
 
         with (
             patch("frontends.tk.crawler_asset_workflows.SourcePatternDraftDialog", return_value=SimpleNamespace(result=result)),
-            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+            patch("frontends.tk.background_jobs.threading.Thread") as thread_class,
         ):
             CrawlerAssetWorkflowMixin.open_source_pattern_draft_dialog(ui)
 
@@ -1445,7 +1445,7 @@ class TkDialogModuleTest(unittest.TestCase):
             def start(self):
                 thread_call.started = True
 
-        with patch("frontends.tk.crawler_asset_workflows.threading.Thread", FakeThread):
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
             CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
                 ui,
                 asset,
@@ -1473,7 +1473,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
         ui.crawler_asset_active_jobs = {("seed_download_import", "demo_index", "demo_provider:seed_1")}
 
-        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
             CrawlerAssetWorkflowMixin.run_crawler_asset_seed_download_import_from_ui(
                 ui,
                 asset,
@@ -1497,7 +1497,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
         ui.crawler_asset_active_jobs = {("seed_schema_probe", "demo_stac", "demo_provider:seed_1")}
 
-        with patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class:
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
             CrawlerAssetWorkflowMixin.run_crawler_asset_seed_schema_probe_from_ui(
                 ui,
                 asset,
@@ -1534,7 +1534,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
 
         with (
-            patch("frontends.tk.crawler_asset_workflows.threading.Thread") as thread_class,
+            patch("frontends.tk.background_jobs.threading.Thread") as thread_class,
             patch("frontends.tk.crawler_asset_workflows.CrawlerAssetCredentialDialog") as credential_dialog,
         ):
             credential_dialog.return_value = SimpleNamespace(result=None)

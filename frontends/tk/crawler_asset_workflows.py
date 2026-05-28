@@ -13,7 +13,6 @@ backend contract first.
 from __future__ import annotations
 
 import json
-import threading
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk

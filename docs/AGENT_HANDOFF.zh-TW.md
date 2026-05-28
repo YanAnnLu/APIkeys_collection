@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 03:05 Tk crawler asset thread mock cleanup
+- 本輪完成 Tk scheduler guard consolidation 的小尾巴：`frontends/tk/crawler_asset_workflows.py` 移除已不再使用的 `threading` import，測試也改 patch 真正的共用背景工作入口 `frontends.tk.background_jobs.threading.Thread`。
+- 這不改 crawler asset listing、source pattern draft、seed schema probe、seed download/import、download plan build 或 credential guard 行為；只讓產品碼與測試都指向同一個 single-flight helper 邊界，避免舊 UI workflow 模組被誤認為 thread owner。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 101 tests OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，893 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_030649.log`。
+- 待完成：本輪尚未 push / watch GitHub Actions；下一步 commit / push / watch CI。
+- Docs drift check：本輪只修正 Tk crawler asset workflow 的測試邊界與 unused import；已同步 GTD、handoff 與 development log，不改使用者操作文件。
+
 ## 2026-05-29 02:52 Tk Developer CLI single-flight guard
 - 本輪完成 Tk raw thread consolidation 的最後一個產品 UI 入口：`DeveloperCliDialog.run_command()` 不再直接建立裸 `threading.Thread`，改走 `frontends.tk.background_jobs.start_single_flight_thread()`。
 - Developer CLI 使用 `("developer_cli", "command", "")` job key；同一 dialog 仍有 CLI command 執行中時，Tk 不再清空輸出或開第二個 subprocess worker。
