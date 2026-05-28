@@ -3,6 +3,7 @@
 - 本輪把 Tk seed download/import 完成訊息也接到 `api_launcher.crawler_asset_display.crawler_asset_download_import_display_payload()`。Tk 不再直接從 raw `result.to_dict()` 自行重組 stage、success 與 next-action label，而是讀同一份 backend display payload。
 - `crawler_asset_download_import_display_payload()` 同步補上無 `pipeline` 物件時的 fallback：若 helper 收到 legacy / test result dict，會從 `download_result.stage`、`succeeded`、`next_action` 補回 `download_import` 摘要，避免 UI 測試假物件崩掉。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py tests\test_crawler_asset_download.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_crawler_asset_download tests.test_web_preview -v` 123 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，862 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_220333.log`。
+- 已推送 `ea3186a Align Tk download import display payload`；GitHub Actions run `26579978458` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪不改使用者操作流程，只把 Tk 顯示層改成消費共用 payload；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-28 21:48 Download/import display payload consolidation
