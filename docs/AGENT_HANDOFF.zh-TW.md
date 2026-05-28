@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 19:42 Project maturity construction display profile
+- 本輪做小型 UI-neutral contract 修補：`api_launcher/project_maturity.py` 的 `MaturityMatrixRow.to_dict()` 現在輸出 `status_icon`、`display_tone`、`display_label` 與 `display_profile`。
+- `contract_only` 與 `planned_not_started` 會輸出 `🚧`，讓 Tk/Web/未來 Qt 可以直接顯示施工中/規劃中狀態，不需要 UI 自行判斷 renderer/simulation/Qt 是否已完成。
+- Markdown renderer 也會用 `maturity_level` fallback 補上 icon，保留舊 payload 相容性。這不改 maturity row 判斷、不改 crawler/download/import，只補顯示 contract。
+- 已驗證：`py -3 -B -m py_compile api_launcher\project_maturity.py tests\test_project_maturity.py` OK；`py -3 -B -m unittest tests.test_project_maturity -v` 4 tests OK；`py -3 -B -m unittest tests.test_project_maturity tests.test_handoff -v` 25 tests OK；CLI write/read smoke 確認 renderer/simulation row 輸出 `status_icon=\U0001f6a7`、`display_tone=review`；`.\scripts\pre_push_smoke_brief.cmd` 通過，857 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_194439.log`。
+
 ## 2026-05-28 19:31 Web base bounds form delegation
 - 本輪延續 schema probe service consolidation：`frontends/web/preview_api.py::crawler_asset_bound_form()` 現在直接委託 `api_launcher.crawler_asset_schema_probe.crawler_asset_bound_form_spec()`，Web 不再自己讀 `BUILD_DOWNLOAD_PLAN` capability、載入 source、組 base form spec。
 - 這不改 Web route、payload shape、bounds form 欄位或 schema probe 行為；只是把 base bounds form 組裝邏輯一併收回 backend service module，讓 Web Preview 繼續保持薄 adapter。

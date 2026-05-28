@@ -42,6 +42,7 @@ Last updated: 2026-05-28
 - [x] 修補平台探測：`rendering_profiles.py`、`environment.py`、`platform_paths.py`、`integrations.py` 不再走可能卡住的 `platform.system()` / `platform.machine()`，改用 `sys.platform` 與環境變數做保守推斷。
 - [x] 修補 `scripts/pre_push_smoke.ps1` upstream 探測：K/RaiDrive 偶發 `git rev-parse @{u}` 讀不到 cwd 時只跳過 optional pending-push diff，不再讓整個 smoke 提早失敗。
 - [x] 新增 `api_launcher/project_maturity.py` 與 CLI `--project-maturity-json` / `--write-project-maturity-json` / `--project-maturity-markdown`，把「整體進度」改成正式成熟度矩陣 artifact，不再以單一百分比混合 bounded closure、partial path、contract-only 與 planned work。
+- [x] 成熟度矩陣 payload 已補 `status_icon` / `display_tone` / `display_label` / `display_profile`：`contract_only` 與 `planned_not_started` 會輸出 `🚧`，讓 Tk/Web/未來 Qt 可直接顯示施工中狀態，不必各自推理未完成能力。
 - [x] 新增 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md`，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`，並固定之後回答整體進度時使用矩陣。
 - [x] 補上 seed-level formal download/import 的 CLI JSON 入口：`--run-crawler-seed-download-import ASSET_ID DATASET_UID --crawler-seed-download-import-json`。這讓「選入口 -> 枚舉 seed -> 選 seed -> formal download/import」不只 Web/Tk 可操作，也能用 agent-readable CLI 驗收與自動化測試。
 - [x] 修正 Socrata seed 清單的內容能力顯示：`socrata_resource` 會顯示為 resolver-backed「可有界匯入 SQLite」，不再誤標成未知內容格式。已用 live public Socrata seed page JSON 驗證第一筆 seed 顯示 `parser_id=socrata_bounded_sample_query_resolver`、`review_required=false`。

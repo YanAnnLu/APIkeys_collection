@@ -28,17 +28,71 @@ class MaturityMatrixRow:
     metrics: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        display = maturity_display_profile(self.maturity_level)
         return {
             "area_id": self.area_id,
             "area_label": self.area_label,
             "maturity_level": self.maturity_level,
             "maturity_label_zh_TW": self.maturity_label_zh_TW,
+            "status_icon": display["status_icon"],
+            "display_tone": display["display_tone"],
+            "display_label": display["display_label"],
+            "display_profile": display,
             "deliverable_scope": self.deliverable_scope,
             "verified_behavior_source": list(self.verified_behavior_source),
             "current_limitations": list(self.current_limitations),
             "next_actions": list(self.next_actions),
             "metrics": self.metrics,
         }
+
+
+def maturity_display_profile(maturity_level: str) -> dict[str, str]:
+    """Return UI-neutral labels for maturity rows.
+
+    Keep the icon/tone decision here so Tk, Web, and future Qt do not each
+    re-interpret contract-only or planned work differently.
+    """
+    level = maturity_level.strip().lower()
+    profiles = {
+        "deliverable_100": {
+            "status_icon": "✓",
+            "display_tone": "success",
+            "display_label": "可交付",
+        },
+        "implemented_bounded": {
+            "status_icon": "✓",
+            "display_tone": "success",
+            "display_label": "已接通",
+        },
+        "partial_bounded": {
+            "status_icon": "◐",
+            "display_tone": "warning",
+            "display_label": "部分接通",
+        },
+        "contract_only": {
+            "status_icon": "🚧",
+            "display_tone": "review",
+            "display_label": "施工中 / 合約",
+        },
+        "planned_not_started": {
+            "status_icon": "🚧",
+            "display_tone": "neutral",
+            "display_label": "規劃中",
+        },
+        "hardening_needed": {
+            "status_icon": "!",
+            "display_tone": "warning",
+            "display_label": "需加固",
+        },
+    }
+    return profiles.get(
+        level,
+        {
+            "status_icon": "?",
+            "display_tone": "neutral",
+            "display_label": "未分類",
+        },
+    )
 
 
 def build_project_maturity_payload(
@@ -119,10 +173,13 @@ def render_project_maturity_markdown(payload: dict[str, Any]) -> str:
             continue
         limits = "; ".join(str(item) for item in row.get("current_limitations", []) if item)
         actions = "; ".join(str(item) for item in row.get("next_actions", []) if item)
+        display = maturity_display_profile(str(row.get("maturity_level") or ""))
+        status_icon = str(row.get("status_icon") or display["status_icon"])
+        maturity_label = f"{status_icon} {row.get('maturity_label_zh_TW', row.get('maturity_level', ''))}".strip()
         lines.append(
             "| "
             f"{_cell(row.get('area_label', ''))} | "
-            f"{_cell(row.get('maturity_label_zh_TW', row.get('maturity_level', '')))} | "
+            f"{_cell(maturity_label)} | "
             f"{_cell(row.get('deliverable_scope', ''))} | "
             f"{_cell(limits)} | "
             f"{_cell(actions)} |"

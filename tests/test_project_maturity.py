@@ -9,7 +9,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from api_launcher.core import main
-from api_launcher.project_maturity import build_project_maturity_payload, render_project_maturity_markdown
+from api_launcher.project_maturity import (
+    build_project_maturity_payload,
+    maturity_display_profile,
+    render_project_maturity_markdown,
+)
 
 
 class ProjectMaturityTests(unittest.TestCase):
@@ -34,6 +38,8 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertEqual("partial_bounded", rows["provider_specific_deep_adapters"]["maturity_level"])
         self.assertEqual(3, rows["provider_specific_deep_adapters"]["metrics"]["dataset_adapter_count"])
         self.assertEqual("contract_only", rows["renderer_unreal_simulation"]["maturity_level"])
+        self.assertEqual("🚧", rows["renderer_unreal_simulation"]["status_icon"])
+        self.assertEqual("review", rows["renderer_unreal_simulation"]["display_tone"])
         self.assertGreater(
             rows["source_pattern_and_crawler_handlers"]["metrics"]["supported_source_type_count"],
             0,
@@ -67,8 +73,19 @@ class ProjectMaturityTests(unittest.TestCase):
 
         self.assertIn("# RRKAL Project Maturity Matrix", markdown)
         self.assertIn("closure_percent: 100", markdown)
+        self.assertIn("🚧 合約 / planned", markdown)
         self.assertIn("合約 / planned", markdown)
         self.assertIn("no real I/O", markdown)
+
+    def test_maturity_display_profile_marks_contract_work_as_construction(self) -> None:
+        self.assertEqual(
+            {
+                "status_icon": "🚧",
+                "display_tone": "review",
+                "display_label": "施工中 / 合約",
+            },
+            maturity_display_profile("contract_only"),
+        )
 
     def test_cli_emits_project_maturity_json_without_human_setup_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
