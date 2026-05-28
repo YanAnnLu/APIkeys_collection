@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 23:37 Tk seed download/import target path helper
+- 本輪做 Tk 對應 bounded consolidation：新增 `frontends.tk.ui_helpers.CrawlerSeedDownloadImportTargetPaths` 與 `crawler_seed_download_import_target_paths()`，把 seed download/import worker 的 downloads root、curated SQLite 與 resolved plan path 組裝從 `crawler_asset_workflows.py` 抽出。
+- 這不改 Tk 操作流程、正式 seed download/import service 或事件 payload；Tk workflow 仍只負責 thread wrapper、repository handoff、status 與 dialog，路徑 sanitize / target layout 改由 helper 測試鎖住。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\ui_helpers.py frontends\tk\crawler_asset_workflows.py tests\test_tk_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 82 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK（僅既有 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，868 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_233856.log`。
+- Docs drift check：本輪只收斂 Tk seed worker 內部 path helper；需在 push / CI 後回填 development log 與本段狀態。
+
 ## 2026-05-28 23:17 Web repository bootstrap helper
 - 本輪繼續做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.WebPreviewRepositorySession` 與 `web_preview_repository_context()`，集中 Web endpoint 重複的 SQLite connection、`ApiCatalogRepository`、schema init 與 optional builtin provider bootstrap。
 - 這不改 Web API response、crawler/listing/plan/download/import service 或交易邊界；endpoint 仍明確決定何時 `commit()`，helper 只負責開 session 與初始化 repository。

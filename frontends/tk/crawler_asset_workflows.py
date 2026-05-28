@@ -56,7 +56,7 @@ from api_launcher.local_credentials import (
     credential_status_blocks_download,
     update_crawler_asset_credentials,
 )
-from api_launcher.paths import DOWNLOADS_DIR, default_local_downloads_root, local_config_file, state_file
+from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.background_jobs import (
@@ -70,7 +70,7 @@ from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog, crawler_seed_dialog_import_label
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
-from frontends.tk.ui_helpers import crawler_seed_download_import_ui_message
+from frontends.tk.ui_helpers import crawler_seed_download_import_target_paths, crawler_seed_download_import_ui_message
 
 
 class CrawlerAssetWorkflowMixin:
@@ -1069,10 +1069,7 @@ class CrawlerAssetWorkflowMixin:
         """
 
         try:
-            safe_asset = safe_path_part(asset_id)[:96]
-            safe_seed = safe_path_part(dataset_uid)[:96]
-            downloads_root = default_local_downloads_root() / "crawler_assets" / safe_asset / safe_seed
-            plan_path = state_file(f"crawler_asset_seed_plans/{safe_asset}.{safe_seed}.resolved.json")
+            targets = crawler_seed_download_import_target_paths(asset_id, dataset_uid)
             conn = self._connect()
             try:
                 repository = ApiCatalogRepository(conn)
@@ -1080,10 +1077,10 @@ class CrawlerAssetWorkflowMixin:
                     asset_id,
                     dataset_uid,
                     repository,
-                    downloads_root,
+                    targets.downloads_root,
                     bounds_payload=bounds_payload,
-                    import_sqlite_path=downloads_root / "curated_sources.db",
-                    plan_path=plan_path,
+                    import_sqlite_path=targets.import_sqlite_path,
+                    plan_path=targets.plan_path,
                     timeout=8.0,
                 )
                 conn.commit()

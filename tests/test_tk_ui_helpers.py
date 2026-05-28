@@ -1,8 +1,11 @@
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.ui_helpers import (
+    crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
@@ -59,3 +62,14 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertIn("demo_provider:dataset_a", message.body)
         self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message.body)
         self.assertNotIn("run_adapter_review_or_resolve_adapter_plan_before_downloading", message.body)
+
+    def test_crawler_seed_download_import_target_paths_sanitizes_asset_and_seed(self) -> None:
+        with patch("frontends.tk.ui_helpers.default_local_downloads_root", return_value=Path("C:/downloads")):
+            targets = crawler_seed_download_import_target_paths("asset/demo", "provider:dataset/a")
+
+        self.assertEqual(Path("C:/downloads/crawler_assets/asset_demo/provider_dataset_a"), targets.downloads_root)
+        self.assertEqual(targets.downloads_root / "curated_sources.db", targets.import_sqlite_path)
+        self.assertEqual(
+            PROJECT_ROOT / "state/crawler_asset_seed_plans/asset_demo.provider_dataset_a.resolved.json",
+            targets.plan_path,
+        )

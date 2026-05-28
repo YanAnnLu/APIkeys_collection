@@ -7,7 +7,8 @@ from typing import Callable
 from api_launcher.adapters.yfinance import normalize_yfinance_symbols
 from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload, next_action_display_label
 from api_launcher.data_store_connections import data_store_env_template_filename
-from api_launcher.paths import PROJECT_ROOT, state_file
+from api_launcher.downloads.staging import safe_path_part
+from api_launcher.paths import PROJECT_ROOT, default_local_downloads_root, state_file
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,15 @@ class CrawlerSeedDownloadImportUiMessage:
     title: str
     status_message: str
     body: str
+
+
+@dataclass(frozen=True)
+class CrawlerSeedDownloadImportTargetPaths:
+    """Filesystem targets for one Tk seed download/import worker."""
+
+    downloads_root: Path
+    import_sqlite_path: Path
+    plan_path: Path
 
 
 def database_sql_dry_run_available(suggestion: object) -> bool:
@@ -55,6 +65,22 @@ def yfinance_project_path_from_ui_text(raw_text: str, field_name: str) -> Path:
         raise ValueError(f"{field_name} path is required.")
     path = Path(text).expanduser()
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def crawler_seed_download_import_target_paths(
+    asset_id: str,
+    dataset_uid: str,
+) -> CrawlerSeedDownloadImportTargetPaths:
+    """Return stable Tk filesystem targets for one seed download/import job."""
+
+    safe_asset = safe_path_part(asset_id)[:96]
+    safe_seed = safe_path_part(dataset_uid)[:96]
+    downloads_root = default_local_downloads_root() / "crawler_assets" / safe_asset / safe_seed
+    return CrawlerSeedDownloadImportTargetPaths(
+        downloads_root=downloads_root,
+        import_sqlite_path=downloads_root / "curated_sources.db",
+        plan_path=state_file(f"crawler_asset_seed_plans/{safe_asset}.{safe_seed}.resolved.json"),
+    )
 
 
 def mvp_demo_smoke_result_message(payload: dict[str, object], tr) -> str:

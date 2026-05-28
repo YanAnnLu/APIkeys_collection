@@ -1424,8 +1424,8 @@ class TkDialogModuleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_root = Path(tmp)
             with (
-                patch("frontends.tk.crawler_asset_workflows.default_local_downloads_root", return_value=tmp_root / "downloads"),
-                patch("frontends.tk.crawler_asset_workflows.state_file", return_value=tmp_root / "plans" / "seed.resolved.json"),
+                patch("frontends.tk.ui_helpers.default_local_downloads_root", return_value=tmp_root / "downloads"),
+                patch("frontends.tk.ui_helpers.state_file", return_value=tmp_root / "plans" / "seed.resolved.json"),
                 patch("frontends.tk.crawler_asset_workflows.ApiCatalogRepository", return_value="repository") as repository_class,
                 patch("frontends.tk.crawler_asset_workflows.run_crawler_seed_download_import", return_value=fake_result) as run_service,
                 patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
