@@ -35,6 +35,7 @@ from api_launcher.crawler_asset_bound_forms import (
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
+from api_launcher.crawler_asset_display import seed_enumeration_display_payload
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     SOURCE_SURFACE_LABELS,
@@ -1003,6 +1004,21 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("not_reported", payload["remote_pagination"]["status"])
         self.assertIsNone(payload["remote_pagination"]["exhausted"])
         self.assertFalse(payload["remote_pagination"]["next_page_token_present"])
+        self.assertEqual("local_limit_only", payload["completion_confidence"])
+
+    def test_seed_enumeration_display_payload_keeps_labels_out_of_service_logic(self) -> None:
+        payload = seed_enumeration_display_payload(
+            "local_limit_reached",
+            candidate_count=50,
+            max_results=50,
+            remote_pagination={"status": "has_more", "exhausted": False},
+        )
+
+        self.assertEqual("local_limit_reached", payload["status"])
+        self.assertEqual("warning", payload["display_tone"])
+        self.assertEqual("已枚舉前 50 筆 seed", payload["label"])
+        self.assertEqual("narrow_bounds_or_raise_seed_limit", payload["next_action"])
+        self.assertTrue(payload["limited_by_max_results"])
         self.assertEqual("local_limit_only", payload["completion_confidence"])
 
     def test_service_carries_source_remote_pagination_into_listing_payload(self) -> None:

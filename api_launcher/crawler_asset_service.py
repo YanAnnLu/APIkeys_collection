@@ -19,6 +19,7 @@ from typing import Callable
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source
+from api_launcher.crawler_asset_display import seed_enumeration_display_payload
 from api_launcher.crawler_asset_profiles import (
     crawler_asset_bounds_signature,
     crawler_asset_profile_for,
@@ -266,108 +267,79 @@ def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[
     remote_exhausted = remote_pagination["exhausted"] is True
     remote_has_more = remote_pagination["status"] == "has_more"
     if result.blocked:
-        return {
-            "status": "blocked",
-            "display_tone": "warning",
-            "label": "需要登入或啟用後才能枚舉 seed",
-            "help": "完成登入設定、解除封存或啟用入口後再重新枚舉。",
-            "next_action": result.next_action,
-            "limited_by_max_results": False,
-            "candidate_count": candidate_count,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": "blocked",
-        }
+        return seed_enumeration_display_payload(
+            "blocked",
+            candidate_count=candidate_count,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+            next_action=result.next_action,
+        )
     if error_count:
-        return {
-            "status": "error",
-            "display_tone": "danger",
-            "label": "seed 枚舉發生錯誤",
-            "help": "請查看 crawler audit 或事件紀錄中的錯誤來源。",
-            "next_action": result.next_action or "inspect_crawler_error",
-            "limited_by_max_results": False,
-            "candidate_count": candidate_count,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": "error",
-        }
+        return seed_enumeration_display_payload(
+            "error",
+            candidate_count=candidate_count,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+            next_action=result.next_action,
+        )
     if candidate_count <= 0:
-        return {
-            "status": "empty",
-            "display_tone": "warning",
-            "label": "尚未找到 seed",
-            "help": "可調整界域、檢查入口 URL、登入狀態或 crawler parser。",
-            "next_action": result.next_action or "adjust_bounds_or_refresh_source_listing",
-            "limited_by_max_results": False,
-            "candidate_count": 0,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": "zero_candidates",
-        }
+        return seed_enumeration_display_payload(
+            "empty",
+            candidate_count=0,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+            next_action=result.next_action,
+        )
     limited = bool(result.complete_seed and max_results > 0 and candidate_count >= max_results and not remote_exhausted)
     if limited:
-        return {
-            "status": "local_limit_reached",
-            "display_tone": "warning",
-            "label": f"已枚舉前 {candidate_count} 筆 seed",
-            "help": "結果已達本機安全上限，遠端可能還有更多 seed；可縮小界域或提高枚舉上限。",
-            "next_action": "narrow_bounds_or_raise_seed_limit",
-            "limited_by_max_results": True,
-            "candidate_count": candidate_count,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": "local_limit_only",
-        }
+        return seed_enumeration_display_payload(
+            "local_limit_reached",
+            candidate_count=candidate_count,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+        )
     if warning_count:
-        return {
-            "status": "warning",
-            "display_tone": "warning",
-            "label": f"已枚舉 {candidate_count} 筆 seed，但有 {warning_count} 個警告",
-            "help": "候選已寫入本機 catalog；建議先查看 crawler audit，再建立下載計畫。",
-            "next_action": result.next_action or "inspect_source_audit_results_before_upsert_or_promotion",
-            "limited_by_max_results": False,
-            "candidate_count": candidate_count,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": (
-                "remote_reported_exhausted"
-                if remote_exhausted
-                else "remote_has_more"
-                if remote_has_more
-                else "warning_with_unknown_remote_completion"
+        return seed_enumeration_display_payload(
+            "warning",
+            candidate_count=candidate_count,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+            warning_count=warning_count,
+            next_action=result.next_action,
+            completion_confidence=_remote_seed_completion_confidence(
+                remote_exhausted=remote_exhausted,
+                remote_has_more=remote_has_more,
+                default="warning_with_unknown_remote_completion",
             ),
-        }
+        )
     if result.complete_seed:
-        return {
-            "status": "within_current_limits",
-            "display_tone": "success",
-            "label": f"已枚舉 {candidate_count} 筆 seed",
-            "help": "結果低於本機枚舉上限；若來源支援遠端分頁，完整性仍以 crawler audit 為準。",
-            "next_action": result.next_action or "review_seed_list_or_build_download_plan",
-            "limited_by_max_results": False,
-            "candidate_count": candidate_count,
-            "max_results": max_results,
-            "remote_pagination": remote_pagination,
-            "completion_confidence": (
-                "remote_reported_exhausted"
-                if remote_exhausted
-                else "remote_has_more"
-                if remote_has_more
-                else "within_current_local_limits"
+        return seed_enumeration_display_payload(
+            "within_current_limits",
+            candidate_count=candidate_count,
+            max_results=max_results,
+            remote_pagination=remote_pagination,
+            next_action=result.next_action,
+            completion_confidence=_remote_seed_completion_confidence(
+                remote_exhausted=remote_exhausted,
+                remote_has_more=remote_has_more,
+                default="within_current_local_limits",
             ),
-        }
-    return {
-        "status": "bounded_sample",
-        "display_tone": "info",
-        "label": f"已取得 {candidate_count} 筆 seed 樣本",
-        "help": "這是 bounded/sample 模式；若要完整列入口 seed，請重新枚舉 seed。",
-        "next_action": result.next_action or "rerun_complete_seed_enumeration",
-        "limited_by_max_results": False,
-        "candidate_count": candidate_count,
-        "max_results": max_results,
-        "remote_pagination": remote_pagination,
-        "completion_confidence": "bounded_sample",
-    }
+        )
+    return seed_enumeration_display_payload(
+        "bounded_sample",
+        candidate_count=candidate_count,
+        max_results=max_results,
+        remote_pagination=remote_pagination,
+        next_action=result.next_action,
+    )
+
+
+def _remote_seed_completion_confidence(*, remote_exhausted: bool, remote_has_more: bool, default: str) -> str:
+    if remote_exhausted:
+        return "remote_reported_exhausted"
+    if remote_has_more:
+        return "remote_has_more"
+    return default
 
 
 def crawler_remote_pagination_payload(result: CrawlerAssetListingResult) -> dict[str, object]:

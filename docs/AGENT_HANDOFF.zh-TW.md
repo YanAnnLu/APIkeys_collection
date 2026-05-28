@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 18:xx Seed enumeration display contract
+- 本輪做 bounded consolidation：`crawler_seed_enumeration_payload()` 仍在 service 層決定 blocked/error/empty/local-limit/warning/within-limits/sample 狀態，但顯示文案、tone、default next_action 與 completion confidence 的預設值已抽到 `api_launcher/crawler_asset_display.py` 的 `SeedEnumerationDisplayProfile` / `seed_enumeration_display_payload()`。
+- 這讓 Web/Tk/未來 Qt 繼續消費同一份 `seed_enumeration` payload，同時避免 `crawler_asset_service.py` 繼續吸收 UI 顯示字串。沒有改 crawler、download/import、seed page window 或 remote pagination 行為。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py api_launcher\crawler_asset_service.py tests\test_crawler_assets.py` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview tests.test_tk_dialogs -v` 155 tests OK；docs/api_launcher mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，847 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_173534.log`。仍待 commit、push 與 CI。
+
 ## 2026-05-28 18:xx Crawler registry CLI JSON
 - 本輪把 `api_launcher/crawler_registry_report.py` 接成正式 CLI JSON 入口：`py -3 -B APIkeys_collection.py --crawler-registry-report-json` 會輸出 source type count、dimension counters、matrix cells、capability groups 與 spec payload，供 agent / CI / diagnostics 直接讀取，不必解析 Web/Tk 或人類文字。
 - `api_launcher/cli_flags.py` 維持 lazy import，並將原本已壞掉的註解重寫成乾淨 ASCII 維護註解；`core.py` 只新增薄入口 `show_crawler_registry_report()`，不在 core 內重建 registry 邏輯。
