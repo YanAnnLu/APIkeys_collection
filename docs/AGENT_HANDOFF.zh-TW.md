@@ -4,6 +4,7 @@
 - Web Preview 仍負責在 plan preview 與 download/import completion 時寫 structured event，但 compact event shape、run record 與 plan passport 壓縮規則改由後端 helper 擁有，避免未來 Tk/Web/Qt 各自發明 event keys。
 - 既有 regression `tests.test_web_preview.WebPreviewApiTest.test_web_plan_event_context_keeps_badge_payload_compact` 改為直接測 backend helper；Web endpoint 行為不變。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 52 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，910 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_071718.log`。
+- 已推送 `66fd82b Move plan event context display payload`；GitHub Actions run `26608126362` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 plan event context helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 06:56 Credential-blocked plan display payload
