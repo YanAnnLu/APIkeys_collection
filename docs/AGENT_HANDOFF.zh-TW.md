@@ -4,6 +4,7 @@
 - Developer CLI 使用 `("developer_cli", "command", "")` job key；同一 dialog 仍有 CLI command 執行中時，Tk 不再清空輸出或開第二個 subprocess worker。
 - 這不改 command parsing、working directory、subprocess timeout、stdout/stderr capture 或 status/output 顯示語意；只把 developer-only CLI runner 的背景 thread 收斂到共用 helper。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 101 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，893 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_025254.log`。
+- 已推送 `dbdb0d4 Guard Tk developer CLI background job`；GitHub Actions run `26595758705` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk developer CLI dialog 的背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-29 02:37 Tk sidebar favicon single-flight guard
