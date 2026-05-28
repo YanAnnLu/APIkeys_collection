@@ -4,6 +4,7 @@
 - Tk 仍保留本地 resolved plan path 作為事件中的 `resolved_plan`，並保留 `review_queue_count` 使用 resolved plan adapter review count；這兩個是 Tk 寫檔 / 顯示 queue 的本地 artifact，不移回 Web。
 - 移除 `frontends/tk/crawler_asset_workflows.py` 對 `crawler_run_record_from_result` 的直接 import；run record 由 backend display helper 產生。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 105 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，910 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_073145.log`。
+- 已推送 `49c3040 Reuse plan event context in Tk`；GitHub Actions run `26608663640` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Tk plan event context helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 07:16 Plan event context display contract
