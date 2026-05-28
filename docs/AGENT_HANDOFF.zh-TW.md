@@ -3,7 +3,7 @@
 - 本輪做 Tk scheduler guard 小切片：`open_source_pattern_draft_dialog()` 不再直接建立裸 `threading.Thread`，改走既有 `_start_crawler_asset_background_job()` / `frontends.tk.background_jobs` single-flight helper。
 - 這讓同一個 source URL 的 detector / local source draft worker 只能同時跑一個，避免連點造成重複寫入 local discovery source draft、重複 dialog/status 更新或後續 SQLite / event log 競爭。Tk 仍只負責收 URL、排背景 worker 與顯示結果；STAC/CKAN/ERDDAP 等 detector 規則仍在後端 source-pattern service。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 77 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，870 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_001201.log`。
-- 尚未推送 / 尚未看 GitHub Actions；下一步是跑 docs mojibake scan、時間佔位掃描、`git diff --check`，再 commit / push / watch CI。
+- 已推送 `a8ba8cb Guard source draft background job`；GitHub Actions run `26587355365` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只收斂 Tk source-pattern draft 內部背景 job guard；已同步 GTD、handoff 與 development log。
 
 ## 2026-05-28 23:37 Tk seed download/import target path helper
