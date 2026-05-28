@@ -12,6 +12,7 @@ Last updated: 2026-05-28
 - [x] 修補 `scripts/pre_push_smoke.ps1` upstream 探測：K/RaiDrive 偶發 `git rev-parse @{u}` 讀不到 cwd 時只跳過 optional pending-push diff，不再讓整個 smoke 提早失敗。
 - [x] 新增 `api_launcher/project_maturity.py` 與 CLI `--project-maturity-json` / `--write-project-maturity-json` / `--project-maturity-markdown`，把「整體進度」改成正式成熟度矩陣 artifact，不再以單一百分比混合 bounded closure、partial path、contract-only 與 planned work。
 - [x] 新增 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md`，定義 `deliverable_100`、`implemented_bounded`、`partial_bounded`、`contract_only`、`planned_not_started`、`hardening_needed`，並固定之後回答整體進度時使用矩陣。
+- [x] 補上 seed-level formal download/import 的 CLI JSON 入口：`--run-crawler-seed-download-import ASSET_ID DATASET_UID --crawler-seed-download-import-json`。這讓「選入口 -> 枚舉 seed -> 選 seed -> formal download/import」不只 Web/Tk 可操作，也能用 agent-readable CLI 驗收與自動化測試。
 - [ ] 下一步：挑一條 live public source 做第二個 bounded closure readiness artifact，而不是把所有 crawler 一次推成 100%。
 
 ## 2026-05-28 Source-code maturity / 能力成熟度邊界審計

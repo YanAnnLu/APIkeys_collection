@@ -5,12 +5,17 @@ import json
 from types import SimpleNamespace
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import Mock, patch
 
 from api_launcher.cli_crawler_assets import (
     crawler_asset_command_active,
+    crawler_seed_download_import_cli_payload,
+    crawler_seed_download_import_cli_result,
     crawler_asset_seed_page_cli_result,
     run_crawler_asset_cli,
+    safe_seed_download_dirname,
 )
+from api_launcher.core import main
 from api_launcher.crawler_asset_profiles import load_crawler_asset_profiles
 from api_launcher.crawler_seed_registry import (
     MAX_CRAWLER_SEED_PAGE_SIZE,
@@ -270,6 +275,8 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
             crawler_asset_seed_page=1,
             crawler_asset_seed_page_size=50,
             crawler_asset_profile_path="",
+            run_crawler_seed_download_import=[],
+            crawler_seed_download_import_json=False,
         )
         stdout = StringIO()
 
@@ -286,9 +293,111 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(50, len(seed_pages["results"][0]["seeds"]))
 
     def test_crawler_asset_command_active_includes_seed_page_command(self) -> None:
-        args = SimpleNamespace(run_crawler_asset_listing=[], crawler_asset_seeds=["demo_asset"])
+        args = SimpleNamespace(
+            run_crawler_asset_listing=[],
+            crawler_asset_seeds=["demo_asset"],
+            run_crawler_seed_download_import=[],
+        )
 
         self.assertTrue(crawler_asset_command_active(args))
+
+    def test_crawler_asset_command_active_includes_seed_download_import_command(self) -> None:
+        args = SimpleNamespace(
+            run_crawler_asset_listing=[],
+            crawler_asset_seeds=[],
+            run_crawler_seed_download_import=[["demo_asset", "demo_provider:seed_01"]],
+        )
+
+        self.assertTrue(crawler_asset_command_active(args))
+
+    def test_seed_download_import_cli_result_uses_formal_service(self) -> None:
+        repo = FakeSeedRepository([seed_dataset("seed_01")])
+        args = SimpleNamespace(
+            downloads_root="state/test_downloads",
+            import_sqlite_db="state/test_curated.db",
+            download_timeout=7.5,
+            plan_import_existing_table_policy="rename",
+        )
+        fake_result = Mock()
+        fake_result.to_dict.return_value = {
+            "asset_id": "demo_asset",
+            "dataset_uid": "demo_provider:seed_01",
+            "stage": "download_import_completed",
+            "succeeded": True,
+            "next_action": "inspect_imported_table",
+        }
+
+        with patch("api_launcher.cli_crawler_assets.run_crawler_seed_download_import", return_value=fake_result) as runner:
+            payload = crawler_seed_download_import_cli_result(
+                args,
+                repo,
+                asset_id="demo_asset",
+                dataset_uid="demo_provider:seed_01",
+            )
+
+        self.assertTrue(payload["succeeded"])
+        runner.assert_called_once()
+        self.assertEqual("demo_asset", runner.call_args.args[0])
+        self.assertEqual("demo_provider:seed_01", runner.call_args.args[1])
+        self.assertIs(runner.call_args.args[2], repo)
+        self.assertIn("crawler_seed_downloads", str(runner.call_args.args[3]))
+        self.assertEqual("state/test_curated.db", runner.call_args.kwargs["import_sqlite_path"])
+        self.assertEqual(7.5, runner.call_args.kwargs["timeout"])
+        self.assertEqual("rename", runner.call_args.kwargs["import_existing_table_policy"])
+        self.assertTrue(str(runner.call_args.kwargs["plan_path"]).endswith("resolved_seed_download_plan.json"))
+
+    def test_seed_download_import_cli_payload_summarizes_results(self) -> None:
+        payload = crawler_seed_download_import_cli_payload(
+            [
+                {"succeeded": True},
+                {"succeeded": False},
+            ]
+        )
+
+        self.assertEqual("crawler_seed_download_import", payload["command"])
+        self.assertEqual(2, payload["request_count"])
+        self.assertEqual(1, payload["succeeded_count"])
+        self.assertEqual(1, payload["failed_or_blocked_count"])
+        self.assertEqual("review_seed_download_import_results", payload["next_action"])
+
+    def test_safe_seed_download_dirname_removes_path_separators(self) -> None:
+        name = safe_seed_download_dirname("demo/asset", "provider:seed 01")
+
+        self.assertNotIn("/", name)
+        self.assertNotIn(":", name)
+        self.assertIn("demo_asset", name)
+
+    def test_cli_seed_download_import_json_suppresses_human_setup_lines(self) -> None:
+        fake_result = Mock()
+        fake_result.to_dict.return_value = {
+            "asset_id": "demo_asset",
+            "dataset_uid": "demo_provider:seed_01",
+            "stage": "download_import_completed",
+            "succeeded": True,
+        }
+        with TemporaryDirectory() as tmp:
+            stdout = StringIO()
+            with patch("api_launcher.cli_crawler_assets.run_crawler_seed_download_import", return_value=fake_result):
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            f"{tmp}/launcher.sqlite",
+                            "--init-db",
+                            "--seed",
+                            "--run-crawler-seed-download-import",
+                            "demo_asset",
+                            "demo_provider:seed_01",
+                            "--crawler-seed-download-import-json",
+                        ]
+                    )
+        payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["seed_download_import"]["request_count"])
+        self.assertEqual(1, payload["seed_download_import"]["succeeded_count"])
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
 
 
 if __name__ == "__main__":

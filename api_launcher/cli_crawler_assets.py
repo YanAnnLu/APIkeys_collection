@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Callable
 
+from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_profiles import crawler_asset_favorite_seed_uids
 from api_launcher.crawler_asset_service import (
     CrawlerAssetListingResult,
@@ -85,10 +87,27 @@ def add_crawler_asset_args(parser: argparse.ArgumentParser) -> None:
         default="",
         help="optional crawler asset profile path used to read seed favorites",
     )
+    parser.add_argument(
+        "--run-crawler-seed-download-import",
+        action="append",
+        default=[],
+        nargs=2,
+        metavar=("ASSET_ID", "DATASET_UID"),
+        help="download/import one visible crawler seed through the formal crawler seed service",
+    )
+    parser.add_argument(
+        "--crawler-seed-download-import-json",
+        action="store_true",
+        help="emit --run-crawler-seed-download-import results as agent-readable JSON",
+    )
 
 
 def crawler_asset_command_active(args: argparse.Namespace) -> bool:
-    return bool(args.run_crawler_asset_listing or args.crawler_asset_seeds)
+    return bool(
+        args.run_crawler_asset_listing
+        or args.crawler_asset_seeds
+        or getattr(args, "run_crawler_seed_download_import", [])
+    )
 
 
 def run_crawler_asset_cli(
@@ -98,7 +117,12 @@ def run_crawler_asset_cli(
 ) -> None:
     listing_asset_ids = tuple(str(asset_id).strip() for asset_id in args.run_crawler_asset_listing if str(asset_id).strip())
     seed_asset_ids = tuple(str(asset_id).strip() for asset_id in args.crawler_asset_seeds if str(asset_id).strip())
-    if not listing_asset_ids and not seed_asset_ids:
+    seed_download_requests = tuple(
+        (str(asset_id).strip(), str(dataset_uid).strip())
+        for asset_id, dataset_uid in getattr(args, "run_crawler_seed_download_import", [])
+        if str(asset_id).strip() and str(dataset_uid).strip()
+    )
+    if not listing_asset_ids and not seed_asset_ids and not seed_download_requests:
         return
 
     results: list[CrawlerAssetListingResult] = []
@@ -129,12 +153,28 @@ def run_crawler_asset_cli(
         )
         for asset_id in seed_asset_ids
     ]
+    seed_download_results = [
+        crawler_seed_download_import_cli_result(
+            args,
+            repository,
+            asset_id=asset_id,
+            dataset_uid=dataset_uid,
+        )
+        for asset_id, dataset_uid in seed_download_requests
+    ]
 
-    payload = crawler_asset_cli_payload(listing_results=results, seed_results=seed_results)
+    payload = crawler_asset_cli_payload(
+        listing_results=results,
+        seed_results=seed_results,
+        seed_download_results=seed_download_results,
+    )
     if args.crawler_asset_listing_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
     if args.crawler_asset_seeds_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+    if getattr(args, "crawler_seed_download_import_json", False):
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
 
@@ -162,19 +202,28 @@ def run_crawler_asset_cli(
             f"of {result.get('total', 0)}; has_more={result.get('has_more', False)}; "
             f"next_action={summary.get('next_action', 'seed_page_complete')}"
         )
+    for result in seed_download_results:
+        print(
+            f"[crawler-seed-download] {result.get('asset_id', '')}: "
+            f"stage={result.get('stage', '')}; succeeded={result.get('succeeded', False)}; "
+            f"next_action={result.get('next_action', '')}"
+        )
 
 
 def crawler_asset_cli_payload(
     *,
     listing_results: list[CrawlerAssetListingResult],
     seed_results: list[dict[str, object]],
+    seed_download_results: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     listing_payload = crawler_asset_listing_cli_payload(listing_results)
     seed_payload = crawler_asset_seed_page_cli_payload(seed_results)
+    seed_download_payload = crawler_seed_download_import_cli_payload(seed_download_results or [])
     return {
         "command": "crawler_asset",
         "listing": listing_payload,
         "seed_pages": seed_payload,
+        "seed_download_import": seed_download_payload,
         "next_action": "review_crawler_asset_results",
     }
 
@@ -258,11 +307,67 @@ def crawler_asset_seed_page_cli_payload(results: list[dict[str, object]]) -> dic
     }
 
 
+def crawler_seed_download_import_cli_result(
+    args: argparse.Namespace,
+    repository: ApiCatalogRepository,
+    *,
+    asset_id: str,
+    dataset_uid: str,
+) -> dict[str, object]:
+    """Run one seed-level download/import and return a JSON-safe payload.
+
+    CLI uses the same service as Web/Tk.  This gives the second bounded closure
+    path an agent-readable smoke surface without teaching the CLI how to build
+    plans, download files, or import artifacts itself.
+    """
+
+    clean_asset_id = str(asset_id or "").strip()
+    clean_dataset_uid = str(dataset_uid or "").strip()
+    root = Path(getattr(args, "downloads_root", "state/crawler_asset_downloads"))
+    target_downloads = root / "crawler_seed_downloads" / safe_seed_download_dirname(clean_asset_id, clean_dataset_uid)
+    plan_path = target_downloads / "resolved_seed_download_plan.json"
+    result = run_crawler_seed_download_import(
+        clean_asset_id,
+        clean_dataset_uid,
+        repository,
+        target_downloads,
+        import_sqlite_path=getattr(args, "import_sqlite_db", None),
+        plan_path=plan_path,
+        timeout=float(getattr(args, "download_timeout", 30.0) or 30.0),
+        import_existing_table_policy=str(getattr(args, "plan_import_existing_table_policy", "rename") or "rename"),
+    )
+    return result.to_dict()
+
+
+def crawler_seed_download_import_cli_payload(results: list[dict[str, object]]) -> dict[str, object]:
+    succeeded = sum(1 for result in results if result.get("succeeded"))
+    return {
+        "command": "crawler_seed_download_import",
+        "request_count": len(results),
+        "succeeded_count": succeeded,
+        "failed_or_blocked_count": max(0, len(results) - succeeded),
+        "next_action": "review_seed_download_import_results" if results else "select_seed_to_download",
+        "results": results,
+    }
+
+
+def safe_seed_download_dirname(asset_id: str, dataset_uid: str) -> str:
+    """Return a stable, filesystem-safe folder segment for seed CLI artifacts."""
+
+    raw = f"{asset_id}__{dataset_uid}".strip("_") or "crawler_seed"
+    safe = []
+    for char in raw:
+        safe.append(char if char.isalnum() or char in {"-", "_", "."} else "_")
+    return "".join(safe)[:160].strip("._") or "crawler_seed"
+
+
 __all__ = [
     "add_crawler_asset_args",
     "crawler_asset_cli_payload",
     "crawler_asset_command_active",
     "crawler_asset_listing_cli_payload",
+    "crawler_seed_download_import_cli_payload",
+    "crawler_seed_download_import_cli_result",
     "crawler_asset_seed_page_cli_payload",
     "crawler_asset_seed_page_cli_result",
     "run_crawler_asset_cli",

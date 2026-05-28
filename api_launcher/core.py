@@ -882,6 +882,7 @@ class CatalogLauncherCli:
             or self.args.handoff_report_json
             or self.args.crawler_asset_listing_json
             or self.args.crawler_asset_seeds_json
+            or self.args.crawler_seed_download_import_json
             or self.args.crawler_run_summary_json
             or self.args.heartbeat_plan_json
             or self.args.library_actions_json
