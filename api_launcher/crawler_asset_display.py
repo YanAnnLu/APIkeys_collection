@@ -125,6 +125,7 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "optional_edit_local_credentials": "可選擇補上登入設定",
     "run_adapter_review_or_resolve_adapter_plan_before_downloading": "先處理 Adapter 審核或解析計畫，再下載",
     "inspect_manifest": "檢查 manifest 與最近事件紀錄",
+    "inspect_event_logs_or_ui_callback": "檢查事件紀錄或 UI 進度回報",
     "run_dataset_discovery_handler_smoke_json_if_summary_fails": "摘要失敗時，執行 handler smoke JSON 診斷",
 }
 
@@ -628,6 +629,14 @@ def crawler_asset_download_import_display_payload(
         or ""
     )
     download_import["next_action_label"] = next_action_label
+    callback_errors = _download_import_callback_errors(download_import)
+    callback_diagnostics = _callback_diagnostics_payload(callback_errors)
+    # Callback diagnostics are about observers such as Tk/Web progress updates,
+    # not the downloader itself.  Keep them next to the shared display payload
+    # so UI surfaces can show a warning without reclassifying the run as failed.
+    download_import["callback_error_count"] = len(callback_errors)
+    download_import["callback_errors"] = list(callback_errors)
+    download_import["callback_diagnostics"] = callback_diagnostics
     return {
         "download_result": download_result,
         "plan_result": plan_result_payload,
@@ -635,6 +644,7 @@ def crawler_asset_download_import_display_payload(
         "plan_passport": passport,
         "adapter_review": adapter_review,
         "download_import": download_import,
+        "callback_diagnostics": callback_diagnostics,
         "next_action": next_action,
         "next_action_label": next_action_label,
     }
@@ -940,6 +950,37 @@ def _content_import_profile_from_entry(
         if isinstance(value, dict):
             return dict(value)
     return {}
+
+
+def _download_import_callback_errors(download_import: Mapping[str, object]) -> tuple[str, ...]:
+    result = download_import.get("result") if isinstance(download_import, Mapping) else {}
+    raw_errors = result.get("callback_errors") if isinstance(result, Mapping) else ()
+    if not isinstance(raw_errors, (list, tuple)):
+        return ()
+    return tuple(text for text in (str(item).strip() for item in raw_errors) if text)
+
+
+def _callback_diagnostics_payload(callback_errors: tuple[str, ...]) -> dict[str, object]:
+    if not callback_errors:
+        return {
+            "count": 0,
+            "display_tone": "neutral",
+            "display_label": "進度回報正常",
+            "summary": "",
+            "next_action": "",
+            "next_action_label": "",
+            "errors": [],
+        }
+    next_action = "inspect_event_logs_or_ui_callback"
+    return {
+        "count": len(callback_errors),
+        "display_tone": "warning",
+        "display_label": "進度回報有警告",
+        "summary": "下載或匯入可能已完成，但 UI/progress callback 回報失敗。",
+        "next_action": next_action,
+        "next_action_label": NEXT_ACTION_DISPLAY_LABELS[next_action],
+        "errors": list(callback_errors),
+    }
 
 
 def plan_outcome_display_label(bucket: str) -> str:

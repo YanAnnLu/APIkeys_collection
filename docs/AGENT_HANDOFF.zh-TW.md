@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 04:42 Crawler asset callback diagnostics display payload
+- 本輪把 `DownloadPlanRunResult.callback_errors` 再往 UI-neutral crawler asset 顯示 payload 接一層：`crawler_asset_download_import_display_payload()` 現在會輸出 top-level `callback_diagnostics`，並在 nested `download_import` 內提供 `callback_error_count`、`callback_errors` 與 `callback_diagnostics`。
+- `callback_diagnostics` 會把無錯誤狀態標成「進度回報正常」，有錯誤時標成 warning，並給 `inspect_event_logs_or_ui_callback` / 「檢查事件紀錄或 UI 進度回報」下一步；這仍是 observer/UI progress diagnostics，不把成功 download/import 重新分類成 failed。
+- 已補 `tests/test_crawler_asset_download.py::test_download_import_display_payload_packages_shared_ui_state` regression，鎖住 display payload 會保留 callback warning 與 next-action label。
+- 已驗證：in-memory compile `api_launcher\crawler_asset_display.py` / `tests\test_crawler_asset_download.py` OK（K 槽 `__pycache__` lock 曾讓 `py_compile` 寫 pyc 失敗，非語法錯誤）；`py -3 -B -m unittest tests.test_crawler_asset_download -v` 4 tests OK；`py -3 -B -m unittest tests.test_web_preview -v` 48 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 98 tests OK；`api_launcher\crawler_asset_display.py` 與 docs mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，897 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_044415.log`。
+- Docs drift check：本輪改 shared backend display payload，讓 UI 可呈現 callback diagnostics；已同步 GTD、handoff 與 development log，user guide 不需更新，因使用者操作流程未改。
+
 ## 2026-05-29 04:26 Download plan callback diagnostics surface
 - 本輪把 `DownloadPlanRunResult.callback_errors` 往外接到 CLI/event surface：`download_plan_executed` structured event 現在會記錄 `callback_error_count` 與前 5 筆 `callback_errors` 預覽。
 - `render_download_import_cli_lines()` 現在會在 callback diagnostics 存在時輸出 `[download-plan] callback_errors=N` 與逐筆 callback diagnostic；這仍是 observer/UI diagnostics，不把成功下載改成 failed。

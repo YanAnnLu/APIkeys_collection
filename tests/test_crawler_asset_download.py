@@ -285,6 +285,7 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
                 skipped=0,
                 registered_assets=1,
                 imported=1,
+                callback_errors=("job-1 progress: RuntimeError: ui progress callback down",),
             ),
             stage="download_import_completed",
             import_requested=True,
@@ -305,6 +306,17 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
+        self.assertEqual(1, payload["download_import"]["callback_error_count"])
+        self.assertEqual(
+            ["job-1 progress: RuntimeError: ui progress callback down"],
+            payload["download_import"]["callback_errors"],
+        )
+        self.assertEqual("進度回報有警告", payload["callback_diagnostics"]["display_label"])
+        self.assertEqual("warning", payload["callback_diagnostics"]["display_tone"])
+        self.assertEqual(
+            "檢查事件紀錄或 UI 進度回報",
+            payload["callback_diagnostics"]["next_action_label"],
+        )
 
 
 if __name__ == "__main__":
