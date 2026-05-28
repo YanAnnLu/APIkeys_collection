@@ -18,7 +18,7 @@ from dataclasses import dataclass, replace
 
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source
 from api_launcher.crawler_asset_capabilities import credential_mode_for_source, terms_risk_for_source
-from api_launcher.crawlers.registry import CrawlerSpec, crawler_spec
+from api_launcher.crawlers.registry import CrawlerCapabilityCode, CrawlerSpec, crawler_spec
 from api_launcher.crawlers.request_policy import SourceRequestPolicy, source_request_policy
 from api_launcher.crawlers.source_type_registry import source_uses_file_index
 from api_launcher.crawlers.types import DatasetDiscoverySource
@@ -83,6 +83,7 @@ class CrawlerCapabilityProfile:
     terms_risk: str
     result_shape: str
     supports_full_crawl: bool
+    capability_code: CrawlerCapabilityCode | None
     pagination_mode: str
     content_formats: tuple[str, ...]
     bound_facets: tuple[str, ...]
@@ -100,6 +101,9 @@ class CrawlerCapabilityProfile:
             "terms_risk": self.terms_risk,
             "result_shape": self.result_shape,
             "supports_full_crawl": self.supports_full_crawl,
+            "capability_code": self.capability_code.to_dict() if self.capability_code else {},
+            "capability_bits": self.capability_code.bits if self.capability_code else None,
+            "capability_binary": self.capability_code.binary if self.capability_code else "",
             "pagination_mode": self.pagination_mode,
             "content_formats": list(self.content_formats),
             "bound_facets": list(self.bound_facets),
@@ -147,6 +151,7 @@ def crawler_capability_profile(
         terms_risk=policy.terms_risk,
         result_shape=spec.result_shape if spec else "unknown",
         supports_full_crawl=bool(spec.supports_full_crawl) if spec else False,
+        capability_code=spec.capability_code if spec else None,
         pagination_mode=pagination_mode,
         content_formats=content_format_hints_for_source(source),
         bound_facets=bounds_facets_for_source(source),

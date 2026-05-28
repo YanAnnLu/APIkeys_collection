@@ -107,6 +107,10 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("json", asset.capability_profile.transport)
         self.assertEqual("dataset_list", asset.capability_profile.result_shape)
         self.assertTrue(asset.capability_profile.supports_full_crawl)
+        capability_code = asset.capability_profile.capability_code
+        self.assertIsNotNone(capability_code)
+        self.assertEqual(0b0000, capability_code.bits)
+        self.assertEqual("0000", capability_code.binary)
         self.assertEqual("offset", asset.capability_profile.pagination_mode)
         self.assertEqual(("csv", "json", "zip", "excel", "pdf", "unknown"), asset.capability_profile.content_formats)
         self.assertEqual(("package", "resource", "format", "limit"), asset.capability_profile.bound_facets)
@@ -120,6 +124,9 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("json", payload["transport"])
         self.assertEqual("dataset_list", payload["result_shape"])
         self.assertTrue(payload["supports_full_crawl"])
+        self.assertEqual({"bits": 0, "binary": "0000", "width": 4}, payload["capability_code"])
+        self.assertEqual(0b0000, payload["capability_bits"])
+        self.assertEqual("0000", payload["capability_binary"])
         self.assertEqual("offset", payload["pagination_mode"])
         self.assertEqual("public_or_review", payload["request_policy"]["credential_mode"])
 
@@ -173,6 +180,12 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("needs_handler", asset.capability_status("fetch_metadata"))
         self.assertEqual("adapter_review", asset.health.status_gate)
         self.assertEqual("待補", status_label("needs_handler"))
+        self.assertIsNone(asset.capability_profile.capability_code)
+
+        payload = asset.to_dict()["capability_profile"]
+        self.assertEqual({}, payload["capability_code"])
+        self.assertIsNone(payload["capability_bits"])
+        self.assertEqual("", payload["capability_binary"])
 
     def test_account_requirement_is_assigned_to_crawler_asset(self) -> None:
         source = DatasetDiscoverySource(

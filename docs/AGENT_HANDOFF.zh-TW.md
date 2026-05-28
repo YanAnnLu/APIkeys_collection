@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 15:08 Capability address surfaced in capability profile
+- 本輪把 `api_launcher/crawlers/registry.py` 的 4-bit `CrawlerCapabilityCode` 繼續往 `api_launcher/crawler_capability_profiles.py` 推進：`CrawlerCapabilityProfile` 現在會保存 `capability_code`，並在 `to_dict()` 中輸出 `capability_code`、`capability_bits`、`capability_binary`。
+- 這是 UI/agent 可讀的「能力膠囊地址」接線，不是 crawler 重寫、不改 14 個 handler、不改 download/import 行為。Web/Tk/未來 Qt 可以從同一個 `asset.to_dict()["capability_profile"]` 讀 capability address，而不是各自重建 source_type 分支。
+- 未註冊或未實作的 source type 仍回空地址：`capability_code={}`、`capability_bits=None`、`capability_binary=""`，避免 backlog handler 被誤標成已分類能力。
+- 已補 `tests.test_crawler_assets` regression，鎖住 CKAN profile 的 `0000` address 與 unknown source 的空地址 fallback。本地驗證：`py -3 -B -m unittest tests.test_crawler_assets -v` 44 tests OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_dataset_discovery tests.test_web_preview -v` 140 tests OK；`py -3 -B -m py_compile api_launcher\crawler_capability_profiles.py tests\test_crawler_assets.py` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，840 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_150514.log`。
+
 ## 2026-05-28 14:40 Crawler capability address / mask index
 - 本輪開始把使用者提出的 IPv4/CIDR 類比落成小型 PoC：在 `api_launcher/crawlers/registry.py` 內新增 4-bit `CrawlerCapabilityCode` 與 `CrawlerCapabilityMask`，用固定維度描述 crawler 分流能力，而不是把 source type 分支散回 UI 或 importer。
 - 目前 4 個位元的維度是：來源表面（catalog vs index/capabilities）、transport（JSON vs text/markup）、auth（none vs credential-aware）、輸出形狀（dataset list vs resource/layer links）。這是輔助索引，不取代 `CrawlerSpec`，也不改現有 14 個 handler 的行為。

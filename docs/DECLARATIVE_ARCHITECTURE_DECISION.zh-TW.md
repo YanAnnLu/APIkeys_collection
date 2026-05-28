@@ -66,6 +66,8 @@ main pipeline
 
 2026-05-28 已把「固定高維 table / mask」概念先落成 crawler registry 的輔助索引。這不是新 dispatcher，也不是第二套 source type 清單，而是在 `CrawlerSpec` 旁邊新增一個可遮罩查詢的 4-bit capability address。
 
+同日後續切片已把這個 address 往 `CrawlerCapabilityProfile` 推進。`asset.to_dict()["capability_profile"]` 會帶 `capability_code`、`capability_bits` 與 `capability_binary`，讓 Tk / Web / 未來 Qt 都消費同一份 profile payload；未知 handler 則回空地址，不假裝已納入能力膠囊。
+
 目前 4 個維度固定如下：
 
 ```text

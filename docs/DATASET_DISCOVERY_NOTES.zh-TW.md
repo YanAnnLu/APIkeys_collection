@@ -7,6 +7,7 @@
 - 目前分組刻意保守：`0000` 是一般 JSON catalog dataset list；`0010` 是 credential-aware JSON catalog；`1000` 是 JSON index scan；`1101` 是 text/XML index 或 capabilities 產生 resource/layer links。這只是輔助索引，不改 crawler 行為，也不代表下載/匯入能力成熟度。
 - 這一層目前是相容層，不是重寫。14 個既有 crawler handler 仍保留原本 Python 函式與模組；`dataset_sources.py` 只是把它們註冊成 specs，再由 registry 生成既有 `SOURCE_CRAWLER_HANDLERS`。這能維持舊 API 與測試，同時讓下一步 gateway/profile 化有穩定入口。
 - `CrawlerCapabilityProfile` 已開始消費這份 registry metadata。Crawler asset payload 會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓前端與 agent 能讀 source capability contract，而不是從 raw `source_type` 猜能力。
+- 同一份 profile payload 現在也輸出 `capability_code`、`capability_bits` 與 `capability_binary`。這讓 Web/Tk/未來 Qt 可以直接呈現「能力膠囊地址」或做 debug/filter，而不用重新實作 4-bit 分組；未註冊 handler 仍回空地址，不能被當成已完成能力。
 - 後續新增 crawler 時，應新增 handler + `CrawlerSpec` metadata，不要只把函式塞進鬆散 dict。等 registry 穩定後，再逐步把 `discover_dataset_candidate_output_for_source()` 的 dispatch 改成讀 spec/gateway，而不是一次性搬動所有 handler。
 
 ## 2026-05-28 Recursion / traversal budget guard
