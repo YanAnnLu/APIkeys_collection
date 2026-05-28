@@ -11,6 +11,9 @@ Last updated: 2026-05-28
 - [x] Schema/head probe enrichment 已先接到後端 form contract 與 Web Preview API：當 probe 取得欄位後，`time_field` / `columns` 可由手填轉為 selector；實際 Web/Tk 按鈕與 seed 選取自動觸發仍是下一步。
 - [x] Crawler source handler 已有第一版宣告式 registry 相容層：14 個既有 handler 先登記成 `CrawlerSpec`，並由 registry 生成現有 `SOURCE_CRAWLER_HANDLERS`；這不是重寫 handler，只是把 source_type 分派往 profile/gateway 方向收束。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
+- [x] 2026-05-28 governance intake 已收斂：大檔解耦要排進固定 consolidation slice；文檔治理可朝「Markdown source of truth + CSV/JSON/SQLite registry」演進；註釋要補在邊界與不變量，且行為改變時同步更新或刪除；未完整實裝能力必須在 UI/UX 顯示 `🚧` / construction / `contract_only` / `planned` 狀態，不能讓使用者誤以為已交付。
+- [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
+- [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
 - [ ] 下一個實作焦點：把 schema/head probe 觸發接到 Web/Tk 的 seed 選取流程；或延伸 crawler registry，讓 dispatch 逐步讀 `CrawlerSpec` / gateway，而不是只把它當報表 metadata。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

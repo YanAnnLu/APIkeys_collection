@@ -1,6 +1,6 @@
 # 工作區分類與拆分規則
 
-最後更新：2026-05-24
+最後更新：2026-05-28
 
 這份文件用來回答三個問題：
 
@@ -74,6 +74,18 @@ workspace inventory 目前會看到這些根目錄 runtime 產物：
 ## 分艙整理節奏
 
 目前工作區不是災難，但已經進入 MVP 長大後需要分艙的階段。整理資料夾本身要當成獨立 checkpoint，不要混在 crawler、UI 或下載功能裡做。每次只搬一組，保留相容 import / wrapper，跑完整測試，再同步 `WORKSPACE_LAYOUT`、`CODE_RELATIONSHIP_MAP` 與必要 handoff。
+
+## 邏輯解耦先於物理搬家
+
+大檔解耦要妥善排進開發節奏，不能永遠延後。若後端沒有清楚 service / gateway / registry 邊界，越來越多檔案會直接依賴 `core.py`、`repository.py`、`adapter_plan_resolver.py` 或 Tk/Web workflow 這類主節點；這會讓架構爆炸半徑變大，也會讓效能與測試問題更難定位。
+
+但整理順序必須保守：
+
+1. 先拆邏輯責任：把 parser、normalizer、gateway、registry、service function、display profile 等邊界抽出來。
+2. 再補測試與相容 wrapper：確保舊 import path、CLI、Tk/Web 呼叫仍能跑。
+3. 最後才搬資料夾：一次只搬一組，並更新 code map、workspace layout、GTD、handoff 與必要 docs index。
+
+建議節奏是每完成 2-3 個功能切片，就安排一個 bounded consolidation slice。consolidation 的目標不是美化檔名，而是降低中心節點依賴、移除散落分支、補行為契約測試，並讓下一個功能切片不必再往巨石檔案裡塞。
 
 建議排序：
 

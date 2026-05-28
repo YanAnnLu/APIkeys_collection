@@ -1,6 +1,6 @@
 # 文件索引與整理規則
 
-最後更新：2026-05-27
+最後更新：2026-05-28
 
 這份文件是「文件地圖」。它不是要把其他文件降級，而是要讓下一位 Agent 或組員知道每份文件負責什麼、該先讀哪裡、改完功能後要回頭更新哪幾份文件。
 
@@ -9,6 +9,18 @@
 文檔漂移防護：文件是契約，但可能漂移。接手時先以已驗證行為建立現況：tests、CLI JSON、smoke result、實際 UI 行為、`git diff`、GitHub Actions。若文件和已驗證行為衝突，以已驗證行為為準，回報漂移，並做最小必要修補。`DEVELOPMENT_LOG.zh-TW.md` 是歷史證據，不是目前真相。
 
 另一個重要原則：這些 `.md` 是專案知識與文件結構的 source of truth；Agent skill、handoff prompt、OpenSpec/Spectra 流程或外部自動化是消費這些文件的操作層。文件整理的方向應由 `.md` 的角色與專案維護性決定，不應反過來讓舊 skill 路徑凍結文件架構。合併、改名、刪除文件前，仍必須搜尋 `.codex/skills/`、`.gemini/`、`.github/skills/`、`.github/prompts/`、`openspec/`、`scripts/` 是否引用該路徑；整理好 `.md` 後，再回頭更新 skill/prompt/script 的引用，並在過渡期保留 redirect/summary 以免舊流程立刻失效。
+
+## 文檔作為資料資產
+
+RRKAL 本身是資料資產治理專案，專案文件也可以用資料治理方式管理。短期規則仍是：Markdown 是人類可讀 source of truth，`DOCS_INDEX.zh-TW.md` 是入口地圖，`AGENT_HANDOFF` / `PROJECT_GTD` / `DEVELOPMENT_LOG` 分別管接力、進度與歷史 checkpoint。
+
+中期可加一層 docs registry，但它應是輔助索引，不取代 `.md`：
+
+- CSV / JSON registry：記錄文件路徑、角色、權威層級、owner、last_verified、對應測試/CLI/UI 證據、是否 user-facing、是否 roadmap/history。
+- SQLite catalog：可作查詢、報表、漂移審計 cache，例如找出「使用者文件宣稱可操作但 maturity matrix 仍是 planned」的衝突。
+- Handoff / GTD / log：仍要用 Markdown 留下人類可讀結論，不把所有協作狀態藏進 DB。
+
+這個方向可降低文檔過多時的 agent 判斷成本，但第一步應先做 diff-friendly CSV/JSON PoC；不要一開始就把文檔治理變成另一個重型資料庫專案。
 
 ## 雙語文件規則
 

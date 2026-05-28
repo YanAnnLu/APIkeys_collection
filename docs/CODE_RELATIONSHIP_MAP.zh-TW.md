@@ -1,6 +1,6 @@
 # 程式關聯地圖
 
-最後更新：2026-05-22
+最後更新：2026-05-28
 
 這份文件回答「程式彼此怎麼調度」與「資料夾為什麼這樣分」。它不是完整 API 文件，而是讓下一位維護者能快速知道入口、核心模組、UI、測試與文件之間的關係。
 
@@ -113,6 +113,7 @@ docs/AGENT_HANDOFF.zh-TW.md
 | --- | --- | --- |
 | `frontends/tk/launcher_ui.py` 過大 | UI 同時處理畫面、狀態、部分流程 glue | MVP 後依 panel/dialog 分拆；共用規則回到 `api_launcher/` |
 | `api_launcher/core.py` 偏胖 | CLI 仍集中 | 新增 CLI 群組先建 `cli_*.py`，core 只做 routing |
+| 中心節點吸力 | `repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`frontends/web/preview_api.py` 仍容易被新功能直接掛上去 | 每 2-3 個功能切片安排 consolidation slice，先抽 service/gateway/profile/helper，再考慮搬檔；新增功能先問「這屬於 crawler、resolver、downloader、importer、UI 哪一層」。 |
 | data store 多 engine 同檔 | MySQL/PostgreSQL/SQLite/Hadoop profile 在同一 contract | 等本地 MySQL flow 穩定後再拆 driver family |
 | 文件分散 | 使用者指南、技術總覽、GTD、handoff 都保存重要資訊 | 透過 `DOCS_INDEX` 與本文件建立入口，不直接刪文件 |
 | runtime 檔留根目錄 | `APIkeys_collection.sqlite`, `provider_candidates.discovered.json` | 新輸出預設放 `state/`，舊路徑先保留相容 |
@@ -126,6 +127,20 @@ docs/AGENT_HANDOFF.zh-TW.md
 - 行末註解只用在少數容易誤解的常數、狀態或 guard，不做每行機械式註解。
 - 新功能要在相鄰文件補「使用者怎麼操作」與「怎麼驗證」，不要只補程式碼。
 - 若某段程式需要超過 3 個註解才能理解，優先考慮拆函式或搬到更合適的子模組。
+- 註解也會漂移。改動行為、輸入輸出、錯誤處理、權限、下載/匯入邊界或 UI 狀態時，必須同步更新相鄰註解；若註解已不能保護理解，直接刪除或改寫，不要保留過期說法。
+- 本專案允許比一般專案更高的維護註解密度，但註解應聚焦 ownership、guard、不變量、資料形狀與為何保守處理。不要用註解補救巨型函式；註解變多到難讀時，通常表示該拆邊界。
+
+## 未完成能力的 UI 標示
+
+未完成、契約型或實驗型能力不能以「安靜失敗」或一般可用按鈕呈現。任何 `contract_only`、`planned`、`review_required`、`experimental`、developer-only 或尚未完成 real I/O 的功能，都應由後端 display profile / next_action payload 提供清楚狀態，前端再顯示為使用者可讀標籤。
+
+建議文案規則：
+
+- 使用者可見：`🚧 施工中`、`尚未開放`、`需要審核`、`僅建立計畫`、`需要登入設定`。
+- Agent/JSON 可見：保留穩定機器欄位，例如 `contract_only`、`planned_not_started`、`review_required`、`developer_only`。
+- 不要把 `simulation_bridge.py` 這類 contract-only、`unreal_bridge.py` 這類 planned target、或 developer diagnostics route 寫成正式交付功能。
+
+這條規則的目的不是把 UI 做滿，而是避免使用者驗收時一直要求不存在的功能，也避免 agent 把空殼合約當成成熟能力。
 
 ## 下一步整理順序
 
