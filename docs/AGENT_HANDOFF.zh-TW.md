@@ -5,6 +5,7 @@
 - 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_web_crawler_asset_action_context_resolves_asset_credentials_and_bounds`。
 - 驗證過程中先寫錯測試假設：credential demo asset 的 limit facet 是 `granule_limit`，不是通用 `limit`。已改成檢查後端 facet key，避免測試用 UI 欄位名稱猜 backend contract。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 50 tests OK；`frontends\web` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，908 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_062631.log`。
+- 已推送 `87d7f7b Extract web crawler action context`；GitHub Actions run `26606124857` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Web endpoint 內部 setup helper；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 06:07 Web next-action payload helper
