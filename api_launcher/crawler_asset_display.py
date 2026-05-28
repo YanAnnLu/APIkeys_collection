@@ -105,6 +105,7 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "preview_payload_before_building_plan": "先預覽界域 payload",
     "click_build_plan_to_call_backend": "建立下載計畫並交給後端判斷",
     "review_plan_outcome": "檢查下載計畫結果",
+    "choose_schema_backed_bounds": "使用探測到的欄位定義界域",
     "enable_before_building_download_plan": "先啟用爬蟲資產",
     "unarchive_before_building_download_plan": "先解除封存",
     "enable_before_crawl": "先啟用爬蟲資產，再枚舉 seed",

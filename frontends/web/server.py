@@ -17,6 +17,7 @@ from frontends.web.preview_api import (
     crawler_asset_credential_detail,
     crawler_asset_detail,
     crawler_asset_download_import,
+    crawler_asset_bound_form_schema_probe,
     crawler_asset_listing,
     crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
@@ -92,6 +93,10 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 if suffix == "/bounds-payload":
                     values = self.read_json_body()
                     self.write_json(crawler_asset_payload_from_web_values(asset_id, values).to_dict())
+                    return
+                if suffix == "/bounds-form/schema-probe":
+                    values = self.read_json_body()
+                    self.write_json(crawler_asset_bound_form_schema_probe(asset_id, values))
                     return
                 if suffix == "/list-datasets":
                     values = self.read_json_body()

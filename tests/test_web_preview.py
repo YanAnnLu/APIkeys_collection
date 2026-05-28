@@ -34,9 +34,11 @@ from api_launcher.local_credentials import read_env_values
 from api_launcher.db import connect_db
 from api_launcher.models import Dataset, Provider
 from api_launcher.repository import ApiCatalogRepository
+from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
     crawler_asset_cards,
+    crawler_asset_bound_form_schema_probe,
     crawler_asset_credential_detail,
     crawler_asset_detail,
     crawler_asset_download_import,
@@ -215,6 +217,30 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(body["developer_only"])
         self.assertEqual(404, legacy_status)
         self.assertEqual(404, legacy_body["status"])
+
+    def test_server_routes_bounds_form_schema_probe(self) -> None:
+        with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+            host, port = server.server_address
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "frontends.web.server.crawler_asset_bound_form_schema_probe",
+                    return_value={"asset_id": "demo_stac", "schema_probe": {"status": "ok"}},
+                ) as schema_probe:
+                    status, body = post_json_to_preview_server(
+                        host,
+                        port,
+                        "/api/crawler-assets/demo_stac/bounds-form/schema-probe",
+                        {"url": "https://example.test/items.json"},
+                    )
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+        schema_probe.assert_called_once_with("demo_stac", {"url": "https://example.test/items.json"})
+        self.assertEqual(200, status)
+        self.assertEqual("ok", body["schema_probe"]["status"])
 
     def test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -1034,6 +1060,71 @@ class WebPreviewApiTest(unittest.TestCase):
             flow_step_ids,
         )
         self.assertEqual("Seed 註冊", detail["flow_steps"][0]["label"])
+
+    def test_schema_probe_enriches_web_bound_form_selectors(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            calls: list[dict[str, object]] = []
+
+            def fake_probe(entry: dict[str, object], *, row_limit: int, timeout: float) -> SchemaProbeResult:
+                calls.append({"entry": entry, "row_limit": row_limit, "timeout": timeout})
+                return SchemaProbeResult(
+                    status="ok",
+                    source_url=str(entry["download_url"]),
+                    probe_url=f"{entry['download_url']}?limit={row_limit}",
+                    row_count=1,
+                    columns=(
+                        SchemaProbeColumn("datetime", "2026-01-01T00:00:00Z", "datetime"),
+                        SchemaProbeColumn("cloud_cover", "5", "integer"),
+                    ),
+                )
+
+            payload = crawler_asset_bound_form_schema_probe(
+                "demo_stac",
+                {"url": "https://example.test/items.json", "row_limit": 7, "timeout": 3},
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+                schema_probe_runner=fake_probe,
+            )
+
+        fields = {field["field_id"]: field for field in payload["bound_form"]["fields"]}
+        self.assertEqual({"download_url": "https://example.test/items.json"}, calls[0]["entry"])
+        self.assertEqual(7, calls[0]["row_limit"])
+        self.assertEqual(3.0, calls[0]["timeout"])
+        self.assertEqual("ok", payload["schema_probe"]["status"])
+        self.assertEqual("choose_schema_backed_bounds", payload["next_action"])
+        self.assertEqual("使用探測到的欄位定義界域", payload["next_action_label"])
+        self.assertEqual(("datetime",), tuple(fields["time_field"]["options"]))
+        self.assertEqual("datetime", fields["time_field"]["default"])
+        self.assertFalse(fields["time_field"]["requires_schema_probe"])
+        self.assertFalse(fields["start_date"]["requires_schema_probe"])
+        self.assertFalse(fields["end_date"]["requires_schema_probe"])
+        self.assertIn("schema_probe_applied", payload["bound_form"]["warning_codes"])
+
+    def test_schema_probe_normalizes_nested_entry_url(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            calls: list[dict[str, object]] = []
+
+            def fake_probe(entry: dict[str, object], *, row_limit: int, timeout: float) -> SchemaProbeResult:
+                calls.append(entry)
+                return SchemaProbeResult(
+                    status="ok",
+                    source_url=str(entry["download_url"]),
+                    probe_url=str(entry["download_url"]),
+                )
+
+            crawler_asset_bound_form_schema_probe(
+                "demo_stac",
+                {"entry": {"url": "https://example.test/nested.json"}},
+                primary_path=source_path,
+                local_path=local_path,
+                profile_path=profile_path,
+                schema_probe_runner=fake_probe,
+            )
+
+        self.assertEqual("https://example.test/nested.json", calls[0]["download_url"])
 
     def test_detail_surfaces_local_credential_status_without_secret_values(self) -> None:
         with TemporaryDirectory() as tmp:

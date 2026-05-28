@@ -17,11 +17,12 @@ facet expansion or payload normalization rules here.
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Mapping
 
 from api_launcher.crawler_asset_bounds import CrawlerAssetBoundFacet
 from api_launcher.crawlers.types import DatasetDiscoverySource
+from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult
 
 
 # Presets are UX helpers, not hidden crawler defaults.  They give first-time
@@ -367,6 +368,101 @@ def build_crawler_asset_bound_form_spec(
     )
 
 
+def apply_schema_probe_to_crawler_asset_bound_form_spec(
+    spec: CrawlerAssetBoundFormSpec,
+    probe: SchemaProbeResult,
+) -> CrawlerAssetBoundFormSpec:
+    """Return a schema-enriched form spec without changing crawler behavior.
+
+    The base crawler-asset form only knows source facets.  A schema/head probe
+    knows concrete column names.  This helper bridges those layers by turning
+    blind ``time_field`` and ``columns`` inputs into selectors while leaving
+    plan building, downloads, and provider-specific policy untouched.
+    """
+
+    if not probe.succeeded or not probe.columns:
+        warnings = tuple(dict.fromkeys((*spec.warning_codes, "schema_probe_failed")))
+        return replace(spec, warning_codes=warnings)
+
+    column_options = schema_probe_column_options(probe.columns)
+    time_options = schema_probe_role_options(probe.columns, "time")
+    longitude_options = schema_probe_role_options(probe.columns, "longitude")
+    latitude_options = schema_probe_role_options(probe.columns, "latitude")
+    time_schema_resolved = bool(time_options or column_options)
+    recommended_values = dict(spec.recommended_values)
+    fields: list[CrawlerAssetBoundFormField] = []
+
+    for form_field in spec.fields:
+        field = form_field
+        if form_field.field_id == "time_field":
+            options = time_options or column_options
+            default = form_field.default or (time_options[0] if time_options else "")
+            if default:
+                recommended_values.setdefault("time_field", default)
+            field = replace(
+                form_field,
+                control="select_or_text" if options else form_field.control,
+                options=options,
+                default=default,
+                requires_schema_probe=not bool(options),
+                help_zh_TW="已由 schema/head probe 取得欄位清單；請從下拉選單選擇時間欄位。",
+                help_en="Schema/head probe supplied columns; choose the time column from the selector.",
+            )
+        elif form_field.field_id in {"start_date", "end_date"} and time_schema_resolved:
+            field = replace(form_field, requires_schema_probe=False)
+        elif form_field.field_id == "columns":
+            field = replace(
+                form_field,
+                options=column_options,
+                requires_schema_probe=not bool(column_options),
+                help_zh_TW="已由 schema/head probe 取得欄位清單；請勾選需要保留或驗證的欄位。",
+                help_en="Schema/head probe supplied columns; select fields to keep or verify.",
+            )
+        fields.append(field)
+
+    if longitude_options and latitude_options:
+        recommended_values.setdefault("longitude_field", longitude_options[0])
+        recommended_values.setdefault("latitude_field", latitude_options[0])
+
+    remaining_schema_probe_required = sum(1 for field in fields if field.requires_schema_probe)
+    warnings = [warning for warning in spec.warning_codes if warning != "schema_probe_recommended"]
+    warnings.append("schema_probe_applied")
+    if remaining_schema_probe_required:
+        warnings.append("schema_probe_recommended")
+
+    return replace(
+        spec,
+        fields=tuple(fields),
+        schema_probe_required_count=remaining_schema_probe_required,
+        warning_codes=tuple(dict.fromkeys(warnings)),
+        recommended_values=recommended_values,
+        guidance_zh_TW="已套用 schema/head probe 欄位；可先用下拉選單選欄位，再預覽 payload。",
+        guidance_en="Schema/head probe columns are applied; choose fields from selectors, then preview the payload.",
+    )
+
+
+def schema_probe_column_options(columns: tuple[SchemaProbeColumn, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(column.name for column in columns if column.name))
+
+
+def schema_probe_role_options(columns: tuple[SchemaProbeColumn, ...], role: str) -> tuple[str, ...]:
+    return tuple(column.name for column in columns if schema_probe_column_role_hint(column) == role and column.name)
+
+
+def schema_probe_column_role_hint(column: SchemaProbeColumn) -> str:
+    """Infer minimal role hints for crawler-asset bounds selectors."""
+
+    name = column.name.strip().lower()
+    inferred = column.inferred_type
+    if inferred in {"date", "datetime"} or any(token in name for token in ("time", "date", "timestamp", "datetime")):
+        return "time"
+    if name in {"lon", "lng", "long", "longitude", "x"} or "longitude" in name:
+        return "longitude"
+    if name in {"lat", "latitude", "y"} or "latitude" in name:
+        return "latitude"
+    return ""
+
+
 def recommended_form_values(
     fields: tuple[CrawlerAssetBoundFormField, ...],
     *,
@@ -675,6 +771,7 @@ __all__ = [
     "CrawlerAssetBoundPreset",
     "CrawlerAssetBoundFormSpec",
     "CrawlerAssetBoundPayload",
+    "apply_schema_probe_to_crawler_asset_bound_form_spec",
     "build_crawler_asset_bound_form_spec",
     "bound_form_presets",
     "crawler_asset_bound_form_profile",

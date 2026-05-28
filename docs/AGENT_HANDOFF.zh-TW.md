@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-28 12:13 Schema/head probe bounds form handoff
+- 本輪把 crawler asset 界域表單的 schema/head probe enrichment 收成後端契約：新增 `apply_schema_probe_to_crawler_asset_bound_form_spec()`，當 `SchemaProbeResult` 有欄位時，`time_field` 會轉成 `select_or_text` selector，`columns` 會帶出可選欄位，`start_date` / `end_date` 不再被誤標成仍需 schema probe；probe 失敗則保留 review/warning 狀態，不假裝可選。
+- Web Preview 新增薄 route：`POST /api/crawler-assets/{asset_id}/bounds-form/schema-probe`，只接受候選 entry URL、呼叫既有 `probe_plan_entry_schema()`，再回傳同一份 `bound_form` display payload。前端仍不自行推斷欄位或 source type；真正把此 route 接到 seed 選取 / UI 按鈕是下一個切片。payload 正規化已涵蓋 top-level `url` 與 nested `entry.url`。
+- 已驗證：`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview tests.test_tk_dialogs -v`，151 tests OK；docs mojibake scan OK；`git diff --check` OK（僅 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，835 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_121359.log`。後續提交 / 推送後需看 GitHub Actions。
+
 ## 2026-05-28 11:48 Tk bounds quick values handoff
 - 本輪先確認另一 agent 的 `api_launcher/cli_flags.py` lazy import 變更已安全落地：HEAD `055a9fc`，`cli_flags.py` 目前無未提交 diff；`py -3 -B -m unittest tests.test_cli_flags tests.test_handoff -v`，22 tests OK，所以不需回退或修補該檔。
 - 同輪把 Tk 界域表單接上既有後端 `CrawlerAssetBoundFormSpec.recommended_values` 與 `presets`。Dialog 現在會顯示「快速界域 / Quick bounds」、「套用推薦值」與最多 4 個後端區域預設按鈕；按下後只複製後端明確提供的值，不在 Tk 內自行猜 collection、time field、bbox 或版本。

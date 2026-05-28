@@ -29,6 +29,7 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_profile,
 )
 from api_launcher.crawler_asset_bound_forms import (
+    apply_schema_probe_to_crawler_asset_bound_form_spec,
     build_crawler_asset_bound_form_spec,
     crawler_asset_bound_form_profile,
     crawler_asset_bound_payload_from_form_values,
@@ -49,6 +50,7 @@ from api_launcher.crawlers.types import DatasetCandidate, DatasetDiscoverySource
 from api_launcher.db import connect_db
 from api_launcher.models import Dataset, Provider
 from api_launcher.repository import ApiCatalogRepository
+from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult
 
 
 class CrawlerAssetTest(unittest.TestCase):
@@ -369,6 +371,73 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertIn("taiwan", profile.preset_ids)
         self.assertIn("limit", profile.recommended_value_keys)
         self.assertEqual(profile.to_dict(), payload)
+
+    def test_schema_probe_enriches_bounds_form_column_selectors(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_socrata",
+            provider_id="demo_provider",
+            name="Demo Socrata",
+            source_type="socrata_catalog_search",
+            endpoint_url="https://data.example.test/api/views.json",
+            max_results=40,
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(
+            asset.asset_id,
+            asset.capabilities[2].bounds_schema,
+            source=source,
+        )
+        probe = SchemaProbeResult(
+            status="ok",
+            source_url="https://data.example.test/resource/abcd.json",
+            columns=(
+                SchemaProbeColumn("created_date", "2026-01-01T00:00:00", "datetime"),
+                SchemaProbeColumn("borough", "Queens", "text"),
+                SchemaProbeColumn("count", "3", "integer"),
+            ),
+        )
+
+        enriched = apply_schema_probe_to_crawler_asset_bound_form_spec(form_spec, probe)
+        fields = {field.field_id: field for field in enriched.fields}
+        profile = crawler_asset_bound_form_profile(enriched)
+
+        self.assertEqual("select_or_text", fields["time_field"].control)
+        self.assertEqual(("created_date",), fields["time_field"].options)
+        self.assertEqual("created_date", fields["time_field"].default)
+        self.assertFalse(fields["time_field"].requires_schema_probe)
+        self.assertEqual(("created_date", "borough", "count"), fields["columns"].options)
+        self.assertFalse(fields["columns"].requires_schema_probe)
+        self.assertEqual("created_date", enriched.recommended_values["time_field"])
+        self.assertIn("schema_probe_applied", enriched.warning_codes)
+        self.assertNotIn("schema_probe_recommended", enriched.warning_codes)
+        self.assertEqual(0, enriched.schema_probe_required_count)
+        self.assertEqual("bounds_form_ready_with_presets", profile.profile_id)
+
+    def test_failed_schema_probe_keeps_bounds_form_in_review(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_socrata",
+            provider_id="demo_provider",
+            name="Demo Socrata",
+            source_type="socrata_catalog_search",
+            endpoint_url="https://data.example.test/api/views.json",
+        )
+        asset = crawler_asset_from_source(source)
+        form_spec = build_crawler_asset_bound_form_spec(
+            asset.asset_id,
+            asset.capabilities[2].bounds_schema,
+            source=source,
+        )
+        probe = SchemaProbeResult(
+            status="error",
+            source_url="https://data.example.test/resource/abcd.json",
+            error="timeout",
+        )
+
+        enriched = apply_schema_probe_to_crawler_asset_bound_form_spec(form_spec, probe)
+
+        self.assertIn("schema_probe_failed", enriched.warning_codes)
+        self.assertIn("schema_probe_recommended", enriched.warning_codes)
+        self.assertEqual(form_spec.schema_probe_required_count, enriched.schema_probe_required_count)
 
     def test_empty_bounds_form_profile_allows_direct_plan_flow(self) -> None:
         form_spec = build_crawler_asset_bound_form_spec("demo_empty", ())
