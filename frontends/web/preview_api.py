@@ -13,6 +13,7 @@ or service contract first, then expose it here.
 from __future__ import annotations
 
 import contextlib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
@@ -74,6 +75,16 @@ WEB_PREVIEW_EVENT_LIMIT = 80
 # has many seeds.  The backend still applies source-level page caps, rate limits,
 # credential gates, and remote pagination status.
 WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT = 1000
+
+
+@dataclass(frozen=True)
+class WebDownloadImportTargetPaths:
+    db_path: Path
+    downloads_root: Path
+    import_sqlite_path: Path
+    plan_path: Path
+
+
 def web_preview_status() -> dict[str, object]:
     """Return a small machine-readable status for browser smoke checks."""
 
@@ -777,27 +788,23 @@ def crawler_asset_download_import(
             initial_next_action="run_crawler_asset_download_import",
         )
 
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    target_downloads = (
-        Path(downloads_root)
-        if downloads_root is not None
-        else default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset.asset_id
+    targets = web_download_import_target_paths(
+        asset.asset_id,
+        db_path=db_path,
+        downloads_root=downloads_root,
+        import_sqlite_path=import_sqlite_path,
     )
-    target_import_sqlite = (
-        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
-    )
-    plan_path = target_downloads / "resolved_download_plan.json"
-    with contextlib.closing(connect_db(target_db)) as conn:
+    with contextlib.closing(connect_db(targets.db_path)) as conn:
         repository = ApiCatalogRepository(conn)
         repository.init_schema()
         repository.seed_builtin_providers()
         result = run_crawler_asset_download_import(
             asset.asset_id,
             repository,
-            target_downloads,
+            targets.downloads_root,
             bounds_payload=payload,
-            import_sqlite_path=target_import_sqlite,
-            plan_path=plan_path,
+            import_sqlite_path=targets.import_sqlite_path,
+            plan_path=targets.plan_path,
             primary_path=primary_path,
             local_path=local_path,
             profile_path=profile_path,
@@ -862,18 +869,14 @@ def crawler_seed_download_import(
             initial_next_action="run_crawler_seed_download_import",
         )
 
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    seed_dir = safe_path_part(dataset_uid)[:96]
-    target_downloads = (
-        Path(downloads_root)
-        if downloads_root is not None
-        else default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset.asset_id / seed_dir
+    targets = web_download_import_target_paths(
+        asset.asset_id,
+        dataset_uid=dataset_uid,
+        db_path=db_path,
+        downloads_root=downloads_root,
+        import_sqlite_path=import_sqlite_path,
     )
-    target_import_sqlite = (
-        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
-    )
-    plan_path = target_downloads / "resolved_seed_download_plan.json"
-    with contextlib.closing(connect_db(target_db)) as conn:
+    with contextlib.closing(connect_db(targets.db_path)) as conn:
         repository = ApiCatalogRepository(conn)
         repository.init_schema()
         repository.seed_builtin_providers()
@@ -881,10 +884,10 @@ def crawler_seed_download_import(
             asset.asset_id,
             dataset_uid,
             repository,
-            target_downloads,
+            targets.downloads_root,
             bounds_payload=payload,
-            import_sqlite_path=target_import_sqlite,
-            plan_path=plan_path,
+            import_sqlite_path=targets.import_sqlite_path,
+            plan_path=targets.plan_path,
             primary_path=primary_path,
             local_path=local_path,
             profile_path=profile_path,
@@ -907,6 +910,40 @@ def crawler_seed_download_import(
 
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)
+
+
+def web_download_import_target_paths(
+    asset_id: str,
+    *,
+    dataset_uid: str = "",
+    db_path: str | Path | None = None,
+    downloads_root: str | Path | None = None,
+    import_sqlite_path: str | Path | None = None,
+) -> WebDownloadImportTargetPaths:
+    """Resolve Web Preview download/import paths without duplicating route logic.
+
+    Seed-level runs get a stable seed subdirectory only for the default Web
+    downloads root.  Tests and callers that pass ``downloads_root`` keep exact
+    path control.
+    """
+
+    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
+    if downloads_root is not None:
+        target_downloads = Path(downloads_root)
+    else:
+        target_downloads = default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset_id
+        if dataset_uid:
+            target_downloads = target_downloads / safe_path_part(dataset_uid)[:96]
+    target_import_sqlite = (
+        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
+    )
+    plan_name = "resolved_seed_download_plan.json" if dataset_uid else "resolved_download_plan.json"
+    return WebDownloadImportTargetPaths(
+        db_path=target_db,
+        downloads_root=target_downloads,
+        import_sqlite_path=target_import_sqlite,
+        plan_path=target_downloads / plan_name,
+    )
 
 
 def web_download_import_event_context(

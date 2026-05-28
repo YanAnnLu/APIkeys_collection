@@ -37,6 +37,7 @@ Last updated: 2026-05-28
 - [x] Tk seed download/import message 組裝已抽到 `frontends/tk/ui_helpers.py`：`crawler_asset_workflows.py` 只消費 helper 回傳的 title/status/body，不再直接拆 backend display payload 組 messagebox 文案。
 - [x] Web download/import 缺憑證 blocked payload 已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_credential_blocked_response()`，避免 `blocked_before_download` 與 login next-action payload 分叉。
 - [x] Web download/import completion event context 已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_event_context()`，避免 stage、success、download_import、artifacts event payload 分叉。
+- [x] Web download/import target path 組裝已抽成 helper：asset-level / seed-level endpoint 共用 `web_download_import_target_paths()`，避免 DB、downloads root、curated SQLite 與 resolved plan path 計算分叉；seed-level 預設路徑仍保留穩定 seed 子目錄，明確傳入 downloads root 時不自動改寫呼叫端路徑。
 - [ ] 下一個實作焦點：做一個 bounded consolidation slice，優先把近期 Web/Tk seed/probe/download 操作的狀態、job 排程與顯示 profile 再收斂，避免 `crawler_asset_workflows.py` / `preview_api.py` 繼續吸收責任。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收

@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-28 23:02 Web download/import target path helper
+- 本輪繼續做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.WebDownloadImportTargetPaths` 與 `web_download_import_target_paths()`，asset-level 與 seed-level download/import endpoint 共用 DB、downloads root、curated SQLite 與 resolved plan path 組裝。
+- 這不改 Web API response、正式下載/匯入 service、目錄語意或使用者操作流程；seed-level run 仍只在預設 Web downloads root 下自動加 seed 子目錄，測試/呼叫端傳入 `downloads_root` 時保留精確路徑控制。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 48 tests OK；docs mojibake scan OK；時間佔位掃描無結果；`git diff --check` OK（僅既有 CRLF/LF warning）；`.\scripts\pre_push_smoke_brief.cmd` 通過，867 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260528_230350.log`。
+- Docs drift check：本輪只收斂 Web endpoint 內部 target path helper；需在 push / CI 後回填 development log 與本段狀態。
+
 ## 2026-05-28 22:47 Web download/import event context helper
 - 本輪繼續做 Web Preview bounded consolidation：新增 `frontends.web.preview_api.web_download_import_event_context()`，asset-level 與 seed-level download/import 完成事件共用同一份 event context builder。
 - 這不改 Web API response、正式下載/匯入 service 或 event 欄位；只是移除兩段重複的 stage、success、download_import、artifacts event context 組裝，讓 endpoint 更薄。

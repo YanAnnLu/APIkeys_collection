@@ -53,6 +53,7 @@ from frontends.web.preview_api import (
     save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
+    web_download_import_target_paths,
     web_project_maturity,
     web_preview_recent_events,
     web_preview_status,
@@ -480,6 +481,38 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
         self.assertFalse(payload["download_import"]["succeeded"])
         self.assertEqual("credential_setup_required", payload["plan_passport"]["outcome_bucket"])
+
+    def test_web_download_import_target_paths_keeps_explicit_download_root(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            targets = web_download_import_target_paths(
+                "demo_stac",
+                dataset_uid="demo_provider:dataset/a",
+                db_path=root / "preview.sqlite",
+                downloads_root=root / "custom-downloads",
+            )
+
+        self.assertEqual(root / "preview.sqlite", targets.db_path)
+        self.assertEqual(root / "custom-downloads", targets.downloads_root)
+        self.assertEqual(root / "custom-downloads" / "curated_sources.db", targets.import_sqlite_path)
+        self.assertEqual(root / "custom-downloads" / "resolved_seed_download_plan.json", targets.plan_path)
+
+    def test_web_download_import_target_paths_adds_default_seed_subdir(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch("frontends.web.preview_api.default_local_downloads_root", return_value=root / "downloads"):
+                targets = web_download_import_target_paths(
+                    "demo_stac",
+                    dataset_uid="demo_provider:dataset/a",
+                    db_path=root / "preview.sqlite",
+                )
+
+        self.assertEqual(
+            root / "downloads" / "RuRuKa Asset Launcher Web Preview" / "demo_stac" / "demo_provider_dataset_a",
+            targets.downloads_root,
+        )
+        self.assertEqual(targets.downloads_root / "curated_sources.db", targets.import_sqlite_path)
+        self.assertEqual(targets.downloads_root / "resolved_seed_download_plan.json", targets.plan_path)
 
     def test_server_runtime_status_reports_actual_port(self) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
