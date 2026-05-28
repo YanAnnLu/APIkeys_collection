@@ -4,6 +4,7 @@
 - `run_download_plan_payload()` 會在 queue shutdown 前讀取 `queue.callback_error_snapshot()`；progress callback 失敗會進入 diagnostics，但不會增加 `failed`，也不會把已完成下載改成失敗。
 - 新增 `tests/test_download_plan_runner.py::test_runner_reports_progress_callback_errors_without_failing_download`，驗證 UI/progress callback 壞掉時下載仍完成，且 JSON result 可看到 callback error。
 - 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m py_compile api_launcher\downloads\plan_runner.py tests\test_download_plan_runner.py` OK；`py -3 -B -m unittest tests.test_download_plan_runner tests.test_download_jobs -v` 15 tests OK。
+- 已推送 `aaeb8a2 Surface download callback diagnostics in plan results`；GitHub Actions run `26599799798` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 agent-readable download plan result payload，多出 diagnostics 欄位但不改使用者操作流程；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 04:00 Crawler registry handler signature guard
