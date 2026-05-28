@@ -5,6 +5,7 @@
 - 這不改 provider discovery、dataset crawler audit、local promotion dry-run、repository upsert 或 review dialog；只是降低連點 / 低算力設備下的 discovery worker 併發壓力。
 - 新增 regression：`test_provider_discovery_blocks_when_discovery_queue_full`、`test_dataset_candidate_discovery_blocks_when_discovery_queue_full`、`test_local_discovery_audit_blocks_when_discovery_queue_full`。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\discovery_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 107 tests OK；`frontends\tk` 與 docs mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` / `frontends/tk/discovery_workflows.py` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，904 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_054019.log`。
+- 已推送 `a8580b2 Cap Tk discovery background jobs`；GitHub Actions run `26604123009` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Tk discovery 背景工作 capacity guard；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 05:25 Tk SQLite import capacity guard
