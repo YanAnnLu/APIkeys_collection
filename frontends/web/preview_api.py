@@ -49,7 +49,6 @@ from api_launcher.crawler_asset_service import (
     CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
     crawler_asset_listing_event_context,
-    crawler_seed_enumeration_payload,
     run_crawler_asset_listing,
 )
 from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
@@ -119,6 +118,19 @@ def apply_web_next_action(response: dict[str, object], next_action: object) -> N
     """Update an existing Web payload with the shared next-action contract."""
 
     response.update(web_next_action_payload(next_action))
+
+
+def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
+    """Expose one listing result shape and add the Web display label.
+
+    The service dataclass owns counts, remote pagination, seed enumeration, and
+    run-record structure.  Web only adds the shared next-action label so blocked
+    and successful listing responses cannot drift into separate payload shapes.
+    """
+
+    payload = result.to_dict()
+    payload["next_action_label"] = next_action_display_label(payload.get("next_action"))
+    return payload
 
 
 def web_crawler_asset_action_context(
@@ -445,27 +457,7 @@ def crawler_asset_listing(
             complete_seed=listing_options["complete_seed"],
             search_scope="blocked_by_credentials",
         )
-        response["listing_result"] = {
-            "asset_id": asset.asset_id,
-            "source_found": True,
-            "listing_mode": listing_options["listing_mode"],
-            "blocked": True,
-            "blocked_reason": "credential_setup_required",
-            "candidate_count": 0,
-            "upserted_count": 0,
-            "skipped_provider_count": 0,
-            "duplicate_count": 0,
-            "error_count": 0,
-            "warning_count": 0,
-            **web_next_action_payload("edit_local_credentials_before_live_download"),
-            "audit_summary": {},
-            "max_results": listing_options["max_results"],
-            "max_pages": listing_options["max_pages"],
-            "full_crawl": True,
-            "complete_seed": listing_options["complete_seed"],
-            "search_scope": "blocked_by_credentials",
-            "seed_enumeration": crawler_seed_enumeration_payload(blocked_result),
-        }
+        response["listing_result"] = web_crawler_asset_listing_payload(blocked_result)
         apply_web_next_action(response, "edit_local_credentials_before_live_download")
         return response
 
@@ -484,7 +476,7 @@ def crawler_asset_listing(
         result = run_crawler_asset_listing(asset.asset_id, session.conn, **kwargs)
         session.conn.commit()
 
-    payload = result.to_dict()
+    payload = web_crawler_asset_listing_payload(result)
     response["listing_result"] = payload
     response["audit_summary"] = payload.get("audit_summary", {})
     apply_web_next_action(response, result.next_action)

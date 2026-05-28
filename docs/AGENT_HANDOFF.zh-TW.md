@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 06:38 Web listing payload helper
+- 本輪繼續 Web Preview bounded consolidation：`frontends/web/preview_api.py` 新增 `web_crawler_asset_listing_payload()`，讓 listing blocked 分支與 live listing 成功分支都先使用 `CrawlerAssetListingResult.to_dict()` 的同一份 service-owned 結構，再由 Web 附加 `next_action_label`。
+- `crawler_asset_listing()` 的 credential-blocked 分支不再手寫 candidate counts、seed enumeration、search scope 等 listing payload；這些欄位由 `CrawlerAssetListingResult` dataclass 保持一致。Web 仍明確處理 credential guard 與 endpoint-level next action。
+- 移除 `preview_api.py` 對 `crawler_seed_enumeration_payload` 的直接 import，避免 Web endpoint 自己重建 seed enumeration。
+- 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_web_crawler_asset_listing_payload_adds_label_without_rebuilding_shape`，並補強 listing endpoint 測試確認 nested `listing_result.next_action_label` 也存在。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 51 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，909 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_064048.log`。
+- Docs drift check：本輪改 Web listing endpoint 內部 payload helper；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 06:23 Web crawler action context helper
 - 本輪繼續 Web Preview bounded consolidation：`frontends/web/preview_api.py` 新增 `WebCrawlerAssetActionContext` 與 `web_crawler_asset_action_context()`，集中 plan preview、asset download/import、seed download/import 三條 endpoint 共用的 asset lookup、credential guard 與 bounds payload 解析。
 - Endpoint 仍明確保留各自的 credential blocking、plan build、download/import、passport update 與 event logging；helper 只收斂重複 setup，不隱藏交易或業務決策。

@@ -43,6 +43,7 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
+    web_crawler_asset_listing_payload,
     web_crawler_asset_action_context,
     compact_listing_outcome,
     crawler_asset_plan_event_context,
@@ -125,6 +126,23 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("demo_cmr", context.asset.asset_id)
         self.assertEqual("missing_credentials", context.credential_guard["status"])
         self.assertEqual(5, context.bounds_payload.to_dict()["facet_values"]["granule_limit"])
+
+    def test_web_crawler_asset_listing_payload_adds_label_without_rebuilding_shape(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_stac",
+            source_found=True,
+            listing_mode="complete_seed",
+            candidate_count=2,
+            next_action="review_or_upsert_dataset_candidates",
+            complete_seed=True,
+        )
+
+        payload = web_crawler_asset_listing_payload(result)
+
+        self.assertEqual("demo_stac", payload["asset_id"])
+        self.assertEqual(2, payload["candidate_count"])
+        self.assertEqual("within_current_limits", payload["seed_enumeration"]["status"])
+        self.assertEqual("審核或寫入候選資料", payload["next_action_label"])
 
     def test_crawler_handler_smoke_diagnostics_is_developer_only_and_compact(self) -> None:
         payload = crawler_handler_smoke_diagnostics()
@@ -973,6 +991,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("review_or_upsert_dataset_candidates", payload["next_action"])
         self.assertEqual("審核或寫入候選資料", payload["next_action_label"])
         self.assertEqual(3, payload["listing_result"]["candidate_count"])
+        self.assertEqual("審核或寫入候選資料", payload["listing_result"]["next_action_label"])
         self.assertEqual("complete_seed", payload["listing_options"]["listing_mode"])
         self.assertEqual(2, payload["listing_result"]["upserted_count"])
         self.assertEqual("within_current_limits", payload["listing_result"]["seed_enumeration"]["status"])
