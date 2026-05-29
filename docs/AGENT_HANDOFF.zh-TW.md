@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-30 00:14 Provider/database dialog ownership local smoke
+## 2026-05-30 00:20 Provider/database dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `ProviderEditorDialog` 與 `DatabaseClientSettingsDialog`，新增 `frontends/tk/provider_editor_dialog.py` 與 `frontends/tk/database_client_settings_dialog.py` 作為各自 owner。
 - `dialogs.py` 仍 re-export 兩個 class，所以 `frontends.tk.dialogs` 舊匯入點、provider 編輯 workflow、database client settings 入口與 tests 不需改；provider dialog 只建立 `core.Provider` result，真正寫入仍由主 UI/repository 決定；database client dialog 只改本機 integration config 與開啟本機 DB 工具，不改資料庫內容。
 - `dialogs.py` 從約 1317 行降到 998 行；這是小型 provider/settings dialog ownership cleanup，不改 provider 欄位驗證、local integration config schema、database client profile 行為或 UI 操作流程。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\provider_editor_dialog.py frontends\tk\database_client_settings_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_001456.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
-- 本地 code checkpoint：`ddb791d Move provider database client dialogs`；文檔 checkpoint：`09678c7 Record provider database dialog checkpoint`。尚未推送 / GitHub Actions；下一步 push `rrkal-32e215c-recovery` 並手動 dispatch CI。
+- 已推送到 `origin/rrkal-32e215c-recovery`；GitHub Actions manual run `26648746037` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 provider/database client settings dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-30 00:04 Language/startup diagnostics dialog ownership CI pass
