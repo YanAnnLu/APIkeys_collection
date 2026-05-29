@@ -51,6 +51,37 @@ def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict
     return payload
 
 
+def web_crawler_asset_listing_credential_blocked_response(
+    asset_id: str,
+    credential_guard: Mapping[str, object],
+    listing_options: Mapping[str, object],
+) -> dict[str, object]:
+    """Return the shared Web payload when listing is blocked by credentials."""
+
+    next_action = "edit_local_credentials_before_live_download"
+    blocked_result = CrawlerAssetListingResult(
+        asset_id=asset_id,
+        source_found=True,
+        listing_mode=str(listing_options.get("listing_mode") or "complete_seed"),
+        blocked_reason="credential_setup_required",
+        next_action=next_action,
+        max_results=positive_int(listing_options.get("max_results"), WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT),
+        max_pages=non_negative_int(listing_options.get("max_pages"), 0),
+        full_crawl=True,
+        complete_seed=bool(listing_options.get("complete_seed")),
+        search_scope="blocked_by_credentials",
+    )
+    response: dict[str, object] = {
+        "asset_id": asset_id,
+        "credential_guard": credential_guard,
+        "listing_options": dict(listing_options),
+        **web_next_action_payload("review_candidates_or_build_download_plan"),
+        "listing_result": web_crawler_asset_listing_payload(blocked_result),
+    }
+    apply_web_next_action(response, next_action)
+    return response
+
+
 def web_crawler_asset_credentials_event_context(
     asset: object,
     status: Mapping[str, object],

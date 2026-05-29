@@ -67,6 +67,7 @@ from frontends.web.preview_diagnostics import (
 from frontends.web.preview_events import compact_listing_outcome, web_preview_recent_events
 from frontends.web.preview_payloads import (
     web_crawler_asset_credentials_event_context,
+    web_crawler_asset_listing_credential_blocked_response,
     web_crawler_asset_listing_payload,
     web_download_import_target_paths,
     web_next_action_payload,
@@ -154,6 +155,25 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(2, payload["candidate_count"])
         self.assertEqual("within_current_limits", payload["seed_enumeration"]["status"])
         self.assertEqual("審核或寫入候選資料", payload["next_action_label"])
+
+    def test_web_crawler_asset_listing_credential_blocked_response_matches_route_contract(self) -> None:
+        payload = web_crawler_asset_listing_credential_blocked_response(
+            "demo_cmr",
+            {"status": "missing_credentials"},
+            {
+                "listing_mode": "complete_seed",
+                "complete_seed": True,
+                "max_results": 1000,
+                "max_pages": 0,
+            },
+        )
+
+        self.assertEqual("demo_cmr", payload["asset_id"])
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
+        self.assertTrue(payload["listing_result"]["blocked"])
+        self.assertEqual("credential_setup_required", payload["listing_result"]["blocked_reason"])
+        self.assertEqual("blocked", payload["listing_result"]["seed_enumeration"]["status"])
 
     def test_credential_blocked_plan_payloads_are_backend_display_contract(self) -> None:
         guard = {

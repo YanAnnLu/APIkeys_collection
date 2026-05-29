@@ -30,7 +30,6 @@ from api_launcher.crawler_asset_schema_probe import (
 )
 from api_launcher.crawler_asset_service import (
     CrawlerRunner,
-    CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
     run_crawler_asset_listing,
 )
@@ -58,6 +57,7 @@ from frontends.web.preview_payloads import (
     apply_web_next_action,
     crawler_asset_listing_options,
     web_crawler_asset_credentials_event_context,
+    web_crawler_asset_listing_credential_blocked_response,
     web_crawler_asset_listing_payload,
     web_download_import_credential_blocked_response,
     web_download_import_event_context,
@@ -107,21 +107,11 @@ def crawler_asset_listing(
         **web_next_action_payload("review_candidates_or_build_download_plan"),
     }
     if credential_status_blocks_plan(credential_guard):
-        blocked_result = CrawlerAssetListingResult(
+        return web_crawler_asset_listing_credential_blocked_response(
             asset_id=asset.asset_id,
-            source_found=True,
-            listing_mode=listing_options["listing_mode"],
-            blocked_reason="credential_setup_required",
-            next_action="edit_local_credentials_before_live_download",
-            max_results=listing_options["max_results"],
-            max_pages=listing_options["max_pages"],
-            full_crawl=True,
-            complete_seed=listing_options["complete_seed"],
-            search_scope="blocked_by_credentials",
+            credential_guard=credential_guard,
+            listing_options=listing_options,
         )
-        response["listing_result"] = web_crawler_asset_listing_payload(blocked_result)
-        apply_web_next_action(response, "edit_local_credentials_before_live_download")
-        return response
 
     with web_preview_repository_context(db_path, seed_builtin_providers=True) as session:
         kwargs: dict[str, object] = {
