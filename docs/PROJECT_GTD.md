@@ -43,6 +43,7 @@ Last updated: 2026-05-30
 - [x] Tk crawler asset bounds payload cache parsing 已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：workflow 只委派 `crawler_asset_bound_payload_from_cache()`，不再直接把 cached dict 還原成 `CrawlerAssetBoundPayload`。
 - [x] Tk crawler asset plan display cache 更新已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：workflow 只委派 `cache_crawler_asset_plan_state()`，不再直接維護 plan outcome / resolved plan / content review / plan passport 四組 UI cache。
 - [x] Tk crawler asset original/resolved plan artifact 寫檔已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：workflow 不再直接處理 JSON dump、state path 或 asset slug，只消費 helper 回傳的 written paths。
+- [x] Tk crawler asset download-plan built event payload 已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：worker 不再直接組 `crawler_asset_download_plan_built` event context，只負責呼叫 backend plan builder、寫 plan artifacts 與記錄 event。
 - [x] Tk crawler asset plan outcome event payload 已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：workflow 不再直接組 backend display event context、plan passport 或 review queue count，只負責 persist passport 與寫 event log。
 - [x] Tk crawler asset listing outcome event payload 已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：workflow 不再直接組 backend listing event context 或 seed enumeration preview，只負責寫 event log 與更新 UI cache。
 - [x] Tk crawler seed schema probe event payload 已收斂到 `frontends/tk/crawler_asset_ui_helpers.py`：worker 不再直接組 `probe.to_dict()`、required count 或 warning code event payload，只負責呼叫 probe service、寫 event 與開 bounds dialog。
