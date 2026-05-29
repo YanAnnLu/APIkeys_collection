@@ -8,8 +8,8 @@ from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_display import (
     crawler_asset_download_import_display_payload,
     crawler_asset_plan_outcome_payload,
-    next_action_display_label,
 )
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_assets import CrawlerAsset
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file

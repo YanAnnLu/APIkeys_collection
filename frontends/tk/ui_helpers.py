@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from api_launcher.adapters.yfinance import normalize_yfinance_symbols
-from api_launcher.crawler_asset_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.data_store_connections import data_store_env_template_filename
 from api_launcher.paths import PROJECT_ROOT, state_file
 

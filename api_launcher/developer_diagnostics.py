@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from api_launcher.crawler_asset_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_audit_smoke import crawler_handler_audit_smoke_summary
 from api_launcher.crawler_registry_report import crawler_registry_summary
 

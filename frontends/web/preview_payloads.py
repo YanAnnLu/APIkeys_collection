@@ -8,8 +8,8 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_context,
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
-    next_action_display_label,
 )
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file

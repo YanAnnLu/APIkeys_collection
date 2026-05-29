@@ -14,8 +14,8 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_bound_form_payload,
     crawler_asset_card_capabilities,
     crawler_asset_flow_steps,
-    next_action_display_label,
 )
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_asset_profiles import crawler_asset_favorite_seed_uids
 from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite

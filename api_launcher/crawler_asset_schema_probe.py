@@ -17,7 +17,8 @@ from api_launcher.crawler_asset_bound_forms import (
     apply_schema_probe_to_crawler_asset_bound_form_spec,
     build_crawler_asset_bound_form_spec,
 )
-from api_launcher.crawler_asset_display import crawler_asset_bound_form_payload, next_action_display_label
+from api_launcher.crawler_asset_bound_display import crawler_asset_bound_form_payload
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
 

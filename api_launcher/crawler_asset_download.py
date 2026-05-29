@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
-from api_launcher.crawler_asset_display import NEXT_ACTION_DISPLAY_LABELS
+from api_launcher.crawler_next_action_display import NEXT_ACTION_DISPLAY_LABELS
 from api_launcher.crawler_asset_service import (
     CrawlerAssetDownloadPlanResult,
     build_crawler_asset_download_plan,
