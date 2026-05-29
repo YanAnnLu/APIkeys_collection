@@ -2482,10 +2482,10 @@ class TkDialogModuleTest(unittest.TestCase):
         # DataStore dialog 用主 UI 的 tr callback，避免抽出 class 後失去語言設定。
         dialog = object.__new__(DataStoreConnectionSettingsDialog)
         dialog.ui = SimpleNamespace(tr=lambda zh, _en: zh)
-        with patch("frontends.tk.dialogs.active_data_store_profile", return_value=SimpleNamespace(profile_id="mysql_local")):
+        with patch("frontends.tk.data_store_connection_settings_dialog.active_data_store_profile", return_value=SimpleNamespace(profile_id="mysql_local")):
             self.assertEqual("目前作用中 profile：mysql_local", dialog._active_profile_label())
 
-        with patch("frontends.tk.dialogs.active_data_store_profile", return_value=None):
+        with patch("frontends.tk.data_store_connection_settings_dialog.active_data_store_profile", return_value=None):
             self.assertEqual("目前作用中 profile：-", dialog._active_profile_label())
 
     def test_developer_cli_split_command_preserves_quoted_arguments(self) -> None:
