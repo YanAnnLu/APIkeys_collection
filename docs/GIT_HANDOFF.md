@@ -16,7 +16,7 @@ git commit -m "Initialize APIkeys_collection launcher"
 On Windows PowerShell, after Git is installed:
 
 ```powershell
-cd K:\APIkeys_collection
+cd L:\RRKAL_project
 .\scripts\setup_git.ps1 -UserName "Your Name" -UserEmail "you@example.com"
 git status --short --branch
 ```
@@ -43,17 +43,17 @@ git status --short
 git add APIkeys_collection.py APIkeys_collection_ui.py api_launcher tests README.md docs catalog config scripts .gitignore .gitattributes
 git commit -m "Describe the launcher change"
 git push origin main
-gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5
-gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
+gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo Kagamihara-Ruruka/APIkeys_collection --exit-status
 git status --short
 ```
 
 If the push reaches `origin/main` but no GitHub Actions run appears for the pushed SHA after a few minutes, manually dispatch CI and then watch that run:
 
 ```bash
-gh workflow run CI --repo kagamihara-rururka/APIkeys_collection --ref main
-gh run list --repo kagamihara-rururka/APIkeys_collection --limit 8
-gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
+gh workflow run CI --repo Kagamihara-Ruruka/APIkeys_collection --ref main
+gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 8
+gh run watch RUN_ID --repo Kagamihara-Ruruka/APIkeys_collection --exit-status
 ```
 
 Manual dispatch is only a fallback for CI enqueue anomalies. It does not replace local smoke checks or the normal push-triggered CI evidence.
@@ -123,7 +123,7 @@ GitHub Actions runs a lightweight CI matrix on Ubuntu plus the explicit `windows
 pull requests to `main`. It runs unit tests, `--summary`, and the offline MVP demo smoke with `PYTHONDONTWRITEBYTECODE=1` to avoid
 platform-specific `.pyc` lock issues. The Windows label is pinned to the Visual Studio 2026 image so the project tests
 the same Windows image GitHub is migrating `windows-latest` toward, instead of waiting for an implicit label switch.
-On macOS, `gh` is installed; the account was renamed from `YanAnnLu` to `kagamihara-rururka`, so use `kagamihara-rururka/APIkeys_collection` after push to confirm CI, because GitHub mobile
+On macOS, `gh` is installed; the account was renamed from `YanAnnLu` to `kagamihara-rururka`, then to `Kagamihara-Ruruka`, so use `Kagamihara-Ruruka/APIkeys_collection` after push to confirm CI, because GitHub mobile
 notifications report workflow status, not whether `git push` reached the remote.
 The workflow also supports `workflow_dispatch` so an agent can manually rerun CI when push-event enqueueing does not happen.
 

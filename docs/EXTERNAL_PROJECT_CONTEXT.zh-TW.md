@@ -6,7 +6,7 @@
 
 ## 邊界
 
-- RRKAL 的 canonical 工作區仍是 `K:\APIkeys_collection`。
+- RRKAL 目前 recovery lane 的 canonical 工作區是 `L:\RRKAL_project`；舊 `K:\APIkeys_collection` 只作唯讀參考。
 - 其他 GitHub repo 只作 read-only 參考；除非使用者明確要求，不要 clone、修改、commit 或 push 其他專案。
 - `K:\CODE_KM` 在 RRKAL 任務中只作 read-only 參考，不寫入。
 - 可借鑑的是 contract、workflow、smoke 節奏與概念，不直接搬產品碼。
@@ -29,4 +29,3 @@
 2. Display / renderer 類 repo 的進度提醒 RRKAL：未完成 renderer bridge 必須在成熟度矩陣和 UI payload 顯示 `🚧` / `contract_only` / `planned`，避免被使用者誤認為已交付。
 3. CODE_KM 的 governed workflow 支持 RRKAL 的 docs drift guard、rights/provenance gate、structured next_action 與 status gate 設計。
 4. 其他 repo 的成果只作概念樣本；RRKAL 的產品主線仍是 `seed -> crawler -> candidate -> plan -> download -> import -> UI`。
-

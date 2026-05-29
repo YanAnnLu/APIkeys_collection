@@ -56,7 +56,7 @@ This loop is part of agent quality, not product scope. Do it even when the code 
 ## Workflow
 
 1. Start by checking `git status --short --branch`; never overwrite user changes.
-   The canonical project working folder is `K:\APIkeys_collection`. For GUI, showcase, full smoke, or any test likely to be affected by cloud-drive latency/locking, create a fresh local-disk test clone under `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\`, copy `state/showcase` from K drive only when the showcase artifacts are needed, and run the test from that local clone. Treat K drive as the source of truth for edits, but treat the local clone as the proof environment for launch/showcase stability; port confirmed fixes back to K drive before committing and pushing.
+   The canonical project working folder for this recovery lane is `L:\RRKAL_project`. Treat the old `K:\APIkeys_collection` workspace as read-only reference unless the user explicitly grants write access again. Other folders on `L:` are shared with other projects and are also read-only from RRKAL tasks. For GUI, showcase, full smoke, or any test likely to be affected by cloud-drive latency/locking, create a fresh local-disk test clone under `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\`, copy `state/showcase` from `L:\RRKAL_project` only when the showcase artifacts are needed, and run the test from that local clone. Treat `L:\RRKAL_project` as the source of truth for edits, commits, and pushes.
 2. Read `docs/AGENT_HANDOFF.zh-TW.md` and `docs/PROJECT_GTD.md` before making changes. These are the live handoff and progress sources.
 3. Read `docs/DATA_ASSET_PLATFORM_CONCEPTS.zh-TW.md` when work touches long-term platform concepts such as data assets, Discovery Tools, lakehouse/K8S, renderer connectors, ML artifacts, Notion/TradingView connectors, or local-first product shape.
 4. Read `docs/PROJECT_STATE.md`, `docs/TECH_STACK.md`, and `docs/GIT_HANDOFF.md` before architectural, dependency, Docker, Git, or renderer changes.
@@ -98,8 +98,8 @@ To install the same check as a local-only Git hook for this clone, run `.\script
 11. After pushing, verify GitHub Actions rather than assuming push success means CI success:
 
 ```bash
-gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5
-gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status
+gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 5
+gh run watch RUN_ID --repo Kagamihara-Ruruka/APIkeys_collection --exit-status
 ```
 
 The CI workflow should stay on Node 24-ready official actions. As of 2026-05-20, `.github/workflows/ci.yml` uses
@@ -143,7 +143,7 @@ Use this when updating `docs/DEVELOPMENT_LOG.zh-TW.md`.
 1. Prefer GitHub Actions push history over local `git log` when local Git history is damaged or incomplete:
 
 ```bash
-gh run list --repo kagamihara-rururka/APIkeys_collection --limit 200 --json databaseId,headSha,displayTitle,event,status,conclusion,createdAt
+gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 200 --json databaseId,headSha,displayTitle,event,status,conclusion,createdAt
 ```
 
 2. Keep the log ledger-style, not only summarized. Group entries by Asia/Taipei date in reverse chronological order, newest date first. Within each date, list entries newest time first. Add a one-line daily main theme, then list every relevant push run.

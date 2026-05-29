@@ -16,7 +16,7 @@
 ## Windows PowerShell
 
 ```powershell
-cd K:\APIkeys_collection
+cd L:\RRKAL_project
 $env:PYTHONDONTWRITEBYTECODE='1'
 py -m pip install -r requirements-dev.txt
 py -m unittest discover -s tests

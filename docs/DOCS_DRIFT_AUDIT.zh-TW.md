@@ -135,7 +135,7 @@
 
 - `git status --short --branch`：`## main...origin/main`
 - `git log -1 --oneline --decorate`：`170b236 (HEAD -> main, origin/main, origin/HEAD) Log CKAN pagination output checkpoint`
-- `gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`：最新 run `26489024004` 對應 `170b236`，狀態 `completed success`
+- `gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 5`：最新 run `26489024004` 對應 `170b236`，狀態 `completed success`
 - 主要近期文件存在且可讀：`AGENT_HANDOFF`、`PROJECT_GTD`、`DATASET_DISCOVERY_NOTES`、`DOCS_INDEX`、`DEVELOPMENT_LOG`
 
 ## 已發現並修補的漂移

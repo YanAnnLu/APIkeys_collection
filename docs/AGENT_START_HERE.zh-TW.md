@@ -16,7 +16,7 @@
 2. Crawler 主線優先處理來源介面類型：STAC、CKAN、Socrata、OGC、CMR、ERDDAP、HTML file index、unknown fallback。
 3. 來源介面類型只回答「資料在哪裡、怎麼列資源」；CSV、JSON、NetCDF、GeoTIFF、ZIP 等內容格式要由 content detector / parser registry 另行處理。
 4. Tk 仍是目前可用 UI；未來 Qt 只是換皮，後端服務、crawler asset、bounds schema、capability contract 必須保持可重用。
-5. K 槽主工作區 `K:\APIkeys_collection` 是提交來源；GUI/showcase/full smoke 可 clone 到本地磁碟測試，通過後回補 K 槽再 commit/push。
+5. 本 session 的主工作區是 `L:\RRKAL_project`，也是提交來源；舊 `K:\APIkeys_collection` 只作唯讀參考。`L:` 是多專案共用雲端碟，除 `L:\RRKAL_project` 外其他資料夾都視為唯讀。GUI/showcase/full smoke 可 clone 到本地磁碟測試，通過後回補 `L:\RRKAL_project` 再 commit/push。
 6. 若使用者問「整體進度多少」，不要回單一百分比；先讀 `docs/PROJECT_MATURITY_MATRIX.zh-TW.md` 或跑 `--project-maturity-json`，用成熟度矩陣回答。
 
 ## 不要做什麼
@@ -57,7 +57,7 @@
 - 推進中卡住、工作時間拉長或需要外部 agent 接力時，先跑 `.\scripts\heartbeat_codex.cmd -DryRun`，讀 `state/heartbeat/heartbeat_plan.json` 與 `state/heartbeat/agent_prompt.md`，不要直接啟動自動 runner。
 - 需要 agent-readable 狀態時，優先用 JSON 入口，例如 `--handoff-report-json`、`--run-mvp-demo-smoke-json`、`--adapter-review-json`、`--run-download-plan-json`，不要解析人類文字輸出。
 - push 前先跑 `.\scripts\pre_push_smoke_brief.cmd`；等流程穩定後才考慮用 `.\scripts\install_pre_push_hook.cmd` 安裝本機 hook。
-- push 後必須看 GitHub Actions：`gh run list --repo kagamihara-rururka/APIkeys_collection --limit 5`，再用 `gh run watch RUN_ID --repo kagamihara-rururka/APIkeys_collection --exit-status` 等遠端 checkpoint 確認。
+- push 後必須看 GitHub Actions：`gh run list --repo Kagamihara-Ruruka/APIkeys_collection --limit 5`，再用 `gh run watch RUN_ID --repo Kagamihara-Ruruka/APIkeys_collection --exit-status` 等遠端 checkpoint 確認。
 - 每個 checkpoint 結束前做 docs drift check：本輪是否改了 UI/Web/Tk/CLI、crawler/source pattern/download/import/adapter review、功能定位、展示/experimental surface、K 槽/本地 clone/GitHub/CI 工作流，或讓 handoff/GTD/log/index/user docs 任一敘述變成錯誤。
 
 ## K 槽參考邊界
