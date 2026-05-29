@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 18:19 Crawler asset listing payload ownership cleanup
+- 本輪延續 backend consolidation：新增 `api_launcher/crawler_asset_listing_payloads.py`，把 listing result 的 `seed_enumeration`、remote pagination 與 compact listing event context helper 從 `api_launcher/crawler_asset_service.py` 移出。
+- `crawler_asset_service.py` 從約 753 行降到約 630 行；service 保留 source lookup、crawler execution、candidate upsert、download-plan orchestration，不再持有 listing result UI/event projection 規則。
+- `frontends/web/preview_api.py`、`frontends/tk/crawler_asset_workflows.py`、`api_launcher/cli_crawler_assets.py` 與 `tests/test_crawler_assets.py` 已改讀新 owner；`crawler_asset_service.py` 仍 re-export helper 名稱作相容 surface。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_service.py api_launcher\crawler_asset_listing_payloads.py api_launcher\cli_crawler_assets.py frontends\tk\crawler_asset_workflows.py frontends\web\preview_api.py tests\test_crawler_assets.py` OK；`tests.test_crawler_assets` 45 tests OK；`tests.test_web_preview` 53 tests OK；`tests.test_tk_dialogs` 106 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_181330.log`。
+- 已推送 `6806a58 Move crawler asset listing payload helpers`；GitHub Actions run `26631709497` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 helper ownership 與 import owner，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 18:05 Crawler asset payload adapter ownership cleanup
 - 本輪延續 backend consolidation：新增 `api_launcher/crawler_asset_payloads.py`，把 crawler asset bounds payload 轉成 `SourceDownloadOptions` / `SourceDownloadBounds` 的 adapter helper 從 `api_launcher/crawler_asset_service.py` 移出。
 - `crawler_asset_service.py` 從約 968 行降到約 828 行；service 仍保留 listing、seed plan、candidate upsert 與 orchestration，不再同時擁有 UI-neutral bounds payload parsing、version selector、bbox / tuple / int / bool coercion 等 adapter 細節。
