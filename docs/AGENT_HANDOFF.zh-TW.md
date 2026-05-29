@@ -2,7 +2,8 @@
 ## 2026-05-30 03:51 Crawler seed download/import event helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_seed_download_import_event_context()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 seed download/import 的 compact event context。
 - `frontends/tk/crawler_asset_workflows.py` 的 `_crawler_asset_seed_download_import_worker()` 不再自行拆 `result.pipeline.stage`、`result.succeeded`、`pipeline.to_dict()` 與 artifacts；worker 只負責呼叫正式 seed download/import service、寫 event、handoff 到 Tk completion message。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，128 tests OK；`git diff --check` OK。
+- 已提交實作：`5d7295f Move crawler seed download event payload`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，128 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_035311.log` 通過，926 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk seed download/import event payload 組裝邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 03:44 Crawler seed schema probe event helper
