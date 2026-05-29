@@ -7,15 +7,53 @@ import unittest
 from unittest.mock import patch
 
 from api_launcher.google_auth import (
+    DEFAULT_GOOGLE_OAUTH_FORM_MAX_BYTES,
+    _post_form,
     build_google_device_login_request,
+    GoogleDeviceTokenResult,
     google_oauth_token_status,
     poll_google_device_token,
     save_google_oauth_token,
-    GoogleDeviceTokenResult,
 )
 
 
 class GoogleAuthTests(unittest.TestCase):
+    def test_post_form_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b'{"ok": true}'
+
+        with patch("api_launcher.google_auth.request.urlopen", return_value=FakeResponse()):
+            payload = _post_form("https://example.test/token", {"client_id": "client"}, timeout=1.0, max_bytes=31)
+
+        self.assertEqual({"ok": True}, payload)
+        self.assertEqual([32], read_sizes)
+        self.assertEqual(512 * 1024, DEFAULT_GOOGLE_OAUTH_FORM_MAX_BYTES)
+
+    def test_post_form_rejects_oversized_success_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with patch("api_launcher.google_auth.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "exceeded 3 bytes"):
+                _post_form("https://example.test/token", {"client_id": "client"}, timeout=1.0, max_bytes=3)
+
     def test_device_login_request_reports_missing_client_id(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             request = build_google_device_login_request()

@@ -18,6 +18,7 @@ DEFAULT_GOOGLE_OAUTH_SCOPES = (
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/generative-language.retriever",
 )
+DEFAULT_GOOGLE_OAUTH_FORM_MAX_BYTES = 512 * 1024
 # token 必須留在被 Git 忽略的 private state；不要把預設路徑移進 tracked config。
 DEFAULT_GOOGLE_TOKEN_STORE = "state/private/google_oauth_tokens.json"
 
@@ -264,7 +265,22 @@ class GoogleOAuthPending(RuntimeError):
         self.message = message
 
 
-def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, object]:
+def _read_json_response(response: object, *, max_bytes: int) -> dict[str, object]:
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1.")
+    data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(f"Google OAuth form response exceeded {max_bytes} bytes.")
+    payload = json.loads(data.decode("utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _post_form(
+    url: str,
+    payload: dict[str, str],
+    timeout: float,
+    max_bytes: int = DEFAULT_GOOGLE_OAUTH_FORM_MAX_BYTES,
+) -> dict[str, object]:
     body = parse.urlencode(payload).encode("utf-8")
     req = request.Request(
         url,
@@ -274,10 +290,10 @@ def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, o
     )
     try:
         with request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+            return _read_json_response(response, max_bytes=max_bytes)
     except error.HTTPError as exc:
         try:
-            data = json.loads(exc.read().decode("utf-8"))
+            data = _read_json_response(exc, max_bytes=max_bytes)
         except Exception:
             data = {}
         error_code = str(data.get("error") or "")
