@@ -188,6 +188,7 @@ CREDENTIALS_TEMPLATE_NAME = "APIkeys_collection_credentials.private.template.jso
 USER_AGENT = "APIkeys_collection/0.2 (+metadata-checks; downloader-launcher planning)"
 DEFAULT_MAX_BYTES = 256_000
 DEFAULT_TIMEOUT_SECONDS = 15.0
+DEFAULT_HTTP_ERROR_EXCERPT_MAX_BYTES = 8192
 
 
 def safe_fetch_metadata(url: str, max_bytes: int, timeout: float) -> dict[str, object]:
@@ -207,7 +208,7 @@ def safe_fetch_metadata(url: str, max_bytes: int, timeout: float) -> dict[str, o
             content_length = response.headers.get("Content-Length")
             raw = response.read(max_bytes + 1)
     except urllib.error.HTTPError as exc:
-        body = exc.read(min(max_bytes, 8192)) if exc.fp else b""
+        body = exc.read(min(max_bytes, DEFAULT_HTTP_ERROR_EXCERPT_MAX_BYTES)) if exc.fp else b""
         return {
             "status_code": exc.code,
             "content_type": exc.headers.get("Content-Type", "") if exc.headers else "",
