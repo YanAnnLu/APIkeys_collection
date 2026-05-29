@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 01:51 Recovery branch upstream tracking repaired
+- 本輪修正 L 槽 clone 的本機 Git fetchspec：`remote.origin.fetch` 原本只包含 `main`，導致 recovery branch 雖已 `push -u`，但 `@{u}` 仍報 `upstream branch ... not stored as a remote-tracking branch`，pre-push smoke 因而顯示 `no upstream branch found`。
+- 已在本機 `.git/config` 加入 `+refs/heads/rrkal-32e215c-recovery:refs/remotes/origin/rrkal-32e215c-recovery`，並重新 fetch；現在 `git rev-parse --abbrev-ref --symbolic-full-name '@{u}'` 回傳 `origin/rrkal-32e215c-recovery`，`git status -sb --ahead-behind` 會顯示 `rrkal-32e215c-recovery...origin/rrkal-32e215c-recovery`。
+- 這是 L 槽工作區 Git metadata 修復，不改產品程式、不改 tracked file 行為、不影響 GitHub remote。
+- Docs drift check：本輪只補工作區治理紀錄；不改 UI/CLI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 01:48 Crawler asset bounds schema helper CI pass
 - `d3c1d8c Move crawler bounds schema lookup` / `d653ccb Record bounds schema helper smoke` 已推送到 `origin/rrkal-32e215c-recovery`。
 - GitHub Actions manual run `26652940368` 通過 Ubuntu、Windows 與 real DB smoke。
