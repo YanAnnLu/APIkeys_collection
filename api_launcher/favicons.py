@@ -11,6 +11,7 @@ from api_launcher.paths import STATE_DIR
 
 FAVICON_CACHE_DIR = STATE_DIR / "favicons"
 FAVICON_USER_AGENT = "APIkeys_collection/0.3 (+favicon-cache; metadata only)"
+DEFAULT_FAVICON_MAX_BYTES = 128 * 1024
 
 
 def provider_home_url(*urls: str) -> str:
@@ -52,7 +53,13 @@ def favicon_cache_path(favicon_url: str) -> Path:
     return FAVICON_CACHE_DIR / f"{digest}.png"
 
 
-def download_favicon_png(favicon_url: str, target_path: Path | None = None, size: int = 16, timeout: float = 4.0) -> Path:
+def download_favicon_png(
+    favicon_url: str,
+    target_path: Path | None = None,
+    size: int = 16,
+    timeout: float = 4.0,
+    max_bytes: int = DEFAULT_FAVICON_MAX_BYTES,
+) -> Path:
     # 這個函式產出的 PNG 是 Tk 顯示用衍生快取，不應被視為正式 icon asset 格式。
     if not favicon_url:
         raise RuntimeError("Missing favicon URL.")
@@ -61,7 +68,7 @@ def download_favicon_png(favicon_url: str, target_path: Path | None = None, size
     request = urllib.request.Request(favicon_url, headers={"User-Agent": FAVICON_USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         # favicon 只是 UI 裝飾；限制讀取大小，避免異常伺服器塞入過大 payload。
-        payload = response.read(128 * 1024)
+        payload = response.read(max(1, int(max_bytes)))
     try:
         from PIL import Image
     except Exception as exc:
