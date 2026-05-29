@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 21:58 Crawler asset flow display helper ownership cleanup
+- 本輪延續 recovery lane 上的 display-contract consolidation：新增 `api_launcher/crawler_asset_flow_display.py`，把 `CrawlerAssetFlowStep`、`crawler_asset_card_capabilities()` 與 `crawler_asset_flow_steps()` 從 `api_launcher/crawler_asset_display.py` 移出。
+- `crawler_asset_display.py` 從 542 行降到 459 行；它仍 re-export flow display helpers 作相容 surface，但 `frontends/web/preview_assets.py` 已改讀新 owner。
+- 新 owner 只負責 crawler asset card capability rows 與 `seed -> source_pattern -> bounds -> download_plan -> review_gate` 流程條的 UI-neutral read model，不執行 crawler、不建立下載計畫、不決定 credential / review policy。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py api_launcher\crawler_asset_flow_display.py frontends\web\preview_assets.py tests\test_crawler_assets.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 98 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK。
+- 已提交本地 checkpoint `40d9c0a Move crawler asset flow display helpers`；目前 recovery branch 仍未推送。
+- Docs drift check：本輪只改 backend display helper ownership 與 Web import owner，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 21:50 Recovery workspace and GitHub owner alignment
 - 本輪依使用者要求完成 RRKAL recovery lane：`L:\RRKAL_project` 現在是主工作區與提交來源，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考，`L:` 其他專案資料夾也視為唯讀。
 - repo 已從 `c91ed79` 的上一個提交 `32e215c` 建立乾淨救援基底，並完成完整 smoke：`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_210703.log`。
