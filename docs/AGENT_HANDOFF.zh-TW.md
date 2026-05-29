@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 01:45 Crawler asset bounds schema helper smoke pass
+- `d3c1d8c Move crawler bounds schema lookup` / `d2f645e Record bounds schema helper checkpoint` 已補完整 smoke。
+- 已驗證：`.\scripts\pre_push_smoke_brief.cmd` 通過，完整 log `state\logs\pre_push_smoke_20260530_014250.log`；916 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 注意：pre-push smoke 腳本仍顯示 `no upstream branch found; skipped pending-push diff check`，但 branch 可用 `git push -u origin rrkal-32e215c-recovery` 明確重設 upstream 後再推。這是 Git/workflow 狀態觀察，不改產品行為。
+- Docs drift check：本輪只補 smoke 證據，不改 UI/CLI 操作、crawler、download/import、credential 或 user guide；user guide 不需更新。
+
 ## 2026-05-30 01:39 Crawler asset bounds schema lookup helper
 - 本輪做一個小型 Tk consolidation slice：新增 `crawler_asset_download_plan_bounds_schema()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中讀取 crawler asset 的 `BUILD_DOWNLOAD_PLAN.bounds_schema`。
 - `frontends/tk/crawler_asset_workflows.py` 不再重複掃 `asset.capabilities` 找 plan capability；seed schema probe 與 crawler asset 送進下載器前的 bounds dialog 都改為消費同一個 helper。這不改 bounds schema、本機 payload、download plan、seed probe、crawler、download/import 或使用者操作流程。
