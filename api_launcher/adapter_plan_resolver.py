@@ -155,6 +155,7 @@ NCEI_ACCESS_DATA_MAX_DAYS = 7
 DATACITE_MAX_CONTENT_URLS = 5
 DATAVERSE_MAX_FILES = 5
 DIRECT_RESOURCE_MAX_BYTES = 100 * 1024 * 1024
+DEFAULT_ADAPTER_JSON_MAX_BYTES = 8 * 1024 * 1024
 MAX_RESOURCE_MAPPING_DEPTH = 12
 DIRECT_RESOURCE_FORMATS = {
     "csv",
@@ -1304,10 +1305,15 @@ def positive_int_or_none(value: object) -> int | None:
     return resolve_positive_int_or_none(value)
 
 
-def fetch_json(url: str, timeout: float = 12.0) -> dict[str, object]:
+def fetch_json(url: str, timeout: float = 12.0, max_bytes: int = DEFAULT_ADAPTER_JSON_MAX_BYTES) -> dict[str, object]:
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1.")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+        data = response.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ValueError(f"Adapter metadata response exceeded {max_bytes} bytes: {url}")
+        payload = json.loads(data.decode("utf-8"))
     return payload if isinstance(payload, dict) else {}
 
 

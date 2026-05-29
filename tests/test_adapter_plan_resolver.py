@@ -10,7 +10,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from api_launcher.adapter_plan_resolver import (
+    DEFAULT_ADAPTER_JSON_MAX_BYTES,
     direct_resource_entries_for_plan_entry,
+    fetch_json,
     resolve_adapter_review_plan_payload,
     resource_mappings_from_candidate,
 )
@@ -18,6 +20,42 @@ from api_launcher.core import main
 
 
 class AdapterPlanResolverTests(unittest.TestCase):
+    def test_fetch_json_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b'{"ok": true}'
+
+        with patch("api_launcher.adapter_plan_resolver.urllib.request.urlopen", return_value=FakeResponse()):
+            payload = fetch_json("https://example.test/metadata.json", timeout=1.0, max_bytes=17)
+
+        self.assertEqual({"ok": True}, payload)
+        self.assertEqual([18], read_sizes)
+        self.assertEqual(8 * 1024 * 1024, DEFAULT_ADAPTER_JSON_MAX_BYTES)
+
+    def test_fetch_json_rejects_oversized_metadata_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with patch("api_launcher.adapter_plan_resolver.urllib.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "exceeded 3 bytes"):
+                fetch_json("https://example.test/metadata.json", timeout=1.0, max_bytes=3)
+
     def test_resource_mapping_recursion_depth_is_bounded(self) -> None:
         nested: dict[str, object] = {}
         cursor = nested
