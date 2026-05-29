@@ -8,6 +8,10 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
 )
+from frontends.tk.crawler_asset_event_state import (
+    crawler_asset_listing_outcomes_from_events,
+    crawler_asset_plan_state_from_events,
+)
 from frontends.tk.ui_helpers import (
     yfinance_project_path_from_ui_text,
     yfinance_storage_review_paths_from_ui,
@@ -103,3 +107,67 @@ class YFinanceUiHelperTests(unittest.TestCase):
             PROJECT_ROOT / "state/crawler_asset_seed_plans/asset_demo.provider_dataset_a.resolved.json",
             targets.plan_path,
         )
+
+    def test_crawler_asset_plan_state_from_events_restores_display_caches(self) -> None:
+        resolved_plan = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "source_url": "https://example.test/catalog",
+                    },
+                    "content_parser": {
+                        "source_format": "netcdf",
+                        "parser_id": "scientific_grid_review",
+                        "import_status": "manual_review_required",
+                        "review_bucket": "content_parser_required",
+                    },
+                    "download_eligibility": {"status": "adapter_required"},
+                }
+            ]
+        }
+        events = [
+            {
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "demo_index",
+                    "outcome_label": "待 Adapter 1",
+                    "plan_passport": {
+                        "asset_id": "demo_index",
+                        "candidate_count": 3,
+                    },
+                    "resolved_plan": "state/demo.resolved.json",
+                },
+            }
+        ]
+
+        state = crawler_asset_plan_state_from_events(events, read_plan=lambda _path: resolved_plan)
+
+        self.assertEqual("待 Adapter 1", state.plan_outcomes["demo_index"])
+        self.assertEqual("內容 Parser 待辦 1", state.content_review_outcomes["demo_index"])
+        self.assertEqual(resolved_plan, state.resolved_plans["demo_index"])
+        self.assertEqual(3, state.plan_passports["demo_index"]["candidate_count"])
+
+    def test_crawler_asset_listing_outcomes_from_events_keeps_compact_seed_state(self) -> None:
+        events = [
+            {"event": "unrelated", "context": {"asset_id": "ignored"}},
+            {
+                "event": "crawler_asset_listing_recorded",
+                "context": {
+                    "asset_id": "demo_index",
+                    "candidate_count": 55,
+                    "upserted_count": 50,
+                    "warning_count": 1,
+                    "seed_enumeration": {"status": "limited_by_local_page", "label": "本機顯示上限"},
+                    "remote_pagination": {"status": "has_more", "next_page_token_present": True},
+                },
+            },
+        ]
+
+        outcomes = crawler_asset_listing_outcomes_from_events(events)
+
+        self.assertEqual(55, outcomes["demo_index"]["candidate_count"])
+        self.assertEqual("limited_by_local_page", outcomes["demo_index"]["seed_enumeration"]["status"])
+        self.assertEqual("has_more", outcomes["demo_index"]["remote_pagination"]["status"])

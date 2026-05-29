@@ -13,7 +13,6 @@ backend contract first.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 from typing import Callable
@@ -34,8 +33,6 @@ from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_schema_probe_result
 from api_launcher.crawler_asset_display import (
-    adapter_review_content_summary_label,
-    adapter_review_display_payload,
     crawler_asset_plan_event_context,
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
@@ -82,6 +79,10 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_state_label,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
+)
+from frontends.tk.crawler_asset_event_state import (
+    crawler_asset_listing_outcomes_from_events,
+    crawler_asset_plan_state_from_events,
 )
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
@@ -323,54 +324,16 @@ class CrawlerAssetWorkflowMixin:
         saved plan path.
         """
 
-        self.crawler_asset_plan_outcomes = {}
-        self.crawler_asset_content_review_outcomes = {}
-        self.crawler_asset_resolved_plans = {}
-        self.crawler_asset_plan_passports = {}
-        for event in latest_events(200):
-            if event.get("event") != "crawler_asset_plan_outcome_recorded":
-                continue
-            context = event.get("context") if isinstance(event.get("context"), dict) else {}
-            asset_id = str(context.get("asset_id") or "").strip()
-            outcome_label = str(context.get("outcome_label") or "").strip()
-            if not asset_id or not outcome_label:
-                continue
-            self.crawler_asset_plan_outcomes[asset_id] = outcome_label
-            content_review_label = str(context.get("content_review_label") or "").strip()
-            content_review_payload = context.get("content_review") if isinstance(context.get("content_review"), dict) else {}
-            if not content_review_label and isinstance(content_review_payload, dict):
-                content_review_label = str(content_review_payload.get("display_label") or "").strip()
-            if content_review_label:
-                self.crawler_asset_content_review_outcomes[asset_id] = content_review_label
-            plan_passport = context.get("plan_passport") if isinstance(context.get("plan_passport"), dict) else {}
-            if isinstance(plan_passport, dict) and plan_passport:
-                self.crawler_asset_plan_passports[asset_id] = dict(plan_passport)
-            resolved_plan_path = str(context.get("resolved_plan") or "").strip()
-            if not resolved_plan_path:
-                continue
-            try:
-                payload = json.loads(Path(resolved_plan_path).read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if isinstance(payload, dict):
-                self.crawler_asset_resolved_plans[asset_id] = payload
-                if not content_review_label:
-                    label = adapter_review_content_summary_label(adapter_review_display_payload(payload))
-                    if label:
-                        self.crawler_asset_content_review_outcomes[asset_id] = label
+        restored = crawler_asset_plan_state_from_events(latest_events(200))
+        self.crawler_asset_plan_outcomes = restored.plan_outcomes
+        self.crawler_asset_content_review_outcomes = restored.content_review_outcomes
+        self.crawler_asset_resolved_plans = restored.resolved_plans
+        self.crawler_asset_plan_passports = restored.plan_passports
 
     def load_crawler_asset_listing_outcomes_from_events(self) -> None:
         """Restore the latest listing/seed-enumeration status from structured events."""
 
-        self.crawler_asset_listing_outcomes: dict[str, dict[str, object]] = {}
-        for event in latest_events(200):
-            if event.get("event") != "crawler_asset_listing_recorded":
-                continue
-            context = event.get("context") if isinstance(event.get("context"), dict) else {}
-            asset_id = str(context.get("asset_id") or "").strip()
-            if not asset_id:
-                continue
-            self.crawler_asset_listing_outcomes[asset_id] = crawler_asset_listing_event_preview_payload(context)
+        self.crawler_asset_listing_outcomes = crawler_asset_listing_outcomes_from_events(latest_events(200))
 
     def refresh_crawler_asset_tab(self) -> None:
         """Reload crawler asset cards from profile/source metadata."""
