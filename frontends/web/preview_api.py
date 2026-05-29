@@ -25,6 +25,7 @@ from api_launcher.crawler_asset_display import (
     credential_blocked_plan_passport_payload,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
+from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_profiles import update_crawler_asset_plan_passport
 from api_launcher.crawler_asset_schema_probe import (
     crawler_asset_bound_form_schema_probe,
@@ -33,7 +34,6 @@ from api_launcher.crawler_asset_service import (
     CrawlerRunner,
     CrawlerAssetListingResult,
     build_crawler_asset_download_plan,
-    crawler_asset_listing_event_context,
     run_crawler_asset_listing,
 )
 from api_launcher.event_log import log_event

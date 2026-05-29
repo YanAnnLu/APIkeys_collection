@@ -19,7 +19,11 @@ from typing import Callable
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_bounds import bounds_facets_for_source
-from api_launcher.crawler_asset_display import seed_enumeration_display_payload
+from api_launcher.crawler_asset_listing_payloads import (
+    crawler_asset_listing_event_context,
+    crawler_remote_pagination_payload,
+    crawler_seed_enumeration_payload,
+)
 from api_launcher.crawler_asset_payloads import source_download_options_from_crawler_asset_payload
 from api_launcher.crawler_asset_profiles import (
     crawler_asset_bounds_signature,
@@ -28,7 +32,7 @@ from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
 )
 from api_launcher.crawler_assets import load_crawler_asset_source
-from api_launcher.crawler_run_records import crawler_run_record, crawler_run_record_from_result
+from api_launcher.crawler_run_records import crawler_run_record
 from api_launcher.adapter_plan_resolver import resolve_adapter_review_plan_payload
 from api_launcher.crawler_seed_registry import crawler_seed_belongs_to_asset
 from api_launcher.crawlers.orchestrator import (
@@ -251,115 +255,6 @@ def crawler_listing_record_status(result: CrawlerAssetListingResult) -> str:
     return "completed"
 
 
-def crawler_seed_enumeration_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
-    """Return display-safe seed enumeration status for UI shells.
-
-    Candidate count alone is ambiguous: 1,000 candidates can mean "complete"
-    for a small catalog or "local safety limit reached" for a large portal.
-    This payload keeps the interpretation in the service layer so Web/Tk/Qt
-    do not duplicate count heuristics.
-    """
-
-    candidate_count = int(result.candidate_count or 0)
-    max_results = int(result.max_results or 0)
-    warning_count = int(result.warning_count or 0)
-    error_count = int(result.error_count or 0)
-    remote_pagination = crawler_remote_pagination_payload(result)
-    remote_exhausted = remote_pagination["exhausted"] is True
-    remote_has_more = remote_pagination["status"] == "has_more"
-    if result.blocked:
-        return seed_enumeration_display_payload(
-            "blocked",
-            candidate_count=candidate_count,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-            next_action=result.next_action,
-        )
-    if error_count:
-        return seed_enumeration_display_payload(
-            "error",
-            candidate_count=candidate_count,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-            next_action=result.next_action,
-        )
-    if candidate_count <= 0:
-        return seed_enumeration_display_payload(
-            "empty",
-            candidate_count=0,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-            next_action=result.next_action,
-        )
-    limited = bool(result.complete_seed and max_results > 0 and candidate_count >= max_results and not remote_exhausted)
-    if limited:
-        return seed_enumeration_display_payload(
-            "local_limit_reached",
-            candidate_count=candidate_count,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-        )
-    if warning_count:
-        return seed_enumeration_display_payload(
-            "warning",
-            candidate_count=candidate_count,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-            warning_count=warning_count,
-            next_action=result.next_action,
-            completion_confidence=_remote_seed_completion_confidence(
-                remote_exhausted=remote_exhausted,
-                remote_has_more=remote_has_more,
-                default="warning_with_unknown_remote_completion",
-            ),
-        )
-    if result.complete_seed:
-        return seed_enumeration_display_payload(
-            "within_current_limits",
-            candidate_count=candidate_count,
-            max_results=max_results,
-            remote_pagination=remote_pagination,
-            next_action=result.next_action,
-            completion_confidence=_remote_seed_completion_confidence(
-                remote_exhausted=remote_exhausted,
-                remote_has_more=remote_has_more,
-                default="within_current_local_limits",
-            ),
-        )
-    return seed_enumeration_display_payload(
-        "bounded_sample",
-        candidate_count=candidate_count,
-        max_results=max_results,
-        remote_pagination=remote_pagination,
-        next_action=result.next_action,
-    )
-
-
-def _remote_seed_completion_confidence(*, remote_exhausted: bool, remote_has_more: bool, default: str) -> str:
-    if remote_exhausted:
-        return "remote_reported_exhausted"
-    if remote_has_more:
-        return "remote_has_more"
-    return default
-
-
-def crawler_remote_pagination_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
-    """Return explicit remote pagination evidence without exposing raw tokens."""
-
-    status = str(result.remote_pagination_status or "").strip() or "not_reported"
-    token_present = bool(str(result.remote_next_page_token or "").strip())
-    exhausted = result.remote_exhausted
-    if exhausted is True:
-        status = "exhausted"
-    elif exhausted is False and token_present and status == "not_reported":
-        status = "has_more"
-    return {
-        "status": status,
-        "exhausted": exhausted,
-        "next_page_token_present": token_present,
-    }
-
-
 def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
     """Collapse plan outcome details into the compact run-record status."""
 
@@ -370,37 +265,6 @@ def crawler_plan_record_status(result: CrawlerAssetDownloadPlanResult) -> str:
     if result.outcome_bucket in {"review_required", "zero_candidates"}:
         return "review"
     return "empty"
-
-
-def crawler_asset_listing_event_context(result: CrawlerAssetListingResult) -> dict[str, object]:
-    """Return the compact listing-event payload shared by Tk/Web/CLI callers.
-
-    Structured events are handoff evidence.  Keep this payload bounded and
-    display-safe; do not store full candidate lists or raw remote pagination
-    tokens here.
-    """
-
-    return {
-        "asset_id": str(result.asset_id or ""),
-        "listing_mode": str(result.listing_mode or ""),
-        "source_found": bool(result.source_found),
-        "blocked": bool(result.blocked),
-        "blocked_reason": str(result.blocked_reason or ""),
-        "candidate_count": int(result.candidate_count or 0),
-        "upserted_count": int(result.upserted_count or 0),
-        "skipped_provider_count": int(result.skipped_provider_count or 0),
-        "duplicate_count": int(result.duplicate_count or 0),
-        "error_count": int(result.error_count or 0),
-        "warning_count": int(result.warning_count or 0),
-        "next_action": str(result.next_action or ""),
-        "max_results": int(result.max_results or 0),
-        "max_pages": int(result.max_pages or 0),
-        "complete_seed": bool(result.complete_seed),
-        "search_scope": str(result.search_scope or ""),
-        "remote_pagination": crawler_remote_pagination_payload(result),
-        "seed_enumeration": crawler_seed_enumeration_payload(result),
-        "run_record": crawler_run_record_from_result(result),
-    }
 
 
 def run_crawler_asset_listing(
