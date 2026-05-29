@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 19:35 Plan outcome display helper ownership cleanup
+- 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_plan_outcome_display.py`，把 plan outcome bucket 的 `PLAN_OUTCOME_DISPLAY`、`DisplayProfile`、`plan_outcome_display_profile()`、`plan_outcome_display_label()` 與 `plan_outcome_short_label()` 從 `api_launcher/crawler_asset_display.py` 移出。
+- `crawler_asset_display.py` 從約 676 行降到約 543 行；它仍 re-export plan outcome display helpers 作相容 surface，但 `tests/test_web_preview.py` 已改讀新 owner。
+- 新 owner `crawler_plan_outcome_display.py` 是純 `outcome_bucket -> label/tone/summary/short_label/next_action_label` contract，不 import Web/Tk、crawler service 或 download/import，讓 Tk/Web/未來 Qt 可用同一份後端狀態 profile。
+- 已驗證：in-memory compile `api_launcher\crawler_asset_display.py`、`api_launcher\crawler_plan_outcome_display.py`、`api_launcher\crawler_next_action_display.py`、`frontends\web\preview_api.py`、`frontends\web\preview_events.py`、`frontends\tk\crawler_asset_ui_helpers.py`、`frontends\tk\crawler_asset_workflows.py`、`tests\test_web_preview.py` OK；`tests.test_crawler_assets tests.test_web_preview tests.test_tk_dialogs tests.test_tk_ui_helpers tests.test_crawler_asset_download` 216 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_192947.log`。
+- 已推送 `32e215c Move plan outcome display helpers`；GitHub Actions run `26634901303` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 backend display helper ownership 與測試 import owner，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 19:21 Next-action display helper ownership cleanup
 - 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_next_action_display.py`，把 `NEXT_ACTION_DISPLAY_LABELS` 與 `next_action_display_label()` 從 `api_launcher/crawler_asset_display.py` 移出。
 - `crawler_asset_display.py` 從約 715 行降到約 676 行；它仍 re-export next-action display helpers 作相容 surface，但 download service、schema probe、developer diagnostics、Web payload/assets 與 Tk UI helper 已改讀新 owner。
