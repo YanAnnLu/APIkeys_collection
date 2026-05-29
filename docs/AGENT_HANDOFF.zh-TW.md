@@ -2,7 +2,8 @@
 ## 2026-05-30 03:37 Crawler asset listing outcome event helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_listing_outcome_event_payload()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 listing outcome 的 compact event context 與 sidebar preview payload。
 - `frontends/tk/crawler_asset_workflows.py` 的 `record_crawler_asset_listing_outcome()` 不再直接呼叫 backend listing event helper 或自行組 preview payload；workflow 只負責寫 event log 與更新 UI cache。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，126 tests OK；`git diff --check` OK。
+- 已提交實作：`d2aa1b3 Move crawler listing outcome event payload`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，126 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_033933.log` 通過，924 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk listing event/preview payload 組裝邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 03:30 Crawler asset plan outcome event helper
