@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 06:12 Schema probe byte budget contract
+- 本輪延續 bounded policy hardening：新增 `DEFAULT_SCHEMA_PROBE_MAX_BYTES=128 * 1024`，並讓 `fetch_probe_bytes()` 接受可覆寫 `max_bytes`，保留既有 128 KiB 預設讀取上限但不再把 byte budget 藏成裸值。
+- 已提交實作：`241a3c7 Name schema probe byte budget`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\schema_probe.py tests\test_source_download.py` OK；`py -3 -B -m unittest tests.test_source_download -v` 通過，10 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_060957.log` 通過，937 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只命名並外顯 schema/head probe byte budget，不改 Web/Tk 欄位探測操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 06:02 Adapter resource traversal depth guard
 - 本輪依照 bounded recursion guardrail 做後端小型 hardening：`resource_mappings_from_candidate()` 新增 `MAX_RESOURCE_MAPPING_DEPTH=12` 與可覆寫 `max_depth` 參數，避免 JSON-LD/DCAT/Schema.org metadata 異常深巢狀時無限制遞迴；正常 resource 攤平行為與 resolver 輸出形狀不變。
 - 已提交實作：`ff56909 Bound resource metadata traversal depth`。
