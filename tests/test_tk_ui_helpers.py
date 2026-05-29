@@ -7,6 +7,7 @@ from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.crawler_asset_ui_helpers import (
     cache_crawler_asset_plan_state,
     crawler_asset_bound_payload_from_cache,
+    crawler_asset_download_plan_built_event_context,
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
@@ -166,6 +167,25 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
         self.assertIs(crawler_asset_bound_payload_from_cache({"demo_asset": payload}, "demo_asset"), payload)
         self.assertIsNone(crawler_asset_bound_payload_from_cache(cached, "demo_asset"))
+
+    def test_crawler_asset_download_plan_built_event_context_is_compact(self) -> None:
+        result = SimpleNamespace(direct_download_count=2, review_required_count=1)
+
+        context = crawler_asset_download_plan_built_event_context(
+            "demo_asset",
+            result,
+            {"resolved": "state/crawler_asset_plans/demo.resolved.json"},
+        )
+
+        self.assertEqual(
+            {
+                "asset_id": "demo_asset",
+                "direct_download_count": 2,
+                "review_required_count": 1,
+                "resolved_plan": "state/crawler_asset_plans/demo.resolved.json",
+            },
+            context,
+        )
 
     def test_cache_crawler_asset_plan_state_updates_display_caches(self) -> None:
         owner = SimpleNamespace()

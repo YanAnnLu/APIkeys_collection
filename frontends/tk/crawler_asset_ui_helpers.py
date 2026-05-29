@@ -139,6 +139,22 @@ def write_crawler_asset_download_plan_artifacts(
     return {"original": str(original_path), "resolved": str(resolved_path)}
 
 
+def crawler_asset_download_plan_built_event_context(
+    asset_id: str,
+    result: object,
+    written_paths: object,
+) -> dict[str, object]:
+    """Return the compact event context for a written crawler download plan."""
+
+    paths = written_paths if isinstance(written_paths, dict) else {}
+    return {
+        "asset_id": asset_id,
+        "direct_download_count": int(getattr(result, "direct_download_count", 0) or 0),
+        "review_required_count": int(getattr(result, "review_required_count", 0) or 0),
+        "resolved_plan": str(paths.get("resolved") or ""),
+    }
+
+
 def crawler_asset_download_plan_summary_text(
     result: object,
     added_count: int,

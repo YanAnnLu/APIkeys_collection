@@ -60,6 +60,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_guard_message,
     crawler_asset_bound_payload_from_cache,
     crawler_asset_detail_text,
+    crawler_asset_download_plan_built_event_context,
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
@@ -1103,12 +1104,7 @@ class CrawlerAssetWorkflowMixin:
                     "crawler_asset_download_plan_built",
                     "Tk crawler asset workflow built a bounded download plan.",
                     component="ui.crawler_assets",
-                    context={
-                        "asset_id": asset_id,
-                        "direct_download_count": result.direct_download_count,
-                        "review_required_count": result.review_required_count,
-                        "resolved_plan": written_paths.get("resolved", ""),
-                    },
+                    context=crawler_asset_download_plan_built_event_context(asset_id, result, written_paths),
                 )
         except Exception as exc:
             log_exception("crawler_asset_download_plan_failed", exc, component="ui.crawler_assets", context={"asset_id": asset_id})
