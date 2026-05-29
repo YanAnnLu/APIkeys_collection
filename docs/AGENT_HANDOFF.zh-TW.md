@@ -3,6 +3,7 @@
 - 依使用者要求用 GitHub read-only 盤點其他 repo：`RRKAL_displaytools` 今天仍活躍，最新 `08a6eab Acknowledge boundary highlight renderer input`，最近 smoke runs success；`CODE_KM` 最新 `bc78f85 Record next action checkpoint` 且 CI success；`rrkal-visual-compressor` 最新 `03d7232 Add one-command MVP pipeline`；`rrkal-renderer` 最新 `a1351c3 feat: allow disabling auto-open preview in photo sample runner`。
 - 新增 `docs/EXTERNAL_PROJECT_CONTEXT.zh-TW.md`，把這些 repo 的可借鑑方向與 read-only 邊界寫清楚：可抽 display contract、renderer input acknowledgement、one-command pipeline、provenance surfaced output、governed ingestion workflow；不要直接搬碼或把外部 repo 當 RRKAL runtime dependency。
 - `DOCS_INDEX.zh-TW.md` 已加入「參考其他 GitHub 專案進度」閱讀路線與新文件角色。
+- 已推送 `beb42d8 Document adjacent project context`；GitHub Actions run `26621082393` 已通過 Ubuntu、Windows 與 real DB smoke。
 - RRKAL 最近程式 checkpoint `c3f53d6 Move recent plan event display helpers` 已推送，GitHub Actions run `26620918050` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪新增外部專案上下文文件與索引；它是參考地圖，不改產品能力、不改使用者操作流程。User guide 不需更新。
 
