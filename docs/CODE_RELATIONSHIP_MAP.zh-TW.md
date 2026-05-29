@@ -113,7 +113,7 @@ docs/AGENT_HANDOFF.zh-TW.md
 | --- | --- | --- |
 | `frontends/tk/launcher_ui.py` 過大 | UI 同時處理畫面、狀態、部分流程 glue | MVP 後依 panel/dialog 分拆；共用規則回到 `api_launcher/` |
 | `api_launcher/core.py` 偏胖 | CLI 仍集中 | 新增 CLI 群組先建 `cli_*.py`，core 只做 routing |
-| 中心節點吸力 | `repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`frontends/web/preview_api.py` 仍容易被新功能直接掛上去 | 每 2-3 個功能切片安排 consolidation slice，先抽 service/gateway/profile/helper，再考慮搬檔；新增功能先問「這屬於 crawler、resolver、downloader、importer、UI 哪一層」。 |
+| 中心節點吸力 | `repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`frontends/web/preview_api.py` 仍容易被新功能直接掛上去；`frontends/tk/dialogs.py` 已降為 33 行相容 re-export facade，新 dialog 不應再塞回此檔 | 每 2-3 個功能切片安排 consolidation slice，先抽 service/gateway/profile/helper，再考慮搬檔；新增功能先問「這屬於 crawler、resolver、downloader、importer、UI 哪一層」。 |
 | data store 多 engine 同檔 | MySQL/PostgreSQL/SQLite/Hadoop profile 在同一 contract | 等本地 MySQL flow 穩定後再拆 driver family |
 | 文件分散 | 使用者指南、技術總覽、GTD、handoff 都保存重要資訊 | 透過 `DOCS_INDEX` 與本文件建立入口，不直接刪文件 |
 | runtime 檔留根目錄 | `APIkeys_collection.sqlite`, `provider_candidates.discovered.json` | 新輸出預設放 `state/`，舊路徑先保留相容 |
@@ -147,7 +147,7 @@ docs/AGENT_HANDOFF.zh-TW.md
 1. 先讓本地 MySQL 連線 flow 跑通：env vars、driver、`--test-data-store mysql_default`、UI data-store dialog。
 2. 針對 Demo flow 補缺口：下載按鈕、candidate plan、adapter resolver、import status 要能清楚顯示卡在哪。
 3. 擴充 crawler full-crawl 模式的 UI/CLI 說明與保護：可爬到沒有下一頁，但仍要有 page cap、host politeness、warning。
-4. 拆 `frontends/tk/launcher_ui.py` 的 dialog/panel helper，但每次只拆一塊並補測試。
+4. 持續拆 Tk panel/workflow helper；dialog implementation 已有 focused owner modules，`frontends/tk/dialogs.py` 只保留相容 re-export facade。
 5. 拆 `core.py` 的 CLI 群組，保留相容命令。
 
 ## 重構相依順序
