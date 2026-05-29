@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-30 00:40 Data-store connection dialog ownership local checkpoint
+- 本輪從 `frontends/tk/dialogs.py` 移出 `DataStoreConnectionSettingsDialog`，新增 `frontends/tk/data_store_connection_settings_dialog.py` 作為資料儲存連線設定 dialog owner。
+- `dialogs.py` 仍 re-export `DataStoreConnectionSettingsDialog`，所以 `frontends.tk.dialogs` 舊匯入點、整合入口與 tests 不需改；新 owner 只負責 data-store profile 表格、測試按鈕、env template 按鈕與 active profile 按鈕的 UI 編排，實際連線測試、env template 產生、active profile 寫入與 event log 仍走既有 backend helpers。
+- `dialogs.py` 從約 739 行降到 589 行；這是小型 data-store settings dialog ownership cleanup，不改 profile schema、credential/env storage、資料庫連線測試、active profile 或 UI 操作流程。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\data_store_connection_settings_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- 本地 code checkpoint：`ad4ab45 Move data store connection dialog`。尚未跑完整 smoke / GitHub Actions；下一步先跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後補推送與 CI。
+- Docs drift check：本輪只改 data-store settings dialog ownership，不改使用者操作流程、credential/env storage、crawler、download/import、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-30 00:33 AI/Gemini settings dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `AiModelSettingsDialog` 與 `GoogleGeminiSettingsDialog`，新增 `frontends/tk/ai_settings_dialogs.py` 作為 AI profile / Google-Gemini connection dialogs 的 owner。
 - `dialogs.py` 仍 re-export 兩個 class，所以 `frontends.tk.dialogs` 舊匯入點、整合選單與 tests 不需改；新 owner 只負責 AI/Gemini 設定視窗、說明文案、表格 row projection 與按鈕編排，credential 寫入、OAuth browser/device-code flow、API key storage 與 AI summary generation 仍委派既有 UI/backend 服務。
