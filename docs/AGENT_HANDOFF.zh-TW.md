@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-30 01:19 Provider candidate review dialog ownership local checkpoint
+- 本輪從 `frontends/tk/dialogs.py` 移出 `ProviderCandidateReviewDialog`，新增 `frontends/tk/provider_candidate_review_dialog.py` 作為 provider/source 候選審核 dialog owner。
+- `dialogs.py` 現在降成 33 行相容 re-export facade，只保留各 dialog class 的穩定匯入面；後續不要再把新 dialog 實作塞回 `dialogs.py`。
+- 新 owner 仍只負責 review-only 表格、detail pane、開 URL、寫入 ignored local provider seed / dataset source draft 與 event log；正式 catalog promotion 仍必須走 local discovery draft audit / crawler audit，不在 dialog 內直接納管 provider/source。
+- 已驗證：in-memory compile `frontends\tk\dialogs.py` / `frontends\tk\provider_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- 尚未跑完整 smoke / GitHub Actions；下一步是跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
+- Docs drift check：本輪只改 Provider candidate review dialog ownership 與 `dialogs.py` facade，不改使用者操作流程、local draft audit、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-30 01:15 Dataset candidate review dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `DatasetCandidateReviewDialog`，新增 `frontends/tk/dataset_candidate_review_dialog.py` 作為資料集候選審核 dialog owner。
 - `dialogs.py` 仍 re-export `DatasetCandidateReviewDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 tests 不需改；新 owner 只負責候選 table、detail pane、source URL 開啟、candidate status 更新與「加入下載計畫」的既有 UI 委派，實際 repository status update 與 plan mutation 仍走既有 backend / 主 UI helpers。
