@@ -10,6 +10,9 @@ from urllib.request import Request, urlopen
 from api_launcher.downloads.policy import PoliteDownloadPolicy
 
 
+DEFAULT_SCHEMA_PROBE_MAX_BYTES = 128 * 1024
+
+
 @dataclass(frozen=True)
 class SchemaProbeColumn:
     name: str
@@ -78,10 +81,10 @@ def schema_probe_url(url: str, row_limit: int = 5) -> str:
     return url
 
 
-def fetch_probe_bytes(url: str, timeout: float) -> bytes:
+def fetch_probe_bytes(url: str, timeout: float, max_bytes: int = DEFAULT_SCHEMA_PROBE_MAX_BYTES) -> bytes:
     request = Request(url, headers={"User-Agent": PoliteDownloadPolicy().user_agent})
     with urlopen(request, timeout=timeout) as response:
-        return response.read(1024 * 128)
+        return response.read(max(1, int(max_bytes)))
 
 
 def csv_schema_probe(source_url: str, probe_url: str, payload: bytes) -> SchemaProbeResult:

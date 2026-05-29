@@ -10,7 +10,13 @@ from api_launcher.models import Dataset, Provider
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.db import connect_db
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
-from api_launcher.schema_probe import csv_schema_probe, json_schema_probe, schema_probe_url
+from api_launcher.schema_probe import (
+    DEFAULT_SCHEMA_PROBE_MAX_BYTES,
+    csv_schema_probe,
+    fetch_probe_bytes,
+    json_schema_probe,
+    schema_probe_url,
+)
 from api_launcher.source_download import (
     SourceDownloadBounds,
     SourceDownloadOptions,
@@ -257,6 +263,27 @@ class SourceDownloadTests(unittest.TestCase):
         self.assertIn("$limit=5", schema_probe_url("https://data.example.test/resource/abcd-1234.json?$limit=99", 5))
         self.assertIn("limit=5", schema_probe_url("https://www.ncei.noaa.gov/access/services/search/v1/data?dataset=ais&limit=99", 5))
         self.assertIn("page_size=5", schema_probe_url("https://cmr.earthdata.nasa.gov/search/granules.json?page_size=1", 5))
+
+    def test_fetch_probe_bytes_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b"sample"
+
+        with patch("api_launcher.schema_probe.urlopen", return_value=FakeResponse()):
+            payload = fetch_probe_bytes("https://example.test/data.json", timeout=1.0, max_bytes=17)
+
+        self.assertEqual(b"sample", payload)
+        self.assertEqual([17], read_sizes)
+        self.assertEqual(128 * 1024, DEFAULT_SCHEMA_PROBE_MAX_BYTES)
 
     def test_csv_head5_probe_extracts_columns(self) -> None:
         result = csv_schema_probe(
