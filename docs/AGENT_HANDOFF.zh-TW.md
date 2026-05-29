@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 17:50 Tk credential dialog next-action label
+- 本輪完成 GTD 上的 Tk credential UX 小項：`frontends/tk/crawler_asset_credential_dialog.py` 新增 `crawler_asset_credential_next_action_text()`，credential dialog 會優先顯示後端 `next_action_label_zh_TW` / display profile label，不把 raw `next_action` id 顯示給一般使用者。
+- Dialog 仍只是薄 UI：不判斷哪個 crawler 需要 credential、不保存明文到事件、不改 `api_launcher.local_credentials` 的 credential guard / storage policy。
+- 新增 regression：`tests.test_tk_dialogs.TkDialogModuleTest.test_credential_dialog_next_action_uses_display_label_not_raw_id`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_credential_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_174501.log`。
+- 已推送 `98b2805 Show credential next action in Tk dialog`；GitHub Actions run `26630439903` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 Tk credential dialog 顯示文案與測試，不改登入欄位、credential storage、下載/匯入、Web route 或 user guide；已同步 GTD、handoff 與 development log。
+
 ## 2026-05-29 17:39 Web Preview diagnostics helper ownership cleanup
 - 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_diagnostics.py`，把 `web_preview_status()`、`web_project_maturity()`、`crawler_handler_smoke_diagnostics()`、`web_real_download_demo()` 與 `developer_real_download_demo()` 從 `frontends/web/preview_api.py` 移出。
 - `frontends/web/preview_api.py` 從約 497 行降到約 428 行；它仍保留 crawler asset listing、credential update、plan preview、asset download/import 與 seed download/import endpoint orchestration，不再同時持有 health / maturity / developer diagnostics / demo proof helper。
