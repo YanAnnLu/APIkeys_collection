@@ -8,6 +8,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     cache_crawler_asset_plan_state,
     crawler_asset_bound_payload_from_cache,
     crawler_asset_download_plan_bounds_schema,
+    crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
@@ -249,6 +250,43 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertEqual(1, payload.context["review_queue_count"])
         self.assertEqual("demo_asset", payload.plan_passport["asset_id"])
         self.assertTrue(payload.plan_passport["has_resolved_plan"])
+
+    def test_crawler_asset_listing_outcome_event_payload_keeps_preview_bounded(self) -> None:
+        result = SimpleNamespace(
+            asset_id="demo_index",
+            listing_mode="complete_seed",
+            source_found=True,
+            blocked=False,
+            candidate_count=1000,
+            upserted_count=998,
+            skipped_provider_count=0,
+            duplicate_count=1,
+            error_count=0,
+            warning_count=1,
+            next_action="review_or_upsert_dataset_candidates",
+            max_results=1000,
+            max_pages=10,
+            complete_seed=True,
+            search_scope="full",
+            remote_pagination_status="has_more",
+            remote_exhausted=False,
+            remote_next_page_token="secret-token",
+            to_dict=lambda: {
+                "run_record": {
+                    "stage": "listing",
+                    "status": "warning",
+                    "next_action": "review_or_upsert_dataset_candidates",
+                }
+            },
+        )
+
+        payload = crawler_asset_listing_outcome_event_payload(result)
+
+        self.assertEqual("demo_index", payload.asset_id)
+        self.assertEqual("has_more", payload.context["remote_pagination"]["status"])
+        self.assertEqual("has_more", payload.preview["remote_pagination"]["status"])
+        self.assertNotIn("secret-token", repr(payload.context))
+        self.assertNotIn("secret-token", repr(payload.preview))
 
     def test_write_crawler_asset_download_plan_artifacts_persists_utf8_json(self) -> None:
         import json

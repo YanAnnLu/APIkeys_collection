@@ -28,7 +28,6 @@ from api_launcher.crawler_asset_bound_forms import (
     build_crawler_asset_bound_form_spec,
 )
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
-from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_schema_probe_result
 from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
@@ -64,7 +63,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
-    crawler_asset_listing_event_preview_payload,
+    crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
     crawler_asset_row_values,
     crawler_asset_seed_enumeration_note_text,
@@ -1035,18 +1034,17 @@ class CrawlerAssetWorkflowMixin:
         """
 
         try:
-            context = crawler_asset_listing_event_context(result)
+            event_payload = crawler_asset_listing_outcome_event_payload(result)
             log_event(
                 "crawler_asset_listing_recorded",
                 "Tk crawler asset workflow recorded the visible listing outcome.",
                 component="ui.crawler_assets",
-                context=context,
+                context=event_payload.context,
             )
             if not hasattr(self, "crawler_asset_listing_outcomes"):
                 self.crawler_asset_listing_outcomes = {}
-            asset_id = str(context.get("asset_id") or "").strip()
-            if asset_id:
-                self.crawler_asset_listing_outcomes[asset_id] = crawler_asset_listing_event_preview_payload(context)
+            if event_payload.asset_id:
+                self.crawler_asset_listing_outcomes[event_payload.asset_id] = event_payload.preview
         except Exception:
             # event log 是 handoff 輔助，不應阻斷 UI listing 完成路徑。
             return

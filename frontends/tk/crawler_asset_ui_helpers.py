@@ -13,6 +13,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_passport_payload,
 )
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, status_label
 from api_launcher.downloads.staging import safe_path_part
@@ -48,6 +49,15 @@ class CrawlerAssetPlanOutcomeEventPayload:
     asset_id: str
     plan_passport: dict[str, object]
     context: dict[str, object]
+
+
+@dataclass(frozen=True)
+class CrawlerAssetListingOutcomeEventPayload:
+    """Display/event payload prepared for Tk listing-outcome logging."""
+
+    asset_id: str
+    context: dict[str, object]
+    preview: dict[str, object]
 
 
 def crawler_seed_download_import_target_paths(
@@ -747,6 +757,17 @@ def crawler_asset_listing_event_preview_payload(context: object) -> dict[str, ob
         "seed_enumeration": dict(seed_enumeration),
         "remote_pagination": dict(remote_pagination),
     }
+
+
+def crawler_asset_listing_outcome_event_payload(result: object) -> CrawlerAssetListingOutcomeEventPayload:
+    """Build compact event and sidebar-preview payloads for one listing result."""
+
+    context = crawler_asset_listing_event_context(result)
+    return CrawlerAssetListingOutcomeEventPayload(
+        asset_id=str(context.get("asset_id") or "").strip(),
+        context=context,
+        preview=crawler_asset_listing_event_preview_payload(context),
+    )
 
 
 def crawler_asset_seed_enumeration_note_text(

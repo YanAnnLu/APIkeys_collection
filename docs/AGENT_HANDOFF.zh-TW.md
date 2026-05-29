@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 03:37 Crawler asset listing outcome event helper
+- 本輪延續 Tk consolidation slice：新增 `crawler_asset_listing_outcome_event_payload()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 listing outcome 的 compact event context 與 sidebar preview payload。
+- `frontends/tk/crawler_asset_workflows.py` 的 `record_crawler_asset_listing_outcome()` 不再直接呼叫 backend listing event helper 或自行組 preview payload；workflow 只負責寫 event log 與更新 UI cache。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，126 tests OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk listing event/preview payload 組裝邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 03:30 Crawler asset plan outcome event helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_plan_outcome_event_payload()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 crawler asset plan outcome 的 event context 與 plan passport payload。
 - `frontends/tk/crawler_asset_workflows.py` 的 `record_crawler_asset_plan_outcome()` 不再直接呼叫 backend display helpers 組 event context，也不再自行計算 review queue count；workflow 只負責 persist passport 與寫 event log。
