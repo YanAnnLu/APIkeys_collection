@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 06:02 Adapter resource traversal depth guard
+- 本輪依照 bounded recursion guardrail 做後端小型 hardening：`resource_mappings_from_candidate()` 新增 `MAX_RESOURCE_MAPPING_DEPTH=12` 與可覆寫 `max_depth` 參數，避免 JSON-LD/DCAT/Schema.org metadata 異常深巢狀時無限制遞迴；正常 resource 攤平行為與 resolver 輸出形狀不變。
+- 已提交實作：`ff56909 Bound resource metadata traversal depth`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\adapter_plan_resolver.py tests\test_adapter_plan_resolver.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver -v` 通過，55 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_055953.log` 通過，936 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只新增 adapter resolver metadata traversal 防護，不改 crawler、download/import service、CLI/Tk/Web 操作或 user guide。
+
 ## 2026-05-30 05:50 Adapter direct-resource resolver lane helper
 - 本輪轉到後端 bounded consolidation：新增 `direct_resource_entry_from_resource()`，把 `api_launcher/adapter_plan_resolver.py` 中單一 resource summary 是否能 promotion 成 bounded direct file 的判斷抽成獨立 resolver lane helper。
 - `direct_resource_entries_for_plan_entry()` 保留原 pipeline 順序：bounded API resolver -> resource summaries -> Socrata/NCEI fallback -> metadata lookup -> ERDDAP sample；本輪只移動 direct-resource lane，不改 resolver policy、大小上限、metadata/API link guard 或輸出形狀。
