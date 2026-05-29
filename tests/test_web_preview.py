@@ -70,6 +70,7 @@ from frontends.web.preview_payloads import (
     web_crawler_asset_listing_payload,
     web_download_import_target_paths,
     web_next_action_payload,
+    web_plan_preview_credential_blocked_response,
 )
 
 
@@ -1520,6 +1521,28 @@ class WebPreviewApiTest(unittest.TestCase):
         context_text = json.dumps(context, ensure_ascii=False)
         self.assertNotIn("token-secret", context_text)
         self.assertNotIn("earth-password", context_text)
+
+    def test_web_plan_preview_credential_blocked_response_matches_route_contract(self) -> None:
+        guard = {
+            "status": "missing_credentials",
+            "missing_required": ["NASA_EARTHDATA_TOKEN"],
+            "next_action": "edit_local_credentials_before_live_download",
+        }
+
+        payload = web_plan_preview_credential_blocked_response(
+            "demo_cmr",
+            {"facet_values": {"granule_limit": 5}},
+            guard,
+            execute=True,
+        )
+
+        self.assertTrue(payload["execute"])
+        self.assertEqual("demo_cmr", payload["asset_id"])
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("missing_credentials", payload["credential_guard"]["status"])
+        self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual("demo_cmr", payload["plan_passport"]["asset_id"])
+        self.assertFalse(payload["plan_passport"]["has_resolved_plan"])
 
     def test_plan_preview_execute_blocks_missing_credentials_before_live_crawler(self) -> None:
         with TemporaryDirectory() as tmp:

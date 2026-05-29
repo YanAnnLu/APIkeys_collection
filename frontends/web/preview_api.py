@@ -21,8 +21,6 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
-    credential_blocked_plan_outcome_payload,
-    credential_blocked_plan_passport_payload,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
@@ -65,6 +63,7 @@ from frontends.web.preview_payloads import (
     web_download_import_event_context,
     web_download_import_target_paths,
     web_next_action_payload,
+    web_plan_preview_credential_blocked_response,
 )
 from frontends.web.preview_diagnostics import (
     crawler_handler_smoke_diagnostics,
@@ -218,12 +217,12 @@ def crawler_asset_plan_preview(
     if not execute:
         return response
     if credential_status_blocks_plan(credential_guard):
-        # 防呆邊界：需要帳號/API Key 的來源先停在本機憑證設定，
-        # 不讓 Web Preview 發出必然失敗的 live crawler request。
-        response["plan_outcome"] = credential_blocked_plan_outcome_payload(credential_guard)
-        response["plan_passport"] = credential_blocked_plan_passport_payload(asset_id, credential_guard)
-        apply_web_next_action(response, "edit_local_credentials_before_live_download")
-        return response
+        return web_plan_preview_credential_blocked_response(
+            asset_id,
+            payload.to_dict(),
+            credential_guard,
+            execute=execute,
+        )
 
     target_downloads = Path(downloads_root) if downloads_root is not None else default_local_downloads_root()
     with web_preview_repository_context(db_path, seed_builtin_providers=True) as session:

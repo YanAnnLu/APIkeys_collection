@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 04:37 Web plan-preview credential block helper
+- 本輪延續 Web Preview consolidation slice：新增 `web_plan_preview_credential_blocked_response()`，由 `frontends/web/preview_payloads.py` 集中建立 Web plan preview 缺憑證 blocked response。
+- `frontends/web/preview_api.py` 的 `crawler_asset_plan_preview()` 不再自行組 `plan_outcome` / `plan_passport` / credential next-action；route 只負責 action context、credential guard、service call 與 event。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，55 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web plan-preview 缺憑證 payload 組裝邊界，不改 credential storage policy、Web 操作流程、crawler、download/import 或 user guide。
+
 ## 2026-05-30 04:25 Web credential event helper
 - 本輪轉到 Web Preview consolidation slice：新增 `web_crawler_asset_credentials_event_context()`，由 `frontends/web/preview_payloads.py` 集中建立 Web credential update 的 safe event context。
 - `frontends/web/preview_api.py` 的 `save_crawler_asset_credentials()` 不再自行組 event context；event 只記錄 asset/provider、status、configured/field counts、env var 名稱與 next_action，不寫入 token/password 或 value preview。

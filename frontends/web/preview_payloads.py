@@ -192,3 +192,25 @@ def web_download_import_credential_blocked_response(
         response["dataset_uid"] = dataset_uid
     apply_web_next_action(response, next_action)
     return response
+
+
+def web_plan_preview_credential_blocked_response(
+    asset_id: str,
+    bounds_payload: Mapping[str, object],
+    credential_guard: Mapping[str, object],
+    *,
+    execute: bool,
+) -> dict[str, object]:
+    """Return the shared Web payload for plan-preview credential blocks."""
+
+    response: dict[str, object] = {
+        "asset_id": asset_id,
+        "execute": execute,
+        "bounds_payload": dict(bounds_payload),
+        "credential_guard": credential_guard,
+        **web_next_action_payload("review_plan_outcome"),
+        "plan_outcome": credential_blocked_plan_outcome_payload(credential_guard),
+        "plan_passport": credential_blocked_plan_passport_payload(asset_id, credential_guard),
+    }
+    apply_web_next_action(response, "edit_local_credentials_before_live_download")
+    return response
