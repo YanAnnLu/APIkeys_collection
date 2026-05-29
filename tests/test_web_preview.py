@@ -21,8 +21,8 @@ from api_launcher.crawler_asset_display import (
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
     plan_entry_content_status_payload,
-    plan_outcome_display_profile,
 )
+from api_launcher.crawler_plan_outcome_display import plan_outcome_display_profile
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawler_asset_profiles import (
     load_crawler_asset_profiles,
