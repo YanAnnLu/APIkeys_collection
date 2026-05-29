@@ -3,7 +3,7 @@
 - 本輪延續 Web Preview consolidation slice：新增 `WebPlanPreviewResultResponse` 與 `web_plan_preview_result_payload()`，讓 plan preview route 取得 response fragment 時，同時取得後續 persist / event log 需要的 compact `plan_outcome` / `plan_passport`。
 - `web_plan_preview_result_response()` 保留既有 dict response 相容入口；`frontends/web/preview_api.py` 改用 typed bundle，不再從 generic response dict 反拆 outcome/passport。
 - 已提交實作：`7628c7d Bundle Web plan preview result payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，59 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_053838.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，59 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_053838.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26663712241` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web plan-preview route 內部 payload handoff，不改 Web 操作流程、crawler、download/import、credential、storage policy 或 user guide。
 
 ## 2026-05-30 05:28 Web download/import result response helper
