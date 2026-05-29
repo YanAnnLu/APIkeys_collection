@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-30 00:26 AI/Gemini settings dialog ownership local checkpoint
+## 2026-05-30 00:28 AI/Gemini settings dialog ownership local smoke
 - 本輪從 `frontends/tk/dialogs.py` 移出 `AiModelSettingsDialog` 與 `GoogleGeminiSettingsDialog`，新增 `frontends/tk/ai_settings_dialogs.py` 作為 AI profile / Google-Gemini connection dialogs 的 owner。
 - `dialogs.py` 仍 re-export 兩個 class，所以 `frontends.tk.dialogs` 舊匯入點、整合選單與 tests 不需改；新 owner 只負責 AI/Gemini 設定視窗、說明文案、表格 row projection 與按鈕編排，credential 寫入、OAuth browser/device-code flow、API key storage 與 AI summary generation 仍委派既有 UI/backend 服務。
 - `dialogs.py` 從約 998 行降到 739 行；這是小型 AI settings dialog ownership cleanup，不改 AI profile selection、Gemini API key 保存、OAuth config、Google login readiness 或 UI 操作流程。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\ai_settings_dialogs.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
-- 本地 code checkpoint：`02eff1a Move AI settings dialogs`。尚未跑完整 smoke / GitHub Actions；下一步先跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後補推送與 CI。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\ai_settings_dialogs.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_002856.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
+- 本地 code checkpoint：`02eff1a Move AI settings dialogs`；文檔 checkpoint：`6b16c85 Record AI settings dialog checkpoint`。尚未推送 / GitHub Actions；下一步 push `rrkal-32e215c-recovery` 並手動 dispatch CI。
 - Docs drift check：本輪只改 AI/Gemini settings dialog ownership，不改使用者操作流程、credential storage、OAuth/API key 行為、crawler、download/import、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-30 00:20 Provider/database dialog ownership CI pass
