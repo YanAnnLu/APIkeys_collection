@@ -69,6 +69,7 @@ Last updated: 2026-05-29
 - [x] Tk plan outcome event 也已接上同一份 backend helper：Tk 不再手寫 run record / content review / plan passport event keys，只覆寫本地 resolved plan path 與 review queue count。
 - [x] Recent plan event extraction 已抽回 backend display contract：Web Preview 仍讀 structured event log，但最近 plan outcome / compact plan passport 的 event 篩選與壓縮規則改由 `crawler_asset_display.py` 擁有，避免 Web/Tk/未來 Qt 各自解析 event context。
 - [x] Tk crawler asset workflow 的 UI message / summary helper 已再拆出一層：下載計畫摘要、listing blocked status、plan outcome 短標籤、plan passport 摘要與 credential guard prompt 現在由 `frontends/tk/ui_helpers.py` 擁有，`crawler_asset_workflows.py` 只負責呼叫 workflow service 與呈現結果。
+- [x] Tk crawler asset 的 table/sidebar/status 投影 helper 已集中到 `frontends/tk/crawler_asset_ui_helpers.py`：seed page preview、credential summary、listing event preview、state label 與 review count 不再留在 `crawler_asset_workflows.py`，大型 workflow 檔少一批純顯示責任。
 - [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，減少連點造成的重複 dialog 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
 - [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。

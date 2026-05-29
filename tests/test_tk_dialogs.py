@@ -53,12 +53,12 @@ from frontends.tk.dialogs import (
     UiLanguageSettingsDialog,
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
-from frontends.tk.crawler_asset_workflows import (
-    CrawlerAssetWorkflowMixin,
-    crawler_asset_listing_event_preview_payload,
+from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
+from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
     crawler_asset_credential_summary_text,
+    crawler_asset_listing_event_preview_payload,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,

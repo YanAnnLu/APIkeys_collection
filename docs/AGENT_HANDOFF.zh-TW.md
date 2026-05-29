@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 14:39 Tk crawler asset display helper module
+- 本輪延續 Tk 大檔 consolidation：新增 `frontends/tk/crawler_asset_ui_helpers.py`，把 seed page status / preview、seed enumeration note、credential badge / summary、credential event context、listing event preview、state label、review count 等純 Tk 投影 helper 從 `frontends/tk/crawler_asset_workflows.py` 移出。
+- `crawler_asset_workflows.py` 行數從約 1601 行降到約 1384 行；它仍保留 workflow、background job handoff、service 呼叫與 dialog routing，不再承擔這批 table/sidebar/status text helper ownership。
+- `tests/test_tk_dialogs.py` 已改由 `frontends.tk.crawler_asset_ui_helpers` 匯入這批 helper，避免測試繼續把大型 workflow 檔當成 display helper owner。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 105 tests OK；`frontends\tk` / `tests` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_144106.log`。
+- Docs drift check：本輪只改 Tk helper ownership，不改使用者操作流程、按鈕、後端 service 或 UI 文案 contract；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 14:19 Tk crawler asset UI helper consolidation
 - 本輪做 Tk crawler asset workflow 的小型 consolidation：把下載計畫摘要、listing blocked status、plan outcome 短標籤、plan passport 摘要與 credential guard prompt helper 從 `frontends/tk/crawler_asset_workflows.py` 移到 `frontends/tk/ui_helpers.py`。
 - `crawler_asset_workflows.py` 現在只消費這些 Tk UI helper，不再同時承擔 crawler asset workflow 與 message/summary helper ownership；後端 crawler、download/import、credential guard、plan outcome、plan passport 行為不變。
