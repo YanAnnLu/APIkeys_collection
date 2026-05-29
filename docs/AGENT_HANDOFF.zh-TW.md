@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 23:28 Developer CLI dialog ownership cleanup
+- 本輪從 `frontends/tk/dialogs.py` 移出 `DeveloperCliDialog`，新增 `frontends/tk/developer_cli_dialog.py` 作為開發者 CLI 視窗 owner。
+- `dialogs.py` 仍 re-export `DeveloperCliDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 `provider_settings_workflows.py` 不需改；新 owner 集中 subprocess、`shlex`、`PROJECT_ROOT` 與 single-flight job helper。
+- `dialogs.py` 從 1625 行降到 1504 行；這是小型 dialog ownership cleanup，不改 CLI 命令解析、timeout、background job 或 UI 操作流程。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\developer_cli_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- Docs drift check：本輪只改 Developer CLI dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 23:21 Recent event log dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `RecentEventLogsDialog`，新增 `frontends/tk/recent_event_logs_dialog.py` 作為事件紀錄視窗 owner。
 - `dialogs.py` 仍 re-export `RecentEventLogsDialog`，所以既有 `frontends.tk.dialogs` import 與測試入口不斷；新 dialog 只讀 `latest_events()` / JSONL，不寫 event log、不改 crawler/download/import/state。
