@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-30 01:08 Dataset candidate review dialog ownership local checkpoint
+## 2026-05-30 01:12 Dataset candidate review dialog ownership smoke pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `DatasetCandidateReviewDialog`，新增 `frontends/tk/dataset_candidate_review_dialog.py` 作為資料集候選審核 dialog owner。
 - `dialogs.py` 仍 re-export `DatasetCandidateReviewDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 tests 不需改；新 owner 只負責候選 table、detail pane、source URL 開啟、candidate status 更新與「加入下載計畫」的既有 UI 委派，實際 repository status update 與 plan mutation 仍走既有 backend / 主 UI helpers。
 - `dialogs.py` 從約 467 行降到 254 行；這是小型 dataset-candidate review dialog ownership cleanup，不改 crawler audit、candidate schema、download/import、credential、provider catalog 或 UI 操作流程。
-- 已驗證：in-memory compile `frontends\tk\dialogs.py` / `frontends\tk\dataset_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。`py_compile` 曾被雲端碟 `__pycache__` replace lock 擋住，改用不寫 pyc 的 compile 驗證語法。
-- 尚未跑完整 smoke / GitHub Actions；下一步是跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
+- 已驗證：in-memory compile `frontends\tk\dialogs.py` / `frontends\tk\dataset_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_011008.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。`py_compile` 曾被雲端碟 `__pycache__` replace lock 擋住，已用不寫 pyc 的 compile 驗證語法，完整 smoke 也已通過 py_compile core entrypoints。
+- 尚未跑 GitHub Actions；下一步是推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
 - Docs drift check：本輪只改 Dataset candidate review dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-30 01:02 Adapter review dialog ownership CI pass
