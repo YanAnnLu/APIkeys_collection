@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 07:36 Event log tail block budget
+- 本輪是 bounded consolidation slice：新增 `DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES=8192`，讓 `latest_events()` / `_tail_text_lines_seek()` 的 tail block size 不再藏成裸值；雲端碟 binary seek/read 失敗時 fallback 到 streaming tail 的行為不變。
+- 已提交實作：`6dbd7ee Name event log tail block budget`。
+- 已驗證：in-memory compile `api_launcher\event_log.py` / `tests\test_event_log.py` OK；`py -3 -B -m unittest tests.test_event_log -v` 通過，4 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_073441.log` 通過，950 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只命名 event log tail block budget，不改 event JSONL shape、handoff output、UI/CLI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 07:29 Provider discovery fetch budget CLI
 - 本輪延續上一個 provider discovery guard：CLI 新增 `--provider-discovery-max-bytes`，預設讀 `DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES=120_000`，並把該值傳給 `discover_provider_candidates()`；大型官方 docs/homepage 可由命令調高 budget，不需要改產品碼。
 - 已提交實作：`299a870 Expose provider discovery fetch budget`。
