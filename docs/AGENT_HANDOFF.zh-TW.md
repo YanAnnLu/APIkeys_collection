@@ -4,6 +4,7 @@
 - `frontends/web/preview_api.py` 從約 889 行降到約 798 行；它仍保留 Web endpoint orchestration、route-specific credential blocking、plan build、download/import、event logging 與 passport update，不把 commit/download/import 決策藏進 context helper。
 - `frontends/web/server.py` 已改由 `frontends.web.preview_context` 匯入 `crawler_asset_payload_from_web_values()`，避免 server route 繼續依賴 `preview_api.py` 的舊 helper ownership；`tests/test_web_preview.py` 的 action-context helper import 也對齊新 owner。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py frontends\web\preview_context.py frontends\web\preview_payloads.py frontends\web\server.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；`frontends\web` / `docs` mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_164536.log`。
+- 已推送 `61018b6 Move Web preview context helpers`；GitHub Actions run `26627862336` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 Web context/setup helper ownership 與 import 路徑，不改 Web API route、JS 操作、crawler/download/import/credential 行為或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 15:25 Web Preview payload helper ownership cleanup
