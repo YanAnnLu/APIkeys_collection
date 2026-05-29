@@ -48,7 +48,6 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
-    web_crawler_asset_listing_payload,
     web_crawler_asset_action_context,
     compact_listing_outcome,
     crawler_asset_plan_preview,
@@ -59,11 +58,14 @@ from frontends.web.preview_api import (
     save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
-    web_download_import_target_paths,
-    web_next_action_payload,
     web_project_maturity,
     web_preview_recent_events,
     web_preview_status,
+)
+from frontends.web.preview_payloads import (
+    web_crawler_asset_listing_payload,
+    web_download_import_target_paths,
+    web_next_action_payload,
 )
 
 
@@ -564,7 +566,7 @@ class WebPreviewApiTest(unittest.TestCase):
     def test_web_download_import_target_paths_adds_default_seed_subdir(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with patch("frontends.web.preview_api.default_local_downloads_root", return_value=root / "downloads"):
+            with patch("frontends.web.preview_payloads.default_local_downloads_root", return_value=root / "downloads"):
                 targets = web_download_import_target_paths(
                     "demo_stac",
                     dataset_uid="demo_provider:dataset/a",

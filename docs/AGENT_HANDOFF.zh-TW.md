@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 15:25 Web Preview payload helper ownership cleanup
+- 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_payloads.py`，把 `web_next_action_payload()`、`apply_web_next_action()`、`web_crawler_asset_listing_payload()`、`crawler_asset_listing_options()`、`web_download_import_target_paths()`、`web_download_import_event_context()`、`web_download_import_credential_blocked_response()` 與相關 path dataclass 從 `frontends/web/preview_api.py` 移出。
+- `frontends/web/preview_api.py` 從約 1053 行降到約 889 行，保留 route/API-facing orchestration、repository session、asset lookup、credential guard、plan/download/import service 呼叫；純 Web response/path helper 改由 `preview_payloads.py` 擁有，避免 API route 檔繼續吸收 display/payload 細節。
+- `tests/test_web_preview.py` 已改由 `frontends.web.preview_payloads` 匯入這批 helper；搬移後修正 `default_local_downloads_root` patch target，避免測試仍 patch 舊 owner。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py frontends\web\preview_payloads.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；`frontends\web` / `docs` mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_162409.log`。
+- Docs drift check：本輪只改 Web helper ownership 與測試 patch target，不改 Web API route、JS 操作、crawler/download/import/credential 行為或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 15:10 Tk crawler asset helper ownership cleanup
 - 本輪延續 Tk consolidation：把先前暫放在 generic `frontends/tk/ui_helpers.py` 的 crawler asset / seed download-import helper 全部移到 `frontends/tk/crawler_asset_ui_helpers.py`。`ui_helpers.py` 現在回到 yfinance、data-store、MVP smoke 等較通用的 Tk helper owner，不再同時承擔 crawler asset 專屬文案、plan summary、credential guard 與 seed target path。
 - `frontends/tk/crawler_asset_workflows.py` 現在只從 `frontends.tk.crawler_asset_ui_helpers` 匯入 crawler asset UI projection；`tests/test_tk_dialogs.py` / `tests/test_tk_ui_helpers.py` 的 patch target 也已對齊新 owner，避免測試仍 patch 舊模組但實際依賴已搬走。

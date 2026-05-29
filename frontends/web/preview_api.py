@@ -59,7 +59,6 @@ from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics
 from api_launcher.crawler_run_records import crawler_run_context_summary
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
 from api_launcher.db import connect_db
-from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.local_credentials import (
     crawler_asset_credential_status,
@@ -70,22 +69,19 @@ from api_launcher.paths import default_local_downloads_root, state_file
 from api_launcher.project_maturity import build_project_maturity_payload
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.web_real_download_demo import run_web_real_download_demo
+from frontends.web.preview_payloads import (
+    WEB_PREVIEW_DB_NAME,
+    apply_web_next_action,
+    crawler_asset_listing_options,
+    web_crawler_asset_listing_payload,
+    web_download_import_credential_blocked_response,
+    web_download_import_event_context,
+    web_download_import_target_paths,
+    web_next_action_payload,
+)
 
 
-WEB_PREVIEW_DB_NAME = "web_preview.sqlite"
 WEB_PREVIEW_EVENT_LIMIT = 80
-# Web asks for a broad seed enumeration by default so users can see an entrance
-# has many seeds.  The backend still applies source-level page caps, rate limits,
-# credential gates, and remote pagination status.
-WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT = 1000
-
-
-@dataclass(frozen=True)
-class WebDownloadImportTargetPaths:
-    db_path: Path
-    downloads_root: Path
-    import_sqlite_path: Path
-    plan_path: Path
 
 
 @dataclass(frozen=True)
@@ -100,40 +96,6 @@ class WebCrawlerAssetActionContext:
     asset: CrawlerAsset
     credential_guard: Mapping[str, object]
     bounds_payload: CrawlerAssetBoundPayload
-
-
-def web_next_action_payload(next_action: object) -> dict[str, str]:
-    """Pair a backend next_action id with the shared display label.
-
-    Web endpoints should pass this small contract through to JavaScript instead
-    of making the browser translate backend workflow states.  Keeping the pair
-    together here also makes future Tk/Qt parity checks easier.
-    """
-
-    action = str(next_action or "").strip()
-    return {
-        "next_action": action,
-        "next_action_label": next_action_display_label(action),
-    }
-
-
-def apply_web_next_action(response: dict[str, object], next_action: object) -> None:
-    """Update an existing Web payload with the shared next-action contract."""
-
-    response.update(web_next_action_payload(next_action))
-
-
-def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict[str, object]:
-    """Expose one listing result shape and add the Web display label.
-
-    The service dataclass owns counts, remote pagination, seed enumeration, and
-    run-record structure.  Web only adds the shared next-action label so blocked
-    and successful listing responses cannot drift into separate payload shapes.
-    """
-
-    payload = result.to_dict()
-    payload["next_action_label"] = next_action_display_label(payload.get("next_action"))
-    return payload
 
 
 def web_crawler_asset_action_context(
@@ -490,41 +452,6 @@ def crawler_asset_listing(
         context=crawler_asset_listing_event_context(result),
     )
     return response
-
-
-def crawler_asset_listing_options(options: Mapping[str, object] | None) -> dict[str, object]:
-    """Normalize Web listing controls into backend crawler bounds.
-
-    入口分頁的預設心流是「選入口就枚舉 seed」。這個 helper 讓 Web/Tk/Qt
-    後續都能共用同一組安全上限，而不是在 UI 內各自猜 crawler 參數。
-    """
-
-    values = dict(options or {})
-    requested_mode = str(values.get("listing_mode") or values.get("mode") or "complete_seed").strip()
-    complete_seed = requested_mode not in {"bounded", "sample", "quick_sample"}
-    listing_mode = "complete_seed" if complete_seed else "bounded"
-    return {
-        "listing_mode": listing_mode,
-        "complete_seed": complete_seed,
-        "max_results": positive_int(values.get("max_results"), WEB_PREVIEW_DEFAULT_ENUMERATION_LIMIT),
-        "max_pages": non_negative_int(values.get("max_pages"), 0),
-    }
-
-
-def positive_int(value: object, default: int) -> int:
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return default
-    return parsed if parsed > 0 else default
-
-
-def non_negative_int(value: object, default: int) -> int:
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return default
-    return max(0, parsed)
 
 
 def save_crawler_asset_credentials(
@@ -946,97 +873,6 @@ def web_preview_repository_context(
         if seed_builtin_providers:
             repository.seed_builtin_providers()
         yield WebPreviewRepositorySession(db_path=target_db, conn=conn, repository=repository)
-
-
-def web_download_import_target_paths(
-    asset_id: str,
-    *,
-    dataset_uid: str = "",
-    db_path: str | Path | None = None,
-    downloads_root: str | Path | None = None,
-    import_sqlite_path: str | Path | None = None,
-) -> WebDownloadImportTargetPaths:
-    """Resolve Web Preview download/import paths without duplicating route logic.
-
-    Seed-level runs get a stable seed subdirectory only for the default Web
-    downloads root.  Tests and callers that pass ``downloads_root`` keep exact
-    path control.
-    """
-
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    if downloads_root is not None:
-        target_downloads = Path(downloads_root)
-    else:
-        target_downloads = default_local_downloads_root() / "RuRuKa Asset Launcher Web Preview" / asset_id
-        if dataset_uid:
-            target_downloads = target_downloads / safe_path_part(dataset_uid)[:96]
-    target_import_sqlite = (
-        Path(import_sqlite_path) if import_sqlite_path is not None else target_downloads / "curated_sources.db"
-    )
-    plan_name = "resolved_seed_download_plan.json" if dataset_uid else "resolved_download_plan.json"
-    return WebDownloadImportTargetPaths(
-        db_path=target_db,
-        downloads_root=target_downloads,
-        import_sqlite_path=target_import_sqlite,
-        plan_path=target_downloads / plan_name,
-    )
-
-
-def web_download_import_event_context(
-    result: object,
-    plan_outcome: Mapping[str, object],
-    plan_passport: Mapping[str, object],
-    *,
-    dataset_uid: str = "",
-) -> dict[str, object]:
-    """Build the shared event payload for Web download/import completion."""
-
-    context = {
-        **crawler_asset_plan_event_context(result.plan_result, plan_outcome, plan_passport=plan_passport),
-        "stage": result.pipeline.stage,
-        "succeeded": result.succeeded,
-        "download_import": result.pipeline.to_dict(),
-        "artifacts": result.to_dict().get("artifacts", {}),
-    }
-    if dataset_uid:
-        context["dataset_uid"] = dataset_uid
-    return context
-
-
-def web_download_import_credential_blocked_response(
-    asset_id: str,
-    bounds_payload: Mapping[str, object],
-    credential_guard: Mapping[str, object],
-    *,
-    dataset_uid: str = "",
-    initial_next_action: str,
-) -> dict[str, object]:
-    """Return the shared Web payload for download/import credential blocks.
-
-    Asset-level and seed-level download/import are different routes, but the
-    user-facing blocked contract is identical: no live request is made, the
-    plan passport is a credential block, and the next action is the login/API
-    key editor.
-    """
-
-    next_action = "edit_local_credentials_before_live_download"
-    response: dict[str, object] = {
-        "asset_id": asset_id,
-        "bounds_payload": dict(bounds_payload),
-        "credential_guard": credential_guard,
-        **web_next_action_payload(initial_next_action),
-        "plan_outcome": credential_blocked_plan_outcome_payload(credential_guard),
-        "plan_passport": credential_blocked_plan_passport_payload(asset_id, credential_guard),
-        "download_import": {
-            "stage": "blocked_before_download",
-            "succeeded": False,
-            **web_next_action_payload(next_action),
-        },
-    }
-    if dataset_uid:
-        response["dataset_uid"] = dataset_uid
-    apply_web_next_action(response, next_action)
-    return response
 
 
 def _crawler_asset(
