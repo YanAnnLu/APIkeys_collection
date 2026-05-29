@@ -2,7 +2,8 @@
 ## 2026-05-30 03:30 Crawler asset plan outcome event helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_plan_outcome_event_payload()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 crawler asset plan outcome 的 event context 與 plan passport payload。
 - `frontends/tk/crawler_asset_workflows.py` 的 `record_crawler_asset_plan_outcome()` 不再直接呼叫 backend display helpers 組 event context，也不再自行計算 review queue count；workflow 只負責 persist passport 與寫 event log。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，125 tests OK；`git diff --check` OK。
+- 已提交實作：`39bd423 Move crawler plan outcome event payload`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，125 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_033209.log` 通過，923 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk event payload 組裝邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 02:33 Post-restart smoke checkpoint
