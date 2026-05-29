@@ -3,7 +3,7 @@
 - 本輪延續 Web Preview consolidation slice：新增 `web_crawler_asset_listing_result_response()`，由 `frontends/web/preview_payloads.py` 集中建立 crawler listing 成功 response fragment。
 - `frontends/web/preview_api.py` 的 `crawler_asset_listing()` 不再自行拆 `listing_result`、`audit_summary` 或 listing `next_action`；route 仍保留 repository session、crawler service call、commit 與 event logging。
 - 已提交實作：`c0024af Move Web listing result response payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，57 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_050046.log` 通過，933 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，57 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_050046.log` 通過，933 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26662122047` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web listing 成功 response fragment，不改 Web 操作流程、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 04:48 Web listing credential block helper
