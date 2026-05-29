@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 02:33 Post-restart smoke checkpoint
+- 使用者回報 app 閃退並重啟後，本輪未再開新功能切片，先補跑完整 pre-push smoke。
+- 目前 HEAD：`e118bf4 Record crawler plan artifact helper CI pass`，branch `rrkal-32e215c-recovery` 相對 `origin/rrkal-32e215c-recovery` ahead 1。
+- 已驗證：`.\scripts\pre_push_smoke_brief.cmd` 通過，完整 log `state\logs\pre_push_smoke_20260530_023314.log`；922 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：這是重啟後驗證 checkpoint，不改產品行為、UI/CLI 操作、crawler、download/import、credential 或 user guide；GTD 不需更新。
+
 ## 2026-05-30 02:20 Crawler asset plan artifact writer helper
 - 本輪延續 Tk consolidation slice：新增 `write_crawler_asset_download_plan_artifacts()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中寫出 crawler asset original/resolved plan JSON。
 - `frontends/tk/crawler_asset_workflows.py` 不再直接 import `json`、`safe_path_part` 或 `state_file`，也不再在 worker 內拼 `state/crawler_asset_plans/{asset}.original/resolved.json`；worker 只呼叫 helper，再寫 event 與完成 UI handoff。
