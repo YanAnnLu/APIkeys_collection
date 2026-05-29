@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-29 22:06 Recovery branch post-consolidation smoke
+- 在 `40d9c0a` / `86b5974` 兩個 consolidation code checkpoint 與對應 docs checkpoint 後，已補跑完整 smoke：`.\scripts\pre_push_smoke_brief.cmd` 通過。
+- Smoke 結果：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_220607.log`。
+- `pre_push_smoke` 顯示此 recovery branch 尚無 upstream，pending-push diff check 被略過；若要上 GitHub，請推成 `rrkal-32e215c-recovery` 分支，不要直接覆蓋 `origin/main`。
+- Docs drift check：本段只補驗證紀錄，不改產品行為、UI/CLI 操作流程或 user guide。
+
 ## 2026-05-29 22:04 Source pattern draft Tk message helper ownership cleanup
 - 本輪延續 Tk consolidation：新增 `frontends/tk/source_pattern_draft_ui_helpers.py`，把 source pattern draft 成功 / review-needed message formatting 從 `frontends/tk/crawler_asset_workflows.py` 移出。
 - `crawler_asset_workflows.py` 從約 1382 行降到約 1303 行；workflow class 保留 `source_pattern_draft_message()` / `source_pattern_draft_review_message()` wrapper 作相容入口，但實際文案投影由新 helper 擁有。
