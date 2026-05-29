@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 19:05 Seed enumeration display helper ownership cleanup
+- 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_seed_display.py`，把 seed enumeration 的 `SeedEnumerationDisplayProfile`、status display table 與 `seed_enumeration_display_payload()` 從 `api_launcher/crawler_asset_display.py` 移出。
+- `crawler_asset_display.py` 從約 835 行降到約 715 行；它仍 re-export seed enumeration display helpers 作相容 surface，但 `api_launcher/crawler_asset_listing_payloads.py` 與 `tests/test_crawler_assets.py` 已改讀新 owner。
+- 新 owner `crawler_seed_display.py` 是純 seed enumeration 狀態文案 / tone / next-action contract，不 import Web/Tk、crawler service 或 download/import，讓「枚舉完成度 / local limit / warning / blocked」顯示規則可以獨立維護。
+- 已驗證：in-memory compile `api_launcher\crawler_asset_display.py`、`api_launcher\crawler_seed_display.py`、`api_launcher\crawler_asset_listing_payloads.py`、`tests\test_crawler_assets.py`、`tests\test_web_preview.py`、`tests\test_tk_dialogs.py` OK；`tests.test_crawler_assets` 45 tests OK；`tests.test_web_preview` 53 tests OK；`tests.test_tk_dialogs` 106 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_185833.log`。
+- 已推送 `8b2fc8e Move seed enumeration display helpers`；GitHub Actions run `26633608060` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 backend display helper ownership 與 import owner，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 18:50 Crawler asset bounds display helper ownership cleanup
 - 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_asset_bound_display.py`，把 crawler asset capability label、bounds field label/help、bounds group display text 與 `crawler_asset_bound_form_payload()` 從 `api_launcher/crawler_asset_display.py` 移出。
 - `crawler_asset_display.py` 從約 893 行降到約 809 行；它仍保留 plan outcome、download/import、flow steps 與其他 UI-neutral display contract，並 re-export bounds display helpers，避免 Tk/Web/tests 舊 import 立即斷裂。
