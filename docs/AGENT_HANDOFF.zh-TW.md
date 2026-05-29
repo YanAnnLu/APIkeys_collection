@@ -2,7 +2,7 @@
 ## 2026-05-30 07:46 Metadata HTTP error excerpt budget
 - 本輪是 bounded consolidation slice：新增 `DEFAULT_HTTP_ERROR_EXCERPT_MAX_BYTES=8192`，讓 `core.safe_fetch_metadata()` 處理 HTTPError 時讀取的 error body excerpt budget 不再藏成裸值；metadata probe 正常 response 的 bounded excerpt 行為不變。
 - 已提交實作：`3e690f6 Name metadata error excerpt budget`。
-- 已驗證：in-memory compile `api_launcher\core.py` / `tests\test_metadata_probe.py` OK；`py -3 -B -m unittest tests.test_metadata_probe -v` 通過，2 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_074401.log` 通過，952 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `api_launcher\core.py` / `tests\test_metadata_probe.py` OK；`py -3 -B -m unittest tests.test_metadata_probe -v` 通過，2 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_074401.log` 通過，952 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26668021259` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只命名 metadata probe HTTP error excerpt budget，不改 metadata CLI output shape、crawler、download/import、credential、Tk/Web 操作或 user guide。
 
 ## 2026-05-30 07:36 Event log tail block budget
