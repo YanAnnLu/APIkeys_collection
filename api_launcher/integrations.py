@@ -20,6 +20,7 @@ from api_launcher.platform_paths import platform_config_path, platform_name
 
 LOCAL_INTEGRATIONS_NAME = "launcher_integrations.local.json"
 EXAMPLE_INTEGRATIONS_NAME = "launcher_integrations.example.json"
+DEFAULT_AI_SUMMARY_RESPONSE_MAX_BYTES = 2 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -461,7 +462,23 @@ def _find_ai_profile(profile_id: str | None) -> AiSummaryProfile:
 def _provider_summary_prompt(provider: Provider) -> str:
     return provider_description_prompt(provider)
 
-def _post_json(url: str, payload: dict[str, object], headers: dict[str, str] | None, timeout: float) -> dict[str, object]:
+def _read_json_response(response: object, *, max_bytes: int) -> dict[str, object]:
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1.")
+    data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(f"AI summary response exceeded {max_bytes} bytes.")
+    payload = json.loads(data.decode("utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _post_json(
+    url: str,
+    payload: dict[str, object],
+    headers: dict[str, str] | None,
+    timeout: float,
+    max_bytes: int = DEFAULT_AI_SUMMARY_RESPONSE_MAX_BYTES,
+) -> dict[str, object]:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = request.Request(
         url,
@@ -470,7 +487,7 @@ def _post_json(url: str, payload: dict[str, object], headers: dict[str, str] | N
         method="POST",
     )
     with request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+        return _read_json_response(response, max_bytes=max_bytes)
 
 
 def _generate_with_ollama(profile: AiSummaryProfile, prompt: str, timeout: float) -> str:

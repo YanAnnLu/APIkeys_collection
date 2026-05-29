@@ -11,11 +11,56 @@ from unittest.mock import patch
 
 from api_launcher.core import main
 from api_launcher.ai_api_keys import load_saved_ai_api_keys, save_ai_api_key
-from api_launcher.integrations import AiSummaryProfile, _find_ai_profile, _generate_with_gemini, _generate_with_openai_compatible, ai_summary_profiles_from_config, generate_provider_summary
+from api_launcher.integrations import (
+    DEFAULT_AI_SUMMARY_RESPONSE_MAX_BYTES,
+    AiSummaryProfile,
+    _find_ai_profile,
+    _generate_with_gemini,
+    _generate_with_openai_compatible,
+    _post_json,
+    ai_summary_profiles_from_config,
+    generate_provider_summary,
+)
 from api_launcher.models import Provider
 
 
 class AiSummaryGenerationTests(unittest.TestCase):
+    def test_post_json_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b'{"ok": true}'
+
+        with patch("api_launcher.integrations.request.urlopen", return_value=FakeResponse()):
+            payload = _post_json("https://example.test/summary", {"prompt": "x"}, None, timeout=1.0, max_bytes=41)
+
+        self.assertEqual({"ok": True}, payload)
+        self.assertEqual([42], read_sizes)
+        self.assertEqual(2 * 1024 * 1024, DEFAULT_AI_SUMMARY_RESPONSE_MAX_BYTES)
+
+    def test_post_json_rejects_oversized_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with patch("api_launcher.integrations.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "exceeded 3 bytes"):
+                _post_json("https://example.test/summary", {"prompt": "x"}, None, timeout=1.0, max_bytes=3)
+
     def test_gemini_generation_extracts_candidate_text(self) -> None:
         profile = AiSummaryProfile(
             id="gemini_flash",
