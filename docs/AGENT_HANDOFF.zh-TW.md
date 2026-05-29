@@ -3,7 +3,7 @@
 - 本輪延續 Tk consolidation：新增 `frontends/tk/crawler_asset_event_state.py`，把 crawler asset plan/listing structured event 的狀態恢復邏輯從 `frontends/tk/crawler_asset_workflows.py` 移出。
 - `crawler_asset_workflows.py` 現在只呼叫 `crawler_asset_plan_state_from_events()` / `crawler_asset_listing_outcomes_from_events()`，再把回傳 dict 放回 UI cache；helper 不跑 crawler、不重建 plan、不寫 profile，只恢復重開 Tk 後的可視狀態。
 - 新 helper 保留舊行為：plan outcome label、content review label、plan passport、resolved plan JSON 與 listing seed enumeration preview 仍從 structured event / saved resolved plan 取得；遺失或壞掉的 resolved plan 只會跳過，不阻斷 UI 啟動。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_event_state.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 116 tests OK；`frontends\tk` / `api_launcher` / `tests` / `docs` mojibake scan OK；`git diff --check` OK。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_event_state.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 116 tests OK；`frontends\tk` / `api_launcher` / `tests` / `docs` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260529_225850.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
 - 已提交本地 checkpoint `fcd4891 Move crawler asset event state helpers`；尚未推送本 commit。
 - Docs drift check：本輪只改 Tk event-state helper ownership，不改使用者操作流程、按鈕、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
