@@ -3,7 +3,7 @@
 - 本輪延續 Web Preview consolidation slice：新增 `WebDownloadImportResultResponse` 與 `web_download_import_result_response()`，由 `frontends/web/preview_payloads.py` 集中建立 download/import completion response fragment，並一次回傳 route 後續要用的 compact `plan_outcome` / `plan_passport`。
 - `frontends/web/preview_api.py` 的 asset-level 與 seed-level download/import route 不再各自呼叫 `crawler_asset_download_import_display_payload()` 後重複拆 `plan_outcome` / `plan_passport`；route 仍保留正式 service call、profile passport persist 與 event logging ownership。
 - 已提交實作：`ec6e995 Move Web download import result payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，59 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_052640.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，59 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_052640.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26663264563` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web download/import 成功 response fragment 與 route 內部解包邊界，不改 Web 操作流程、crawler、download/import service、credential、storage policy 或 user guide。
 
 ## 2026-05-30 05:11 Web plan-preview result response helper
