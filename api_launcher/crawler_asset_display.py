@@ -681,6 +681,56 @@ def crawler_asset_plan_event_context(
     }
 
 
+def crawler_asset_recent_plan_outcomes_from_events(
+    events: Iterable[Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Extract latest compact plan outcome badges from structured events.
+
+    Frontends may read events from different stores, but the rule for which
+    event keys are allowed into a status badge belongs to the backend display
+    contract.  This keeps Web/Tk/Qt from each parsing event context slightly
+    differently.
+    """
+
+    outcomes: dict[str, dict[str, object]] = {}
+    for event in events:
+        if event.get("event") != "crawler_asset_plan_outcome_recorded":
+            continue
+        context = event.get("context")
+        if not isinstance(context, Mapping):
+            continue
+        asset_id = str(context.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        outcomes[asset_id] = crawler_asset_plan_event_badge_payload(context)
+    return outcomes
+
+
+def crawler_asset_recent_plan_passports_from_events(
+    events: Iterable[Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Extract latest compact plan passports from structured events.
+
+    Event logs are evidence, not a resolved-plan database.  Only the compact
+    passport shape may cross into UI status surfaces.
+    """
+
+    passports: dict[str, dict[str, object]] = {}
+    for event in events:
+        if event.get("event") != "crawler_asset_plan_outcome_recorded":
+            continue
+        context = event.get("context")
+        if not isinstance(context, Mapping):
+            continue
+        asset_id = str(context.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        passport = compact_crawler_asset_plan_passport(context.get("plan_passport"))
+        if passport:
+            passports[asset_id] = passport
+    return passports
+
+
 def crawler_asset_download_import_display_payload(
     result: object,
     *,
@@ -1194,6 +1244,8 @@ __all__ = [
     "crawler_asset_download_import_display_payload",
     "crawler_asset_plan_event_badge_payload",
     "crawler_asset_plan_event_context",
+    "crawler_asset_recent_plan_outcomes_from_events",
+    "crawler_asset_recent_plan_passports_from_events",
     "crawler_asset_plan_outcome_payload",
     "crawler_asset_plan_passport_payload",
     "credential_blocked_plan_outcome_payload",

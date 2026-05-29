@@ -29,17 +29,17 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_card_capabilities,
     crawler_asset_download_import_display_payload,
     crawler_asset_flow_steps,
-    crawler_asset_plan_event_badge_payload,
     crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
+    crawler_asset_recent_plan_outcomes_from_events,
+    crawler_asset_recent_plan_passports_from_events,
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
     next_action_display_label,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_profiles import (
-    compact_crawler_asset_plan_passport,
     crawler_asset_favorite_seed_uids,
     update_crawler_asset_plan_passport,
 )
@@ -604,18 +604,7 @@ def recent_crawler_asset_plan_outcomes(*, limit: int = 200) -> dict[str, dict[st
     can show recent backend state without localStorage or duplicate UI rules.
     """
 
-    outcomes: dict[str, dict[str, object]] = {}
-    for event in latest_events(limit):
-        if event.get("event") != "crawler_asset_plan_outcome_recorded":
-            continue
-        context = event.get("context")
-        if not isinstance(context, dict):
-            continue
-        asset_id = str(context.get("asset_id") or "").strip()
-        if not asset_id:
-            continue
-        outcomes[asset_id] = crawler_asset_plan_event_badge_payload(context)
-    return outcomes
+    return crawler_asset_recent_plan_outcomes_from_events(latest_events(limit))
 
 
 def recent_crawler_asset_plan_passports(*, limit: int = 200) -> dict[str, dict[str, object]]:
@@ -626,26 +615,7 @@ def recent_crawler_asset_plan_passports(*, limit: int = 200) -> dict[str, dict[s
     Web/Tk/Qt status panels are allowed through this boundary.
     """
 
-    passports: dict[str, dict[str, object]] = {}
-    for event in latest_events(limit):
-        if event.get("event") != "crawler_asset_plan_outcome_recorded":
-            continue
-        context = event.get("context")
-        if not isinstance(context, dict):
-            continue
-        asset_id = str(context.get("asset_id") or "").strip()
-        if not asset_id:
-            continue
-        passport = compact_web_plan_passport_payload(context.get("plan_passport"))
-        if passport:
-            passports[asset_id] = passport
-    return passports
-
-
-def compact_web_plan_passport_payload(plan_passport: object) -> dict[str, object]:
-    """Keep event-backed plan passports bounded and UI-safe."""
-
-    return compact_crawler_asset_plan_passport(plan_passport)
+    return crawler_asset_recent_plan_passports_from_events(latest_events(limit))
 
 
 def web_preview_recent_events(*, limit: int = 50) -> dict[str, object]:

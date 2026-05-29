@@ -16,6 +16,8 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
+    crawler_asset_recent_plan_outcomes_from_events,
+    crawler_asset_recent_plan_passports_from_events,
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
     plan_entry_content_status_payload,
@@ -733,6 +735,39 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(passport, detail_passport)
         self.assertNotIn("providers", passport)
         self.assertNotIn("resolved_plan", passport)
+
+    def test_recent_plan_event_helpers_keep_ui_payloads_compact(self) -> None:
+        events = [
+            {
+                "event": "crawler_asset_plan_outcome_recorded",
+                "context": {
+                    "asset_id": "demo_stac",
+                    "outcome_bucket": "partial_review_required",
+                    "outcome_label": "可下載 1 / 待辦 1",
+                    "direct_download_count": 1,
+                    "review_required_count": 1,
+                    "plan_passport": {
+                        "asset_id": "demo_stac",
+                        "candidate_count": 3,
+                        "direct_download_count": 1,
+                        "providers": [{"provider_id": "demo"}],
+                        "resolved_plan": {"providers": [{"provider_id": "demo"}]},
+                    },
+                },
+            },
+            {"event": "other_event", "context": {"asset_id": "ignored"}},
+        ]
+
+        outcomes = crawler_asset_recent_plan_outcomes_from_events(events)
+        passports = crawler_asset_recent_plan_passports_from_events(events)
+
+        self.assertEqual("partial_review_required", outcomes["demo_stac"]["outcome_bucket"])
+        self.assertEqual("可下載 1 / 待辦 1", outcomes["demo_stac"]["short_label"])
+        self.assertEqual(3, passports["demo_stac"]["candidate_count"])
+        self.assertNotIn("providers", passports["demo_stac"])
+        self.assertNotIn("resolved_plan", passports["demo_stac"])
+        self.assertNotIn("ignored", outcomes)
+        self.assertNotIn("ignored", passports)
 
     def test_crawler_asset_cards_prefer_profile_plan_passport_over_event_fallback(self) -> None:
         events = [

@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 07:46 Recent plan event extraction display contract
+- 本輪把「從 structured event log 萃取最近 plan outcome / plan passport」的規則從 `frontends/web/preview_api.py` 收回 `api_launcher/crawler_asset_display.py`：新增 `crawler_asset_recent_plan_outcomes_from_events()` 與 `crawler_asset_recent_plan_passports_from_events()`。
+- Web Preview 的 `recent_crawler_asset_plan_outcomes()` / `recent_crawler_asset_plan_passports()` 現在只負責讀 `latest_events()`，再交給 backend display helper 篩選 `crawler_asset_plan_outcome_recorded`、壓縮 badge / passport payload；Web 不再持有 event context 的壓縮規則或 thin `compact_web_plan_passport_payload()` wrapper。
+- 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_recent_plan_event_helpers_keep_ui_payloads_compact`，鎖住 helper 會忽略非 plan event，且不讓 `providers` / `resolved_plan` 這類大 payload 進 UI status surface。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；docs/source mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_074816.log`。
+- 尚未推送 / GitHub Actions；下一步是 commit/push 與 CI watch。
+- Docs drift check：本輪改 Web recent plan event helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
+
 ## 2026-05-29 07:29 Tk plan event context reuse
 - 本輪把 Tk 的 `record_crawler_asset_plan_outcome()` 也接到 backend `crawler_asset_plan_event_context()`：Tk 不再手寫 asset id、outcome counts、content review、run record 與 plan passport event keys。
 - Tk 仍保留本地 resolved plan path 作為事件中的 `resolved_plan`，並保留 `review_queue_count` 使用 resolved plan adapter review count；這兩個是 Tk 寫檔 / 顯示 queue 的本地 artifact，不移回 Web。
