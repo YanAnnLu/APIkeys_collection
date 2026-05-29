@@ -64,6 +64,7 @@ from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialD
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
 from frontends.tk.crawler_asset_ui_helpers import (
+    cache_crawler_asset_plan_state,
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
     crawler_asset_bound_payload_from_cache,
@@ -72,7 +73,6 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
-    crawler_asset_plan_outcome_label,
     crawler_asset_row_values,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
@@ -1144,23 +1144,9 @@ class CrawlerAssetWorkflowMixin:
         self.root.after(0, lambda: self._finish_crawler_asset_download_plan(result, written_paths))
 
     def _finish_crawler_asset_download_plan(self, result, written_paths: dict[str, str]) -> None:
-        if not hasattr(self, "crawler_asset_plan_outcomes"):
-            self.crawler_asset_plan_outcomes = {}
-        if not hasattr(self, "crawler_asset_resolved_plans"):
-            self.crawler_asset_resolved_plans = {}
-        if not hasattr(self, "crawler_asset_content_review_outcomes"):
-            self.crawler_asset_content_review_outcomes = {}
-        if not hasattr(self, "crawler_asset_plan_passports"):
-            self.crawler_asset_plan_passports = {}
         if result.blocked:
             summary = crawler_asset_download_plan_summary_text(result, 0, "", self.tr)
-            self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, 0)
-            self.crawler_asset_content_review_outcomes.pop(result.asset_id, None)
-            self.crawler_asset_resolved_plans.pop(result.asset_id, None)
-            self.crawler_asset_plan_passports[result.asset_id] = crawler_asset_plan_passport_payload(
-                result,
-                plan_outcome=crawler_asset_plan_outcome_payload(result, added_count=0),
-            )
+            cache_crawler_asset_plan_state(self, result, 0)
             self.record_crawler_asset_plan_outcome(result, 0, written_paths)
             self.refresh_crawler_asset_plan_row(result.asset_id)
             self.status_var.set(summary.replace("\n", " "))
@@ -1177,21 +1163,7 @@ class CrawlerAssetWorkflowMixin:
             self.main_notebook.select(self.downloader_tab)
         resolved_path = written_paths.get("resolved", "")
         summary = crawler_asset_download_plan_summary_text(result, added, resolved_path, self.tr)
-        self.crawler_asset_plan_outcomes[result.asset_id] = crawler_asset_plan_outcome_label(result, added)
-        outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added)
-        self.crawler_asset_plan_passports[result.asset_id] = crawler_asset_plan_passport_payload(
-            result,
-            plan_outcome=outcome_payload,
-        )
-        content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
-        if content_review_label:
-            self.crawler_asset_content_review_outcomes[result.asset_id] = content_review_label
-        else:
-            self.crawler_asset_content_review_outcomes.pop(result.asset_id, None)
-        if result.resolved_plan:
-            self.crawler_asset_resolved_plans[result.asset_id] = result.resolved_plan
-        else:
-            self.crawler_asset_resolved_plans.pop(result.asset_id, None)
+        cache_crawler_asset_plan_state(self, result, added)
         self.record_crawler_asset_plan_outcome(result, added, written_paths)
         self.refresh_crawler_asset_plan_row(result.asset_id)
         self.status_var.set(summary.splitlines()[0])

@@ -8,6 +8,7 @@ from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_display import (
     crawler_asset_download_import_display_payload,
     crawler_asset_plan_outcome_payload,
+    crawler_asset_plan_passport_payload,
 )
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_next_action_display import next_action_display_label
@@ -188,6 +189,39 @@ def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
     return short_label or str(payload.get("display_label") or "需檢查")
 
 
+def cache_crawler_asset_plan_state(owner: object, result: object, added_count: int) -> dict[str, object]:
+    """Update Tk crawler-asset plan caches from one backend plan result.
+
+    The backend owns the outcome/passport payload shape; Tk keeps small lookup
+    caches so rows and sidebars can redraw without reparsing the resolved plan.
+    Keeping cache mutation here prevents workflow completion handlers from
+    growing a second display-state mapper.
+    """
+
+    asset_id = str(getattr(result, "asset_id", "") or "")
+    plan_outcomes = _ensure_dict_attr(owner, "crawler_asset_plan_outcomes")
+    resolved_plans = _ensure_dict_attr(owner, "crawler_asset_resolved_plans")
+    content_reviews = _ensure_dict_attr(owner, "crawler_asset_content_review_outcomes")
+    plan_passports = _ensure_dict_attr(owner, "crawler_asset_plan_passports")
+
+    outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
+    plan_outcomes[asset_id] = crawler_asset_plan_outcome_label(result, added_count)
+    plan_passports[asset_id] = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
+
+    content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
+    if content_review_label:
+        content_reviews[asset_id] = content_review_label
+    else:
+        content_reviews.pop(asset_id, None)
+
+    resolved_plan = getattr(result, "resolved_plan", None)
+    if resolved_plan:
+        resolved_plans[asset_id] = resolved_plan
+    else:
+        resolved_plans.pop(asset_id, None)
+    return outcome_payload
+
+
 def crawler_asset_plan_passport_summary_text(
     plan_passport: object,
     tr: Callable[[str, str], str],
@@ -238,6 +272,15 @@ def _plan_passport_count(value: object) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _ensure_dict_attr(owner: object, attr: str) -> dict:
+    value = getattr(owner, attr, None)
+    if isinstance(value, dict):
+        return value
+    value = {}
+    setattr(owner, attr, value)
+    return value
 
 
 def crawler_asset_credential_guard_message(

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.crawler_asset_ui_helpers import (
+    cache_crawler_asset_plan_state,
     crawler_asset_bound_payload_from_cache,
     crawler_asset_download_plan_bounds_schema,
     crawler_seed_download_import_target_paths,
@@ -160,6 +161,49 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
         self.assertIs(crawler_asset_bound_payload_from_cache({"demo_asset": payload}, "demo_asset"), payload)
         self.assertIsNone(crawler_asset_bound_payload_from_cache(cached, "demo_asset"))
+
+    def test_cache_crawler_asset_plan_state_updates_display_caches(self) -> None:
+        owner = SimpleNamespace()
+        resolved_plan = {"entries": [{"url": "https://example.test/data.csv"}]}
+        result = SimpleNamespace(
+            asset_id="demo_asset",
+            outcome_bucket="ready_to_download",
+            direct_download_count=1,
+            review_required_count=0,
+            resolved_plan=resolved_plan,
+            user_next_action="start_download_queue",
+        )
+
+        payload = cache_crawler_asset_plan_state(owner, result, 1)
+
+        self.assertEqual(1, payload["added_count"])
+        self.assertIn("demo_asset", owner.crawler_asset_plan_outcomes)
+        self.assertIs(owner.crawler_asset_resolved_plans["demo_asset"], resolved_plan)
+        self.assertTrue(owner.crawler_asset_plan_passports["demo_asset"]["has_resolved_plan"])
+
+    def test_cache_crawler_asset_plan_state_clears_stale_optional_caches(self) -> None:
+        owner = SimpleNamespace(
+            crawler_asset_plan_outcomes={},
+            crawler_asset_resolved_plans={"demo_asset": {"old": True}},
+            crawler_asset_content_review_outcomes={"demo_asset": "內容 Parser 待辦 1"},
+            crawler_asset_plan_passports={},
+        )
+        result = SimpleNamespace(
+            asset_id="demo_asset",
+            outcome_bucket="blocked",
+            blocked=True,
+            blocked_reason="missing credential",
+            direct_download_count=0,
+            review_required_count=0,
+            resolved_plan=None,
+            user_next_action="edit_local_credentials_before_live_download",
+        )
+
+        cache_crawler_asset_plan_state(owner, result, 0)
+
+        self.assertNotIn("demo_asset", owner.crawler_asset_resolved_plans)
+        self.assertNotIn("demo_asset", owner.crawler_asset_content_review_outcomes)
+        self.assertFalse(owner.crawler_asset_plan_passports["demo_asset"]["has_resolved_plan"])
 
     def test_crawler_asset_plan_state_from_events_restores_display_caches(self) -> None:
         resolved_plan = {
