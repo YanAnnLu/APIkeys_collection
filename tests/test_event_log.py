@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from api_launcher.event_log import latest_events, log_event, log_exception
+from api_launcher.event_log import DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES, latest_events, log_event, log_exception
 
 
 class EventLogTests(unittest.TestCase):
@@ -34,6 +34,7 @@ class EventLogTests(unittest.TestCase):
 
         self.assertEqual(["event_3", "event_4"], [event["event"] for event in events])
         self.assertEqual([], none_events)
+        self.assertEqual(8192, DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES)
 
     def test_latest_events_falls_back_when_seek_tail_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -15,6 +15,7 @@ from api_launcher.paths import log_file
 
 EVENT_LOG_NAME = "launcher_events.jsonl"
 ERROR_LOG_NAME = "launcher_errors.log"
+DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES = 8192
 
 
 @dataclass(frozen=True)
@@ -116,7 +117,7 @@ def latest_events(limit: int = 20, *, log_path: Path | None = None) -> list[dict
     return events
 
 
-def _tail_text_lines(path: Path, limit: int, block_size: int = 8192) -> list[str]:
+def _tail_text_lines(path: Path, limit: int, block_size: int = DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES) -> list[str]:
     """Read the last N lines without loading or scanning the entire log file."""
 
     try:
@@ -128,7 +129,7 @@ def _tail_text_lines(path: Path, limit: int, block_size: int = 8192) -> list[str
         return _tail_text_lines_stream(path, limit)
 
 
-def _tail_text_lines_seek(path: Path, limit: int, block_size: int = 8192) -> list[str]:
+def _tail_text_lines_seek(path: Path, limit: int, block_size: int = DEFAULT_EVENT_LOG_TAIL_BLOCK_BYTES) -> list[str]:
     chunks: list[bytes] = []
     newline_count = 0
     with path.open("rb") as handle:
