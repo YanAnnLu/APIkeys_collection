@@ -70,6 +70,7 @@ from frontends.web.preview_payloads import (
     web_crawler_asset_listing_credential_blocked_response,
     web_crawler_asset_listing_payload,
     web_crawler_asset_listing_result_response,
+    web_download_import_result_response,
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
@@ -591,6 +592,59 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
         self.assertFalse(payload["download_import"]["succeeded"])
         self.assertEqual("credential_setup_required", payload["plan_passport"]["outcome_bucket"])
+
+    def test_web_download_import_result_response_keeps_shared_display_contract(self) -> None:
+        fake_plan_build = SimpleNamespace(
+            candidate_count=1,
+            candidate_snapshot_signature="candidate-demo",
+            candidate_snapshot_count=1,
+            upserted_candidate_count=1,
+            selected_version_count=1,
+            filtered_version_count=0,
+            credential_gates=(),
+            blocked_credential_count=0,
+            missing_provider_ids=(),
+        )
+        fake_plan_result = SimpleNamespace(
+            asset_id="demo_stac",
+            outcome_bucket="ready_to_download",
+            direct_download_count=1,
+            review_required_count=0,
+            blocked=False,
+            blocked_reason="",
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            next_action="",
+            resolved_plan={"summary": {"direct_download_count": 1}},
+            plan_build=fake_plan_build,
+            candidate_snapshot_changed=False,
+            bounds=SimpleNamespace(to_dict=lambda: {}),
+            source_signature="source-demo",
+            bounds_signature="bounds-demo",
+            to_dict=lambda: {"asset_id": "demo_stac", "outcome_bucket": "ready_to_download"},
+        )
+        fake_pipeline = SimpleNamespace(
+            stage="download_import_completed",
+            succeeded=True,
+            next_action="",
+            to_dict=lambda: {"stage": "download_import_completed", "succeeded": True},
+        )
+        fake_result = SimpleNamespace(
+            asset_id="demo_stac",
+            plan_result=fake_plan_result,
+            pipeline=fake_pipeline,
+            succeeded=True,
+            to_dict=lambda: {
+                "asset_id": "demo_stac",
+                "stage": "download_import_completed",
+                "succeeded": True,
+            },
+        )
+
+        payload = web_download_import_result_response(fake_result)
+
+        self.assertEqual("download_import_completed", payload.response["download_import"]["stage"])
+        self.assertEqual("ready_to_download", payload.plan_outcome["outcome_bucket"])
+        self.assertEqual(1, payload.plan_passport["direct_download_count"])
 
     def test_web_download_import_target_paths_keeps_explicit_download_root(self) -> None:
         with TemporaryDirectory() as tmp:

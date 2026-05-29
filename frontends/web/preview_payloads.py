@@ -6,6 +6,7 @@ from typing import Mapping
 
 from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
+    crawler_asset_download_import_display_payload,
     crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
@@ -28,6 +29,13 @@ class WebDownloadImportTargetPaths:
     downloads_root: Path
     import_sqlite_path: Path
     plan_path: Path
+
+
+@dataclass(frozen=True)
+class WebDownloadImportResultResponse:
+    response: dict[str, object]
+    plan_outcome: Mapping[str, object]
+    plan_passport: Mapping[str, object]
 
 
 def web_next_action_payload(next_action: object) -> dict[str, str]:
@@ -208,6 +216,24 @@ def web_download_import_event_context(
     if dataset_uid:
         context["dataset_uid"] = dataset_uid
     return context
+
+
+def web_download_import_result_response(result: object) -> WebDownloadImportResultResponse:
+    """Return the shared Web response fragment for download/import completion.
+
+    The route still owns side effects such as profile passport persistence and
+    event logging.  This helper keeps the display payload extraction in one
+    place so asset-level and seed-level routes cannot drift.
+    """
+
+    response = crawler_asset_download_import_display_payload(result)
+    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
+    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
+    return WebDownloadImportResultResponse(
+        response=response,
+        plan_outcome=plan_outcome,
+        plan_passport=plan_passport,
+    )
 
 
 def web_download_import_credential_blocked_response(

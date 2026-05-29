@@ -15,10 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Mapping
 
-from api_launcher.crawler_asset_display import (
-    crawler_asset_download_import_display_payload,
-    crawler_asset_plan_event_context,
-)
+from api_launcher.crawler_asset_display import crawler_asset_plan_event_context
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_profiles import update_crawler_asset_plan_passport
@@ -57,6 +54,7 @@ from frontends.web.preview_payloads import (
     web_crawler_asset_listing_result_response,
     web_download_import_credential_blocked_response,
     web_download_import_event_context,
+    web_download_import_result_response,
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
@@ -303,15 +301,18 @@ def crawler_asset_download_import(
         )
         session.conn.commit()
 
-    response.update(crawler_asset_download_import_display_payload(result))
-    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
-    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
-    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
+    result_response = web_download_import_result_response(result)
+    response.update(result_response.response)
+    update_crawler_asset_plan_passport(result.asset_id, result_response.plan_passport, profile_path)
     log_event(
         "crawler_asset_download_import_completed",
         "Web Preview ran the formal crawler asset download/import path.",
         component="web.crawler_assets",
-        context=web_download_import_event_context(result, plan_outcome, plan_passport),
+        context=web_download_import_event_context(
+            result,
+            result_response.plan_outcome,
+            result_response.plan_passport,
+        ),
     )
     return response
 
@@ -383,15 +384,19 @@ def crawler_seed_download_import(
         )
         session.conn.commit()
 
-    response.update(crawler_asset_download_import_display_payload(result))
-    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
-    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
-    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
+    result_response = web_download_import_result_response(result)
+    response.update(result_response.response)
+    update_crawler_asset_plan_passport(result.asset_id, result_response.plan_passport, profile_path)
     log_event(
         "crawler_seed_download_import_completed",
         "Web Preview ran the formal seed download/import path.",
         component="web.crawler_assets",
-        context=web_download_import_event_context(result, plan_outcome, plan_passport, dataset_uid=dataset_uid),
+        context=web_download_import_event_context(
+            result,
+            result_response.plan_outcome,
+            result_response.plan_passport,
+            dataset_uid=dataset_uid,
+        ),
     )
     return response
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
