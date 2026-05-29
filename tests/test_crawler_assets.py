@@ -34,7 +34,7 @@ from api_launcher.crawler_asset_bound_forms import (
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
-from api_launcher.crawler_asset_display import seed_enumeration_display_payload
+from api_launcher.crawler_seed_display import seed_enumeration_display_payload
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     SOURCE_SURFACE_LABELS,
