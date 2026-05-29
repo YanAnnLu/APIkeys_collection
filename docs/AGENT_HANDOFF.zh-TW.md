@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-30 05:50 Adapter direct-resource resolver lane helper
+- 本輪轉到後端 bounded consolidation：新增 `direct_resource_entry_from_resource()`，把 `api_launcher/adapter_plan_resolver.py` 中單一 resource summary 是否能 promotion 成 bounded direct file 的判斷抽成獨立 resolver lane helper。
+- `direct_resource_entries_for_plan_entry()` 保留原 pipeline 順序：bounded API resolver -> resource summaries -> Socrata/NCEI fallback -> metadata lookup -> ERDDAP sample；本輪只移動 direct-resource lane，不改 resolver policy、大小上限、metadata/API link guard 或輸出形狀。
+- 已提交實作：`6460eaa Extract direct resource resolver lane`。
+- 已驗證：in-memory compile `api_launcher\adapter_plan_resolver.py` / `tests\test_adapter_plan_resolver.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver -v` 通過，54 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_054828.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 adapter resolver 內部 helper 邊界，不改 crawler、download/import service、CLI/Tk/Web 操作或 user guide。
+
 ## 2026-05-30 05:40 Web plan-preview result typed bundle
 - 本輪延續 Web Preview consolidation slice：新增 `WebPlanPreviewResultResponse` 與 `web_plan_preview_result_payload()`，讓 plan preview route 取得 response fragment 時，同時取得後續 persist / event log 需要的 compact `plan_outcome` / `plan_passport`。
 - `web_plan_preview_result_response()` 保留既有 dict response 相容入口；`frontends/web/preview_api.py` 改用 typed bundle，不再從 generic response dict 反拆 outcome/passport。
