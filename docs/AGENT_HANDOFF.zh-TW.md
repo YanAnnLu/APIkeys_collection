@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-29 22:27 Recovery branch CI pass
+- 已將 `96bfc7e` / `0c0f8c8` 推到 `origin/rrkal-32e215c-recovery`，遠端 head 為 `0c0f8c8 Record Tk row detail checkpoint`。
+- 推送前本地完整 smoke 通過：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_222350.log`。
+- 手動 workflow dispatch 已針對 recovery branch 跑完 GitHub Actions：run `26643001651` 通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本段只補遠端驗證與 branch 狀態，不改產品行為、UI/CLI 操作流程或 user guide。
+
 ## 2026-05-29 22:19 Tk crawler asset row/detail helper ownership cleanup
 - 本輪延續 Tk consolidation：把 crawler asset table row tuple 與右側 passport detail text 的組裝移到 `frontends/tk/crawler_asset_ui_helpers.py`。
 - `frontends/tk/crawler_asset_workflows.py` 從約 1303 行降到約 1246 行；workflow class 仍保留 `crawler_asset_row_values()` wrapper 與 `on_crawler_asset_select()` orchestration，但不再直接組 table row、capability lines、credential summary、plan passport summary 或 bounds schema text。
