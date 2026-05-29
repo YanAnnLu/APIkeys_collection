@@ -13,6 +13,7 @@ from api_launcher.crawlers.fetch import USER_AGENT
 
 UNKNOWN_PATTERN_ID = "unknown"
 DEFAULT_PATTERN_MINIMUM_CONFIDENCE = 0.35
+DEFAULT_PATTERN_PROBE_MAX_BYTES = 128 * 1024
 
 
 SOURCE_TYPE_HINTS: dict[str, str] = {
@@ -96,11 +97,15 @@ HTML_DATA_FILE_PATTERN = re.compile(
 )
 
 
-def fetch_pattern_probe(url: str, timeout: float) -> PatternProbeResponse | None:
+def fetch_pattern_probe(
+    url: str,
+    timeout: float,
+    max_bytes: int = DEFAULT_PATTERN_PROBE_MAX_BYTES,
+) -> PatternProbeResponse | None:
     request = urllib.request.Request(url, headers={"User-Agent": f"{USER_AGENT} source-pattern-detector/0.1"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = response.read(128 * 1024)
+            data = response.read(max(1, int(max_bytes)))
             charset = response.headers.get_content_charset() or "utf-8"
             headers = {key.lower(): value for key, value in response.headers.items()}
             return PatternProbeResponse(
@@ -481,6 +486,7 @@ DETECTORS: tuple[PatternDetector, ...] = (
 
 __all__ = [
     "DEFAULT_PATTERN_MINIMUM_CONFIDENCE",
+    "DEFAULT_PATTERN_PROBE_MAX_BYTES",
     "HTML_DATA_FILE_EXTENSION_ALTERNATION",
     "PatternProbeResponse",
     "SourcePatternCandidate",

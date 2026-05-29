@@ -1,18 +1,53 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from api_launcher.crawlers.source_patterns import (
     DEFAULT_PATTERN_MINIMUM_CONFIDENCE,
+    DEFAULT_PATTERN_PROBE_MAX_BYTES,
     PatternProbeResponse,
     SOURCE_TYPE_HINTS,
     UNKNOWN_PATTERN_ID,
     detect_source_interface_pattern,
+    fetch_pattern_probe,
 )
 from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
 
 
 class SourcePatternDetectorTest(unittest.TestCase):
+    def test_fetch_pattern_probe_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeHeaders(dict):
+            def get_content_charset(self) -> str:
+                return "utf-8"
+
+        class FakeResponse:
+            headers = FakeHeaders({"content-type": "application/json"})
+            status = 200
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b'{"ok": true}'
+
+            def geturl(self) -> str:
+                return "https://example.test/probe"
+
+        with patch("api_launcher.crawlers.source_patterns.urllib.request.urlopen", return_value=FakeResponse()):
+            response = fetch_pattern_probe("https://example.test/probe", timeout=1.0, max_bytes=19)
+
+        self.assertIsNotNone(response)
+        self.assertEqual([19], read_sizes)
+        self.assertEqual(128 * 1024, DEFAULT_PATTERN_PROBE_MAX_BYTES)
+        self.assertEqual({"ok": True}, response.json_payload() if response else None)
+
     def test_stac_pattern_uses_json_evidence_and_source_type_hint(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
             if url == "https://example.test/stac":
