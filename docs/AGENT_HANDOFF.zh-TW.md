@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 06:23 Source pattern probe byte budget contract
+- 本輪延續 bounded policy hardening：新增 `DEFAULT_PATTERN_PROBE_MAX_BYTES=128 * 1024`，並讓 `fetch_pattern_probe()` 接受可覆寫 `max_bytes`，保留既有 source pattern detector 128 KiB 預設讀取上限但不再把 byte budget 藏成裸值。
+- 已提交實作：`8e0f123 Name source pattern probe byte budget`。
+- 已驗證：in-memory compile `api_launcher\crawlers\source_patterns.py` / `tests\test_source_patterns.py` OK；`py -3 -B -m unittest tests.test_source_patterns -v` 通過，26 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_062054.log` 通過，938 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。`py_compile` 曾被 L 槽雲端 `__pycache__` replace lock 擋住，已用不寫 pyc 的 compile 驗證語法。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只命名並外顯 source pattern detector probe byte budget，不改 detector scoring、crawler dispatch、Web/Tk 操作、download/import、credential 或 user guide。
+
 ## 2026-05-30 06:12 Schema probe byte budget contract
 - 本輪延續 bounded policy hardening：新增 `DEFAULT_SCHEMA_PROBE_MAX_BYTES=128 * 1024`，並讓 `fetch_probe_bytes()` 接受可覆寫 `max_bytes`，保留既有 128 KiB 預設讀取上限但不再把 byte budget 藏成裸值。
 - 已提交實作：`241a3c7 Name schema probe byte budget`。
