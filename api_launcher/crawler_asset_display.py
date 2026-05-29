@@ -8,19 +8,20 @@ surfaces from drifting when crawler/download/import behavior changes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Iterable, Mapping
 
-from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundFormSpec
 from api_launcher.crawler_asset_bound_display import (
     bound_field_display_help,
     bound_field_display_label,
     capability_display_label,
     crawler_asset_bound_form_payload,
 )
-from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, CrawlerAssetCapability
 from api_launcher.crawler_asset_profiles import compact_crawler_asset_plan_passport
-from api_launcher.crawler_assets import CrawlerAsset
+from api_launcher.crawler_asset_flow_display import (
+    CrawlerAssetFlowStep,
+    crawler_asset_card_capabilities,
+    crawler_asset_flow_steps,
+)
 from api_launcher.crawler_asset_review_display import (
     adapter_review_content_summary_label,
     adapter_review_content_summary_payload,
@@ -49,99 +50,6 @@ from api_launcher.crawler_seed_display import (
 )
 
 
-@dataclass(frozen=True)
-class CrawlerAssetFlowStep:
-    step_id: str
-    label: str
-    status: str
-    summary: str
-    evidence: str = ""
-    warning_codes: tuple[str, ...] = ()
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "step_id": self.step_id,
-            "label": self.label,
-            "status": self.status,
-            "summary": self.summary,
-            "evidence": self.evidence,
-            "warning_codes": list(self.warning_codes),
-        }
-
-
-def crawler_asset_card_capabilities(
-    capabilities: Iterable[CrawlerAssetCapability],
-) -> list[dict[str, object]]:
-    """Return compact capability rows for asset cards and lists."""
-
-    return [
-        {
-            "capability_id": capability.capability_id,
-            "label": capability.label,
-            "display_label": capability_display_label(capability),
-            "status": capability.status,
-            "next_action": capability.next_action,
-        }
-        for capability in capabilities
-    ]
-
-
-def crawler_asset_flow_steps(
-    asset: CrawlerAsset,
-    form_spec: CrawlerAssetBoundFormSpec,
-) -> list[dict[str, object]]:
-    """建立 UI 共用流程條。
-
-    Web、Tk、Qt 都應該顯示這份後端流程狀態，而不是各自推論 crawler 是否可用。
-    """
-
-    plan_capability = next(
-        (capability for capability in asset.capabilities if capability.capability_id == BUILD_DOWNLOAD_PLAN),
-        None,
-    )
-    source_type_known = bool(asset.source_type and asset.source_type != "unknown")
-    has_bounds_form = bool(form_spec.fields)
-    plan_status = plan_capability.status if plan_capability is not None else "missing_handler"
-    review_needed = asset.health.status_code not in {"healthy", "ready"} or "review" in plan_status
-    steps = (
-        CrawlerAssetFlowStep(
-            step_id="seed",
-            label="Seed 註冊",
-            status="complete" if asset.seed_count else "warning",
-            summary=asset.seed_summary or f"{asset.seed_count} seed",
-            evidence=asset.endpoint_url,
-        ),
-        CrawlerAssetFlowStep(
-            step_id="source_pattern",
-            label="來源範式",
-            status="complete" if source_type_known else "review",
-            summary=asset.source_type or "unknown",
-            evidence=asset.source_surface,
-        ),
-        CrawlerAssetFlowStep(
-            step_id="bounds",
-            label="界域表單",
-            status="complete" if has_bounds_form else "neutral",
-            summary=f"{len(form_spec.fields)} 個欄位" if has_bounds_form else "不需或尚未定義界域",
-            evidence=", ".join(form_spec.groups),
-            warning_codes=tuple(form_spec.warning_codes),
-        ),
-        CrawlerAssetFlowStep(
-            step_id="download_plan",
-            label="下載計畫",
-            status="complete" if plan_status in {"selectable", "ready", "bounded"} else "review",
-            summary=plan_status,
-            evidence=plan_capability.next_action if plan_capability is not None else "implement_source_handler",
-        ),
-        CrawlerAssetFlowStep(
-            step_id="review_gate",
-            label="審核閘門",
-            status="review" if review_needed else "complete",
-            summary=asset.health.status_code,
-            evidence=asset.next_action,
-        ),
-    )
-    return [step.to_dict() for step in steps]
 
 
 def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) -> dict[str, object]:
