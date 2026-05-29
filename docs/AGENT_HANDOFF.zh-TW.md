@@ -1,10 +1,17 @@
 # Agent 接力卡
+## 2026-05-29 14:00 GitHub adjacent project scan / docs governance
+- 依使用者要求用 GitHub read-only 盤點其他 repo：`RRKAL_displaytools` 今天仍活躍，最新 `08a6eab Acknowledge boundary highlight renderer input`，最近 smoke runs success；`CODE_KM` 最新 `bc78f85 Record next action checkpoint` 且 CI success；`rrkal-visual-compressor` 最新 `03d7232 Add one-command MVP pipeline`；`rrkal-renderer` 最新 `a1351c3 feat: allow disabling auto-open preview in photo sample runner`。
+- 新增 `docs/EXTERNAL_PROJECT_CONTEXT.zh-TW.md`，把這些 repo 的可借鑑方向與 read-only 邊界寫清楚：可抽 display contract、renderer input acknowledgement、one-command pipeline、provenance surfaced output、governed ingestion workflow；不要直接搬碼或把外部 repo 當 RRKAL runtime dependency。
+- `DOCS_INDEX.zh-TW.md` 已加入「參考其他 GitHub 專案進度」閱讀路線與新文件角色。
+- RRKAL 最近程式 checkpoint `c3f53d6 Move recent plan event display helpers` 已推送，GitHub Actions run `26620918050` 通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪新增外部專案上下文文件與索引；它是參考地圖，不改產品能力、不改使用者操作流程。User guide 不需更新。
+
 ## 2026-05-29 07:46 Recent plan event extraction display contract
 - 本輪把「從 structured event log 萃取最近 plan outcome / plan passport」的規則從 `frontends/web/preview_api.py` 收回 `api_launcher/crawler_asset_display.py`：新增 `crawler_asset_recent_plan_outcomes_from_events()` 與 `crawler_asset_recent_plan_passports_from_events()`。
 - Web Preview 的 `recent_crawler_asset_plan_outcomes()` / `recent_crawler_asset_plan_passports()` 現在只負責讀 `latest_events()`，再交給 backend display helper 篩選 `crawler_asset_plan_outcome_recorded`、壓縮 badge / passport payload；Web 不再持有 event context 的壓縮規則或 thin `compact_web_plan_passport_payload()` wrapper。
 - 新增 regression：`tests.test_web_preview.WebPreviewApiTest.test_recent_plan_event_helpers_keep_ui_payloads_compact`，鎖住 helper 會忽略非 plan event，且不讓 `providers` / `resolved_plan` 這類大 payload 進 UI status surface。
 - 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_api.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；docs/source mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_074816.log`。
-- 尚未推送 / GitHub Actions；下一步是 commit/push 與 CI watch。
+- 已推送 `c3f53d6 Move recent plan event display helpers`；GitHub Actions run `26620918050` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪改 Web recent plan event helper ownership；已同步 GTD、handoff 與 development log。使用者操作入口未改，user guide 不需更新。
 
 ## 2026-05-29 07:29 Tk plan event context reuse
