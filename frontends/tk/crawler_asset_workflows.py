@@ -24,7 +24,7 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
 )
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
+from api_launcher.crawler_assets import CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundPayload,
     build_crawler_asset_bound_form_spec,
@@ -67,6 +67,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
     crawler_asset_detail_text,
+    crawler_asset_download_plan_bounds_schema,
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
@@ -758,8 +759,7 @@ class CrawlerAssetWorkflowMixin:
         if not entry:
             self.status_var.set(self.tr("這筆 seed 缺少可探測 URL。", "This seed has no probeable URL."))
             return
-        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
-        bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
+        bounds_schema = crawler_asset_download_plan_bounds_schema(asset)
         if not bounds_schema:
             self.status_var.set(self.tr("這個爬蟲資產沒有可探測的界域表單。", "This crawler asset has no bounds form to enrich."))
             return
@@ -1089,10 +1089,10 @@ class CrawlerAssetWorkflowMixin:
         ):
             return
         bounds_payload = None
-        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
-        if plan_capability is not None and plan_capability.bounds_schema:
+        bounds_schema = crawler_asset_download_plan_bounds_schema(asset)
+        if bounds_schema:
             # 這裡只產生來源界域 payload，不直接下載。Tk/Qt 之後都應共用同一份 form spec。
-            spec = build_crawler_asset_bound_form_spec(asset.asset_id, plan_capability.bounds_schema)
+            spec = build_crawler_asset_bound_form_spec(asset.asset_id, bounds_schema)
             dialog = CrawlerAssetBoundDialog(getattr(self, "root", None), spec, self.tr)
             if dialog.result is None:
                 self.status_var.set(self.tr("界域設定已取消；尚未送進下載器。", "Bounds setup cancelled; crawler asset was not sent to Downloader."))

@@ -53,6 +53,21 @@ def crawler_seed_download_import_target_paths(
     )
 
 
+def crawler_asset_download_plan_bounds_schema(asset: CrawlerAsset) -> tuple[object, ...]:
+    """Return the build-plan bounds schema advertised by a crawler asset.
+
+    Tk workflows need this schema in several places, but the rule is a
+    crawler-asset read-model concern: find the build-download-plan capability
+    and expose its frontend-neutral bounds facets. Keeping it here prevents
+    workflow handlers from repeating capability scans.
+    """
+
+    plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
+    if plan_capability is None:
+        return ()
+    return tuple(plan_capability.bounds_schema or ())
+
+
 def crawler_asset_download_plan_summary_text(
     result: object,
     added_count: int,
@@ -540,8 +555,7 @@ def crawler_asset_detail_text(
     plan_passport_line = f"{plan_passport_summary}\n" if plan_passport_summary else ""
     credential_line = crawler_asset_credential_summary_text(credential_status, tr)
     credential_line = f"{credential_line}\n" if credential_line else ""
-    plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
-    bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
+    bounds_schema = crawler_asset_download_plan_bounds_schema(asset)
     bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
     bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
     return tr(

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.crawler_asset_ui_helpers import (
+    crawler_asset_download_plan_bounds_schema,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
 )
@@ -107,6 +108,22 @@ class YFinanceUiHelperTests(unittest.TestCase):
             PROJECT_ROOT / "state/crawler_asset_seed_plans/asset_demo.provider_dataset_a.resolved.json",
             targets.plan_path,
         )
+
+    def test_crawler_asset_download_plan_bounds_schema_uses_capability_contract(self) -> None:
+        build_capability = SimpleNamespace(capability_id="build_download_plan", bounds_schema=("time", "bbox"))
+        asset = SimpleNamespace(
+            capabilities=(
+                SimpleNamespace(capability_id="fetch_metadata", bounds_schema=("ignored",)),
+                build_capability,
+            )
+        )
+
+        self.assertEqual(("time", "bbox"), crawler_asset_download_plan_bounds_schema(asset))
+
+    def test_crawler_asset_download_plan_bounds_schema_handles_missing_capability(self) -> None:
+        asset = SimpleNamespace(capabilities=(SimpleNamespace(capability_id="fetch_metadata", bounds_schema=("ignored",)),))
+
+        self.assertEqual((), crawler_asset_download_plan_bounds_schema(asset))
 
     def test_crawler_asset_plan_state_from_events_restores_display_caches(self) -> None:
         resolved_plan = {
