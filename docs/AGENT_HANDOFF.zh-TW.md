@@ -3,8 +3,8 @@
 - 本輪從 `frontends/tk/dialogs.py` 移出 `RecentEventLogsDialog`，新增 `frontends/tk/recent_event_logs_dialog.py` 作為事件紀錄視窗 owner。
 - `dialogs.py` 仍 re-export `RecentEventLogsDialog`，所以既有 `frontends.tk.dialogs` import 與測試入口不斷；新 dialog 只讀 `latest_events()` / JSONL，不寫 event log、不改 crawler/download/import/state。
 - `dialogs.py` 從 1715 行降到 1625 行；這是小型 dialog ownership cleanup，不是 Tk 對話框大搬家。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\recent_event_logs_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；相關 Tk/docs mojibake scan OK；`git diff --check` OK。
-- 已提交本地 checkpoint `fd4ba56 Move recent event log dialog`；尚未推送本 commit。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\recent_event_logs_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；相關 Tk/docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260529_231341.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
+- 已提交本地 code checkpoint `fd4ba56 Move recent event log dialog` 與 docs checkpoint `7d193d0 Record recent event dialog checkpoint`；尚未推送本切片。
 - Docs drift check：本輪只改 Tk dialog ownership，不改使用者操作流程、事件 JSONL schema、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 23:02 Tk crawler asset event-state helper ownership CI pass
