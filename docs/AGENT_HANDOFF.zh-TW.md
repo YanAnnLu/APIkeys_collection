@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 19:21 Next-action display helper ownership cleanup
+- 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_next_action_display.py`，把 `NEXT_ACTION_DISPLAY_LABELS` 與 `next_action_display_label()` 從 `api_launcher/crawler_asset_display.py` 移出。
+- `crawler_asset_display.py` 從約 715 行降到約 676 行；它仍 re-export next-action display helpers 作相容 surface，但 download service、schema probe、developer diagnostics、Web payload/assets 與 Tk UI helper 已改讀新 owner。
+- 新 owner `crawler_next_action_display.py` 是純 machine `next_action` id 到人類 label 的穩定表格，不 import Web/Tk、crawler service 或 download/import，讓 Tk/Web/未來 Qt 可共用同一份後端顯示契約。
+- 已驗證：in-memory compile `api_launcher\crawler_asset_display.py`、`api_launcher\crawler_next_action_display.py`、`api_launcher\crawler_asset_download.py`、`api_launcher\crawler_asset_schema_probe.py`、`api_launcher\developer_diagnostics.py`、`frontends\web\preview_assets.py`、`frontends\web\preview_payloads.py`、`frontends\tk\crawler_asset_ui_helpers.py`、`frontends\tk\ui_helpers.py` OK；`tests.test_crawler_assets` 45 tests OK；`tests.test_web_preview` 53 tests OK；`tests.test_tk_dialogs tests.test_tk_ui_helpers tests.test_crawler_asset_download` 118 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_191322.log`。
+- 已推送 `8191751 Move next action display labels`；GitHub Actions run `26634236072` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 backend display helper ownership 與 import owner，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 19:05 Seed enumeration display helper ownership cleanup
 - 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_seed_display.py`，把 seed enumeration 的 `SeedEnumerationDisplayProfile`、status display table 與 `seed_enumeration_display_payload()` 從 `api_launcher/crawler_asset_display.py` 移出。
 - `crawler_asset_display.py` 從約 835 行降到約 715 行；它仍 re-export seed enumeration display helpers 作相容 surface，但 `api_launcher/crawler_asset_listing_payloads.py` 與 `tests/test_crawler_assets.py` 已改讀新 owner。
