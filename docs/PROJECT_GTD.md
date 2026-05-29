@@ -1,6 +1,6 @@
 ﻿# RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-29
+Last updated: 2026-05-30
 
 ## 目前工作焦點 / Active Focus
 - [x] 2026-05-29 recovery lane 已切到 `L:\RRKAL_project`：以 `32e215c` 作乾淨基底，完整 smoke 通過（912 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`），Git metadata 已留在 `L:\RRKAL_project\.git`，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考。
@@ -33,6 +33,7 @@ Last updated: 2026-05-29
 - [x] Tk Developer CLI dialog 已拆出 owner：`frontends/tk/developer_cli_dialog.py` 負責開發者 CLI 視窗、命令字串解析、subprocess 執行與 single-flight background job；`frontends/tk/dialogs.py` 只 re-export 相容入口，不再持有 CLI runner 細節。
 - [x] Tk import existing-table policy dialog 已拆出 owner：`frontends/tk/import_policy_dialog.py` 負責 `rename/skip/replace` modal 與 replace 確認提示；真正同名表 import/replace/skip guard 仍留在 importer/pipeline 層，`frontends/tk/dialogs.py` 只 re-export 相容入口。
 - [x] Tk language settings / startup diagnostics dialogs 已拆出 owner：`frontends/tk/language_settings_dialog.py` 負責介面語言設定，`frontends/tk/startup_environment_checks_dialog.py` 負責只讀 startup check 顯示；`frontends/tk/dialogs.py` 只 re-export 相容入口。
+- [x] Tk provider editor / database client settings dialogs 已拆出 owner：`frontends/tk/provider_editor_dialog.py` 負責 provider edit modal，`frontends/tk/database_client_settings_dialog.py` 負責本機資料庫工具接口設定；`frontends/tk/dialogs.py` 只 re-export 相容入口，目前已降到約 998 行。
 - [x] 2026-05-29 GitHub adjacent project context 已補文件治理：`docs/EXTERNAL_PROJECT_CONTEXT.zh-TW.md` 記錄 `RRKAL_displaytools`、`CODE_KM`、`rrkal-visual-compressor`、`rrkal-renderer` 等 repo 的 read-only 進度信號與可借鑑方向；其他 repo 只作概念參考，不形成 RRKAL runtime dependency，也不在 RRKAL 任務中寫入。
 - [x] 2026-05-29 Tk source pattern draft 背景 job 已納入 single-flight guard：`open_source_pattern_draft_dialog()` 會用同一份 crawler asset background job helper 擋住同一 URL 的重複 detector/source draft worker，不再直接建立裸 `threading.Thread`。
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。

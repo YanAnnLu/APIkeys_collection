@@ -1,6 +1,6 @@
 # 開發日誌
 
-最後更新：2026-05-29
+最後更新：2026-05-30
 
 這份文件從 2026-05-21 起持續記錄開發歷史，並已依 GitHub Actions push run 反推回補 2026-05-17 以後的流水帳。它不是取代 `PROJECT_GTD.md` 或 `AGENT_HANDOFF.zh-TW.md`：GTD 管目前進度與下一步，handoff 管接力狀態，開發日誌管「每個版本怎麼走到現在、哪個點可當 checkpoint、還有什麼風險」。
 
@@ -19,6 +19,7 @@
 
 | 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 00:12 | Tk / Consolidation | **LOCAL CHECKPOINT** | `ddb791d` | `not pushed` | Move provider database client dialogs | 從 `frontends/tk/dialogs.py` 移出 `ProviderEditorDialog` 與 `DatabaseClientSettingsDialog`，新增 `frontends/tk/provider_editor_dialog.py` 與 `frontends/tk/database_client_settings_dialog.py` 作為各自 owner。`dialogs.py` 仍 re-export 兩個 class，所以 `frontends.tk.dialogs` 舊匯入點、provider 編輯 workflow、database client settings 入口與 tests 不需改；provider dialog 只建立 `core.Provider` result，真正寫入仍由主 UI/repository 決定；database client dialog 只改本機 integration config 與開啟本機 DB 工具，不改資料庫內容。`dialogs.py` 從約 1317 行降到 998 行。已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\provider_editor_dialog.py frontends\tk\database_client_settings_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。Docs drift check：只改 provider/database client settings dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；user guide 不需更新。 |
 | 00:04 | Tk / Consolidation | **CI PASS** | `d7ba3c1` | `26647816256` | Record language startup dialogs smoke | `frontends/tk/language_settings_dialog.py` 與 `frontends/tk/startup_environment_checks_dialog.py` 已從 `frontends/tk/dialogs.py` 拆出並完成遠端 CI 驗證。`dialogs.py` 仍 re-export `UiLanguageSettingsDialog` / `StartupEnvironmentChecksDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 provider settings workflow 不需改；語言 dialog 只寫本機 integration config 並通知主 UI 重建 menu，啟動檢查 dialog 只讀 `core.run_startup_checks(DB_PATH)`。本地完整 smoke `state\logs\pre_push_smoke_20260529_235707.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`；GitHub Actions run `26647816256` 通過 Ubuntu、Windows 與 real DB smoke。Docs drift check：只改 settings/diagnostics dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；user guide 不需更新。 |
 
 ### 2026-05-29
