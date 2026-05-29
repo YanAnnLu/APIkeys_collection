@@ -2,7 +2,8 @@
 ## 2026-05-30 04:37 Web plan-preview credential block helper
 - 本輪延續 Web Preview consolidation slice：新增 `web_plan_preview_credential_blocked_response()`，由 `frontends/web/preview_payloads.py` 集中建立 Web plan preview 缺憑證 blocked response。
 - `frontends/web/preview_api.py` 的 `crawler_asset_plan_preview()` 不再自行組 `plan_outcome` / `plan_passport` / credential next-action；route 只負責 action context、credential guard、service call 與 event。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，55 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK。
+- 已提交實作：`ef84f38 Move Web plan preview credential block payload`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，55 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_044005.log` 通過，931 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web plan-preview 缺憑證 payload 組裝邊界，不改 credential storage policy、Web 操作流程、crawler、download/import 或 user guide。
 
 ## 2026-05-30 04:25 Web credential event helper
