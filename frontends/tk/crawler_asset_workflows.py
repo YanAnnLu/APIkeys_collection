@@ -66,6 +66,7 @@ from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
 from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
+    crawler_asset_bound_payload_from_cache,
     crawler_asset_detail_text,
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_download_plan_summary_text,
@@ -897,23 +898,7 @@ class CrawlerAssetWorkflowMixin:
     def crawler_asset_bound_payload_for_asset(self, asset_id: str) -> CrawlerAssetBoundPayload | None:
         """Return the latest bounds payload captured by the Tk bounds dialog."""
 
-        payloads = getattr(self, "crawler_asset_bound_payloads", {})
-        payload = payloads.get(asset_id) if isinstance(payloads, dict) else None
-        if isinstance(payload, CrawlerAssetBoundPayload):
-            return payload
-        if not isinstance(payload, dict):
-            return None
-        facet_values = payload.get("facet_values") if isinstance(payload.get("facet_values"), dict) else {}
-        field_values = payload.get("field_values") if isinstance(payload.get("field_values"), dict) else {}
-        maps_to_values = payload.get("maps_to_values") if isinstance(payload.get("maps_to_values"), dict) else {}
-        warning_codes = payload.get("warning_codes") if isinstance(payload.get("warning_codes"), list) else ()
-        return CrawlerAssetBoundPayload(
-            asset_id=str(payload.get("asset_id") or asset_id),
-            facet_values=dict(facet_values),
-            field_values=dict(field_values),
-            maps_to_values=dict(maps_to_values),
-            warning_codes=tuple(str(code) for code in warning_codes),
-        )
+        return crawler_asset_bound_payload_from_cache(getattr(self, "crawler_asset_bound_payloads", {}), asset_id)
 
     def _crawler_asset_seed_download_import_worker(
         self,

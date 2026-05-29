@@ -9,6 +9,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_download_import_display_payload,
     crawler_asset_plan_outcome_payload,
 )
+from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, status_label
 from api_launcher.downloads.staging import safe_path_part
@@ -66,6 +67,36 @@ def crawler_asset_download_plan_bounds_schema(asset: CrawlerAsset) -> tuple[obje
     if plan_capability is None:
         return ()
     return tuple(plan_capability.bounds_schema or ())
+
+
+def crawler_asset_bound_payload_from_cache(
+    payloads: object,
+    asset_id: str,
+) -> CrawlerAssetBoundPayload | None:
+    """Rehydrate a cached crawler-asset bounds payload for Tk workers.
+
+    Bounds dialogs store a serializable dict so the same value can be written to
+    event logs or future frontend surfaces.  Workers need the dataclass again
+    before handing the payload to backend services; this helper keeps that
+    conversion out of workflow event handlers.
+    """
+
+    payload = payloads.get(asset_id) if isinstance(payloads, dict) else None
+    if isinstance(payload, CrawlerAssetBoundPayload):
+        return payload
+    if not isinstance(payload, dict):
+        return None
+    facet_values = payload.get("facet_values") if isinstance(payload.get("facet_values"), dict) else {}
+    field_values = payload.get("field_values") if isinstance(payload.get("field_values"), dict) else {}
+    maps_to_values = payload.get("maps_to_values") if isinstance(payload.get("maps_to_values"), dict) else {}
+    warning_codes = payload.get("warning_codes") if isinstance(payload.get("warning_codes"), list) else ()
+    return CrawlerAssetBoundPayload(
+        asset_id=str(payload.get("asset_id") or asset_id),
+        facet_values=dict(facet_values),
+        field_values=dict(field_values),
+        maps_to_values=dict(maps_to_values),
+        warning_codes=tuple(str(code) for code in warning_codes),
+    )
 
 
 def crawler_asset_download_plan_summary_text(

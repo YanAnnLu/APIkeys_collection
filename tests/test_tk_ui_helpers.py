@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.crawler_asset_ui_helpers import (
+    crawler_asset_bound_payload_from_cache,
     crawler_asset_download_plan_bounds_schema,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
@@ -124,6 +125,41 @@ class YFinanceUiHelperTests(unittest.TestCase):
         asset = SimpleNamespace(capabilities=(SimpleNamespace(capability_id="fetch_metadata", bounds_schema=("ignored",)),))
 
         self.assertEqual((), crawler_asset_download_plan_bounds_schema(asset))
+
+    def test_crawler_asset_bound_payload_from_cache_rehydrates_dict_payload(self) -> None:
+        payload = crawler_asset_bound_payload_from_cache(
+            {
+                "demo_asset": {
+                    "asset_id": "demo_asset",
+                    "facet_values": {"limit": 25},
+                    "field_values": {"limit": "25"},
+                    "maps_to_values": {"SourceDownloadBounds.limit": 25},
+                    "warning_codes": ["sample_scope"],
+                }
+            },
+            "demo_asset",
+        )
+
+        self.assertIsNotNone(payload)
+        assert payload is not None
+        self.assertEqual("demo_asset", payload.asset_id)
+        self.assertEqual({"limit": 25}, payload.facet_values)
+        self.assertEqual(("sample_scope",), payload.warning_codes)
+
+    def test_crawler_asset_bound_payload_from_cache_preserves_dataclass_payload(self) -> None:
+        cached = SimpleNamespace()
+        from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
+
+        payload = CrawlerAssetBoundPayload(
+            asset_id="demo_asset",
+            facet_values={"limit": 25},
+            field_values={},
+            maps_to_values={},
+            warning_codes=(),
+        )
+
+        self.assertIs(crawler_asset_bound_payload_from_cache({"demo_asset": payload}, "demo_asset"), payload)
+        self.assertIsNone(crawler_asset_bound_payload_from_cache(cached, "demo_asset"))
 
     def test_crawler_asset_plan_state_from_events_restores_display_caches(self) -> None:
         resolved_plan = {
