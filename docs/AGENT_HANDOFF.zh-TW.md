@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 06:32 Favicon fetch byte budget contract
+- 本輪延續 bounded policy hardening：新增 `DEFAULT_FAVICON_MAX_BYTES=128 * 1024`，並讓 `download_favicon_png()` 接受可覆寫 `max_bytes`，保留 Tk favicon cache 128 KiB 預設讀取上限但不再把 byte budget 藏成裸值。
+- 已提交實作：`b5e3e58 Name favicon fetch byte budget`。
+- 已驗證：in-memory compile `api_launcher\favicons.py` / `tests\test_favicons.py` OK；`py -3 -B -m unittest tests.test_favicons -v` 通過，5 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_063016.log` 通過，939 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只命名並外顯 favicon fetch byte budget，不改 favicon URL 正規化、cache path、Tk/Web 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 06:23 Source pattern probe byte budget contract
 - 本輪延續 bounded policy hardening：新增 `DEFAULT_PATTERN_PROBE_MAX_BYTES=128 * 1024`，並讓 `fetch_pattern_probe()` 接受可覆寫 `max_bytes`，保留既有 source pattern detector 128 KiB 預設讀取上限但不再把 byte budget 藏成裸值。
 - 已提交實作：`8e0f123 Name source pattern probe byte budget`。
