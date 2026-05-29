@@ -10,7 +10,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_outcome_payload,
 )
 from api_launcher.crawler_next_action_display import next_action_display_label
-from api_launcher.crawler_assets import CrawlerAsset
+from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, status_label
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
 from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_import_label
@@ -481,6 +481,103 @@ def crawler_asset_credential_event_context(asset: CrawlerAsset, credential_statu
         "remember_local": bool(status.get("remember_local")),
         "next_action": str(status.get("next_action") or ""),
     }
+
+
+def crawler_asset_row_values(
+    asset: CrawlerAsset,
+    *,
+    credential_status: object,
+    last_plan_outcome: object = "",
+    content_review: object = "",
+) -> tuple[object, ...]:
+    """Return the stable row tuple for the crawler asset table."""
+
+    plan_outcome_text = str(last_plan_outcome or asset.next_action)
+    content_review_text = str(content_review or "").strip()
+    if content_review_text:
+        plan_outcome_text = f"{plan_outcome_text} / {content_review_text}"
+    return (
+        asset.display_name,
+        crawler_asset_state_label(asset),
+        crawler_asset_credential_badge_label(credential_status),
+        asset.provider_id,
+        asset.source_type,
+        status_label(asset.capability_status("fetch_metadata")),
+        status_label(asset.capability_status("list_datasets")),
+        status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
+        asset.seed_summary,
+        f"{asset.trust_score}%",
+        asset.current_seed_scope,
+        plan_outcome_text,
+    )
+
+
+def crawler_asset_detail_text(
+    asset: CrawlerAsset,
+    *,
+    last_plan_outcome: object,
+    content_review: object,
+    resolved_plan: object,
+    plan_passport: object,
+    credential_status: object,
+    tr: Callable[[str, str], str],
+) -> str:
+    """Return the right-side passport text for one selected crawler asset."""
+
+    capability_lines = "\n".join(
+        f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
+    )
+    last_plan_outcome_text = str(last_plan_outcome or "").strip()
+    content_review_text = str(content_review or "").strip()
+    last_plan_line_zh = f"\n上次送進下載器：{last_plan_outcome_text}\n" if last_plan_outcome_text else ""
+    last_plan_line_en = f"\nLast send-to-downloader result: {last_plan_outcome_text}\n" if last_plan_outcome_text else ""
+    content_review_line_zh = f"內容格式待辦：{content_review_text}\n" if content_review_text else ""
+    content_review_line_en = f"Content review: {content_review_text}\n" if content_review_text else ""
+    review_count = crawler_asset_review_count_from_plan(resolved_plan)
+    review_line_zh = f"本次 Adapter 待辦：{review_count}\n" if review_count else ""
+    review_line_en = f"Current adapter queue: {review_count}\n" if review_count else ""
+    plan_passport_summary = crawler_asset_plan_passport_summary_text(plan_passport, tr)
+    plan_passport_line = f"{plan_passport_summary}\n" if plan_passport_summary else ""
+    credential_line = crawler_asset_credential_summary_text(credential_status, tr)
+    credential_line = f"{credential_line}\n" if credential_line else ""
+    plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
+    bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
+    bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
+    bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
+    return tr(
+        (
+            f"{asset.display_name}\n\n"
+            f"入口：{asset.source_surface} / {asset.source_type}\n"
+            f"狀態：{crawler_asset_state_label(asset)}\n"
+            f"存取邊界：{asset.access_requirement}\n"
+            f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
+            f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
+            f"{credential_line}"
+            f"{last_plan_line_zh}"
+            f"{content_review_line_zh}"
+            f"{review_line_zh}"
+            f"{plan_passport_line}"
+            f"{capability_lines}\n\n"
+            f"界域 schema：{bounds_summary_zh or '無'}\n\n"
+            "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
+        ),
+        (
+            f"{asset.display_name}\n\n"
+            f"Surface: {asset.source_surface} / {asset.source_type}\n"
+            f"State: {crawler_asset_state_label(asset)}\n"
+            f"Access: {asset.access_requirement}\n"
+            f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
+            f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
+            f"{credential_line}"
+            f"{last_plan_line_en}"
+            f"{content_review_line_en}"
+            f"{review_line_en}"
+            f"{plan_passport_line}"
+            f"{capability_lines}\n\n"
+            f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
+            "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
+        ),
+    )
 
 
 def crawler_asset_listing_event_preview_payload(context: object) -> dict[str, object]:

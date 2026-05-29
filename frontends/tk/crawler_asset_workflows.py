@@ -25,7 +25,7 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_plan_passport,
     update_crawler_asset_profile,
 )
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets, status_label
+from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, load_crawler_asset_source, load_crawler_assets
 from api_launcher.crawler_asset_bound_forms import (
     CrawlerAssetBoundPayload,
     build_crawler_asset_bound_form_spec,
@@ -67,15 +67,14 @@ from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialD
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
 from frontends.tk.crawler_asset_ui_helpers import (
-    crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
-    crawler_asset_credential_summary_text,
+    crawler_asset_detail_text,
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
     crawler_asset_plan_outcome_label,
-    crawler_asset_plan_passport_summary_text,
+    crawler_asset_row_values,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
@@ -399,21 +398,11 @@ class CrawlerAssetWorkflowMixin:
     def crawler_asset_row_values(self, asset: CrawlerAsset) -> tuple[object, ...]:
         last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id) or asset.next_action
         content_review = getattr(self, "crawler_asset_content_review_outcomes", {}).get(asset.asset_id, "")
-        if content_review:
-            last_plan_outcome = f"{last_plan_outcome} / {content_review}"
-        return (
-            asset.display_name,
-            crawler_asset_state_label(asset),
-            crawler_asset_credential_badge_label(crawler_asset_credential_status(asset)),
-            asset.provider_id,
-            asset.source_type,
-            status_label(asset.capability_status("fetch_metadata")),
-            status_label(asset.capability_status("list_datasets")),
-            status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
-            asset.seed_summary,
-            f"{asset.trust_score}%",
-            asset.current_seed_scope,
-            last_plan_outcome,
+        return crawler_asset_row_values(
+            asset,
+            credential_status=crawler_asset_credential_status(asset),
+            last_plan_outcome=last_plan_outcome,
+            content_review=content_review,
         )
 
     def selected_crawler_asset(self) -> CrawlerAsset | None:
@@ -442,64 +431,18 @@ class CrawlerAssetWorkflowMixin:
             self.crawler_asset_archive_button_var.set(
                 self.tr("解除封存 / 啟用" if asset.archived else "封存爬蟲", "Unarchive / Enable" if asset.archived else "Archive crawler")
             )
-        capability_lines = "\n".join(
-            f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
-        )
         last_plan_outcome = getattr(self, "crawler_asset_plan_outcomes", {}).get(asset.asset_id, "")
         content_review = getattr(self, "crawler_asset_content_review_outcomes", {}).get(asset.asset_id, "")
-        last_plan_line_zh = f"\n上次送進下載器：{last_plan_outcome}\n" if last_plan_outcome else ""
-        last_plan_line_en = f"\nLast send-to-downloader result: {last_plan_outcome}\n" if last_plan_outcome else ""
-        content_review_line_zh = f"內容格式待辦：{content_review}\n" if content_review else ""
-        content_review_line_en = f"Content review: {content_review}\n" if content_review else ""
-        review_count = crawler_asset_review_count_from_plan(getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id))
-        review_line_zh = f"本次 Adapter 待辦：{review_count}\n" if review_count else ""
-        review_line_en = f"Current adapter queue: {review_count}\n" if review_count else ""
-        plan_passport_summary = crawler_asset_plan_passport_summary_text(
-            getattr(self, "crawler_asset_plan_passports", {}).get(asset.asset_id),
-            self.tr,
-        )
-        plan_passport_line = f"{plan_passport_summary}\n" if plan_passport_summary else ""
         credential_status = crawler_asset_credential_status(asset)
-        credential_line = crawler_asset_credential_summary_text(credential_status, self.tr)
-        credential_line = f"{credential_line}\n" if credential_line else ""
-        plan_capability = next((item for item in asset.capabilities if item.capability_id == BUILD_DOWNLOAD_PLAN), None)
-        bounds_schema = plan_capability.bounds_schema if plan_capability is not None else ()
-        bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
-        bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
         self.crawler_asset_detail_var.set(
-            self.tr(
-                (
-                    f"{asset.display_name}\n\n"
-                    f"入口：{asset.source_surface} / {asset.source_type}\n"
-                    f"狀態：{crawler_asset_state_label(asset)}\n"
-                    f"存取邊界：{asset.access_requirement}\n"
-                    f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
-                    f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
-                    f"{credential_line}"
-                    f"{last_plan_line_zh}"
-                    f"{content_review_line_zh}"
-                    f"{review_line_zh}"
-                    f"{plan_passport_line}"
-                    f"{capability_lines}\n\n"
-                    f"界域 schema：{bounds_summary_zh or '無'}\n\n"
-                    "下載指定資料庫會套用界域裝飾器：版本、時間、bbox、欄位與筆數上限。"
-                ),
-                (
-                    f"{asset.display_name}\n\n"
-                    f"Surface: {asset.source_surface} / {asset.source_type}\n"
-                    f"State: {crawler_asset_state_label(asset)}\n"
-                    f"Access: {asset.access_requirement}\n"
-                    f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
-                    f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
-                    f"{credential_line}"
-                    f"{last_plan_line_en}"
-                    f"{content_review_line_en}"
-                    f"{review_line_en}"
-                    f"{plan_passport_line}"
-                    f"{capability_lines}\n\n"
-                    f"Bounds schema: {bounds_summary_en or 'none'}\n\n"
-                    "Selected downloads are decorated by bounds: version, time, bbox, columns, and limits."
-                ),
+            crawler_asset_detail_text(
+                asset,
+                last_plan_outcome=last_plan_outcome,
+                content_review=content_review,
+                resolved_plan=getattr(self, "crawler_asset_resolved_plans", {}).get(asset.asset_id),
+                plan_passport=getattr(self, "crawler_asset_plan_passports", {}).get(asset.asset_id),
+                credential_status=credential_status,
+                tr=self.tr,
             )
         )
 
