@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 06:51 OAuth form response size guard
+- 本輪延續 credential/network boundary hardening：新增 `DEFAULT_OAUTH_FORM_MAX_BYTES=512 * 1024`，並讓 `oauth_device._post_form()` 接受可覆寫 `max_bytes`；device-code / browser-code token POST response 會讀 `max_bytes + 1` 並拒絕過大 payload。
+- 已提交實作：`0eb72a5 Bound OAuth form response size`。
+- 已驗證：in-memory compile `api_launcher\oauth_device.py` / `tests\test_oauth_device.py` OK；`py -3 -B -m unittest tests.test_oauth_device -v` 通過，12 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_064907.log` 通過，943 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 OAuth POST form response size guard，不改 token storage、credential UI、crawler、download/import 或 user guide。
+
 ## 2026-05-30 06:42 Adapter metadata fetch size guard
 - 本輪延續 adapter resolver bounded policy hardening：新增 `DEFAULT_ADAPTER_JSON_MAX_BYTES=8 * 1024 * 1024`，並讓 `fetch_json()` 接受可覆寫 `max_bytes`；外部 metadata lookup 會讀 `max_bytes + 1` 並拒絕過大 payload，避免 adapter review resolver 無界讀取 CKAN / CMR / DataCite / Dataverse 等 JSON。
 - 已提交實作：`66cfa31 Bound adapter metadata fetch size`。
