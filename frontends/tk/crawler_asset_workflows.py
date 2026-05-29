@@ -86,6 +86,10 @@ from frontends.tk.crawler_asset_ui_helpers import (
 )
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
+from frontends.tk.source_pattern_draft_ui_helpers import (
+    source_pattern_draft_message,
+    source_pattern_draft_review_message,
+)
 
 MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
 
@@ -610,93 +614,10 @@ class CrawlerAssetWorkflowMixin:
         self.root.after(0, finish)
 
     def source_pattern_draft_message(self, summary: object) -> str:
-        data = summary if isinstance(summary, dict) else {}
-        detection = data.get("source_pattern_detection") if isinstance(data.get("source_pattern_detection"), dict) else {}
-        sources = data.get("sources") if isinstance(data.get("sources"), list) else []
-        source = sources[0] if sources and isinstance(sources[0], dict) else {}
-        evidence = detection.get("evidence") if isinstance(detection.get("evidence"), list) else []
-        evidence_preview = "\n".join(f"- {item}" for item in evidence[:5]) or "-"
-        try:
-            confidence_text = f"{float(detection.get('confidence')):.2f}"
-        except (TypeError, ValueError):
-            confidence_text = "-"
-        next_action_zh = str(
-            data.get("next_action_label_zh_TW")
-            or data.get("next_action_label")
-            or data.get("next_action")
-            or "-"
-        ).strip()
-        next_action_en = str(
-            data.get("next_action_label_en")
-            or data.get("next_action")
-            or "-"
-        ).strip()
-        audit_command = str(data.get("audit_command") or "").strip()
-        return self.tr(
-            (
-                "已建立本機資料源草稿。\n\n"
-                "這不是正式 catalog promotion，也不會下載或匯入資料；下一步必須執行本機 discovery audit。\n\n"
-                f"Pattern：{detection.get('pattern_id') or '-'}\n"
-                f"信心：{confidence_text}\n"
-                f"Source type：{detection.get('source_type_hint') or source.get('source_type') or '-'}\n"
-                f"Source ID：{source.get('source_id') or '-'}\n"
-                f"Endpoint：{source.get('endpoint_url') or '-'}\n\n"
-                f"證據：\n{evidence_preview}\n\n"
-                f"Local draft：{data.get('dataset_source_path') or '-'}\n"
-                f"下一步：{next_action_zh or '-'}"
-                + (f"\n可重跑命令：{audit_command}" if audit_command else "")
-            ),
-            (
-                "Local dataset source draft created.\n\n"
-                "This is not catalog promotion and does not download or import data; run local discovery audit next.\n\n"
-                f"Pattern: {detection.get('pattern_id') or '-'}\n"
-                f"Confidence: {confidence_text}\n"
-                f"Source type: {detection.get('source_type_hint') or source.get('source_type') or '-'}\n"
-                f"Source ID: {source.get('source_id') or '-'}\n"
-                f"Endpoint: {source.get('endpoint_url') or '-'}\n\n"
-                f"Evidence:\n{evidence_preview}\n\n"
-                f"Local draft: {data.get('dataset_source_path') or '-'}\n"
-                f"Next: {next_action_en or '-'}"
-                + (f"\nCommand: {audit_command}" if audit_command else "")
-            ),
-        )
+        return source_pattern_draft_message(summary, self.tr)
 
     def source_pattern_draft_review_message(self, summary: object) -> str:
-        data = summary if isinstance(summary, dict) else {}
-        detection = data.get("source_pattern_detection") if isinstance(data.get("source_pattern_detection"), dict) else {}
-        evidence = detection.get("evidence") if isinstance(detection.get("evidence"), list) else []
-        evidence_preview = "\n".join(f"- {item}" for item in evidence[:5]) or "-"
-        try:
-            confidence_text = f"{float(detection.get('confidence')):.2f}"
-        except (TypeError, ValueError):
-            confidence_text = "-"
-        next_action_zh = str(
-            data.get("next_action_label_zh_TW")
-            or data.get("next_action_label")
-            or data.get("next_action")
-            or "-"
-        ).strip()
-        next_action_en = str(data.get("next_action_label_en") or data.get("next_action") or "-").strip()
-        return self.tr(
-            (
-                "來源草稿已保留在人工審核，沒有寫入本機 source draft。\n\n"
-                f"審核原因：{data.get('review_reason') or '-'}\n"
-                f"Pattern：{detection.get('pattern_id') or '-'}\n"
-                f"信心分數：{confidence_text}\n"
-                f"Source type hint：{detection.get('source_type_hint') or '-'}\n\n"
-                f"證據：\n{evidence_preview}\n\n"
-                f"下一步：{next_action_zh or '-'}"
-            ),
-            (
-                "Source draft was kept in review; no local source draft was written.\n\n"
-                f"Review reason: {data.get('review_reason') or '-'}\n"
-                f"Pattern: {detection.get('pattern_id') or '-'}\n"
-                f"Confidence: {confidence_text}\n"
-                f"Source type hint: {detection.get('source_type_hint') or '-'}\n\n"
-                f"Evidence:\n{evidence_preview}\n\n"
-                f"Next: {next_action_en or '-'}"
-            ),
-        )
+        return source_pattern_draft_review_message(summary, self.tr)
 
     def open_selected_crawler_asset_profile_dialog(self) -> None:
         asset = self.selected_crawler_asset()
