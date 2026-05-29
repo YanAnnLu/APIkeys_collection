@@ -8,6 +8,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     cache_crawler_asset_plan_state,
     crawler_asset_bound_payload_from_cache,
     crawler_asset_download_plan_bounds_schema,
+    crawler_asset_plan_outcome_event_payload,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
     write_crawler_asset_download_plan_artifacts,
@@ -205,6 +206,49 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertNotIn("demo_asset", owner.crawler_asset_resolved_plans)
         self.assertNotIn("demo_asset", owner.crawler_asset_content_review_outcomes)
         self.assertFalse(owner.crawler_asset_plan_passports["demo_asset"]["has_resolved_plan"])
+
+    def test_crawler_asset_plan_outcome_event_payload_adds_tk_artifact_fields(self) -> None:
+        resolved_plan = {
+            "providers": [
+                {
+                    "provider_id": "demo_provider",
+                    "dataset_id": "demo_dataset",
+                    "adapter_review": {
+                        "adapter_id": "demo_adapter",
+                        "source_url": "https://example.test/catalog",
+                    },
+                    "download_eligibility": {"status": "adapter_required"},
+                }
+            ]
+        }
+        result = SimpleNamespace(
+            asset_id="demo_asset",
+            outcome_bucket="review_required",
+            direct_download_count=0,
+            review_required_count=1,
+            resolved_plan=resolved_plan,
+            user_next_action="open_adapter_review_or_adjust_bounds",
+            to_dict=lambda: {
+                "run_record": {
+                    "stage": "download_plan_build",
+                    "status": "review",
+                    "outcome_bucket": "review_required",
+                    "next_action": "open_adapter_review_or_adjust_bounds",
+                }
+            },
+        )
+
+        payload = crawler_asset_plan_outcome_event_payload(
+            result,
+            added_count=0,
+            written_paths={"resolved": "state/demo.resolved.json"},
+        )
+
+        self.assertEqual("demo_asset", payload.asset_id)
+        self.assertEqual("state/demo.resolved.json", payload.context["resolved_plan"])
+        self.assertEqual(1, payload.context["review_queue_count"])
+        self.assertEqual("demo_asset", payload.plan_passport["asset_id"])
+        self.assertTrue(payload.plan_passport["has_resolved_plan"])
 
     def test_write_crawler_asset_download_plan_artifacts_persists_utf8_json(self) -> None:
         import json

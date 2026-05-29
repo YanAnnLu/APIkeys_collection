@@ -30,11 +30,6 @@ from api_launcher.crawler_asset_bound_forms import (
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_schema_probe_result
-from api_launcher.crawler_asset_display import (
-    crawler_asset_plan_event_context,
-    crawler_asset_plan_passport_payload,
-    crawler_asset_plan_outcome_payload,
-)
 from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
     run_crawler_asset_listing,
@@ -70,8 +65,8 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_plan_outcome_event_payload,
     crawler_asset_row_values,
-    crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
@@ -1169,33 +1164,25 @@ class CrawlerAssetWorkflowMixin:
     def record_crawler_asset_plan_outcome(self, result: object, added_count: int, written_paths: dict[str, str]) -> None:
         """把 UI 可見結果寫成事件，供 handoff、重開 UI 與後續 agent 讀取。"""
 
-        outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
-        plan_passport_payload = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
+        event_payload = crawler_asset_plan_outcome_event_payload(
+            result,
+            added_count=added_count,
+            written_paths=written_paths,
+        )
         try:
-            update_crawler_asset_plan_passport(str(getattr(result, "asset_id", "") or ""), plan_passport_payload)
+            update_crawler_asset_plan_passport(event_payload.asset_id, event_payload.plan_passport)
         except Exception as exc:
             log_exception(
                 "crawler_asset_plan_passport_persist_failed",
                 exc,
                 component="ui.crawler_assets",
-                context={"asset_id": str(getattr(result, "asset_id", "") or "")},
+                context={"asset_id": event_payload.asset_id},
             )
-        event_context = crawler_asset_plan_event_context(
-            result,
-            outcome_payload,
-            added_count=added_count,
-            plan_passport=plan_passport_payload,
-        )
-        # Tk writes the resolved plan path to disk; Web logs only a compact
-        # event.  Keep that UI-local artifact pointer as an override while the
-        # shared backend helper owns all status/count/review fields.
-        event_context["resolved_plan"] = written_paths.get("resolved", "")
-        event_context["review_queue_count"] = crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None))
         log_event(
             "crawler_asset_plan_outcome_recorded",
             "Tk crawler asset workflow recorded the visible send-to-downloader outcome.",
             component="ui.crawler_assets",
-            context=event_context,
+            context=event_payload.context,
         )
 
     def refresh_crawler_asset_plan_row(self, asset_id: str) -> None:

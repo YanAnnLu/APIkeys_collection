@@ -8,6 +8,7 @@ from typing import Callable
 from api_launcher.adapter_review import adapter_review_items
 from api_launcher.crawler_asset_display import (
     crawler_asset_download_import_display_payload,
+    crawler_asset_plan_event_context,
     crawler_asset_plan_outcome_payload,
     crawler_asset_plan_passport_payload,
 )
@@ -38,6 +39,15 @@ class CrawlerSeedDownloadImportTargetPaths:
     downloads_root: Path
     import_sqlite_path: Path
     plan_path: Path
+
+
+@dataclass(frozen=True)
+class CrawlerAssetPlanOutcomeEventPayload:
+    """Display/event payload prepared for Tk plan-outcome logging."""
+
+    asset_id: str
+    plan_passport: dict[str, object]
+    context: dict[str, object]
 
 
 def crawler_seed_download_import_target_paths(
@@ -239,6 +249,37 @@ def cache_crawler_asset_plan_state(owner: object, result: object, added_count: i
     else:
         resolved_plans.pop(asset_id, None)
     return outcome_payload
+
+
+def crawler_asset_plan_outcome_event_payload(
+    result: object,
+    *,
+    added_count: int,
+    written_paths: object,
+) -> CrawlerAssetPlanOutcomeEventPayload:
+    """Build the Tk event payload for one crawler-asset plan outcome.
+
+    The backend display module owns status/count/passport semantics.  Tk adds
+    only the UI-local resolved-plan artifact path and review queue count before
+    writing the event log.
+    """
+
+    outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
+    plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=outcome_payload)
+    context = crawler_asset_plan_event_context(
+        result,
+        outcome_payload,
+        added_count=added_count,
+        plan_passport=plan_passport,
+    )
+    paths = written_paths if isinstance(written_paths, dict) else {}
+    context["resolved_plan"] = str(paths.get("resolved") or "")
+    context["review_queue_count"] = crawler_asset_review_count_from_plan(getattr(result, "resolved_plan", None))
+    return CrawlerAssetPlanOutcomeEventPayload(
+        asset_id=str(getattr(result, "asset_id", "") or ""),
+        plan_passport=plan_passport,
+        context=context,
+    )
 
 
 def crawler_asset_plan_passport_summary_text(
