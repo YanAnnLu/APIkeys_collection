@@ -3,7 +3,7 @@
 - 本輪延續 Web Preview consolidation slice：新增 `web_crawler_asset_listing_credential_blocked_response()`，由 `frontends/web/preview_payloads.py` 集中建立 crawler listing 缺憑證 blocked response。
 - `frontends/web/preview_api.py` 的 `crawler_asset_listing()` 不再直接建立 `CrawlerAssetListingResult` 或自行套 credential next-action；route 只負責 asset/context、credential guard、crawler service call 與 event。
 - 已提交實作：`2518c4c Move Web listing credential block payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，56 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_045032.log` 通過，932 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，56 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_045032.log` 通過，932 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26661656999` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web listing 缺憑證 payload 組裝邊界，不改 credential storage policy、Web 操作流程、crawler、download/import 或 user guide。
 
 ## 2026-05-30 04:37 Web plan-preview credential block helper
