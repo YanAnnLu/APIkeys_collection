@@ -47,12 +47,7 @@ from frontends.web.preview_api import (
     crawler_asset_listing,
     crawler_asset_plan_preview,
     crawler_seed_download_import,
-    crawler_handler_smoke_diagnostics,
-    developer_real_download_demo,
     save_crawler_asset_credentials,
-    web_real_download_demo,
-    web_project_maturity,
-    web_preview_status,
 )
 from frontends.web.preview_assets import (
     crawler_asset_cards,
@@ -62,6 +57,13 @@ from frontends.web.preview_assets import (
     save_crawler_asset_seed_favorite,
 )
 from frontends.web.preview_context import web_crawler_asset_action_context
+from frontends.web.preview_diagnostics import (
+    crawler_handler_smoke_diagnostics,
+    developer_real_download_demo,
+    web_preview_status,
+    web_project_maturity,
+    web_real_download_demo,
+)
 from frontends.web.preview_events import compact_listing_outcome, web_preview_recent_events
 from frontends.web.preview_payloads import (
     web_crawler_asset_listing_payload,
@@ -226,8 +228,8 @@ class WebPreviewApiTest(unittest.TestCase):
             }
         )
 
-        with patch("frontends.web.preview_api.run_web_real_download_demo", return_value=fake_result) as run_demo:
-            with patch("frontends.web.preview_api.log_event") as log_event:
+        with patch("frontends.web.preview_diagnostics.run_web_real_download_demo", return_value=fake_result) as run_demo:
+            with patch("frontends.web.preview_diagnostics.log_event") as log_event:
                 payload = web_real_download_demo()
 
         run_demo.assert_called_once_with()
@@ -254,8 +256,8 @@ class WebPreviewApiTest(unittest.TestCase):
             }
         )
 
-        with patch("frontends.web.preview_api.run_web_real_download_demo", return_value=fake_result):
-            with patch("frontends.web.preview_api.log_event"):
+        with patch("frontends.web.preview_diagnostics.run_web_real_download_demo", return_value=fake_result):
+            with patch("frontends.web.preview_diagnostics.log_event"):
                 payload = developer_real_download_demo()
 
         self.assertTrue(payload["developer_only"])

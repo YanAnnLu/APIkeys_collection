@@ -36,7 +36,6 @@ from api_launcher.crawler_asset_service import (
     crawler_asset_listing_event_context,
     run_crawler_asset_listing,
 )
-from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.event_log import log_event
 from api_launcher.local_credentials import (
     crawler_asset_credential_status,
@@ -44,8 +43,6 @@ from api_launcher.local_credentials import (
     update_crawler_asset_credentials,
 )
 from api_launcher.paths import default_local_downloads_root
-from api_launcher.project_maturity import build_project_maturity_payload
-from api_launcher.web_real_download_demo import run_web_real_download_demo
 from frontends.web.preview_assets import (
     crawler_asset_cards,
     crawler_asset_credential_detail,
@@ -68,81 +65,13 @@ from frontends.web.preview_payloads import (
     web_download_import_target_paths,
     web_next_action_payload,
 )
-
-
-def web_preview_status() -> dict[str, object]:
-    """Return a small machine-readable status for browser smoke checks."""
-
-    return {
-        "product": "RuRuKa Asset Launcher",
-        "surface": "web_preview",
-        "purpose": "uiux_review",
-        "business_logic_owner": "api_launcher",
-    }
-
-
-def web_project_maturity(*, db_path: str | Path | None = None) -> dict[str, object]:
-    """Return the maturity matrix for the Web Preview maturity tab.
-
-    The matrix itself is owned by `api_launcher.project_maturity`; Web only
-    exposes the payload so the browser can show construction/contract surfaces
-    without re-implementing maturity rules.
-    """
-
-    with web_preview_repository_context(db_path) as session:
-        return build_project_maturity_payload(session.repository, db_path=session.db_path)
-
-
-def crawler_handler_smoke_diagnostics() -> dict[str, object]:
-    """Return a compact developer-only crawler handler contract diagnostic.
-
-    Web Preview 需要能讓 agent / 開發者用瀏覽器確認 crawler handler 契約，
-    但正式使用者下載流程不應看到完整 smoke report 或每個 source 的大 payload。
-    因此這裡只回傳共用 compact summary 與清楚的 developer-only 標記。
-    """
-
-    return crawler_handler_smoke_diagnostics_payload("web_preview")
-
-
-def web_real_download_demo() -> dict[str, object]:
-    """Run the narrow real-download proof path for Web Preview.
-
-    這個 endpoint 是展示用的真資料閉環：瀏覽器觸發後端既有
-    download/import pipeline，實際抓取小型公開 CSV，寫 sidecar manifest，
-    再匯入 isolated SQLite。它不是 crawler 全覆蓋宣告。
-    """
-
-    result = run_web_real_download_demo()
-    payload = result.to_dict()
-    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
-    log_event(
-        "web_real_download_demo_completed",
-        "Web Preview completed a real public CSV download/import demo.",
-        component="web.demo",
-        context={
-            "stage": payload.get("stage"),
-            "succeeded": payload.get("succeeded"),
-            "row_count": payload.get("row_count"),
-            "table_name": payload.get("table_name"),
-            "source_url": payload.get("source_url"),
-            "downloaded_file": artifacts.get("downloaded_file"),
-            "manifest": artifacts.get("manifest"),
-            "curated_sqlite": artifacts.get("curated_sqlite"),
-            "next_action": payload.get("next_action"),
-        },
-    )
-    return payload
-
-
-def developer_real_download_demo() -> dict[str, object]:
-    """Run the public CSV proof path as a developer-only diagnostic."""
-
-    payload = web_real_download_demo()
-    payload["developer_only"] = True
-    payload["scope"] = "developer_diagnostic_public_csv_not_main_download_flow"
-    payload["main_download_endpoint"] = "POST /api/crawler-assets/{asset_id}/download-import"
-    payload["seed_download_endpoint"] = "POST /api/crawler-assets/{asset_id}/seed-download-import"
-    return payload
+from frontends.web.preview_diagnostics import (
+    crawler_handler_smoke_diagnostics,
+    developer_real_download_demo,
+    web_preview_status,
+    web_project_maturity,
+    web_real_download_demo,
+)
 
 
 def crawler_asset_listing(

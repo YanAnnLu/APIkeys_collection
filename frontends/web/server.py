@@ -18,11 +18,7 @@ from frontends.web.preview_api import (
     crawler_asset_listing,
     crawler_asset_plan_preview,
     crawler_seed_download_import,
-    crawler_handler_smoke_diagnostics,
-    developer_real_download_demo,
     save_crawler_asset_credentials,
-    web_project_maturity,
-    web_preview_status,
 )
 from frontends.web.preview_assets import (
     crawler_asset_cards,
@@ -32,6 +28,12 @@ from frontends.web.preview_assets import (
     save_crawler_asset_seed_favorite,
 )
 from frontends.web.preview_context import crawler_asset_payload_from_web_values
+from frontends.web.preview_diagnostics import (
+    crawler_handler_smoke_diagnostics,
+    developer_real_download_demo,
+    web_project_maturity,
+    web_preview_status,
+)
 from frontends.web.preview_events import web_preview_recent_events
 
 
