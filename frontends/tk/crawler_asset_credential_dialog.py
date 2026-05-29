@@ -40,6 +40,29 @@ def crawler_asset_credential_edit_payload(
     }
 
 
+def crawler_asset_credential_next_action_text(credential_status: Mapping[str, object]) -> str:
+    """Return the user-facing next-action label for the credential dialog.
+
+    Raw `next_action` ids are useful for logs and agent JSON, but they should
+    not be shown as the primary instruction in a human login form.
+    """
+
+    display_profile = credential_status.get("display_profile")
+    profile = display_profile if isinstance(display_profile, dict) else {}
+    for candidate in (
+        credential_status.get("next_action_label_zh_TW"),
+        profile.get("next_action_label_zh_TW"),
+        credential_status.get("next_action_label"),
+        profile.get("next_action_label"),
+        credential_status.get("next_action_label_en"),
+        profile.get("next_action_label_en"),
+    ):
+        label = str(candidate or "").strip()
+        if label:
+            return label
+    return ""
+
+
 class CrawlerAssetCredentialDialog:
     """Tk login/settings dialog for crawler assets.
 
@@ -99,6 +122,14 @@ class CrawlerAssetCredentialDialog:
             style="DetailText.TLabel",
             wraplength=620,
         ).pack(anchor="w", pady=(0, 12))
+        next_action_label = crawler_asset_credential_next_action_text(self.credential_status)
+        if next_action_label:
+            ttk.Label(
+                frame,
+                text=f"下一步：{next_action_label}",
+                style="DetailText.TLabel",
+                wraplength=620,
+            ).pack(anchor="w", pady=(0, 12))
 
         entry_url = str(self.credential_status.get("credential_entry_url") or "").strip()
         entry_label = str(self.credential_status.get("credential_entry_label") or "開啟官方登入 / 申請 API Key").strip()
@@ -169,4 +200,5 @@ class CrawlerAssetCredentialDialog:
 __all__ = [
     "CrawlerAssetCredentialDialog",
     "crawler_asset_credential_edit_payload",
+    "crawler_asset_credential_next_action_text",
 ]

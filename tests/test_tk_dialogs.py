@@ -26,7 +26,10 @@ from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
-from frontends.tk.crawler_asset_credential_dialog import crawler_asset_credential_edit_payload
+from frontends.tk.crawler_asset_credential_dialog import (
+    crawler_asset_credential_edit_payload,
+    crawler_asset_credential_next_action_text,
+)
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import (
     CrawlerAssetSeedDialog,
@@ -1600,6 +1603,20 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertFalse(payload["remember_local"])
         self.assertEqual({"EARTHDATA_TOKEN": "token-secret"}, payload["values"])
         self.assertEqual(["FRED_API_KEY"], payload["clear"])
+
+    def test_credential_dialog_next_action_uses_display_label_not_raw_id(self) -> None:
+        label = crawler_asset_credential_next_action_text(
+            {
+                "display_profile": {
+                    "next_action_label_zh_TW": "先完成登入設定，再下載資料",
+                    "next_action_label_en": "Finish login settings before downloading",
+                },
+                "next_action": "edit_local_credentials_before_live_download",
+            }
+        )
+
+        self.assertEqual("先完成登入設定，再下載資料", label)
+        self.assertNotIn("edit_local_credentials_before_live_download", label)
 
     def test_seed_download_import_opens_credential_dialog_before_worker(self) -> None:
         source = DatasetDiscoverySource(
