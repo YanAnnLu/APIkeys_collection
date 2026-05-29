@@ -12,8 +12,8 @@ from api_launcher.crawler_asset_service import (
     crawler_asset_listing_event_context,
     crawler_remote_pagination_payload,
     run_crawler_asset_listing,
-    source_download_options_from_crawler_asset_payload,
 )
+from api_launcher.crawler_asset_payloads import source_download_options_from_crawler_asset_payload
 from api_launcher.crawler_asset_profiles import (
     CrawlerAssetProfile,
     compact_crawler_asset_plan_passport,
