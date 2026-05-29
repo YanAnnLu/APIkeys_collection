@@ -2,7 +2,7 @@
 ## 2026-05-30 07:10 AI summary response size guard
 - 本輪延續 credential/network boundary hardening：新增 `DEFAULT_AI_SUMMARY_RESPONSE_MAX_BYTES=2 * 1024 * 1024`，並讓 `integrations._post_json()` 接受可覆寫 `max_bytes`；AI summary 相關 OpenAI-compatible / Gemini / Ollama 類 JSON response 會讀 `max_bytes + 1` 並拒絕過大 payload，避免 summary 生成遇到異常 response 時無界讀取。
 - 已提交實作：`7c594b4 Bound AI summary response size`。
-- 已驗證：in-memory compile `api_launcher\integrations.py` / `tests\test_ai_summary_generation.py` OK；`py -3 -B -m unittest tests.test_ai_summary_generation -v` 通過，12 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_070812.log` 通過，947 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `api_launcher\integrations.py` / `tests\test_ai_summary_generation.py` OK；`py -3 -B -m unittest tests.test_ai_summary_generation -v` 通過，12 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_070812.log` 通過，947 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26666910109` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只增加 AI summary POST JSON response size guard，不改 AI profile selection、credential storage、credential UI、crawler、download/import 或 user guide。
 
 ## 2026-05-30 07:00 Google OAuth form response size guard
