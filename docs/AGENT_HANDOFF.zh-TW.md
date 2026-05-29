@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-29 22:13 Recovery branch pushed
+- 已將 recovery branch 推到 GitHub：`origin/rrkal-32e215c-recovery`，遠端 head 為 `3cf23c9 Record recovery branch smoke`。
+- 推送前本地完整 smoke 已在 `3cf23c9` 通過：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_221019.log`。
+- `gh run list --branch rrkal-32e215c-recovery` 沒列出 run；已檢查 `.github/workflows/ci.yml`，目前 CI 只在 `main` push / PR to `main` / manual `workflow_dispatch` 觸發，所以 recovery branch 沒有 Actions run 是預期狀態。
+- 若要取得 GitHub Actions 證據，可開 PR 到 `main` 或手動 dispatch workflow；不要把「沒有 branch run」記成 CI failure。
+
 ## 2026-05-29 22:06 Recovery branch post-consolidation smoke
 - 在 `40d9c0a` / `86b5974` 兩個 consolidation code checkpoint 與對應 docs checkpoint 後，已補跑完整 smoke：`.\scripts\pre_push_smoke_brief.cmd` 通過。
 - Smoke 結果：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_220607.log`。
