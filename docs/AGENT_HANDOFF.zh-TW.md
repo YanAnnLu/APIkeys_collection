@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 22:38 Adapter review fallback resolver pipeline cleanup
+- 本輪在 `api_launcher/adapter_plan_resolver.py` 做小型準宣告式收斂：`direct_resource_entries_for_plan_entry()` 內的 bounded resolver、NCEI fallback resolver 與 metadata lookup resolver 改成顯式 resolver pipeline 迴圈。
+- 行為順序維持不變：STAC/CMR bounded resolver 先跑，generic resources 之後，Socrata bounded sample、NCEI data-file lookup、NCEI bounded search/access-data fallback，再進 CMR granule asset / CKAN / DataCite / Dataverse metadata lookup，ERDDAP sample 仍可並存。
+- 這不是全面拆 `adapter_plan_resolver.py`，只是先把可重複的 resolver 分流收斂成 table-like pipeline，降低後續新增 fallback resolver 時繼續堆 `if` 的風險。
+- 已驗證：`py -3 -B -m py_compile api_launcher\adapter_plan_resolver.py tests\test_adapter_plan_resolver.py tests\test_dataset_download_plan.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver tests.test_dataset_download_plan -v` 72 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK。
+- 已提交本地 checkpoint `930123a Pipeline adapter review fallback resolvers`；目前 recovery branch 尚未推送此 commit。
+- Docs drift check：本輪只改 resolver 內部分派寫法，不改 adapter review output shape、download/import 行為、UI/CLI 操作或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 22:31 Docs registry PoC
 - 本輪收掉 GTD 上的中期文檔治理 PoC 第一版：新增 `docs/DOCS_REGISTRY.csv`，用 diff-friendly CSV 盤點文件路徑、角色、權威層級、last_verified、驗證證據與備註。
 - `docs/DOCS_INDEX.zh-TW.md` 已把 `DOCS_REGISTRY.csv` 登記為輔助索引，明確說明它不取代 Markdown source of truth；handoff/GTD/log 仍是人類可讀協作主線。
