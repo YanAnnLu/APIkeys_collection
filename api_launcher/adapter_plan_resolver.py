@@ -281,12 +281,10 @@ def direct_resource_entries_for_plan_entry(
         return []
     resolved_entries: list[dict[str, object]] = []
     # 先跑需要明確邊界的 API resolver，再看泛用 resources，避免未加 limit 的 API 被誤當檔案。
-    stac_entry = stac_bounded_item_search_entry(entry, plan_index, downloads_root)
-    if stac_entry:
-        resolved_entries.append(stac_entry)
-    cmr_entry = cmr_bounded_granule_search_entry(entry, plan_index, downloads_root)
-    if cmr_entry:
-        resolved_entries.append(cmr_entry)
+    for bounded_resolver in (stac_bounded_item_search_entry, cmr_bounded_granule_search_entry):
+        resolved = bounded_resolver(entry, plan_index, downloads_root)
+        if resolved:
+            resolved_entries.append(resolved)
     resources = resource_mappings_from_entry(entry)
     for resource_index, resource in enumerate(resources, start=1):
         url = resource_url(resource)
@@ -315,28 +313,26 @@ def direct_resource_entries_for_plan_entry(
         if socrata_entry:
             resolved_entries.append(socrata_entry)
     if not resolved_entries and not resources:
-        # 沒有 resource 摘要時才做 metadata lookup，避免重複查詢已經足夠明確的 plan。
+        # 沒有 resource 摘要時先做 NCEI data file lookup，避免重複查詢已經足夠明確的 plan。
         resolved_entries.extend(ncei_search_data_file_entries(entry, plan_index, downloads_root))
-    if not resolved_entries:
-        # NCEI Search metadata 可以產出 bounded sample；仍失敗才保留原 review entry。
-        ncei_entry = ncei_bounded_search_entry(entry, plan_index, downloads_root)
-        if ncei_entry:
-            resolved_entries.append(ncei_entry)
-    if not resolved_entries:
-        # NCEI Access Data 必須有日期/空間等約束，不能把整個資料集直接排進下載。
-        ncei_access_entry = ncei_bounded_access_data_entry(entry, plan_index, downloads_root)
-        if ncei_access_entry:
-            resolved_entries.append(ncei_access_entry)
-    if not resolved_entries and not resources:
-        # CMR granule lookup 只處理已經指到單一 granule metadata 的項目。
-        resolved_entries.extend(cmr_granule_asset_link_entries(entry, plan_index, downloads_root))
-    if not resolved_entries and not resources:
-        # CKAN/DataCite/Dataverse lookup 都是二階段 metadata 查詢；有 resources 時先尊重原摘要。
-        resolved_entries.extend(ckan_package_show_resource_entries(entry, plan_index, downloads_root))
-    if not resolved_entries and not resources:
-        resolved_entries.extend(datacite_doi_content_url_entries(entry, plan_index, downloads_root))
-    if not resolved_entries and not resources:
-        resolved_entries.extend(dataverse_latest_version_file_entries(entry, plan_index, downloads_root))
+    for fallback_resolver in (ncei_bounded_search_entry, ncei_bounded_access_data_entry):
+        if resolved_entries:
+            break
+        # NCEI fallback resolvers only emit bounded samples; unbounded metadata remains in review.
+        resolved = fallback_resolver(entry, plan_index, downloads_root)
+        if resolved:
+            resolved_entries.append(resolved)
+    if not resources:
+        # Metadata lookup resolvers run only when the crawler did not already provide resource summaries.
+        for lookup_resolver in (
+            cmr_granule_asset_link_entries,
+            ckan_package_show_resource_entries,
+            datacite_doi_content_url_entries,
+            dataverse_latest_version_file_entries,
+        ):
+            if resolved_entries:
+                break
+            resolved_entries.extend(lookup_resolver(entry, plan_index, downloads_root))
     erddap_entry = erddap_bounded_sample_entry(entry, plan_index, downloads_root)
     if erddap_entry:
         # ERDDAP sample 是 bounded query，不依賴 resources 清單；能產生樣本時可與其他解析結果並存。
