@@ -42,22 +42,24 @@ from api_launcher.repository import ApiCatalogRepository
 from api_launcher.schema_probe import SchemaProbeColumn, SchemaProbeResult
 from frontends.web.server import build_web_preview_server, web_preview_runtime_status
 from frontends.web.preview_api import (
-    crawler_asset_cards,
     crawler_asset_bound_form_schema_probe,
-    crawler_asset_credential_detail,
-    crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
     crawler_asset_plan_preview,
-    crawler_asset_seed_page,
     crawler_seed_download_import,
     crawler_handler_smoke_diagnostics,
     developer_real_download_demo,
-    save_crawler_asset_seed_favorite,
     save_crawler_asset_credentials,
     web_real_download_demo,
     web_project_maturity,
     web_preview_status,
+)
+from frontends.web.preview_assets import (
+    crawler_asset_cards,
+    crawler_asset_credential_detail,
+    crawler_asset_detail,
+    crawler_asset_seed_page,
+    save_crawler_asset_seed_favorite,
 )
 from frontends.web.preview_context import web_crawler_asset_action_context
 from frontends.web.preview_events import compact_listing_outcome, web_preview_recent_events
