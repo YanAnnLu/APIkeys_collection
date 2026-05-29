@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-30 01:19 Provider candidate review dialog ownership local checkpoint
+## 2026-05-30 01:23 Provider candidate review dialog ownership smoke pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `ProviderCandidateReviewDialog`，新增 `frontends/tk/provider_candidate_review_dialog.py` 作為 provider/source 候選審核 dialog owner。
 - `dialogs.py` 現在降成 33 行相容 re-export facade，只保留各 dialog class 的穩定匯入面；後續不要再把新 dialog 實作塞回 `dialogs.py`。
 - 新 owner 仍只負責 review-only 表格、detail pane、開 URL、寫入 ignored local provider seed / dataset source draft 與 event log；正式 catalog promotion 仍必須走 local discovery draft audit / crawler audit，不在 dialog 內直接納管 provider/source。
-- 已驗證：in-memory compile `frontends\tk\dialogs.py` / `frontends\tk\provider_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
-- 尚未跑完整 smoke / GitHub Actions；下一步是跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
+- 已驗證：in-memory compile `frontends\tk\dialogs.py` / `frontends\tk\provider_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_012128.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
+- 尚未跑 GitHub Actions；下一步是推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
 - Docs drift check：本輪只改 Provider candidate review dialog ownership 與 `dialogs.py` facade，不改使用者操作流程、local draft audit、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-30 01:15 Dataset candidate review dialog ownership CI pass
