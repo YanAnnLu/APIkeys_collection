@@ -3,7 +3,8 @@
 - 本輪從 `frontends/tk/dialogs.py` 移出 `DeveloperCliDialog`，新增 `frontends/tk/developer_cli_dialog.py` 作為開發者 CLI 視窗 owner。
 - `dialogs.py` 仍 re-export `DeveloperCliDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 `provider_settings_workflows.py` 不需改；新 owner 集中 subprocess、`shlex`、`PROJECT_ROOT` 與 single-flight job helper。
 - `dialogs.py` 從 1625 行降到 1504 行；這是小型 dialog ownership cleanup，不改 CLI 命令解析、timeout、background job 或 UI 操作流程。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\developer_cli_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\developer_cli_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260529_233050.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
+- 已提交本地 checkpoint `92d597a Move developer CLI dialog`；尚未推送本切片。
 - Docs drift check：本輪只改 Developer CLI dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 23:21 Recent event log dialog ownership CI pass
