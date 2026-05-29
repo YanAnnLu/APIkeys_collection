@@ -12,17 +12,9 @@ or service contract first, then expose it here.
 
 from __future__ import annotations
 
-import contextlib
-from dataclasses import dataclass
 from pathlib import Path
-from sqlite3 import Connection
-from typing import Iterator, Mapping
+from typing import Mapping
 
-from api_launcher.crawler_asset_bound_forms import (
-    CrawlerAssetBoundFormSpec,
-    CrawlerAssetBoundPayload,
-    crawler_asset_bound_payload_from_form_values,
-)
 from api_launcher.crawler_asset_display import (
     adapter_review_display_payload,
     crawler_asset_bound_form_payload,
@@ -44,7 +36,6 @@ from api_launcher.crawler_asset_profiles import (
     update_crawler_asset_plan_passport,
 )
 from api_launcher.crawler_asset_schema_probe import (
-    crawler_asset_bound_form_spec,
     crawler_asset_bound_form_schema_probe,
 )
 from api_launcher.crawler_asset_service import (
@@ -58,19 +49,22 @@ from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
 from api_launcher.developer_diagnostics import crawler_handler_smoke_diagnostics_payload
 from api_launcher.crawler_run_records import crawler_run_context_summary
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
-from api_launcher.db import connect_db
 from api_launcher.event_log import latest_events, log_event
 from api_launcher.local_credentials import (
     crawler_asset_credential_status,
     credential_status_blocks_download,
     update_crawler_asset_credentials,
 )
-from api_launcher.paths import default_local_downloads_root, state_file
+from api_launcher.paths import default_local_downloads_root
 from api_launcher.project_maturity import build_project_maturity_payload
-from api_launcher.repository import ApiCatalogRepository
 from api_launcher.web_real_download_demo import run_web_real_download_demo
+from frontends.web.preview_context import (
+    crawler_asset_bound_form,
+    crawler_asset_for_preview,
+    web_crawler_asset_action_context,
+    web_preview_repository_context,
+)
 from frontends.web.preview_payloads import (
-    WEB_PREVIEW_DB_NAME,
     apply_web_next_action,
     crawler_asset_listing_options,
     web_crawler_asset_listing_payload,
@@ -82,52 +76,6 @@ from frontends.web.preview_payloads import (
 
 
 WEB_PREVIEW_EVENT_LIMIT = 80
-
-
-@dataclass(frozen=True)
-class WebPreviewRepositorySession:
-    db_path: Path
-    conn: Connection
-    repository: ApiCatalogRepository
-
-
-@dataclass(frozen=True)
-class WebCrawlerAssetActionContext:
-    asset: CrawlerAsset
-    credential_guard: Mapping[str, object]
-    bounds_payload: CrawlerAssetBoundPayload
-
-
-def web_crawler_asset_action_context(
-    asset_id: str,
-    values: Mapping[str, object],
-    *,
-    primary_path: str | Path | None = None,
-    local_path: str | Path | None = None,
-    profile_path: str | Path | None = None,
-    env_path: str | Path | None = None,
-) -> WebCrawlerAssetActionContext:
-    """Resolve the repeated Web endpoint inputs without making policy choices.
-
-    Plan preview, asset download/import, and seed download/import all need the
-    same asset, credential guard, and bounds payload before they can decide
-    their route-specific behavior.  Keeping this setup in one helper prevents
-    those endpoints from drifting while leaving blocking, planning, and import
-    decisions explicit in the endpoint functions.
-    """
-
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
-    return WebCrawlerAssetActionContext(
-        asset=asset,
-        credential_guard=crawler_asset_credential_status(asset, env_path=env_path),
-        bounds_payload=crawler_asset_payload_from_web_values(
-            asset_id,
-            values,
-            primary_path=primary_path,
-            local_path=local_path,
-            profile_path=profile_path,
-        ),
-    )
 
 
 def web_preview_status() -> dict[str, object]:
@@ -287,7 +235,12 @@ def crawler_asset_detail(
 ) -> dict[str, object]:
     """Return detail payload for one asset, including form and flow contracts."""
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     form_spec = crawler_asset_bound_form(
         asset_id,
         primary_path=primary_path,
@@ -321,7 +274,12 @@ def crawler_asset_seed_page(
 ) -> dict[str, object]:
     """Return a paged view of seeds already enumerated into the local catalog."""
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     favorite_seed_uids = set(crawler_asset_favorite_seed_uids(asset.asset_id, profile_path))
     with web_preview_repository_context(db_path) as session:
         return crawler_seed_page(
@@ -352,7 +310,12 @@ def save_crawler_asset_seed_favorite(
 ) -> dict[str, object]:
     """Persist a seed-level favorite for Web/Tk/Qt shared profile state."""
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     dataset_uid = str(payload.get("dataset_uid") or "").strip()
     favorite = bool(payload.get("favorite", True))
     result = save_crawler_seed_favorite(
@@ -378,7 +341,12 @@ def crawler_asset_credential_detail(
     profile_path: str | Path | None = None,
     env_path: str | Path | None = None,
 ) -> dict[str, object]:
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     return crawler_asset_credential_status(asset, env_path=env_path)
 
 
@@ -400,7 +368,12 @@ def crawler_asset_listing(
     audit event, and keeps credential-gated assets out of doomed live requests.
     """
 
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     credential_guard = crawler_asset_credential_status(asset, env_path=env_path)
     listing_options = crawler_asset_listing_options(options)
     response: dict[str, object] = {
@@ -463,7 +436,12 @@ def save_crawler_asset_credentials(
     profile_path: str | Path | None = None,
     env_path: str | Path | None = None,
 ) -> dict[str, object]:
-    asset = _crawler_asset(asset_id, primary_path=primary_path, local_path=local_path, profile_path=profile_path)
+    asset = crawler_asset_for_preview(
+        asset_id,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+    )
     status = update_crawler_asset_credentials(asset, payload, env_path=env_path)
     log_event(
         "crawler_asset_local_credentials_updated",
@@ -574,38 +552,6 @@ def web_preview_event_payload(event: Mapping[str, object]) -> dict[str, object]:
         "message": str(event.get("message") or ""),
         "context_summary": context_summary,
     }
-
-
-def crawler_asset_bound_form(
-    asset_id: str,
-    *,
-    primary_path: str | Path | None = None,
-    local_path: str | Path | None = None,
-    profile_path: str | Path | None = None,
-) -> CrawlerAssetBoundFormSpec:
-    return crawler_asset_bound_form_spec(
-        asset_id,
-        primary_path=primary_path,
-        local_path=local_path,
-        profile_path=profile_path,
-    )
-
-
-def crawler_asset_payload_from_web_values(
-    asset_id: str,
-    values: Mapping[str, object],
-    *,
-    primary_path: str | Path | None = None,
-    local_path: str | Path | None = None,
-    profile_path: str | Path | None = None,
-) -> CrawlerAssetBoundPayload:
-    form_spec = crawler_asset_bound_form(
-        asset_id,
-        primary_path=primary_path,
-        local_path=local_path,
-        profile_path=profile_path,
-    )
-    return crawler_asset_bound_payload_from_form_values(form_spec, values)
 
 
 def crawler_asset_plan_preview(
@@ -848,42 +794,5 @@ def crawler_seed_download_import(
         context=web_download_import_event_context(result, plan_outcome, plan_passport, dataset_uid=dataset_uid),
     )
     return response
-
-
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)
-
-
-@contextlib.contextmanager
-def web_preview_repository_context(
-    db_path: str | Path | None = None,
-    *,
-    seed_builtin_providers: bool = False,
-) -> Iterator[WebPreviewRepositorySession]:
-    """Open a Web Preview repository session without hiding commit policy.
-
-    The endpoint still decides when to commit.  This helper only centralizes the
-    repeated connection/schema/provider bootstrap so route functions stay thin.
-    """
-
-    target_db = Path(db_path) if db_path is not None else state_file(WEB_PREVIEW_DB_NAME)
-    with contextlib.closing(connect_db(target_db)) as conn:
-        repository = ApiCatalogRepository(conn)
-        repository.init_schema()
-        if seed_builtin_providers:
-            repository.seed_builtin_providers()
-        yield WebPreviewRepositorySession(db_path=target_db, conn=conn, repository=repository)
-
-
-def _crawler_asset(
-    asset_id: str,
-    *,
-    primary_path: str | Path | None = None,
-    local_path: str | Path | None = None,
-    profile_path: str | Path | None = None,
-) -> CrawlerAsset:
-    key = asset_id.strip()
-    for asset in load_crawler_assets(primary_path, local_path, profile_path):
-        if asset.asset_id == key:
-            return asset
-    raise KeyError(f"crawler asset not found: {asset_id}")

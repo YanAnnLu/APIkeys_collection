@@ -19,7 +19,6 @@ from frontends.web.preview_api import (
     crawler_asset_download_import,
     crawler_asset_bound_form_schema_probe,
     crawler_asset_listing,
-    crawler_asset_payload_from_web_values,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
     crawler_seed_download_import,
@@ -31,6 +30,7 @@ from frontends.web.preview_api import (
     web_preview_recent_events,
     web_preview_status,
 )
+from frontends.web.preview_context import crawler_asset_payload_from_web_values
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
