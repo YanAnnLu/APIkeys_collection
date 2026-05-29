@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-30 00:54 Adapter review dialog ownership local checkpoint
+## 2026-05-30 00:56 Adapter review dialog ownership smoke pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `AdapterReviewDialog`，新增 `frontends/tk/adapter_review_dialog.py` 作為 Adapter 待辦視窗 owner。
 - `dialogs.py` 仍 re-export `AdapterReviewDialog`，所以 `frontends.tk.dialogs` 舊匯入點、crawler asset adapter review 入口與 tests 不需改；新 owner 只負責 review-only 表格、detail pane、開啟 source / landing URL 與委派主 UI 既有 resolver 入口，真正 adapter plan resolution、download/import、content parser review 仍留在後端與既有 workflow。
 - `dialogs.py` 從約 589 行降到 467 行；這是小型 adapter-review dialog ownership cleanup，不改 adapter review item shape、resolved plan、download/import、crawler、credential 或 UI 操作流程。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\adapter_review_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
-- 尚未跑完整 smoke / GitHub Actions；下一步是跑 `.\scripts\pre_push_smoke_brief.cmd`，通過後推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\adapter_review_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_005628.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
+- 尚未跑 GitHub Actions；下一步是推送 `origin/rrkal-32e215c-recovery` 並手動 dispatch CI。
 - Docs drift check：本輪只改 Adapter review dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-30 00:47 Data-store connection dialog ownership CI pass
