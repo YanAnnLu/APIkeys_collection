@@ -57,19 +57,17 @@ from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
 from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
+    crawler_asset_credential_guard_message,
     crawler_asset_credential_summary_text,
+    crawler_asset_download_plan_summary_text,
+    crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_plan_outcome_label,
+    crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
-)
-from frontends.tk.ui_helpers import (
-    crawler_asset_credential_guard_message,
-    crawler_asset_download_plan_summary_text,
-    crawler_asset_listing_blocked_status_text,
-    crawler_asset_plan_outcome_label,
-    crawler_asset_plan_passport_summary_text,
 )
 from frontends.tk.developer_diagnostics_workflows import (
     DeveloperDiagnosticsWorkflowMixin,
@@ -1765,8 +1763,8 @@ class TkDialogModuleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_root = Path(tmp)
             with (
-                patch("frontends.tk.ui_helpers.default_local_downloads_root", return_value=tmp_root / "downloads"),
-                patch("frontends.tk.ui_helpers.state_file", return_value=tmp_root / "plans" / "seed.resolved.json"),
+                patch("frontends.tk.crawler_asset_ui_helpers.default_local_downloads_root", return_value=tmp_root / "downloads"),
+                patch("frontends.tk.crawler_asset_ui_helpers.state_file", return_value=tmp_root / "plans" / "seed.resolved.json"),
                 patch("frontends.tk.crawler_asset_workflows.ApiCatalogRepository", return_value="repository") as repository_class,
                 patch("frontends.tk.crawler_asset_workflows.run_crawler_seed_download_import", return_value=fake_result) as run_service,
                 patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,

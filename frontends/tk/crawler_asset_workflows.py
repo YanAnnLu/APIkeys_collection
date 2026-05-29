@@ -69,25 +69,23 @@ from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog
 from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
+    crawler_asset_credential_guard_message,
     crawler_asset_credential_summary_text,
+    crawler_asset_download_plan_summary_text,
+    crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
+    crawler_asset_plan_outcome_label,
+    crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
     crawler_asset_state_label,
-)
-from frontends.tk.dialogs import AdapterReviewDialog
-from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
-from frontends.tk.ui_helpers import (
-    crawler_asset_credential_guard_message,
-    crawler_asset_download_plan_summary_text,
-    crawler_asset_listing_blocked_status_text,
-    crawler_asset_plan_outcome_label,
-    crawler_asset_plan_passport_summary_text,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
 )
+from frontends.tk.dialogs import AdapterReviewDialog
+from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 
 MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
 
