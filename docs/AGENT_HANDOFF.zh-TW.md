@@ -4,7 +4,7 @@
 - 行為順序維持不變：STAC/CMR bounded resolver 先跑，generic resources 之後，Socrata bounded sample、NCEI data-file lookup、NCEI bounded search/access-data fallback，再進 CMR granule asset / CKAN / DataCite / Dataverse metadata lookup，ERDDAP sample 仍可並存。
 - 這不是全面拆 `adapter_plan_resolver.py`，只是先把可重複的 resolver 分流收斂成 table-like pipeline，降低後續新增 fallback resolver 時繼續堆 `if` 的風險。
 - 已驗證：`py -3 -B -m py_compile api_launcher\adapter_plan_resolver.py tests\test_adapter_plan_resolver.py tests\test_dataset_download_plan.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver tests.test_dataset_download_plan -v` 72 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260529_224026.log` 通過，912 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
-- 已推送到 `origin/rrkal-32e215c-recovery`，遠端 head 為 `8db60fa Record resolver pipeline checkpoint`；GitHub Actions manual run `26643848797` 通過 Ubuntu、Windows 與 real DB smoke。
+- 已推送到 `origin/rrkal-32e215c-recovery`；resolver pipeline checkpoint 已包含在 `8db60fa Record resolver pipeline checkpoint`，GitHub Actions manual run `26643848797` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 resolver 內部分派寫法，不改 adapter review output shape、download/import 行為、UI/CLI 操作或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 22:31 Docs registry PoC
