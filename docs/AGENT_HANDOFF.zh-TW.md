@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-30 02:05 Crawler asset bounds payload cache helper
+- 本輪延續 Tk consolidation slice：新增 `crawler_asset_bound_payload_from_cache()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中把 bounds dialog cache 內的 dict 還原成 `CrawlerAssetBoundPayload`。
+- `frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_bound_payload_for_asset()` 現在只委派 helper，不再在 workflow event handler 內重複解析 `facet_values` / `field_values` / `maps_to_values` / `warning_codes`。
+- 已提交實作：`251682c Move crawler bounds payload cache parsing`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，120 tests OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk cache parsing 邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 01:51 Recovery branch upstream tracking repaired
 - 本輪修正 L 槽 clone 的本機 Git fetchspec：`remote.origin.fetch` 原本只包含 `main`，導致 recovery branch 雖已 `push -u`，但 `@{u}` 仍報 `upstream branch ... not stored as a remote-tracking branch`，pre-push smoke 因而顯示 `no upstream branch found`。
 - 已在本機 `.git/config` 加入 `+refs/heads/rrkal-32e215c-recovery:refs/remotes/origin/rrkal-32e215c-recovery`，並重新 fetch；現在 `git rev-parse --abbrev-ref --symbolic-full-name '@{u}'` 回傳 `origin/rrkal-32e215c-recovery`，`git status -sb --ahead-behind` 會顯示 `rrkal-32e215c-recovery...origin/rrkal-32e215c-recovery`。
