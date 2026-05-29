@@ -770,6 +770,24 @@ def crawler_asset_listing_outcome_event_payload(result: object) -> CrawlerAssetL
     )
 
 
+def crawler_seed_schema_probe_event_context(
+    asset_id: str,
+    dataset_uid: str,
+    probe: object,
+    spec: object,
+) -> dict[str, object]:
+    """Return the compact Tk event payload for one seed schema probe."""
+
+    probe_payload = probe.to_dict() if hasattr(probe, "to_dict") else {}
+    return {
+        "asset_id": asset_id,
+        "dataset_uid": dataset_uid,
+        "probe": probe_payload if isinstance(probe_payload, dict) else {},
+        "schema_probe_required_count": int(getattr(spec, "schema_probe_required_count", 0) or 0),
+        "warning_codes": list(getattr(spec, "warning_codes", ()) or ()),
+    }
+
+
 def crawler_asset_seed_enumeration_note_text(
     listing_outcome: object,
     tr: Callable[[str, str], str],

@@ -10,6 +10,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
+    crawler_seed_schema_probe_event_context,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
     write_crawler_asset_download_plan_artifacts,
@@ -287,6 +288,18 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertEqual("has_more", payload.preview["remote_pagination"]["status"])
         self.assertNotIn("secret-token", repr(payload.context))
         self.assertNotIn("secret-token", repr(payload.preview))
+
+    def test_crawler_seed_schema_probe_event_context_is_bounded(self) -> None:
+        probe = SimpleNamespace(to_dict=lambda: {"status": "ok", "columns": [{"name": "time"}]})
+        spec = SimpleNamespace(schema_probe_required_count=1, warning_codes=("schema_probe_applied",))
+
+        context = crawler_seed_schema_probe_event_context("demo_asset", "demo_seed", probe, spec)
+
+        self.assertEqual("demo_asset", context["asset_id"])
+        self.assertEqual("demo_seed", context["dataset_uid"])
+        self.assertEqual("ok", context["probe"]["status"])
+        self.assertEqual(1, context["schema_probe_required_count"])
+        self.assertEqual(["schema_probe_applied"], context["warning_codes"])
 
     def test_write_crawler_asset_download_plan_artifacts_persists_utf8_json(self) -> None:
         import json

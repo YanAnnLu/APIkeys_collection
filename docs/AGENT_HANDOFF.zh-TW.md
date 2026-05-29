@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 03:44 Crawler seed schema probe event helper
+- 本輪延續 Tk consolidation slice：新增 `crawler_seed_schema_probe_event_context()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 seed schema probe 的 compact event context。
+- `frontends/tk/crawler_asset_workflows.py` 的 `_crawler_asset_seed_schema_probe_worker()` 不再自行組 `probe.to_dict()` / `schema_probe_required_count` / `warning_codes` event payload；worker 只負責呼叫後端 probe service、寫 event、handoff 到 Tk dialog。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，127 tests OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk schema probe event payload 組裝邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 03:37 Crawler asset listing outcome event helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_listing_outcome_event_payload()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中建立 listing outcome 的 compact event context 與 sidebar preview payload。
 - `frontends/tk/crawler_asset_workflows.py` 的 `record_crawler_asset_listing_outcome()` 不再直接呼叫 backend listing event helper 或自行組 preview payload；workflow 只負責寫 event log 與更新 UI cache。
