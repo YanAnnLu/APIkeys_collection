@@ -3,7 +3,7 @@
 - 本輪轉到後端 bounded consolidation：新增 `direct_resource_entry_from_resource()`，把 `api_launcher/adapter_plan_resolver.py` 中單一 resource summary 是否能 promotion 成 bounded direct file 的判斷抽成獨立 resolver lane helper。
 - `direct_resource_entries_for_plan_entry()` 保留原 pipeline 順序：bounded API resolver -> resource summaries -> Socrata/NCEI fallback -> metadata lookup -> ERDDAP sample；本輪只移動 direct-resource lane，不改 resolver policy、大小上限、metadata/API link guard 或輸出形狀。
 - 已提交實作：`6460eaa Extract direct resource resolver lane`。
-- 已驗證：in-memory compile `api_launcher\adapter_plan_resolver.py` / `tests\test_adapter_plan_resolver.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver -v` 通過，54 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_054828.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `api_launcher\adapter_plan_resolver.py` / `tests\test_adapter_plan_resolver.py` OK；`py -3 -B -m unittest tests.test_adapter_plan_resolver -v` 通過，54 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_054828.log` 通過，935 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26664108955` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 adapter resolver 內部 helper 邊界，不改 crawler、download/import service、CLI/Tk/Web 操作或 user guide。
 
 ## 2026-05-30 05:40 Web plan-preview result typed bundle
