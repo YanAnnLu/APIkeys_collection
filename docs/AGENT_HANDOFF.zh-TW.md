@@ -3,7 +3,7 @@
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_bound_payload_from_cache()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中把 bounds dialog cache 內的 dict 還原成 `CrawlerAssetBoundPayload`。
 - `frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_bound_payload_for_asset()` 現在只委派 helper，不再在 workflow event handler 內重複解析 `facet_values` / `field_values` / `maps_to_values` / `warning_codes`。
 - 已提交實作：`251682c Move crawler bounds payload cache parsing`。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，120 tests OK；`git diff --check` OK。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，120 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_015821.log` 通過，918 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk cache parsing 邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 01:51 Recovery branch upstream tracking repaired
