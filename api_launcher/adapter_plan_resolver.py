@@ -155,6 +155,7 @@ NCEI_ACCESS_DATA_MAX_DAYS = 7
 DATACITE_MAX_CONTENT_URLS = 5
 DATAVERSE_MAX_FILES = 5
 DIRECT_RESOURCE_MAX_BYTES = 100 * 1024 * 1024
+MAX_RESOURCE_MAPPING_DEPTH = 12
 DIRECT_RESOURCE_FORMATS = {
     "csv",
     "csv.gz",
@@ -413,12 +414,21 @@ def resource_mappings_from_entry(entry: dict[str, object]) -> list[dict[str, obj
     return resources
 
 
-def resource_mappings_from_candidate(candidate: object, group: str = "") -> list[dict[str, object]]:
+def resource_mappings_from_candidate(
+    candidate: object,
+    group: str = "",
+    *,
+    depth: int = 0,
+    max_depth: int = MAX_RESOURCE_MAPPING_DEPTH,
+) -> list[dict[str, object]]:
+    # Catalog metadata can be nested JSON-LD; keep traversal shallow enough for low-power devices.
+    if depth > max_depth:
+        return []
     if isinstance(candidate, list):
         # catalog metadata 常把 resources 包成多層陣列，遞迴攤平後才方便共用判斷。
         resources: list[dict[str, object]] = []
         for item in candidate:
-            resources.extend(resource_mappings_from_candidate(item, group=group))
+            resources.extend(resource_mappings_from_candidate(item, group=group, depth=depth + 1, max_depth=max_depth))
         return resources
     if not isinstance(candidate, dict):
         return []
@@ -434,7 +444,7 @@ def resource_mappings_from_candidate(candidate: object, group: str = "") -> list
     for key, value in candidate.items():
         if isinstance(value, (list, dict)):
             # 沒有 URL 的 dict 仍可能是 JSON-LD/Schema.org 外殼，往內層找真正 distribution。
-            resources.extend(resource_mappings_from_candidate(value, group=str(key)))
+            resources.extend(resource_mappings_from_candidate(value, group=str(key), depth=depth + 1, max_depth=max_depth))
     return resources
 
 

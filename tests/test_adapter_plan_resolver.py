@@ -12,11 +12,27 @@ from unittest.mock import patch
 from api_launcher.adapter_plan_resolver import (
     direct_resource_entries_for_plan_entry,
     resolve_adapter_review_plan_payload,
+    resource_mappings_from_candidate,
 )
 from api_launcher.core import main
 
 
 class AdapterPlanResolverTests(unittest.TestCase):
+    def test_resource_mapping_recursion_depth_is_bounded(self) -> None:
+        nested: dict[str, object] = {}
+        cursor = nested
+        for index in range(20):
+            next_node: dict[str, object] = {}
+            cursor[f"level_{index}"] = next_node
+            cursor = next_node
+        cursor["resources"] = [{"format": "CSV", "url": "https://example.test/deep.csv"}]
+
+        self.assertEqual([], resource_mappings_from_candidate(nested, max_depth=4))
+        resources = resource_mappings_from_candidate(nested, max_depth=30)
+
+        self.assertEqual(1, len(resources))
+        self.assertEqual("https://example.test/deep.csv", resources[0]["url"])
+
     def test_ckan_resource_metadata_promotes_direct_csv_entry(self) -> None:
         plan = {"providers": [ckan_review_entry()]}
 
