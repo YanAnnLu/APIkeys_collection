@@ -1,10 +1,10 @@
 # Agent 接力卡
-## 2026-05-29 23:55 Language/startup diagnostics dialog ownership cleanup
+## 2026-05-30 00:04 Language/startup diagnostics dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `UiLanguageSettingsDialog` 與 `StartupEnvironmentChecksDialog`，新增 `frontends/tk/language_settings_dialog.py` 與 `frontends/tk/startup_environment_checks_dialog.py` 作為各自 owner。
 - `dialogs.py` 仍 re-export 兩個 class，所以 `frontends.tk.dialogs` 舊匯入點與 provider settings workflow 不需改；語言 dialog 只寫本機 integration config 並通知主 UI 重建 menu，啟動檢查 dialog 只讀 `core.run_startup_checks(DB_PATH)`。
 - `dialogs.py` 從 1416 行降到 1317 行；這是小型 settings/diagnostics dialog ownership cleanup，不改語言設定值、startup check 內容、UI 操作流程或修復行為。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\language_settings_dialog.py frontends\tk\startup_environment_checks_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260529_235707.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`。
-- 已提交本地 checkpoint `4219e7c Move language and startup dialogs`；尚未推送本切片。
+- 已推送到 `origin/rrkal-32e215c-recovery`；GitHub Actions manual run `26647816256` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 settings/diagnostics dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 23:50 Import policy dialog ownership CI pass

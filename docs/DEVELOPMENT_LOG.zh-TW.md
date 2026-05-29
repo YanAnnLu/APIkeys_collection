@@ -15,6 +15,12 @@
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
 
+### 2026-05-30
+
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:04 | Tk / Consolidation | **CI PASS** | `d7ba3c1` | `26647816256` | Record language startup dialogs smoke | `frontends/tk/language_settings_dialog.py` 與 `frontends/tk/startup_environment_checks_dialog.py` 已從 `frontends/tk/dialogs.py` 拆出並完成遠端 CI 驗證。`dialogs.py` 仍 re-export `UiLanguageSettingsDialog` / `StartupEnvironmentChecksDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 provider settings workflow 不需改；語言 dialog 只寫本機 integration config 並通知主 UI 重建 menu，啟動檢查 dialog 只讀 `core.run_startup_checks(DB_PATH)`。本地完整 smoke `state\logs\pre_push_smoke_20260529_235707.log` 通過，914 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`；GitHub Actions run `26647816256` 通過 Ubuntu、Windows 與 real DB smoke。Docs drift check：只改 settings/diagnostics dialog ownership，不改使用者操作流程、crawler、download/import、credential、event schema 或 user guide；user guide 不需更新。 |
+
 ### 2026-05-29
 
 | 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
