@@ -1,4 +1,13 @@
 # Agent 接力卡
+## 2026-05-29 21:50 Recovery workspace and GitHub owner alignment
+- 本輪依使用者要求完成 RRKAL recovery lane：`L:\RRKAL_project` 現在是主工作區與提交來源，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考，`L:` 其他專案資料夾也視為唯讀。
+- repo 已從 `c91ed79` 的上一個提交 `32e215c` 建立乾淨救援基底，並完成完整 smoke：`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_210703.log`。
+- Git metadata 已遷回 `L:\RRKAL_project\.git`，不再依賴本機 worktree 指標；本機臨時 clone `C:\Users\lyn59\Documents\Codex\RRKAL_project_seed_32e215c` 已刪除。
+- GitHub owner 已改為 `Kagamihara-Ruruka`，`origin` 已更新為 `https://github.com/Kagamihara-Ruruka/APIkeys_collection.git`；active CI / heartbeat / manual import docs URL / workflow docs / repo skill 指令已改用 `Kagamihara-Ruruka/APIkeys_collection`，歷史 development log 保留舊 owner 以維持時間線。
+- 已提交本地 checkpoint `8c4b214 Align GitHub owner and workspace references`；目前 branch 是 `rrkal-32e215c-recovery`，尚未推送。若要推 GitHub，應推成 recovery branch，不要直接覆蓋 `origin/main`。
+- 已驗證：`py_compile api_launcher\heartbeat.py api_launcher\manual_import.py` OK；`tests.test_heartbeat tests.test_manual_import` 19 tests OK；`git ls-remote origin HEAD` 可讀；`git diff --check` OK；變更 `.md` / repo skill mojibake scan OK。
+- Docs drift check：本輪改變工作區與 GitHub owner 工作流，已同步 AGENT_START_HERE、AGENT_HANDOFF、PROJECT_GTD、GIT_HANDOFF、HEARTBEAT_AUTOMATION、SETUP、OpenSpec workflow doc、failure modes、repo skill 與 active code URL/slug。
+
 ## 2026-05-29 19:21 Next-action display helper ownership cleanup
 - 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_next_action_display.py`，把 `NEXT_ACTION_DISPLAY_LABELS` 與 `next_action_display_label()` 從 `api_launcher/crawler_asset_display.py` 移出。
 - `crawler_asset_display.py` 從約 715 行降到約 676 行；它仍 re-export next-action display helpers 作相容 surface，但 download service、schema probe、developer diagnostics、Web payload/assets 與 Tk UI helper 已改讀新 owner。

@@ -3,6 +3,8 @@
 Last updated: 2026-05-29
 
 ## 目前工作焦點 / Active Focus
+- [x] 2026-05-29 recovery lane 已切到 `L:\RRKAL_project`：以 `32e215c` 作乾淨基底，完整 smoke 通過（912 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`），Git metadata 已留在 `L:\RRKAL_project\.git`，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考。
+- [x] GitHub owner 已更新為 `Kagamihara-Ruruka`：`origin`、heartbeat repo slug、manual import docs URL、repo skill 與 active GitHub Actions / workflow 指令已改用 `Kagamihara-Ruruka/APIkeys_collection`；歷史 development log 保留舊 owner 作脈絡。
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
