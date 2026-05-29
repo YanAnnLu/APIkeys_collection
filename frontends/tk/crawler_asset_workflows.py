@@ -11,8 +11,6 @@ backend contract first.
 """
 
 from __future__ import annotations
-
-import json
 from tkinter import BOTH, END, LEFT, RIGHT, StringVar, X, Y
 from tkinter import messagebox, ttk
 from typing import Callable
@@ -44,14 +42,13 @@ from api_launcher.crawler_asset_service import (
 from api_launcher.crawler_seed_registry import crawler_seed_page, save_crawler_seed_favorite
 from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFIDENCE
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
-from api_launcher.downloads.staging import safe_path_part
 from api_launcher.event_log import latest_events, log_event, log_exception
 from api_launcher.local_credentials import (
     crawler_asset_credential_status,
     credential_status_blocks_download,
     update_crawler_asset_credentials,
 )
-from api_launcher.paths import DOWNLOADS_DIR, local_config_file, state_file
+from api_launcher.paths import DOWNLOADS_DIR, local_config_file
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.source_pattern_drafts import SourcePatternDraftError, write_source_draft_from_url
 from frontends.tk.background_jobs import (
@@ -81,6 +78,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_state_label,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
+    write_crawler_asset_download_plan_artifacts,
 )
 from frontends.tk.crawler_asset_event_state import (
     crawler_asset_listing_outcomes_from_events,
@@ -1117,13 +1115,12 @@ class CrawlerAssetWorkflowMixin:
                 conn.close()
             written_paths: dict[str, str] = {}
             if result.plan_build is not None:
-                slug = safe_path_part(asset_id)
-                original_path = state_file(f"crawler_asset_plans/{slug}.original.json")
-                resolved_path = state_file(f"crawler_asset_plans/{slug}.resolved.json")
-                original_path.parent.mkdir(parents=True, exist_ok=True)
-                original_path.write_text(json.dumps(result.original_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                resolved_path.write_text(json.dumps(result.resolved_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                written_paths = {"original": str(original_path), "resolved": str(resolved_path)}
+                written_paths = write_crawler_asset_download_plan_artifacts(
+                    asset_id,
+                    result.original_plan,
+                    result.resolved_plan,
+                )
+            if written_paths:
                 log_event(
                     "crawler_asset_download_plan_built",
                     "Tk crawler asset workflow built a bounded download plan.",
@@ -1132,7 +1129,7 @@ class CrawlerAssetWorkflowMixin:
                         "asset_id": asset_id,
                         "direct_download_count": result.direct_download_count,
                         "review_required_count": result.review_required_count,
-                        "resolved_plan": str(resolved_path),
+                        "resolved_plan": written_paths.get("resolved", ""),
                     },
                 )
         except Exception as exc:

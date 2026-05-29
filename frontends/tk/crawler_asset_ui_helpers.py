@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -98,6 +99,24 @@ def crawler_asset_bound_payload_from_cache(
         maps_to_values=dict(maps_to_values),
         warning_codes=tuple(str(code) for code in warning_codes),
     )
+
+
+def write_crawler_asset_download_plan_artifacts(
+    asset_id: str,
+    original_plan: object,
+    resolved_plan: object,
+) -> dict[str, str]:
+    """Persist the original/resolved plan pair for the Tk download-plan handoff."""
+
+    if original_plan is None or resolved_plan is None:
+        return {}
+    slug = safe_path_part(asset_id)
+    original_path = state_file(f"crawler_asset_plans/{slug}.original.json")
+    resolved_path = state_file(f"crawler_asset_plans/{slug}.resolved.json")
+    original_path.parent.mkdir(parents=True, exist_ok=True)
+    original_path.write_text(json.dumps(original_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    resolved_path.write_text(json.dumps(resolved_plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"original": str(original_path), "resolved": str(resolved_path)}
 
 
 def crawler_asset_download_plan_summary_text(

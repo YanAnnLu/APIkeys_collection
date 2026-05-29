@@ -10,6 +10,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_bounds_schema,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
+    write_crawler_asset_download_plan_artifacts,
 )
 from frontends.tk.crawler_asset_event_state import (
     crawler_asset_listing_outcomes_from_events,
@@ -204,6 +205,31 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertNotIn("demo_asset", owner.crawler_asset_resolved_plans)
         self.assertNotIn("demo_asset", owner.crawler_asset_content_review_outcomes)
         self.assertFalse(owner.crawler_asset_plan_passports["demo_asset"]["has_resolved_plan"])
+
+    def test_write_crawler_asset_download_plan_artifacts_persists_utf8_json(self) -> None:
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+
+            def fake_state_file(relative_path: str) -> Path:
+                return base / relative_path
+
+            with patch("frontends.tk.crawler_asset_ui_helpers.state_file", side_effect=fake_state_file):
+                paths = write_crawler_asset_download_plan_artifacts(
+                    "demo asset",
+                    {"title": "原始計畫"},
+                    {"title": "解析後計畫"},
+                )
+
+            self.assertIn("original", paths)
+            self.assertIn("resolved", paths)
+            self.assertEqual({"title": "原始計畫"}, json.loads(Path(paths["original"]).read_text(encoding="utf-8")))
+            self.assertEqual({"title": "解析後計畫"}, json.loads(Path(paths["resolved"]).read_text(encoding="utf-8")))
+
+    def test_write_crawler_asset_download_plan_artifacts_skips_missing_plan_pair(self) -> None:
+        self.assertEqual({}, write_crawler_asset_download_plan_artifacts("demo_asset", None, {"resolved": True}))
 
     def test_crawler_asset_plan_state_from_events_restores_display_caches(self) -> None:
         resolved_plan = {
