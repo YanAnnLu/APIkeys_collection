@@ -3,7 +3,7 @@
 - 本輪轉到 Web Preview consolidation slice：新增 `web_crawler_asset_credentials_event_context()`，由 `frontends/web/preview_payloads.py` 集中建立 Web credential update 的 safe event context。
 - `frontends/web/preview_api.py` 的 `save_crawler_asset_credentials()` 不再自行組 event context；event 只記錄 asset/provider、status、configured/field counts、env var 名稱與 next_action，不寫入 token/password 或 value preview。
 - 已提交實作：`9660752 Move Web credential event payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，54 tests OK；`frontends\web` mojibake scan OK；`git diff --check` OK。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，54 tests OK；`frontends\web` / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_042738.log` 通過，930 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web credential event payload 組裝邊界，不改 credential storage policy、Web 操作流程、crawler、download/import 或 user guide。
 
 ## 2026-05-30 04:14 Crawler plan built event helper
