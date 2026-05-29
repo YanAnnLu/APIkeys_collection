@@ -48,7 +48,6 @@ from frontends.web.preview_api import (
     crawler_asset_detail,
     crawler_asset_download_import,
     crawler_asset_listing,
-    compact_listing_outcome,
     crawler_asset_plan_preview,
     crawler_asset_seed_page,
     crawler_seed_download_import,
@@ -58,10 +57,10 @@ from frontends.web.preview_api import (
     save_crawler_asset_credentials,
     web_real_download_demo,
     web_project_maturity,
-    web_preview_recent_events,
     web_preview_status,
 )
 from frontends.web.preview_context import web_crawler_asset_action_context
+from frontends.web.preview_events import compact_listing_outcome, web_preview_recent_events
 from frontends.web.preview_payloads import (
     web_crawler_asset_listing_payload,
     web_download_import_target_paths,
@@ -669,7 +668,7 @@ class WebPreviewApiTest(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)
 
-            with patch("frontends.web.preview_api.latest_events", return_value=events):
+            with patch("frontends.web.preview_events.latest_events", return_value=events):
                 payload = crawler_asset_cards(
                     primary_path=source_path,
                     local_path=local_path,
@@ -711,7 +710,7 @@ class WebPreviewApiTest(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)
 
-            with patch("frontends.web.preview_api.latest_events", return_value=events):
+            with patch("frontends.web.preview_events.latest_events", return_value=events):
                 payload = crawler_asset_cards(
                     primary_path=source_path,
                     local_path=local_path,
@@ -799,7 +798,7 @@ class WebPreviewApiTest(unittest.TestCase):
                 profile_path,
             )
 
-            with patch("frontends.web.preview_api.latest_events", return_value=events):
+            with patch("frontends.web.preview_events.latest_events", return_value=events):
                 payload = crawler_asset_cards(
                     primary_path=source_path,
                     local_path=local_path,
@@ -939,7 +938,7 @@ class WebPreviewApiTest(unittest.TestCase):
             }
         ]
 
-        with patch("frontends.web.preview_api.latest_events", return_value=events) as latest_events:
+        with patch("frontends.web.preview_events.latest_events", return_value=events) as latest_events:
             payload = web_preview_recent_events(limit=999)
 
         latest_events.assert_called_once_with(80)
@@ -992,7 +991,7 @@ class WebPreviewApiTest(unittest.TestCase):
             }
         ]
 
-        with patch("frontends.web.preview_api.latest_events", return_value=events):
+        with patch("frontends.web.preview_events.latest_events", return_value=events):
             payload = web_preview_recent_events(limit=20)
 
         event = payload["events"][0]

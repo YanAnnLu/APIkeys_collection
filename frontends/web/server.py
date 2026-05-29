@@ -27,10 +27,10 @@ from frontends.web.preview_api import (
     save_crawler_asset_credentials,
     save_crawler_asset_seed_favorite,
     web_project_maturity,
-    web_preview_recent_events,
     web_preview_status,
 )
 from frontends.web.preview_context import crawler_asset_payload_from_web_values
+from frontends.web.preview_events import web_preview_recent_events
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
