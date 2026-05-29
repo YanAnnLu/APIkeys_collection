@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 22:31 Docs registry PoC
+- 本輪收掉 GTD 上的中期文檔治理 PoC 第一版：新增 `docs/DOCS_REGISTRY.csv`，用 diff-friendly CSV 盤點文件路徑、角色、權威層級、last_verified、驗證證據與備註。
+- `docs/DOCS_INDEX.zh-TW.md` 已把 `DOCS_REGISTRY.csv` 登記為輔助索引，明確說明它不取代 Markdown source of truth；handoff/GTD/log 仍是人類可讀協作主線。
+- `docs/PROJECT_GTD.md` 已把「diff-friendly docs registry PoC」從待辦改成第一版完成；SQLite/DB 型文件治理仍保留為後續 report/cache 方向，不在本輪擴大。
+- 已驗證：docs mojibake scan OK；`git diff --check` OK；未改產品程式，不需跑 RRKAL 單元測試。
+- Docs drift check：本輪只新增文檔治理 registry 與索引，不改產品行為、UI/CLI 操作流程、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-29 22:27 Recovery branch CI pass
 - 已將 `96bfc7e` / `0c0f8c8` 推到 `origin/rrkal-32e215c-recovery`，遠端 head 為 `0c0f8c8 Record Tk row detail checkpoint`。
 - 推送前本地完整 smoke 通過：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_222350.log`。

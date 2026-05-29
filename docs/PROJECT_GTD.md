@@ -30,7 +30,7 @@ Last updated: 2026-05-29
 - [x] 2026-05-29 GitHub adjacent project context 已補文件治理：`docs/EXTERNAL_PROJECT_CONTEXT.zh-TW.md` 記錄 `RRKAL_displaytools`、`CODE_KM`、`rrkal-visual-compressor`、`rrkal-renderer` 等 repo 的 read-only 進度信號與可借鑑方向；其他 repo 只作概念參考，不形成 RRKAL runtime dependency，也不在 RRKAL 任務中寫入。
 - [x] 2026-05-29 Tk source pattern draft 背景 job 已納入 single-flight guard：`open_source_pattern_draft_dialog()` 會用同一份 crawler asset background job helper 擋住同一 URL 的重複 detector/source draft worker，不再直接建立裸 `threading.Thread`。
 - [ ] 每完成 2-3 個功能切片後，安排一個 bounded consolidation slice：優先拆 service/gateway/registry 邊界，再考慮搬資料夾；不要讓 `core.py`、`repository.py`、`adapter_plan_resolver.py`、`crawler_asset_workflows.py`、`dialogs.py`、`preview_api.py` 繼續吸收新責任。
-- [ ] 中期文檔治理 PoC：先建立 diff-friendly docs registry（CSV/JSON）盤點文件角色、權威層級、last_verified、owner、相關測試/CLI 證據；SQLite 可作查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
+- [x] 中期文檔治理 PoC 第一版已建立：`docs/DOCS_REGISTRY.csv` 以 diff-friendly CSV 盤點文件角色、權威層級、last_verified、驗證證據與備註；SQLite 可留作後續查詢/report cache，但 `.md` 仍是人類可讀 source of truth。
 - [x] Web Preview 已先把 schema/head probe 接到 seed 操作：推薦 seed 與每筆 seed row 都有「探測欄位」按鈕，會用該 seed 的 URL 呼叫後端 schema probe，再回填同一份 bounds form contract，減少使用者盲填欄位。
 - [x] Tk Seed 清單 dialog 已接上同一條 schema/head probe：選一筆 seed 後按「探測欄位」，Tk 會背景呼叫 `probe_plan_entry_schema()`，用 `apply_schema_probe_to_crawler_asset_bound_form_spec()` 回填界域表單，並把使用者套用後的 bounds payload 暫存給後續 seed download/import。
 - [x] Seed enumeration 顯示 contract 已從 service 抽到 `crawler_asset_display.py`：service 只負責判斷 blocked/error/empty/local-limit/warning/within-limits/sample 狀態，Tk/Web/未來 Qt 繼續讀同一份 `seed_enumeration` payload，不在 UI 端重建枚舉完成度與本機上限判斷。
