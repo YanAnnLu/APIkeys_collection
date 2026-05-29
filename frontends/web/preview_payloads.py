@@ -38,6 +38,13 @@ class WebDownloadImportResultResponse:
     plan_passport: Mapping[str, object]
 
 
+@dataclass(frozen=True)
+class WebPlanPreviewResultResponse:
+    response: dict[str, object]
+    plan_outcome: Mapping[str, object]
+    plan_passport: Mapping[str, object]
+
+
 def web_next_action_payload(next_action: object) -> dict[str, str]:
     """Pair a backend next_action id with the shared display label."""
 
@@ -288,8 +295,13 @@ def web_plan_preview_credential_blocked_response(
     return response
 
 
-def web_plan_preview_result_response(result: object) -> dict[str, object]:
-    """Return the shared Web response fragment for an executed plan preview."""
+def web_plan_preview_result_payload(result: object) -> WebPlanPreviewResultResponse:
+    """Return the shared Web response bundle for an executed plan preview.
+
+    The response dict is what the browser receives.  The compact outcome and
+    passport are broken out for the route because it must persist the passport
+    and log an event without re-reading display fields from a generic dict.
+    """
 
     plan_outcome = crawler_asset_plan_outcome_payload(result)
     plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
@@ -302,4 +314,14 @@ def web_plan_preview_result_response(result: object) -> dict[str, object]:
     apply_web_next_action(response, result.user_next_action)
     if plan_outcome.get("next_action_label"):
         response["next_action_label"] = str(plan_outcome["next_action_label"])
-    return response
+    return WebPlanPreviewResultResponse(
+        response=response,
+        plan_outcome=plan_outcome,
+        plan_passport=plan_passport,
+    )
+
+
+def web_plan_preview_result_response(result: object) -> dict[str, object]:
+    """Return the shared Web response fragment for an executed plan preview."""
+
+    return web_plan_preview_result_payload(result).response

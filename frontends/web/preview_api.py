@@ -58,6 +58,7 @@ from frontends.web.preview_payloads import (
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
+    web_plan_preview_result_payload,
     web_plan_preview_result_response,
 )
 from frontends.web.preview_diagnostics import (
@@ -221,15 +222,18 @@ def crawler_asset_plan_preview(
             max_pages=1,
         )
         session.conn.commit()
-    response.update(web_plan_preview_result_response(result))
-    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
-    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
-    update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
+    result_response = web_plan_preview_result_payload(result)
+    response.update(result_response.response)
+    update_crawler_asset_plan_passport(result.asset_id, result_response.plan_passport, profile_path)
     log_event(
         "crawler_asset_plan_outcome_recorded",
         "Web Preview crawler asset workflow recorded the visible plan outcome.",
         component="web.crawler_assets",
-        context=crawler_asset_plan_event_context(result, plan_outcome, plan_passport=plan_passport),
+        context=crawler_asset_plan_event_context(
+            result,
+            result_response.plan_outcome,
+            plan_passport=result_response.plan_passport,
+        ),
     )
     return response
 

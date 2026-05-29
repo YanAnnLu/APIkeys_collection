@@ -74,6 +74,7 @@ from frontends.web.preview_payloads import (
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
+    web_plan_preview_result_payload,
     web_plan_preview_result_response,
 )
 
@@ -1890,6 +1891,7 @@ class WebPreviewApiTest(unittest.TestCase):
         )
         fake_result.to_dict = lambda: {"asset_id": "demo_stac"}
 
+        result_payload = web_plan_preview_result_payload(fake_result)
         payload = web_plan_preview_result_response(fake_result)
 
         self.assertEqual("demo_stac", payload["plan_result"]["asset_id"])
@@ -1898,6 +1900,9 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("open_downloader_and_start_or_pause_queue", payload["next_action"])
         self.assertEqual(0, payload["adapter_review"]["item_count"])
         self.assertIn("items", payload["adapter_review"])
+        self.assertEqual(payload, result_payload.response)
+        self.assertEqual("ready_to_download", result_payload.plan_outcome["outcome_bucket"])
+        self.assertTrue(result_payload.plan_passport["has_resolved_plan"])
 
     def test_plan_preview_execute_returns_compact_plan_passport(self) -> None:
         fake_result = SimpleNamespace(
