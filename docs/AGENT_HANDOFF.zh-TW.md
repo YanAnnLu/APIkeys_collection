@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-30 02:08 Crawler asset plan cache helper
+- 本輪延續 Tk consolidation slice：新增 `cache_crawler_asset_plan_state()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中更新 plan outcome、resolved plan、content review 與 plan passport 的 Tk lookup cache。
+- `frontends/tk/crawler_asset_workflows.py` 的 `_finish_crawler_asset_download_plan()` 不再手動初始化 / 更新四組 cache；blocked 與 success 路徑都只委派 helper，再繼續做 record event、refresh row、status/messagebox。
+- 已提交實作：`9eac107 Move crawler plan cache updates`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，122 tests OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk display cache 更新邊界，不改 UI 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 02:05 Crawler asset bounds payload cache helper
 - 本輪延續 Tk consolidation slice：新增 `crawler_asset_bound_payload_from_cache()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中把 bounds dialog cache 內的 dict 還原成 `CrawlerAssetBoundPayload`。
 - `frontends/tk/crawler_asset_workflows.py` 的 `crawler_asset_bound_payload_for_asset()` 現在只委派 helper，不再在 workflow event handler 內重複解析 `facet_values` / `field_values` / `maps_to_values` / `warning_codes`。
