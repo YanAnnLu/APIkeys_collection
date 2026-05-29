@@ -1,6 +1,7 @@
 # 這份測試鎖定 provider discovery parser，避免來源候選與官方 provider 混淆。
 from __future__ import annotations
 
+import argparse
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ from api_launcher.discovery import (
     load_discovery_seeds,
 )
 from api_launcher.models import Provider
+from api_launcher.cli_discovery import add_discovery_args
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -50,6 +52,17 @@ class DiscoveryTests(unittest.TestCase):
 
         self.assertEqual("sample", seeds[0].provider_id)
         self.assertEqual(("weather",), seeds[0].categories)
+
+    def test_provider_discovery_cli_exposes_fetch_byte_budget(self) -> None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--timeout", type=float, default=12.0)
+        add_discovery_args(parser)
+
+        defaults = parser.parse_args([])
+        custom = parser.parse_args(["--provider-discovery-max-bytes", "321"])
+
+        self.assertEqual(DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES, defaults.provider_discovery_max_bytes)
+        self.assertEqual(321, custom.provider_discovery_max_bytes)
 
     def test_auth_inference_never_returns_secret_values(self) -> None:
         auth_type, evidence = infer_auth_type("Use your API key in the key parameter.", "unknown")

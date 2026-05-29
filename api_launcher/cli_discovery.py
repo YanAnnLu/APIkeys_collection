@@ -8,6 +8,7 @@ from api_launcher.crawlers.source_patterns import DEFAULT_PATTERN_MINIMUM_CONFID
 from api_launcher.crawlers.dataset_sources import LOCAL_DATASET_DISCOVERY_SOURCES_NAME
 from api_launcher.db import resolve_project_path, utc_now_iso
 from api_launcher.discovery import (
+    DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES,
     DEFAULT_SEEDS_NAME,
     LOCAL_SEEDS_NAME,
     ProviderSeed,
@@ -27,6 +28,7 @@ def add_discovery_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--discover-provider-candidates", action="store_true", help="crawl official source pages into reviewable provider candidates")
     parser.add_argument("--provider-discovery-seeds", default=DEFAULT_SEEDS_NAME, help="JSON seed list for provider discovery")
     parser.add_argument("--provider-discovery-local-seeds", default=LOCAL_SEEDS_NAME, help="local JSON seed list for user-added source sites")
+    parser.add_argument("--provider-discovery-max-bytes", type=int, default=DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES, help="maximum homepage/docs bytes to read per provider discovery seed")
     parser.add_argument("--write-provider-candidates", default="provider_candidates.discovered.json", help="output JSON for discovered provider candidates")
     parser.add_argument("--add-discovery-seed", action="store_true", help="append one local source-site seed for future provider discovery")
     parser.add_argument("--seed-provider-id", default="", help="provider/source id for --add-discovery-seed")
@@ -114,7 +116,12 @@ def discover_source_candidates(conn: sqlite3.Connection, args: argparse.Namespac
     output_path.parent.mkdir(parents=True, exist_ok=True)
     existing = {provider.provider_id for provider in load_providers(conn)}
     seeds = load_all_discovery_seeds(seed_path, local_seed_path)
-    candidates = discover_provider_candidates(seeds, existing_provider_ids=existing, timeout=args.timeout)
+    candidates = discover_provider_candidates(
+        seeds,
+        existing_provider_ids=existing,
+        timeout=args.timeout,
+        max_bytes=args.provider_discovery_max_bytes,
+    )
     payload = {
         "schema_version": 1,
         "created_at": utc_now_iso(),
