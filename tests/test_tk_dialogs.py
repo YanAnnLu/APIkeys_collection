@@ -40,6 +40,10 @@ from frontends.tk.crawler_asset_seed_dialog import (
     crawler_seed_dialog_schema_probe_entry,
 )
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
+from frontends.tk.source_pattern_draft_ui_helpers import (
+    source_pattern_draft_blocked_event_context,
+    source_pattern_draft_written_event_context,
+)
 from frontends.tk.dialogs import (
     AdapterReviewDialog,
     AiModelSettingsDialog,
@@ -919,6 +923,40 @@ class TkDialogModuleTest(unittest.TestCase):
             CrawlerAssetWorkflowMixin._source_pattern_draft_worker(ui, {"url": "https://example.test/stac"})
 
         self.assertEqual(DEFAULT_PATTERN_MINIMUM_CONFIDENCE, writer.call_args.kwargs["minimum_confidence"])
+
+    def test_source_pattern_draft_written_event_context_is_compact(self) -> None:
+        summary = {
+            "audit_source_ids": ["demo_stac"],
+            "source_pattern_detection": {"pattern_id": "stac", "confidence": 0.95},
+        }
+
+        context = source_pattern_draft_written_event_context(
+            summary,
+            source_url="https://example.test/stac",
+            output_path="state/private/dataset_discovery_sources.local.json",
+        )
+
+        self.assertEqual("https://example.test/stac", context["source_url"])
+        self.assertEqual("state/private/dataset_discovery_sources.local.json", context["output_path"])
+        self.assertEqual(["demo_stac"], context["audit_source_ids"])
+        self.assertEqual({"pattern_id": "stac", "confidence": 0.95}, context["source_pattern_detection"])
+
+    def test_source_pattern_draft_blocked_event_context_is_compact(self) -> None:
+        summary = {
+            "review_reason": "source_pattern_unknown",
+            "next_action": "review_source_profile_or_add_detector",
+            "source_pattern_detection": {"pattern_id": "unknown", "confidence": 0.1},
+        }
+
+        context = source_pattern_draft_blocked_event_context(
+            summary,
+            source_url="https://example.test/landing",
+        )
+
+        self.assertEqual("https://example.test/landing", context["source_url"])
+        self.assertEqual("source_pattern_unknown", context["review_reason"])
+        self.assertEqual("review_source_profile_or_add_detector", context["next_action"])
+        self.assertEqual({"pattern_id": "unknown", "confidence": 0.1}, context["source_pattern_detection"])
 
     def test_source_pattern_draft_review_message_uses_human_next_action_label(self) -> None:
         ui = object.__new__(CrawlerAssetWorkflowMixin)

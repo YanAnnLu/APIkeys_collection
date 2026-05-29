@@ -12,6 +12,39 @@ from typing import Callable, Mapping
 Translator = Callable[[str, str], str]
 
 
+def source_pattern_draft_written_event_context(
+    summary: object,
+    *,
+    source_url: str,
+    output_path: object,
+) -> dict[str, object]:
+    """Return compact event context for a source draft write success."""
+
+    data = summary if isinstance(summary, dict) else {}
+    return {
+        "source_url": source_url,
+        "output_path": str(output_path),
+        "audit_source_ids": data.get("audit_source_ids", []),
+        "source_pattern_detection": data.get("source_pattern_detection", {}),
+    }
+
+
+def source_pattern_draft_blocked_event_context(
+    summary: object,
+    *,
+    source_url: str,
+) -> dict[str, object]:
+    """Return compact event context for a source draft kept in review."""
+
+    data = summary if isinstance(summary, dict) else {}
+    return {
+        "source_url": source_url,
+        "review_reason": data.get("review_reason", ""),
+        "source_pattern_detection": data.get("source_pattern_detection", {}),
+        "next_action": data.get("next_action", ""),
+    }
+
+
 def source_pattern_draft_message(summary: object, translate: Translator) -> str:
     """Return the success message for a local source draft creation result."""
 

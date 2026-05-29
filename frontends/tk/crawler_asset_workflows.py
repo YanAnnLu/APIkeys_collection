@@ -83,8 +83,10 @@ from frontends.tk.crawler_asset_event_state import (
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
 from frontends.tk.source_pattern_draft_ui_helpers import (
+    source_pattern_draft_blocked_event_context,
     source_pattern_draft_message,
     source_pattern_draft_review_message,
+    source_pattern_draft_written_event_context,
 )
 
 MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
@@ -451,12 +453,11 @@ class CrawlerAssetWorkflowMixin:
                 "source_pattern_source_draft_written",
                 "Tk crawler asset UI wrote a local source draft from a detected URL.",
                 component="ui.crawler_assets",
-                context={
-                    "source_url": url,
-                    "output_path": str(output_path),
-                    "audit_source_ids": summary.get("audit_source_ids", []),
-                    "source_pattern_detection": summary.get("source_pattern_detection", {}),
-                },
+                context=source_pattern_draft_written_event_context(
+                    summary,
+                    source_url=url,
+                    output_path=output_path,
+                ),
             )
         except SourcePatternDraftError as exc:
             summary = exc.to_dict()
@@ -465,12 +466,7 @@ class CrawlerAssetWorkflowMixin:
                 "Tk crawler asset UI kept a detected source URL in review.",
                 level="warning",
                 component="ui.crawler_assets",
-                context={
-                    "source_url": url,
-                    "review_reason": summary.get("review_reason", ""),
-                    "source_pattern_detection": summary.get("source_pattern_detection", {}),
-                    "next_action": summary.get("next_action", ""),
-                },
+                context=source_pattern_draft_blocked_event_context(summary, source_url=url),
             )
             review_message = self.source_pattern_draft_review_message(summary)
             review_reason = str(summary.get("review_reason") or exc.reason_code)
