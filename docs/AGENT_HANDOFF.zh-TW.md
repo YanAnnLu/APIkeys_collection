@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 22:04 Source pattern draft Tk message helper ownership cleanup
+- 本輪延續 Tk consolidation：新增 `frontends/tk/source_pattern_draft_ui_helpers.py`，把 source pattern draft 成功 / review-needed message formatting 從 `frontends/tk/crawler_asset_workflows.py` 移出。
+- `crawler_asset_workflows.py` 從約 1382 行降到約 1303 行；workflow class 保留 `source_pattern_draft_message()` / `source_pattern_draft_review_message()` wrapper 作相容入口，但實際文案投影由新 helper 擁有。
+- 新 owner 只把 backend summary dict 轉成 Tk 可讀訊息，不決定 source draft 是否 promotion、不執行 discovery audit、不下載或匯入資料。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\source_pattern_draft_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- 已提交本地 checkpoint `86b5974 Move source pattern draft Tk messages`；目前 recovery branch 仍未推送。
+- Docs drift check：本輪只改 Tk helper ownership，不改 source pattern draft dialog 操作流程、crawler/source pattern 行為、下載/匯入、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 21:58 Crawler asset flow display helper ownership cleanup
 - 本輪延續 recovery lane 上的 display-contract consolidation：新增 `api_launcher/crawler_asset_flow_display.py`，把 `CrawlerAssetFlowStep`、`crawler_asset_card_capabilities()` 與 `crawler_asset_flow_steps()` 從 `api_launcher/crawler_asset_display.py` 移出。
 - `crawler_asset_display.py` 從 542 行降到 459 行；它仍 re-export flow display helpers 作相容 surface，但 `frontends/web/preview_assets.py` 已改讀新 owner。
