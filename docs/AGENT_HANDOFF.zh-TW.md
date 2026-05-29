@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 22:19 Tk crawler asset row/detail helper ownership cleanup
+- 本輪延續 Tk consolidation：把 crawler asset table row tuple 與右側 passport detail text 的組裝移到 `frontends/tk/crawler_asset_ui_helpers.py`。
+- `frontends/tk/crawler_asset_workflows.py` 從約 1303 行降到約 1246 行；workflow class 仍保留 `crawler_asset_row_values()` wrapper 與 `on_crawler_asset_select()` orchestration，但不再直接組 table row、capability lines、credential summary、plan passport summary 或 bounds schema text。
+- 新 helper 只做 Tk read-model projection；它不載入 assets、不查 event log、不跑 crawler、不改 profile / credential / download plan。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_dialogs.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_tk_ui_helpers -v` 114 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- 已提交本地 checkpoint `96bfc7e Move crawler asset Tk row detail helpers`；目前 recovery branch 尚未推送此 commit。
+- Docs drift check：本輪只改 Tk helper ownership，不改使用者操作流程、按鈕、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 22:13 Recovery branch pushed
 - 已將 recovery branch 推到 GitHub：`origin/rrkal-32e215c-recovery`，遠端 head 為 `3cf23c9 Record recovery branch smoke`。
 - 推送前本地完整 smoke 已在 `3cf23c9` 通過：912 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_221019.log`。
