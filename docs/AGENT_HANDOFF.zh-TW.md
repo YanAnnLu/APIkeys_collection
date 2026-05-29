@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 01:48 Crawler asset bounds schema helper CI pass
+- `d3c1d8c Move crawler bounds schema lookup` / `d653ccb Record bounds schema helper smoke` 已推送到 `origin/rrkal-32e215c-recovery`。
+- GitHub Actions manual run `26652940368` 通過 Ubuntu、Windows 與 real DB smoke。
+- 本輪 verified behavior：`crawler_asset_download_plan_bounds_schema()` 集中 Tk crawler asset build-download-plan bounds schema lookup；workflow 仍只負責 UI orchestration，不接管 backend bounds、download plan 或 import 規則。
+- Docs drift check：本輪只補遠端 CI 證據，不改使用者操作流程、crawler、download/import、credential 或 user guide；user guide 不需更新。
+
 ## 2026-05-30 01:45 Crawler asset bounds schema helper smoke pass
 - `d3c1d8c Move crawler bounds schema lookup` / `d2f645e Record bounds schema helper checkpoint` 已補完整 smoke。
 - 已驗證：`.\scripts\pre_push_smoke_brief.cmd` 通過，完整 log `state\logs\pre_push_smoke_20260530_014250.log`；916 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
