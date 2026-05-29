@@ -287,24 +287,13 @@ def direct_resource_entries_for_plan_entry(
             resolved_entries.append(resolved)
     resources = resource_mappings_from_entry(entry)
     for resource_index, resource in enumerate(resources, start=1):
-        url = resource_url(resource)
-        if not url or not resource_looks_downloadable(resource, url):
-            continue
-        # 下列 API/metadata 連結看起來可能像 JSON，但語意不是可直接下載的資料檔。
-        if entry_is_stac_collection(entry) and resource_is_stac_items_link(resource, url):
-            continue
-        if resource_is_ogc_records_metadata_link(entry, resource):
-            continue
-        if resource_is_cmr_metadata_link(entry, resource, url):
-            continue
-        if resource_is_socrata_api_url(url):
-            continue
-        if resource_is_ncei_access_data_url(url):
-            continue
-        if resource_exceeds_size_bound(resource):
-            # 超過上限的資源必須留在 review，避免 resolver 產生大型或昂貴的下載工作。
-            continue
-        resolved = direct_resource_entry(entry, resource, plan_index, resource_index, url, downloads_root)
+        resolved = direct_resource_entry_from_resource(
+            entry,
+            resource,
+            plan_index,
+            resource_index,
+            downloads_root,
+        )
         if resolved:
             resolved_entries.append(resolved)
     if not resolved_entries:
@@ -338,6 +327,41 @@ def direct_resource_entries_for_plan_entry(
         # ERDDAP sample 是 bounded query，不依賴 resources 清單；能產生樣本時可與其他解析結果並存。
         resolved_entries.append(erddap_entry)
     return resolved_entries
+
+
+def direct_resource_entry_from_resource(
+    entry: dict[str, object],
+    resource: dict[str, object],
+    plan_index: int,
+    resource_index: int,
+    downloads_root: str | Path = "downloads",
+) -> dict[str, object] | None:
+    """Promote one resource summary when it is a bounded direct file.
+
+    This is the direct-resource lane in the adapter resolver pipeline.  API
+    capability URLs, metadata links, oversized resources, and source-specific
+    bounded-query endpoints stay in later resolver lanes instead of being
+    treated as ordinary file downloads.
+    """
+
+    url = resource_url(resource)
+    if not url or not resource_looks_downloadable(resource, url):
+        return None
+    # 下列 API/metadata 連結看起來可能像 JSON，但語意不是可直接下載的資料檔。
+    if entry_is_stac_collection(entry) and resource_is_stac_items_link(resource, url):
+        return None
+    if resource_is_ogc_records_metadata_link(entry, resource):
+        return None
+    if resource_is_cmr_metadata_link(entry, resource, url):
+        return None
+    if resource_is_socrata_api_url(url):
+        return None
+    if resource_is_ncei_access_data_url(url):
+        return None
+    if resource_exceeds_size_bound(resource):
+        # 超過上限的資源必須留在 review，避免 resolver 產生大型或昂貴的下載工作。
+        return None
+    return direct_resource_entry(entry, resource, plan_index, resource_index, url, downloads_root)
 
 
 def wants_source_resolution(entry: dict[str, object]) -> bool:
