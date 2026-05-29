@@ -4,6 +4,7 @@
 - `crawler_asset_workflows.py` 現在只消費這些 Tk UI helper，不再同時承擔 crawler asset workflow 與 message/summary helper ownership；後端 crawler、download/import、credential guard、plan outcome、plan passport 行為不變。
 - `tests/test_tk_dialogs.py` 已改由 `frontends.tk.ui_helpers` 匯入這些 helper，避免測試繼續把大型 workflow 檔當成 helper owner。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\ui_helpers.py tests\test_tk_dialogs.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers -v` 8 tests OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 105 tests OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_142011.log`。
+- 已推送 `7f13bcf Move Tk crawler asset UI helpers`；GitHub Actions run `26621919504` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 Tk helper ownership，不改使用者操作流程或 UI 文案 contract；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 14:00 GitHub adjacent project scan / docs governance
