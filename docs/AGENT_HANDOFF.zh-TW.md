@@ -4,6 +4,7 @@
 - `frontends/web/preview_api.py` 從約 798 行降到約 703 行；它仍保留 asset cards/detail、credential update、listing、plan preview、download/import 等 endpoint orchestration，不再持有事件摘要壓縮規則。
 - `frontends/web/server.py` 已改由 `frontends.web.preview_events` 匯入 `web_preview_recent_events()`；`tests/test_web_preview.py` 的 event helper 與 `latest_events` patch target 也對齊新 owner。
 - 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py frontends\web\preview_context.py frontends\web\preview_payloads.py frontends\web\preview_events.py frontends\web\server.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；`frontends\web` / `docs` mojibake scan OK；`git diff --check` OK（僅 `PROJECT_GTD.md` CRLF/LF 提醒）；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_170131.log`。
+- 已推送 `0dffffc Move Web preview event helpers`；GitHub Actions run `26628565727` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 Web event summary helper ownership 與 import/mock 路徑，不改 Web API route、JS 操作、crawler/download/import/credential 行為或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 16:41 Web Preview context helper ownership cleanup
