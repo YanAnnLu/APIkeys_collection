@@ -4,13 +4,16 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from api_launcher.discovery import (
+    DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES,
     ProviderSeed,
     append_discovery_seed,
     auth_type_requires_secret,
     dedupe_key,
     discover_provider_candidates,
+    fetch_text,
     infer_auth_type,
     key_env_var,
     load_all_discovery_seeds,
@@ -104,6 +107,61 @@ class DiscoveryTests(unittest.TestCase):
         candidates = discover_provider_candidates([seed], existing_provider_ids={"already_known"})
 
         self.assertEqual([], candidates)
+
+    def test_fetch_text_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeHeaders:
+            def get_content_charset(self) -> str:
+                return "utf-8"
+
+        class FakeResponse:
+            headers = FakeHeaders()
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b"<html>ok</html>"
+
+            def geturl(self) -> str:
+                return "https://example.test/final"
+
+        with patch("api_launcher.discovery.urllib.request.urlopen", return_value=FakeResponse()):
+            text, final_url = fetch_text("https://example.test", timeout=1.0, max_bytes=17)
+
+        self.assertEqual("<html>ok</html>", text)
+        self.assertEqual("https://example.test/final", final_url)
+        self.assertEqual([18], read_sizes)
+        self.assertEqual(120_000, DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES)
+
+    def test_fetch_text_rejects_oversized_response(self) -> None:
+        class FakeHeaders:
+            def get_content_charset(self) -> str:
+                return "utf-8"
+
+        class FakeResponse:
+            headers = FakeHeaders()
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+            def geturl(self) -> str:
+                return "https://example.test/final"
+
+        with patch("api_launcher.discovery.urllib.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "exceeded 3 bytes"):
+                fetch_text("https://example.test", timeout=1.0, max_bytes=3)
 
     def test_local_source_site_seed_can_be_added_without_touching_builtin_seeds(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

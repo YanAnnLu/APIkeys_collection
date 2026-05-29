@@ -15,6 +15,7 @@ from api_launcher.models import Provider
 USER_AGENT = "APIkeys_collection/0.3 (+provider-discovery; metadata only)"
 DEFAULT_SEEDS_NAME = "provider_discovery_seeds.json"
 LOCAL_SEEDS_NAME = "provider_discovery_seeds.local.json"
+DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES = 120_000
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,7 @@ def discover_provider_candidates(
     seeds: list[ProviderSeed],
     existing_provider_ids: set[str] | None = None,
     timeout: float = 12.0,
-    max_bytes: int = 120_000,
+    max_bytes: int = DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES,
 ) -> list[ProviderCandidate]:
     existing_provider_ids = existing_provider_ids or set()
     candidates = []
@@ -172,7 +173,13 @@ def discover_provider_candidate(seed: ProviderSeed, timeout: float, max_bytes: i
 def fetch_text(url: str, timeout: float, max_bytes: int) -> tuple[str, str]:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = response.read(max_bytes)
+        budget = max(1, int(max_bytes))
+        # Provider discovery only needs enough page text to infer links and auth hints.
+        # Reading one extra byte lets us detect truncation instead of silently auditing
+        # a partial metadata page as if it were complete.
+        data = response.read(budget + 1)
+        if len(data) > budget:
+            raise ValueError(f"Provider discovery response exceeded {budget} bytes: {url}")
         charset = response.headers.get_content_charset() or "utf-8"
         final_url = response.geturl()
     return data.decode(charset, errors="replace"), final_url
