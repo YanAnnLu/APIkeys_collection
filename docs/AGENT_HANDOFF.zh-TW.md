@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 07:00 Google OAuth form response size guard
+- 本輪延續 credential/network boundary hardening：新增 `DEFAULT_GOOGLE_OAUTH_FORM_MAX_BYTES=512 * 1024`，並讓 `google_auth._post_form()` 接受可覆寫 `max_bytes`；legacy Google device/token POST response 會讀 `max_bytes + 1` 並拒絕過大 payload，對齊 `oauth_device` 的 bounded guard。
+- 已提交實作：`52bae62 Bound Google OAuth form response size`。
+- 已驗證：in-memory compile `api_launcher\google_auth.py` / `tests\test_google_auth.py` OK；`py -3 -B -m unittest tests.test_google_auth -v` 通過，6 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_065755.log` 通過，945 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 legacy Google OAuth POST form response size guard，不改 token storage、credential UI、crawler、download/import 或 user guide。
+
 ## 2026-05-30 06:51 OAuth form response size guard
 - 本輪延續 credential/network boundary hardening：新增 `DEFAULT_OAUTH_FORM_MAX_BYTES=512 * 1024`，並讓 `oauth_device._post_form()` 接受可覆寫 `max_bytes`；device-code / browser-code token POST response 會讀 `max_bytes + 1` 並拒絕過大 payload。
 - 已提交實作：`0eb72a5 Bound OAuth form response size`。
