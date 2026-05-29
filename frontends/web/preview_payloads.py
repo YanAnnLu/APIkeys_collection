@@ -51,6 +51,28 @@ def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict
     return payload
 
 
+def web_crawler_asset_credentials_event_context(
+    asset: object,
+    status: Mapping[str, object],
+) -> dict[str, object]:
+    """Return the safe event context for Web credential updates.
+
+    Credential values themselves must stay out of the event log.  The event only
+    records which profile/fields changed and the backend status that resulted.
+    """
+
+    fields = status.get("fields") if isinstance(status.get("fields"), list) else []
+    return {
+        "asset_id": str(getattr(asset, "asset_id", "") or ""),
+        "provider_id": str(getattr(asset, "provider_id", "") or ""),
+        "status": status.get("status"),
+        "configured_count": status.get("configured_count"),
+        "field_count": status.get("field_count"),
+        "env_vars": [field.get("env_var") for field in fields if isinstance(field, dict)],
+        "next_action": status.get("next_action"),
+    }
+
+
 def crawler_asset_listing_options(options: Mapping[str, object] | None) -> dict[str, object]:
     """Normalize Web listing controls into backend crawler bounds.
 

@@ -59,6 +59,7 @@ from frontends.web.preview_context import (
 from frontends.web.preview_payloads import (
     apply_web_next_action,
     crawler_asset_listing_options,
+    web_crawler_asset_credentials_event_context,
     web_crawler_asset_listing_payload,
     web_download_import_credential_blocked_response,
     web_download_import_event_context,
@@ -171,15 +172,7 @@ def save_crawler_asset_credentials(
         "crawler_asset_local_credentials_updated",
         "Web Preview updated local credential settings for a crawler asset.",
         component="web.credentials",
-        context={
-            "asset_id": asset.asset_id,
-            "provider_id": asset.provider_id,
-            "status": status.get("status"),
-            "configured_count": status.get("configured_count"),
-            "field_count": status.get("field_count"),
-            "env_vars": [field.get("env_var") for field in status.get("fields", []) if isinstance(field, dict)],
-            "next_action": status.get("next_action"),
-        },
+        context=web_crawler_asset_credentials_event_context(asset, status),
     )
     return status
 

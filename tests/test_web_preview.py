@@ -66,6 +66,7 @@ from frontends.web.preview_diagnostics import (
 )
 from frontends.web.preview_events import compact_listing_outcome, web_preview_recent_events
 from frontends.web.preview_payloads import (
+    web_crawler_asset_credentials_event_context,
     web_crawler_asset_listing_payload,
     web_download_import_target_paths,
     web_next_action_payload,
@@ -1489,6 +1490,36 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("configured", status["status"])
         self.assertFalse(status["remember_local"])
         self.assertEqual({}, env_values)
+
+    def test_web_crawler_asset_credentials_event_context_excludes_secrets(self) -> None:
+        asset = SimpleNamespace(asset_id="demo_cmr", provider_id="nasa")
+        status = {
+            "status": "configured",
+            "configured_count": 2,
+            "field_count": 2,
+            "next_action": "run_crawler_asset_download_import",
+            "fields": [
+                {
+                    "env_var": "NASA_EARTHDATA_TOKEN",
+                    "value_preview": "****1234",
+                    "value": "token-secret-1234",
+                },
+                {
+                    "env_var": "NASA_EARTHDATA_PASSWORD",
+                    "value_preview": "****word",
+                    "value": "earth-password",
+                },
+            ],
+        }
+
+        context = web_crawler_asset_credentials_event_context(asset, status)
+
+        self.assertEqual("demo_cmr", context["asset_id"])
+        self.assertEqual("nasa", context["provider_id"])
+        self.assertEqual(["NASA_EARTHDATA_TOKEN", "NASA_EARTHDATA_PASSWORD"], context["env_vars"])
+        context_text = json.dumps(context, ensure_ascii=False)
+        self.assertNotIn("token-secret", context_text)
+        self.assertNotIn("earth-password", context_text)
 
     def test_plan_preview_execute_blocks_missing_credentials_before_live_crawler(self) -> None:
         with TemporaryDirectory() as tmp:
