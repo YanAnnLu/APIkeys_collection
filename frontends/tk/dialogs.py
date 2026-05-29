@@ -27,15 +27,16 @@ from api_launcher.data_store_connections import (
 )
 from api_launcher.discovery import LOCAL_SEEDS_NAME, ProviderSeed, append_discovery_seed
 from api_launcher.discovery_drafts import dataset_source_from_provider_candidate
-from api_launcher.event_log import EVENT_LOG_NAME, latest_events, log_event, log_exception
+from api_launcher.event_log import log_event, log_exception
 from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.import_policies import normalized_ui_import_policy
 from api_launcher.integrations import active_data_store_profile, save_integration_config, set_active_data_store_profile
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
-from api_launcher.paths import PROJECT_ROOT, local_config_file, log_file
+from api_launcher.paths import PROJECT_ROOT, local_config_file
 from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
 from frontends.tk.desktop_integration import reveal_path_in_file_manager
 from frontends.tk.provider_models import ProviderRow
+from frontends.tk.recent_event_logs_dialog import RecentEventLogsDialog
 from frontends.tk.ui_config import COLORS, DB_PATH, DEFAULT_UI_LANGUAGE, UI_LANGUAGES
 from frontends.tk.ui_helpers import data_store_env_template_path
 
@@ -857,94 +858,6 @@ class StartupEnvironmentChecksDialog:
         actions = ttk.Frame(self.dialog, style="Panel.TFrame")
         actions.pack(fill=X, padx=24, pady=(0, 18))
         ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
-
-
-class RecentEventLogsDialog:
-    def __init__(self, ui: Any):
-        # 事件紀錄視窗是觀測/交接工具；抽出後 launcher_ui.py 不再知道 JSONL 表格細節。
-        self.ui = ui
-        self.root = ui.root
-        self.events = latest_events(100)
-        self.event_by_iid: dict[str, dict[str, object]] = {}
-        self.dialog = Toplevel(self.root)
-        self.dialog.title(self.ui.tr("最近事件紀錄", "Recent event logs"))
-        self.dialog.configure(bg=COLORS["panel"])
-        self.dialog.geometry("980x620")
-        self.dialog.transient(self.root)
-        self._build()
-
-    @staticmethod
-    def event_row_values(event: dict[str, object]) -> tuple[object, object, object, object, object]:
-        # Treeview 欄位順序集中在這裡，避免未來調整欄位時漏改測試與插入邏輯。
-        return (
-            event.get("timestamp", ""),
-            event.get("level", ""),
-            event.get("component", ""),
-            event.get("event", ""),
-            event.get("message", ""),
-        )
-
-    def _build(self) -> None:
-        ttk.Label(self.dialog, text=self.ui.tr("最近事件紀錄", "Recent event logs"), style="DetailTitle.TLabel").pack(anchor="w", padx=24, pady=(22, 8))
-        ttk.Label(
-            self.dialog,
-            text=self.ui.tr(
-                "Launcher 和未來 Agent 會用這些 JSONL 結構化事件做除錯與交接。",
-                "Structured JSONL events used by the launcher and future agents for debugging and handoff.",
-            ),
-            style="DetailMuted.TLabel",
-        ).pack(anchor="w", fill=X, padx=24, pady=(0, 14))
-
-        body = ttk.Frame(self.dialog, style="Panel.TFrame")
-        body.pack(fill=BOTH, expand=True, padx=24, pady=(0, 14))
-        self.table = ttk.Treeview(body, columns=("time", "level", "component", "event", "message"), show="headings", height=10)
-        for name, label, width in [
-            ("time", self.ui.tr("時間", "Time"), 180),
-            ("level", self.ui.tr("層級", "Level"), 80),
-            ("component", self.ui.tr("元件", "Component"), 120),
-            ("event", self.ui.tr("事件", "Event"), 180),
-            ("message", self.ui.tr("訊息", "Message"), 360),
-        ]:
-            self.table.heading(name, text=label)
-            self.table.column(name, width=width, anchor="w", stretch=True)
-        self.detail = Text(body, height=9, bg=COLORS["bg"], fg=COLORS["text"], insertbackground=COLORS["text"], wrap=WORD, relief="flat")
-        self.detail.configure(state="disabled")
-
-        for index, event in enumerate(self.events):
-            iid = str(index)
-            self.event_by_iid[iid] = event
-            self.table.insert("", END, iid=iid, values=self.event_row_values(event))
-
-        self.table.bind("<<TreeviewSelect>>", self.show_selected_log)
-        self.table.pack(fill=BOTH, expand=True, pady=(0, 10))
-        self.detail.pack(fill=BOTH, expand=True)
-        self.show_selected_log()
-
-        actions = ttk.Frame(self.dialog, style="Panel.TFrame")
-        actions.pack(fill=X, padx=24, pady=(0, 18))
-        event_path = log_file(EVENT_LOG_NAME)
-        if event_path.exists():
-            ttk.Button(
-                actions,
-                text=self.ui.tr("開啟 JSONL 檔案", "Open JSONL file"),
-                style="Action.TButton",
-                command=lambda: webbrowser.open(event_path.as_uri()),
-            ).pack(side=LEFT, padx=(0, 10))
-        ttk.Button(actions, text=self.ui.tr("關閉", "Close"), style="Action.TButton", command=self.dialog.destroy).pack(side=RIGHT)
-
-    def show_selected_log(self, _event: object | None = None) -> None:
-        selection = self.table.selection()
-        selected = self.event_by_iid.get(str(selection[0])) if selection else None
-        self.detail.configure(state="normal")
-        self.detail.delete("1.0", END)
-        if selected is None:
-            self.detail.insert(
-                END,
-                self.ui.tr("尚未選取事件。", "No event selected.") if self.events else self.ui.tr("目前沒有結構化事件紀錄。", "No structured log events yet."),
-            )
-        else:
-            self.detail.insert(END, json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True))
-        self.detail.configure(state="disabled")
 
 
 class DatasetCandidateReviewDialog:
