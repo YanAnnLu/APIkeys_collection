@@ -2,7 +2,8 @@
 ## 2026-05-30 02:20 Crawler asset plan artifact writer helper
 - 本輪延續 Tk consolidation slice：新增 `write_crawler_asset_download_plan_artifacts()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中寫出 crawler asset original/resolved plan JSON。
 - `frontends/tk/crawler_asset_workflows.py` 不再直接 import `json`、`safe_path_part` 或 `state_file`，也不再在 worker 內拼 `state/crawler_asset_plans/{asset}.original/resolved.json`；worker 只呼叫 helper，再寫 event 與完成 UI handoff。
-- 已提交實作：`b880bfa Move crawler plan artifact writing`。
+- 已提交實作：`b880bfa Move crawler plan artifact writing`，並已推送到 `origin/rrkal-32e215c-recovery`。
+- GitHub Actions manual run `26654793363` 通過 Ubuntu、Windows 與 real DB smoke。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，124 tests OK；`frontends\tk` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_022203.log` 通過，922 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Tk plan artifact path/write ownership，不改 UI 操作、crawler、download/import、credential 或 user guide。
 
