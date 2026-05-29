@@ -16,6 +16,7 @@ from api_launcher.paths import PROJECT_ROOT
 DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 AUTHORIZATION_CODE_GRANT_TYPE = "authorization_code"
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+DEFAULT_OAUTH_FORM_MAX_BYTES = 512 * 1024
 
 
 @dataclass(frozen=True)
@@ -429,7 +430,22 @@ def default_authorization_url(provider: str) -> str:
     return GOOGLE_AUTHORIZATION_URL if provider == "google" else ""
 
 
-def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, object]:
+def _read_json_response(response: object, *, max_bytes: int) -> dict[str, object]:
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1.")
+    data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(f"OAuth form response exceeded {max_bytes} bytes.")
+    payload = json.loads(data.decode("utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _post_form(
+    url: str,
+    payload: dict[str, str],
+    timeout: float,
+    max_bytes: int = DEFAULT_OAUTH_FORM_MAX_BYTES,
+) -> dict[str, object]:
     body = parse.urlencode(payload).encode("utf-8")
     req = request.Request(
         url,
@@ -439,10 +455,10 @@ def _post_form(url: str, payload: dict[str, str], timeout: float) -> dict[str, o
     )
     try:
         with request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+            return _read_json_response(response, max_bytes=max_bytes)
     except error.HTTPError as exc:
         try:
-            data = json.loads(exc.read().decode("utf-8"))
+            data = _read_json_response(exc, max_bytes=max_bytes)
         except Exception:
             data = {}
         error_code = str(data.get("error") or "")

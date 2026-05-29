@@ -9,8 +9,10 @@ from unittest.mock import patch
 
 from api_launcher.integrations import AiSummaryProfile, ai_summary_profiles_from_config
 from api_launcher.oauth_device import (
+    DEFAULT_OAUTH_FORM_MAX_BYTES,
     OAuthDeviceConfig,
     OAuthDeviceTokenResult,
+    _post_form,
     activate_saved_oauth_token,
     build_oauth_device_login_request,
     exchange_oauth_authorization_code,
@@ -51,6 +53,42 @@ class OAuthDeviceTests(unittest.TestCase):
                 "token_store": token_store,
             },
         )
+
+    def test_post_form_uses_named_bounded_read(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b'{"ok": true}'
+
+        with patch("api_launcher.oauth_device.request.urlopen", return_value=FakeResponse()):
+            payload = _post_form("https://example.test/token", {"client_id": "client"}, timeout=1.0, max_bytes=31)
+
+        self.assertEqual({"ok": True}, payload)
+        self.assertEqual([32], read_sizes)
+        self.assertEqual(512 * 1024, DEFAULT_OAUTH_FORM_MAX_BYTES)
+
+    def test_post_form_rejects_oversized_success_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with patch("api_launcher.oauth_device.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "exceeded 3 bytes"):
+                _post_form("https://example.test/token", {"client_id": "client"}, timeout=1.0, max_bytes=3)
 
     def test_profile_can_carry_oauth_device_config(self) -> None:
         profiles = ai_summary_profiles_from_config(
