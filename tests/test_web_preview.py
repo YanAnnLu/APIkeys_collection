@@ -69,6 +69,7 @@ from frontends.web.preview_payloads import (
     web_crawler_asset_credentials_event_context,
     web_crawler_asset_listing_credential_blocked_response,
     web_crawler_asset_listing_payload,
+    web_crawler_asset_listing_result_response,
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
@@ -174,6 +175,23 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(payload["listing_result"]["blocked"])
         self.assertEqual("credential_setup_required", payload["listing_result"]["blocked_reason"])
         self.assertEqual("blocked", payload["listing_result"]["seed_enumeration"]["status"])
+
+    def test_web_crawler_asset_listing_result_response_adds_audit_and_next_action(self) -> None:
+        result = CrawlerAssetListingResult(
+            asset_id="demo_stac",
+            source_found=True,
+            listing_mode="complete_seed",
+            candidate_count=2,
+            next_action="review_or_upsert_dataset_candidates",
+            complete_seed=True,
+            audit_summary={"status": "success", "candidate_count": 2},
+        )
+
+        payload = web_crawler_asset_listing_result_response(result)
+
+        self.assertEqual(2, payload["listing_result"]["candidate_count"])
+        self.assertEqual("success", payload["audit_summary"]["status"])
+        self.assertEqual("review_or_upsert_dataset_candidates", payload["next_action"])
 
     def test_credential_blocked_plan_payloads_are_backend_display_contract(self) -> None:
         guard = {

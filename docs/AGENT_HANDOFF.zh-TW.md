@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 04:58 Web listing result response helper
+- 本輪延續 Web Preview consolidation slice：新增 `web_crawler_asset_listing_result_response()`，由 `frontends/web/preview_payloads.py` 集中建立 crawler listing 成功 response fragment。
+- `frontends/web/preview_api.py` 的 `crawler_asset_listing()` 不再自行拆 `listing_result`、`audit_summary` 或 listing `next_action`；route 仍保留 repository session、crawler service call、commit 與 event logging。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，57 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web listing 成功 response fragment，不改 Web 操作流程、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 04:48 Web listing credential block helper
 - 本輪延續 Web Preview consolidation slice：新增 `web_crawler_asset_listing_credential_blocked_response()`，由 `frontends/web/preview_payloads.py` 集中建立 crawler listing 缺憑證 blocked response。
 - `frontends/web/preview_api.py` 的 `crawler_asset_listing()` 不再直接建立 `CrawlerAssetListingResult` 或自行套 credential next-action；route 只負責 asset/context、credential guard、crawler service call 與 event。

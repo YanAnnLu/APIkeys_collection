@@ -51,6 +51,18 @@ def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict
     return payload
 
 
+def web_crawler_asset_listing_result_response(result: CrawlerAssetListingResult) -> dict[str, object]:
+    """Return the shared Web response fragment for a completed listing run."""
+
+    payload = web_crawler_asset_listing_payload(result)
+    response: dict[str, object] = {
+        "listing_result": payload,
+        "audit_summary": payload.get("audit_summary", {}),
+    }
+    apply_web_next_action(response, result.next_action)
+    return response
+
+
 def web_crawler_asset_listing_credential_blocked_response(
     asset_id: str,
     credential_guard: Mapping[str, object],

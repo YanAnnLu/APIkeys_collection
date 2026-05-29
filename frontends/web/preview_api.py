@@ -58,7 +58,7 @@ from frontends.web.preview_payloads import (
     crawler_asset_listing_options,
     web_crawler_asset_credentials_event_context,
     web_crawler_asset_listing_credential_blocked_response,
-    web_crawler_asset_listing_payload,
+    web_crawler_asset_listing_result_response,
     web_download_import_credential_blocked_response,
     web_download_import_event_context,
     web_download_import_target_paths,
@@ -128,10 +128,7 @@ def crawler_asset_listing(
         result = run_crawler_asset_listing(asset.asset_id, session.conn, **kwargs)
         session.conn.commit()
 
-    payload = web_crawler_asset_listing_payload(result)
-    response["listing_result"] = payload
-    response["audit_summary"] = payload.get("audit_summary", {})
-    apply_web_next_action(response, result.next_action)
+    response.update(web_crawler_asset_listing_result_response(result))
     log_event(
         "crawler_asset_listing_recorded",
         "Web Preview crawler asset workflow recorded the visible listing outcome.",
