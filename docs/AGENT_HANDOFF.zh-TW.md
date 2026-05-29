@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 23:10 Recent event log dialog ownership cleanup
+- 本輪從 `frontends/tk/dialogs.py` 移出 `RecentEventLogsDialog`，新增 `frontends/tk/recent_event_logs_dialog.py` 作為事件紀錄視窗 owner。
+- `dialogs.py` 仍 re-export `RecentEventLogsDialog`，所以既有 `frontends.tk.dialogs` import 與測試入口不斷；新 dialog 只讀 `latest_events()` / JSONL，不寫 event log、不改 crawler/download/import/state。
+- `dialogs.py` 從 1715 行降到 1625 行；這是小型 dialog ownership cleanup，不是 Tk 對話框大搬家。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\recent_event_logs_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；相關 Tk/docs mojibake scan OK；`git diff --check` OK。
+- 已提交本地 checkpoint `fd4ba56 Move recent event log dialog`；尚未推送本 commit。
+- Docs drift check：本輪只改 Tk dialog ownership，不改使用者操作流程、事件 JSONL schema、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 23:02 Tk crawler asset event-state helper ownership CI pass
 - 本輪延續 Tk consolidation：新增 `frontends/tk/crawler_asset_event_state.py`，把 crawler asset plan/listing structured event 的狀態恢復邏輯從 `frontends/tk/crawler_asset_workflows.py` 移出。
 - `crawler_asset_workflows.py` 現在只呼叫 `crawler_asset_plan_state_from_events()` / `crawler_asset_listing_outcomes_from_events()`，再把回傳 dict 放回 UI cache；helper 不跑 crawler、不重建 plan、不寫 profile，只恢復重開 Tk 後的可視狀態。
