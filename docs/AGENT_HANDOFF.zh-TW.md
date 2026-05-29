@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 18:34 Adapter review display helper ownership cleanup
+- 本輪延續 display-contract consolidation：新增 `api_launcher/crawler_asset_review_display.py`，把 adapter-review summary、content parser/import status、content review bucket label/tone、pipeline lane label/tone 等純 display helper 從 `api_launcher/crawler_asset_display.py` 移出。
+- `crawler_asset_display.py` 從約 1124 行降到約 893 行；它仍保留 crawler asset / plan outcome / download-import display contract，並 re-export adapter-review display helpers，避免 Tk/Web/tests 的舊 import 立即斷裂。
+- 新 owner `crawler_asset_review_display.py` 只依賴 `adapter_review_agent_payload()` 與自己的 display table，不回頭 import Web/Tk；這讓 adapter review / content parser UI 合約可以後續獨立測試與擴充。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py api_launcher\crawler_asset_review_display.py frontends\web\preview_api.py frontends\tk\crawler_asset_workflows.py frontends\tk\dialogs.py frontends\tk\import_workflows.py tests\test_web_preview.py tests\test_tk_dialogs.py` OK；`tests.test_web_preview` 53 tests OK；`tests.test_tk_dialogs` 106 tests OK；`tests.test_crawler_asset_download tests.test_crawler_assets` 49 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_182918.log`。
+- 已推送 `a67f4e7 Move adapter review display helpers`；GitHub Actions run `26632346463` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 backend display helper ownership，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 18:19 Crawler asset listing payload ownership cleanup
 - 本輪延續 backend consolidation：新增 `api_launcher/crawler_asset_listing_payloads.py`，把 listing result 的 `seed_enumeration`、remote pagination 與 compact listing event context helper 從 `api_launcher/crawler_asset_service.py` 移出。
 - `crawler_asset_service.py` 從約 753 行降到約 630 行；service 保留 source lookup、crawler execution、candidate upsert、download-plan orchestration，不再持有 listing result UI/event projection 規則。
