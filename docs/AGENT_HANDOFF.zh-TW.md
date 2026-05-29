@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-30 01:39 Crawler asset bounds schema lookup helper
+- 本輪做一個小型 Tk consolidation slice：新增 `crawler_asset_download_plan_bounds_schema()`，由 `frontends/tk/crawler_asset_ui_helpers.py` 集中讀取 crawler asset 的 `BUILD_DOWNLOAD_PLAN.bounds_schema`。
+- `frontends/tk/crawler_asset_workflows.py` 不再重複掃 `asset.capabilities` 找 plan capability；seed schema probe 與 crawler asset 送進下載器前的 bounds dialog 都改為消費同一個 helper。這不改 bounds schema、本機 payload、download plan、seed probe、crawler、download/import 或使用者操作流程。
+- 已提交實作：`d3c1d8c Move crawler bounds schema lookup`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，118 tests OK；`frontends\tk` / docs mojibake scan OK；`git diff --check` OK。
+- Docs drift check：已同步 GTD；本輪未改使用者可見流程或 user guide，user guide 不需更新。
+
 ## 2026-05-30 01:36 Crawler registry focused verification
 - 本輪未改產品程式，針對既有 crawler declarative registry 做 focused verification，確認它已落地到 dispatch / diagnostics / handoff surfaces。
 - Verified behavior source：`api_launcher/crawlers/registry.py` 有 `CrawlerSpec`、四維 matrix、capability code/mask、duplicate guard 與 handler signature guard；`api_launcher/crawlers/dataset_sources.py` 透過 `crawler_handler()` 正式分派，`SOURCE_CRAWLER_HANDLERS` 僅保留相容 / 診斷用途。
