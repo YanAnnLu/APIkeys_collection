@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-30 01:32 Docs drift correction for dialog and crawler registry ownership
+- 本輪只做文檔漂移修補，未改產品程式：`docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/WORKSPACE_LAYOUT.zh-TW.md`、`docs/PROJECT_GTD.md` 已對齊 verified behavior。
+- Verified behavior source：`frontends/tk/dialogs.py` 已是 33 行相容 re-export facade；dialog implementations 已移到 focused owner modules。`api_launcher/crawlers/registry.py` 已提供 `CrawlerSpec`、四維 matrix、capability code/mask 與 `crawler_handler()`，`dataset_sources.py` 只保留相容/診斷 surface。
+- 已提交實際文檔修補：`39bf8bb Update docs drift records`。
+- 已驗證：docs mojibake scan OK；`git diff --check` OK。本切片未改程式碼，不需跑 RRKAL 單元測試或 full smoke。
+- Docs drift check：已修正 `dialogs.py` 與 crawler source registry 相關漂移；未發現需同步 user guide 的使用者操作流程變更。
+
 ## 2026-05-30 01:26 Provider candidate review dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `ProviderCandidateReviewDialog`，新增 `frontends/tk/provider_candidate_review_dialog.py` 作為 provider/source 候選審核 dialog owner。
 - `dialogs.py` 現在降成 33 行相容 re-export facade，只保留各 dialog class 的穩定匯入面；後續不要再把新 dialog 實作塞回 `dialogs.py`。
