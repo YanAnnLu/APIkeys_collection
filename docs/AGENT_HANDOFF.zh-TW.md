@@ -3,7 +3,7 @@
 - 本輪延續 Tk consolidation：把先前暫放在 generic `frontends/tk/ui_helpers.py` 的 crawler asset / seed download-import helper 全部移到 `frontends/tk/crawler_asset_ui_helpers.py`。`ui_helpers.py` 現在回到 yfinance、data-store、MVP smoke 等較通用的 Tk helper owner，不再同時承擔 crawler asset 專屬文案、plan summary、credential guard 與 seed target path。
 - `frontends/tk/crawler_asset_workflows.py` 現在只從 `frontends.tk.crawler_asset_ui_helpers` 匯入 crawler asset UI projection；`tests/test_tk_dialogs.py` / `tests/test_tk_ui_helpers.py` 的 patch target 也已對齊新 owner，避免測試仍 patch 舊模組但實際依賴已搬走。
 - 已驗證：`py -3 -B -m py_compile frontends\tk\ui_helpers.py frontends\tk\crawler_asset_ui_helpers.py frontends\tk\crawler_asset_workflows.py tests\test_tk_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 113 tests OK；`git diff --check` OK；`frontends\tk` / `tests` / `docs` mojibake scan OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_150355.log`。
-- 尚未完成：本段已通過 pre-push smoke，還需要 commit/push、watch GitHub Actions，完成後回填 development log 的 SHA / run。
+- 已推送 `c4a108b Move crawler asset helpers to dedicated module`；GitHub Actions run `26623612788` 已通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：本輪只改 helper ownership 與測試 patch target，不改使用者操作流程、按鈕、crawler/download/import 行為或 UI 文案 contract；已同步 GTD、handoff 與 development log，user guide 不需更新。
 
 ## 2026-05-29 14:39 Tk crawler asset display helper module
