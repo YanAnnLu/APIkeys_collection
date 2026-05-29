@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 01:36 Crawler registry focused verification
+- 本輪未改產品程式，針對既有 crawler declarative registry 做 focused verification，確認它已落地到 dispatch / diagnostics / handoff surfaces。
+- Verified behavior source：`api_launcher/crawlers/registry.py` 有 `CrawlerSpec`、四維 matrix、capability code/mask、duplicate guard 與 handler signature guard；`api_launcher/crawlers/dataset_sources.py` 透過 `crawler_handler()` 正式分派，`SOURCE_CRAWLER_HANDLERS` 僅保留相容 / 診斷用途。
+- 已驗證：`py -3 -B -m unittest tests.test_dataset_discovery tests.test_developer_diagnostics tests.test_handoff tests.test_heartbeat -v` 通過，92 tests OK。
+- Docs drift check：本輪只補驗證紀錄，不改行為、UI/CLI 操作、crawler handler、download/import 或 user guide；GTD/relationship/workspace docs 已在上一個 docs drift checkpoint 對齊。
+
 ## 2026-05-30 01:32 Docs drift correction for dialog and crawler registry ownership
 - 本輪只做文檔漂移修補，未改產品程式：`docs/CODE_RELATIONSHIP_MAP.zh-TW.md`、`docs/WORKSPACE_LAYOUT.zh-TW.md`、`docs/PROJECT_GTD.md` 已對齊 verified behavior。
 - Verified behavior source：`frontends/tk/dialogs.py` 已是 33 行相容 re-export facade；dialog implementations 已移到 focused owner modules。`api_launcher/crawlers/registry.py` 已提供 `CrawlerSpec`、四維 matrix、capability code/mask 與 `crawler_handler()`，`dataset_sources.py` 只保留相容/診斷 surface。
