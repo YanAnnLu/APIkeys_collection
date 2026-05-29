@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 07:29 Provider discovery fetch budget CLI
+- 本輪延續上一個 provider discovery guard：CLI 新增 `--provider-discovery-max-bytes`，預設讀 `DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES=120_000`，並把該值傳給 `discover_provider_candidates()`；大型官方 docs/homepage 可由命令調高 budget，不需要改產品碼。
+- 已提交實作：`299a870 Expose provider discovery fetch budget`。
+- 已驗證：in-memory compile `api_launcher\cli_discovery.py` / `tests\test_discovery.py` OK；`py -3 -B -m unittest tests.test_discovery -v` 通過，10 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_072640.log` 通過，950 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 provider discovery CLI budget 參數，不改 Tk/Web 操作、provider promotion、local discovery audit、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 07:20 Provider discovery fetch size guard
 - 本輪延續 provider discovery / network boundary hardening：新增 `DEFAULT_PROVIDER_DISCOVERY_FETCH_MAX_BYTES=120_000`，並讓 `discovery.fetch_text()` 對 homepage/docs response 讀 `max_bytes + 1`；若遠端頁面超過 budget，會 fail-fast 而不是靜默用截斷頁面推斷 metadata、API base 或 auth hints。
 - 已提交實作：`7ee46e9 Bound provider discovery fetch size`。
