@@ -3,7 +3,7 @@
 - 本輪延續 Web Preview consolidation slice：新增 `web_plan_preview_result_response()`，由 `frontends/web/preview_payloads.py` 集中建立已執行 plan preview 的 response fragment。
 - `frontends/web/preview_api.py` 的 `crawler_asset_plan_preview()` 不再自行組 `plan_result`、`plan_outcome`、`plan_passport`、`adapter_review` 或 plan next-action；route 仍保留 repository session、plan builder call、profile passport persist 與 event logging。
 - 已提交實作：`dffb31b Move Web plan preview result response payload`。
-- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，58 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_051449.log` 通過，934 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：in-memory compile `frontends\web\preview_api.py` / `frontends\web\preview_payloads.py` / `tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，58 tests OK；`frontends\web` / tests / docs mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_051449.log` 通過，934 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26662713557` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只移動 Web plan-preview 成功 response fragment，不改 Web 操作流程、crawler、download/import、credential 或 user guide。
 
 ## 2026-05-30 04:58 Web listing result response helper
