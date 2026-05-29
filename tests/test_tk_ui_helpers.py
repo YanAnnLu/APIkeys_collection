@@ -10,6 +10,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
+    crawler_seed_download_import_event_context,
     crawler_seed_schema_probe_event_context,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
@@ -300,6 +301,29 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertEqual("ok", context["probe"]["status"])
         self.assertEqual(1, context["schema_probe_required_count"])
         self.assertEqual(["schema_probe_applied"], context["warning_codes"])
+
+    def test_crawler_seed_download_import_event_context_uses_structured_result(self) -> None:
+        result = SimpleNamespace(
+            pipeline=SimpleNamespace(
+                stage="download_import_completed",
+                to_dict=lambda: {"stage": "download_import_completed", "succeeded": True},
+            ),
+            succeeded=True,
+            to_dict=lambda: {
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                }
+            },
+        )
+
+        context = crawler_seed_download_import_event_context("demo_asset", "demo_seed", result)
+
+        self.assertEqual("demo_asset", context["asset_id"])
+        self.assertEqual("demo_seed", context["dataset_uid"])
+        self.assertEqual("download_import_completed", context["stage"])
+        self.assertTrue(context["succeeded"])
+        self.assertEqual("downloads/demo", context["artifacts"]["downloads_root"])
 
     def test_write_crawler_asset_download_plan_artifacts_persists_utf8_json(self) -> None:
         import json

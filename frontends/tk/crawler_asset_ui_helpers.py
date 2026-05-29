@@ -788,6 +788,27 @@ def crawler_seed_schema_probe_event_context(
     }
 
 
+def crawler_seed_download_import_event_context(
+    asset_id: str,
+    dataset_uid: str,
+    result: object,
+) -> dict[str, object]:
+    """Return the compact Tk event payload for one seed download/import run."""
+
+    pipeline = getattr(result, "pipeline", None)
+    pipeline_payload = pipeline.to_dict() if hasattr(pipeline, "to_dict") else {}
+    result_payload = result.to_dict() if hasattr(result, "to_dict") else {}
+    artifacts = result_payload.get("artifacts") if isinstance(result_payload, dict) else {}
+    return {
+        "asset_id": asset_id,
+        "dataset_uid": dataset_uid,
+        "stage": str(getattr(pipeline, "stage", "") or ""),
+        "succeeded": bool(getattr(result, "succeeded", False)),
+        "download_import": pipeline_payload if isinstance(pipeline_payload, dict) else {},
+        "artifacts": artifacts if isinstance(artifacts, dict) else {},
+    }
+
+
 def crawler_asset_seed_enumeration_note_text(
     listing_outcome: object,
     tr: Callable[[str, str], str],

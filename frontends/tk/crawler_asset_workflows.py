@@ -71,6 +71,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_seed_page_status_text,
     crawler_asset_state_label,
     crawler_seed_schema_probe_event_context,
+    crawler_seed_download_import_event_context,
     crawler_seed_download_import_target_paths,
     crawler_seed_download_import_ui_message,
     write_crawler_asset_download_plan_artifacts,
@@ -932,14 +933,7 @@ class CrawlerAssetWorkflowMixin:
             "crawler_seed_download_import_completed",
             "Tk crawler asset workflow ran the formal seed download/import path.",
             component="ui.crawler_assets",
-            context={
-                "asset_id": asset_id,
-                "dataset_uid": dataset_uid,
-                "stage": result.pipeline.stage,
-                "succeeded": result.succeeded,
-                "download_import": result.pipeline.to_dict(),
-                "artifacts": result.to_dict().get("artifacts", {}),
-            },
+            context=crawler_seed_download_import_event_context(asset_id, dataset_uid, result),
         )
         self.root.after(0, lambda: self._finish_crawler_asset_seed_download_import(result))
 
