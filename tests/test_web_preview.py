@@ -73,6 +73,7 @@ from frontends.web.preview_payloads import (
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
+    web_plan_preview_result_response,
 )
 
 
@@ -1807,6 +1808,42 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("landsat-c2", bounds["facet_values"]["collection"])
         self.assertEqual((120.0, 22.0, 122.0, 25.0), bounds["facet_values"]["bbox"])
         self.assertEqual(10, bounds["facet_values"]["limit"])
+
+    def test_web_plan_preview_result_response_adds_plan_payloads(self) -> None:
+        fake_result = SimpleNamespace(
+            asset_id="demo_stac",
+            outcome_bucket="ready_to_download",
+            direct_download_count=1,
+            review_required_count=0,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            next_action="download_ready",
+            source_signature="source-demo",
+            bounds_signature="bounds-demo",
+            candidate_snapshot_changed=False,
+            bounds=SimpleNamespace(to_dict=lambda: {"candidate_limit": 1}),
+            plan_build=SimpleNamespace(
+                candidate_count=1,
+                candidate_snapshot_signature="candidate-demo",
+                candidate_snapshot_count=1,
+                upserted_candidate_count=1,
+                selected_version_count=1,
+                filtered_version_count=0,
+                blocked_credential_count=0,
+                credential_gates=(),
+                missing_provider_ids=(),
+            ),
+            resolved_plan={"summary": {"direct_download_count": 1}, "providers": []},
+        )
+        fake_result.to_dict = lambda: {"asset_id": "demo_stac"}
+
+        payload = web_plan_preview_result_response(fake_result)
+
+        self.assertEqual("demo_stac", payload["plan_result"]["asset_id"])
+        self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
+        self.assertTrue(payload["plan_passport"]["has_resolved_plan"])
+        self.assertEqual("open_downloader_and_start_or_pause_queue", payload["next_action"])
+        self.assertEqual(0, payload["adapter_review"]["item_count"])
+        self.assertIn("items", payload["adapter_review"])
 
     def test_plan_preview_execute_returns_compact_plan_passport(self) -> None:
         fake_result = SimpleNamespace(

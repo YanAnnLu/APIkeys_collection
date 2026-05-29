@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import Mapping
 
 from api_launcher.crawler_asset_display import (
+    adapter_review_display_payload,
     crawler_asset_plan_event_context,
+    crawler_asset_plan_outcome_payload,
+    crawler_asset_plan_passport_payload,
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
 )
@@ -256,4 +259,21 @@ def web_plan_preview_credential_blocked_response(
         "plan_passport": credential_blocked_plan_passport_payload(asset_id, credential_guard),
     }
     apply_web_next_action(response, "edit_local_credentials_before_live_download")
+    return response
+
+
+def web_plan_preview_result_response(result: object) -> dict[str, object]:
+    """Return the shared Web response fragment for an executed plan preview."""
+
+    plan_outcome = crawler_asset_plan_outcome_payload(result)
+    plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
+    response: dict[str, object] = {
+        "plan_result": result.to_dict(),
+        "plan_outcome": plan_outcome,
+        "plan_passport": plan_passport,
+        "adapter_review": adapter_review_display_payload(result.resolved_plan),
+    }
+    apply_web_next_action(response, result.user_next_action)
+    if plan_outcome.get("next_action_label"):
+        response["next_action_label"] = str(plan_outcome["next_action_label"])
     return response

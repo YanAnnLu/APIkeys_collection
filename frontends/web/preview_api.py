@@ -16,11 +16,8 @@ from pathlib import Path
 from typing import Mapping
 
 from api_launcher.crawler_asset_display import (
-    adapter_review_display_payload,
     crawler_asset_download_import_display_payload,
     crawler_asset_plan_event_context,
-    crawler_asset_plan_outcome_payload,
-    crawler_asset_plan_passport_payload,
 )
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
@@ -54,7 +51,6 @@ from frontends.web.preview_context import (
     web_preview_repository_context,
 )
 from frontends.web.preview_payloads import (
-    apply_web_next_action,
     crawler_asset_listing_options,
     web_crawler_asset_credentials_event_context,
     web_crawler_asset_listing_credential_blocked_response,
@@ -64,6 +60,7 @@ from frontends.web.preview_payloads import (
     web_download_import_target_paths,
     web_next_action_payload,
     web_plan_preview_credential_blocked_response,
+    web_plan_preview_result_response,
 )
 from frontends.web.preview_diagnostics import (
     crawler_handler_smoke_diagnostics,
@@ -226,16 +223,10 @@ def crawler_asset_plan_preview(
             max_pages=1,
         )
         session.conn.commit()
-    response["plan_result"] = result.to_dict()
-    plan_outcome = crawler_asset_plan_outcome_payload(result)
-    response["plan_outcome"] = plan_outcome
-    plan_passport = crawler_asset_plan_passport_payload(result, plan_outcome=plan_outcome)
-    response["plan_passport"] = plan_passport
+    response.update(web_plan_preview_result_response(result))
+    plan_outcome = response["plan_outcome"] if isinstance(response.get("plan_outcome"), dict) else {}
+    plan_passport = response["plan_passport"] if isinstance(response.get("plan_passport"), dict) else {}
     update_crawler_asset_plan_passport(result.asset_id, plan_passport, profile_path)
-    response["adapter_review"] = adapter_review_display_payload(result.resolved_plan)
-    apply_web_next_action(response, result.user_next_action)
-    if plan_outcome.get("next_action_label"):
-        response["next_action_label"] = str(plan_outcome["next_action_label"])
     log_event(
         "crawler_asset_plan_outcome_recorded",
         "Web Preview crawler asset workflow recorded the visible plan outcome.",
