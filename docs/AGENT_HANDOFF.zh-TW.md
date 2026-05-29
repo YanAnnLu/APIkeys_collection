@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 18:05 Crawler asset payload adapter ownership cleanup
+- 本輪延續 backend consolidation：新增 `api_launcher/crawler_asset_payloads.py`，把 crawler asset bounds payload 轉成 `SourceDownloadOptions` / `SourceDownloadBounds` 的 adapter helper 從 `api_launcher/crawler_asset_service.py` 移出。
+- `crawler_asset_service.py` 從約 968 行降到約 828 行；service 仍保留 listing、seed plan、candidate upsert 與 orchestration，不再同時擁有 UI-neutral bounds payload parsing、version selector、bbox / tuple / int / bool coercion 等 adapter 細節。
+- `api_launcher.crawler_asset_service` 仍保留同名 import surface，舊呼叫 `source_download_options_from_crawler_asset_payload` 不會斷；`tests/test_crawler_assets.py` 已改讀新 owner。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_service.py api_launcher\crawler_asset_payloads.py tests\test_crawler_assets.py` OK；`py -3 -B -m unittest tests.test_crawler_assets -v` 45 tests OK；compat import smoke OK；`api_launcher` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，912 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_175921.log`。
+- 已推送 `9f44aa5 Move crawler asset payload adapters`；GitHub Actions run `26631096034` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 helper ownership 與測試 import，不改 Web/Tk/CLI 操作流程、crawler、download/import、credential 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 17:50 Tk credential dialog next-action label
 - 本輪完成 GTD 上的 Tk credential UX 小項：`frontends/tk/crawler_asset_credential_dialog.py` 新增 `crawler_asset_credential_next_action_text()`，credential dialog 會優先顯示後端 `next_action_label_zh_TW` / display profile label，不把 raw `next_action` id 顯示給一般使用者。
 - Dialog 仍只是薄 UI：不判斷哪個 crawler 需要 credential、不保存明文到事件、不改 `api_launcher.local_credentials` 的 credential guard / storage policy。
