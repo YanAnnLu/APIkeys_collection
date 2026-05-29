@@ -1,4 +1,11 @@
 # Agent 接力卡
+## 2026-05-29 23:41 Import policy dialog ownership cleanup
+- 本輪從 `frontends/tk/dialogs.py` 移出 `ImportExistingTablePolicyDialog`，新增 `frontends/tk/import_policy_dialog.py` 作為既有資料表處理策略 modal owner。
+- `dialogs.py` 仍 re-export `ImportExistingTablePolicyDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 import workflow 不需改；新 owner 只處理 `rename/skip/replace` 的使用者選擇與 replace 確認提示，真正 import/replace/skip guard 仍在 importer/pipeline 層。
+- `dialogs.py` 從 1504 行降到 1416 行；這是小型 dialog ownership cleanup，不改匯入策略值、同名表處理行為或 UI 操作流程。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\dialogs.py frontends\tk\import_policy_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 106 tests OK；`frontends\tk` mojibake scan OK；`git diff --check` OK。
+- Docs drift check：本輪只改 Import Existing Table policy dialog ownership，不改使用者操作流程、import/replace 行為、crawler、download/import、credential、event schema 或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 23:37 Developer CLI dialog ownership CI pass
 - 本輪從 `frontends/tk/dialogs.py` 移出 `DeveloperCliDialog`，新增 `frontends/tk/developer_cli_dialog.py` 作為開發者 CLI 視窗 owner。
 - `dialogs.py` 仍 re-export `DeveloperCliDialog`，所以 `frontends.tk.dialogs` 舊匯入點與 `provider_settings_workflows.py` 不需改；新 owner 集中 subprocess、`shlex`、`PROJECT_ROOT` 與 single-flight job helper。
