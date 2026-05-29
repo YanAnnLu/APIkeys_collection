@@ -58,16 +58,18 @@ from frontends.tk.crawler_asset_workflows import (
     crawler_asset_listing_event_preview_payload,
     crawler_asset_credential_badge_label,
     crawler_asset_credential_event_context,
-    crawler_asset_credential_guard_message,
     crawler_asset_credential_summary_text,
-    crawler_asset_download_plan_summary_text,
-    crawler_asset_listing_blocked_status_text,
-    crawler_asset_plan_outcome_label,
-    crawler_asset_plan_passport_summary_text,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
+)
+from frontends.tk.ui_helpers import (
+    crawler_asset_credential_guard_message,
+    crawler_asset_download_plan_summary_text,
+    crawler_asset_listing_blocked_status_text,
+    crawler_asset_plan_outcome_label,
+    crawler_asset_plan_passport_summary_text,
 )
 from frontends.tk.developer_diagnostics_workflows import (
     DeveloperDiagnosticsWorkflowMixin,

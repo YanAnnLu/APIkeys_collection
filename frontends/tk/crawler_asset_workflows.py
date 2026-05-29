@@ -38,7 +38,6 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_event_context,
     crawler_asset_plan_passport_payload,
     crawler_asset_plan_outcome_payload,
-    next_action_display_label,
 )
 from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
@@ -69,7 +68,15 @@ from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
 from frontends.tk.crawler_asset_seed_dialog import CrawlerAssetSeedDialog, crawler_seed_dialog_import_label
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.source_pattern_draft_dialog import SourcePatternDraftDialog
-from frontends.tk.ui_helpers import crawler_seed_download_import_target_paths, crawler_seed_download_import_ui_message
+from frontends.tk.ui_helpers import (
+    crawler_asset_credential_guard_message,
+    crawler_asset_download_plan_summary_text,
+    crawler_asset_listing_blocked_status_text,
+    crawler_asset_plan_outcome_label,
+    crawler_asset_plan_passport_summary_text,
+    crawler_seed_download_import_target_paths,
+    crawler_seed_download_import_ui_message,
+)
 
 MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
 
@@ -1463,144 +1470,6 @@ class CrawlerAssetWorkflowMixin:
         )
 
 
-def crawler_asset_download_plan_summary_text(
-    result: object,
-    added_count: int,
-    resolved_path: str,
-    tr: Callable[[str, str], str],
-) -> str:
-    """把 service outcome bucket 轉成人類可讀文字；Tk 不直接解析 resolved plan。"""
-
-    bucket = str(getattr(result, "outcome_bucket", "") or "")
-    direct = int(getattr(result, "direct_download_count", 0) or 0)
-    review = int(getattr(result, "review_required_count", 0) or 0)
-    blocked = bool(getattr(result, "blocked", False))
-    blocked_reason = str(getattr(result, "blocked_reason", "") or "-")
-    next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "-")
-    outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
-    next_action_label = str(outcome_payload.get("next_action_label") or next_action).strip()
-
-    if blocked or bucket == "blocked":
-        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label or next_action}"
-        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action_label or next_action}"
-        return tr(zh, en)
-    if bucket == "partial_review_required":
-        zh = (
-            f"已加入下載器 {added_count} 筆，可先展示或開始下載；另有 {review} 筆需要 Adapter 待辦。\n"
-            "下一步：到下載器確認隊列，剩餘項目再進 Adapter review 或調整界域。"
-        )
-        en = (
-            f"Added {added_count} item(s) to Downloader; {review} item(s) still need Adapter review.\n"
-            "Next: confirm the queue in Downloader, then review adapters or adjust bounds."
-        )
-    elif bucket == "ready_to_download":
-        zh = (
-            f"已建立可下載計畫：直接下載 {direct} 筆，已加入下載器 {added_count} 筆。\n"
-            "下一步：到下載器使用開始 / 暫停控制隊列。"
-        )
-        en = (
-            f"Download plan is ready: direct {direct}, added {added_count} item(s) to Downloader.\n"
-            "Next: use start / pause in Downloader."
-        )
-    elif bucket == "review_required":
-        zh = (
-            f"已建立計畫，但目前沒有可直接下載項目；{review} 筆需要 Adapter 待辦。\n"
-            "下一步：開 Adapter review，或回到界域設定調整條件。"
-        )
-        en = (
-            f"Plan built, but no direct downloads are ready; {review} item(s) require Adapter review.\n"
-            "Next: open Adapter review or adjust bounds."
-        )
-    elif bucket == "zero_candidates":
-        zh = "沒有找到符合界域的候選資料。\n下一步：放寬時間 / 空間 / 筆數條件，或先重新擷取清單。"
-        en = "No candidates matched the selected bounds.\nNext: loosen time / spatial / limit bounds, or refresh the source listing."
-    else:
-        zh = "已建立下載計畫，但沒有可執行的下載項目。\n下一步：檢查 resolved plan，或調整界域後重試。"
-        en = "Plan built, but no executable download item was produced.\nNext: inspect the resolved plan, or adjust bounds and retry."
-
-    content_review_label = str(outcome_payload.get("content_review_label") or "").strip()
-    if content_review_label:
-        zh = f"{zh}\n內容格式待辦：{content_review_label}"
-        en = f"{en}\nContent review: {content_review_label}"
-
-    if resolved_path:
-        zh = f"{zh}\n\nResolved plan：{resolved_path}"
-        en = f"{en}\n\nResolved plan: {resolved_path}"
-    return tr(zh, en)
-
-
-def crawler_asset_listing_blocked_status_text(result: object, tr: Callable[[str, str], str]) -> str:
-    """Render blocked listing status without leaking raw backend next_action ids."""
-
-    blocked_reason = str(getattr(result, "blocked_reason", "") or "-").strip()
-    next_action = str(getattr(result, "next_action", "") or "").strip()
-    next_action_label = next_action_display_label(next_action) if next_action else ""
-    zh = f"爬蟲資產暫停執行：{blocked_reason}；下一步：{next_action_label or '-'}"
-    en = f"Crawler asset blocked: {blocked_reason}; next action: {next_action_label or '-'}"
-    return tr(zh, en)
-
-
-def crawler_asset_plan_outcome_label(result: object, added_count: int) -> str:
-    """產生表格用的短狀態；詳細說明仍由 summary text 負責。"""
-
-    # Tk 只取共用 display schema 的短標籤；完整 tone/summary 留給 Web/Qt 或詳情訊息使用。
-    payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
-    short_label = str(payload.get("short_label") or "").strip()
-    return short_label or str(payload.get("display_label") or "需檢查")
-
-
-def crawler_asset_plan_passport_summary_text(
-    plan_passport: object,
-    tr: Callable[[str, str], str],
-) -> str:
-    """把共用的 compact plan passport 轉成 Tk 側欄短摘要。"""
-
-    if not isinstance(plan_passport, dict) or not plan_passport:
-        return ""
-    candidates = _plan_passport_count(plan_passport.get("candidate_count"))
-    direct = _plan_passport_count(plan_passport.get("direct_download_count"))
-    review = _plan_passport_count(plan_passport.get("review_required_count"))
-    adapter = _plan_passport_count(plan_passport.get("adapter_review_count"))
-    content = _plan_passport_count(plan_passport.get("content_review_count"))
-    credentials = _plan_passport_count(plan_passport.get("blocked_credential_count"))
-    missing = _plan_passport_count(plan_passport.get("missing_provider_count"))
-    has_plan = bool(plan_passport.get("has_resolved_plan"))
-    is_stale = bool(plan_passport.get("stale"))
-    snapshot_changed = bool(plan_passport.get("candidate_snapshot_changed"))
-    stale_reason = str(plan_passport.get("stale_reason") or "profile_changed").strip()
-    stale_label = str(plan_passport.get("stale_label") or "").strip()
-    stale_next_action = str(plan_passport.get("stale_next_action") or "").strip()
-    state_zh = "resolved plan 已建立" if has_plan else "resolved plan 尚未建立"
-    state_en = "resolved plan available" if has_plan else "resolved plan unavailable"
-    zh = (
-        f"Plan Passport：{state_zh}；候選 {candidates}；可下載 {direct}；待 Adapter {review}；"
-        f"Adapter 佇列 {adapter}；內容待辦 {content}"
-    )
-    en = (
-        f"Plan Passport: {state_en}; candidates {candidates}; direct {direct}; review {review}; "
-        f"adapter {adapter}; content {content}"
-    )
-    if credentials or missing:
-        zh = f"{zh}；憑證阻擋 {credentials}；缺 Provider {missing}"
-        en = f"{en}; credentials blocked {credentials}; missing providers {missing}"
-    if is_stale:
-        zh = f"{zh}；狀態可能過期：{stale_label or stale_reason}"
-        en = f"{en}; stale {stale_next_action or stale_reason}"
-    if snapshot_changed:
-        zh = f"{zh}；候選快照已變更"
-        en = f"{en}; candidate snapshot changed"
-    return tr(zh, en)
-
-
-def _plan_passport_count(value: object) -> int:
-    """事件紀錄可能來自舊版或外部工具，Tk 顯示層要容忍非數字欄位。"""
-
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
 def crawler_asset_review_count_from_plan(payload: object) -> int:
     """計算 resolved plan 中仍需要 adapter 接手的項目數，供表格/passport 做短提示。"""
 
@@ -1736,52 +1605,6 @@ def crawler_asset_credential_summary_text(
         zh = f"{zh}；下一步：{next_action_zh or next_action}"
         en = f"{en}; next: {next_action_en or next_action}"
     return tr(zh, en)
-
-
-def crawler_asset_credential_guard_message(
-    credential_guard: object,
-    tr: Callable[[str, str], str],
-) -> str:
-    """Translate backend credential guard payload into a Tk-safe prompt."""
-
-    guard = credential_guard if isinstance(credential_guard, dict) else {}
-    display_profile = guard.get("display_profile") if isinstance(guard.get("display_profile"), dict) else {}
-    label = str(display_profile.get("label") or guard.get("display_label") or "需要登入 / API Key").strip()
-    provider_name = str(guard.get("provider_name") or guard.get("provider_id") or "").strip()
-    missing = guard.get("missing_required") if isinstance(guard.get("missing_required"), list) else []
-    missing_text = ", ".join(str(item) for item in missing if str(item).strip()) or "-"
-    next_action = str(guard.get("next_action") or "edit_local_credentials_before_live_download").strip()
-    next_action_zh = str(
-        guard.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label")
-        or next_action
-    ).strip()
-    next_action_en = str(
-        guard.get("next_action_label_en")
-        or display_profile.get("next_action_label_en")
-        or next_action
-    ).strip()
-    entry_label = str(guard.get("credential_entry_label") or "").strip()
-    zh_lines = [
-        f"{label}。",
-        f"來源：{provider_name or '-'}",
-        f"缺少欄位：{missing_text}",
-        "請先完成登入設定；如果需要 API Key，請到官方入口申請後再回來下載。",
-        f"下一步：{next_action_zh or next_action}",
-    ]
-    if entry_label:
-        zh_lines.append(f"可用入口：{entry_label}")
-    en_lines = [
-        f"{label}.",
-        f"Source: {provider_name or '-'}",
-        f"Missing fields: {missing_text}",
-        "Finish login settings first. If an API key is required, get it from the official portal before downloading.",
-        f"Next action: {next_action_en or next_action}",
-    ]
-    if entry_label:
-        en_lines.append(f"Available entry: {entry_label}")
-    return tr("\n".join(zh_lines), "\n".join(en_lines))
 
 
 def crawler_asset_credential_event_context(asset: CrawlerAsset, credential_status: object) -> dict[str, object]:
