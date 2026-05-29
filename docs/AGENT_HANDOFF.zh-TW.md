@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 17:24 Web Preview asset read-model helper ownership cleanup
+- 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_assets.py`，把 `crawler_asset_cards()`、`crawler_asset_card()`、`crawler_asset_detail()`、`crawler_asset_seed_page()`、`crawler_asset_seed_row()`、`save_crawler_asset_seed_favorite()` 與 `crawler_asset_credential_detail()` 從 `frontends/web/preview_api.py` 移出。
+- `frontends/web/preview_api.py` 從約 703 行降到約 497 行；它仍保留 status / project maturity / developer diagnostics / listing / credential update / plan preview / download-import endpoint orchestration，不再持有 asset card/detail/seed read-model projection。
+- `frontends/web/server.py` 已改由 `frontends.web.preview_assets` 匯入 asset cards/detail/credential/seed/favorite helpers；`tests/test_web_preview.py` 也改讀新 owner。`preview_api.py` 暫時保留同名 import 作為相容 surface，避免其他內部呼叫立即斷裂。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py frontends\web\preview_assets.py frontends\web\server.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；`frontends\web` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_171844.log`。
+- 已推送 `173f057 Move Web preview asset helpers`；GitHub Actions run `26629273947` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 Web asset read-model helper ownership 與 import/test 路徑，不改 Web API route、JS 操作、crawler/download/import/credential 行為或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 17:00 Web Preview event helper ownership cleanup
 - 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_events.py`，把 `recent_crawler_asset_listing_outcomes()`、`compact_listing_outcome()`、`recent_crawler_asset_plan_outcomes()`、`recent_crawler_asset_plan_passports()`、`web_preview_recent_events()` 與 event payload summary 從 `frontends/web/preview_api.py` 移出。
 - `frontends/web/preview_api.py` 從約 798 行降到約 703 行；它仍保留 asset cards/detail、credential update、listing、plan preview、download/import 等 endpoint orchestration，不再持有事件摘要壓縮規則。
