@@ -1,4 +1,12 @@
 # Agent 接力卡
+## 2026-05-29 17:39 Web Preview diagnostics helper ownership cleanup
+- 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_diagnostics.py`，把 `web_preview_status()`、`web_project_maturity()`、`crawler_handler_smoke_diagnostics()`、`web_real_download_demo()` 與 `developer_real_download_demo()` 從 `frontends/web/preview_api.py` 移出。
+- `frontends/web/preview_api.py` 從約 497 行降到約 428 行；它仍保留 crawler asset listing、credential update、plan preview、asset download/import 與 seed download/import endpoint orchestration，不再同時持有 health / maturity / developer diagnostics / demo proof helper。
+- `frontends/web/server.py` 已改由 `frontends.web.preview_diagnostics` 匯入 health、maturity、crawler smoke 與 developer demo helpers；`tests/test_web_preview.py` 的 mock target 也對齊新 owner。
+- 已驗證：`py -3 -B -m py_compile frontends\web\preview_api.py frontends\web\preview_assets.py frontends\web\preview_diagnostics.py frontends\web\server.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 53 tests OK；`frontends\web` mojibake scan OK；`git diff --check` OK；`.\scripts\pre_push_smoke_brief.cmd` 通過，911 tests / 4 skipped，MVP smoke `download_import_completed` / `row_count=3`，log：`state\logs\pre_push_smoke_20260529_173302.log`。
+- 已推送 `8018b38 Move Web preview diagnostics helpers`；GitHub Actions run `26629906445` 已通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：本輪只改 Web diagnostics/status helper ownership 與 import/mock 路徑，不改 Web API route、JS 操作、crawler/download/import/credential 行為或 user guide；已同步 GTD、handoff 與 development log，user guide 不需更新。
+
 ## 2026-05-29 17:24 Web Preview asset read-model helper ownership cleanup
 - 本輪延續 Web Preview consolidation：新增 `frontends/web/preview_assets.py`，把 `crawler_asset_cards()`、`crawler_asset_card()`、`crawler_asset_detail()`、`crawler_asset_seed_page()`、`crawler_asset_seed_row()`、`save_crawler_asset_seed_favorite()` 與 `crawler_asset_credential_detail()` 從 `frontends/web/preview_api.py` 移出。
 - `frontends/web/preview_api.py` 從約 703 行降到約 497 行；它仍保留 status / project maturity / developer diagnostics / listing / credential update / plan preview / download-import endpoint orchestration，不再持有 asset card/detail/seed read-model projection。
