@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 17:12 Web download/import action labels
+- 本輪把 Web Preview 的正式下載 / 匯入訊息再往後端 display payload 收斂：asset-level 與 seed-level download/import 失敗或 review-required 訊息改用 `downloadImportNextActionText()`，只顯示 `next_action_label` 類人類文案；plan chip 也不再 fallback 到 raw `outcome_bucket`。
+- 已提交實作：`2f0586a Hide Web download action ids`。
+- 已驗證：`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；本切片 UTF-8/mojibake check OK；完整 smoke `state\logs\pre_push_smoke_20260530_170812.log` 通過，983 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Web download/import 顯示 fallback 與靜態防回歸測試，不改 download/import service、plan resolver、crawler registry、credential storage 或 Tk 操作。GitHub Actions 尚未補看，下一步應 push 後手動 dispatch / watch CI。
 ## 2026-05-30 17:01 Crawler asset health labels
 - 本輪把 Crawler Asset health payload 補上 `status_label`、`status_tone` 與 `next_action_label`；Web asset passport 與 selected hero 的 state pill 改讀 `card.health.status_label`，未知 status fallback 也不再直接顯示 raw id。
 - 已提交實作：`61fb8d1 Add crawler asset health labels`。
