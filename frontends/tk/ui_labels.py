@@ -186,4 +186,4 @@ def crawler_next_action_label(action: str, tr: Translator) -> str:
     action = str(action or "").strip()
     if not action:
         return tr("查看 crawler 審核結果。", "Review crawler audit results.")
-    return labels.get(action, action)
+    return labels.get(action, tr("查看 crawler 審核結果。", "Review crawler audit results."))

@@ -59,7 +59,7 @@ class TkUiLabelTests(unittest.TestCase):
         message = crawler_next_action_label("repair_crawler_query_or_parser", zh)
 
         self.assertIn("回傳 0 筆", message)
-        self.assertEqual("unknown_action", crawler_next_action_label("unknown_action", zh))
+        self.assertEqual("查看 crawler 審核結果。", crawler_next_action_label("unknown_action", zh))
 
 
 if __name__ == "__main__":
