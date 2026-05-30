@@ -25,7 +25,7 @@ py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --project-mat
 - `rows`：各能力區塊的成熟度。
 - `reporting_rule`：禁止用單一百分比描述整體專案。
 - `why_no_single_percent`：說明為什麼 single percent 會混淆 contract、partial 與 delivered。
-- `background_jobs_and_scheduler.metrics`：目前會列出 Tk 背景工作 policy registry 是否可用、bounded policy 數量，以及各 policy 的 `max_active_jobs`；截至本 checkpoint，Tk bounded policy count 為 11。
+- `background_jobs_and_scheduler.metrics`：目前會列出 Tk 背景工作 policy registry 是否可用、bounded policy 數量、各 policy 的 `max_active_jobs`，以及 call site / direct thread spawn 測試護欄；截至本 checkpoint，Tk bounded policy count 為 11，且 Tk 背景 worker 必須經由 `frontends/tk/background_jobs.py` 與 policy registry。
 
 ## 成熟度等級
 
