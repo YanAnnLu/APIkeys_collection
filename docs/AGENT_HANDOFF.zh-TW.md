@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 11:44 Metadata probe truncation flag
+- 本輪沒有改 metadata crawl 的 bounded excerpt 行為，只補上 agent/UI 可讀的 `truncated` flag：`safe_fetch_metadata()` 讀到超過 `max_bytes` 的成功 response 時，仍只保留 bounded excerpt，但 payload 會明確標示 `truncated=true`，避免把摘要誤認成完整頁面。
+- 已提交實作：`3bea35b Expose metadata probe truncation flag`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\core.py tests\test_metadata_probe.py` OK；`py -3 -B -m unittest tests.test_metadata_probe -v` 通過，3 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_114424.log` 通過，971 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 handoff / development log；本輪只新增 metadata probe JSON 欄位，不改 provider discovery、crawler registry、download/import、Web/Tk 操作或 user guide。GitHub Actions 尚未觸發，推送後需 manual workflow dispatch 並回填 run id。
 ## 2026-05-30 11:34 Download max_bytes enforcement
 - 本輪把 `SourceDownloadBounds.max_bytes` 從 plan metadata / review 標記接到實際 HTTP adapter：`download_bounds.max_bytes` 為正數時，`HTTPDownloadAdapter` 會用 `Content-Length` / `Content-Range` 提前拒絕超量下載，未知總長度時也會在 chunk 累計超過 budget 前 fail-fast。
 - 已提交實作：`a0ee7bc Enforce download max byte bounds`。
