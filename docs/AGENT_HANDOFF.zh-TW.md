@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 11:08 Crawler registry maturity metrics
+- 本輪沒有重寫 crawler registry；確認 `CrawlerSpec` / `@crawler(...)` / 4-bit capability address / seed scope registry 已落地後，只把成熟度 JSON 的 source handler row 補齊 registry 證據：`registry_matrix_cell_count`、`capability_address_width`、`capability_address_group_count`、`seed_scope_counts`、`dispatch_owner` 與相容 surface。
+- 已提交實作：`8ce74e7 Expose crawler registry maturity metrics`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\project_maturity.py tests\test_project_maturity.py` OK；`py -3 -B -m unittest tests.test_project_maturity tests.test_dataset_discovery -v` 通過，63 tests OK；`py -3 -B APIkeys_collection.py --project-maturity-json` 可看到 source handler row 的 registry metrics；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_110838.log` 通過，968 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只擴充成熟度 JSON 證據，不改 crawler handler、registry dispatch、Web/Tk 操作、download/import、credential storage 或 user guide。
+
 ## 2026-05-30 10:58 Web Preview POST body guard
 - 本輪替 Web Preview localhost API 加上 request body budget：`DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES=1024 * 1024`，`read_json_body()` 與 `discard_request_body()` 都會先檢查 `Content-Length`，oversized POST body 會回 400，不會進入 crawler asset route handler 或 developer diagnostic handler。
 - 已提交實作：`461c749 Bound Web preview POST bodies`。
