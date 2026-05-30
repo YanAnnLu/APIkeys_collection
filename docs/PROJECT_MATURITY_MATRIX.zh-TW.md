@@ -50,7 +50,7 @@ py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --project-mat
 | Credential setup | `implemented_bounded` | 本機登入設定、`記住我的帳號`、缺憑證 guard、`.env` 原子寫入已具備。 | Provider 官方註冊 / API Key 取得仍主要靠連結與人工登入。 |
 | Renderer / Unreal / Simulation | `contract_only` | 已有 renderer/simulation/unreal bridge contract 或 planned target。 | Unreal 不做 real I/O；simulation backend 是 `contract_only`，不能說已實作引擎。 |
 | Qt modern UI | `planned_not_started` | 未來 Qt/QSS 會消費同一份後端 contract。 | 目前正式可操作面是 Tk / Web Preview，不是 Qt。 |
-| Background jobs / scheduler | `hardening_needed` | Tk/Web 已用背景 thread/queue 避免立即卡 UI。 | 還缺 unified bounded job scheduler / DB write gate。 |
+| Background jobs / scheduler | `hardening_needed` | Tk/Web 已用背景 thread/queue 避免立即卡 UI；Tk 主要背景工作上限已收斂到 typed policy registry。 | 還缺 unified bounded job scheduler / DB write gate，policy registry 不是完整 scheduler。 |
 | Docs / handoff / governance | `implemented_bounded` | AGENT_START_HERE、handoff、GTD、docs drift guard、development log、pre-push smoke、CI watch 已成工作流。 | 若 checkpoint 忘記更新文件，仍會再次漂移。 |
 
 ## 之後回答進度的模板

@@ -27,6 +27,7 @@ Last updated: 2026-05-30
 - [x] Tk Crawler Asset 表格與右側 Passport 已對齊同一份 seed scope display contract：Tk 優先顯示 `capability_profile.seed_scope_label`（例如「入口列表」「分頁 catalog」），不再把 raw `entry_listing` / `paginated_catalog` 當成主要使用者文案。
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
 - [x] Tk 工具選單已新增「專案成熟度矩陣」入口：Tk 讀同一份 `api_launcher.project_maturity` payload，顯示 `🚧` / display label / limitation counts，不在 Tk 內重算整體完成率。
+- [x] Tk background job capacity 已收斂成第一版 declarative policy registry：`frontends/tk/background_job_policies.py` 集中列出 AI summary、crawler asset、discovery、OAuth、plan bounds probe、sidebar favicon、source action、SQLite import 的 `max_active_jobs` 與 active-job owner attrs；各 workflow 只匯入 policy 常數，不再自行維護裸值。
 - [x] 2026-05-28 governance intake 已收斂：大檔解耦要排進固定 consolidation slice；文檔治理可朝「Markdown source of truth + CSV/JSON/SQLite registry」演進；註釋要補在邊界與不變量，且行為改變時同步更新或刪除；未完整實裝能力必須在 UI/UX 顯示 `🚧` / construction / `contract_only` / `planned` 狀態，不能讓使用者誤以為已交付。
 - [x] 2026-05-28 架構 guardrail 補充：宣告式 profile 與 middleware pipeline 並不互斥；profile 描述能力/政策/budget，pipeline 負責按順序安全執行。遞迴可用但必須 bounded，遠端互動探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`，無明確 profile/測試/確認時不超過 `max_depth=4`。
 - [x] 2026-05-28 loop / decorator guardrail 補充：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget 或 runtime policy。硬寫哨兵值只能作最後安全網，且必須命名、可覆寫、可測並回報 `limit_reached` 類狀態。裝飾器可用於註冊 crawler metadata 與保留 handler 回傳值，不應吞掉 candidates、warnings 或 pagination metadata。宣告式方向採混合式準宣告式：registry/profile/matrix/pipeline/decorator 加少量條件分支、迴圈與受控淺遞迴，不做上帝 YAML。
@@ -199,7 +200,7 @@ Last updated: 2026-05-30
 - [x] `scripts/pre_push_smoke.ps1` 已補 `$LASTEXITCODE` 檢查；`git diff --check`、`py_compile`、`unittest discover`、CLI summary 若失敗會立即讓 smoke 失敗，不再靠後續 summary/MVP smoke 掩蓋 native command failure。
 - [x] `api_launcher/cli_flags.py` 的 CLI command detection 已改成子命令活性判斷函式延遲導入；普通 import / 啟動路徑不再預先載入所有 CLI workflow module，並由 `tests/test_cli_flags.py` 鎖住。
 - [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
-- [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。這不是立即 asyncio 重寫理由；下一步應先設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
+- [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。Tk 已有第一版 background job policy registry 與多個 `max_active_jobs` guard，但這不是完整 scheduler；下一步應設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

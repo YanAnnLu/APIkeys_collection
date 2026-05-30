@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 09:40 Tk background job policy registry
+- 本輪把 Tk 背景工作容量上限收斂成 `frontends/tk/background_job_policies.py` 的 typed policy registry：AI summary、crawler asset、discovery、OAuth、plan bounds probe、sidebar favicon、source action、SQLite import 都從同一張 policy table 匯入 `max_active_jobs` 常數；workflow 仍只負責 UI handoff，沒有引入全域 scheduler 或 asyncio 重寫。
+- 已提交實作：`b2bcdf9 Declare Tk background job policies`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\background_job_policies.py frontends\tk\background_jobs.py frontends\tk\crawler_asset_workflows.py frontends\tk\discovery_workflows.py frontends\tk\import_workflows.py frontends\tk\ai_summary_workflows.py frontends\tk\source_action_workflows.py frontends\tk\oauth_workflows.py frontends\tk\plan_workflows.py frontends\tk\sidebar_workflows.py tests\test_tk_background_jobs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs -v` 通過，7 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs tests.test_tk_ui_helpers -v` 通過，142 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_093807.log` 通過，961 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / project maturity matrix / development log；本輪只把已存在的 Tk background job caps 移到 declarative policy registry，不改 worker 行為、UI 操作、crawler、download/import、credential、Web 操作或 user guide。
+
 ## 2026-05-30 09:23 Tk OAuth background capacity guard
 - 本輪延續 credential/login scheduler hardening：Tk Google browser login 與 device-code polling 仍用同一份 OAuth single-flight helper，但同一 UI 同時最多 2 個 OAuth background worker；queue 滿時走 capacity callback，不再開新的 callback server / token polling worker。
 - 已提交實作：`79dea32 Bound Tk OAuth background jobs`。
