@@ -2230,6 +2230,26 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
 
+    def test_plan_bounds_probe_blocks_when_probe_queue_full(self) -> None:
+        ui = object.__new__(PlanWorkflowMixin)
+        ui.cart_tree = SimpleNamespace(selection=lambda: ("plan-3",))
+        ui.provider_id_for_plan_key = lambda _plan_key: "demo_provider"
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(name="Demo provider")
+        ui.plan_version_by_provider = {}
+        ui.plan_entry_for_item = lambda _row, _option, plan_key="": ({"download_url": "https://example.test/data.csv"}, "")
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        ui.plan_bounds_active_jobs = {
+            ("plan_bounds_probe", "plan-1", ""),
+            ("plan_bounds_probe", "plan-2", ""),
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            PlanWorkflowMixin.configure_selected_plan_bounds_from_ui(ui)
+
+        thread_class.assert_not_called()
+        self.assertIn("at capacity", ui.status_var.value)
+
     def test_import_status_label_surfaces_content_parser_review(self) -> None:
         ui = object.__new__(ImportWorkflowMixin)
         ui.import_status_by_plan_key = {}

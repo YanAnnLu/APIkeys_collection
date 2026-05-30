@@ -24,6 +24,9 @@ from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
 
 
+MAX_TK_PLAN_BOUNDS_PROBE_JOBS = 2
+
+
 class PlanWorkflowMixin:
     """封裝下載計畫資料模型與 Adapter plan UI workflow。"""
 
@@ -356,6 +359,13 @@ class PlanWorkflowMixin:
                 self.tr(
                     f"這個下載項目已在探測欄位：{plan_key}",
                     f"Schema probe is already running for this plan item: {plan_key}",
+                )
+            ),
+            max_active_jobs=MAX_TK_PLAN_BOUNDS_PROBE_JOBS,
+            on_capacity=lambda: self.status_var.set(
+                self.tr(
+                    "界域欄位探測工作已達上限，請等待目前工作完成。",
+                    "Plan bounds probe jobs are at capacity; wait for one to finish.",
                 )
             ),
         )
