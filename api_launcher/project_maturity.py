@@ -13,6 +13,7 @@ from api_launcher.crawlers.dataset_sources import (
 )
 from api_launcher.crawlers.registry import CAPABILITY_CODE_WIDTH
 from api_launcher.dataset_adapters import DATASET_ADAPTERS
+from api_launcher.importers.compatibility_shims import importer_compatibility_shim_report
 from api_launcher.mvp_readiness import build_mvp_readiness_payload
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.simulation_bridge import DEFAULT_SIMULATION_BACKENDS
@@ -251,6 +252,19 @@ def _source_pattern_crawler_metrics() -> dict[str, Any]:
     }
 
 
+def _content_parser_import_metrics() -> dict[str, Any]:
+    """Expose importer capability evidence without implying every format is parsed."""
+
+    shim_report = importer_compatibility_shim_report()
+    return {
+        "supported_sqlite_importers": ("csv_to_sqlite", "json_to_sqlite"),
+        "compatibility_shim_count": shim_report["shim_count"],
+        "compatibility_shim_runtime_scope": shim_report["runtime_scope"],
+        "global_monkeypatch": shim_report["global_monkeypatch"],
+        "compatibility_shims": shim_report["shims"],
+    }
+
+
 def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]:
     return (
         MaturityMatrixRow(
@@ -292,6 +306,7 @@ def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]
             verified_behavior_source=("tests.test_ingestion_pipeline", "tests.test_csv_importer", "adapter_review_payload"),
             current_limitations=("NetCDF, HDF, GeoTIFF, Zarr, Parquet, and unknown payloads are not universally parsed into curated tables.",),
             next_actions=("Keep unsupported scientific/geospatial formats in manifest/adapter review until parser registry support is explicit.",),
+            metrics=_content_parser_import_metrics(),
         ),
         MaturityMatrixRow(
             area_id="provider_specific_deep_adapters",

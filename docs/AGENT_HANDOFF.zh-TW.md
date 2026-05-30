@@ -1,4 +1,7 @@
 # Agent 接力卡
+## 2026-05-31 00:10 Importer shim maturity evidence
+- 延續 23:57 的 importer compatibility shim，本輪把 shim profile 接進 `--project-maturity-json` 的 `content_parser_and_import.metrics`。payload 會輸出 `supported_sqlite_importers=("csv_to_sqlite","json_to_sqlite")`、`compatibility_shim_count`、`compatibility_shim_runtime_scope=scoped_importer_boundary`、`global_monkeypatch=false` 與 shim 明細，讓 UI/agent 能從成熟度矩陣看見這層相容能力。
+- 新增 `ImporterCompatibilityShimProfile` / `importer_compatibility_shim_report()`；這是 declarative evidence，不是新的全域 monkeypatch，也不改下載或匯入主流程。已驗證：`--project-maturity-json` 實際輸出 `compatibility_shim_count=1`、`runtime_scope=scoped_importer_boundary`、`global_monkeypatch=false`；`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m unittest tests.test_importer_compatibility_shims tests.test_project_maturity tests.test_csv_importer tests.test_json_importer -v` 通過 20 tests；docs mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260531_001121.log` 通過，1005 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-30 23:57 Importer compatibility shim
 - 本輪把「劫持外部混亂來源」收斂成 importer 邊界的 scoped compatibility shim：新增 `api_launcher.importers.compatibility_shims`，不常駐覆寫 `builtins.print`、`sys.modules` 或 pandas；只在 CSV/JSON 進 SQLite 前正規化欄位與 cell 值。
 - CSV importer 現在會攤平 tuple/list/MultiIndex-like 欄位與字串 repr，例如 `("Price", "Adj Close")`、`"('Price', 'Close')"`；`Unnamed:*_level_*` 這類 pandas 匯出殘留會落成安全 fallback 欄名。CSV/JSON importer 也會把 dict/list/tuple cell 穩定 JSON 化，`None` / NaN 仍匯入為空字串。

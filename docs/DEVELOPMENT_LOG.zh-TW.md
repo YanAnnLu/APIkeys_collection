@@ -15,6 +15,12 @@
 - `開發階段` 是粗粒度階段標籤，用來讓人一眼分辨當前工作屬於 `MVP Demo Closure`、`MVP Hardening`、`Database / Repair`、`Discovery / Crawler`、`Docs / Workflow` 等哪一段；新 checkpoint 必須填寫，不要只藏在中文說明裡。
 - 日期區塊與同日內時間都倒序，讓最近期 checkpoint 一打開就能看到。
 
+### 2026-05-31
+
+| 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00:10 | Import Pipeline / Maturity Evidence | **SMOKE PASS / 未推送** | `local` | `not yet` | Expose importer shim maturity metrics | 延續 23:57 的 scoped importer compatibility shim，新增 `ImporterCompatibilityShimProfile` / `importer_compatibility_shim_report()`，並把 shim profile 接進 `--project-maturity-json` 的 `content_parser_and_import.metrics`；payload 會輸出 `supported_sqlite_importers`、`compatibility_shim_count`、`compatibility_shim_runtime_scope=scoped_importer_boundary`、`global_monkeypatch=false` 與 shim 明細。這是讓元編程 / compatibility shim 可觀測化的 declarative evidence，不是新的全域 monkeypatch，也不改下載或匯入主流程。已驗證：`--project-maturity-json` 實際輸出 `compatibility_shim_count=1`、`runtime_scope=scoped_importer_boundary`、`global_monkeypatch=false`；`PYTHONDONTWRITEBYTECODE=1 py -3 -B -m unittest tests.test_importer_compatibility_shims tests.test_project_maturity tests.test_csv_importer tests.test_json_importer -v` 通過 20 tests；`git diff --check` OK；docs mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260531_001121.log` 通過，1005 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。Docs drift check：已同步 GTD / handoff / development log；本輪不改 UI、crawler handler、download/import service 或 credential storage。 |
+
 ### 2026-05-30
 
 | 時間 | 階段 | 狀態 | SHA | Run | Commit | 變更與驗證 |

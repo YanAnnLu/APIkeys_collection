@@ -72,6 +72,15 @@ class ProjectMaturityTests(unittest.TestCase):
             + crawler_metrics["seed_scope_counts"]["paginated_catalog"],
         )
         self.assertEqual("api_launcher.crawlers.registry", crawler_metrics["dispatch_owner"])
+        import_metrics = rows["content_parser_and_import"]["metrics"]
+        self.assertEqual(("csv_to_sqlite", "json_to_sqlite"), tuple(import_metrics["supported_sqlite_importers"]))
+        self.assertEqual(1, import_metrics["compatibility_shim_count"])
+        self.assertEqual("scoped_importer_boundary", import_metrics["compatibility_shim_runtime_scope"])
+        self.assertFalse(import_metrics["global_monkeypatch"])
+        self.assertEqual(
+            "external_table_shape_normalizer",
+            import_metrics["compatibility_shims"][0]["shim_id"],
+        )
 
     def test_project_maturity_markdown_renders_matrix_without_claiming_all_done(self) -> None:
         payload = {

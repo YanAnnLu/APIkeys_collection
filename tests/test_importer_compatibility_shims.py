@@ -3,7 +3,11 @@ from __future__ import annotations
 import math
 import unittest
 
-from api_launcher.importers.compatibility_shims import normalize_external_cell_value, normalize_external_header_label
+from api_launcher.importers.compatibility_shims import (
+    importer_compatibility_shim_report,
+    normalize_external_cell_value,
+    normalize_external_header_label,
+)
 from api_launcher.importers.csv_importer import normalized_column_names, normalized_row_values
 
 
@@ -50,6 +54,16 @@ class ImporterCompatibilityShimTests(unittest.TestCase):
             normalized_row_values(row, width=6),
         )
         self.assertEqual("", normalize_external_cell_value(None))
+
+    def test_report_exposes_scoped_importer_boundary(self) -> None:
+        report = importer_compatibility_shim_report()
+
+        self.assertEqual(1, report["shim_count"])
+        self.assertEqual("scoped_importer_boundary", report["runtime_scope"])
+        self.assertFalse(report["global_monkeypatch"])
+        self.assertEqual("external_table_shape_normalizer", report["shims"][0]["shim_id"])
+        self.assertIn("csv_to_sqlite", report["shims"][0]["applies_to"])
+        self.assertIn("pandas_multiindex_repr_headers", report["shims"][0]["normalizes"])
 
 
 if __name__ == "__main__":

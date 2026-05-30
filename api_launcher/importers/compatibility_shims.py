@@ -4,10 +4,63 @@ import ast
 import json
 import math
 import re
+from dataclasses import dataclass
 from collections.abc import Mapping, Sequence
 
 
 PANDAS_UNNAMED_HEADER_RE = re.compile(r"^Unnamed:\s*\d+(?:_level_\d+)?$", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class ImporterCompatibilityShimProfile:
+    shim_id: str
+    stage: str
+    applies_to: tuple[str, ...]
+    normalizes: tuple[str, ...]
+    boundary: str
+    runtime_scope: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "shim_id": self.shim_id,
+            "stage": self.stage,
+            "applies_to": list(self.applies_to),
+            "normalizes": list(self.normalizes),
+            "boundary": self.boundary,
+            "runtime_scope": self.runtime_scope,
+        }
+
+
+IMPORTER_COMPATIBILITY_SHIMS: tuple[ImporterCompatibilityShimProfile, ...] = (
+    ImporterCompatibilityShimProfile(
+        shim_id="external_table_shape_normalizer",
+        stage="before_sqlite_import",
+        applies_to=("csv_to_sqlite", "json_to_sqlite"),
+        normalizes=(
+            "tuple_or_list_header_labels",
+            "pandas_multiindex_repr_headers",
+            "pandas_unnamed_level_headers",
+            "dict_list_tuple_cell_values",
+            "none_and_nan_cell_values",
+        ),
+        boundary="api_launcher.importers",
+        runtime_scope="scoped_importer_boundary",
+    ),
+)
+
+
+def iter_importer_compatibility_shims() -> tuple[ImporterCompatibilityShimProfile, ...]:
+    return IMPORTER_COMPATIBILITY_SHIMS
+
+
+def importer_compatibility_shim_report() -> dict[str, object]:
+    shims = iter_importer_compatibility_shims()
+    return {
+        "shim_count": len(shims),
+        "runtime_scope": "scoped_importer_boundary",
+        "global_monkeypatch": False,
+        "shims": [shim.to_dict() for shim in shims],
+    }
 
 
 def normalize_external_header_label(value: object) -> str:
