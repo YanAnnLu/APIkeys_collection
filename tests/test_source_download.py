@@ -282,8 +282,23 @@ class SourceDownloadTests(unittest.TestCase):
             payload = fetch_probe_bytes("https://example.test/data.json", timeout=1.0, max_bytes=17)
 
         self.assertEqual(b"sample", payload)
-        self.assertEqual([17], read_sizes)
+        self.assertEqual([18], read_sizes)
         self.assertEqual(128 * 1024, DEFAULT_SCHEMA_PROBE_MAX_BYTES)
+
+    def test_fetch_probe_bytes_rejects_oversized_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with patch("api_launcher.schema_probe.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ValueError, "Schema probe response exceeded 17 bytes"):
+                fetch_probe_bytes("https://example.test/data.json", timeout=1.0, max_bytes=17)
 
     def test_csv_head5_probe_extracts_columns(self) -> None:
         result = csv_schema_probe(

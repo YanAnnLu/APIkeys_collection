@@ -82,9 +82,13 @@ def schema_probe_url(url: str, row_limit: int = 5) -> str:
 
 
 def fetch_probe_bytes(url: str, timeout: float, max_bytes: int = DEFAULT_SCHEMA_PROBE_MAX_BYTES) -> bytes:
+    byte_limit = max(1, int(max_bytes))
     request = Request(url, headers={"User-Agent": PoliteDownloadPolicy().user_agent})
     with urlopen(request, timeout=timeout) as response:
-        return response.read(max(1, int(max_bytes)))
+        payload = response.read(byte_limit + 1)
+        if len(payload) > byte_limit:
+            raise ValueError(f"Schema probe response exceeded {byte_limit} bytes: {url}")
+        return payload
 
 
 def csv_schema_probe(source_url: str, probe_url: str, payload: bytes) -> SchemaProbeResult:
