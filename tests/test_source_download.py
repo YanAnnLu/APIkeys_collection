@@ -154,6 +154,7 @@ class SourceDownloadTests(unittest.TestCase):
                         start_date="2026-01-01",
                         end_date="2026-01-31",
                         bbox=(-122.6, 37.6, -122.3, 37.9),
+                        max_bytes=2048,
                         time_field="created_date",
                         longitude_field="longitude",
                         latitude_field="latitude",
@@ -173,6 +174,9 @@ class SourceDownloadTests(unittest.TestCase):
         self.assertIn("time_range", entry["download_bound_status"]["applied"])
         self.assertIn("bbox", entry["download_bound_status"]["applied"])
         self.assertIn("required_columns", entry["download_bound_status"]["applied"])
+        self.assertIn("max_bytes_enforced", entry["download_bound_status"]["applied"])
+        self.assertNotIn("max_bytes_review", entry["download_bound_status"]["applied"])
+        self.assertEqual(2048, entry["download_bounds"]["max_bytes"])
         self.assertIn("$limit=12", entry["download_url"])
 
     def test_credential_gate_blocks_missing_api_key_provider(self) -> None:

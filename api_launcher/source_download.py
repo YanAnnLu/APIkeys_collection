@@ -409,7 +409,9 @@ def bound_status_for_entry(entry: dict[str, object], bounds: SourceDownloadBound
         else:
             needs_probe.append("required_columns")
     if bounds.max_bytes:
-        applied.append("max_bytes_review")
+        # HTTPDownloadAdapter consumes this bound at execution time; expose it as
+        # enforced so UI/agent payloads do not treat the byte cap as review-only.
+        applied.append("max_bytes_enforced")
     if bounds.schema_probe_required and needs_probe:
         next_action = "run_schema_probe_before_precise_bounded_download"
     elif unsupported:
