@@ -2,7 +2,7 @@
 ## 2026-05-30 10:28 Tk scheduler guard metrics
 - 本輪把 Tk scheduler 測試護欄也接進 `--project-maturity-json`：`background_jobs_and_scheduler.metrics` 現在除了 policy count / max-active table，也輸出 `capacity_policy_call_site_guarded=true`、`direct_thread_spawn_guarded=true`、`direct_thread_spawn_owner=frontends/tk/background_jobs.py` 與對應 guard test 名稱。
 - 已提交實作：`a6ee50e Expose Tk scheduler guard metrics`。
-- 已驗證：`py -3 -B -m py_compile api_launcher\project_maturity.py tests\test_project_maturity.py` OK；`py -3 -B -m unittest tests.test_project_maturity tests.test_tk_background_jobs -v` 通過，13 tests OK；`py -3 -B APIkeys_collection.py --project-maturity-json` 顯示 scheduler guard metrics；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_102820.log` 通過，963 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\project_maturity.py tests\test_project_maturity.py` OK；`py -3 -B -m unittest tests.test_project_maturity tests.test_tk_background_jobs -v` 通過，13 tests OK；`py -3 -B APIkeys_collection.py --project-maturity-json` 顯示 scheduler guard metrics；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_102820.log` 通過，963 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26672090649` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / project maturity matrix / development log；本輪只擴充成熟度 JSON 的 metrics，不改 Tk runtime 行為、policy 數量、crawler、download/import、credential、Web 操作或 user guide。
 
 ## 2026-05-30 10:19 Tk direct thread guard
