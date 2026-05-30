@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 22:30 Codex Cloud handoff / dialogue backup workflow
+- 本輪初始化 RRKAL 專屬 Codex Cloud / 新 thread 接手文件：新增 `docs/CODEX_CLOUD_HANDOFF.zh-TW.md` 與 `docs/WORKFLOW.zh-TW.md`。公開 repo 只保存蒸餾後 handoff、workflow、decision、GTD、development log；完整對話或 raw transcript 只應放 private `Kagamihara-Ruruka/dialogue-save`，建議路徑為 `APIkeys_collection/<topic-slug>__YYYY-MM-DD__<thread-short-id>/`。
+- 已同步入口：`AGENT_START_HERE` 增加 Cloud/new-thread/對話備份閱讀路線；`DOCS_INDEX` 與 `DOCS_REGISTRY.csv` 已加入兩份 workflow 文件；`PROJECT_GTD` 已記錄本 checkpoint。
+- 邊界：這是 workflow/docs 初始化，不改產品碼、不接觸 `RRKAL_displaytools` 或 private transcript 內容，也不把 raw transcript 放進公開 repo。下一位 agent 若接到 Cloud 工作，先讀 `AGENT_START_HERE -> CODEX_CLOUD_HANDOFF -> WORKFLOW -> AGENT_HANDOFF -> PROJECT_GTD`。
 ## 2026-05-30 19:55 Tk source type display labels
 - 本輪把同一份 `source_type_label` 接進 Tk：Crawler Asset 表格、右側 Passport 詳情、flow step、crawler profile dialog 與 credential dialog 都顯示「CKAN package search」「HTML file index」或「來源範式待確認」，不再把 raw `ckan_package_search` / `html_file_index` 當主要使用者文字。
 - 已提交實作：`859fc5a Use source type labels in Tk`。

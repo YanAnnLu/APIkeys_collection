@@ -1,6 +1,6 @@
 # Agent Start Here
 
-最後更新：2026-05-27
+最後更新：2026-05-30
 
 這份文件是給接手 RRKAL / `APIkeys_collection` 的 agent 的最短入口地圖。它不取代詳細規格，只負責降低啟動時的判斷成本。
 
@@ -46,6 +46,7 @@
 - 改 UI/UX：再讀 `docs/UI_UX_DEVELOPMENT_CONTRACT.zh-TW.md`。
 - 改下載、匯入、repair：再讀 `docs/TECHNICAL_OVERVIEW.zh-TW.md` 與 `docs/ARCHITECTURE.md`。
 - 改工作流、OpenSpec、Spectra、跨 agent 規則：再讀 `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md`。
+- 轉交 Codex Cloud、新本機 thread、或整理本地對話備份：再讀 `docs/CODEX_CLOUD_HANDOFF.zh-TW.md` 與 `docs/WORKFLOW.zh-TW.md`。公開 repo 只放蒸餾後 handoff/workflow/decision/log；raw transcript 只放 private `dialogue-save`。
 - 想看完整文檔地圖：讀 `docs/DOCS_INDEX.zh-TW.md`。
 
 ## 每輪固定治理機制
