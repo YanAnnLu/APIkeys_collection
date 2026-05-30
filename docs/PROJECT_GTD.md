@@ -29,6 +29,7 @@ Last updated: 2026-05-30
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
 - [x] Tk 工具選單已新增「專案成熟度矩陣」入口：Tk 讀同一份 `api_launcher.project_maturity` payload，顯示 `🚧` / display label / limitation counts，不在 Tk 內重算整體完成率。
 - [x] Tk background job capacity 已收斂成第一版 declarative policy registry：`frontends/tk/background_job_policies.py` 集中列出 AI summary、crawler asset、developer CLI、discovery、MVP demo smoke、OAuth、plan bounds probe、sidebar favicon、showcase download、source action、SQLite import 的 `max_active_jobs` 與 active-job owner attrs；各 workflow 只匯入 policy 常數，不再自行維護裸值。`tests.test_tk_background_jobs` 也已補 AST guard，要求所有 Tk `start_single_flight_thread(...)` call site 都帶 `max_active_jobs`，且 Tk 模組不得繞過 `background_jobs.py` 直接呼叫 `threading.Thread`；`--project-maturity-json` 會輸出這兩個 guardrail 的 machine-readable metrics。
+- [x] SQLite import 寫入已補第一版 process-local write gate：`api_launcher.sqlite_write_gate` 以 per-SQLite-path `RLock` 保護同一 Python process 內的 `csv_to_sqlite`、`json_to_sqlite` 與 download-plan import policy decision；這降低 Tk/Web/CLI 同 process 重複匯入同一 curated SQLite path 時的 writer 競爭，但不是跨 process lock，也不是完整 scheduler。
 - [x] 2026-05-28 governance intake 已收斂：大檔解耦要排進固定 consolidation slice；文檔治理可朝「Markdown source of truth + CSV/JSON/SQLite registry」演進；註釋要補在邊界與不變量，且行為改變時同步更新或刪除；未完整實裝能力必須在 UI/UX 顯示 `🚧` / construction / `contract_only` / `planned` 狀態，不能讓使用者誤以為已交付。
 - [x] 2026-05-28 架構 guardrail 補充：宣告式 profile 與 middleware pipeline 並不互斥；profile 描述能力/政策/budget，pipeline 負責按順序安全執行。遞迴可用但必須 bounded，遠端互動探索以 Raspberry Pi-class 裝置為基準，預設 `max_depth=2`，無明確 profile/測試/確認時不超過 `max_depth=4`。
 - [x] 2026-05-28 loop / decorator guardrail 補充：range、slice、array/list/page window 是避免硬編碼的重要工具；迴圈停止條件優先來自 protocol response、source profile、使用者 bounds、job budget 或 runtime policy。硬寫哨兵值只能作最後安全網，且必須命名、可覆寫、可測並回報 `limit_reached` 類狀態。裝飾器可用於註冊 crawler metadata 與保留 handler 回傳值，不應吞掉 candidates、warnings 或 pagination metadata。宣告式方向採混合式準宣告式：registry/profile/matrix/pipeline/decorator 加少量條件分支、迴圈與受控淺遞迴，不做上帝 YAML。
@@ -154,7 +155,7 @@ Last updated: 2026-05-30
 - [x] Crawler asset Tk row/detail 投影已集中到 `frontends/tk/crawler_asset_ui_helpers.py`：table row、右側 passport detail、capability lines、credential summary、plan passport summary 與 bounds schema text 不再直接留在 `crawler_asset_workflows.py`。
 - [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，且同一 UI 同時最多 2 個 plan bounds probe worker，減少連點造成的重複 dialog、過多網路 probe 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
-- [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
+- [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把 Web Preview endpoint 狀態 payload、剩餘 import/repair 顯示投影、以及 unified bounded scheduler 設計收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。
@@ -221,7 +222,7 @@ Last updated: 2026-05-30
 - [x] `scripts/pre_push_smoke.ps1` 已補 `$LASTEXITCODE` 檢查；`git diff --check`、`py_compile`、`unittest discover`、CLI summary 若失敗會立即讓 smoke 失敗，不再靠後續 summary/MVP smoke 掩蓋 native command failure。
 - [x] `api_launcher/cli_flags.py` 的 CLI command detection 已改成子命令活性判斷函式延遲導入；普通 import / 啟動路徑不再預先載入所有 CLI workflow module，並由 `tests/test_cli_flags.py` 鎖住。
 - [x] 下一步 hardening：source profile / crawler capability 已先收斂出正式 request policy metadata；formal crawler asset public-source download/import path 已接進 Web Preview 主 CTA。舊 Web `真下載示範` 已退到 developer diagnostics 路由，不再是一般 API 路徑。
-- [ ] 中期 hardening：目前 Tk/Web 多處仍以 `threading.Thread(..., daemon=True)` 直接拋背景任務。Tk 已有第一版 background job policy registry 與多個 `max_active_jobs` guard，但這不是完整 scheduler；下一步應設計 bounded job scheduler / DB write gate，統一背景任務排隊、限流、取消、狀態事件與 SQLite 寫入節流，再評估哪些 I/O crawler path 值得 async 化。
+- [ ] 中期 hardening：Tk 已有第一版 background job policy registry、多個 `max_active_jobs` guard、direct thread spawn AST guard，以及 process-local SQLite write gate；但這仍不是完整 scheduler。下一步應設計 unified bounded job scheduler，統一背景任務排隊、限流、取消、狀態事件與跨 process / 多 app instance 的 SQLite 寫入策略，再評估哪些 I/O crawler path 值得 async 化。
 
 ## 2026-05-27 Crawler source pattern / asset registry 對齊
 - [x] 記錄「宣告式架構分階段決策」：第一階段不重寫成萬能 YAML / universal interpreter，仍優先完成 `seed -> crawler -> candidate -> plan -> download -> import -> UI`；第二階段再把穩定重複規則抽成 UI 狀態、動態界域表單、content parser/importer、adapter review/download plan、feature flag 與 source profile contract。詳見 `docs/DECLARATIVE_ARCHITECTURE_DECISION.zh-TW.md`。

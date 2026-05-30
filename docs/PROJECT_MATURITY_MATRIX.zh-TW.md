@@ -1,6 +1,6 @@
 # RRKAL 專案成熟度矩陣
 
-最後更新：2026-05-28
+最後更新：2026-05-30
 
 這份文件定義 RRKAL / `APIkeys_collection` 之後回答「整體進度多少」時的標準口徑。
 
@@ -25,7 +25,7 @@ py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --project-mat
 - `rows`：各能力區塊的成熟度。
 - `reporting_rule`：禁止用單一百分比描述整體專案。
 - `why_no_single_percent`：說明為什麼 single percent 會混淆 contract、partial 與 delivered。
-- `background_jobs_and_scheduler.metrics`：目前會列出 Tk 背景工作 policy registry 是否可用、bounded policy 數量、各 policy 的 `max_active_jobs`，以及 call site / direct thread spawn 測試護欄；截至本 checkpoint，Tk bounded policy count 為 11，且 Tk 背景 worker 必須經由 `frontends/tk/background_jobs.py` 與 policy registry。
+- `background_jobs_and_scheduler.metrics`：目前會列出 Tk 背景工作 policy registry 是否可用、bounded policy 數量、各 policy 的 `max_active_jobs`、process-local SQLite write gate，以及 call site / direct thread spawn 測試護欄；截至本 checkpoint，Tk bounded policy count 為 11，Tk 背景 worker 必須經由 `frontends/tk/background_jobs.py` 與 policy registry，CSV/JSON/download-plan import 會經過 `api_launcher.sqlite_write_gate` 的同 process / per-SQLite-path writer gate。
 
 ## 成熟度等級
 
@@ -51,7 +51,7 @@ py -3 -B APIkeys_collection.py --db state\mvp_demo\launcher.sqlite --project-mat
 | Credential setup | `implemented_bounded` | 本機登入設定、`記住我的帳號`、缺憑證 guard、`.env` 原子寫入已具備。 | Provider 官方註冊 / API Key 取得仍主要靠連結與人工登入。 |
 | Renderer / Unreal / Simulation | `contract_only` | 已有 renderer/simulation/unreal bridge contract 或 planned target。 | Unreal 不做 real I/O；simulation backend 是 `contract_only`，不能說已實作引擎。 |
 | Qt modern UI | `planned_not_started` | 未來 Qt/QSS 會消費同一份後端 contract。 | 目前正式可操作面是 Tk / Web Preview，不是 Qt。 |
-| Background jobs / scheduler | `hardening_needed` | Tk/Web 已用背景 thread/queue 避免立即卡 UI；Tk 主要背景工作上限已收斂到 typed policy registry。 | 還缺 unified bounded job scheduler / DB write gate，policy registry 不是完整 scheduler。 |
+| Background jobs / scheduler | `hardening_needed` | Tk/Web 已用背景 thread/queue 避免立即卡 UI；Tk 主要背景工作上限已收斂到 typed policy registry；SQLite import 寫入有 process-local per-path gate。 | 還缺 unified bounded job scheduler、跨 process / 多 app instance 寫入策略；policy registry 與 process-local write gate 不是完整 scheduler。 |
 | Docs / handoff / governance | `implemented_bounded` | AGENT_START_HERE、handoff、GTD、docs drift guard、development log、pre-push smoke、CI watch 已成工作流。 | 若 checkpoint 忘記更新文件，仍會再次漂移。 |
 
 ## 之後回答進度的模板
