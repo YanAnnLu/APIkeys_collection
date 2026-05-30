@@ -2,7 +2,7 @@
 ## 2026-05-30 14:09 Tk bounds warning text
 - 本輪把 Tk Crawler Asset 界域表單的警示預覽改成人類文案：`crawler_asset_bound_warning_text()` 會說明「欄位探測」或「探測結果已套用但仍需人工確認」，不再把 `warning_codes` / `schema_probe_*` raw id 直接顯示給使用者。
 - 已提交實作：`55a180d Hide bounds warning codes in Tk`。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_bound_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_crawler_assets tests.test_web_preview -v` 通過，221 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_140930.log` 通過，973 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_bound_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_crawler_assets tests.test_web_preview -v` 通過，221 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_140930.log` 通過，973 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26676617783` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Tk warning display contract，不改 schema probe service、bounds payload、download/import、Web 操作、credential storage、crawler registry 或 user guide。
 ## 2026-05-30 13:55 download bound display labels
 - 本輪把 `download_bound_status` 補成 UI-neutral display payload：後端新增 `applied_labels.zh_TW/en`，Tk plan bounds status 優先顯示「樣本上限、時間範圍、下載大小上限」這類人類文案，不再把 `sample_limit` / `max_bytes_enforced` raw code 直接丟給使用者。
