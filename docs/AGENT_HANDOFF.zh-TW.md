@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 11:34 Download max_bytes enforcement
+- 本輪把 `SourceDownloadBounds.max_bytes` 從 plan metadata / review 標記接到實際 HTTP adapter：`download_bounds.max_bytes` 為正數時，`HTTPDownloadAdapter` 會用 `Content-Length` / `Content-Range` 提前拒絕超量下載，未知總長度時也會在 chunk 累計超過 budget 前 fail-fast。
+- 已提交實作：`a0ee7bc Enforce download max byte bounds`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\downloads\http.py tests\test_http_downloader.py` OK；`py -3 -B -m unittest tests.test_http_downloader tests.test_download_plan_runner tests.test_source_download -v` 通過，33 tests OK；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_113427.log` 通過，970 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只讓既有 `max_bytes` bounds 在 HTTP download layer 生效，不改 Web/Tk 表單操作、crawler registry、adapter resolver、credential storage 或 user guide。GitHub Actions 尚未觸發，推送後需 manual workflow dispatch 並回填 run id。
 ## 2026-05-30 11:19 Schema probe oversized response guard
 - 本輪延續 bounded probe hardening：`fetch_probe_bytes()` 現在會讀 `max_bytes + 1`，若 schema/head probe response 超過 budget 會明確 raise `ValueError`，避免用截斷 CSV/JSON 推論欄位並誤導 Web/Tk 界域表單。
 - 已提交實作：`53ac5bd Reject oversized schema probe responses`。
