@@ -105,7 +105,10 @@ def fetch_pattern_probe(
     request = urllib.request.Request(url, headers={"User-Agent": f"{USER_AGENT} source-pattern-detector/0.1"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = response.read(max(1, int(max_bytes)))
+            byte_limit = max(1, int(max_bytes))
+            data = response.read(byte_limit + 1)
+            if len(data) > byte_limit:
+                return None
             charset = response.headers.get_content_charset() or "utf-8"
             headers = {key.lower(): value for key, value in response.headers.items()}
             return PatternProbeResponse(

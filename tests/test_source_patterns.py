@@ -44,9 +44,35 @@ class SourcePatternDetectorTest(unittest.TestCase):
             response = fetch_pattern_probe("https://example.test/probe", timeout=1.0, max_bytes=19)
 
         self.assertIsNotNone(response)
-        self.assertEqual([19], read_sizes)
+        self.assertEqual([20], read_sizes)
         self.assertEqual(128 * 1024, DEFAULT_PATTERN_PROBE_MAX_BYTES)
         self.assertEqual({"ok": True}, response.json_payload() if response else None)
+
+    def test_fetch_pattern_probe_rejects_oversized_response(self) -> None:
+        class FakeHeaders(dict):
+            def get_content_charset(self) -> str:
+                return "utf-8"
+
+        class FakeResponse:
+            headers = FakeHeaders({"content-type": "application/json"})
+            status = 200
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+            def geturl(self) -> str:
+                return "https://example.test/probe"
+
+        with patch("api_launcher.crawlers.source_patterns.urllib.request.urlopen", return_value=FakeResponse()):
+            response = fetch_pattern_probe("https://example.test/probe", timeout=1.0, max_bytes=19)
+
+        self.assertIsNone(response)
 
     def test_stac_pattern_uses_json_evidence_and_source_type_hint(self) -> None:
         def fetcher(url: str, _timeout: float) -> PatternProbeResponse | None:
