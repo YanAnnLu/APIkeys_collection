@@ -738,6 +738,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(0b0000, card["capability_profile"]["capability_bits"])
         self.assertEqual("catalog_search", card["capability_profile"]["source_family"])
         self.assertEqual("entry_listing", card["capability_profile"]["seed_scope"])
+        self.assertEqual("入口列表", card["capability_profile"]["seed_scope_label"])
         self.assertTrue(card["capabilities"])
         self.assertEqual("抓取元資料", card["capabilities"][0]["display_label"])
         self.assertEqual("probe_schema_then_define_bounds", card["next_action"])

@@ -107,6 +107,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("json", asset.capability_profile.transport)
         self.assertEqual("dataset_list", asset.capability_profile.result_shape)
         self.assertEqual("paginated_catalog", asset.capability_profile.seed_scope)
+        self.assertEqual("分頁 catalog", asset.capability_profile.seed_scope_label)
         self.assertTrue(asset.capability_profile.supports_full_crawl)
         capability_code = asset.capability_profile.capability_code
         self.assertIsNotNone(capability_code)
@@ -125,6 +126,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("json", payload["transport"])
         self.assertEqual("dataset_list", payload["result_shape"])
         self.assertEqual("paginated_catalog", payload["seed_scope"])
+        self.assertEqual("分頁 catalog", payload["seed_scope_label"])
         self.assertTrue(payload["supports_full_crawl"])
         self.assertEqual({"bits": 0, "binary": "0000", "width": 4}, payload["capability_code"])
         self.assertEqual(0b0000, payload["capability_bits"])

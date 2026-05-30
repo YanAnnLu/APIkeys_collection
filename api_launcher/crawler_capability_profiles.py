@@ -83,6 +83,7 @@ class CrawlerCapabilityProfile:
     terms_risk: str
     result_shape: str
     seed_scope: str
+    seed_scope_label: str
     supports_full_crawl: bool
     capability_code: CrawlerCapabilityCode | None
     pagination_mode: str
@@ -102,6 +103,7 @@ class CrawlerCapabilityProfile:
             "terms_risk": self.terms_risk,
             "result_shape": self.result_shape,
             "seed_scope": self.seed_scope,
+            "seed_scope_label": self.seed_scope_label,
             "supports_full_crawl": self.supports_full_crawl,
             "capability_code": self.capability_code.to_dict() if self.capability_code else {},
             "capability_bits": self.capability_code.bits if self.capability_code else None,
@@ -144,6 +146,7 @@ def crawler_capability_profile(
     )
     pagination_mode = pagination_mode_for_source(source)
     spec = crawler_spec_for_source_type(source.source_type)
+    seed_scope = spec.seed_scope if spec else "unknown"
     return CrawlerCapabilityProfile(
         source_id=source.source_id,
         source_type=source.source_type,
@@ -152,7 +155,8 @@ def crawler_capability_profile(
         auth_mode=policy.credential_mode,
         terms_risk=policy.terms_risk,
         result_shape=spec.result_shape if spec else "unknown",
-        seed_scope=spec.seed_scope if spec else "unknown",
+        seed_scope=seed_scope,
+        seed_scope_label=seed_scope_display_label(seed_scope),
         supports_full_crawl=bool(spec.supports_full_crawl) if spec else False,
         capability_code=spec.capability_code if spec else None,
         pagination_mode=pagination_mode,
@@ -171,6 +175,17 @@ def crawler_spec_for_source_type(source_type: str) -> CrawlerSpec | None:
         return crawler_spec(source_type)
     except ValueError:
         return None
+
+
+def seed_scope_display_label(seed_scope: str) -> str:
+    """Return UI-neutral wording for a crawler seed enumeration surface."""
+
+    labels = {
+        "entry_listing": "入口列表",
+        "paginated_catalog": "分頁 catalog",
+        "unknown": "未知",
+    }
+    return labels.get(seed_scope, seed_scope or "未知")
 
 
 def pagination_mode_for_source(source: DatasetDiscoverySource) -> str:
