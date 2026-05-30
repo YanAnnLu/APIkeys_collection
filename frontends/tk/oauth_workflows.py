@@ -36,6 +36,9 @@ from frontends.tk.background_jobs import TkJobKey, start_single_flight_thread
 from frontends.tk.ui_config import COLORS, PRODUCT_DISPLAY_NAME
 
 
+MAX_TK_OAUTH_BACKGROUND_JOBS = 2
+
+
 class OAuthWorkflowMixin:
     """封裝 OAuth/login 對話流程；不改變目前的中期/開發者登入邊界。"""
 
@@ -45,6 +48,7 @@ class OAuthWorkflowMixin:
         worker: Callable[[], None],
         *,
         on_duplicate: Callable[[], None],
+        on_capacity: Callable[[], None] | None = None,
     ) -> bool:
         """Start one logical OAuth job per key without leaking scheduler state into dialogs."""
 
@@ -56,6 +60,8 @@ class OAuthWorkflowMixin:
             active_jobs_attr="oauth_active_jobs",
             active_jobs_lock_attr="oauth_active_jobs_lock",
             on_duplicate=on_duplicate,
+            max_active_jobs=MAX_TK_OAUTH_BACKGROUND_JOBS,
+            on_capacity=on_capacity or on_duplicate,
         )
 
     def configure_oauth_client_for_selected(self, table: ttk.Treeview, parent: Toplevel | None = None) -> None:

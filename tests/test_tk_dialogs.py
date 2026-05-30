@@ -240,6 +240,27 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertEqual(["duplicate"], duplicate_calls)
 
+    def test_oauth_background_job_blocks_when_queue_full(self) -> None:
+        ui = object.__new__(OAuthWorkflowMixin)
+        ui.oauth_active_jobs = {
+            ("oauth_browser_login", "profile-a", ""),
+            ("oauth_device_poll", "profile-b", "device-code"),
+        }
+        capacity_calls: list[str] = []
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            started = OAuthWorkflowMixin._start_oauth_background_job(
+                ui,
+                ("oauth_browser_login", "profile-c", ""),
+                lambda: None,
+                on_duplicate=lambda: capacity_calls.append("duplicate"),
+                on_capacity=lambda: capacity_calls.append("capacity"),
+            )
+
+        self.assertFalse(started)
+        thread_class.assert_not_called()
+        self.assertEqual(["capacity"], capacity_calls)
+
     def test_sidebar_favicon_fetch_uses_single_flight_job(self) -> None:
         ui = object.__new__(SidebarWorkflowMixin)
         ui.provider_icon_loading = set()
