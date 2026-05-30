@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 15:49 Dataset candidate review status labels
+- 本輪延續 UI display contract：新增 `api_launcher.dataset_candidate_display`，把 Dataset Candidate Review 的 `needs_review` / `approved` / `planned` / `rejected` / `all` 狀態顯示文案集中到後端 helper；Tk review dialog 的表格、detail 與 filter 下拉只顯示人類文案，送 repository 查詢或更新時才轉回 raw status id。
+- 已提交實作：`d567e7d Label dataset candidate review status`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\dataset_candidate_display.py frontends\tk\dataset_candidate_review_dialog.py frontends\tk\table_data_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_web_preview -v` 通過，180 tests OK；`git diff --check` OK；`api_launcher` / `frontends` / `tests` mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260530_154916.log` 通過，980 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions 尚待本輪 docs checkpoint 後觸發。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Dataset Candidate Review 狀態顯示與 Tk filter mapping，不改 candidate repository schema、crawler registry、download/import、Web 操作或 user guide。
 ## 2026-05-30 15:39 Adapter review item display helper
 - 本輪是小型 consolidation：新增 `adapter_review_item_display_payload()`，把 Adapter Review item 的 required action、outcome bucket、content import status、content review bucket、content pipeline lane、content next action label 集中到後端 display helper；Tk dialog 只消費這份 payload，不再自行翻譯多組 enum。
 - 已提交實作：`3d179a7 Centralize adapter review item labels`。
