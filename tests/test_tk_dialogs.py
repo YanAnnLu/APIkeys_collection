@@ -274,6 +274,21 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertEqual(set(), ui.provider_icon_loading)
 
+    def test_sidebar_favicon_fetch_skips_when_queue_full(self) -> None:
+        ui = object.__new__(SidebarWorkflowMixin)
+        ui.provider_icon_loading = set()
+        ui.favicon_url_for_owner = lambda _owner: "https://example.test/favicon.ico"
+        ui.sidebar_active_jobs = {
+            ("provider_favicon", f"Example {index}", f"https://example.test/{index}.ico")
+            for index in range(4)
+        }
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            SidebarWorkflowMixin.fetch_provider_icon_async(ui, "Example")
+
+        thread_class.assert_not_called()
+        self.assertEqual(set(), ui.provider_icon_loading)
+
     def test_provider_discovery_uses_single_flight_job(self) -> None:
         ui = object.__new__(DiscoveryWorkflowMixin)
         ui.tr = lambda _zh, en: en

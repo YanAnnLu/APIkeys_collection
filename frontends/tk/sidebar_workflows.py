@@ -17,6 +17,9 @@ from frontends.tk.background_jobs import single_flight_job_is_active, start_sing
 from frontends.tk.ui_config import COLORS
 
 
+MAX_TK_SIDEBAR_FAVICON_JOBS = 4
+
+
 class SidebarWorkflowMixin:
     """封裝側欄分類、provider 分組，以及 favicon 快取/下載邏輯。"""
 
@@ -153,6 +156,8 @@ class SidebarWorkflowMixin:
             active_jobs_attr="sidebar_active_jobs",
             active_jobs_lock_attr="sidebar_active_jobs_lock",
             on_duplicate=lambda: self.provider_icon_loading.discard(owner),
+            max_active_jobs=MAX_TK_SIDEBAR_FAVICON_JOBS,
+            on_capacity=lambda: self.provider_icon_loading.discard(owner),
         )
 
     def after_on_root(self, callback: object) -> None:
