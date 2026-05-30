@@ -15,7 +15,7 @@ import APIkeys_collection as core
 from api_launcher.adapter_review import adapter_review_items
 from api_launcher.bound_form import build_bound_form_spec
 from api_launcher.paths import DOWNLOADS_DIR, state_file
-from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
+from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema, schema_probe_failure_detail
 from api_launcher.source_download import apply_source_download_bounds
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.background_jobs import start_single_flight_thread
@@ -391,11 +391,13 @@ class PlanWorkflowMixin:
 
     def _finish_plan_bounds_probe(self, plan_key: str, entry: dict[str, object], probe: SchemaProbeResult) -> None:
         if not probe.succeeded or not probe.columns:
+            detail_zh = schema_probe_failure_detail(probe, locale="zh_TW")
+            detail_en = schema_probe_failure_detail(probe, locale="en")
             messagebox.showerror(
                 self.tr("欄位探測失敗", "Schema probe failed"),
                 self.tr(
-                    f"無法讀取資料集欄位，因此不能安全產生界域表單。\n\n{probe.error or probe.status}",
-                    f"Could not read dataset fields, so a bounds form cannot be generated safely.\n\n{probe.error or probe.status}",
+                    f"無法讀取資料集欄位，因此不能安全產生界域表單。\n\n{detail_zh}",
+                    f"Could not read dataset fields, so a bounds form cannot be generated safely.\n\n{detail_en}",
                 ),
             )
             self.status_var.set(self.tr("界域設定未完成：欄位探測失敗。", "Bounds were not configured: schema probe failed."))

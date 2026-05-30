@@ -12,9 +12,12 @@ from api_launcher.db import connect_db
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from api_launcher.schema_probe import (
     DEFAULT_SCHEMA_PROBE_MAX_BYTES,
+    SchemaProbeResult,
     csv_schema_probe,
     fetch_probe_bytes,
     json_schema_probe,
+    schema_probe_failure_detail,
+    schema_probe_status_label,
     schema_probe_url,
 )
 from api_launcher.source_download import (
@@ -27,6 +30,15 @@ from api_launcher.source_download import (
 
 
 class SourceDownloadTests(unittest.TestCase):
+    def test_schema_probe_status_labels_hide_raw_status_ids(self) -> None:
+        self.assertEqual("缺少可探測資料端點", schema_probe_status_label("unavailable"))
+        self.assertEqual("Schema probe failed", schema_probe_status_label("error", locale="en"))
+        self.assertEqual("欄位探測狀態待確認", schema_probe_status_label("new_probe_status"))
+
+        detail = schema_probe_failure_detail(SchemaProbeResult(status="unavailable", source_url="https://example.test/data.csv"))
+        self.assertIn("缺少可探測資料端點", detail)
+        self.assertNotIn("unavailable", detail)
+
     def test_bounds_without_known_time_or_spatial_columns_require_schema_probe(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             conn = connect_db(Path(tmpdir) / "launcher.sqlite")

@@ -2529,6 +2529,23 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("樣本上限", ui.status_var.value)
         self.assertNotIn("sample_limit", ui.status_var.value)
 
+    def test_plan_bounds_probe_failure_hides_raw_probe_status(self) -> None:
+        ui = object.__new__(PlanWorkflowMixin)
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda zh, _en: zh
+        probe = SchemaProbeResult(
+            status="unavailable",
+            source_url="https://example.test/data.csv",
+        )
+
+        with patch("frontends.tk.plan_workflows.messagebox.showerror") as showerror:
+            PlanWorkflowMixin._finish_plan_bounds_probe(ui, "plan-1", {"download_url": probe.source_url}, probe)
+
+        message = showerror.call_args.args[1]
+        self.assertIn("缺少可探測資料端點", message)
+        self.assertNotIn("unavailable", message)
+        self.assertIn("欄位探測失敗", ui.status_var.value)
+
     def test_plan_bounds_probe_uses_single_flight_job(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)
         ui.cart_tree = SimpleNamespace(selection=lambda: ("plan-1",))

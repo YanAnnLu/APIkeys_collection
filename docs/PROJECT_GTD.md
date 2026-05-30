@@ -50,6 +50,7 @@ Last updated: 2026-05-31
 - [x] `download_bound_status.applied` 已對齊實際 enforcement：`max_bytes` 現在輸出 `max_bytes_enforced` 而不是 `max_bytes_review`，讓 Tk/Web/agent 不會把已執行的 byte cap 誤認成 review-only 註記。
 - [x] `download_bound_status` 已補 UI-neutral display label：後端輸出 `applied_labels.zh_TW/en`，Tk plan bounds status 會顯示人類文案，不再把 `sample_limit` / `max_bytes_enforced` 等 raw code 直接顯示給使用者。
 - [x] Tk Crawler Asset 界域表單的警示預覽已改成人類指引：`crawler_asset_bound_warning_text()` 會說明欄位探測建議與已套用 probe 後仍需確認的狀態，不再把 `warning_codes`、`schema_probe_recommended`、`schema_probe_applied` 等 raw id 直接顯示給使用者。
+- [x] Tk 下載計畫界域欄位探測失敗訊息已補 schema probe display helper：失敗 dialog 顯示「缺少可探測資料端點」「欄位探測發生錯誤」等人類文案，不再把 `unavailable` / `error` / 未知 `probe.status` 直接顯示給使用者。
 - [x] Stale Plan Passport 已補 `stale_next_action_label`：profile payload 保留 raw `stale_next_action` 給 agent/debug，但 Tk/Web 顯示優先使用人類文案，避免把 `enable_before_building_download_plan` 等 action id 暴露給使用者。
 - [x] Tk Crawler Asset 表格的最後狀態欄位已補 fallback label：沒有最近 plan outcome 時會使用 shared `next_action_display_label()`，不再把 `run_full_crawl_or_export_candidates` 等 raw `asset.next_action` 直接顯示給使用者。
 - [x] Tk/Web/後端 display payload 已補 unknown `next_action` fallback：新增 `next_action_display_label_or_fallback()`，已登錄 action id 顯示共用文案，尚未登錄的 snake_case backend id 會落到安全人類提示，避免新功能把 raw id 漏到 UI。

@@ -11,6 +11,32 @@ from api_launcher.downloads.policy import PoliteDownloadPolicy
 
 
 DEFAULT_SCHEMA_PROBE_MAX_BYTES = 128 * 1024
+SCHEMA_PROBE_STATUS_DISPLAY: dict[str, dict[str, str]] = {
+    "ok": {"zh_TW": "欄位探測完成", "en": "Schema probe completed"},
+    "error": {"zh_TW": "欄位探測發生錯誤", "en": "Schema probe failed"},
+    "unavailable": {"zh_TW": "缺少可探測資料端點", "en": "No probeable data endpoint"},
+}
+
+
+def schema_probe_status_label(status: object, *, locale: str = "zh_TW") -> str:
+    """Return display-safe text for schema probe status ids."""
+
+    profile = SCHEMA_PROBE_STATUS_DISPLAY.get(str(status or "").strip())
+    if not profile:
+        return "欄位探測狀態待確認" if locale == "zh_TW" else "Schema probe status needs review"
+    return profile.get(locale) or profile["zh_TW"]
+
+
+def schema_probe_failure_detail(probe: "SchemaProbeResult", *, locale: str = "zh_TW") -> str:
+    """Return a user-facing failure detail without leaking raw status ids."""
+
+    label = schema_probe_status_label(probe.status, locale=locale)
+    error = str(probe.error or "").strip()
+    if not error:
+        return label
+    if locale == "zh_TW":
+        return f"{label}\n技術細節：{error}"
+    return f"{label}\nTechnical detail: {error}"
 
 
 @dataclass(frozen=True)
