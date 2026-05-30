@@ -2,7 +2,7 @@
 ## 2026-05-31 05:52 Tk downloader status labels
 - 本輪把 Tk 下載器 runtime status 顯示收斂到 `download_job_status_label()`；下載器表格與失敗/取消狀態列顯示「已規劃」「下載中」「失敗」等人類文案，不再把 raw `planned` / `failed` 直接當主要使用者文字。
 - 保持邊界：download queue 的 stable `JobStatus`、`download_status_by_provider` tuple、plan key、provider id lookup、manifest/register/import 與 `download_job_problem` event context 都沒改；raw status/id 仍保留給 agent/debug 追溯。
-- 已驗證：`py_compile` for `frontends\tk\download_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 141 tests；完整 smoke `state\logs\pre_push_smoke_20260531_055004.log` 通過，1029 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`5766f6c Label Tk download job statuses`；GitHub Actions 尚未跑，下一步是提交文檔、push 並看 CI。
+- 已驗證：`py_compile` for `frontends\tk\download_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 141 tests；完整 smoke `state\logs\pre_push_smoke_20260531_055004.log` 通過，1029 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`5766f6c Label Tk download job statuses` / docs 提交 `78b2266 Log Tk download status checkpoint`；GitHub Actions manual run `26695927338` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 05:36 Tk repair provider labels
 - 本輪把 Tk 修復/驗證面板的 provider 欄位與多個修復提示標題接到 `repair_provider_label()` / `repair_asset_title()`；表格與 messagebox 顯示 `Provider ID：...`，避免 raw `provider_id` 被當成人類資料源名稱。
 - 保持邊界：下載 manifest scan、database self-check、requeue、SQLite reimport、dry-run SQL、connection metadata、unmanage、event context 與 detail pane 的 `provider_id:` trace key/value 都沒改；這只是修復 UI 的 provider provenance label 收斂。
