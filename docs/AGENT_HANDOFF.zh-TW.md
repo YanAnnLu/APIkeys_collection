@@ -1,7 +1,8 @@
 # Agent 接力卡
 ## 2026-05-30 19:01 Crawler asset maturity/risk labels
 - 本輪把 Crawler Asset 的 `maturity` / `risk_tier` 使用者文案收回後端：`CrawlerAsset.to_dict()` 會輸出 `maturity_label` / `risk_tier_label`，Web Passport 改讀 label，缺值時落到「成熟度待確認」「風險層級待確認」，不再顯示 raw `unknown` 或 tier token；能力膠囊缺摘要時也顯示「能力膠囊待確認」。
-- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_assets.py tests\test_crawler_assets.py tests\test_web_preview.py` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 通過，108 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_190104.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已提交實作：`2c786bf Label crawler asset maturity risk`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_assets.py tests\test_crawler_assets.py tests\test_web_preview.py` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 通過，108 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_190104.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26682250910` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只增加 Crawler Asset display labels 與 Web 消費方式，不改 maturity/risk 判斷、crawler registry、download/import service、credential storage 或 Tk 操作。
 ## 2026-05-30 18:49 Web capability fallback cleanup
 - 本輪延續 Web UI display contract：資產卡片的「能力位址」在後端未提供 capability address 時顯示「待確認」，不再 fallback 到 `source_type` 短碼；能力膠囊摘要的 Seed 範式也改走 `displayTextOrFallback()`，避免缺 label 時把 `entry_listing` / `paginated_catalog` raw token 放進使用者可見摘要。
