@@ -29,6 +29,7 @@ from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog, cra
 from frontends.tk.crawler_asset_credential_dialog import (
     crawler_asset_credential_edit_payload,
     crawler_asset_credential_next_action_text,
+    crawler_asset_credential_subtitle,
 )
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog, crawler_asset_profile_subtitle
 from frontends.tk.crawler_asset_seed_dialog import (
@@ -1953,6 +1954,23 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertEqual("先完成登入設定，再下載資料", label)
         self.assertNotIn("edit_local_credentials_before_live_download", label)
+
+    def test_credential_dialog_subtitle_labels_provenance_ids(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="earthdata_cmr",
+            provider_id="earthdata",
+            name="Earthdata CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.earthdata.nasa.gov/search/collections.json",
+        )
+        asset = crawler_asset_from_source(source)
+        subtitle = crawler_asset_credential_subtitle(asset, {"provider_name": "NASA Earthdata"})
+
+        self.assertIn("Provider：NASA Earthdata", subtitle)
+        self.assertIn("Source：NASA CMR collections", subtitle)
+        self.assertIn("Provider ID：earthdata", subtitle)
+        self.assertIn("Asset ID：earthdata_cmr", subtitle)
+        self.assertNotEqual("NASA Earthdata / NASA CMR collections / earthdata_cmr", subtitle)
 
     def test_seed_download_import_opens_credential_dialog_before_worker(self) -> None:
         source = DatasetDiscoverySource(

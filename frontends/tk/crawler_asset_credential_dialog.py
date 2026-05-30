@@ -63,6 +63,20 @@ def crawler_asset_credential_next_action_text(credential_status: Mapping[str, ob
     return ""
 
 
+def crawler_asset_credential_subtitle(asset: CrawlerAsset, credential_status: Mapping[str, object]) -> str:
+    """Return a UI-safe provenance line for the credential dialog header.
+
+    Login settings need stable ids for support and debugging, but raw provider
+    or asset ids should be labelled so they do not read like the main title.
+    """
+
+    provider_name = str(credential_status.get("provider_name") or "").strip() or "Provider 待確認"
+    source_label = str(getattr(asset, "source_type_label", "") or "").strip() or "來源範式待確認"
+    provider_id = str(getattr(asset, "provider_id", "") or "").strip() or "Provider ID 待確認"
+    asset_id = str(getattr(asset, "asset_id", "") or "").strip() or "Asset ID 待確認"
+    return f"Provider：{provider_name} / Source：{source_label} / Provider ID：{provider_id} / Asset ID：{asset_id}"
+
+
 class CrawlerAssetCredentialDialog:
     """Tk login/settings dialog for crawler assets.
 
@@ -109,11 +123,10 @@ class CrawlerAssetCredentialDialog:
         frame.pack(fill=BOTH, expand=True, padx=22, pady=22)
 
         label = str(self.credential_status.get("display_label") or "登入設定").strip()
-        provider_name = str(self.credential_status.get("provider_name") or self.asset.provider_id or "").strip()
         ttk.Label(frame, text=f"{label} - {self.asset.display_name}", style="DetailTitle.TLabel").pack(anchor="w")
         ttk.Label(
             frame,
-            text=f"{provider_name} / {self.asset.source_type_label} / {self.asset.asset_id}",
+            text=crawler_asset_credential_subtitle(self.asset, self.credential_status),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, pady=(4, 12))
         ttk.Label(
@@ -201,4 +214,5 @@ __all__ = [
     "CrawlerAssetCredentialDialog",
     "crawler_asset_credential_edit_payload",
     "crawler_asset_credential_next_action_text",
+    "crawler_asset_credential_subtitle",
 ]
