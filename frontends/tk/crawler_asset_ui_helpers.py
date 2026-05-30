@@ -15,7 +15,13 @@ from api_launcher.crawler_asset_display import (
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
-from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, status_label
+from api_launcher.crawler_assets import (
+    BUILD_DOWNLOAD_PLAN,
+    CrawlerAsset,
+    crawler_asset_maturity_label,
+    crawler_asset_risk_tier_label,
+    status_label,
+)
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
 from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_import_label
@@ -900,13 +906,15 @@ def crawler_asset_detail_text(
     bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
     seed_scope_label = crawler_asset_seed_scope_label(asset)
     source_type_label = crawler_asset_source_type_label(asset)
+    maturity_label = crawler_asset_maturity_label(asset.maturity)
+    risk_label = crawler_asset_risk_tier_label(asset.risk_tier)
     return tr(
         (
             f"{asset.display_name}\n\n"
             f"入口：{asset.source_surface} / {source_type_label}\n"
             f"狀態：{crawler_asset_state_label(asset)}\n"
             f"存取邊界：{asset.access_requirement}\n"
-            f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
+            f"成熟度：{maturity_label}；風險：{risk_label}；信任：{asset.trust_score}%\n"
             f"Seed：{asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"
             f"{last_plan_line_zh}"
@@ -922,7 +930,7 @@ def crawler_asset_detail_text(
             f"Surface: {asset.source_surface} / {source_type_label}\n"
             f"State: {crawler_asset_state_label(asset)}\n"
             f"Access: {asset.access_requirement}\n"
-            f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
+            f"Maturity: {maturity_label}; risk: {risk_label}; trust: {asset.trust_score}%\n"
             f"Seed: {asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"
             f"{last_plan_line_en}"

@@ -9,6 +9,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_bound_payload_from_cache,
     crawler_asset_download_plan_built_event_context,
     crawler_asset_download_plan_bounds_schema,
+    crawler_asset_detail_text,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
     crawler_asset_recommended_seed_closure_event_context,
@@ -198,6 +199,46 @@ class YFinanceUiHelperTests(unittest.TestCase):
         asset = SimpleNamespace(capabilities=(SimpleNamespace(capability_id="fetch_metadata", bounds_schema=("ignored",)),))
 
         self.assertEqual((), crawler_asset_download_plan_bounds_schema(asset))
+
+    def test_crawler_asset_detail_text_uses_maturity_and_risk_labels(self) -> None:
+        asset = SimpleNamespace(
+            display_name="Demo crawler",
+            source_surface="catalog",
+            source_type_label="CKAN package search",
+            access_requirement="public",
+            maturity="unbuilt",
+            risk_tier="needs_handler",
+            trust_score=10,
+            seed_summary="0 seeds",
+            capabilities=(
+                SimpleNamespace(
+                    capability_id="fetch_metadata",
+                    label="元資料",
+                    status="supported",
+                    detail="ok",
+                    bounds_schema=(),
+                ),
+            ),
+            health=None,
+            archived=False,
+            enabled=True,
+            capability_profile={"seed_scope_label": "入口列表"},
+        )
+
+        text = crawler_asset_detail_text(
+            asset,
+            last_plan_outcome="",
+            content_review="",
+            resolved_plan={},
+            plan_passport={},
+            credential_status={},
+            tr=lambda zh, _en: zh,
+        )
+
+        self.assertIn("成熟度：待補 handler", text)
+        self.assertIn("風險：待補 handler", text)
+        self.assertNotIn("unbuilt", text)
+        self.assertNotIn("needs_handler", text)
 
     def test_crawler_asset_bound_payload_from_cache_rehydrates_dict_payload(self) -> None:
         payload = crawler_asset_bound_payload_from_cache(
