@@ -2220,6 +2220,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertNotIn("plan-1", ui.import_status_by_plan_key)
         self.assertEqual(7, ui.download_plan_entries_by_provider["plan-1"]["download_bounds"]["sample_limit"])
         self.assertIn("已套用下載界域", ui.status_var.value)
+        self.assertIn("樣本上限", ui.status_var.value)
+        self.assertNotIn("sample_limit", ui.status_var.value)
 
     def test_plan_bounds_probe_uses_single_flight_job(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)

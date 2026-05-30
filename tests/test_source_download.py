@@ -176,6 +176,8 @@ class SourceDownloadTests(unittest.TestCase):
         self.assertIn("required_columns", entry["download_bound_status"]["applied"])
         self.assertIn("max_bytes_enforced", entry["download_bound_status"]["applied"])
         self.assertNotIn("max_bytes_review", entry["download_bound_status"]["applied"])
+        self.assertIn("下載大小上限", entry["download_bound_status"]["applied_labels"]["zh_TW"])
+        self.assertIn("download size limit", entry["download_bound_status"]["applied_labels"]["en"])
         self.assertEqual(2048, entry["download_bounds"]["max_bytes"])
         self.assertIn("$limit=12", entry["download_url"])
 

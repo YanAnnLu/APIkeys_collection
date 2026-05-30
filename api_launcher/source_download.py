@@ -18,6 +18,15 @@ from api_launcher.plans import build_dataset_download_plan, provider_dataset_ver
 from api_launcher.repository import ApiCatalogRepository
 
 
+BOUND_STATUS_LABELS: dict[str, tuple[str, str]] = {
+    "sample_limit": ("樣本上限", "sample limit"),
+    "time_range": ("時間範圍", "time range"),
+    "bbox": ("空間界域", "spatial bounds"),
+    "required_columns": ("必要欄位", "required columns"),
+    "max_bytes_enforced": ("下載大小上限", "download size limit"),
+}
+
+
 @dataclass(frozen=True)
 class CredentialGate:
     provider_id: str
@@ -420,11 +429,22 @@ def bound_status_for_entry(entry: dict[str, object], bounds: SourceDownloadBound
         next_action = "ready_for_bounded_download_plan"
     return {
         "applied": applied,
+        "applied_labels": bound_status_labels(applied),
         "needs_schema_probe": needs_probe,
         "unsupported": unsupported,
         "known_columns": sorted(known_columns),
         "next_action": next_action,
     }
+
+
+def bound_status_labels(codes: Iterable[str]) -> dict[str, list[str]]:
+    labels_zh: list[str] = []
+    labels_en: list[str] = []
+    for code in codes:
+        zh, en = BOUND_STATUS_LABELS.get(code, (code, code))
+        labels_zh.append(zh)
+        labels_en.append(en)
+    return {"zh_TW": labels_zh, "en": labels_en}
 
 
 def known_column_names(metadata: dict[str, object]) -> set[str]:

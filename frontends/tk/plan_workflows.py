@@ -25,6 +25,20 @@ from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
 
 
+def _download_bound_applied_text(status: object, locale: str) -> str:
+    if not isinstance(status, dict):
+        return ""
+    labels = status.get("applied_labels")
+    if isinstance(labels, dict):
+        localized = labels.get(locale)
+        if isinstance(localized, list):
+            return ", ".join(str(value) for value in localized if value)
+    applied = status.get("applied")
+    if isinstance(applied, list):
+        return ", ".join(str(value) for value in applied if value)
+    return ""
+
+
 class PlanWorkflowMixin:
     """封裝下載計畫資料模型與 Adapter plan UI workflow。"""
 
@@ -399,11 +413,12 @@ class PlanWorkflowMixin:
         self.import_status_by_plan_key.pop(plan_key, None)
         self.update_download_plan_panel()
         status = bounded_entry.get("download_bound_status") if isinstance(bounded_entry.get("download_bound_status"), dict) else {}
-        applied = ", ".join(status.get("applied") or []) if isinstance(status.get("applied"), list) else ""
+        applied_zh = _download_bound_applied_text(status, "zh_TW")
+        applied_en = _download_bound_applied_text(status, "en")
         self.status_var.set(
             self.tr(
-                f"已套用下載界域：{applied or '已記錄欄位界域'}。接下來可按主按鈕開始下載。",
-                f"Download bounds applied: {applied or 'field bounds recorded'}. Use the primary action button to download next.",
+                f"已套用下載界域：{applied_zh or '已記錄欄位界域'}。接下來可按主按鈕開始下載。",
+                f"Download bounds applied: {applied_en or 'field bounds recorded'}. Use the primary action button to download next.",
             )
         )
 
