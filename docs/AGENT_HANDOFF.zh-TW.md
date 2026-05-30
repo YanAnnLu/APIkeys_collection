@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 15:12 Tk Adapter review action labels
+- 本輪修掉 Tk Adapter Review 對話框的 raw action id 顯示：表格與 detail text 會用 shared `next_action_display_label_or_fallback()` 顯示「解析 API，產生可下載 resources」「新增內容 Parser 或保留原始檔」等人類文案，不再把 `resolve_api` / `add_content_parser_or_keep_raw_artifact` 直接放進使用者可見內容。
+- 已提交實作：`d5fba12 Label adapter review actions in Tk`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_next_action_display.py frontends\tk\adapter_review_dialog.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_crawler_next_action_display tests.test_tk_dialogs tests.test_web_preview -v` 通過，183 tests OK；`git diff --check` OK；`api_launcher` / `frontends` / `tests` mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260530_150912.log` 通過，980 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Tk Adapter review 顯示文案與共用 action label 表，不改 adapter review resolver、download/import、crawler registry、credential storage、Web 操作或 user guide。
 ## 2026-05-30 14:54 unknown next_action UI fallback
 - 本輪把 user-facing 的 `next_action` fallback 收到共用 display helper：新增 `next_action_display_label_or_fallback()`，讓 Tk/Web/後端 display payload 在遇到尚未登錄的新 snake_case action id 時顯示安全人類提示，不再把 raw backend id 直接丟給使用者。
 - 已提交實作：`8e9788c Hide unknown next action ids from UI`。
