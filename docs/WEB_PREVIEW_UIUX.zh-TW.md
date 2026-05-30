@@ -17,7 +17,7 @@
 ## Plan Passport freshness guard
 - Web Preview 讀取的 `latest_plan_passport` 是後端判斷過的 display-safe payload，不是單純的上次結果快照。
 - `api_launcher/crawler_asset_profiles.py` 會比較 profile state、source signature 與 bounds signature；當 crawler asset 被停用、封存、來源 endpoint/source type 變更，或界域表單範式改變時，後端輸出 `stale=true` / `stale_reason`。
-- Web/Tk/未來 Qt 只顯示後端給的 `stale_label` / `stale_next_action`，例如「資產已停用，啟用後重新建立下載計畫」或「來源設定已改變，請重新建立下載計畫」，不在 UI 端翻譯 raw `stale_reason` 或重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
+- Web/Tk/未來 Qt 只顯示後端給的 `stale_label` / `stale_next_action_label`，例如「資產已停用，啟用後重新建立下載計畫」或「來源設定已改變，請重新建立下載計畫」。`stale_next_action` / `stale_reason` 這類 raw token 只保留給 agent/debug，不應直接出現在使用者可見文字。若 label 缺失，UI 必須落到中性安全提示，不在 UI 端翻譯 raw reason 或重做業務判斷。若要擴充過期規則，優先改 backend profile/service 與測試。
 - `plan_passport` 會保存 `candidate_snapshot_signature` 與 `candidate_snapshot_count`，表示本次下載計畫由哪一批 crawler candidate 形成。這是追溯資訊，不是 live freshness check；Web/Tk/Qt 不應在沒有 fresh crawl 的情況下自行宣稱遠端候選清單已改變。
 - `candidate_snapshot_changed` 只代表這次使用者明確重跑 crawl / rebuild plan 後，後端把上一版 profile 護照 digest 與本次 digest 比較出不同；前端可以顯示這個旗標，但不能在單純讀取卡片或 profile 時自行推測遠端更新。
 
@@ -33,6 +33,7 @@
 - Seed row 可提供「探測欄位」動作，將該 row 的 `api_url` / `download_url` / `landing_url` 交給後端 schema probe endpoint；Web 只能挑選可見 seed URL，不自行推論欄位型別或替 source type 寫特殊規則。探測成功後，Web 重新渲染後端回傳的 bounds form。
 - Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」、「能力膠囊」與 `Seed 範式` 摘要，但 Web/Tk 不應以 `source_type` 重新計算分組、seed 枚舉語義或翻譯文案。若後端回空地址或缺 `seed_scope_label` / `seed_scope`，UI 應顯示未分類 / unknown，不要假裝已歸類。
 - 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。
+- Web 使用者可見文字不得 fallback 到 snake_case / raw backend token。若 `next_action_label`、`display_label`、`status_label` 等欄位缺失，Web 應顯示中性操作提示，例如「檢查界域或審核結果」「檢查下載計畫結果」，而不是把 `next_action`、`outcome_bucket`、`stale_next_action` 或 `status_code` 當成文案。raw token 可留在 JSON/debug panel，方便 agent 診斷。
 
 ## 定位
 

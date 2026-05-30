@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 17:32 Web UIUX display contract doc sync
+- 本輪是小型 consolidation / docs drift 修補：`docs/WEB_PREVIEW_UIUX.zh-TW.md` 已把 Plan Passport freshness guard 從 `stale_next_action` raw token 校正成 `stale_next_action_label`，並補上 Web 使用者可見文字不得 fallback 到 snake_case / raw backend token 的規則。
+- 已提交文檔：本 checkpoint 只更新協作文檔，未改產品碼。
+- 已驗證：docs mojibake scan OK；`git diff --check` OK。
+- Docs drift check：本輪就是 drift 修補；只更新 Web UIUX contract，不改 Web/Tk/後端行為，也不需要跑 RRKAL 測試。
 ## 2026-05-30 17:24 Web display fallback guard
 - 本輪把 Web Preview 多處「label 缺失時直接顯示 raw backend token」的 fallback 收斂成 `displayTextOrFallback()`：Downloader row、Crawler Passport、Credential badge、Plan Preview mission、Seed import badge、Hero next action、Plan Passport stale/next action 都會拒絕 snake_case / raw token 當人類文案。
 - 已提交實作：`64f1fed Guard Web display text fallbacks`。
