@@ -84,7 +84,8 @@ class CrawlerAssetBoundDialog:
         for field in self.spec.fields:
             self._build_field(frame, field)
 
-        if self.spec.warning_codes:
+        warning_text = crawler_asset_bound_warning_text(self.spec, self.tr)
+        if warning_text:
             preview = Text(
                 frame,
                 height=4,
@@ -98,14 +99,7 @@ class CrawlerAssetBoundDialog:
                 font=("Consolas", 10),
             )
             preview.pack(fill="x", pady=(12, 0))
-            preview.insert(
-                "1.0",
-                self.tr(
-                    "注意：部分欄位建議先做 schema/head probe，再改成精準選單。\nwarning_codes: ",
-                    "Note: some fields should be refined by schema/head probe before becoming precise selectors.\nwarning_codes: ",
-                )
-                + ", ".join(self.spec.warning_codes),
-            )
+            preview.insert("1.0", warning_text)
             preview.configure(state="disabled")
 
         buttons = ttk.Frame(frame, style="Panel.TFrame")
@@ -178,3 +172,28 @@ class CrawlerAssetBoundDialog:
     def cancel(self) -> None:
         self.result = None
         self.window.destroy()
+
+
+def crawler_asset_bound_warning_text(spec: CrawlerAssetBoundFormSpec, tr) -> str:
+    if not spec.warning_codes:
+        return ""
+    count = max(0, int(spec.schema_probe_required_count or 0))
+    if count:
+        if "schema_probe_applied" in spec.warning_codes:
+            return tr(
+                f"欄位探測結果已套用；仍有 {count} 個欄位建議再探測或人工確認。若先下載，請用較小樣本上限並預覽 payload。",
+                f"Schema/head probe results are applied; {count} fields still need another probe or manual review. If you download now, use a smaller sample limit and preview the payload.",
+            )
+        return tr(
+            f"注意：還有 {count} 個欄位建議先做欄位探測；若先下載，請用較小樣本上限並預覽 payload。",
+            f"Note: {count} fields should be refined by schema/head probe; if you download now, use a smaller sample limit and preview the payload.",
+        )
+    if "schema_probe_applied" in spec.warning_codes:
+        return tr(
+            "欄位探測結果已套用；請確認下拉選單與推薦值，再預覽 payload。",
+            "Schema/head probe results are applied; check selectors and recommended values, then preview the payload.",
+        )
+    return tr(
+        "注意：這份界域表單有需要確認的提示；請先套用推薦值或預覽 payload。",
+        "Note: this bounds form has review hints; apply recommended values or preview the payload first.",
+    )

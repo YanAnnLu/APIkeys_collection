@@ -25,7 +25,7 @@ from frontends.tk import detail_panel_workflows as detail_panel_module
 from frontends.tk.app_lifecycle_workflows import AppLifecycleWorkflowMixin
 from api_launcher.bound_form import build_bound_form_spec, source_download_bounds_from_form_values
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
-from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
+from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog, crawler_asset_bound_warning_text
 from frontends.tk.crawler_asset_credential_dialog import (
     crawler_asset_credential_edit_payload,
     crawler_asset_credential_next_action_text,
@@ -747,6 +747,48 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("123.5", dialog.vars["bbox_east"].get())
         self.assertEqual("25.5", dialog.vars["bbox_north"].get())
         self.assertFalse(dialog.apply_preset("missing_region"))
+
+    def test_crawler_asset_bound_warning_text_does_not_leak_warning_codes(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            geographic_scope="taiwan",
+        )
+        asset = crawler_asset_from_source(source)
+        spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema, source=source)
+
+        text = crawler_asset_bound_warning_text(spec, lambda zh, _en: zh)
+
+        self.assertIn("欄位探測", text)
+        self.assertNotIn("warning_codes", text)
+        self.assertNotIn("schema_probe_recommended", text)
+
+    def test_crawler_asset_bound_warning_text_explains_applied_probe_without_raw_code(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo Taiwan STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+            geographic_scope="taiwan",
+        )
+        asset = crawler_asset_from_source(source)
+        spec = build_crawler_asset_bound_form_spec(asset.asset_id, asset.capabilities[2].bounds_schema, source=source)
+        probe = SchemaProbeResult(
+            status="ok",
+            source_url="https://example.test/stac/items",
+            columns=(SchemaProbeColumn("created_date", "2026-01-01", "datetime"),),
+            row_count=1,
+        )
+        enriched = apply_schema_probe_to_crawler_asset_bound_form_spec(spec, probe)
+
+        text = crawler_asset_bound_warning_text(enriched, lambda zh, _en: zh)
+
+        self.assertIn("欄位探測結果已套用", text)
+        self.assertNotIn("schema_probe_applied", text)
 
     def test_crawler_asset_workflow_stores_bounds_payload_before_building_plan(self) -> None:
         source = DatasetDiscoverySource(
