@@ -72,6 +72,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_listing_event_preview_payload,
     crawler_asset_plan_outcome_label,
     crawler_asset_plan_passport_summary_text,
+    crawler_asset_row_values,
     crawler_asset_review_count_from_plan,
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
@@ -1231,6 +1232,24 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("免登入", values)
         self.assertEqual("入口列表", values[-2])
         self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
+
+    def test_crawler_asset_row_values_fallback_uses_human_next_action_label(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+
+        values = crawler_asset_row_values(
+            asset,
+            credential_status={"display_label": "免登入", "configured_count": 0, "field_count": 0},
+        )
+
+        self.assertIn("候選", values[-1])
+        self.assertNotIn("review_or_upsert_dataset_candidates", values[-1])
 
     def test_crawler_asset_detail_text_uses_seed_scope_display_label(self) -> None:
         source = DatasetDiscoverySource(

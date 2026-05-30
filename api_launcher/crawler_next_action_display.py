@@ -18,6 +18,7 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "probe_schema_then_define_bounds": "先探測資料結構，再定義界域",
     "review_or_upsert_dataset_candidates": "審核或寫入候選資料",
     "review_candidates_or_build_plan": "審核候選或建立下載計畫",
+    "run_full_crawl_or_export_candidates": "執行完整枚舉或匯出候選資料",
     "preview_payload_before_building_plan": "先預覽界域 payload",
     "click_build_plan_to_call_backend": "建立下載計畫並交給後端判斷",
     "review_plan_outcome": "檢查下載計畫結果",

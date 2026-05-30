@@ -668,7 +668,7 @@ def crawler_asset_row_values(
 ) -> tuple[object, ...]:
     """Return the stable row tuple for the crawler asset table."""
 
-    plan_outcome_text = str(last_plan_outcome or asset.next_action)
+    plan_outcome_text = str(last_plan_outcome or next_action_display_label(asset.next_action))
     content_review_text = str(content_review or "").strip()
     if content_review_text:
         plan_outcome_text = f"{plan_outcome_text} / {content_review_text}"
