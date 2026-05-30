@@ -1034,6 +1034,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("asset_disabled", passport["stale_reason"])
         self.assertEqual("資產已停用，啟用後重新建立下載計畫", passport["stale_label"])
         self.assertEqual("enable_before_building_download_plan", passport["stale_next_action"])
+        self.assertEqual("先啟用爬蟲資產", passport["stale_next_action_label"])
         self.assertEqual("warning", passport["display_tone"])
 
     def test_web_plan_event_context_keeps_badge_payload_compact(self) -> None:
@@ -1874,6 +1875,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("outcome.display_label || outcome.outcome_bucket", combined)
         self.assertIn("stalePassportLabel", combined)
         self.assertIn("stalePassportNextAction", combined)
+        self.assertIn("stale_next_action_label", combined)
         self.assertNotIn("passport.stale_label || passport.stale_reason", combined)
         self.assertNotIn("計畫需重建：${passport.stale_reason", combined)
         self.assertIn('data-workspace="downloader"', combined)

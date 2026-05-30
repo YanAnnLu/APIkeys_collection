@@ -2103,6 +2103,7 @@ class TkDialogModuleTest(unittest.TestCase):
                 "stale_reason": "asset_disabled",
                 "stale_label": "資產已停用，啟用後重新建立下載計畫",
                 "stale_next_action": "enable_before_building_download_plan",
+                "stale_next_action_label": "先啟用爬蟲資產",
                 "candidate_snapshot_changed": True,
             },
             lambda _zh, en: en,
@@ -2114,7 +2115,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("review 2", text)
         self.assertIn("content 1", text)
         self.assertIn("missing providers 1", text)
-        self.assertIn("stale enable_before_building_download_plan", text)
+        self.assertIn("stale 先啟用爬蟲資產", text)
+        self.assertNotIn("enable_before_building_download_plan", text)
         self.assertIn("candidate snapshot changed", text)
 
         zh_text = crawler_asset_plan_passport_summary_text(

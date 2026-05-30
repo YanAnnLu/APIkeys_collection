@@ -1977,6 +1977,9 @@ function stalePassportLabel(passport) {
 }
 
 function stalePassportNextAction(passport) {
+  const label = String(passport?.stale_next_action_label || "").trim();
+  if (label) return label;
+
   const nextAction = String(passport?.stale_next_action || "").trim();
   if (nextAction) return nextAction;
 

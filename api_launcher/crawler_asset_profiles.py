@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
+from api_launcher.crawler_next_action_display import next_action_display_label
 from api_launcher.paths import local_config_file
 
 
@@ -42,6 +43,7 @@ CRAWLER_ASSET_PLAN_PASSPORT_PROFILE_KEYS = frozenset(
         "stale_reason",
         "stale_label",
         "stale_next_action",
+        "stale_next_action_label",
         "source_signature",
         "bounds_signature",
     }
@@ -327,12 +329,14 @@ def crawler_asset_plan_passport_for_profile(
         payload["stale_reason"] = stale_reason
         payload["stale_label"] = stale_label
         payload["stale_next_action"] = stale_next_action
+        payload["stale_next_action_label"] = next_action_display_label(stale_next_action)
         payload["display_tone"] = "warning"
     else:
         payload["stale"] = False
         payload["stale_reason"] = ""
         payload["stale_label"] = ""
         payload["stale_next_action"] = ""
+        payload["stale_next_action_label"] = ""
     return payload
 
 

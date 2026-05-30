@@ -700,6 +700,7 @@ class CrawlerAssetTest(unittest.TestCase):
         passport = assets[0].latest_plan_passport
         self.assertTrue(passport["stale"])
         self.assertEqual("asset_disabled", passport["stale_reason"])
+        self.assertEqual("先啟用爬蟲資產", passport["stale_next_action_label"])
         self.assertEqual("warning", passport["display_tone"])
         self.assertEqual(3, passport["candidate_count"])
 
