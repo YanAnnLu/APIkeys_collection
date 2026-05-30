@@ -31,8 +31,30 @@ from api_launcher.event_log import log_event, log_exception
 from api_launcher.manifests import read_manifest
 from api_launcher.paths import DOWNLOADS_DIR, state_file
 from api_launcher.data_store_connections import data_store_profiles_from_config
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.ui_config import COLORS, DB_PATH
 from frontends.tk.ui_helpers import database_sql_dry_run_available
+
+
+def repair_provider_label(provider_id: object) -> str:
+    """Return the repair-panel provider label without hiding the raw id in detail panes."""
+
+    return provider_display_label(None, str(provider_id or "").strip())
+
+
+def repair_asset_title(provider_id: object, asset_name: object) -> str:
+    """Compose a user-facing repair title while keeping ids explicit as provenance."""
+
+    asset_label = str(asset_name or "").strip() or "-"
+    return f"{repair_provider_label(provider_id)} / {asset_label}"
+
+
+def repair_database_connection_title(provider_id: object, asset_kind: object, asset_name: object) -> str:
+    """Compose the short database connection title shown above editable registry fields."""
+
+    kind_label = str(asset_kind or "").strip() or "-"
+    asset_label = str(asset_name or "").strip() or "-"
+    return f"{repair_provider_label(provider_id)} / {kind_label} / {asset_label}"
 
 
 class RepairWorkflowMixin:
@@ -182,7 +204,7 @@ class RepairWorkflowMixin:
                 iid=iid,
                 values=(
                     result.status,
-                    result.provider_id or "-",
+                    repair_provider_label(result.provider_id),
                     result.dataset_uid or result.dataset_id or "-",
                     result.version or "-",
                     self.localized_download_repair_label(suggestion),
@@ -257,7 +279,7 @@ class RepairWorkflowMixin:
                 iid=iid,
                 values=(
                     issue.status,
-                    issue.provider_id,
+                    repair_provider_label(issue.provider_id),
                     issue.asset_kind,
                     issue.engine or "-",
                     issue.asset_name,
@@ -322,9 +344,10 @@ class RepairWorkflowMixin:
                 return
             plan_entry = dict(suggestion.plan_entry)
             provider_id = str(plan_entry.get("provider_id") or "")
+            provider_label = repair_provider_label(provider_id)
             if not self.prepare_provider_for_download(provider_id):
                 self.log_download_requeue_requested(selected, suggestion, outcome="already_active")
-                self.status_var.set(self.tr(f"{provider_id} 的修復下載已經在執行。", f"Repair download is already active for {provider_id}."))
+                self.status_var.set(self.tr(f"{provider_label} 的修復下載已經在執行。", f"Repair download is already active for {provider_label}."))
                 return
             try:
                 job = self.download_queue.submit(plan_entry)
@@ -339,7 +362,7 @@ class RepairWorkflowMixin:
             self.download_status_by_provider[provider_id] = ("queued", "0%", str(plan_entry.get("target_path") or ""))
             self.update_download_jobs_panel()
             self.log_download_requeue_requested(selected, suggestion, outcome="queued", job_id=job.job_id)
-            self.status_var.set(self.tr(f"已重新排修復下載：{provider_id}", f"Repair download queued: {provider_id}"))
+            self.status_var.set(self.tr(f"已重新排修復下載：{provider_label}", f"Repair download queued: {provider_label}"))
 
         def show_selected_database_suggestion() -> None:
             selection = database_table.selection()
@@ -361,7 +384,7 @@ class RepairWorkflowMixin:
                 next_step += self.tr("\n\n在 adapter 能證明 ownership 之前，這個 UI 不會自動刪除或重建 SQL 物件。", "\n\nThis UI will not delete or recreate SQL objects automatically until an adapter proves ownership.")
             messagebox.showinfo(
                 self.tr("資料庫修復建議", "Database repair suggestion"),
-                f"{selected.provider_id} / {selected.asset_name}\n\n{self.localized_database_repair_label(suggestion)}\n{next_step}",
+                f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n{self.localized_database_repair_label(suggestion)}\n{next_step}",
             )
 
         def reimport_selected_database_asset() -> None:
@@ -402,13 +425,13 @@ class RepairWorkflowMixin:
                 self.tr(
                     (
                         f"要從既有 manifest 重新匯入這張缺失的資料表嗎？\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         f"支援格式：{supported_reimport_source_formats_label()}\n\n"
                         "這個動作只會在 table 不存在時建立它；不會 DROP 或覆蓋既有 table。"
                     ),
                     (
                         f"Reimport this missing table from its recorded manifest?\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         f"Supported formats: {supported_reimport_source_formats_label()}\n\n"
                         "This only creates the table when it is missing. It will not DROP or replace an existing table.",
                     ),
@@ -469,13 +492,13 @@ class RepairWorkflowMixin:
                 self.tr(
                     (
                         f"要為這筆缺失資料表產生 dry-run SQL 嗎？\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         f"輸出位置：{output_path}\n\n"
                         "這個動作只會寫出 SQL 檔案供審核；不會連線、不會執行 SQL，也不會修改遠端資料庫。"
                     ),
                     (
                         f"Write dry-run SQL for this missing table?\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         f"Output: {output_path}\n\n"
                         "This only writes a SQL file for review. It will not connect, execute SQL, or modify the remote database."
                     ),
@@ -577,7 +600,7 @@ class RepairWorkflowMixin:
                 style="DetailMuted.TLabel",
                 wraplength=500,
             ).pack(anchor="w", fill=X, pady=(8, 16))
-            ttk.Label(frame, text=f"{selected.provider_id} / {selected.asset_kind} / {selected.asset_name}", style="DetailSection.TLabel").pack(anchor="w", pady=(0, 8))
+            ttk.Label(frame, text=repair_database_connection_title(selected.provider_id, selected.asset_kind, selected.asset_name), style="DetailSection.TLabel").pack(anchor="w", pady=(0, 8))
 
             profile_var = StringVar(value=selected.data_store_profile_id or profile_ids[0])
             schema_var = StringVar(value=selected.schema_name)
@@ -629,13 +652,13 @@ class RepairWorkflowMixin:
                 self.tr(
                     (
                         f"要停止追蹤這筆資料庫資產嗎？\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         "這只會把 launcher registry 裡的單一資產標成 unmanaged，"
                         "不會刪除資料庫、DROP table，或移動任何檔案。"
                     ),
                     (
                         f"Stop tracking this database asset?\n\n"
-                        f"{selected.provider_id} / {selected.asset_name}\n\n"
+                        f"{repair_asset_title(selected.provider_id, selected.asset_name)}\n\n"
                         "This only marks one registry asset as unmanaged. It will not delete a database, DROP a table, or move files."
                     ),
                 ),

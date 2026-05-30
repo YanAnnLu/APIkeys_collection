@@ -100,7 +100,12 @@ from frontends.tk.project_maturity_workflows import (
 )
 from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
-from frontends.tk.repair_workflows import RepairWorkflowMixin
+from frontends.tk.repair_workflows import (
+    RepairWorkflowMixin,
+    repair_asset_title,
+    repair_database_connection_title,
+    repair_provider_label,
+)
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
 from frontends.tk.showcase_workflows import ShowcaseWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
@@ -472,6 +477,14 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("Provider ID：provider_a", source_action_provider_label(None, "provider_a"))
         self.assertEqual("Provider ID：provider_a", source_action_provider_label(SimpleNamespace(name="  "), "provider_a"))
         self.assertEqual("Provider ID：provider_a", provider_display_label(SimpleNamespace(name="  "), "provider_a"))
+
+    def test_repair_provider_titles_mark_provider_id_fallback(self) -> None:
+        self.assertEqual("Provider ID：provider_a", repair_provider_label("provider_a"))
+        self.assertEqual("Provider ID：provider_a / table_a", repair_asset_title("provider_a", "table_a"))
+        self.assertEqual(
+            "Provider ID：provider_a / sqlite_table / table_a",
+            repair_database_connection_title("provider_a", "sqlite_table", "table_a"),
+        )
 
     def test_run_row_action_labels_blank_provider_name(self) -> None:
         ui = object.__new__(SourceActionWorkflowMixin)
