@@ -249,7 +249,7 @@ function renderMaturityWorkspace() {
   maturitySummary.innerHTML = `
     <section class="maturity-summary-card">
       <span class="eyebrow">Delivery Scope</span>
-      <strong>${escapeHtml(String(closure.closure_percent ?? "unknown"))}% / ${escapeHtml(closure.status || "unknown")}</strong>
+      <strong>${escapeHtml(deliveryClosureText(closure))}</strong>
       <p>${escapeHtml(payload.answer_template_zh_TW || payload.reporting_rule || "請使用成熟度矩陣，不要用單一百分比描述整體產品。")}</p>
     </section>
   `;
@@ -270,13 +270,14 @@ function maturityCardHtml(row) {
   const icon = row.status_icon || row.display_profile?.status_icon || "?";
   const limitations = Array.isArray(row.current_limitations) ? row.current_limitations : [];
   const nextActions = Array.isArray(row.next_actions) ? row.next_actions : [];
+  const label = displayTextOrFallback("成熟度待確認", row.display_label, row.maturity_label_zh_TW);
   return `
     <article class="maturity-card ${tone}">
       <div class="maturity-card-head">
         <span class="maturity-icon" aria-hidden="true">${escapeHtml(icon)}</span>
         <div>
           <strong>${escapeHtml(row.area_label || row.area_id || "maturity area")}</strong>
-          <span>${escapeHtml(row.display_label || row.maturity_label_zh_TW || row.maturity_level || "unknown")}</span>
+          <span>${escapeHtml(label)}</span>
         </div>
       </div>
       <p>${escapeHtml(row.deliverable_scope || "")}</p>
@@ -284,6 +285,12 @@ function maturityCardHtml(row) {
       ${nextActions.length ? `<footer>${escapeHtml(nextActions[0])}</footer>` : ""}
     </article>
   `;
+}
+
+function deliveryClosureText(closure = {}) {
+  const percent = Number.isFinite(Number(closure.closure_percent)) ? `${Number(closure.closure_percent)}%` : "閉環比例待確認";
+  const status = displayTextOrFallback("狀態待確認", closure.status_zh_TW, closure.status_label, closure.display_label);
+  return `${percent} / ${status}`;
 }
 
 function renderDownloaderWorkspace() {
