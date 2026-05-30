@@ -2,7 +2,7 @@
 ## 2026-05-31 06:14 Tk import plan status labels
 - 本輪把 Tk 匯入狀態 fallback 收斂到 `import_plan_status_label()`；已知 `manual_review_required` 顯示「需內容 Parser review」，未知 `import_plan.status` 顯示「匯入狀態待確認」，避免新 backend status 直接露到下載器匯入欄。
 - 保持邊界：CSV/JSON importer、download-plan runner、manual-review payload、content parser review payload、SQLite write gate、manifest 與 Web route 都沒改；這只是 Tk 匯入欄位的 display-safe fallback。
-- 已驗證：`py_compile` for `frontends\tk\import_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 144 tests；完整 smoke `state\logs\pre_push_smoke_20260531_061218.log` 通過，1032 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`72af949 Label Tk import plan statuses`；GitHub Actions 尚未跑，下一步是提交文檔、push 並看 CI。
+- 已驗證：`py_compile` for `frontends\tk\import_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 144 tests；完整 smoke `state\logs\pre_push_smoke_20260531_061218.log` 通過，1032 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`72af949 Label Tk import plan statuses` / docs 提交 `8876ead Log Tk import status checkpoint`；GitHub Actions manual run `26696368474` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 06:03 Tk download skip bucket labels
 - 本輪把 Tk 下載器略過摘要的 bucket 顯示收斂到 `download_skip_bucket_label()`；已知 bucket 顯示「需 Adapter」「缺下載 URL」等文案，未知 bucket 只顯示「其他待處理」，避免未登錄 backend bucket 直接洩漏成 raw id。
 - 保持邊界：`download_entry_skip_bucket()`、`download_skip_summary()`、download plan runner、CLI JSON、queue、manifest/import 行為都沒改；這只是 Tk 下載略過摘要的人類文案 fallback。
