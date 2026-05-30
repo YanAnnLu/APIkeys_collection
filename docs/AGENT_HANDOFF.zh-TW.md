@@ -1,4 +1,7 @@
 # Agent 接力卡
+## 2026-05-31 02:05 Blocked plan reason display labels
+- 本輪做一個小型 display-contract 收斂切片：`api_launcher.crawler_plan_outcome_display` 新增 blocked reason display label/fallback，`plan_outcome_display_profile()` 的 blocked summary / short label 不再把 raw `missing_credentials`、`crawler_asset_disabled` 類 backend id 放進使用者文案；Tk 下載計畫 blocked dialog 也改吃同一個 label。
+- 已驗證：`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_tk_dialogs tests.test_web_preview -v` 通過 192 tests；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m py_compile api_launcher\crawler_plan_outcome_display.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_dialogs.py tests\test_web_preview.py` OK。待完整 smoke / push / CI。
 ## 2026-05-31 01:49 Tk AI profile OAuth status labels
 - 本輪把 Tk AI 摘要 profile login status 的 raw OAuth status 也收回同一個 display helper：`AiSummaryWorkflowMixin.ai_profile_login_status()` 在 OAuth ready 時顯示「OAuth 已登入：已登入」/ `OAuth signed in: Signed in`，不再把 raw `ready` 放進 AI 模型選擇表格或狀態摘要。
 - 已驗證：`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 127 tests；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m py_compile frontends\tk\ai_summary_workflows.py tests\test_tk_dialogs.py` OK；完整 smoke `state\logs\pre_push_smoke_20260531_014855.log` 通過，1015 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；已推送 `733ff0b Label Tk AI OAuth status`，GitHub Actions manual run `26690911510` 通過 Ubuntu、Windows 與 real DB smoke。

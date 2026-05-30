@@ -1163,7 +1163,8 @@ class TkDialogModuleTest(unittest.TestCase):
 
         message = crawler_asset_download_plan_summary_text(result, 0, "", lambda zh, _en: zh)
 
-        self.assertIn("crawler_asset_disabled", message)
+        self.assertIn("爬蟲資產已停用", message)
+        self.assertNotIn("crawler_asset_disabled", message)
         self.assertIn("先啟用爬蟲資產", message)
         self.assertNotIn("enable_before_building_download_plan", message)
 
@@ -1210,7 +1211,8 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("可下載 1 / 待辦 2", crawler_asset_plan_outcome_label(partial, 1))
         self.assertEqual("待 Adapter 2", crawler_asset_plan_outcome_label(review, 0))
         self.assertEqual("零候選", crawler_asset_plan_outcome_label(zero, 0))
-        self.assertEqual("已阻擋 missing_credentials", crawler_asset_plan_outcome_label(blocked, 0))
+        self.assertEqual("已阻擋：需要登入 / API key", crawler_asset_plan_outcome_label(blocked, 0))
+        self.assertNotIn("missing_credentials", crawler_asset_plan_outcome_label(blocked, 0))
 
     def test_crawler_asset_row_values_use_last_plan_outcome(self) -> None:
         source = DatasetDiscoverySource(

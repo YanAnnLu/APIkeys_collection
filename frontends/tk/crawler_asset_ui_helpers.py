@@ -15,6 +15,7 @@ from api_launcher.crawler_asset_display import (
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
+from api_launcher.crawler_plan_outcome_display import blocked_reason_display_label_or_fallback
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     CrawlerAsset,
@@ -213,7 +214,7 @@ def crawler_asset_download_plan_summary_text(
     direct = int(getattr(result, "direct_download_count", 0) or 0)
     review = int(getattr(result, "review_required_count", 0) or 0)
     blocked = bool(getattr(result, "blocked", False))
-    blocked_reason = str(getattr(result, "blocked_reason", "") or "-")
+    blocked_reason = str(getattr(result, "blocked_reason", "") or "")
     next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "-")
     outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
     next_action_label = _ui_next_action_text(
@@ -223,8 +224,10 @@ def crawler_asset_download_plan_summary_text(
     )
 
     if blocked or bucket == "blocked":
-        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label}"
-        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action_label}"
+        summary = str(outcome_payload.get("summary") or "").strip() or "被阻擋：狀態不符合執行條件。"
+        reason_label = blocked_reason_display_label_or_fallback(blocked_reason, fallback="狀態不符合執行條件")
+        zh = f"這個爬蟲資產暫時不能建立下載計畫：{reason_label}。\n{summary}\n下一步：{next_action_label}"
+        en = f"This crawler asset cannot build a download plan: {reason_label}.\n{summary}\nNext: {next_action_label}"
         return tr(zh, en)
     if bucket == "partial_review_required":
         zh = (
@@ -274,7 +277,7 @@ def crawler_asset_download_plan_summary_text(
 def crawler_asset_listing_blocked_status_text(result: object, tr: Callable[[str, str], str]) -> str:
     """Render blocked listing status without leaking raw backend next_action ids."""
 
-    blocked_reason = str(getattr(result, "blocked_reason", "") or "-").strip()
+    blocked_reason = blocked_reason_display_label_or_fallback(getattr(result, "blocked_reason", ""), fallback="狀態不符合執行條件")
     next_action = str(getattr(result, "next_action", "") or "").strip()
     next_action_label = (
         next_action_display_label_or_fallback(next_action, fallback="檢查爬蟲資產狀態")

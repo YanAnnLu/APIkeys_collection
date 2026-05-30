@@ -2334,8 +2334,10 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("blocked", payload["profile_id"])
         self.assertEqual("已阻擋", payload["display_label"])
         self.assertEqual("danger", payload["display_tone"])
-        self.assertEqual("已阻擋 missing_credentials", payload["short_label"])
-        self.assertIn("missing_credentials", payload["summary"])
+        self.assertEqual("已阻擋：需要登入 / API key", payload["short_label"])
+        self.assertIn("需要登入 / API key", payload["summary"])
+        self.assertNotIn("missing_credentials", payload["short_label"])
+        self.assertNotIn("missing_credentials", payload["summary"])
         self.assertEqual("開啟 Adapter 審核或調整界域", payload["next_action_label"])
 
     def test_shared_display_schema_summarizes_adapter_review_outcomes(self) -> None:

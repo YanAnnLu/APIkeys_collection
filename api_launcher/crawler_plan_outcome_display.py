@@ -48,6 +48,19 @@ PLAN_OUTCOME_DISPLAY = {
     },
 }
 
+BLOCKED_REASON_DISPLAY_LABELS = {
+    "missing_credentials": "需要登入 / API key",
+    "credential_setup_required": "需要登入設定",
+    "crawler_asset_disabled": "爬蟲資產已停用",
+    "disabled": "爬蟲資產已停用",
+    "archived": "爬蟲資產已封存",
+    "missing_asset_id": "缺少爬蟲資產 ID",
+    "missing_dataset_uid": "缺少 seed ID",
+    "source_not_found": "找不到來源設定",
+    "seed_not_found_for_asset": "這個爬蟲資產找不到指定 seed",
+    "provider_not_found_for_seed": "這筆 seed 找不到 provider",
+}
+
 
 @dataclass(frozen=True)
 class DisplayProfile:
@@ -83,6 +96,20 @@ def plan_outcome_display_label(bucket: str) -> str:
 
 def plan_outcome_short_label(bucket: str, *, added_count: int = 0, review_count: int = 0) -> str:
     return plan_outcome_display_profile(bucket, review=review_count, added_count=added_count).short_label
+
+
+def blocked_reason_display_label_or_fallback(reason: object, *, fallback: str = "狀態不符合執行條件") -> str:
+    """Return a user-facing blocked-reason label without leaking backend ids."""
+
+    text = str(reason or "").strip()
+    if not text:
+        return str(fallback or "").strip() or "狀態不符合執行條件"
+    label = BLOCKED_REASON_DISPLAY_LABELS.get(text)
+    if label:
+        return label
+    if _looks_like_backend_id(text):
+        return str(fallback or "").strip() or "狀態不符合執行條件"
+    return text
 
 
 def plan_outcome_display_profile(
@@ -138,7 +165,8 @@ def _plan_outcome_summary(
     if bucket == "zero_candidates":
         return "本次界域沒有候選資料；請放寬時間、空間或查詢條件。"
     if bucket == "blocked" and blocked_reason:
-        return f"被阻擋：{blocked_reason}。"
+        reason_label = blocked_reason_display_label_or_fallback(blocked_reason)
+        return f"被阻擋：{reason_label}。"
     return default_summary
 
 
@@ -159,13 +187,20 @@ def _plan_outcome_short_label(
     if bucket == "zero_candidates":
         return "零候選"
     if bucket == "blocked":
-        return f"已阻擋 {blocked_reason or 'blocked'}"
+        reason_label = blocked_reason_display_label_or_fallback(blocked_reason, fallback="待處理")
+        return f"已阻擋：{reason_label}"
     return "需檢查"
+
+
+def _looks_like_backend_id(text: str) -> bool:
+    return "_" in text and text.lower() == text and all(ch.isalnum() or ch in {"_", "-"} for ch in text)
 
 
 __all__ = [
     "DisplayProfile",
+    "BLOCKED_REASON_DISPLAY_LABELS",
     "PLAN_OUTCOME_DISPLAY",
+    "blocked_reason_display_label_or_fallback",
     "plan_outcome_display_label",
     "plan_outcome_display_profile",
     "plan_outcome_short_label",
