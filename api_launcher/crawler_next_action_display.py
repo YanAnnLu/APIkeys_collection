@@ -58,7 +58,34 @@ def next_action_display_label(action: object) -> str:
     return NEXT_ACTION_DISPLAY_LABELS.get(text, text)
 
 
+def next_action_display_label_or_fallback(action: object, *, fallback: str = "檢查下一步設定") -> str:
+    """Return a UI-safe label without leaking unknown snake_case action ids.
+
+    ``next_action_display_label`` intentionally preserves unknown values for
+    diagnostics.  User-facing surfaces should call this stricter helper so a new
+    backend action id does not appear as raw snake_case text in Tk/Web/Qt.
+    """
+
+    text = str(action or "").strip()
+    if not text:
+        return ""
+    label = next_action_display_label(text)
+    if label != text:
+        return label
+    if _looks_like_backend_action_id(text):
+        safe_fallback = str(fallback or "").strip()
+        return safe_fallback or "檢查下一步設定"
+    return label
+
+
+def _looks_like_backend_action_id(text: str) -> bool:
+    """Heuristic for stable backend ids such as ``review_or_upsert_candidates``."""
+
+    return "_" in text and text.lower() == text and all(ch.isalnum() or ch in {"_", "-"} for ch in text)
+
+
 __all__ = [
     "NEXT_ACTION_DISPLAY_LABELS",
     "next_action_display_label",
+    "next_action_display_label_or_fallback",
 ]

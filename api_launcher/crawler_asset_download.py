@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
-from api_launcher.crawler_next_action_display import NEXT_ACTION_DISPLAY_LABELS
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from api_launcher.crawler_asset_service import (
     CrawlerAssetDownloadPlanResult,
     build_crawler_asset_download_plan,
@@ -72,7 +72,10 @@ class CrawlerAssetDownloadImportResult:
             "download_import": self.pipeline.to_dict(),
             "artifacts": artifacts,
             "next_action": next_action,
-            "next_action_label": NEXT_ACTION_DISPLAY_LABELS.get(next_action, next_action),
+            "next_action_label": next_action_display_label_or_fallback(
+                next_action,
+                fallback="檢查下載 / 匯入結果",
+            ),
         }
         if self.dataset_uid:
             payload["dataset_uid"] = self.dataset_uid

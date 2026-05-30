@@ -14,7 +14,7 @@ from api_launcher.crawler_asset_display import (
 )
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
-from api_launcher.crawler_next_action_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from api_launcher.crawler_assets import BUILD_DOWNLOAD_PLAN, CrawlerAsset, status_label
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
@@ -58,6 +58,17 @@ class CrawlerAssetListingOutcomeEventPayload:
     asset_id: str
     context: dict[str, object]
     preview: dict[str, object]
+
+
+def _ui_next_action_text(action: object, *label_candidates: object, fallback: str) -> str:
+    """Choose a user-facing next-action label and hide unknown backend ids."""
+
+    raw = str(action or "").strip()
+    for candidate in label_candidates:
+        label = str(candidate or "").strip()
+        if label and label != raw:
+            return label
+    return next_action_display_label_or_fallback(raw, fallback=fallback)
 
 
 def crawler_seed_download_import_target_paths(
@@ -174,7 +185,11 @@ def crawler_asset_download_plan_summary_text(
     blocked_reason = str(getattr(result, "blocked_reason", "") or "-")
     next_action = str(getattr(result, "user_next_action", "") or getattr(result, "next_action", "") or "-")
     outcome_payload = crawler_asset_plan_outcome_payload(result, added_count=added_count)
-    next_action_label = str(outcome_payload.get("next_action_label") or next_action).strip()
+    next_action_label = _ui_next_action_text(
+        next_action,
+        outcome_payload.get("next_action_label"),
+        fallback="檢查下載計畫結果",
+    )
 
     if blocked or bucket == "blocked":
         zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label or next_action}"
@@ -230,7 +245,11 @@ def crawler_asset_listing_blocked_status_text(result: object, tr: Callable[[str,
 
     blocked_reason = str(getattr(result, "blocked_reason", "") or "-").strip()
     next_action = str(getattr(result, "next_action", "") or "").strip()
-    next_action_label = next_action_display_label(next_action) if next_action else ""
+    next_action_label = (
+        next_action_display_label_or_fallback(next_action, fallback="檢查爬蟲資產狀態")
+        if next_action
+        else ""
+    )
     zh = f"爬蟲資產暫停執行：{blocked_reason}；下一步：{next_action_label or '-'}"
     en = f"Crawler asset blocked: {blocked_reason}; next action: {next_action_label or '-'}"
     return tr(zh, en)
@@ -383,17 +402,19 @@ def crawler_asset_credential_guard_message(
     missing = guard.get("missing_required") if isinstance(guard.get("missing_required"), list) else []
     missing_text = ", ".join(str(item) for item in missing if str(item).strip()) or "-"
     next_action = str(guard.get("next_action") or "edit_local_credentials_before_live_download").strip()
-    next_action_zh = str(
-        guard.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label")
-        or next_action
-    ).strip()
-    next_action_en = str(
-        guard.get("next_action_label_en")
-        or display_profile.get("next_action_label_en")
-        or next_action
-    ).strip()
+    next_action_zh = _ui_next_action_text(
+        next_action,
+        guard.get("next_action_label_zh_TW"),
+        display_profile.get("next_action_label_zh_TW"),
+        display_profile.get("next_action_label"),
+        fallback="檢查登入設定或事件紀錄",
+    )
+    next_action_en = _ui_next_action_text(
+        next_action,
+        guard.get("next_action_label_en"),
+        display_profile.get("next_action_label_en"),
+        fallback="Check login settings or event logs",
+    )
     entry_label = str(guard.get("credential_entry_label") or "").strip()
     zh_lines = [
         f"{label}。",
@@ -444,7 +465,13 @@ def crawler_seed_download_import_ui_message(
     curated_sqlite = str(artifacts.get("curated_sqlite") or "")
     dataset_uid = str(payload.get("dataset_uid") or "").strip()
     next_action = str(display_payload.get("next_action") or download_import.get("next_action") or payload.get("next_action") or "").strip()
-    next_action_label = str(display_payload.get("next_action_label") or payload.get("next_action_label") or next_action).strip()
+    next_action_label = _ui_next_action_text(
+        next_action,
+        display_payload.get("next_action_label"),
+        download_import.get("next_action_label"),
+        payload.get("next_action_label"),
+        fallback="檢查下載 / 匯入結果",
+    )
     raw_callback_diagnostics = display_payload.get("callback_diagnostics")
     callback_diagnostics = raw_callback_diagnostics if isinstance(raw_callback_diagnostics, dict) else {}
     callback_count = int(callback_diagnostics.get("count") or download_import.get("callback_error_count") or 0)
@@ -603,17 +630,19 @@ def crawler_asset_credential_summary_text(
     configured = int(status.get("configured_count") or 0)
     total = int(status.get("field_count") or 0)
     next_action = str(status.get("next_action") or "").strip()
-    next_action_zh = str(
-        status.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label_zh_TW")
-        or display_profile.get("next_action_label")
-        or next_action
-    ).strip()
-    next_action_en = str(
-        status.get("next_action_label_en")
-        or display_profile.get("next_action_label_en")
-        or next_action
-    ).strip()
+    next_action_zh = _ui_next_action_text(
+        next_action,
+        status.get("next_action_label_zh_TW"),
+        display_profile.get("next_action_label_zh_TW"),
+        display_profile.get("next_action_label"),
+        fallback="檢查登入設定",
+    )
+    next_action_en = _ui_next_action_text(
+        next_action,
+        status.get("next_action_label_en"),
+        display_profile.get("next_action_label_en"),
+        fallback="Check login settings",
+    )
     missing = status.get("missing_required") if isinstance(status.get("missing_required"), list) else []
     missing_text = ", ".join(str(item) for item in missing if str(item).strip())
     if total:
@@ -668,7 +697,10 @@ def crawler_asset_row_values(
 ) -> tuple[object, ...]:
     """Return the stable row tuple for the crawler asset table."""
 
-    plan_outcome_text = str(last_plan_outcome or next_action_display_label(asset.next_action))
+    plan_outcome_text = str(
+        last_plan_outcome
+        or next_action_display_label_or_fallback(asset.next_action, fallback="檢查爬蟲資產設定")
+    )
     content_review_text = str(content_review or "").strip()
     if content_review_text:
         plan_outcome_text = f"{plan_outcome_text} / {content_review_text}"

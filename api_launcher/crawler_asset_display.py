@@ -34,7 +34,7 @@ from api_launcher.crawler_asset_review_display import (
     content_review_bucket_tone,
     plan_entry_content_status_payload,
 )
-from api_launcher.crawler_next_action_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label, next_action_display_label_or_fallback
 from api_launcher.crawler_plan_outcome_display import (
     DisplayProfile,
     PLAN_OUTCOME_DISPLAY,
@@ -211,7 +211,7 @@ def credential_blocked_plan_passport_payload(
         "content_review_count": 0,
         "blocked_credential_count": len(missing_required),
         "next_action": "edit_local_credentials_before_live_download",
-        "next_action_label": next_action_display_label("edit_local_credentials_before_live_download"),
+        "next_action_label": next_action_display_label_or_fallback("edit_local_credentials_before_live_download"),
     }
 
 
@@ -354,7 +354,7 @@ def crawler_asset_download_import_display_payload(
     next_action_label = str(
         download_result.get("next_action_label")
         or outcome.get("next_action_label")
-        or next_action_display_label(next_action)
+        or next_action_display_label_or_fallback(next_action, fallback="檢查下載 / 匯入結果")
         or ""
     )
     download_import["next_action_label"] = next_action_label
@@ -463,7 +463,7 @@ def _callback_diagnostics_payload(callback_errors: tuple[str, ...]) -> dict[str,
         "display_label": "進度回報有警告",
         "summary": "下載或匯入可能已完成，但 UI/progress callback 回報失敗。",
         "next_action": next_action,
-        "next_action_label": next_action_display_label(next_action),
+        "next_action_label": next_action_display_label_or_fallback(next_action, fallback="檢查事件紀錄或 UI 進度回報"),
         "errors": list(callback_errors),
     }
 

@@ -77,6 +77,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_seed_enumeration_note_text,
     crawler_asset_seed_page_preview_text,
     crawler_asset_seed_page_status_text,
+    crawler_seed_download_import_ui_message,
 )
 from frontends.tk.developer_diagnostics_workflows import (
     DeveloperDiagnosticsWorkflowMixin,
@@ -1311,6 +1312,20 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("先完成登入設定", summary)
         self.assertNotIn("edit_local_credentials_before_live_download", summary)
 
+    def test_crawler_asset_credential_summary_hides_unknown_raw_next_action(self) -> None:
+        payload = {
+            "display_label": "需要登入 / API Key",
+            "configured_count": 0,
+            "field_count": 1,
+            "missing_required": ["EARTHDATA_TOKEN"],
+            "next_action": "new_backend_credential_action",
+        }
+
+        summary = crawler_asset_credential_summary_text(payload, lambda zh, _en: zh)
+
+        self.assertIn("檢查登入設定", summary)
+        self.assertNotIn("new_backend_credential_action", summary)
+
     def test_crawler_asset_listing_blocked_status_uses_human_next_action_label(self) -> None:
         result = SimpleNamespace(
             blocked_reason="disabled",
@@ -1908,6 +1923,58 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("EARTHDATA_TOKEN", message)
         self.assertIn("先完成登入設定", message)
         self.assertNotIn("edit_local_credentials_before_live_download", message)
+
+    def test_crawler_asset_credential_guard_message_hides_unknown_raw_next_action(self) -> None:
+        message = crawler_asset_credential_guard_message(
+            {
+                "display_label": "需要登入 / API Key",
+                "provider_name": "NASA Earthdata",
+                "missing_required": ["EARTHDATA_TOKEN"],
+                "next_action": "new_backend_credential_action",
+            },
+            lambda zh, _en: zh,
+        )
+
+        self.assertIn("檢查登入設定", message)
+        self.assertNotIn("new_backend_credential_action", message)
+
+    def test_crawler_seed_download_import_message_hides_unknown_raw_next_action(self) -> None:
+        pipeline = SimpleNamespace(
+            stage="blocked_before_download",
+            succeeded=False,
+            next_action="new_backend_download_action",
+            to_dict=lambda: {
+                "stage": "blocked_before_download",
+                "succeeded": False,
+                "next_action": "new_backend_download_action",
+            },
+        )
+        plan_result = SimpleNamespace(
+            blocked=True,
+            blocked_reason="demo_block",
+            outcome_bucket="blocked",
+            direct_download_count=0,
+            review_required_count=0,
+            user_next_action="",
+            resolved_plan={},
+            to_dict=lambda: {"outcome_bucket": "blocked"},
+        )
+        result = SimpleNamespace(
+            pipeline=pipeline,
+            plan_result=plan_result,
+            to_dict=lambda: {
+                "stage": "blocked_before_download",
+                "succeeded": False,
+                "dataset_uid": "demo_seed",
+                "next_action": "new_backend_download_action",
+                "artifacts": {},
+            },
+        )
+
+        message = crawler_seed_download_import_ui_message(result, lambda zh, _en: zh)
+
+        self.assertIn("檢查下載 / 匯入結果", message.body)
+        self.assertNotIn("new_backend_download_action", message.body)
 
     def test_seed_download_import_worker_uses_formal_service_and_local_download_root(self) -> None:
         fake_pipeline = SimpleNamespace(

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from api_launcher.crawler_next_action_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 
 
 # Outcome buckets are machine contracts.  This table is the UI-neutral display
@@ -116,7 +116,7 @@ def plan_outcome_display_profile(
         ),
         summary=summary,
         next_action=next_action,
-        next_action_label=next_action_display_label(next_action),
+        next_action_label=next_action_display_label_or_fallback(next_action, fallback="檢查下載計畫結果"),
     )
 
 

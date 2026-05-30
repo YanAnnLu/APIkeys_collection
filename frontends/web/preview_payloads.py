@@ -13,7 +13,7 @@ from api_launcher.crawler_asset_display import (
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
 )
-from api_launcher.crawler_next_action_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
@@ -51,7 +51,7 @@ def web_next_action_payload(next_action: object) -> dict[str, str]:
     action = str(next_action or "").strip()
     return {
         "next_action": action,
-        "next_action_label": next_action_display_label(action),
+        "next_action_label": next_action_display_label_or_fallback(action),
     }
 
 
@@ -65,7 +65,7 @@ def web_crawler_asset_listing_payload(result: CrawlerAssetListingResult) -> dict
     """Expose one listing result shape and add the Web display label."""
 
     payload = result.to_dict()
-    payload["next_action_label"] = next_action_display_label(payload.get("next_action"))
+    payload["next_action_label"] = next_action_display_label_or_fallback(payload.get("next_action"))
     return payload
 
 

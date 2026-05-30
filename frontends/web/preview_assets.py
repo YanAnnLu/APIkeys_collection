@@ -17,7 +17,7 @@ from api_launcher.crawler_asset_flow_display import (
     crawler_asset_card_capabilities,
     crawler_asset_flow_steps,
 )
-from api_launcher.crawler_next_action_display import next_action_display_label
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from api_launcher.crawler_asset_profiles import crawler_asset_favorite_seed_uids
 from api_launcher.crawler_assets import CrawlerAsset, load_crawler_assets
 from api_launcher.crawler_seed_registry import crawler_seed_page, crawler_seed_row, save_crawler_seed_favorite
@@ -95,7 +95,10 @@ def crawler_asset_card(
         "capabilities": crawler_asset_card_capabilities(asset.capabilities),
         "credentials": crawler_asset_credential_status(asset, env_path=env_path),
         "next_action": asset.next_action,
-        "next_action_label": next_action_display_label(asset.next_action),
+        "next_action_label": next_action_display_label_or_fallback(
+            asset.next_action,
+            fallback="檢查爬蟲資產設定",
+        ),
         "latest_listing": latest_listing or {},
         "latest_plan_outcome": latest_plan_outcome or {},
         "latest_plan_passport": latest_plan_passport or {},
