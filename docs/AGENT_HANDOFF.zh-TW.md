@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 16:33 Web bounds/probe display fallback
+- 本輪修掉 Web Preview 兩個 raw status fallback：seed schema probe 完成 mission 不再 fallback 到 `payload.schema_probe.status`，bounds form 狀態 pill 改吃後端 `spec.display_label`，不再直接顯示 `spec.status`。
+- 已提交實作：`0255727 Use bound form labels in Web UI`。
+- 已驗證：`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；Web slice UTF-8/mojibake check OK；完整 smoke `state\logs\pre_push_smoke_20260530_162942.log` 通過，982 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Web 顯示 fallback，不改 schema probe service、bounds form schema、download/import、credential storage、crawler registry 或 Tk 操作。
 ## 2026-05-30 16:21 Remote pagination status labels
 - 本輪延續 UI display contract：`crawler_remote_pagination_payload()` 會輸出遠端分頁狀態的人類顯示 payload，Tk seed enumeration note 優先顯示「仍有下一頁線索」「已列完」「遠端狀態待確認」等文案，不再把未知 remote status raw id 直接放進使用者可見內容。
 - 已提交實作：`c71c830 Label remote pagination statuses`。
