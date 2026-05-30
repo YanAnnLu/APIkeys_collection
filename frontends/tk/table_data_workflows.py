@@ -3,6 +3,7 @@ from __future__ import annotations
 from tkinter import END, BooleanVar
 
 import APIkeys_collection as core
+from api_launcher.dataset_candidate_display import dataset_candidate_status_label
 from frontends.tk.provider_models import ProviderRow
 
 
@@ -198,13 +199,7 @@ class TableDataWorkflowMixin:
         return str(dataset.metadata.get("candidate_status") or "").strip().lower()
 
     def dataset_candidate_status_label(self, dataset: core.Dataset) -> str:
-        labels = {
-            "needs_review": self.tr("待審核", "Needs review"),
-            "approved": self.tr("可用", "Approved"),
-            "planned": self.tr("已排入", "Planned"),
-            "rejected": self.tr("已拒絕", "Rejected"),
-        }
-        return labels.get(self.dataset_candidate_status(dataset), self.tr("已發現", "Discovered"))
+        return dataset_candidate_status_label(self.dataset_candidate_status(dataset))
 
     def dataset_category_label(self, dataset: core.Dataset) -> str:
         values = [*dataset.categories]

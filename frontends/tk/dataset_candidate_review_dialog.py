@@ -9,6 +9,11 @@ from tkinter import ttk
 from typing import Any
 
 import APIkeys_collection as core
+from api_launcher.dataset_candidate_display import (
+    dataset_candidate_status_label,
+    dataset_candidate_status_labels,
+    dataset_candidate_status_value,
+)
 from frontends.tk.ui_config import COLORS
 
 
@@ -18,7 +23,7 @@ class DatasetCandidateReviewDialog:
         # 也不把 crawler 結果直接升格成正式 catalog；這個 class 固定住 review-only 邊界。
         self.ui = ui
         self.root = ui.root
-        self.status_filter_var = StringVar(value="needs_review")
+        self.status_filter_var = StringVar(value=dataset_candidate_status_label("needs_review"))
         self.summary_var = StringVar(value="")
         self.candidates_by_uid: dict[str, core.Dataset] = {}
         self.dialog = Toplevel(self.root)
@@ -33,7 +38,7 @@ class DatasetCandidateReviewDialog:
         # Treeview 欄位是審核列表與測試共用的穩定契約；調整欄位順序前要同步 UI 測試。
         metadata = dataset.metadata
         return (
-            metadata.get("candidate_status", ""),
+            dataset_candidate_status_label(str(metadata.get("candidate_status") or "")),
             dataset.provider_id,
             dataset.title,
             metadata.get("data_family", dataset.data_type),
@@ -52,7 +57,7 @@ class DatasetCandidateReviewDialog:
             f"{tr('標題', 'Title')}: {dataset.title}",
             f"{tr('提供商', 'Provider')}: {dataset.provider_id}",
             f"{tr('資料集 ID', 'Dataset ID')}: {dataset.dataset_id}",
-            f"{tr('審核狀態', 'Review status')}: {metadata.get('candidate_status', '-')}",
+            f"{tr('審核狀態', 'Review status')}: {dataset_candidate_status_label(str(metadata.get('candidate_status') or ''))}",
             f"{tr('資料類型', 'Data family')}: {metadata.get('data_family', dataset.data_type or '-')}",
             f"{tr('建議儲存', 'Storage hint')}: {metadata.get('storage_hint', '-')}",
             f"{tr('分析提示', 'Analysis hint')}: {metadata.get('analysis_hint', '-')}",
@@ -85,7 +90,7 @@ class DatasetCandidateReviewDialog:
         status_box = ttk.Combobox(
             controls,
             textvariable=self.status_filter_var,
-            values=("needs_review", "approved", "planned", "rejected", "all"),
+            values=dataset_candidate_status_labels(),
             state="readonly",
             width=18,
         )
@@ -162,7 +167,7 @@ class DatasetCandidateReviewDialog:
     def load_candidates(self) -> None:
         conn = self.ui._connect()
         try:
-            candidates = core.ApiCatalogRepository(conn).list_dataset_candidates(self.status_filter_var.get())
+            candidates = core.ApiCatalogRepository(conn).list_dataset_candidates(self.selected_status_filter())
         except Exception as exc:
             messagebox.showerror(self.ui.tr("無法讀取候選", "Could not load candidates"), str(exc), parent=self.dialog)
             return
@@ -193,8 +198,17 @@ class DatasetCandidateReviewDialog:
             core.ApiCatalogRepository(conn).mark_dataset_candidate_status(dataset.dataset_uid, status, reviewed_by="tk-ui")
         finally:
             conn.close()
-        self.ui.status_var.set(self.ui.tr(f"已更新候選狀態：{dataset.title} -> {status}", f"Candidate updated: {dataset.title} -> {status}"))
+        status_label = dataset_candidate_status_label(status)
+        self.ui.status_var.set(
+            self.ui.tr(
+                f"已更新候選狀態：{dataset.title} -> {status_label}",
+                f"Candidate updated: {dataset.title} -> {dataset_candidate_status_label(status, locale='en')}",
+            )
+        )
         self.load_candidates()
+
+    def selected_status_filter(self) -> str:
+        return dataset_candidate_status_value(self.status_filter_var.get())
 
     def add_selected_to_plan(self) -> None:
         dataset = self.selected_candidate()

@@ -2927,11 +2927,13 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("needs_review", "example_provider", "Example Dataset", "tabular", "CSV", "0.88"),
+            ("待審核", "example_provider", "Example Dataset", "tabular", "CSV", "0.88"),
             DatasetCandidateReviewDialog.candidate_row_values(dataset),
         )
         detail = DatasetCandidateReviewDialog.candidate_detail_text(dataset, lambda zh, _en: zh)
         self.assertIn("標題: Example Dataset", detail)
+        self.assertIn("審核狀態: 待審核", detail)
+        self.assertNotIn("審核狀態: needs_review", detail)
         self.assertIn("來源: https://example.test/source.csv", detail)
         self.assertIn('"source_type": "ckan"', detail)
 
