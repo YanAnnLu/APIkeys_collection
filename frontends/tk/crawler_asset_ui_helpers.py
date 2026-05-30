@@ -889,7 +889,11 @@ def crawler_asset_seed_enumeration_note_text(
     status = str(remote.get("status") or "").strip()
     exhausted = remote.get("exhausted")
     token_present = bool(remote.get("next_page_token_present"))
-    if status == "has_more":
+    display_help_zh = str(remote.get("display_help_zh_TW") or "").strip()
+    display_help_en = str(remote.get("display_help_en") or "").strip()
+    if display_help_zh:
+        remote_text = tr(display_help_zh, display_help_en or display_help_zh)
+    elif status == "has_more":
         remote_text = tr(
             "遠端狀態：crawler 回報還有下一頁線索；token 已由後端遮蔽。",
             "Remote status: crawler reported another page; token is hidden by the backend.",
@@ -901,8 +905,8 @@ def crawler_asset_seed_enumeration_note_text(
         )
     elif status and status != "not_reported":
         remote_text = tr(
-            f"遠端狀態：{status}。",
-            f"Remote status: {status}.",
+            "遠端狀態：待確認。請檢查 crawler audit 或來源分頁合約。",
+            "Remote status: needs review. Check the crawler audit or source pagination contract.",
         )
     elif token_present:
         remote_text = tr(

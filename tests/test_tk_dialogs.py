@@ -1409,6 +1409,14 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("尚未回報", text)
         self.assertIn("本機 catalog", text)
 
+    def test_crawler_asset_seed_enumeration_note_hides_unknown_remote_status(self) -> None:
+        listing = {"seed_enumeration": {"label": "已枚舉 3 筆 seed", "remote_pagination": {"status": "new_remote_status"}}}
+
+        text = crawler_asset_seed_enumeration_note_text(listing, lambda zh, _en: zh)
+
+        self.assertIn("遠端狀態：待確認", text)
+        self.assertNotIn("new_remote_status", text)
+
     def test_crawler_asset_listing_event_preview_payload_keeps_seed_status(self) -> None:
         context = {
             "asset_id": "demo_index",

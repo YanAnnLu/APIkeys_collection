@@ -1145,6 +1145,7 @@ class CrawlerAssetTest(unittest.TestCase):
         payload = crawler_remote_pagination_payload(result)
 
         self.assertEqual("has_more", payload["status"])
+        self.assertEqual("仍有下一頁線索", payload["display_label_zh_TW"])
         self.assertFalse(payload["exhausted"])
         self.assertTrue(payload["next_page_token_present"])
         self.assertNotIn("secret-token", repr(payload))

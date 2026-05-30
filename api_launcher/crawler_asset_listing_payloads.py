@@ -8,7 +8,7 @@ updates.
 
 from __future__ import annotations
 
-from api_launcher.crawler_seed_display import seed_enumeration_display_payload
+from api_launcher.crawler_seed_display import remote_pagination_display_payload, seed_enumeration_display_payload
 from api_launcher.crawler_run_records import crawler_run_record_from_result
 
 
@@ -121,6 +121,7 @@ def crawler_remote_pagination_payload(result: object) -> dict[str, object]:
         "status": status,
         "exhausted": exhausted,
         "next_page_token_present": token_present,
+        **remote_pagination_display_payload(status, exhausted=exhausted, token_present=token_present),
     }
 
 

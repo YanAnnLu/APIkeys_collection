@@ -139,8 +139,52 @@ def seed_enumeration_display_payload(
     )
 
 
+def remote_pagination_display_payload(
+    status: str,
+    *,
+    exhausted: object = None,
+    token_present: bool = False,
+) -> dict[str, str]:
+    normalized = str(status or "").strip()
+    if normalized == "has_more":
+        return {
+            "display_label_zh_TW": "仍有下一頁線索",
+            "display_label_en": "More pages reported",
+            "display_help_zh_TW": "遠端狀態：crawler 回報還有下一頁線索；token 已由後端遮蔽。",
+            "display_help_en": "Remote status: crawler reported another page; token is hidden by the backend.",
+        }
+    if normalized == "exhausted" or exhausted is True:
+        return {
+            "display_label_zh_TW": "已列完",
+            "display_label_en": "Exhausted",
+            "display_help_zh_TW": "遠端狀態：crawler 回報已列完。",
+            "display_help_en": "Remote status: crawler reported that the remote listing is exhausted.",
+        }
+    if token_present:
+        return {
+            "display_label_zh_TW": "偵測到下一頁線索",
+            "display_label_en": "Next-page evidence detected",
+            "display_help_zh_TW": "遠端狀態：偵測到下一頁線索；token 已由後端遮蔽。",
+            "display_help_en": "Remote status: detected another page; token is hidden by the backend.",
+        }
+    if not normalized or normalized == "not_reported":
+        return {
+            "display_label_zh_TW": "尚未回報",
+            "display_label_en": "Not reported",
+            "display_help_zh_TW": "遠端完整度：這個 handler 尚未回報，只能依本機 catalog 視窗判斷。",
+            "display_help_en": "Remote completeness: this handler has not reported it; rely on the local catalog window.",
+        }
+    return {
+        "display_label_zh_TW": "遠端狀態待確認",
+        "display_label_en": "Remote status needs review",
+        "display_help_zh_TW": "遠端狀態：待確認。請檢查 crawler audit 或來源分頁合約。",
+        "display_help_en": "Remote status: needs review. Check the crawler audit or source pagination contract.",
+    }
+
+
 __all__ = [
     "SEED_ENUMERATION_DISPLAY_PROFILES",
     "SeedEnumerationDisplayProfile",
+    "remote_pagination_display_payload",
     "seed_enumeration_display_payload",
 ]
