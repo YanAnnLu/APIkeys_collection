@@ -1,7 +1,7 @@
 # Agent 接力卡
 ## 2026-05-31 03:36 Tk listing status display label
 - 本輪做 Tk display-contract 小切片：`run_selected_crawler_asset_listing()` 仍用 raw `asset.asset_id` 作為 single-flight key 與 listing worker 參數，但狀態列與 duplicate guard 改顯示 `asset.display_name`，不再把 `demo_index` 這類 asset id 當主要使用者文字。
-- 已驗證：`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 130 tests；完整 smoke `state\logs\pre_push_smoke_20260531_033255.log` 通過，1018 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；已提交 `1b60382 Label Tk listing status names`，GitHub Actions 尚待本輪 docs checkpoint 後觸發。
+- 已驗證：`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m py_compile frontends\tk\crawler_asset_workflows.py tests\test_tk_dialogs.py` OK；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 130 tests；完整 smoke `state\logs\pre_push_smoke_20260531_033255.log` 通過，1018 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；已推送 `1b60382 Label Tk listing status names` / `909cb26 Log Tk listing status checkpoint`，GitHub Actions manual run `26693093030` 通過 Ubuntu、Windows 與 real DB smoke。
 - 交換區：已回覆 `L:\AGENT_EXCHANGE\inbox\c_3_RRKAL_project.md` 的 territory / EEZ / maritime-boundary manifest 建議，決策為 `backlogged`；這是未來 geospatial governance / OpenSpec 題，不打斷目前 Tk display-contract checkpoint。
 ## 2026-05-31 03:21 Tk metadata crawl status label
 - 本輪做 Tk display-contract 小切片：`run_selected_crawler_asset_metadata()` 仍用 raw `provider_id` 設定 `active_provider_id` 給既有 metadata crawl 流程，但狀態列改顯示 `asset.display_name`，不再把 provider id 當主要使用者文字。
