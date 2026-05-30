@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 14:35 Tk crawler asset row fallback label
+- 本輪修掉 Tk Crawler Asset 表格的另一個 raw id fallback：當資產還沒有最近下載計畫結果時，最後欄位會用 `next_action_display_label(asset.next_action)`，不再把 `run_full_crawl_or_export_candidates` 這類 action id 直接顯示給使用者。
+- 已提交實作：`d4f924d Label crawler asset row fallback actions`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_next_action_display.py frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過，115 tests OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_tk_dialogs tests.test_web_preview -v` 通過，222 tests OK；`git diff --check` OK；`api_launcher` / `frontends` mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260530_143559.log` 通過，974 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Tk table display fallback，不改 crawler asset profile、listing、download/import、Web 操作、credential storage、crawler registry 或 user guide。
 ## 2026-05-30 14:24 stale plan passport action labels
 - 本輪把 stale Plan Passport 的下一步也補成 UI-neutral display payload：`crawler_asset_plan_passport_for_profile()` 會輸出 `stale_next_action_label`，Tk/Web 顯示優先使用人類文案，不再把 `enable_before_building_download_plan` 這類 raw action id 放進使用者可見摘要。
 - 已提交實作：`6a0c27c Label stale plan passport actions`。
