@@ -89,8 +89,8 @@ def crawler_seed_dialog_recommended_text(
     title = str(recommended.get("title") or recommended.get("dataset_id") or uid).strip()
     import_label = crawler_seed_dialog_import_label(recommended) or tr("後端推薦 seed", "Backend recommended seed")
     return tr(
-        f"推薦 seed：{title}（{import_label}）。可直接按「下載推薦 Seed」。",
-        f"Recommended seed: {title} ({import_label}). Use Download recommended seed to start.",
+        f"推薦 seed：{title}（{import_label}）。可直接按「下載推薦 Seed」，或用「驗證閉環」重跑入口清單後下載。",
+        f"Recommended seed: {title} ({import_label}). Use Download recommended seed, or Validate loop to rerun listing before downloading.",
     )
 
 
@@ -214,6 +214,7 @@ class CrawlerAssetSeedDialog:
         buttons.pack(fill=X, pady=(18, 0))
         ttk.Button(buttons, text=self.tr("下載此 Seed", "Download this seed"), style="Action.TButton", command=self.download).pack(side=RIGHT, padx=(10, 0))
         if recommended_uid:
+            ttk.Button(buttons, text=self.tr("驗證閉環", "Validate loop"), style="Action.TButton", command=self.validate_recommended_closure).pack(side=RIGHT, padx=(10, 0))
             ttk.Button(buttons, text=self.tr("下載推薦 Seed", "Download recommended seed"), style="Action.TButton", command=self.download_recommended).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("探測欄位", "Probe fields"), style="Action.TButton", command=self.schema_probe).pack(side=RIGHT, padx=(10, 0))
         ttk.Button(buttons, text=self.tr("收藏 / 取消收藏", "Favorite / unfavorite"), style="Action.TButton", command=self.favorite).pack(side=RIGHT, padx=(10, 0))
@@ -249,6 +250,14 @@ class CrawlerAssetSeedDialog:
             self.message_var.set(self.tr("目前沒有後端推薦 seed。", "No backend recommended seed is available."))
             return
         self.result = {"action": "download", "dataset_uid": dataset_uid}
+        self.window.destroy()
+
+    def validate_recommended_closure(self) -> None:
+        dataset_uid = crawler_seed_dialog_recommended_uid(self.payload)
+        if not dataset_uid:
+            self.message_var.set(self.tr("目前沒有後端推薦 seed。", "No backend recommended seed is available."))
+            return
+        self.result = {"action": "recommended_closure", "dataset_uid": dataset_uid}
         self.window.destroy()
 
     def schema_probe(self) -> None:

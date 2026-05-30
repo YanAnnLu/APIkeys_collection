@@ -11,6 +11,9 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
+    crawler_asset_recommended_seed_closure_event_context,
+    crawler_asset_recommended_seed_closure_target_paths,
+    crawler_asset_recommended_seed_closure_ui_message,
     crawler_seed_download_import_event_context,
     crawler_seed_schema_probe_event_context,
     crawler_seed_download_import_target_paths,
@@ -116,6 +119,69 @@ class YFinanceUiHelperTests(unittest.TestCase):
             PROJECT_ROOT / "state/crawler_asset_seed_plans/asset_demo.provider_dataset_a.resolved.json",
             targets.plan_path,
         )
+
+    def test_recommended_seed_closure_target_paths_use_stable_seed_segment(self) -> None:
+        with patch("frontends.tk.crawler_asset_ui_helpers.default_local_downloads_root", return_value=Path("C:/downloads")):
+            targets = crawler_asset_recommended_seed_closure_target_paths("asset/demo")
+
+        self.assertEqual(Path("C:/downloads/crawler_assets/asset_demo/recommended_seed_closure"), targets.downloads_root)
+        self.assertEqual(targets.downloads_root / "curated_sources.db", targets.import_sqlite_path)
+
+    def test_recommended_seed_closure_ui_message_hides_raw_next_action(self) -> None:
+        result = SimpleNamespace(
+            succeeded=False,
+            closure_stage="no_recommended_seed",
+            recommended_seed_uid="",
+            download_import_result=None,
+            to_dict=lambda: {
+                "asset_id": "demo_index",
+                "provider_id": "demo_provider",
+                "closure_stage": "no_recommended_seed",
+                "succeeded": False,
+                "recommended_seed_uid": "",
+                "next_action": "review_seed_page_or_adjust_source_listing",
+                "next_action_label": "檢查 seed 清單或調整入口界域",
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                },
+            },
+        )
+
+        message = crawler_asset_recommended_seed_closure_ui_message(result, lambda zh, _en: zh)
+
+        self.assertFalse(message.succeeded)
+        self.assertIn("檢查 seed 清單或調整入口界域", message.body)
+        self.assertNotIn("review_seed_page_or_adjust_source_listing", message.body)
+
+    def test_recommended_seed_closure_event_context_keeps_compact_seed_summary(self) -> None:
+        result = SimpleNamespace(
+            succeeded=False,
+            closure_stage="no_recommended_seed",
+            recommended_seed_uid="",
+            download_import_result=None,
+            to_dict=lambda: {
+                "asset_id": "demo_index",
+                "provider_id": "demo_provider",
+                "closure_stage": "no_recommended_seed",
+                "succeeded": False,
+                "recommended_seed_uid": "",
+                "next_action": "review_seed_page_or_adjust_source_listing",
+                "seed_page": {
+                    "total": 50,
+                    "page": 1,
+                    "page_size": 50,
+                    "recommended_seed_uid": "",
+                    "seeds": [{"dataset_uid": f"seed_{index}"} for index in range(50)],
+                },
+            },
+        )
+
+        context = crawler_asset_recommended_seed_closure_event_context(result)
+
+        self.assertEqual("no_recommended_seed", context["closure_stage"])
+        self.assertEqual({"total": 50, "page": 1, "page_size": 50, "recommended_seed_uid": ""}, context["seed_page_summary"])
+        self.assertNotIn("seeds", context)
 
     def test_crawler_asset_download_plan_bounds_schema_uses_capability_contract(self) -> None:
         build_capability = SimpleNamespace(capability_id="build_download_plan", bounds_schema=("time", "bbox"))

@@ -1535,6 +1535,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("推薦 seed", text)
         self.assertIn("Seed 1", text)
         self.assertIn("下載推薦 Seed", text)
+        self.assertIn("驗證閉環", text)
 
     def test_crawler_asset_seed_dialog_schema_probe_entry_prefers_api_url(self) -> None:
         entry = crawler_seed_dialog_schema_probe_entry(
@@ -1629,6 +1630,39 @@ class TkDialogModuleTest(unittest.TestCase):
             CrawlerAssetWorkflowMixin.open_selected_crawler_asset_seed_dialog(ui)
 
         self.assertEqual([("demo_index", "demo_provider:seed_1", {"api_url": "https://example.test/api.json"})], calls)
+
+    def test_open_selected_crawler_asset_seed_dialog_routes_recommended_closure_action(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = {
+            "asset_id": "demo_index",
+            "page": 1,
+            "total": 1,
+            "recommended_seed_uid": "demo_provider:seed_1",
+            "seeds": [{"dataset_uid": "demo_provider:seed_1", "title": "Seed 1"}],
+        }
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.tr = lambda zh, _en: zh
+        ui.root = object()
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_seed_pages = {"demo_index": payload}
+        calls: list[str] = []
+        ui.run_crawler_asset_recommended_seed_closure_from_ui = lambda selected_asset: calls.append(selected_asset.asset_id)
+
+        with patch(
+            "frontends.tk.crawler_asset_workflows.CrawlerAssetSeedDialog",
+            return_value=SimpleNamespace(result={"action": "recommended_closure", "dataset_uid": "demo_provider:seed_1"}),
+        ):
+            CrawlerAssetWorkflowMixin.open_selected_crawler_asset_seed_dialog(ui)
+
+        self.assertEqual(["demo_index"], calls)
 
     def test_seed_schema_probe_worker_enriches_bounds_form_and_stores_payload(self) -> None:
         source = DatasetDiscoverySource(
@@ -1780,6 +1814,60 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
 
+    def test_recommended_seed_closure_starts_background_worker(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        payload = CrawlerAssetBoundPayload(asset_id="demo_index", facet_values={"limit": 5})
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_bound_payloads = {"demo_index": payload.to_dict()}
+        thread_call = SimpleNamespace(target=None, args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.target = target
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            CrawlerAssetWorkflowMixin.run_crawler_asset_recommended_seed_closure_from_ui(ui, asset)
+
+        self.assertTrue(thread_call.started)
+        self.assertEqual("demo_index", thread_call.args[0])
+        self.assertEqual("demo_provider", thread_call.args[1])
+        self.assertIsInstance(thread_call.args[2], CrawlerAssetBoundPayload)
+        self.assertIn("Validating recommended seed loop", ui.status_var.value)
+
+    def test_recommended_seed_closure_is_single_flight_per_asset(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda _zh, en: en
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.crawler_asset_active_jobs = {("recommended_seed_closure", "demo_index", "")}
+
+        with patch("frontends.tk.background_jobs.threading.Thread") as thread_class:
+            CrawlerAssetWorkflowMixin.run_crawler_asset_recommended_seed_closure_from_ui(ui, asset)
+
+        thread_class.assert_not_called()
+        self.assertIn("already running", ui.status_var.value)
+
     def test_credential_dialog_payload_keeps_values_and_clear_flags_separate(self) -> None:
         payload = crawler_asset_credential_edit_payload(
             {"EARTHDATA_TOKEN": " token-secret ", "FRED_API_KEY": ""},
@@ -1833,6 +1921,31 @@ class TkDialogModuleTest(unittest.TestCase):
         thread_class.assert_not_called()
         credential_dialog.assert_called_once()
         self.assertIn("Seed 下載已暫停", ui.status_var.value)
+
+    def test_recommended_seed_closure_opens_credential_dialog_before_worker(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="earthdata_cmr",
+            provider_id="demo_provider",
+            name="Earthdata CMR",
+            source_type="cmr_collections",
+            endpoint_url="https://cmr.earthdata.nasa.gov/search/collections.json",
+            credential_mode="user_credential_required",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+
+        with (
+            patch("frontends.tk.background_jobs.threading.Thread") as thread_class,
+            patch("frontends.tk.crawler_asset_workflows.CrawlerAssetCredentialDialog") as credential_dialog,
+        ):
+            credential_dialog.return_value = SimpleNamespace(result=None)
+            CrawlerAssetWorkflowMixin.run_crawler_asset_recommended_seed_closure_from_ui(ui, asset)
+
+        thread_class.assert_not_called()
+        credential_dialog.assert_called_once()
+        self.assertIn("推薦 Seed 閉環已暫停", ui.status_var.value)
 
     def test_open_crawler_asset_credential_dialog_saves_through_backend(self) -> None:
         source = DatasetDiscoverySource(
@@ -2039,6 +2152,57 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("crawler_seed_download_import_completed", event_log.call_args.args[0])
         showinfo.assert_called_once()
         self.assertIn("Seed 下載 / 匯入完成", ui.status_var.value)
+
+    def test_recommended_seed_closure_worker_uses_backend_service(self) -> None:
+        fake_result = SimpleNamespace(
+            asset_id="demo_index",
+            provider_id="demo_provider",
+            closure_stage="no_recommended_seed",
+            recommended_seed_uid="",
+            download_import_result=None,
+            succeeded=False,
+            next_action="review_seed_page_or_adjust_source_listing",
+            to_dict=lambda: {
+                "asset_id": "demo_index",
+                "provider_id": "demo_provider",
+                "closure_stage": "no_recommended_seed",
+                "succeeded": False,
+                "recommended_seed_uid": "",
+                "next_action": "review_seed_page_or_adjust_source_listing",
+                "next_action_label": "檢查 seed 清單",
+                "artifacts": {"downloads_root": "downloads-root", "curated_sqlite": "downloads-root/curated_sources.db"},
+                "seed_page": {"total": 0, "page": 1, "page_size": 50, "recommended_seed_uid": ""},
+            },
+        )
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.root = SimpleNamespace(after=lambda _delay, callback: callback())
+        ui._connect = lambda: SimpleNamespace(commit=lambda: None, close=lambda: None)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = Path(tmp)
+            with (
+                patch("frontends.tk.crawler_asset_ui_helpers.default_local_downloads_root", return_value=tmp_root / "downloads"),
+                patch("frontends.tk.crawler_asset_workflows.ApiCatalogRepository", return_value="repository") as repository_class,
+                patch("frontends.tk.crawler_asset_workflows.run_recommended_seed_closure", return_value=fake_result) as run_service,
+                patch("frontends.tk.crawler_asset_workflows.log_event") as event_log,
+                patch("frontends.tk.crawler_asset_workflows.messagebox.showwarning") as showwarning,
+            ):
+                CrawlerAssetWorkflowMixin._crawler_asset_recommended_seed_closure_worker(
+                    ui,
+                    "demo_index",
+                    "demo_provider",
+                    None,
+                )
+
+        repository_class.assert_called_once()
+        run_service.assert_called_once()
+        self.assertIn("downloads", str(run_service.call_args.args[2]))
+        self.assertEqual("demo_provider", run_service.call_args.kwargs["provider_id"])
+        self.assertEqual("crawler_asset_recommended_seed_closure_completed", event_log.call_args.args[0])
+        showwarning.assert_called_once()
+        self.assertIn("推薦 Seed 閉環未完成", ui.status_var.value)
 
     def test_seed_download_import_finish_uses_human_next_action_label(self) -> None:
         class Var:

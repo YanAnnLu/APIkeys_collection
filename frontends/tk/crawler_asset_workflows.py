@@ -28,6 +28,7 @@ from api_launcher.crawler_asset_bound_forms import (
     build_crawler_asset_bound_form_spec,
 )
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
+from api_launcher.crawler_asset_closure import run_recommended_seed_closure
 from api_launcher.crawler_asset_schema_probe import crawler_asset_bound_form_schema_probe_result
 from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
@@ -64,6 +65,9 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_download_plan_built_event_context,
     crawler_asset_download_plan_bounds_schema,
     crawler_asset_download_plan_summary_text,
+    crawler_asset_recommended_seed_closure_event_context,
+    crawler_asset_recommended_seed_closure_target_paths,
+    crawler_asset_recommended_seed_closure_ui_message,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_outcome_event_payload,
     crawler_asset_plan_outcome_event_payload,
@@ -679,6 +683,8 @@ class CrawlerAssetWorkflowMixin:
             )
         elif action == "download":
             self.run_crawler_asset_seed_download_import_from_ui(asset, dataset_uid=dataset_uid)
+        elif action == "recommended_closure":
+            self.run_crawler_asset_recommended_seed_closure_from_ui(asset)
         elif action == "schema_probe":
             entry = dialog.result.get("entry")
             self.run_crawler_asset_seed_schema_probe_from_ui(
@@ -878,6 +884,55 @@ class CrawlerAssetWorkflowMixin:
                 )
             )
 
+    def run_crawler_asset_recommended_seed_closure_from_ui(self, asset: CrawlerAsset) -> None:
+        """Run the bounded recommended-seed closure through the shared backend service."""
+
+        if asset.archived:
+            self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再驗證閉環。", "This crawler is archived; unarchive it before validating the loop."))
+            return
+        credential_guard = crawler_asset_credential_status(asset)
+        if credential_status_blocks_download(credential_guard):
+            title = self.tr("需要登入 / API Key", "Login/API key required")
+            self.status_var.set(self.tr("推薦 Seed 閉環已暫停：請先完成登入設定。", "Recommended seed loop paused: finish login settings first."))
+            refreshed = self.open_selected_crawler_asset_credential_dialog(
+                asset,
+                credential_guard=credential_guard,
+                update_cancel_status=False,
+            )
+            if refreshed is None:
+                return
+            if credential_status_blocks_download(refreshed):
+                messagebox.showwarning(
+                    title,
+                    crawler_asset_credential_guard_message(refreshed, self.tr),
+                    parent=getattr(self, "root", None),
+                )
+                return
+            messagebox.showinfo(
+                self.tr("登入設定已完成", "Login settings saved"),
+                self.tr(
+                    "登入設定已保存；請再次按「驗證閉環」開始。",
+                    "Login settings are saved. Press Validate loop again to start.",
+                ),
+                parent=getattr(self, "root", None),
+            )
+            return
+        bounds_payload = self.crawler_asset_bound_payload_for_asset(asset.asset_id)
+        started = self._start_crawler_asset_background_job(
+            ("recommended_seed_closure", asset.asset_id, ""),
+            self._crawler_asset_recommended_seed_closure_worker,
+            (asset.asset_id, asset.provider_id, bounds_payload),
+            duplicate_status_zh=f"推薦 Seed 閉環已在執行：{asset.asset_id}",
+            duplicate_status_en=f"Recommended seed loop is already running: {asset.asset_id}",
+        )
+        if started:
+            self.status_var.set(
+                self.tr(
+                    f"正在驗證推薦 Seed 閉環：{asset.asset_id}",
+                    f"Validating recommended seed loop: {asset.asset_id}",
+                )
+            )
+
     def crawler_asset_bound_payload_for_asset(self, asset_id: str) -> CrawlerAssetBoundPayload | None:
         """Return the latest bounds payload captured by the Tk bounds dialog."""
 
@@ -934,6 +989,61 @@ class CrawlerAssetWorkflowMixin:
 
     def _finish_crawler_asset_seed_download_import(self, result: object) -> None:
         ui_message = crawler_seed_download_import_ui_message(result, self.tr)
+        self.status_var.set(ui_message.status_message)
+        if ui_message.succeeded:
+            messagebox.showinfo(ui_message.title, ui_message.body, parent=getattr(self, "root", None))
+        else:
+            messagebox.showwarning(ui_message.title, ui_message.body, parent=getattr(self, "root", None))
+
+    def _crawler_asset_recommended_seed_closure_worker(
+        self,
+        asset_id: str,
+        provider_id: str,
+        bounds_payload: CrawlerAssetBoundPayload | None,
+    ) -> None:
+        """Background worker for the bounded recommended-seed closure path."""
+
+        try:
+            targets = crawler_asset_recommended_seed_closure_target_paths(asset_id)
+            conn = self._connect()
+            try:
+                repository = ApiCatalogRepository(conn)
+                result = run_recommended_seed_closure(
+                    asset_id,
+                    repository,
+                    targets.downloads_root,
+                    provider_id=provider_id,
+                    import_sqlite_path=targets.import_sqlite_path,
+                    bounds_payload=bounds_payload,
+                    listing_timeout=8.0,
+                    listing_limit=100,
+                    listing_max_pages=0,
+                    download_timeout=8.0,
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:
+            log_exception(
+                "crawler_asset_recommended_seed_closure_failed",
+                exc,
+                component="ui.crawler_assets",
+                context={"asset_id": asset_id, "provider_id": provider_id},
+            )
+            self.root.after(0, lambda: messagebox.showerror(self.tr("推薦 Seed 閉環失敗", "Recommended seed loop failed"), str(exc), parent=getattr(self, "root", None)))
+            self.root.after(0, lambda: self.status_var.set(self.tr(f"推薦 Seed 閉環失敗：{exc}", f"Recommended seed loop failed: {exc}")))
+            return
+
+        log_event(
+            "crawler_asset_recommended_seed_closure_completed",
+            "Tk crawler asset workflow ran the recommended seed closure path.",
+            component="ui.crawler_assets",
+            context=crawler_asset_recommended_seed_closure_event_context(result),
+        )
+        self.root.after(0, lambda: self._finish_crawler_asset_recommended_seed_closure(result))
+
+    def _finish_crawler_asset_recommended_seed_closure(self, result: object) -> None:
+        ui_message = crawler_asset_recommended_seed_closure_ui_message(result, self.tr)
         self.status_var.set(ui_message.status_message)
         if ui_message.succeeded:
             messagebox.showinfo(ui_message.title, ui_message.body, parent=getattr(self, "root", None))

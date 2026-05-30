@@ -34,6 +34,18 @@ class CrawlerSeedDownloadImportUiMessage:
 
 
 @dataclass(frozen=True)
+class CrawlerAssetRecommendedSeedClosureUiMessage:
+    """Display-ready Tk message for a recommended-seed closure run."""
+
+    succeeded: bool
+    closure_stage: str
+    recommended_seed_uid: str
+    title: str
+    status_message: str
+    body: str
+
+
+@dataclass(frozen=True)
 class CrawlerSeedDownloadImportTargetPaths:
     """Filesystem targets for one Tk seed download/import worker."""
 
@@ -85,6 +97,17 @@ def crawler_seed_download_import_target_paths(
         import_sqlite_path=downloads_root / "curated_sources.db",
         plan_path=state_file(f"crawler_asset_seed_plans/{safe_asset}.{safe_seed}.resolved.json"),
     )
+
+
+def crawler_asset_recommended_seed_closure_target_paths(asset_id: str) -> CrawlerSeedDownloadImportTargetPaths:
+    """Return stable Tk filesystem targets for one recommended-seed closure.
+
+    The backend closure service owns its inner artifact layout.  Tk passes a
+    stable downloads root and SQLite target so Web/Tk can prove the same loop
+    without inventing separate storage rules.
+    """
+
+    return crawler_seed_download_import_target_paths(asset_id, "recommended_seed_closure")
 
 
 def crawler_asset_download_plan_bounds_schema(asset: CrawlerAsset) -> tuple[object, ...]:
@@ -517,6 +540,109 @@ def crawler_seed_download_import_ui_message(
         status_message=tr(f"Seed 下載 / 匯入未完成：{stage}", f"Seed download/import did not complete: {stage}"),
         body=body,
     )
+
+
+def crawler_asset_recommended_seed_closure_ui_message(
+    result: object,
+    tr: Callable[[str, str], str],
+) -> CrawlerAssetRecommendedSeedClosureUiMessage:
+    """Convert backend recommended-seed closure result into a Tk message."""
+
+    payload = result.to_dict() if hasattr(result, "to_dict") else {}
+    payload = payload if isinstance(payload, dict) else {}
+    closure_stage = str(payload.get("closure_stage") or getattr(result, "closure_stage", "") or "-")
+    recommended_seed_uid = str(payload.get("recommended_seed_uid") or getattr(result, "recommended_seed_uid", "") or "").strip()
+    next_action = str(payload.get("next_action") or getattr(result, "next_action", "") or "").strip()
+    next_action_label = _ui_next_action_text(next_action, payload.get("next_action_label"), fallback="檢查推薦 seed 閉環結果")
+    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
+    download_result = getattr(result, "download_import_result", None)
+    succeeded = bool(getattr(result, "succeeded", False))
+    if download_result is not None:
+        seed_message = crawler_seed_download_import_ui_message(download_result, tr)
+        body = tr(
+            (
+                f"推薦 Seed：{recommended_seed_uid or '-'}\n"
+                f"閉環階段：{closure_stage}\n"
+                f"{seed_message.body}"
+            ),
+            (
+                f"Recommended seed: {recommended_seed_uid or '-'}\n"
+                f"Closure stage: {closure_stage}\n"
+                f"{seed_message.body}"
+            ),
+        )
+    else:
+        body = tr(
+            (
+                f"推薦 Seed：{recommended_seed_uid or '-'}\n"
+                f"閉環階段：{closure_stage}\n"
+                f"Downloads：{artifacts.get('downloads_root') or '-'}\n"
+                f"SQLite：{artifacts.get('curated_sqlite') or '-'}\n"
+                f"下一步：{next_action_label}"
+            ),
+            (
+                f"Recommended seed: {recommended_seed_uid or '-'}\n"
+                f"Closure stage: {closure_stage}\n"
+                f"Downloads: {artifacts.get('downloads_root') or '-'}\n"
+                f"SQLite: {artifacts.get('curated_sqlite') or '-'}\n"
+                f"Next: {next_action_label}"
+            ),
+        )
+    if succeeded:
+        return CrawlerAssetRecommendedSeedClosureUiMessage(
+            succeeded=True,
+            closure_stage=closure_stage,
+            recommended_seed_uid=recommended_seed_uid,
+            title=tr("推薦 Seed 閉環完成", "Recommended seed loop completed"),
+            status_message=tr(
+                f"推薦 Seed 閉環完成：{recommended_seed_uid or '-'}",
+                f"Recommended seed loop completed: {recommended_seed_uid or '-'}",
+            ),
+            body=body,
+        )
+    return CrawlerAssetRecommendedSeedClosureUiMessage(
+        succeeded=False,
+        closure_stage=closure_stage,
+        recommended_seed_uid=recommended_seed_uid,
+        title=tr("推薦 Seed 閉環未完成", "Recommended seed loop incomplete"),
+        status_message=tr(
+            f"推薦 Seed 閉環未完成：{closure_stage}",
+            f"Recommended seed loop did not complete: {closure_stage}",
+        ),
+        body=body,
+    )
+
+
+def crawler_asset_recommended_seed_closure_event_context(result: object) -> dict[str, object]:
+    """Return a compact structured event context for one closure run."""
+
+    payload = result.to_dict() if hasattr(result, "to_dict") else {}
+    payload = payload if isinstance(payload, dict) else {}
+    context: dict[str, object] = {
+        "asset_id": payload.get("asset_id") or getattr(result, "asset_id", ""),
+        "provider_id": payload.get("provider_id") or getattr(result, "provider_id", ""),
+        "closure_stage": payload.get("closure_stage") or getattr(result, "closure_stage", ""),
+        "succeeded": bool(payload.get("succeeded") if "succeeded" in payload else getattr(result, "succeeded", False)),
+        "recommended_seed_uid": payload.get("recommended_seed_uid") or getattr(result, "recommended_seed_uid", ""),
+        "next_action": payload.get("next_action") or getattr(result, "next_action", ""),
+        "artifacts": payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {},
+    }
+    seed_page = payload.get("seed_page") if isinstance(payload.get("seed_page"), dict) else {}
+    if seed_page:
+        context["seed_page_summary"] = {
+            "total": seed_page.get("total"),
+            "page": seed_page.get("page"),
+            "page_size": seed_page.get("page_size"),
+            "recommended_seed_uid": seed_page.get("recommended_seed_uid"),
+        }
+    download_result = getattr(result, "download_import_result", None)
+    if download_result is not None:
+        context["download_import"] = crawler_seed_download_import_event_context(
+            str(context["asset_id"]),
+            str(context["recommended_seed_uid"]),
+            download_result,
+        )
+    return context
 
 
 def crawler_asset_review_count_from_plan(payload: object) -> int:
