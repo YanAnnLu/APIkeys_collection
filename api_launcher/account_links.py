@@ -73,6 +73,36 @@ DEFAULT_CAPABILITY_ROUTES = (
 )
 
 
+ACCOUNT_AUTH_MODE_DISPLAY: dict[str, dict[str, str]] = {
+    "oauth": {"zh_TW": "OAuth 登入", "en": "OAuth login"},
+    "oauth_device": {"zh_TW": "裝置碼登入", "en": "Device-code login"},
+    "oauth_device_qr": {"zh_TW": "掃碼 / 裝置碼登入", "en": "QR / device-code login"},
+    "sign_in_with_apple": {"zh_TW": "Apple 登入", "en": "Sign in with Apple"},
+}
+
+ACCOUNT_STATUS_DISPLAY: dict[str, dict[str, str]] = {
+    "planned": {"zh_TW": "規劃中", "en": "Planned", "tone": "planned"},
+    "reserved": {"zh_TW": "保留中", "en": "Reserved", "tone": "reserved"},
+    "skeleton": {"zh_TW": "🚧 施工中", "en": "🚧 In progress", "tone": "construction"},
+    "enabled": {"zh_TW": "可用", "en": "Enabled", "tone": "success"},
+    "disabled": {"zh_TW": "停用", "en": "Disabled", "tone": "muted"},
+}
+
+
+def account_auth_mode_label(auth_mode: str, *, locale: str = "zh_TW") -> str:
+    profile = ACCOUNT_AUTH_MODE_DISPLAY.get(str(auth_mode or "").strip().lower())
+    if not profile:
+        return "登入設定" if locale == "zh_TW" else "Login setting"
+    return profile.get(locale) or profile["zh_TW"]
+
+
+def account_status_label(status: str, *, locale: str = "zh_TW") -> str:
+    profile = ACCOUNT_STATUS_DISPLAY.get(str(status or "").strip().lower())
+    if not profile:
+        return "待確認" if locale == "zh_TW" else "Needs review"
+    return profile.get(locale) or profile["zh_TW"]
+
+
 def account_provider(provider_id: str) -> AccountProvider | None:
     # 查詢時統一 lower，避免 UI 或設定檔大小寫差異造成找不到 provider。
     wanted = provider_id.strip().lower()

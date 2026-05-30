@@ -2847,7 +2847,7 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("Google", "oauth", "planned", "gemini, drive"),
+            ("Google", "OAuth 登入", "規劃中", "gemini, drive"),
             GoogleGeminiSettingsDialog.account_provider_row_values(provider),
         )
 

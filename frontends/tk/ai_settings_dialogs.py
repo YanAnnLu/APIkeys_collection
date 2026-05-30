@@ -8,7 +8,7 @@ from tkinter import ttk
 from typing import Any
 
 import APIkeys_collection as core
-from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS
+from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, account_auth_mode_label, account_status_label
 from api_launcher.google_auth import google_oauth_token_status
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
 from frontends.tk.ui_config import COLORS
@@ -177,8 +177,8 @@ class GoogleGeminiSettingsDialog:
         # 帳號支援表格的欄位順序固定在 helper，讓 headless 測試不用真的開 Tk 視窗。
         return (
             provider.label,
-            provider.auth_mode,
-            provider.status,
+            account_auth_mode_label(str(provider.auth_mode or "")),
+            account_status_label(str(provider.status or "")),
             ", ".join(provider.capability_targets),
         )
 

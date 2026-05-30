@@ -3,7 +3,13 @@ from __future__ import annotations
 
 import unittest
 
-from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, account_provider, capability_route
+from api_launcher.account_links import (
+    DEFAULT_ACCOUNT_PROVIDERS,
+    account_auth_mode_label,
+    account_provider,
+    account_status_label,
+    capability_route,
+)
 
 
 class AccountLinkTests(unittest.TestCase):
@@ -34,6 +40,11 @@ class AccountLinkTests(unittest.TestCase):
         self.assertIn("apple", provider_ids)
         self.assertIn("microsoft", provider_ids)
         self.assertIn("github", provider_ids)
+
+    def test_account_provider_display_labels_hide_raw_status_ids(self) -> None:
+        self.assertEqual("掃碼 / 裝置碼登入", account_auth_mode_label("oauth_device_qr"))
+        self.assertEqual("規劃中", account_status_label("planned"))
+        self.assertEqual("🚧 施工中", account_status_label("skeleton"))
 
 
 if __name__ == "__main__":
