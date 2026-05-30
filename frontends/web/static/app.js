@@ -433,7 +433,7 @@ async function runSeedSchemaProbeById(assetId, datasetUid) {
     }
     renderBoundsForm(payload.bound_form);
     writeJson(payload);
-    addMission("欄位探測完成", payload.next_action_label || payload.schema_probe?.status || datasetUid);
+    addMission("欄位探測完成", payload.next_action_label || payload.bound_form?.display_label || "欄位探測完成");
   } catch (error) {
     writeJson({ error: String(error), endpoint: "seed_schema_probe", asset_id: assetId, dataset_uid: datasetUid, entry });
     addMission("欄位探測失敗", String(error));
@@ -1213,7 +1213,7 @@ function renderBoundsForm(spec) {
     return;
   }
 
-  formState.textContent = spec.status || "可輸入";
+  formState.textContent = spec.display_label || "可輸入";
   formState.className = "state-pill success";
   payloadPreviewButton.disabled = !selectedAssetId;
   buildPlanButton.disabled = !selectedAssetId;

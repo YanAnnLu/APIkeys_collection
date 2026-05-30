@@ -1856,6 +1856,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("recommended_seed_uid", combined)
         self.assertIn("seedImportBadgeHtml", combined)
         self.assertIn("content_display_label", combined)
+        self.assertNotIn("payload.schema_probe?.status", combined)
+        self.assertNotIn("formState.textContent = spec.status", combined)
         self.assertNotIn("rrkal.favoriteSeeds", combined)
         self.assertIn("credentialLoginStepsHtml", combined)
         self.assertIn("credential_entry_url", combined)
