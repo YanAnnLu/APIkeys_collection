@@ -90,7 +90,7 @@ from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
 from frontends.tk.download_workflows import DownloadWorkflowMixin, download_job_status_label, download_skip_bucket_label
-from frontends.tk.import_workflows import ImportWorkflowMixin
+from frontends.tk.import_workflows import ImportWorkflowMixin, import_plan_status_label
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
 from frontends.tk.plan_workflows import PlanWorkflowMixin
@@ -2800,6 +2800,21 @@ class TkDialogModuleTest(unittest.TestCase):
             "Content parser needed: netcdf / scientific_grid_review",
             ImportWorkflowMixin.import_status_label(ui, "plan-1"),
         )
+
+    def test_import_plan_status_label_hides_unknown_status(self) -> None:
+        self.assertEqual("需內容 Parser review", import_plan_status_label("manual_review_required", lambda zh, _en: zh))
+        self.assertEqual("匯入狀態待確認", import_plan_status_label("new_backend_state", lambda zh, _en: zh))
+
+    def test_import_status_label_hides_unknown_import_plan_status(self) -> None:
+        ui = object.__new__(ImportWorkflowMixin)
+        ui.import_status_by_plan_key = {}
+        ui.download_plan_entries_by_provider = {"plan-1": {"import_plan": {"status": "new_backend_state"}}}
+        ui.tr = lambda zh, _en: zh
+
+        label = ImportWorkflowMixin.import_status_label(ui, "plan-1")
+
+        self.assertEqual("匯入狀態待確認", label)
+        self.assertNotIn("new_backend_state", label)
 
     def test_import_supported_plan_results_uses_single_flight_job(self) -> None:
         ui = object.__new__(ImportWorkflowMixin)

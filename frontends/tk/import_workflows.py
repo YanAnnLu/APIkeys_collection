@@ -41,6 +41,20 @@ from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
 from frontends.tk.ui_helpers import local_file_import_error_message, local_file_provenance_review_message
 
 
+def import_plan_status_label(status: object, tr: object) -> str:
+    """Render unknown import-plan statuses without exposing backend ids in Tk."""
+
+    status_id = str(status or "").strip()
+    labels = {
+        "supported_after_download": ("可下載後匯入", "Import after download"),
+        "adapter_review_required": ("需 Adapter 審核", "Adapter review needed"),
+        "requires_unpack_or_adapter": ("需解壓或 Adapter", "Unpack or adapter needed"),
+        "manual_review_required": ("需內容 Parser review", "Content parser review needed"),
+    }
+    zh, en = labels.get(status_id, ("匯入狀態待確認", "Import status pending"))
+    return tr(zh, en) if callable(tr) else zh
+
+
 class ImportWorkflowMixin:
     """封裝匯入相關 UI workflow；不直接改動 importer / pipeline 的安全規則。"""
 
@@ -106,7 +120,7 @@ class ImportWorkflowMixin:
             return self.tr(f"需解壓/adapter: {adapter_id}" if adapter_id else "需解壓/adapter", f"Unpack/adapter needed: {adapter_id}" if adapter_id else "Unpack/adapter needed")
         if status == "manual_review_required":
             content_status = plan_entry_content_status_payload(entry)
-            label = str(content_status.get("display_label") or status)
+            label = str(content_status.get("display_label") or import_plan_status_label(status, self.tr))
             parser_id = str(content_status.get("parser_id") or "").strip()
             source_format = str(content_status.get("source_format") or "").strip()
             detail = " / ".join(part for part in (source_format, parser_id) if part)
@@ -115,7 +129,7 @@ class ImportWorkflowMixin:
                 f"Content parser needed: {detail}" if detail else "Content parser needed",
             )
         if status:
-            return status
+            return import_plan_status_label(status, self.tr)
         return self.tr("未支援自動匯入", "No auto import")
 
     def plan_entry_manifest_status(self, entry: dict[str, object]) -> str:
