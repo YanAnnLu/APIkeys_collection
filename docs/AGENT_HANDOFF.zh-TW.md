@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 08:55 Tk seed scope display label
+- 本輪把 Tk Crawler Asset 表格與右側 Crawler Passport 也接到後端 `capability_profile.seed_scope_label`：`crawler_asset_row_values()` / `crawler_asset_detail_text()` 現在優先顯示「入口列表」「分頁 catalog」這類後端 label，只有缺 label 時才 fallback 到 raw `seed_scope` / `current_seed_scope`。
+- 已提交實作：`96b1850 Show Tk seed scope label from profile`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\crawler_asset_ui_helpers.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_tk_ui_helpers -v` 通過，132 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_085350.log` 通過，955 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log / discovery notes / Web Preview UIUX；本輪只改 Tk 顯示投影，不改 crawler handler、seed enumeration service、download/import、credential、Web 操作或 user guide。
+
 ## 2026-05-30 08:37 Seed scope display label contract
 - 本輪把 `seed_scope` 的使用者可讀文案推回後端 capability profile：`CrawlerCapabilityProfile.to_dict()` 現在輸出 `seed_scope_label`，Web Preview 的 Crawler Passport 與能力膠囊摘要優先顯示這個後端 label，再 fallback 到 raw `seed_scope`。
 - 已提交實作：`0dcc809 Add seed scope display label to profiles`。
