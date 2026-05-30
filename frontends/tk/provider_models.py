@@ -3,6 +3,33 @@ from __future__ import annotations
 import APIkeys_collection as core
 
 
+def provider_update_status_label(status: object) -> str:
+    """Render provider update status without leaking unknown backend ids."""
+
+    labels = {
+        "remote_updated": "有更新",
+        "current": "未變動",
+        "checked_no_hash": "已檢查",
+        "unknown": "未知",
+    }
+    status_id = str(status or "").strip()
+    return labels.get(status_id, "更新狀態待確認")
+
+
+def provider_local_status_label(status: object) -> str:
+    """Render provider local install status without leaking unknown backend ids."""
+
+    labels = {
+        "not_imported": "未納管",
+        "imported": "已納管",
+        "downloaded": "已下載",
+        "missing": "本地遺失",
+        "error": "錯誤",
+    }
+    status_id = str(status or "").strip()
+    return labels.get(status_id, "本地狀態待確認")
+
+
 class ProviderRow:
     def __init__(self, entry: core.ProviderCatalogEntry):
         # ProviderRow 是 Tk 專用 view-model；後端資料仍以 core.ProviderCatalogEntry 為準。
@@ -48,24 +75,11 @@ class ProviderRow:
 
     @property
     def update_label(self) -> str:
-        labels = {
-            "remote_updated": "有更新",
-            "current": "未變動",
-            "checked_no_hash": "已檢查",
-            "unknown": "未知",
-        }
-        return labels.get(self.update_status, self.update_status)
+        return provider_update_status_label(self.update_status)
 
     @property
     def local_label(self) -> str:
-        labels = {
-            "not_imported": "未納管",
-            "imported": "已納管",
-            "downloaded": "已下載",
-            "missing": "本地遺失",
-            "error": "錯誤",
-        }
-        return labels.get(self.local_status, self.local_status)
+        return provider_local_status_label(self.local_status)
 
     @property
     def action_label(self) -> str:
