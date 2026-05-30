@@ -854,7 +854,7 @@ function assetSlotHtml(asset) {
     </div>
     <div class="slot-stat-grid">
       <div><span>信任</span><strong>${escapeHtml(String(trust))}</strong></div>
-      <div><span>位址</span><strong>${escapeHtml(capabilityAddress || shortPattern(asset.source_type))}</strong></div>
+      <div><span>位址</span><strong>${escapeHtml(capabilityAddressText(asset))}</strong></div>
     </div>
     <div class="trust-meter" title="trust score ${trust}">
       <i style="width: ${trust}%"></i>
@@ -979,13 +979,18 @@ function capabilityAddressLabel(asset) {
   return Number.isInteger(bits) ? bits.toString(2).padStart(4, "0") : "";
 }
 
+function capabilityAddressText(asset) {
+  return capabilityAddressLabel(asset) || "待確認";
+}
+
 function capabilityProfileSummary(profile = {}) {
+  const seedScope = displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label, profile.seed_scope);
   return [
     profile.source_family,
     profile.transport,
     profile.auth_mode,
     profile.result_shape,
-    profile.seed_scope_label || profile.seed_scope,
+    seedScope,
   ].filter(Boolean).join(" / ");
 }
 

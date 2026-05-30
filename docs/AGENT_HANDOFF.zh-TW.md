@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 18:49 Web capability fallback cleanup
+- 本輪延續 Web UI display contract：資產卡片的「能力位址」在後端未提供 capability address 時顯示「待確認」，不再 fallback 到 `source_type` 短碼；能力膠囊摘要的 Seed 範式也改走 `displayTextOrFallback()`，避免缺 label 時把 `entry_listing` / `paginated_catalog` raw token 放進使用者可見摘要。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_184921.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只調整 Web 顯示 fallback 與靜態 guard，不改後端 payload、crawler registry、download/import service、credential storage 或 Tk 操作。
 ## 2026-05-30 18:37 Web stage label ownership cleanup
 - 本輪移除 Web `downloadImportStageText()` 內的 download/import stage 翻譯表；Web 只消費後端 `download_import.stage_label` / display label，缺 label 時落到「下載狀態待確認」，避免 stage 文案 ownership 回流到 JS。
 - 已提交實作：`c972bdd Remove Web stage label map`。
