@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 10:19 Tk direct thread guard
+- 本輪補第二道 Tk scheduler 測試護欄：`tests/test_tk_background_jobs.py` 會用 AST 掃描 `frontends/tk/*.py`，要求 Tk 模組除了 `frontends/tk/background_jobs.py` 以外不能直接呼叫 `threading.Thread` / `Thread(...)`；未來背景 worker 必須經由共用 helper 與 policy registry。
+- 已提交實作：`8eae394 Guard Tk direct thread spawning`。
+- 已驗證：`py -3 -B -m py_compile tests\test_tk_background_jobs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs -v` 通過，9 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 通過，121 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_101939.log` 通過，963 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只新增測試 guardrail，不改 Tk runtime 行為、policy 數量、crawler、download/import、credential、Web 操作或 user guide。
+
 ## 2026-05-30 10:10 Tk background capacity policy guard
 - 本輪補測試護欄：`tests/test_tk_background_jobs.py` 會用 AST 掃描 `frontends/tk/*.py`，確保所有 `start_single_flight_thread(...)` call site 都明確傳入 `max_active_jobs`，避免未來新增 Tk 背景 worker 時繞過 `frontends/tk/background_job_policies.py`。
 - 已提交實作：`57ae939 Guard Tk background job capacity policy`。
