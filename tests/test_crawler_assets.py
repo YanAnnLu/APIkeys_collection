@@ -136,6 +136,10 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("offset", payload["pagination_mode"])
         self.assertEqual("public_or_review", payload["request_policy"]["credential_mode"])
 
+        asset_payload = asset.to_dict()
+        self.assertEqual("已套安全界域", asset_payload["maturity_label"])
+        self.assertEqual("待審核", asset_payload["risk_tier_label"])
+
     def test_file_index_source_can_offer_selectable_download(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_index",
@@ -183,6 +187,8 @@ class CrawlerAssetTest(unittest.TestCase):
 
         self.assertEqual("unbuilt", asset.maturity)
         self.assertEqual("needs_handler", asset.risk_tier)
+        self.assertEqual("待補 handler", asset.to_dict()["maturity_label"])
+        self.assertEqual("待補 handler", asset.to_dict()["risk_tier_label"])
         self.assertEqual("needs_handler", asset.capability_status("fetch_metadata"))
         self.assertEqual("adapter_review", asset.health.status_gate)
         self.assertEqual("待補", status_label("needs_handler"))

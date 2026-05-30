@@ -924,10 +924,10 @@ function renderPassport(card, asset) {
 
     <dl class="passport-facts">
       <div><dt>來源表面</dt><dd>${escapeHtml(surfaceLabel(card.source_surface))}</dd></div>
-      <div><dt>成熟度</dt><dd>${escapeHtml(card.maturity || "unknown")}</dd></div>
-      <div><dt>風險層級</dt><dd>${escapeHtml(asset.risk_tier || "unknown")}</dd></div>
+      <div><dt>成熟度</dt><dd>${escapeHtml(displayTextOrFallback("成熟度待確認", card.maturity_label, asset.maturity_label))}</dd></div>
+      <div><dt>風險層級</dt><dd>${escapeHtml(displayTextOrFallback("風險層級待確認", card.risk_tier_label, asset.risk_tier_label))}</dd></div>
       <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
-      <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "unknown")}</dd></div>
+      <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "能力膠囊待確認")}</dd></div>
       <div><dt>Seed 範式</dt><dd>${escapeHtml(displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label, capabilityProfile.seed_scope))}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>

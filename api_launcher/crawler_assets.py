@@ -53,6 +53,20 @@ SOURCE_SURFACE_LABELS: dict[str, str] = {
     "openalex_works_search": "api",
 }
 
+CRAWLER_ASSET_MATURITY_LABELS: dict[str, str] = {
+    "ready": "可直接操作",
+    "bounded": "已套安全界域",
+    "assembled": "已接上爬蟲",
+    "unbuilt": "待補 handler",
+}
+
+CRAWLER_ASSET_RISK_TIER_LABELS: dict[str, str] = {
+    "normal": "一般",
+    "needs_review": "待審核",
+    "needs_handler": "待補 handler",
+    "archived": "已封存",
+}
+
 
 @dataclass(frozen=True)
 class CrawlerAsset:
@@ -116,7 +130,9 @@ class CrawlerAsset:
             "categories": list(self.categories),
             "geographic_scope": self.geographic_scope,
             "maturity": self.maturity,
+            "maturity_label": crawler_asset_maturity_label(self.maturity),
             "risk_tier": self.risk_tier,
+            "risk_tier_label": crawler_asset_risk_tier_label(self.risk_tier),
             "trust_score": self.trust_score,
             "seed_count": self.seed_count,
             "seed_summary": self.seed_summary,
@@ -247,6 +263,10 @@ def crawler_asset_maturity(complete_seed_ready: bool, supported: bool, source: D
     return "unbuilt"
 
 
+def crawler_asset_maturity_label(maturity: str) -> str:
+    return CRAWLER_ASSET_MATURITY_LABELS.get(maturity, "成熟度待確認")
+
+
 def crawler_asset_risk_tier(
     supported: bool,
     complete_seed_ready: bool,
@@ -257,6 +277,10 @@ def crawler_asset_risk_tier(
     if complete_seed_ready and all(item.status in {"ready", "selectable"} for item in capabilities[:2]):
         return "normal"
     return "needs_review"
+
+
+def crawler_asset_risk_tier_label(risk_tier: str) -> str:
+    return CRAWLER_ASSET_RISK_TIER_LABELS.get(risk_tier, "風險層級待確認")
 
 
 def trust_score_for_asset(maturity: str, risk_tier: str, complete_seed_ready: bool) -> int:
@@ -301,8 +325,12 @@ __all__ = [
     "BUILD_DOWNLOAD_PLAN",
     "CrawlerAsset",
     "CrawlerAssetCapability",
+    "CRAWLER_ASSET_MATURITY_LABELS",
+    "CRAWLER_ASSET_RISK_TIER_LABELS",
     "SOURCE_SURFACE_LABELS",
     "crawler_asset_from_source",
+    "crawler_asset_maturity_label",
+    "crawler_asset_risk_tier_label",
     "load_crawler_asset_source",
     "load_crawler_assets",
     "status_label",
