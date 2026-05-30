@@ -130,7 +130,7 @@ Last updated: 2026-05-30
 - [x] `frontends/tk/ui_helpers.py` 已回到通用 Tk helper owner：yfinance、data-store 與 MVP smoke 仍留在此檔；crawler asset / seed download-import 專屬 helper 不再混入 generic helper module。
 - [x] Source pattern draft Tk 訊息投影已集中到 `frontends/tk/source_pattern_draft_ui_helpers.py`：draft created / review-needed message formatting 不再留在 `crawler_asset_workflows.py`，workflow class 只保留相容 wrapper 與 background job orchestration。
 - [x] Crawler asset Tk row/detail 投影已集中到 `frontends/tk/crawler_asset_ui_helpers.py`：table row、右側 passport detail、capability lines、credential summary、plan passport summary 與 bounds schema text 不再直接留在 `crawler_asset_workflows.py`。
-- [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，減少連點造成的重複 dialog 與 plan entry 競爭。
+- [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，且同一 UI 同時最多 2 個 plan bounds probe worker，減少連點造成的重複 dialog、過多網路 probe 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
 - [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把剩餘 Tk raw background thread / DB write gate / Web Preview endpoint 狀態 payload 收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
 

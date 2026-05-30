@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 09:04 Tk plan bounds probe capacity guard
+- 本輪延續 bounded scheduler hardening：Tk 下載計畫的「界域欄位探測」現在有 capacity guard，同一 UI 同時最多 2 個 plan bounds/schema probe worker；同一 plan item 仍維持 single-flight，queue 滿時只更新狀態，不開新 thread。
+- 已提交實作：`fb301fa Bound Tk plan bounds probe jobs`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\plan_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過，110 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_090436.log` 通過，956 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 Tk plan bounds probe 背景工作容量 guard，不改 schema probe service、bounds form contract、download/import、crawler、credential、Web 操作或 user guide。
+
 ## 2026-05-30 08:55 Tk seed scope display label
 - 本輪把 Tk Crawler Asset 表格與右側 Crawler Passport 也接到後端 `capability_profile.seed_scope_label`：`crawler_asset_row_values()` / `crawler_asset_detail_text()` 現在優先顯示「入口列表」「分頁 catalog」這類後端 label，只有缺 label 時才 fallback 到 raw `seed_scope` / `current_seed_scope`。
 - 已提交實作：`96b1850 Show Tk seed scope label from profile`。
