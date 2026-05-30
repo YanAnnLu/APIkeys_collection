@@ -2095,6 +2095,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("🚧", combined)
         self.assertIn("deliveryClosureText", combined)
         self.assertIn("sourceTypeDisplayText", combined)
+        self.assertIn("providerDisplayText", combined)
+        self.assertNotIn("provider unknown", combined)
         self.assertNotIn('String(closure.closure_percent ?? "unknown")', combined)
         self.assertNotIn('closure.status || "unknown"', combined)
         self.assertNotIn('row.display_label || row.maturity_label_zh_TW || row.maturity_level || "unknown"', combined)

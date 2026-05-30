@@ -642,7 +642,7 @@ function downloaderRowHtml(asset) {
       </div>
       <div class="context-chip-row">
         <span class="context-chip">${escapeHtml(sourceTypeDisplayText(asset))}</span>
-        <span class="context-chip">${escapeHtml(asset.provider_id || "provider unknown")}</span>
+        <span class="context-chip">${escapeHtml(providerDisplayText(asset))}</span>
         ${contentReview}
         ${staleChip}
         ${snapshotChip}
@@ -1860,7 +1860,7 @@ function renderSelectedHero(card, flowSteps = []) {
       <h2>${escapeHtml(card.display_name)}</h2>
       <p>${escapeHtml(card.seed_summary || card.endpoint_url || "等待後端提供來源摘要。")}</p>
       <div class="hero-meta">
-        <span>${escapeHtml(card.provider_id || "provider unknown")}</span>
+        <span>${escapeHtml(providerDisplayText(card))}</span>
         <span>${escapeHtml(sourceTypeDisplayText(card))}</span>
         ${statePill(status, card.health?.status_label)}
       </div>
@@ -2291,6 +2291,13 @@ function sourceTypeDisplayText(assetOrType = {}) {
     profile.source_type_label,
     shortPattern(raw),
   );
+}
+
+function providerDisplayText(asset) {
+  // Provider labels are not yet guaranteed in older payloads, so keep provider_id
+  // as the stable display fallback instead of hiding useful provenance.
+  const text = String(asset?.provider_name || asset?.provider_label || asset?.provider_id || "").trim();
+  return text || "Provider 待確認";
 }
 
 function surfaceLabel(asset) {
