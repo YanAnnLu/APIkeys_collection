@@ -214,7 +214,7 @@ def seed_scope_display_label(seed_scope: str) -> str:
         "paginated_catalog": "分頁 catalog",
         "unknown": "未知",
     }
-    return labels.get(seed_scope, seed_scope or "未知")
+    return labels.get(seed_scope, "Seed 範式待確認" if seed_scope else "未知")
 
 
 def pagination_mode_for_source(source: DatasetDiscoverySource) -> str:

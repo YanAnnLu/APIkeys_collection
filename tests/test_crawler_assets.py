@@ -11,6 +11,7 @@ from api_launcher.crawler_asset_service import (
     build_crawler_asset_download_plan,
     run_crawler_asset_listing,
 )
+from api_launcher.crawler_capability_profiles import seed_scope_display_label
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context, crawler_remote_pagination_payload
 from api_launcher.crawler_asset_payloads import source_download_options_from_crawler_asset_payload
 from api_launcher.crawler_asset_profiles import (
@@ -144,6 +145,11 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("公開或需審核", asset_payload["access_requirement_label"])
         self.assertEqual("已套安全界域", asset_payload["maturity_label"])
         self.assertEqual("待審核", asset_payload["risk_tier_label"])
+
+    def test_seed_scope_display_label_hides_unknown_backend_tokens(self) -> None:
+        self.assertEqual("入口列表", seed_scope_display_label("entry_listing"))
+        self.assertEqual("未知", seed_scope_display_label("unknown"))
+        self.assertEqual("Seed 範式待確認", seed_scope_display_label("new_seed_scope"))
 
     def test_file_index_source_can_offer_selectable_download(self) -> None:
         source = DatasetDiscoverySource(
