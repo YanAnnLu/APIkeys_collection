@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 19:55 Tk source type display labels
+- 本輪把同一份 `source_type_label` 接進 Tk：Crawler Asset 表格、右側 Passport 詳情、flow step、crawler profile dialog 與 credential dialog 都顯示「CKAN package search」「HTML file index」或「來源範式待確認」，不再把 raw `ckan_package_search` / `html_file_index` 當主要使用者文字。
+- 已提交實作：`859fc5a Use source type labels in Tk`。
+- 已驗證：in-memory compile 相關 Tk/backend/test 檔 OK；`py -3 -B -m unittest tests.test_tk_dialogs tests.test_tk_ui_helpers tests.test_crawler_assets -v` 通過，188 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_195239.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions 尚未觸發。`py_compile` 曾被 L 槽雲端 `__pycache__` replace lock 擋住，已用不寫 pyc 的 compile 與完整 smoke 補驗證。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只調整 Tk 顯示投影與對話框副標，不改 crawler registry dispatch、source type id、download/import service、credential storage 或 Web 行為。
 ## 2026-05-30 19:43 Web source type display labels
 - 本輪把 crawler `source_type` 的使用者文案往後端 capability profile 收斂：`CrawlerCapabilityProfile` 與 `CrawlerAsset.to_dict()` 會輸出 `source_type_label`，Web source-type filter、Downloader row、Crawler Passport 與 selected hero 改顯示 label 或「來源範式待確認」，不再直接把 `stac_collections` / `html_file_index` 類 raw registry id 當人類文案。
 - 已提交實作：`a0d71be Label crawler source types for Web`。
