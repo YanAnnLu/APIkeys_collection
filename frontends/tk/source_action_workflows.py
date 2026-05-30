@@ -16,6 +16,20 @@ from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_REPAIR_ACTION_STATUSES, TABLE_COLUMNS
 
 
+def source_action_provider_label(row: ProviderRow | None, provider_id: str) -> str:
+    """Return a user-facing provider label for status bar messages.
+
+    Tk still needs stable provider ids for repository calls and background job
+    keys.  When the row is unavailable, label the id explicitly instead of
+    presenting it as if it were the provider's display name.
+    """
+
+    if row is not None and str(row.name or "").strip():
+        return str(row.name).strip()
+    provider_id = str(provider_id or "").strip()
+    return f"Provider ID：{provider_id}" if provider_id else "Provider 待確認"
+
+
 class SourceActionWorkflowMixin:
     """封裝 Treeview row action、library action 與 metadata crawler dispatch。"""
 
@@ -186,7 +200,7 @@ class SourceActionWorkflowMixin:
         finally:
             conn.close()
         row = self.row_by_provider_id(provider_id)
-        label = row.name if row else provider_id
+        label = source_action_provider_label(row, provider_id)
         self.reload_data()
         self.status_var.set(f"{'已置頂' if is_starred else '已取消置頂'}：{label}")
 
@@ -214,7 +228,7 @@ class SourceActionWorkflowMixin:
             messagebox.showinfo("尚未選取", "請先選取一個資料源。")
             return
         row = self.row_by_provider_id(self.active_provider_id)
-        self.status_var.set(f"正在檢查 {row.name if row else self.active_provider_id} 的 metadata...")
+        self.status_var.set(f"正在檢查 {source_action_provider_label(row, self.active_provider_id)} 的 metadata...")
         self.crawl_provider_ids([self.active_provider_id])
 
     def verify_active_assets(self) -> None:
@@ -226,8 +240,9 @@ class SourceActionWorkflowMixin:
         self.reload_data()
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
+        label = source_action_provider_label(row, self.active_provider_id)
         self.status_var.set(
-            f"已驗證本地資產：{row.name if row else self.active_provider_id} "
+            f"已驗證本地資產：{label} "
             f"(present={summary['present']}, missing={summary['missing']}, error={summary['error']})"
         )
         if issues:
@@ -265,7 +280,7 @@ class SourceActionWorkflowMixin:
         self.reload_data()
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
-        self.status_var.set(f"已納管：{row.name if row else self.active_provider_id} ({install_id})")
+        self.status_var.set(f"已納管：{source_action_provider_label(row, self.active_provider_id)} ({install_id})")
 
     def unmanage_active_provider(self) -> None:
         if not self.active_provider_id:

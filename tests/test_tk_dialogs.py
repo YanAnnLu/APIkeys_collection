@@ -103,7 +103,7 @@ from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
 from frontends.tk.showcase_workflows import ShowcaseWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
-from frontends.tk.source_action_workflows import SourceActionWorkflowMixin
+from frontends.tk.source_action_workflows import SourceActionWorkflowMixin, source_action_provider_label
 from frontends.tk.table_data_workflows import TableDataWorkflowMixin
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.window_layout_workflows import WindowLayoutWorkflowMixin
@@ -465,6 +465,24 @@ class TkDialogModuleTest(unittest.TestCase):
 
         thread_class.assert_not_called()
         self.assertIn("at capacity", ui.status_var.value)
+
+    def test_source_action_provider_label_marks_provider_id_fallback(self) -> None:
+        self.assertEqual("Provider A", source_action_provider_label(SimpleNamespace(name="Provider A"), "provider_a"))
+        self.assertEqual("Provider ID：provider_a", source_action_provider_label(None, "provider_a"))
+
+    def test_check_active_metadata_labels_provider_id_fallback(self) -> None:
+        ui = object.__new__(SourceActionWorkflowMixin)
+        ui.active_provider_id = "provider_a"
+        ui.row_by_provider_id = lambda _provider_id: None
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        calls: list[list[str]] = []
+        ui.crawl_provider_ids = lambda provider_ids: calls.append(provider_ids)
+
+        SourceActionWorkflowMixin.check_active_metadata(ui)
+
+        self.assertEqual([["provider_a"]], calls)
+        self.assertIn("Provider ID：provider_a", ui.status_var.value)
+        self.assertNotEqual("正在檢查 provider_a 的 metadata...", ui.status_var.value)
 
     def test_ai_summary_uses_single_flight_job(self) -> None:
         ui = object.__new__(AiSummaryWorkflowMixin)
