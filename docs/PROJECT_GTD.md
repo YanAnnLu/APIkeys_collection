@@ -58,6 +58,7 @@ Last updated: 2026-05-31
 - [x] Tk Adapter Review 對話框已改吃同一份 next-action display contract：`required_action` / `content_next_action` 在表格與詳情中顯示人類文案，不再把 `resolve_api`、`add_content_parser_or_keep_raw_artifact` 等 raw backend id 直接給使用者。
 - [x] Tk Adapter Review 詳情也已吃共用 outcome/content display contract：`outcome_bucket`、`content_import_status`、`content_review_bucket`、`content_pipeline_lane` value 會顯示人類文案，不再把 adapter/content enum 當成主要使用者文字。
 - [x] Adapter Review item 顯示投影已收斂回後端 helper：`adapter_review_item_display_payload()` 集中產生 action/outcome/content labels，Tk dialog 只消費 payload，避免未來 Web/Qt 再各自翻譯 adapter review enum。
+- [x] Tk Adapter Review 表格 provider 欄位已標籤化追溯 ID：表格顯示 `Provider ID：...`，避免 raw id 像人類資料源名稱；detail pane 保留 `provider_id:` raw key/value，讓 agent 和人類仍可複製追溯資料。
 - [x] Dataset Candidate Review 狀態顯示已收斂回後端 helper：`dataset_candidate_display.py` 集中管理 `needs_review` / `approved` / `planned` / `rejected` / `all` 的 label，Tk 表格、detail 與 filter 下拉只顯示人類文案，repository 邊界才使用 raw status id。
 - [x] Dataset Candidate Review 的 provider 欄位也已標籤化追溯 ID：候選 row/detail 只知道 provider id 時會顯示 `Provider ID：...`，不再把裸 id 放在「提供商」欄位裡像人類名稱；evidence JSON 與 candidate 審核行為不變。
 - [x] Tk crawler asset helper 已補 next-action fallback guard：blocked download-plan summary、Plan Passport stale summary、credential guard message、credential summary 不再在 label 缺失時顯示 raw `next_action` / `stale_reason`；未知 action 會落到中性提示。
