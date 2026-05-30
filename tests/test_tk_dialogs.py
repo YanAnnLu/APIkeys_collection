@@ -469,6 +469,28 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_source_action_provider_label_marks_provider_id_fallback(self) -> None:
         self.assertEqual("Provider A", source_action_provider_label(SimpleNamespace(name="Provider A"), "provider_a"))
         self.assertEqual("Provider ID：provider_a", source_action_provider_label(None, "provider_a"))
+        self.assertEqual("Provider ID：provider_a", source_action_provider_label(SimpleNamespace(name="  "), "provider_a"))
+
+    def test_run_row_action_labels_blank_provider_name(self) -> None:
+        ui = object.__new__(SourceActionWorkflowMixin)
+        ui.rows = [
+            SimpleNamespace(
+                provider_id="provider_a",
+                name="",
+                action_label="Check metadata",
+                update_status="current",
+                remote_status="ready",
+            )
+        ]
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        calls: list[list[str]] = []
+        ui.crawl_provider_ids = lambda provider_ids: calls.append(provider_ids)
+
+        SourceActionWorkflowMixin.run_row_action(ui, "provider_a")
+
+        self.assertEqual([["provider_a"]], calls)
+        self.assertIn("Provider ID：provider_a", ui.status_var.value)
+        self.assertNotIn("正在檢查  的 metadata", ui.status_var.value)
 
     def test_check_active_metadata_labels_provider_id_fallback(self) -> None:
         ui = object.__new__(SourceActionWorkflowMixin)

@@ -191,7 +191,8 @@ class SourceActionWorkflowMixin:
         if dataset is not None:
             self.status_var.set(self.tr(f"已選取資料集：{dataset.title}", f"Selected dataset: {dataset.title}"))
         elif row:
-            self.status_var.set(self.tr(f"已選取：{row.name}", f"Selected: {row.name}"))
+            label = source_action_provider_label(row, self.active_provider_id)
+            self.status_var.set(self.tr(f"已選取：{label}", f"Selected: {label}"))
 
     def toggle_star(self, provider_id: str) -> None:
         conn = self._connect()
@@ -215,12 +216,13 @@ class SourceActionWorkflowMixin:
         row = self.row_by_provider_id(provider_id)
         if row is None or not row.action_label:
             return
+        label = source_action_provider_label(row, provider_id)
         if row.update_status == "remote_updated":
-            self.status_var.set(f"正在刷新 {row.name} 的 metadata...")
+            self.status_var.set(f"正在刷新 {label} 的 metadata...")
         elif row.remote_status == "error":
-            self.status_var.set(f"正在重試 {row.name} 的 metadata...")
+            self.status_var.set(f"正在重試 {label} 的 metadata...")
         else:
-            self.status_var.set(f"正在檢查 {row.name} 的 metadata...")
+            self.status_var.set(f"正在檢查 {label} 的 metadata...")
         self.crawl_provider_ids([provider_id])
 
     def check_active_metadata(self) -> None:
@@ -290,10 +292,11 @@ class SourceActionWorkflowMixin:
         if row is None or not row.install_id:
             messagebox.showinfo("尚未納管", "這個資料源目前沒有 launcher install_id。")
             return
+        label = source_action_provider_label(row, self.active_provider_id)
         if not messagebox.askyesno(
             "解除納管",
             (
-                f"要解除納管 {row.name} 嗎？\n\n"
+                f"要解除納管 {label} 嗎？\n\n"
                 "這只會移除 launcher 的追蹤狀態，不會刪除你的本地檔案、資料表或資料庫。"
             ),
         ):
@@ -306,7 +309,7 @@ class SourceActionWorkflowMixin:
         self.reload_data()
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
-        self.status_var.set(f"已解除納管：{row.name} ({install_id})")
+        self.status_var.set(f"已解除納管：{label} ({install_id})")
 
     def uninstall_active_provider(self) -> None:
         if not self.active_provider_id:
@@ -316,10 +319,11 @@ class SourceActionWorkflowMixin:
         if row is None or not row.install_id:
             messagebox.showinfo("尚未納管", "這個資料源目前沒有 launcher install_id。")
             return
+        label = source_action_provider_label(row, self.active_provider_id)
         if not messagebox.askyesno(
             "移除本地資料",
             (
-                f"要移除 {row.name} 的本地納管狀態嗎？\n\n"
+                f"要移除 {label} 的本地納管狀態嗎？\n\n"
                 "目前版本只會把 launcher registry 中的安裝資產標記為 removed，"
                 "不會執行 DROP DATABASE 或刪除檔案。等資料庫 adapter 完成後，"
                 "這裡才會只針對已登記的 install_id 安全執行卸載命令。"
@@ -335,7 +339,7 @@ class SourceActionWorkflowMixin:
         if self.detail_visible:
             self.update_detail_panel(self.row_by_provider_id(self.active_provider_id))
         asset_count = len(result.get("assets") or [])
-        self.status_var.set(f"已標記移除：{row.name} ({asset_count} 個登記資產)")
+        self.status_var.set(f"已標記移除：{label} ({asset_count} 個登記資產)")
 
     def self_check_selected(self) -> None:
         provider_ids = self.selected_provider_ids()
@@ -420,4 +424,4 @@ class SourceActionWorkflowMixin:
             self.open_selected_docs()
             return
         webbrowser.open(row.docs_url or row.signup_url or row.api_base_url)
-        self.status_var.set(f"已開啟官方文件頁：{row.name}")
+        self.status_var.set(f"已開啟官方文件頁：{source_action_provider_label(row, self.active_provider_id)}")
