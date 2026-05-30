@@ -68,7 +68,10 @@ def download_favicon_png(
     request = urllib.request.Request(favicon_url, headers={"User-Agent": FAVICON_USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         # favicon 只是 UI 裝飾；限制讀取大小，避免異常伺服器塞入過大 payload。
-        payload = response.read(max(1, int(max_bytes)))
+        byte_limit = max(1, int(max_bytes))
+        payload = response.read(byte_limit + 1)
+        if len(payload) > byte_limit:
+            raise RuntimeError(f"Favicon response exceeded {byte_limit} bytes.")
     try:
         from PIL import Image
     except Exception as exc:

@@ -51,8 +51,25 @@ class FaviconTests(unittest.TestCase):
                 with self.assertRaises(Exception):
                     download_favicon_png("https://example.test/favicon.ico", target, max_bytes=23)
 
-        self.assertEqual([23], read_sizes)
+        self.assertEqual([24], read_sizes)
         self.assertEqual(128 * 1024, DEFAULT_FAVICON_MAX_BYTES)
+
+    def test_download_favicon_png_rejects_oversized_response(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                return b"x" * size
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "icon.png"
+            with patch("api_launcher.favicons.urllib.request.urlopen", return_value=FakeResponse()):
+                with self.assertRaisesRegex(RuntimeError, "Favicon response exceeded 23 bytes"):
+                    download_favicon_png("https://example.test/favicon.ico", target, max_bytes=23)
 
 
 if __name__ == "__main__":
