@@ -341,7 +341,7 @@ async function runCrawlerAssetDownloadImportById(assetId) {
     }
     const downloadImport = payload.download_import || {};
     if (downloadImport.succeeded) {
-      addMission("正式下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${asset?.display_name || assetId}`);
+      addMission("正式下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${asset?.display_name || assetId}`);
     } else {
       addMission("正式下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }
@@ -390,7 +390,7 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     }
     const downloadImport = payload.download_import || {};
     if (downloadImport.succeeded) {
-      addMission("seed 下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${datasetUid}`);
+      addMission("seed 下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${datasetUid}`);
     } else {
       addMission("seed 下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }

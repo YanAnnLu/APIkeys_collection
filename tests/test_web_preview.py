@@ -1881,6 +1881,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn('heroMetric("Stage", downloadImport.stage || result.stage || "unknown")', combined)
         self.assertNotIn("payload.next_action || downloadImport.stage", combined)
         self.assertNotIn("payload.next_action || downloadImport.next_action", combined)
+        self.assertNotIn('downloadImport.stage || "completed"', combined)
         self.assertNotIn("payload.outcome_bucket || \"plan\"", combined)
         self.assertNotIn("bucket.display_label || bucket.review_bucket", combined)
         self.assertNotIn("lane.display_label || lane.pipeline_lane", combined)
