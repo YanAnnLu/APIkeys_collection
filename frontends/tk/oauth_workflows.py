@@ -27,6 +27,7 @@ from api_launcher.oauth_device import (
     looks_like_google_oauth_client_id,
     oauth_authorization_url,
     oauth_device_config_from_profile,
+    oauth_token_status_label,
     pkce_code_challenge,
     poll_oauth_device_token,
     save_oauth_config_token,
@@ -739,7 +740,9 @@ class OAuthWorkflowMixin:
                         schedule_poll()
                         return
                     status_var.set(result.message)
-                    self.status_var.set(self.tr(f"{profile.label} 登入未完成：{result.status}", f"{profile.label} login not completed: {result.status}"))
+                    status_label = oauth_token_status_label(result.status)
+                    status_label_en = oauth_token_status_label(result.status, locale="en")
+                    self.status_var.set(self.tr(f"{profile.label} 登入未完成：{status_label}", f"{profile.label} login not completed: {status_label_en}"))
 
                 self.root.after(0, handle)
 

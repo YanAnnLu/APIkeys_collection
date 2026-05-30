@@ -60,6 +60,7 @@ from frontends.tk.dialogs import (
     UiLanguageSettingsDialog,
 )
 from frontends.tk.ai_summary_workflows import AiSummaryWorkflowMixin
+from frontends.tk.ai_settings_dialogs import google_gemini_token_status_text
 from frontends.tk.crawler_asset_workflows import CrawlerAssetWorkflowMixin
 from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_badge_label,
@@ -3025,6 +3026,12 @@ class TkDialogModuleTest(unittest.TestCase):
             ("Google", "OAuth 登入", "規劃中", "gemini, drive"),
             GoogleGeminiSettingsDialog.account_provider_row_values(provider),
         )
+
+    def test_google_gemini_token_status_text_hides_raw_status(self) -> None:
+        text = google_gemini_token_status_text("missing", "No saved Google OAuth token.", lambda zh, _en: zh)
+
+        self.assertIn("尚未登入", text)
+        self.assertNotIn("missing", text)
 
     def test_import_existing_table_policy_values_are_stable(self) -> None:
         # 同名資料表策略會傳進匯入 pipeline；value 不能因 UI 文案調整而漂移。

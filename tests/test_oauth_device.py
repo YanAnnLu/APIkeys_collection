@@ -20,6 +20,7 @@ from api_launcher.oauth_device import (
     oauth_authorization_url,
     oauth_device_config_from_profile,
     oauth_token_status,
+    oauth_token_status_label,
     pkce_code_challenge,
     poll_oauth_device_token,
     save_oauth_config_token,
@@ -28,6 +29,11 @@ from api_launcher.oauth_device import (
 
 
 class OAuthDeviceTests(unittest.TestCase):
+    def test_oauth_token_status_label_hides_raw_status_ids(self) -> None:
+        self.assertEqual("尚未登入", oauth_token_status_label("missing"))
+        self.assertEqual("Signed in", oauth_token_status_label("ready", locale="en"))
+        self.assertEqual("登入狀態待確認", oauth_token_status_label("new_oauth_status"))
+
     def profile(self, token_store: str = "state/private/ai_oauth_tokens/test.json") -> AiSummaryProfile:
         return AiSummaryProfile(
             id="test_ai",

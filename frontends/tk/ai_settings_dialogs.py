@@ -10,8 +10,19 @@ from typing import Any
 import APIkeys_collection as core
 from api_launcher.account_links import DEFAULT_ACCOUNT_PROVIDERS, account_auth_mode_label, account_status_label
 from api_launcher.google_auth import google_oauth_token_status
-from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
+from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status, oauth_token_status_label
 from frontends.tk.ui_config import COLORS
+
+
+def google_gemini_token_status_text(token_status: object, token_message: str, tr: Any) -> str:
+    """Return display-safe Google/Gemini token status text for Tk dialogs."""
+
+    token_status_label = oauth_token_status_label(token_status)
+    token_status_label_en = oauth_token_status_label(token_status, locale="en")
+    return tr(
+        f"Gemini / Google token：{token_status_label} - {token_message}",
+        f"Gemini / Google token: {token_status_label_en} - {token_message}",
+    )
 
 
 class AiModelSettingsDialog:
@@ -198,10 +209,7 @@ class GoogleGeminiSettingsDialog:
             token_status, token_message = oauth_token_status(gemini_oauth.token_store, label=gemini_profile.label)
         else:
             token_status, token_message = google_oauth_token_status()
-        token_text = self.ui.tr(
-            f"Gemini / Google token：{token_status} - {token_message}",
-            f"Gemini / Google token: {token_status} - {token_message}",
-        )
+        token_text = google_gemini_token_status_text(token_status, token_message, self.ui.tr)
         return profile_text, token_text
 
     def _connection_message(self, profile_text: str, token_text: str) -> str:

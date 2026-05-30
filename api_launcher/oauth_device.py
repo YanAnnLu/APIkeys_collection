@@ -17,6 +17,32 @@ DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 AUTHORIZATION_CODE_GRANT_TYPE = "authorization_code"
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 DEFAULT_OAUTH_FORM_MAX_BYTES = 512 * 1024
+OAUTH_TOKEN_STATUS_DISPLAY: dict[str, dict[str, str]] = {
+    "authorization_pending": {"zh_TW": "等待授權", "en": "Waiting for authorization"},
+    "disabled": {"zh_TW": "登入已停用", "en": "Login disabled"},
+    "empty_token": {"zh_TW": "Token 空白", "en": "Empty token"},
+    "expired": {"zh_TW": "登入已過期", "en": "Login expired"},
+    "invalid": {"zh_TW": "Token 不完整", "en": "Invalid token"},
+    "missing": {"zh_TW": "尚未登入", "en": "Not signed in"},
+    "missing_client_id": {"zh_TW": "缺少 OAuth Client ID", "en": "Missing OAuth Client ID"},
+    "missing_device_code": {"zh_TW": "缺少裝置碼", "en": "Missing device code"},
+    "missing_oauth_endpoint": {"zh_TW": "缺少 OAuth 端點", "en": "Missing OAuth endpoint"},
+    "ready": {"zh_TW": "已登入", "en": "Signed in"},
+    "request_failed": {"zh_TW": "登入請求失敗", "en": "Login request failed"},
+    "slow_down": {"zh_TW": "等待授權", "en": "Waiting for authorization"},
+    "success": {"zh_TW": "登入成功", "en": "Login succeeded"},
+}
+
+
+def oauth_token_status_label(status: object, *, locale: str = "zh_TW", fallback: str | None = None) -> str:
+    """Return display-safe text for OAuth token and device-flow status ids."""
+
+    profile = OAUTH_TOKEN_STATUS_DISPLAY.get(str(status or "").strip())
+    if not profile:
+        if fallback is not None:
+            return fallback
+        return "登入狀態待確認" if locale == "zh_TW" else "Login status needs review"
+    return profile.get(locale) or profile["zh_TW"]
 
 
 @dataclass(frozen=True)
