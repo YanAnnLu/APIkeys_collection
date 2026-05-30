@@ -20,11 +20,9 @@ from api_launcher.event_log import log_event, log_exception
 from api_launcher.paths import catalog_file, local_config_file, state_file
 from api_launcher.registry import PROVIDER_CATALOG_NAME
 from frontends.tk.background_jobs import start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_DISCOVERY_BACKGROUND_JOBS
 from frontends.tk.dialogs import DatasetCandidateReviewDialog, ProviderCandidateReviewDialog
 from frontends.tk.ui_labels import crawler_next_action_label as crawler_next_action_label_text
-
-
-MAX_TK_DISCOVERY_BACKGROUND_JOBS = 2
 
 
 class DiscoveryWorkflowMixin:

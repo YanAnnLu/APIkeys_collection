@@ -50,6 +50,7 @@ from frontends.tk.background_jobs import (
     single_flight_job_is_active,
     start_single_flight_thread,
 )
+from frontends.tk.background_job_policies import MAX_CRAWLER_ASSET_BACKGROUND_JOBS
 from frontends.tk.crawler_asset_bound_dialog import CrawlerAssetBoundDialog
 from frontends.tk.crawler_asset_credential_dialog import CrawlerAssetCredentialDialog
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
@@ -89,9 +90,6 @@ from frontends.tk.source_pattern_draft_ui_helpers import (
     source_pattern_draft_review_message,
     source_pattern_draft_written_event_context,
 )
-
-MAX_CRAWLER_ASSET_BACKGROUND_JOBS = 4
-
 
 class CrawlerAssetWorkflowMixin:
     """爬蟲資產分頁：先管理入口與能力，再把任務交給下載器。

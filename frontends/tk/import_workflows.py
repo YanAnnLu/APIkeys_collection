@@ -35,12 +35,10 @@ from api_launcher.paths import state_file
 from api_launcher.crawler_asset_display import plan_entry_content_status_payload
 from frontends.tk.dialogs import ImportExistingTablePolicyDialog
 from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_SQLITE_IMPORT_JOBS
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import MANUAL_IMPORTS_DIR_NAME, curated_imports_path
 from frontends.tk.ui_helpers import local_file_import_error_message, local_file_provenance_review_message
-
-
-MAX_TK_SQLITE_IMPORT_JOBS = 1
 
 
 class ImportWorkflowMixin:

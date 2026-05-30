@@ -14,10 +14,8 @@ from api_launcher.favicons import (
     provider_home_url,
 )
 from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_SIDEBAR_FAVICON_JOBS
 from frontends.tk.ui_config import COLORS
-
-
-MAX_TK_SIDEBAR_FAVICON_JOBS = 4
 
 
 class SidebarWorkflowMixin:

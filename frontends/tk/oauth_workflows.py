@@ -33,10 +33,8 @@ from api_launcher.oauth_device import (
     save_oauth_device_token,
 )
 from frontends.tk.background_jobs import TkJobKey, start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_OAUTH_BACKGROUND_JOBS
 from frontends.tk.ui_config import COLORS, PRODUCT_DISPLAY_NAME
-
-
-MAX_TK_OAUTH_BACKGROUND_JOBS = 2
 
 
 class OAuthWorkflowMixin:

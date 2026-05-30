@@ -19,12 +19,10 @@ from api_launcher.schema_probe import SchemaProbeResult, probe_plan_entry_schema
 from api_launcher.source_download import apply_source_download_bounds
 from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.background_jobs import start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_PLAN_BOUNDS_PROBE_JOBS
 from frontends.tk.dialogs import AdapterReviewDialog
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
-
-
-MAX_TK_PLAN_BOUNDS_PROBE_JOBS = 2
 
 
 class PlanWorkflowMixin:

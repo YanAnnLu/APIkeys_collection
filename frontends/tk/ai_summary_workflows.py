@@ -15,9 +15,7 @@ from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys
 from api_launcher.event_log import log_exception
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
 from frontends.tk.background_jobs import start_single_flight_thread
-
-
-MAX_TK_AI_SUMMARY_BACKGROUND_JOBS = 2
+from frontends.tk.background_job_policies import MAX_TK_AI_SUMMARY_BACKGROUND_JOBS
 
 
 class AiSummaryWorkflowMixin:

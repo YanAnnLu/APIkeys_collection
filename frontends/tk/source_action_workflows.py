@@ -11,11 +11,9 @@ from api_launcher.downloads.repair import repair_suggestion_for_result, verify_m
 from api_launcher.event_log import log_exception
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from frontends.tk.background_jobs import start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_REPAIR_ACTION_STATUSES, TABLE_COLUMNS
-
-
-MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS = 2
 
 
 class SourceActionWorkflowMixin:

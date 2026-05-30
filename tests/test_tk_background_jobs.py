@@ -5,6 +5,18 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from frontends.tk.background_job_policies import (
+    MAX_CRAWLER_ASSET_BACKGROUND_JOBS,
+    MAX_TK_AI_SUMMARY_BACKGROUND_JOBS,
+    MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+    MAX_TK_OAUTH_BACKGROUND_JOBS,
+    MAX_TK_PLAN_BOUNDS_PROBE_JOBS,
+    MAX_TK_SIDEBAR_FAVICON_JOBS,
+    MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS,
+    MAX_TK_SQLITE_IMPORT_JOBS,
+    iter_tk_background_job_policies,
+    tk_background_job_policy,
+)
 from frontends.tk.background_jobs import (
     release_single_flight_job,
     single_flight_job_is_active,
@@ -111,6 +123,33 @@ class TkBackgroundJobTests(unittest.TestCase):
 
         self.assertEqual(["duplicate"], duplicate_calls)
         self.assertEqual(set(), owner.active_jobs)
+
+    def test_background_job_policies_are_listed_in_stable_order(self) -> None:
+        policies = list(iter_tk_background_job_policies())
+        self.assertEqual(sorted(policy.policy_id for policy in policies), [policy.policy_id for policy in policies])
+        self.assertIn("crawler_asset", {policy.policy_id for policy in policies})
+        for policy in policies:
+            self.assertGreaterEqual(policy.max_active_jobs, 1)
+            self.assertTrue(policy.active_jobs_attr.endswith("_active_jobs"))
+            self.assertTrue(policy.active_jobs_lock_attr.endswith("_active_jobs_lock"))
+
+    def test_background_job_policy_constants_match_registry(self) -> None:
+        expected = {
+            "ai_summary": MAX_TK_AI_SUMMARY_BACKGROUND_JOBS,
+            "crawler_asset": MAX_CRAWLER_ASSET_BACKGROUND_JOBS,
+            "discovery": MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+            "oauth": MAX_TK_OAUTH_BACKGROUND_JOBS,
+            "plan_bounds_probe": MAX_TK_PLAN_BOUNDS_PROBE_JOBS,
+            "sidebar_favicon": MAX_TK_SIDEBAR_FAVICON_JOBS,
+            "source_action": MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS,
+            "sqlite_import": MAX_TK_SQLITE_IMPORT_JOBS,
+        }
+        for policy_id, max_active_jobs in expected.items():
+            self.assertEqual(max_active_jobs, tk_background_job_policy(policy_id).max_active_jobs)
+
+    def test_background_job_policy_fails_fast_for_unknown_id(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Unknown Tk background job policy"):
+            tk_background_job_policy("not_a_policy")
 
 
 if __name__ == "__main__":
