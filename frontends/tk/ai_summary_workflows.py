@@ -16,6 +16,7 @@ from api_launcher.event_log import log_exception
 from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status, oauth_token_status_label
 from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.background_job_policies import MAX_TK_AI_SUMMARY_BACKGROUND_JOBS
+from frontends.tk.provider_display import provider_display_label
 
 
 class AiSummaryWorkflowMixin:
@@ -104,7 +105,8 @@ class AiSummaryWorkflowMixin:
                 return
             profile = next((item for item in core.ai_summary_profiles() if item.id == profile.id), profile)
         self.selected_ai_profile_id = profile.id
-        self.status_var.set(f"正在使用 {profile.label} 產生 {row.name} 的說明...")
+        label = provider_display_label(row, row.provider_id)
+        self.status_var.set(f"正在使用 {profile.label} 產生 {label} 的說明...")
         job_key = ("ai_summary", row.provider_id, profile.id)
         start_single_flight_thread(
             self,
@@ -169,7 +171,7 @@ class AiSummaryWorkflowMixin:
                 self.reload_data()
                 row = self.row_by_provider_id(provider_id)
                 self.set_ai_summary_text(summary)
-                self.status_var.set(f"AI 說明已寫入：{row.name if row else provider_id}")
+                self.status_var.set(f"AI 說明已寫入：{provider_display_label(row, provider_id)}")
             else:
                 self.set_ai_summary_text(summary)
                 self.status_var.set("AI 摘要已產生；既有描述未被覆蓋。")

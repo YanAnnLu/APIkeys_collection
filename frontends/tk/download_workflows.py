@@ -16,6 +16,7 @@ from api_launcher.downloads.plan_runner import download_entry_skip_bucket
 from api_launcher.event_log import log_event
 from api_launcher.manifests import read_manifest
 from api_launcher.paths import DOWNLOADS_DIR
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
 
 
@@ -385,4 +386,5 @@ class DownloadWorkflowMixin:
         finally:
             conn.close()
         self.reload_data()
-        self.status_var.set(self.tr(f"下載完成：{row.name if row else provider_id}", f"Download completed: {row.name if row else provider_id}"))
+        label = provider_display_label(row, provider_id)
+        self.status_var.set(self.tr(f"下載完成：{label}", f"Download completed: {label}"))

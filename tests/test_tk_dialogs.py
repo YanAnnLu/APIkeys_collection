@@ -514,7 +514,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.active_provider_id = "provider_a"
         ui.selected_ai_profile_id = "local_ollama"
         ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
-        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_a", name="Provider A")
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_a", name="")
         profile = SimpleNamespace(id="local_ollama", label="Local Ollama", kind="ollama", enabled=True)
         thread_call = SimpleNamespace(args=None, started=False)
 
@@ -535,6 +535,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(("provider_a", "local_ollama"), thread_call.args)
         self.assertIn(("ai_summary", "provider_a", "local_ollama"), ui.ai_summary_active_jobs)
         self.assertIn("Local Ollama", ui.status_var.value)
+        self.assertIn("Provider ID：provider_a", ui.status_var.value)
 
     def test_ai_summary_is_single_flight_per_provider_and_profile(self) -> None:
         ui = object.__new__(AiSummaryWorkflowMixin)
@@ -3000,6 +3001,22 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.download_progress_by_provider.clear()
         DownloadWorkflowMixin.toggle_primary_download_action(ui)
         self.assertEqual(["pause", "resume", "start"], calls)
+
+    def test_register_completed_download_marks_blank_provider_name(self) -> None:
+        ui = object.__new__(DownloadWorkflowMixin)
+        ui.registered_completed_downloads = set()
+        ui.download_plan_entries_by_provider = {"plan-1": {}}
+        ui.provider_id_for_plan_key = lambda _plan_key: "provider_a"
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_a", name="")
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda zh, _en: zh
+        ui.reload_data = lambda: None
+        ui._connect = lambda: SimpleNamespace(close=lambda: None)
+
+        with patch("frontends.tk.download_workflows.core.ApiCatalogRepository"):
+            DownloadWorkflowMixin.register_completed_download(ui, "plan-1", "")
+
+        self.assertIn("Provider ID：provider_a", ui.status_var.value)
 
     def test_downloader_list_double_click_starts_selected_item_only(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
