@@ -249,6 +249,14 @@ def content_pipeline_lane_tone(lane: str) -> str:
     return CONTENT_PIPELINE_LANE_DISPLAY.get(lane, (lane or "unknown", "review"))[1]
 
 
+def content_import_status_label(status: str) -> str:
+    return CONTENT_IMPORT_STATUS_DISPLAY.get(status, (status or "unknown", "review"))[0]
+
+
+def content_import_status_tone(status: str) -> str:
+    return CONTENT_IMPORT_STATUS_DISPLAY.get(status, (status or "unknown", "review"))[1]
+
+
 def _legacy_content_display(status: str, review_bucket: str) -> tuple[str, str]:
     if review_bucket:
         return content_review_bucket_label(review_bucket), content_review_bucket_tone(review_bucket)
@@ -288,6 +296,8 @@ __all__ = [
     "adapter_review_display_payload",
     "adapter_review_outcome_label",
     "adapter_review_outcome_tone",
+    "content_import_status_label",
+    "content_import_status_tone",
     "content_pipeline_lane_label",
     "content_pipeline_lane_tone",
     "content_review_bucket_label",
