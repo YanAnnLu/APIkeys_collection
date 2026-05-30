@@ -1,7 +1,8 @@
 # Agent 接力卡
 ## 2026-05-30 19:14 Web download mission stage label
 - 本輪把 Web mission queue 的正式下載 / 匯入完成訊息也接回 `downloadImportStageText()`；asset-level 與 seed-level 成功訊息會顯示「下載 / 匯入完成」這類後端 display label，不再把 `download_import_completed` 或 raw stage token 放進互動紀錄。
-- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_191232.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已提交實作：`85f8ecd Use stage labels in Web missions`。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_191232.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26682454145` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只調整 Web mission queue 顯示 fallback，不改後端 payload、download/import service、crawler registry、credential storage 或 Tk 操作。
 ## 2026-05-30 19:01 Crawler asset maturity/risk labels
 - 本輪把 Crawler Asset 的 `maturity` / `risk_tier` 使用者文案收回後端：`CrawlerAsset.to_dict()` 會輸出 `maturity_label` / `risk_tier_label`，Web Passport 改讀 label，缺值時落到「成熟度待確認」「風險層級待確認」，不再顯示 raw `unknown` 或 tier token；能力膠囊缺摘要時也顯示「能力膠囊待確認」。
