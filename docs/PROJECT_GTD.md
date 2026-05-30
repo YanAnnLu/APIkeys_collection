@@ -18,6 +18,7 @@ Last updated: 2026-05-30
 - [x] Developer diagnostics 已接上 crawler registry report：後端可輸出 source type count、dimension counters、matrix cells、capability groups 與 compact `registry_summary`，供 Tk/Web/未來 Qt 診斷面讀同一份 registry contract，不必各自重建 source_type 分組。
 - [x] Crawler registry report 已接成 agent-readable CLI JSON：`--crawler-registry-report-json` 可直接輸出 registry matrix / capability report，並保持 stdout 純 JSON，讓後續 automation、CI、Tk/Web/Qt diagnostics 不必解析人類文字。
 - [x] Crawler registry 已補第一版 4-bit capability address / mask index：固定維度為來源表面、transport、auth、輸出形狀，讓 Web/Tk/CLI/debug 工具未來可用 prefix/mask 查詢「同一類能力」，而不是重新手寫 source_type 分支。這是輔助索引，不改 14 個 handler 行為。
+- [x] Crawler registry 已補 `seed_scope` metadata：14 個 handler decorator 明確宣告 `entry_listing` 或 `paginated_catalog`，`dataset_seed_coverage.py` 的 entry-listing / paginated-catalog source type set 改由 registry 產生，避免展示 seed coverage 與 crawler registry 分流漂移。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
 - [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。

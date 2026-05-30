@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 08:06 Crawler seed scope registry metadata
+- 本輪是 bounded declarative registry slice：`CrawlerSpec` 新增 `seed_scope`，14 個 crawler handler 的 decorator 現在明確宣告 `entry_listing` 或 `paginated_catalog`；`dataset_seed_coverage.py` 改由 registry metadata 產生 entry-listing / paginated-catalog source type set，不再自行維護一份平行硬編碼清單。
+- 已提交實作：`4052c5f Declare crawler seed scope metadata`。
+- 已驗證：in-memory compile `api_launcher\crawlers\registry.py` / `api_launcher\crawlers\dataset_sources.py` / `api_launcher\dataset_seed_coverage.py` / `api_launcher\crawler_registry_report.py` / 相關 tests OK；`py -3 -B -m unittest tests.test_dataset_discovery tests.test_developer_diagnostics -v` 通過，63 tests OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_crawler_audit_smoke tests.test_handoff tests.test_heartbeat -v` 通過，81 tests OK；`--crawler-registry-report-json` 已輸出 `dimensions.seed_scope={'entry_listing': 4, 'paginated_catalog': 10}`；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_080433.log` 通過，954 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log / discovery notes；本輪只把 seed coverage 的 source-type 分組來源移到 crawler registry metadata，未改 crawler handler、seed enumeration payload、download/import、credential、Tk/Web 操作或 user guide。
+
 ## 2026-05-30 07:46 Metadata HTTP error excerpt budget
 - 本輪是 bounded consolidation slice：新增 `DEFAULT_HTTP_ERROR_EXCERPT_MAX_BYTES=8192`，讓 `core.safe_fetch_metadata()` 處理 HTTPError 時讀取的 error body excerpt budget 不再藏成裸值；metadata probe 正常 response 的 bounded excerpt 行為不變。
 - 已提交實作：`3e690f6 Name metadata error excerpt budget`。

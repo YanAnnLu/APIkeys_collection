@@ -11,6 +11,8 @@
 - `discover_dataset_candidate_output_for_source()` 與 `discover_dataset_candidates_for_source()` 現在已直接用 `crawler_handler(source.source_type)` 讀 registry。`SOURCE_CRAWLER_HANDLERS` 仍保留作為相容與診斷 surface，但不再是正式分派來源；新增 crawler 時應新增 handler + `CrawlerSpec` metadata，不要只把函式塞進鬆散 dict。
 - registry 也提供 partial-dimension 查詢：`crawler_specs_by_dims()` / `list_crawlers_by_dims()` 可按 `source_family`、`transport`、`auth_profile`、`result_shape` 查詢同類 crawler。這是給 CLI/UI/debug 的能力檢索入口，避免為了做篩選或顯示又回到散落 `source_type` 分支。
 - `api_launcher/crawler_registry_report.py` 是 developer diagnostics 的薄報告層：它只讀 registry，輸出 source type count、dimension counters、matrix cells、capability groups 與 compact summary。Tk/Web/未來 Qt 可在 developer-only diagnostics 顯示這份摘要；CLI `--crawler-registry-report-json` 也可直接輸出同一份 agent-readable report。正式使用者流程仍應讀 capability profile / display payload，不直接解讀 registry 內部結構。
+- `CrawlerSpec.seed_scope` 現在是 seed coverage 的 declarative 分流來源。每個 handler decorator 會明確宣告它是 `entry_listing` 還是 `paginated_catalog`；`api_launcher/dataset_seed_coverage.py` 由 registry 產生 entry-listing / paginated-catalog source type set，不再維護平行硬編碼清單。新增 crawler 時必須同時選定 seed scope，否則展示 seed coverage、crawler asset 卡片與完整 seed 嘗試路徑容易漂移。
+- `crawler_registry_report()` / `crawler_registry_summary()` 也輸出 `seed_scope` dimension。這是 developer diagnostics 與未來 UI/Qt filter 的能力分組，不代表 live endpoint 已完成全量枚舉；使用者可見完整度仍必須看 listing 的 `seed_enumeration` / `remote_pagination` payload。
 
 ## 2026-05-28 Recursion / traversal budget guard
 
