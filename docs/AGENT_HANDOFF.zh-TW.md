@@ -2,7 +2,7 @@
 ## 2026-05-30 09:23 Tk OAuth background capacity guard
 - 本輪延續 credential/login scheduler hardening：Tk Google browser login 與 device-code polling 仍用同一份 OAuth single-flight helper，但同一 UI 同時最多 2 個 OAuth background worker；queue 滿時走 capacity callback，不再開新的 callback server / token polling worker。
 - 已提交實作：`79dea32 Bound Tk OAuth background jobs`。
-- 已驗證：`py -3 -B -m py_compile frontends\tk\oauth_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過，112 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_092339.log` 通過，958 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\oauth_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過，112 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_092339.log` 通過，958 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26670676995` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / development log；本輪只增加 Tk OAuth 背景工作容量 guard，不改 token exchange/storage、credential UI、crawler、download/import、Web 操作或 user guide。
 
 ## 2026-05-30 09:14 Tk sidebar favicon capacity guard
