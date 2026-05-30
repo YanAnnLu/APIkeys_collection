@@ -2,7 +2,7 @@
 ## 2026-05-31 05:01 Tk provider table/detail display labels
 - 本輪把 Tk 主表格 row title 與 detail panel title/description 也接到 `provider_display_label()`；若 `ProviderRow.name` 空白，畫面會顯示 `Provider ID：...`，不再出現空白表格標題或以空白 provider name 組出不完整描述。
 - 保持邊界：provider repository row、search haystack、dataset count、detail owner/category/auth/website、download/import/crawler/credential flow 都沒改；這只是 Tk 使用者可見 provider display fallback ownership 的第三段收斂。
-- 已驗證：`py_compile` for `frontends\tk\table_data_workflows.py` / `detail_panel_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_045819.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`88d126b Use Tk provider display labels in details`；GitHub Actions 尚未跑，下一步是提交文檔、push、手動觸發 CI。
+- 已驗證：`py_compile` for `frontends\tk\table_data_workflows.py` / `detail_panel_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_045819.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`88d126b Use Tk provider display labels in details` / docs 提交 `a36a992 Log Tk provider detail display checkpoint`；GitHub Actions manual run `26694878725` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 04:42 Reuse Tk provider display labels
 - 本輪延續上一個 provider display helper consolidation：AI summary 產生/寫入狀態與下載完成狀態也改用 `provider_display_label()`，避免 `row.name=""` 時出現空白 provider 名稱或 raw provider id 被當成主要使用者文案。
 - 保持邊界：AI profile/token flow、download queue、manifest/register/import、repository key、plan key 與 worker job key 都沒改；這只是 Tk 使用者可見 label fallback ownership 收斂。
