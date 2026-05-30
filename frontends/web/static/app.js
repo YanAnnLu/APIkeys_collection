@@ -906,6 +906,7 @@ function renderPassport(card, asset) {
       <div><dt>風險層級</dt><dd>${escapeHtml(asset.risk_tier || "unknown")}</dd></div>
       <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
       <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "unknown")}</dd></div>
+      <div><dt>Seed 範式</dt><dd>${escapeHtml(capabilityProfile.seed_scope || "unknown")}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
       <div><dt>下一步</dt><dd>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</dd></div>
@@ -962,6 +963,7 @@ function capabilityProfileSummary(profile = {}) {
     profile.transport,
     profile.auth_mode,
     profile.result_shape,
+    profile.seed_scope,
   ].filter(Boolean).join(" / ");
 }
 
