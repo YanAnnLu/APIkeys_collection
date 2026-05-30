@@ -33,6 +33,19 @@ ListingRunner = Callable[..., CrawlerAssetListingResult]
 SeedDownloadRunner = Callable[..., CrawlerAssetDownloadImportResult]
 
 
+CLOSURE_STAGE_LABELS: dict[str, str] = {
+    "listing_blocked": "清單擷取被阻擋",
+    "provider_id_missing": "缺少 provider id",
+    "no_recommended_seed": "沒有推薦 seed",
+    "download_import_completed": "下載 / 匯入完成",
+    "download_import_incomplete": "下載 / 匯入未完成",
+}
+
+
+def recommended_seed_closure_stage_label(stage: object, *, fallback: str = "閉環狀態待確認") -> str:
+    return CLOSURE_STAGE_LABELS.get(str(stage or ""), fallback)
+
+
 @dataclass(frozen=True)
 class CrawlerAssetRecommendedSeedClosureResult:
     """Structured result for the recommended-seed closure operation."""
@@ -60,6 +73,7 @@ class CrawlerAssetRecommendedSeedClosureResult:
             "provider_id": self.provider_id,
             "source_found": self.source_found,
             "closure_stage": self.closure_stage,
+            "closure_stage_label": recommended_seed_closure_stage_label(self.closure_stage),
             "succeeded": self.succeeded,
             "recommended_seed_uid": self.recommended_seed_uid,
             "seed_page": self.seed_page,
@@ -239,8 +253,10 @@ def safe_closure_dirname(asset_id: str) -> str:
 
 
 __all__ = [
+    "CLOSURE_STAGE_LABELS",
     "CrawlerAssetRecommendedSeedClosureResult",
     "recommended_seed_closure_payload",
+    "recommended_seed_closure_stage_label",
     "run_recommended_seed_closure",
     "safe_closure_dirname",
 ]

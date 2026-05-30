@@ -7,7 +7,11 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload
-from api_launcher.crawler_asset_closure import run_recommended_seed_closure
+from api_launcher.crawler_asset_closure import (
+    CrawlerAssetRecommendedSeedClosureResult,
+    recommended_seed_closure_stage_label,
+    run_recommended_seed_closure,
+)
 from api_launcher.crawler_asset_download import (
     CrawlerAssetDownloadImportResult,
     run_crawler_asset_download_import,
@@ -24,6 +28,27 @@ from api_launcher.repository import ApiCatalogRepository
 
 
 class CrawlerAssetDownloadImportTest(unittest.TestCase):
+    def test_recommended_seed_closure_payload_adds_stage_label(self) -> None:
+        result = CrawlerAssetRecommendedSeedClosureResult(
+            asset_id="demo_asset",
+            provider_id="demo_provider",
+            source_found=True,
+            listing_result=None,
+            seed_page={},
+            recommended_seed_uid="",
+            download_import_result=None,
+            downloads_root=Path("downloads/demo"),
+            curated_sqlite_path=Path("downloads/demo/curated_sources.db"),
+            plan_path=None,
+            closure_stage="no_recommended_seed",
+            next_action="review_seed_page_or_adjust_source_listing",
+        )
+
+        payload = result.to_dict()
+
+        self.assertEqual("沒有推薦 seed", payload["closure_stage_label"])
+        self.assertEqual("閉環狀態待確認", recommended_seed_closure_stage_label("new_stage"))
+
     def test_service_builds_formal_crawler_asset_plan_and_runs_pipeline(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

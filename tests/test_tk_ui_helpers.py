@@ -79,7 +79,11 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertFalse(message.succeeded)
         self.assertEqual("blocked_before_download", message.stage)
         self.assertIn("demo_provider:dataset_a", message.body)
+        self.assertIn("下載前需處理", message.body)
+        self.assertIn("下載前需處理", message.status_message)
         self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message.body)
+        self.assertNotIn("blocked_before_download", message.body)
+        self.assertNotIn("blocked_before_download", message.status_message)
         self.assertNotIn("run_adapter_review_or_resolve_adapter_plan_before_downloading", message.body)
 
     def test_crawler_seed_download_import_ui_message_surfaces_callback_diagnostics(self) -> None:
@@ -107,6 +111,8 @@ class YFinanceUiHelperTests(unittest.TestCase):
         message = crawler_seed_download_import_ui_message(result, lambda zh, _en: zh)
 
         self.assertTrue(message.succeeded)
+        self.assertIn("下載 / 匯入完成", message.body)
+        self.assertNotIn("download_import_completed", message.body)
         self.assertIn("進度回報：進度回報有警告 (1)", message.body)
         self.assertIn("檢查事件紀錄或 UI 進度回報", message.body)
 
@@ -138,6 +144,7 @@ class YFinanceUiHelperTests(unittest.TestCase):
                 "asset_id": "demo_index",
                 "provider_id": "demo_provider",
                 "closure_stage": "no_recommended_seed",
+                "closure_stage_label": "沒有推薦 seed",
                 "succeeded": False,
                 "recommended_seed_uid": "",
                 "next_action": "review_seed_page_or_adjust_source_listing",
@@ -152,6 +159,8 @@ class YFinanceUiHelperTests(unittest.TestCase):
         message = crawler_asset_recommended_seed_closure_ui_message(result, lambda zh, _en: zh)
 
         self.assertFalse(message.succeeded)
+        self.assertIn("閉環階段：沒有推薦 seed", message.body)
+        self.assertNotIn("no_recommended_seed", message.body)
         self.assertIn("檢查 seed 清單或調整入口界域", message.body)
         self.assertNotIn("review_seed_page_or_adjust_source_listing", message.body)
 

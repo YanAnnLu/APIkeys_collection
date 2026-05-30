@@ -493,6 +493,7 @@ def crawler_seed_download_import_ui_message(
         if "succeeded" in payload
         else getattr(result, "succeeded", False)
     )
+    stage_label = str(download_import.get("stage_label") or "下載狀態待確認").strip()
     artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
     downloads_root = str(artifacts.get("downloads_root") or "")
     curated_sqlite = str(artifacts.get("curated_sqlite") or "")
@@ -513,14 +514,14 @@ def crawler_seed_download_import_ui_message(
     body = tr(
         (
             f"Seed：{dataset_uid or '-'}\n"
-            f"Stage：{stage}\n"
+            f"階段：{stage_label}\n"
             f"Downloads：{downloads_root or '-'}\n"
             f"SQLite：{curated_sqlite or '-'}\n"
             f"下一步：{next_action_label or '-'}"
         ),
         (
             f"Seed: {dataset_uid or '-'}\n"
-            f"Stage: {stage}\n"
+            f"Stage: {stage_label}\n"
             f"Downloads: {downloads_root or '-'}\n"
             f"SQLite: {curated_sqlite or '-'}\n"
             f"Next: {next_action_label or '-'}"
@@ -545,7 +546,7 @@ def crawler_seed_download_import_ui_message(
         stage=stage,
         dataset_uid=dataset_uid,
         title=tr("Seed 下載 / 匯入未完成", "Seed download/import incomplete"),
-        status_message=tr(f"Seed 下載 / 匯入未完成：{stage}", f"Seed download/import did not complete: {stage}"),
+        status_message=tr(f"Seed 下載 / 匯入未完成：{stage_label}", f"Seed download/import did not complete: {stage_label}"),
         body=body,
     )
 
@@ -559,6 +560,7 @@ def crawler_asset_recommended_seed_closure_ui_message(
     payload = result.to_dict() if hasattr(result, "to_dict") else {}
     payload = payload if isinstance(payload, dict) else {}
     closure_stage = str(payload.get("closure_stage") or getattr(result, "closure_stage", "") or "-")
+    closure_stage_label = str(payload.get("closure_stage_label") or "閉環狀態待確認").strip()
     recommended_seed_uid = str(payload.get("recommended_seed_uid") or getattr(result, "recommended_seed_uid", "") or "").strip()
     next_action = str(payload.get("next_action") or getattr(result, "next_action", "") or "").strip()
     next_action_label = _ui_next_action_text(next_action, payload.get("next_action_label"), fallback="檢查推薦 seed 閉環結果")
@@ -570,12 +572,12 @@ def crawler_asset_recommended_seed_closure_ui_message(
         body = tr(
             (
                 f"推薦 Seed：{recommended_seed_uid or '-'}\n"
-                f"閉環階段：{closure_stage}\n"
+                f"閉環階段：{closure_stage_label}\n"
                 f"{seed_message.body}"
             ),
             (
                 f"Recommended seed: {recommended_seed_uid or '-'}\n"
-                f"Closure stage: {closure_stage}\n"
+                f"Closure stage: {closure_stage_label}\n"
                 f"{seed_message.body}"
             ),
         )
@@ -583,14 +585,14 @@ def crawler_asset_recommended_seed_closure_ui_message(
         body = tr(
             (
                 f"推薦 Seed：{recommended_seed_uid or '-'}\n"
-                f"閉環階段：{closure_stage}\n"
+                f"閉環階段：{closure_stage_label}\n"
                 f"Downloads：{artifacts.get('downloads_root') or '-'}\n"
                 f"SQLite：{artifacts.get('curated_sqlite') or '-'}\n"
                 f"下一步：{next_action_label}"
             ),
             (
                 f"Recommended seed: {recommended_seed_uid or '-'}\n"
-                f"Closure stage: {closure_stage}\n"
+                f"Closure stage: {closure_stage_label}\n"
                 f"Downloads: {artifacts.get('downloads_root') or '-'}\n"
                 f"SQLite: {artifacts.get('curated_sqlite') or '-'}\n"
                 f"Next: {next_action_label}"
