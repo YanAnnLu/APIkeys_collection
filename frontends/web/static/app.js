@@ -159,7 +159,7 @@ function renderSourceTypeFilters() {
   sourceTypeCount.textContent = String(counts.length);
   const buttons = [
     filterButton("all", "全部範式", assets.length),
-    ...counts.map(([type, count]) => filterButton(type, type, count)),
+    ...counts.map(([type, count]) => filterButton(type, sourceTypeFilterLabel(type), count)),
   ];
   sourceTypeFilters.innerHTML = buttons.join("");
   sourceTypeFilters.querySelectorAll("button").forEach((button) => {
@@ -592,7 +592,7 @@ function downloaderRowHtml(asset) {
         ${heroMetric("Adapter", passport.adapter_review_count || 0)}
       </div>
       <div class="context-chip-row">
-        <span class="context-chip">${escapeHtml(shortPattern(asset.source_type))}</span>
+        <span class="context-chip">${escapeHtml(sourceTypeDisplayText(asset))}</span>
         <span class="context-chip">${escapeHtml(asset.provider_id || "provider unknown")}</span>
         ${contentReview}
         ${staleChip}
@@ -925,7 +925,7 @@ function renderPassport(card, asset) {
       <div class="passport-emblem">${escapeHtml(assetInitials(card))}</div>
       <div>
         <strong>${escapeHtml(card.provider_id)}</strong>
-        <span>${escapeHtml(card.source_type)}</span>
+        <span>${escapeHtml(sourceTypeDisplayText(card))}</span>
       </div>
     </div>
 
@@ -1811,7 +1811,7 @@ function renderSelectedHero(card, flowSteps = []) {
       <p>${escapeHtml(card.seed_summary || card.endpoint_url || "等待後端提供來源摘要。")}</p>
       <div class="hero-meta">
         <span>${escapeHtml(card.provider_id || "provider unknown")}</span>
-        <span>${escapeHtml(shortPattern(card.source_type))}</span>
+        <span>${escapeHtml(sourceTypeDisplayText(card))}</span>
         ${statePill(status, card.health?.status_label)}
       </div>
       ${planOutcomeHeroHtml(card)}
@@ -2225,6 +2225,22 @@ function assetInitials(asset) {
 function shortPattern(value) {
   const parts = String(value || "unknown").split("_").filter(Boolean);
   return parts.slice(0, 2).join(" ");
+}
+
+function sourceTypeFilterLabel(sourceType) {
+  const asset = assets.find((item) => item.source_type === sourceType);
+  return sourceTypeDisplayText(asset || { source_type: sourceType });
+}
+
+function sourceTypeDisplayText(assetOrType = {}) {
+  const raw = typeof assetOrType === "string" ? assetOrType : assetOrType.source_type;
+  const profile = typeof assetOrType === "string" ? {} : (assetOrType.capability_profile || {});
+  return displayTextOrFallback(
+    "來源範式待確認",
+    typeof assetOrType === "string" ? "" : assetOrType.source_type_label,
+    profile.source_type_label,
+    shortPattern(raw),
+  );
 }
 
 function surfaceLabel(value) {

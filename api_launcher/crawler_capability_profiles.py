@@ -65,6 +65,25 @@ CONTENT_FORMAT_HINTS_BY_SOURCE_TYPE: dict[str, tuple[str, ...]] = {
     "html_file_index": ("csv", "json", "zip", "netcdf", "hdf", "geotiff", "parquet", "unknown"),
 }
 
+SOURCE_TYPE_DISPLAY_LABELS: dict[str, str] = {
+    # Keep source type wording backend-owned so Tk/Web/Qt do not each decide how
+    # to present registry ids such as ``stac_collections``.
+    "ncei_search": "NOAA NCEI catalog",
+    "erddap_all_datasets": "ERDDAP datasets",
+    "html_file_index": "HTML file index",
+    "cmr_collections": "NASA CMR collections",
+    "stac_collections": "STAC collections",
+    "gbif_dataset_search": "GBIF dataset search",
+    "dataverse_search": "Dataverse search",
+    "zenodo_records_search": "Zenodo records",
+    "ckan_package_search": "CKAN package search",
+    "datacite_dois": "DataCite DOI search",
+    "ogc_api_records": "OGC API records",
+    "ogc_wms_capabilities": "OGC WMS capabilities",
+    "socrata_catalog_search": "Socrata catalog search",
+    "openalex_works_search": "OpenAlex works search",
+}
+
 
 @dataclass(frozen=True)
 class CrawlerCapabilityProfile:
@@ -77,6 +96,7 @@ class CrawlerCapabilityProfile:
 
     source_id: str
     source_type: str
+    source_type_label: str
     source_family: str
     transport: str
     auth_mode: str
@@ -97,6 +117,7 @@ class CrawlerCapabilityProfile:
         return {
             "source_id": self.source_id,
             "source_type": self.source_type,
+            "source_type_label": self.source_type_label,
             "source_family": self.source_family,
             "transport": self.transport,
             "auth_mode": self.auth_mode,
@@ -150,6 +171,7 @@ def crawler_capability_profile(
     return CrawlerCapabilityProfile(
         source_id=source.source_id,
         source_type=source.source_type,
+        source_type_label=source_type_display_label(source.source_type),
         source_family=spec.source_family if spec else "unknown",
         transport=spec.transport if spec else "unknown",
         auth_mode=policy.credential_mode,
@@ -175,6 +197,13 @@ def crawler_spec_for_source_type(source_type: str) -> CrawlerSpec | None:
         return crawler_spec(source_type)
     except ValueError:
         return None
+
+
+def source_type_display_label(source_type: str) -> str:
+    """Return UI-neutral wording for a crawler registry source type."""
+
+    normalized = source_type.strip()
+    return SOURCE_TYPE_DISPLAY_LABELS.get(normalized, "來源範式待確認")
 
 
 def seed_scope_display_label(seed_scope: str) -> str:

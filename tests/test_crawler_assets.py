@@ -108,6 +108,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("catalog_search", asset.capability_profile.source_family)
         self.assertEqual("json", asset.capability_profile.transport)
         self.assertEqual("dataset_list", asset.capability_profile.result_shape)
+        self.assertEqual("CKAN package search", asset.capability_profile.source_type_label)
         self.assertEqual("paginated_catalog", asset.capability_profile.seed_scope)
         self.assertEqual("分頁 catalog", asset.capability_profile.seed_scope_label)
         self.assertTrue(asset.capability_profile.supports_full_crawl)
@@ -124,6 +125,7 @@ class CrawlerAssetTest(unittest.TestCase):
 
         payload = asset.to_dict()["capability_profile"]
         self.assertEqual("ckan_package_search", payload["source_type"])
+        self.assertEqual("CKAN package search", payload["source_type_label"])
         self.assertEqual("catalog_search", payload["source_family"])
         self.assertEqual("json", payload["transport"])
         self.assertEqual("dataset_list", payload["result_shape"])
@@ -137,6 +139,7 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("public_or_review", payload["request_policy"]["credential_mode"])
 
         asset_payload = asset.to_dict()
+        self.assertEqual("CKAN package search", asset_payload["source_type_label"])
         self.assertEqual("已套安全界域", asset_payload["maturity_label"])
         self.assertEqual("待審核", asset_payload["risk_tier_label"])
 
@@ -193,8 +196,11 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("adapter_review", asset.health.status_gate)
         self.assertEqual("待補", status_label("needs_handler"))
         self.assertIsNone(asset.capability_profile.capability_code)
+        self.assertEqual("來源範式待確認", asset.capability_profile.source_type_label)
+        self.assertEqual("來源範式待確認", asset.to_dict()["source_type_label"])
 
         payload = asset.to_dict()["capability_profile"]
+        self.assertEqual("來源範式待確認", payload["source_type_label"])
         self.assertEqual({}, payload["capability_code"])
         self.assertIsNone(payload["capability_bits"])
         self.assertEqual("", payload["capability_binary"])

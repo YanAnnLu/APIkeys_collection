@@ -123,6 +123,7 @@ class CrawlerAsset:
             "display_name": self.display_name,
             "provider_id": self.provider_id,
             "source_type": self.source_type,
+            "source_type_label": self.capability_profile.source_type_label,
             "source_surface": self.source_surface,
             "access_requirement": self.access_requirement,
             "endpoint_url": self.endpoint_url,
