@@ -82,6 +82,7 @@ class CrawlerCapabilityProfile:
     auth_mode: str
     terms_risk: str
     result_shape: str
+    seed_scope: str
     supports_full_crawl: bool
     capability_code: CrawlerCapabilityCode | None
     pagination_mode: str
@@ -100,6 +101,7 @@ class CrawlerCapabilityProfile:
             "auth_mode": self.auth_mode,
             "terms_risk": self.terms_risk,
             "result_shape": self.result_shape,
+            "seed_scope": self.seed_scope,
             "supports_full_crawl": self.supports_full_crawl,
             "capability_code": self.capability_code.to_dict() if self.capability_code else {},
             "capability_bits": self.capability_code.bits if self.capability_code else None,
@@ -150,6 +152,7 @@ def crawler_capability_profile(
         auth_mode=policy.credential_mode,
         terms_risk=policy.terms_risk,
         result_shape=spec.result_shape if spec else "unknown",
+        seed_scope=spec.seed_scope if spec else "unknown",
         supports_full_crawl=bool(spec.supports_full_crawl) if spec else False,
         capability_code=spec.capability_code if spec else None,
         pagination_mode=pagination_mode,
