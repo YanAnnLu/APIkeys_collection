@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 16:21 Remote pagination status labels
+- 本輪延續 UI display contract：`crawler_remote_pagination_payload()` 會輸出遠端分頁狀態的人類顯示 payload，Tk seed enumeration note 優先顯示「仍有下一頁線索」「已列完」「遠端狀態待確認」等文案，不再把未知 remote status raw id 直接放進使用者可見內容。
+- 已提交實作：`c71c830 Label remote pagination statuses`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_seed_display.py api_launcher\crawler_asset_listing_payloads.py frontends\tk\crawler_asset_ui_helpers.py tests\test_crawler_assets.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_tk_dialogs tests.test_web_preview -v` 通過，226 tests OK；同一組測試前一次遇到 Windows localhost oversized-body socket flake，單測與全組 rerun 均通過；`git diff --check` OK；`api_launcher` / `frontends` / `tests` mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260530_161735.log` 通過，982 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 remote pagination display payload 與 Tk seed enumeration note fallback，不改 crawler pagination 行為、token storage、seed enumeration limits、download/import、Web 操作或 user guide。
 ## 2026-05-30 16:03 Account provider support status labels
 - 本輪延續 UI display contract：`api_launcher.account_links` 新增帳號登入模式與支援狀態 label helper；Tk Google/Gemini 連線視窗的帳號支援表格會顯示「OAuth 登入」「規劃中」「🚧 施工中」等文案，不再把 `oauth` / `planned` / `skeleton` raw contract id 當成使用者文字。
 - 已提交實作：`418efa9 Label account provider support status`。
