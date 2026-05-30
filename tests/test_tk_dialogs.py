@@ -2882,7 +2882,7 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("socrata", "resolve_api", "來源解析待辦", "nyc_open_data", "trees", "latest", "https://example.test/api"),
+            ("socrata", "解析 API，產生可下載 resources", "來源解析待辦", "nyc_open_data", "trees", "latest", "https://example.test/api"),
             AdapterReviewDialog.review_item_row_values(item),
         )
         detail = AdapterReviewDialog.review_item_detail_text(item)
@@ -2893,7 +2893,10 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertIn("content_parser_id: scientific_grid_review", detail)
         self.assertIn("content_review_bucket: content_parser_required", detail)
         self.assertIn("content_pipeline_lane: content_parser_review", detail)
-        self.assertIn("content_next_action: add_content_parser_or_keep_raw_artifact", detail)
+        self.assertIn("required_action: 解析 API", detail)
+        self.assertIn("content_next_action: 新增內容 Parser 或保留原始檔", detail)
+        self.assertNotIn("resolve_api", detail)
+        self.assertNotIn("add_content_parser_or_keep_raw_artifact", detail)
         self.assertIn("reason: selector", detail)
 
     def test_dataset_candidate_review_row_and_detail_text_are_stable(self) -> None:

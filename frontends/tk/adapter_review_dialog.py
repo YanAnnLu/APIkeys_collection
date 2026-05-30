@@ -9,6 +9,7 @@ from typing import Any
 
 from api_launcher.adapter_review import AdapterReviewItem
 from api_launcher.crawler_asset_display import adapter_review_outcome_label
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from frontends.tk.ui_config import COLORS
 
 
@@ -32,7 +33,7 @@ class AdapterReviewDialog:
         # 表格欄位順序是 UI / agent review 的顯示契約，抽成 helper 方便測試保護。
         return (
             item.adapter_id,
-            item.required_action,
+            next_action_display_label_or_fallback(item.required_action, fallback="檢查 Adapter 待辦"),
             adapter_review_outcome_label(str(item.outcome_bucket)),
             item.provider_id,
             item.dataset_id,
@@ -43,10 +44,18 @@ class AdapterReviewDialog:
     @staticmethod
     def review_item_detail_text(item: Any) -> str:
         # 詳情文字保持 key/value 形狀，方便人類複製給下一位 agent 或比對 JSON payload。
+        required_action_label = next_action_display_label_or_fallback(
+            getattr(item, "required_action", ""),
+            fallback="檢查 Adapter 待辦",
+        )
+        content_next_action_label = next_action_display_label_or_fallback(
+            getattr(item, "content_next_action", ""),
+            fallback="檢查內容格式待辦",
+        )
         return "\n".join(
             [
                 f"adapter_id: {item.adapter_id}",
-                f"required_action: {item.required_action}",
+                f"required_action: {required_action_label}",
                 f"outcome_bucket: {item.outcome_bucket}",
                 f"expected_output: {item.expected_output}",
                 f"provider_id: {item.provider_id}",
@@ -63,7 +72,7 @@ class AdapterReviewDialog:
                 f"content_import_status: {getattr(item, 'content_import_status', '') or '-'}",
                 f"content_review_bucket: {getattr(item, 'content_review_bucket', '') or '-'}",
                 f"content_pipeline_lane: {getattr(item, 'content_pipeline_lane', '') or '-'}",
-                f"content_next_action: {getattr(item, 'content_next_action', '') or '-'}",
+                f"content_next_action: {content_next_action_label or '-'}",
                 f"reason: {item.reason or '-'}",
                 f"content_reason: {getattr(item, 'content_reason', '') or '-'}",
             ]

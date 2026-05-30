@@ -48,6 +48,15 @@ NEXT_ACTION_DISPLAY_LABELS = {
     "inspect_manifest": "檢查 manifest 與最近事件紀錄",
     "inspect_event_logs_or_ui_callback": "檢查事件紀錄或 UI 進度回報",
     "run_dataset_discovery_handler_smoke_json_if_summary_fails": "摘要失敗時，執行 handler smoke JSON 診斷",
+    "resolve_source_to_direct_download_entries": "解析來源，產生可下載 resources",
+    "resolve_api": "解析 API，產生可下載 resources",
+    "unpack_or_transform_downloaded_payload": "解壓或轉換下載內容",
+    "configure_credentials_before_download": "先完成憑證設定，再下載",
+    "resolve_download_url": "解析實際下載網址",
+    "download_then_import_verified_payload": "下載後匯入已驗證內容",
+    "resolve_bounded_api_sample_then_download_import": "解析界域樣本後下載 / 匯入",
+    "review_payload_format_or_keep_raw_artifact": "審核內容格式或保留原始檔",
+    "add_content_parser_or_keep_raw_artifact": "新增內容 Parser 或保留原始檔",
 }
 
 
