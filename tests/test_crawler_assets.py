@@ -865,7 +865,10 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual("review", assets[0].health.status_gate)
         self.assertEqual("probe_schema_then_define_bounds", assets[0].health.next_action)
         self.assertEqual("needs_bounds", assets[0].to_dict()["health"]["status_code"])
+        self.assertEqual("需界域", assets[0].to_dict()["health"]["status_label"])
+        self.assertEqual("warning", assets[0].to_dict()["health"]["status_tone"])
         self.assertEqual("review", assets[0].to_dict()["health"]["status_gate"])
+        self.assertEqual("先探測資料結構，再定義界域", assets[0].to_dict()["health"]["next_action_label"])
 
     def test_service_blocks_archived_asset_before_crawl(self) -> None:
         with TemporaryDirectory() as tmp:

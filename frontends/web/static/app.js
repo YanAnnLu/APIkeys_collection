@@ -889,7 +889,7 @@ function renderPassport(card, asset) {
         <span class="eyebrow">資產護照</span>
         <h2>${escapeHtml(card.display_name)}</h2>
       </div>
-      ${statePill(card.health?.status_code || "unknown")}
+      ${statePill(card.health?.status_code || "unknown", card.health?.status_label)}
     </div>
 
     <div class="passport-identity">
@@ -1772,7 +1772,7 @@ function renderSelectedHero(card, flowSteps = []) {
       <div class="hero-meta">
         <span>${escapeHtml(card.provider_id || "provider unknown")}</span>
         <span>${escapeHtml(shortPattern(card.source_type))}</span>
-        ${statePill(status)}
+        ${statePill(status, card.health?.status_label)}
       </div>
       ${planOutcomeHeroHtml(card)}
       <div class="hero-actions">
@@ -2049,8 +2049,8 @@ function setServerState(text, state, title = "") {
   }
 }
 
-function statePill(status) {
-  return `<span class="state-pill ${statusClass(status)}">${escapeHtml(statusLabel(status))}</span>`;
+function statePill(status, label = "") {
+  return `<span class="state-pill ${statusClass(status)}">${escapeHtml(label || statusLabel(status))}</span>`;
 }
 
 function statusLabel(status) {
@@ -2065,7 +2065,7 @@ function statusLabel(status) {
     failed: "失敗",
     unknown: "未知",
   };
-  return labels[status] || status || "未知";
+  return labels[status] || "未知";
 }
 
 function statusClass(status) {

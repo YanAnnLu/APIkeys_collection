@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Protocol
 
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
+
 
 class CrawlerAssetCapabilityLike(Protocol):
     capability_id: str
@@ -31,6 +33,8 @@ class CrawlerAssetHealth:
         return {
             "asset_id": self.asset_id,
             "status_code": self.status_code,
+            "status_label": health_status_label_or_fallback(self.status_code),
+            "status_tone": health_status_tone(self.status_code),
             "status_gate": self.status_gate,
             "status_emoji": self.status_emoji,
             "health_reason": self.health_reason,
@@ -38,6 +42,10 @@ class CrawlerAssetHealth:
             "last_success_at": self.last_success_at,
             "last_failure_at": self.last_failure_at,
             "next_action": self.next_action,
+            "next_action_label": next_action_display_label_or_fallback(
+                self.next_action,
+                fallback="檢查爬蟲資產狀態",
+            ),
         }
 
 
@@ -141,4 +149,40 @@ def _health(
     )
 
 
-__all__ = ["CrawlerAssetHealth", "evaluate_crawler_asset_health"]
+def health_status_label(status_code: str) -> str:
+    labels = {
+        "healthy": "可用",
+        "needs_bounds": "需界域",
+        "blocked": "阻擋",
+        "missing_handler": "缺 handler",
+        "review_needed": "待審核",
+        "disabled": "停用",
+        "archived": "封存",
+        "failed": "失敗",
+        "unknown": "未知",
+    }
+    return labels.get(status_code, status_code)
+
+
+def health_status_label_or_fallback(status_code: str, *, fallback: str = "未知") -> str:
+    label = health_status_label(status_code)
+    return label if label != status_code else fallback
+
+
+def health_status_tone(status_code: str) -> str:
+    if status_code in {"healthy", "ready", "bounded"}:
+        return "success"
+    if status_code in {"needs_bounds", "review_needed", "disabled", "archived"}:
+        return "warning"
+    if status_code in {"missing_handler", "blocked", "failed"}:
+        return "danger"
+    return "neutral"
+
+
+__all__ = [
+    "CrawlerAssetHealth",
+    "evaluate_crawler_asset_health",
+    "health_status_label",
+    "health_status_label_or_fallback",
+    "health_status_tone",
+]

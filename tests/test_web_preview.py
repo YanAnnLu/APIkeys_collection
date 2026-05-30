@@ -1860,6 +1860,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("formState.textContent = spec.status", combined)
         self.assertNotIn("const parts = [capability.status]", combined)
         self.assertNotIn("parts.push(capability.next_action)", combined)
+        self.assertIn("card.health?.status_label", combined)
+        self.assertNotIn('return labels[status] || status || "未知"', combined)
         self.assertNotIn("rrkal.favoriteSeeds", combined)
         self.assertIn("credentialLoginStepsHtml", combined)
         self.assertIn("credential_entry_url", combined)
