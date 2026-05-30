@@ -44,6 +44,12 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertTrue(scheduler_metrics["policy_registry_available"])
         self.assertGreaterEqual(scheduler_metrics["bounded_tk_policy_count"], 8)
         self.assertEqual(1, scheduler_metrics["max_active_jobs_by_policy"]["sqlite_import"])
+        self.assertTrue(scheduler_metrics["sqlite_write_gate_available"])
+        self.assertEqual(
+            "process_per_sqlite_path",
+            scheduler_metrics["sqlite_write_gate"]["scope"],
+        )
+        self.assertEqual(1, scheduler_metrics["sqlite_write_gate"]["max_active_writers_per_database"])
         self.assertTrue(scheduler_metrics["capacity_policy_call_site_guarded"])
         self.assertTrue(scheduler_metrics["direct_thread_spawn_guarded"])
         self.assertEqual("frontends/tk/background_jobs.py", scheduler_metrics["direct_thread_spawn_owner"])

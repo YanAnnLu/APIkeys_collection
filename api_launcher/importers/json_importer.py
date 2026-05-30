@@ -16,6 +16,7 @@ from api_launcher.importers.csv_importer import (
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository, source_format_from_path
+from api_launcher.sqlite_write_gate import sqlite_write_gate
 from api_launcher.sql_assets import validate_sql_identifier
 
 
@@ -110,16 +111,17 @@ def import_json_manifest_to_sqlite(
     raw_columns = ordered_keys(parsed.rows)
     columns = normalized_column_names(raw_columns)
     sql_rows = [row_values(row, raw_columns) for row in parsed.rows]
-    rows_imported = import_rows_to_sqlite(
-        target_db,
-        clean_table,
-        columns,
-        sql_rows,
-        replace=replace,
-        row_limit=0,
-    )
+    with sqlite_write_gate(target_db):
+        rows_imported = import_rows_to_sqlite(
+            target_db,
+            clean_table,
+            columns,
+            sql_rows,
+            replace=replace,
+            row_limit=0,
+        )
 
-    fingerprint = sqlite_table_schema_summary(target_db, clean_table).schema_fingerprint
+        fingerprint = sqlite_table_schema_summary(target_db, clean_table).schema_fingerprint
     table_asset_id = repository.register_provider_table_asset(
         manifest.provider_id,
         engine="sqlite",

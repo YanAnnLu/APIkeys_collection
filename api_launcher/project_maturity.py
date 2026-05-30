@@ -204,14 +204,18 @@ def _tk_background_job_policy_metrics() -> dict[str, Any]:
 
     try:
         from frontends.tk.background_job_policies import iter_tk_background_job_policies
+        from api_launcher.sqlite_write_gate import sqlite_write_gate_profile
     except Exception:
         return {"policy_registry_available": False}
 
     policies = tuple(iter_tk_background_job_policies())
+    write_gate = sqlite_write_gate_profile().to_dict()
     return {
         "policy_registry_available": True,
         "bounded_tk_policy_count": len(policies),
         "max_active_jobs_by_policy": {policy.policy_id: policy.max_active_jobs for policy in policies},
+        "sqlite_write_gate_available": True,
+        "sqlite_write_gate": write_gate,
         "capacity_policy_call_site_guarded": True,
         "direct_thread_spawn_guarded": True,
         "direct_thread_spawn_owner": "frontends/tk/background_jobs.py",
@@ -357,7 +361,7 @@ def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]
                 "web_preview_tests",
             ),
             current_limitations=(
-                "Tk has a background job policy registry, but threading is still workflow-level; no unified bounded job scheduler/DB write gate yet.",
+                "Tk has a background job policy registry and a process-local SQLite write gate, but threading is still workflow-level; no unified bounded job scheduler yet.",
             ),
             next_actions=("Design a bounded job scheduler before considering broad asyncio rewrites.",),
             metrics=_tk_background_job_policy_metrics(),

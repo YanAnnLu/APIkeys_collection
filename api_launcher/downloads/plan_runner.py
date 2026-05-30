@@ -19,6 +19,7 @@ from api_launcher.manifests import read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.paths import default_local_curated_db_path
 from api_launcher.repository import ApiCatalogRepository
+from api_launcher.sqlite_write_gate import sqlite_write_gate
 
 
 @dataclass(frozen=True)
@@ -283,34 +284,35 @@ def import_completed_plan_entry(
     importer = str(import_plan.get("importer") or "").strip()
     table_name = str(import_plan.get("table_hint") or "").strip()
     try:
-        policy = normalized_existing_table_policy(existing_table_policy, replace=replace)
-        manifest = read_manifest(manifest_path)
-        resolved_table_name = table_name or table_name_for_manifest(manifest)
-        if policy == "skip" and table_exists(sqlite_path, resolved_table_name):
-            return "skipped_existing_table"
-        if policy == "rename":
-            table_name = unique_table_name(sqlite_path, resolved_table_name)
-        replace_table = policy == "replace"
-        if importer == "csv_to_sqlite":
-            import_csv_manifest_to_sqlite(
-                manifest_path,
-                sqlite_path,
-                repository,
-                table_name=table_name,
-                replace=replace_table,
-                row_limit=row_limit,
-            )
-            return "imported"
-        if importer == "json_to_sqlite":
-            import_json_manifest_to_sqlite(
-                manifest_path,
-                sqlite_path,
-                repository,
-                table_name=table_name,
-                replace=replace_table,
-                row_limit=row_limit,
-            )
-            return "imported"
+        with sqlite_write_gate(sqlite_path):
+            policy = normalized_existing_table_policy(existing_table_policy, replace=replace)
+            manifest = read_manifest(manifest_path)
+            resolved_table_name = table_name or table_name_for_manifest(manifest)
+            if policy == "skip" and table_exists(sqlite_path, resolved_table_name):
+                return "skipped_existing_table"
+            if policy == "rename":
+                table_name = unique_table_name(sqlite_path, resolved_table_name)
+            replace_table = policy == "replace"
+            if importer == "csv_to_sqlite":
+                import_csv_manifest_to_sqlite(
+                    manifest_path,
+                    sqlite_path,
+                    repository,
+                    table_name=table_name,
+                    replace=replace_table,
+                    row_limit=row_limit,
+                )
+                return "imported"
+            if importer == "json_to_sqlite":
+                import_json_manifest_to_sqlite(
+                    manifest_path,
+                    sqlite_path,
+                    repository,
+                    table_name=table_name,
+                    replace=replace_table,
+                    row_limit=row_limit,
+                )
+                return "imported"
     except Exception as exc:
         return f"{type(exc).__name__}: {exc}"
     return "skipped"

@@ -15,6 +15,7 @@ from api_launcher.database_self_check import sqlite_table_schema_summary
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository, source_format_from_path
+from api_launcher.sqlite_write_gate import sqlite_write_gate
 from api_launcher.sql_assets import validate_sql_identifier
 
 
@@ -95,23 +96,24 @@ def import_csv_manifest_to_sqlite(
     target_db.parent.mkdir(parents=True, exist_ok=True)
     clean_table = validate_sql_identifier(table_name.strip() or table_name_for_manifest(manifest))
 
-    with open_csv_text(payload_path) as handle:
-        reader = csv.reader(handle)
-        try:
-            raw_headers = next(reader)
-        except StopIteration as exc:
-            raise ValueError(f"CSV payload is empty: {payload_path}") from exc
-        columns = normalized_column_names(raw_headers)
-        rows_imported = import_rows_to_sqlite(
-            target_db,
-            clean_table,
-            columns,
-            reader,
-            replace=replace,
-            row_limit=row_limit,
-        )
+    with sqlite_write_gate(target_db):
+        with open_csv_text(payload_path) as handle:
+            reader = csv.reader(handle)
+            try:
+                raw_headers = next(reader)
+            except StopIteration as exc:
+                raise ValueError(f"CSV payload is empty: {payload_path}") from exc
+            columns = normalized_column_names(raw_headers)
+            rows_imported = import_rows_to_sqlite(
+                target_db,
+                clean_table,
+                columns,
+                reader,
+                replace=replace,
+                row_limit=row_limit,
+            )
 
-    fingerprint = sqlite_table_schema_summary(target_db, clean_table).schema_fingerprint
+        fingerprint = sqlite_table_schema_summary(target_db, clean_table).schema_fingerprint
     table_asset_id = repository.register_provider_table_asset(
         manifest.provider_id,
         engine="sqlite",
@@ -210,35 +212,36 @@ def import_rows_to_sqlite(
     replace: bool,
     row_limit: int,
 ) -> int:
-    target_table = table_name
-    write_table = unique_table_name(sqlite_path, f"{table_name}_import_tmp") if replace else table_name
-    quoted_table = quote_identifier(write_table)
-    quoted_columns = ", ".join(f"{quote_identifier(column)} TEXT" for column in columns)
-    insert_columns = ", ".join(quote_identifier(column) for column in columns)
-    placeholders = ", ".join("?" for _ in columns)
-    with closing(sqlite3.connect(sqlite_path)) as conn:
-        try:
-            conn.execute(f"CREATE TABLE {quoted_table} ({quoted_columns})")
-            count = 0
-            for row in rows:
-                if row_limit > 0 and count >= row_limit:
-                    break
-                values = normalized_row_values(row, len(columns))
-                conn.execute(f"INSERT INTO {quoted_table} ({insert_columns}) VALUES ({placeholders})", values)
-                count += 1
-            if replace:
-                quoted_target = quote_identifier(target_table)
-                conn.execute(f"DROP TABLE IF EXISTS {quoted_target}")
-                conn.execute(f"ALTER TABLE {quoted_table} RENAME TO {quoted_target}")
-            conn.commit()
-            return count
-        except Exception:
-            conn.rollback()
-            if replace:
-                with contextlib.suppress(sqlite3.Error):
-                    conn.execute(f"DROP TABLE IF EXISTS {quoted_table}")
-                    conn.commit()
-            raise
+    with sqlite_write_gate(sqlite_path):
+        target_table = table_name
+        write_table = unique_table_name(sqlite_path, f"{table_name}_import_tmp") if replace else table_name
+        quoted_table = quote_identifier(write_table)
+        quoted_columns = ", ".join(f"{quote_identifier(column)} TEXT" for column in columns)
+        insert_columns = ", ".join(quote_identifier(column) for column in columns)
+        placeholders = ", ".join("?" for _ in columns)
+        with closing(sqlite3.connect(sqlite_path)) as conn:
+            try:
+                conn.execute(f"CREATE TABLE {quoted_table} ({quoted_columns})")
+                count = 0
+                for row in rows:
+                    if row_limit > 0 and count >= row_limit:
+                        break
+                    values = normalized_row_values(row, len(columns))
+                    conn.execute(f"INSERT INTO {quoted_table} ({insert_columns}) VALUES ({placeholders})", values)
+                    count += 1
+                if replace:
+                    quoted_target = quote_identifier(target_table)
+                    conn.execute(f"DROP TABLE IF EXISTS {quoted_target}")
+                    conn.execute(f"ALTER TABLE {quoted_table} RENAME TO {quoted_target}")
+                conn.commit()
+                return count
+            except Exception:
+                conn.rollback()
+                if replace:
+                    with contextlib.suppress(sqlite3.Error):
+                        conn.execute(f"DROP TABLE IF EXISTS {quoted_table}")
+                        conn.commit()
+                raise
 
 
 def table_exists(sqlite_path: str | Path, table_name: str) -> bool:
