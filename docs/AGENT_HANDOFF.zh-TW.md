@@ -2,7 +2,7 @@
 ## 2026-05-31 06:03 Tk download skip bucket labels
 - 本輪把 Tk 下載器略過摘要的 bucket 顯示收斂到 `download_skip_bucket_label()`；已知 bucket 顯示「需 Adapter」「缺下載 URL」等文案，未知 bucket 只顯示「其他待處理」，避免未登錄 backend bucket 直接洩漏成 raw id。
 - 保持邊界：`download_entry_skip_bucket()`、`download_skip_summary()`、download plan runner、CLI JSON、queue、manifest/import 行為都沒改；這只是 Tk 下載略過摘要的人類文案 fallback。
-- 已驗證：`py_compile` for `frontends\tk\download_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 142 tests；完整 smoke `state\logs\pre_push_smoke_20260531_060120.log` 通過，1030 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`3962d96 Label Tk download skip buckets`；GitHub Actions 尚未跑，下一步是提交文檔、push 並看 CI。
+- 已驗證：`py_compile` for `frontends\tk\download_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 142 tests；完整 smoke `state\logs\pre_push_smoke_20260531_060120.log` 通過，1030 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`3962d96 Label Tk download skip buckets` / docs 提交 `74e88c5 Log Tk download skip checkpoint`；GitHub Actions manual run `26696145938` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 05:52 Tk downloader status labels
 - 本輪把 Tk 下載器 runtime status 顯示收斂到 `download_job_status_label()`；下載器表格與失敗/取消狀態列顯示「已規劃」「下載中」「失敗」等人類文案，不再把 raw `planned` / `failed` 直接當主要使用者文字。
 - 保持邊界：download queue 的 stable `JobStatus`、`download_status_by_provider` tuple、plan key、provider id lookup、manifest/register/import 與 `download_job_problem` event context 都沒改；raw status/id 仍保留給 agent/debug 追溯。
