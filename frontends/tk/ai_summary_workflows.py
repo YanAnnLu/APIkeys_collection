@@ -13,7 +13,7 @@ from tkinter import messagebox
 import APIkeys_collection as core
 from api_launcher.ai_api_keys import default_api_key_env, load_saved_ai_api_keys, saved_ai_api_key_status
 from api_launcher.event_log import log_exception
-from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status
+from api_launcher.oauth_device import oauth_device_config_from_profile, oauth_token_status, oauth_token_status_label
 from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.background_job_policies import MAX_TK_AI_SUMMARY_BACKGROUND_JOBS
 
@@ -70,7 +70,9 @@ class AiSummaryWorkflowMixin:
                 return self.tr("OAuth 已停用", "OAuth disabled")
             status, _message = oauth_token_status(oauth_config.token_store, label=profile.label)
             if status == "ready":
-                return self.tr(f"OAuth 已登入：{status}", f"OAuth signed in: {status}")
+                status_label = oauth_token_status_label(status)
+                status_label_en = oauth_token_status_label(status, locale="en")
+                return self.tr(f"OAuth 已登入：{status_label}", f"OAuth signed in: {status_label_en}")
         if api_key_env:
             return self.tr(f"需要 API key：{api_key_env}", f"Needs API key: {api_key_env}")
         return self.tr("不需登入", "No login")

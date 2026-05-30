@@ -3030,6 +3030,29 @@ class TkDialogModuleTest(unittest.TestCase):
             ),
         )
 
+    def test_ai_profile_login_status_hides_raw_oauth_status(self) -> None:
+        ui = object.__new__(AiSummaryWorkflowMixin)
+        ui.tr = lambda zh, _en: zh
+        profile = SimpleNamespace(
+            id="gemini",
+            label="Gemini",
+            kind="gemini",
+            enabled=True,
+            api_key_env="",
+            oauth_device={"enabled": True},
+            token_store="state/private/ai_oauth_tokens/gemini.json",
+            oauth_token_env="",
+        )
+
+        with patch("frontends.tk.ai_summary_workflows.saved_ai_api_key_status", return_value=("missing", "")), patch(
+            "frontends.tk.ai_summary_workflows.oauth_token_status",
+            return_value=("ready", "Token is ready."),
+        ):
+            text = AiSummaryWorkflowMixin.ai_profile_login_status(ui, profile)
+
+        self.assertIn("已登入", text)
+        self.assertNotIn("ready", text)
+
     def test_google_gemini_account_provider_row_values_are_stable(self) -> None:
         # Google/Gemini 連線視窗抽成 class 後，帳號支援表格仍維持固定欄位順序。
         provider = SimpleNamespace(
