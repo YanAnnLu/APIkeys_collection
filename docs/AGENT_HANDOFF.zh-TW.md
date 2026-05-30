@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 10:46 Favicon oversized response guard
+- 本輪把 Tk favicon 快取的 byte budget 從「只 bounded read」加固成「讀 `max_bytes + 1` 並拒絕 oversized response」：`download_favicon_png()` 遇到超過 `DEFAULT_FAVICON_MAX_BYTES` 的 favicon payload 會 fail-fast，不把異常大 response 交給 Pillow 解析。
+- 已提交實作：`491b711 Reject oversized favicon responses`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\favicons.py tests\test_favicons.py` OK；`py -3 -B -m unittest tests.test_favicons tests.test_tk_dialogs -v` 通過，118 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_104606.log` 通過，965 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只加固 favicon response budget，不改 favicon URL 正規化、cache path、Tk/Web 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 10:37 Source pattern oversized probe guard
 - 本輪把 source pattern detector 的 probe byte budget 從「只 bounded read」加固成「讀 `max_bytes + 1` 並拒絕 oversized response」：`fetch_pattern_probe()` 遇到超過 `DEFAULT_PATTERN_PROBE_MAX_BYTES` 的 payload 會回 `None`，讓 detector 安全降級到 `unknown` / review，而不是用截斷 JSON/HTML 誤判來源範式。
 - 已提交實作：`fe6fa58 Reject oversized source pattern probes`。
