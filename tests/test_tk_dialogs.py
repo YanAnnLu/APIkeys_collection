@@ -66,6 +66,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_credential_event_context,
     crawler_asset_credential_guard_message,
     crawler_asset_credential_summary_text,
+    crawler_asset_detail_text,
     crawler_asset_download_plan_summary_text,
     crawler_asset_listing_blocked_status_text,
     crawler_asset_listing_event_preview_payload,
@@ -1150,7 +1151,32 @@ class TkDialogModuleTest(unittest.TestCase):
             values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
         self.assertIn("免登入", values)
+        self.assertEqual("入口列表", values[-2])
         self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
+
+    def test_crawler_asset_detail_text_uses_seed_scope_display_label(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_ckan",
+            provider_id="demo_provider",
+            name="Demo CKAN",
+            source_type="ckan_package_search",
+            endpoint_url="https://catalog.example.test",
+        )
+        asset = crawler_asset_from_source(source)
+
+        detail = crawler_asset_detail_text(
+            asset,
+            last_plan_outcome="",
+            content_review="",
+            resolved_plan=None,
+            plan_passport=None,
+            credential_status={"display_label": "免登入", "configured_count": 0, "field_count": 0},
+            tr=lambda zh, _en: zh,
+        )
+
+        self.assertIn("Seed：", detail)
+        self.assertIn("分頁 catalog", detail)
+        self.assertNotIn("paginated_catalog", detail)
 
     def test_crawler_asset_credential_badge_and_summary_use_backend_payload(self) -> None:
         payload = {

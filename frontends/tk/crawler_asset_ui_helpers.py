@@ -671,6 +671,7 @@ def crawler_asset_row_values(
     content_review_text = str(content_review or "").strip()
     if content_review_text:
         plan_outcome_text = f"{plan_outcome_text} / {content_review_text}"
+    seed_scope_label = crawler_asset_seed_scope_label(asset)
     return (
         asset.display_name,
         crawler_asset_state_label(asset),
@@ -682,8 +683,20 @@ def crawler_asset_row_values(
         status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
         asset.seed_summary,
         f"{asset.trust_score}%",
-        asset.current_seed_scope,
+        seed_scope_label,
         plan_outcome_text,
+    )
+
+
+def crawler_asset_seed_scope_label(asset: CrawlerAsset) -> str:
+    """Return backend display wording for the seed enumeration surface."""
+
+    profile = getattr(asset, "capability_profile", None)
+    return str(
+        getattr(profile, "seed_scope_label", "")
+        or getattr(profile, "seed_scope", "")
+        or getattr(asset, "current_seed_scope", "")
+        or "unknown"
     )
 
 
@@ -718,6 +731,7 @@ def crawler_asset_detail_text(
     bounds_schema = crawler_asset_download_plan_bounds_schema(asset)
     bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
     bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
+    seed_scope_label = crawler_asset_seed_scope_label(asset)
     return tr(
         (
             f"{asset.display_name}\n\n"
@@ -725,7 +739,7 @@ def crawler_asset_detail_text(
             f"狀態：{crawler_asset_state_label(asset)}\n"
             f"存取邊界：{asset.access_requirement}\n"
             f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
-            f"Seed：{asset.seed_summary} / {asset.current_seed_scope}\n\n"
+            f"Seed：{asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"
             f"{last_plan_line_zh}"
             f"{content_review_line_zh}"
@@ -741,7 +755,7 @@ def crawler_asset_detail_text(
             f"State: {crawler_asset_state_label(asset)}\n"
             f"Access: {asset.access_requirement}\n"
             f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"
-            f"Seed: {asset.seed_summary} / {asset.current_seed_scope}\n\n"
+            f"Seed: {asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"
             f"{last_plan_line_en}"
             f"{content_review_line_en}"
