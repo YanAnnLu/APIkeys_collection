@@ -47,6 +47,7 @@ Last updated: 2026-05-30
 - [x] Tk Adapter Review 詳情也已吃共用 outcome/content display contract：`outcome_bucket`、`content_import_status`、`content_review_bucket`、`content_pipeline_lane` value 會顯示人類文案，不再把 adapter/content enum 當成主要使用者文字。
 - [x] Adapter Review item 顯示投影已收斂回後端 helper：`adapter_review_item_display_payload()` 集中產生 action/outcome/content labels，Tk dialog 只消費 payload，避免未來 Web/Qt 再各自翻譯 adapter review enum。
 - [x] Dataset Candidate Review 狀態顯示已收斂回後端 helper：`dataset_candidate_display.py` 集中管理 `needs_review` / `approved` / `planned` / `rejected` / `all` 的 label，Tk 表格、detail 與 filter 下拉只顯示人類文案，repository 邊界才使用 raw status id。
+- [x] Tk crawler asset helper 已補 next-action fallback guard：blocked download-plan summary、Plan Passport stale summary、credential guard message、credential summary 不再在 label 缺失時顯示 raw `next_action` / `stale_reason`；未知 action 會落到中性提示。
 - [x] Tk Google/Gemini 連線視窗的帳號支援表格已接後端 account display helper：登入模式與支援狀態顯示「OAuth 登入」「規劃中」「🚧 施工中」等文案，不再把 `oauth` / `planned` / `skeleton` raw id 當主要使用者文字。
 - [x] 遠端分頁狀態已補 backend display payload：seed enumeration 的 `remote_pagination` 會輸出「仍有下一頁線索」「已列完」「遠端狀態待確認」等人類文案，Tk note 優先消費這份 payload，未知 crawler status 不再直接顯示 raw id。
 - [x] Web Preview bounds/schema-probe 顯示 fallback 已改吃後端 display label：seed 欄位探測完成 mission 不再 fallback 到 raw `schema_probe.status`，界域表單狀態 pill 顯示 `spec.display_label` 而不是 `spec.status`。
