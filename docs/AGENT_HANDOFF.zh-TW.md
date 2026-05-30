@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 13:42 max_bytes bound status contract
+- 本輪沒有改 HTTP 下載 enforcement；只把 `download_bound_status.applied` 中的 `max_bytes` 狀態從舊的 `max_bytes_review` 改成 `max_bytes_enforced`，讓 Tk/Web/agent 讀 plan payload 時知道 byte cap 已由 `HTTPDownloadAdapter` 執行，不再把它誤解成 review-only metadata。
+- 已提交實作：`3ff00fc Clarify max bytes bound status`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\source_download.py tests\test_source_download.py` OK；`py -3 -B -m unittest tests.test_source_download -v` 通過，11 tests OK；`py -3 -B -m unittest tests.test_source_download tests.test_http_downloader tests.test_download_plan_runner tests.test_crawler_asset_download tests.test_tk_ui_helpers -v` 通過，60 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_134217.log` 通過，971 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只修正 backend payload label，不改 Web/Tk 操作流程、實際 download/import 行為、credential storage、crawler registry 或 user guide。
 ## 2026-05-30 11:44 Metadata probe truncation flag
 - 本輪沒有改 metadata crawl 的 bounded excerpt 行為，只補上 agent/UI 可讀的 `truncated` flag：`safe_fetch_metadata()` 讀到超過 `max_bytes` 的成功 response 時，仍只保留 bounded excerpt，但 payload 會明確標示 `truncated=true`，避免把摘要誤認成完整頁面。
 - 已提交實作：`3bea35b Expose metadata probe truncation flag`。
