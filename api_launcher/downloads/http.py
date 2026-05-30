@@ -92,6 +92,10 @@ class HTTPDownloadAdapter:
         request: urllib.request.Request,
         existing_bytes: int,
     ) -> Iterable[DownloadProgress]:
+        max_bytes = download_max_bytes_from_plan_entry(job.plan_entry)
+        if max_bytes and existing_bytes > max_bytes:
+            target.part_path.unlink(missing_ok=True)
+            raise ValueError(f"Download already exceeds max_bytes={max_bytes}: {target.url}")
 
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             # file:// 離線 fixture 沒有 HTTP status；視為 200 才能共用 downloader/manifest 路徑。
@@ -102,6 +106,8 @@ class HTTPDownloadAdapter:
                 target.part_path.unlink(missing_ok=True)
 
             total_bytes = infer_total_bytes(response.headers, existing_bytes)
+            if max_bytes and total_bytes is not None and total_bytes > max_bytes:
+                raise ValueError(f"Download content length {total_bytes} exceeds max_bytes={max_bytes}: {target.url}")
             mode = "ab" if existing_bytes else "wb"
             bytes_done = existing_bytes
 
@@ -120,6 +126,8 @@ class HTTPDownloadAdapter:
                     chunk = read_response_chunk(response, self.chunk_size)
                     if not chunk:
                         break
+                    if max_bytes and bytes_done + len(chunk) > max_bytes:
+                        raise ValueError(f"Download exceeded max_bytes={max_bytes}: {target.url}")
                     handle.write(chunk)
                     bytes_done += len(chunk)
                     yield DownloadProgress(
@@ -175,6 +183,19 @@ def infer_total_bytes(headers: object, existing_bytes: int) -> int | None:
     if content_length.isdigit():
         return existing_bytes + int(content_length)
     return None
+
+
+def download_max_bytes_from_plan_entry(plan_entry: dict[str, object]) -> int:
+    """Return the positive byte budget carried by source download bounds."""
+
+    bounds = plan_entry.get("download_bounds")
+    if not isinstance(bounds, dict):
+        return 0
+    try:
+        max_bytes = int(bounds.get("max_bytes") or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, max_bytes)
 
 
 def download_target_from_plan_entry(plan_entry: dict[str, object]) -> DownloadTarget:
