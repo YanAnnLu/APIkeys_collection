@@ -70,6 +70,7 @@ Web Preview 不做的事：
 - `frontends/web/static/styles.css`：CSS 版視覺語言。
 - `frontends/web/static/app.js`：呼叫 JSON endpoint 並渲染互動。
 - `frontends/shared/ui_tokens.json`：Tk / Web / 未來 Qt 可共用的設計 token 種子。
+- POST API 只接受 bounded body：`frontends/web/server.py` 會用 `DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES=1024 * 1024` 檢查 `Content-Length`，超過上限會回 400 並停在 route handler 前。這是本機預覽的防禦性 budget，不是公開 HTTP 服務承諾。
 - `scripts/run_web_preview.cmd`：本機啟動入口。
 - `api_launcher/crawler_asset_display.py`：Web/Tk/Qt 共用的顯示 schema。它把 `field_id`、`capability_id`、`outcome_bucket`、Adapter review `by_outcome` 轉成 `display_label`、`display_help`、`display_tone`、`summary` 與 `next_action_label`，避免每個 UI 外殼自行推理後端狀態。
 - `api_launcher/local_credentials.py`：Web/Tk/Qt 可共用的本機登入設定 service。它讀取 crawler asset/profile/provider catalog 需要的 env var，回傳遮蔽狀態，並可由 localhost API 保存到本機 ignored credential file。

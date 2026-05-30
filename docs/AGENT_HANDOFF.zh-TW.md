@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 10:58 Web Preview POST body guard
+- 本輪替 Web Preview localhost API 加上 request body budget：`DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES=1024 * 1024`，`read_json_body()` 與 `discard_request_body()` 都會先檢查 `Content-Length`，oversized POST body 會回 400，不會進入 crawler asset route handler 或 developer diagnostic handler。
+- 已提交實作：`461c749 Bound Web preview POST bodies`。
+- 已驗證：`py -3 -B -m py_compile frontends\web\server.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；`frontends\web` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_105811.log` 通過，968 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX notes / development log；本輪只加固本機 Web Preview POST body budget，不改 Web UI 操作、crawler、download/import、credential storage、Tk 操作或 user guide。
+
 ## 2026-05-30 10:46 Favicon oversized response guard
 - 本輪把 Tk favicon 快取的 byte budget 從「只 bounded read」加固成「讀 `max_bytes + 1` 並拒絕 oversized response」：`download_favicon_png()` 遇到超過 `DEFAULT_FAVICON_MAX_BYTES` 的 favicon payload 會 fail-fast，不把異常大 response 交給 Pillow 解析。
 - 已提交實作：`491b711 Reject oversized favicon responses`。
