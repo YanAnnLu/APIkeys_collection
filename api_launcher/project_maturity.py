@@ -193,6 +193,22 @@ def write_project_maturity_payload(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _tk_background_job_policy_metrics() -> dict[str, Any]:
+    """Return Tk worker capacity-policy metrics without making them product promises."""
+
+    try:
+        from frontends.tk.background_job_policies import iter_tk_background_job_policies
+    except Exception:
+        return {"policy_registry_available": False}
+
+    policies = tuple(iter_tk_background_job_policies())
+    return {
+        "policy_registry_available": True,
+        "bounded_tk_policy_count": len(policies),
+        "max_active_jobs_by_policy": {policy.policy_id: policy.max_active_jobs for policy in policies},
+    }
+
+
 def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]:
     return (
         MaturityMatrixRow(
@@ -292,10 +308,21 @@ def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]
             area_label="Background jobs and scheduler",
             maturity_level="hardening_needed",
             maturity_label_zh_TW="可用但需要 bounded scheduler hardening",
-            deliverable_scope="Existing Tk/Web paths use background threads and queues to avoid immediate UI blocking.",
-            verified_behavior_source=("tests.test_download_jobs", "tk_workflow_tests", "web_preview_tests"),
-            current_limitations=("Threading is still ad hoc in multiple UI workflows; no unified bounded job scheduler/DB write gate yet.",),
+            deliverable_scope=(
+                "Existing Tk/Web paths use background threads and queues to avoid immediate UI blocking; "
+                "Tk worker capacity caps are now listed in a typed policy registry."
+            ),
+            verified_behavior_source=(
+                "tests.test_download_jobs",
+                "tests.test_tk_background_jobs",
+                "tk_workflow_tests",
+                "web_preview_tests",
+            ),
+            current_limitations=(
+                "Tk has a background job policy registry, but threading is still workflow-level; no unified bounded job scheduler/DB write gate yet.",
+            ),
             next_actions=("Design a bounded job scheduler before considering broad asyncio rewrites.",),
+            metrics=_tk_background_job_policy_metrics(),
         ),
         MaturityMatrixRow(
             area_id="docs_and_governance",

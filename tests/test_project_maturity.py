@@ -40,6 +40,10 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertEqual("contract_only", rows["renderer_unreal_simulation"]["maturity_level"])
         self.assertEqual("🚧", rows["renderer_unreal_simulation"]["status_icon"])
         self.assertEqual("review", rows["renderer_unreal_simulation"]["display_tone"])
+        scheduler_metrics = rows["background_jobs_and_scheduler"]["metrics"]
+        self.assertTrue(scheduler_metrics["policy_registry_available"])
+        self.assertGreaterEqual(scheduler_metrics["bounded_tk_policy_count"], 8)
+        self.assertEqual(1, scheduler_metrics["max_active_jobs_by_policy"]["sqlite_import"])
         self.assertGreater(
             rows["source_pattern_and_crawler_handlers"]["metrics"]["supported_source_type_count"],
             0,
