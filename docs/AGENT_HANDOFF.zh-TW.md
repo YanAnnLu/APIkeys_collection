@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 09:14 Tk sidebar favicon capacity guard
+- 本輪延續 bounded scheduler hardening：Tk sidebar favicon 背景下載現在同一 UI 同時最多 4 個 provider favicon worker；重複 owner/favicon 仍維持 single-flight，queue 滿時跳過本輪下載並清掉 loading marker，下一次 sidebar 重繪仍可再試。
+- 已提交實作：`20d110c Bound Tk sidebar favicon jobs`。
+- 已驗證：`py -3 -B -m py_compile frontends\tk\sidebar_workflows.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過，111 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_091441.log` 通過，957 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 Tk sidebar favicon 背景工作容量 guard，不改 favicon URL 推導、cache、下載 byte budget、crawler、download/import、credential、Web 操作或 user guide。
+
 ## 2026-05-30 09:04 Tk plan bounds probe capacity guard
 - 本輪延續 bounded scheduler hardening：Tk 下載計畫的「界域欄位探測」現在有 capacity guard，同一 UI 同時最多 2 個 plan bounds/schema probe worker；同一 plan item 仍維持 single-flight，queue 滿時只更新狀態，不開新 thread。
 - 已提交實作：`fb301fa Bound Tk plan bounds probe jobs`。
