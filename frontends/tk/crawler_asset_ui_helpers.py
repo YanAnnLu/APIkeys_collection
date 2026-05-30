@@ -192,8 +192,8 @@ def crawler_asset_download_plan_summary_text(
     )
 
     if blocked or bucket == "blocked":
-        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label or next_action}"
-        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action_label or next_action}"
+        zh = f"這個爬蟲資產暫時不能建立下載計畫：{blocked_reason}。\n下一步：{next_action_label}"
+        en = f"This crawler asset cannot build a download plan: {blocked_reason}.\nNext: {next_action_label}"
         return tr(zh, en)
     if bucket == "partial_review_required":
         zh = (
@@ -363,8 +363,10 @@ def crawler_asset_plan_passport_summary_text(
         zh = f"{zh}；憑證阻擋 {credentials}；缺 Provider {missing}"
         en = f"{en}; credentials blocked {credentials}; missing providers {missing}"
     if is_stale:
-        zh = f"{zh}；狀態可能過期：{stale_label or stale_reason}"
-        en = f"{en}; stale {stale_next_action_label or stale_label or stale_next_action or stale_reason}"
+        stale_text_zh = stale_label or _ui_next_action_text(stale_next_action, stale_next_action_label, fallback="計畫需重建")
+        stale_text_en = _ui_next_action_text(stale_next_action, stale_next_action_label, fallback="rebuild the plan passport")
+        zh = f"{zh}；狀態可能過期：{stale_text_zh}"
+        en = f"{en}; stale {stale_text_en}"
     if snapshot_changed:
         zh = f"{zh}；候選快照已變更"
         en = f"{en}; candidate snapshot changed"
@@ -421,7 +423,7 @@ def crawler_asset_credential_guard_message(
         f"來源：{provider_name or '-'}",
         f"缺少欄位：{missing_text}",
         "請先完成登入設定；如果需要 API Key，請到官方入口申請後再回來下載。",
-        f"下一步：{next_action_zh or next_action}",
+        f"下一步：{next_action_zh}",
     ]
     if entry_label:
         zh_lines.append(f"可用入口：{entry_label}")
@@ -430,7 +432,7 @@ def crawler_asset_credential_guard_message(
         f"Source: {provider_name or '-'}",
         f"Missing fields: {missing_text}",
         "Finish login settings first. If an API key is required, get it from the official portal before downloading.",
-        f"Next action: {next_action_en or next_action}",
+        f"Next action: {next_action_en}",
     ]
     if entry_label:
         en_lines.append(f"Available entry: {entry_label}")
@@ -655,8 +657,8 @@ def crawler_asset_credential_summary_text(
         zh = f"{zh}；缺少 {missing_text}"
         en = f"{en}; missing {missing_text}"
     if next_action_zh or next_action_en:
-        zh = f"{zh}；下一步：{next_action_zh or next_action}"
-        en = f"{en}; next: {next_action_en or next_action}"
+        zh = f"{zh}；下一步：{next_action_zh}"
+        en = f"{en}; next: {next_action_en}"
     return tr(zh, en)
 
 
