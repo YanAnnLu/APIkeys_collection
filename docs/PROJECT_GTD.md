@@ -31,6 +31,7 @@ Last updated: 2026-05-31
 - [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。
 - [x] Web Preview 的 Crawler Passport 已顯示 `Seed 範式`：畫面直接吃後端 `capability_profile.seed_scope_label` / `seed_scope`，能力膠囊摘要也包含這個欄位；Web 仍不從 `source_type` 重新推理 entry-listing / paginated-catalog 分流或自行翻譯顯示文案。
 - [x] Tk Crawler Asset 表格與右側 Passport 已對齊同一份 seed scope display contract：Tk 優先顯示 `capability_profile.seed_scope_label`（例如「入口列表」「分頁 catalog」），不再把 raw `entry_listing` / `paginated_catalog` 當成主要使用者文案。
+- [x] `seed_scope_display_label()` 已補未知值 fallback：後端 capability profile 對未登錄 seed scope token 顯示「Seed 範式待確認」，raw `seed_scope` 仍保留給 agent/debug；Web/Tk 不需要自行猜新的 seed scope 文案。
 - [x] Tk Crawler Asset 右側 Passport 的 maturity / risk 也已對齊後端 label helper：詳情文字顯示「已套安全界域」「待補 handler」「待審核」等人類文案，不再直接露出 `bounded` / `unbuilt` / `needs_handler` 類 raw token。
 - [x] Crawler Asset 的入口表面 / 存取邊界也已對齊後端 display payload：`CrawlerAsset.to_dict()` 輸出 `source_surface_label` / `access_requirement_label`；Tk Passport 與 Web asset card / Passport / selected hero 消費 label，不再由 UI 維護本地 `source_surface` 翻譯表或顯示 raw `crawler_managed_auth`。
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
