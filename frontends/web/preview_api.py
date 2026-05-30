@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Mapping
 
 from api_launcher.crawler_asset_display import crawler_asset_plan_event_context
+from api_launcher.crawler_asset_closure import run_recommended_seed_closure
 from api_launcher.crawler_asset_download import run_crawler_asset_download_import, run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_profiles import update_crawler_asset_plan_passport
@@ -403,5 +404,103 @@ def crawler_seed_download_import(
         ),
     )
     return response
+
+
+def crawler_asset_recommended_seed_closure(
+    asset_id: str,
+    values: Mapping[str, object],
+    *,
+    db_path: str | Path | None = None,
+    downloads_root: str | Path | None = None,
+    import_sqlite_path: str | Path | None = None,
+    primary_path: str | Path | None = None,
+    local_path: str | Path | None = None,
+    profile_path: str | Path | None = None,
+    env_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Run listing plus backend-recommended seed download/import for Web."""
+
+    action_context = web_crawler_asset_action_context(
+        asset_id,
+        values,
+        primary_path=primary_path,
+        local_path=local_path,
+        profile_path=profile_path,
+        env_path=env_path,
+    )
+    asset = action_context.asset
+    credential_guard = action_context.credential_guard
+    payload = action_context.bounds_payload
+    if credential_status_blocks_plan(credential_guard):
+        response = web_download_import_credential_blocked_response(
+            asset.asset_id,
+            payload.to_dict(),
+            credential_guard,
+            initial_next_action="run_crawler_asset_recommended_seed_closure",
+        )
+        response["closure_stage"] = "credential_blocked"
+        response["recommended_seed_uid"] = ""
+        return response
+
+    targets = web_download_import_target_paths(
+        asset.asset_id,
+        dataset_uid="recommended_seed_closure",
+        db_path=db_path,
+        downloads_root=downloads_root,
+        import_sqlite_path=import_sqlite_path,
+    )
+    with web_preview_repository_context(targets.db_path, seed_builtin_providers=True) as session:
+        closure = run_recommended_seed_closure(
+            asset.asset_id,
+            session.repository,
+            targets.downloads_root,
+            provider_id=asset.provider_id,
+            primary_path=primary_path,
+            local_path=local_path,
+            profile_path=profile_path,
+            import_sqlite_path=targets.import_sqlite_path,
+            bounds_payload=payload,
+            listing_timeout=8.0,
+            listing_limit=100,
+            listing_max_pages=0,
+            download_timeout=8.0,
+        )
+        session.conn.commit()
+
+    response = closure.to_dict()
+    response["bounds_payload"] = payload.to_dict()
+    response["credential_guard"] = credential_guard
+    if closure.download_import_result is None:
+        response.update(web_next_action_payload(closure.next_action))
+        return response
+
+    result_response = web_download_import_result_response(closure.download_import_result)
+    response.update(result_response.response)
+    response["closure_stage"] = closure.closure_stage
+    response["recommended_seed_uid"] = closure.recommended_seed_uid
+    response["seed_page"] = closure.seed_page
+    update_crawler_asset_plan_passport(
+        closure.download_import_result.asset_id,
+        result_response.plan_passport,
+        profile_path,
+    )
+    log_event(
+        "crawler_asset_recommended_seed_closure_completed",
+        "Web Preview ran the recommended seed closure path.",
+        component="web.crawler_assets",
+        context={
+            **web_download_import_event_context(
+                closure.download_import_result,
+                result_response.plan_outcome,
+                result_response.plan_passport,
+                dataset_uid=closure.recommended_seed_uid,
+            ),
+            "closure_stage": closure.closure_stage,
+            "recommended_seed_uid": closure.recommended_seed_uid,
+        },
+    )
+    return response
+
+
 def credential_status_blocks_plan(credential_guard: Mapping[str, object]) -> bool:
     return credential_status_blocks_download(credential_guard)

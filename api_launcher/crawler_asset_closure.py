@@ -21,6 +21,7 @@ from api_launcher.crawler_asset_download import (
     CrawlerAssetDownloadImportResult,
     run_crawler_seed_download_import,
 )
+from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundPayload
 from api_launcher.crawler_asset_profiles import crawler_asset_favorite_seed_uids
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult, run_crawler_asset_listing
 from api_launcher.crawler_assets import load_crawler_asset_source
@@ -87,6 +88,7 @@ def run_recommended_seed_closure(
     local_path: str | Path | None = None,
     profile_path: str | Path | None = None,
     import_sqlite_path: str | Path | None = None,
+    bounds_payload: CrawlerAssetBoundPayload | None = None,
     listing_timeout: float = 12.0,
     listing_limit: int = 100,
     listing_max_pages: int = 0,
@@ -190,6 +192,7 @@ def run_recommended_seed_closure(
         recommended_seed_uid,
         repository,
         closure_root,
+        bounds_payload=bounds_payload,
         primary_path=primary_path,
         local_path=local_path,
         profile_path=profile_path,

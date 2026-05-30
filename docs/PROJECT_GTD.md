@@ -7,6 +7,7 @@ Last updated: 2026-05-30
 - [x] GitHub owner 已更新為 `Kagamihara-Ruruka`：`origin`、heartbeat repo slug、manual import docs URL、repo skill 與 active GitHub Actions / workflow 指令已改用 `Kagamihara-Ruruka/APIkeys_collection`；歷史 development log 保留舊 owner 作脈絡。
 - [x] Codex Cloud / 新 thread 接手工作流已初始化：新增 `docs/CODEX_CLOUD_HANDOFF.zh-TW.md` 與 `docs/WORKFLOW.zh-TW.md`，明確區分公開 handoff/workflow/decision/log 與 private `dialogue-save` raw transcript 備份；本公開 repo 不保存 raw transcript。
 - [x] 第二條 live public source 小閉環已收成 agent-readable CLI：新增 `--run-crawler-asset-recommended-seed-closure ASSET_ID --crawler-asset-closure-json`，會串起 listing -> seed page -> 後端推薦 seed -> formal seed download/import；已用 DataSF `sf_open_data_socrata_catalog` 實跑，枚舉 4 筆 seed、推薦 `ds_c0ebed9866e8c58b72784bff`，下載匯入 `download_import_completed` / `imported=1`。
+- [x] Recommended-seed closure 已接進 Web Preview：seed 推薦面板新增「驗證閉環」按鈕，呼叫 `POST /api/crawler-assets/{asset_id}/recommended-seed-closure`，把目前 bounds form values 交給同一個後端 closure service。這是用來驗證「入口 -> 枚舉 -> 推薦 seed -> 正式下載 / 匯入」的 bounded closure UX，不是舊 demo route；缺憑證時會先停在登入設定 payload。
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。

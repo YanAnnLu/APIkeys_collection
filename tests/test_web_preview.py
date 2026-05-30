@@ -46,6 +46,7 @@ from frontends.web.preview_api import (
     crawler_asset_download_import,
     crawler_asset_listing,
     crawler_asset_plan_preview,
+    crawler_asset_recommended_seed_closure,
     crawler_seed_download_import,
     save_crawler_asset_credentials,
 )
@@ -479,6 +480,35 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual(200, status)
         self.assertEqual("ok", body["schema_probe"]["status"])
 
+    def test_server_routes_recommended_seed_closure(self) -> None:
+        with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+            host, port = server.server_address
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "frontends.web.server.crawler_asset_recommended_seed_closure",
+                    return_value={
+                        "asset_id": "demo_stac",
+                        "closure_stage": "download_import_completed",
+                        "recommended_seed_uid": "demo_provider:dataset_a",
+                    },
+                ) as closure:
+                    status, body = post_json_to_preview_server(
+                        host,
+                        port,
+                        "/api/crawler-assets/demo_stac/recommended-seed-closure",
+                        {"limit": "5"},
+                    )
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+        closure.assert_called_once_with("demo_stac", {"limit": "5"})
+        self.assertEqual(200, status)
+        self.assertEqual("download_import_completed", body["closure_stage"])
+        self.assertEqual("demo_provider:dataset_a", body["recommended_seed_uid"])
+
     def test_crawler_asset_download_import_uses_formal_asset_service_and_logs_event(self) -> None:
         with TemporaryDirectory() as tmp:
             source_path, local_path, profile_path = write_preview_source(tmp)
@@ -685,6 +715,136 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("下載前需處理", payload["download_import"]["stage_label"])
         self.assertFalse(payload["download_import"]["succeeded"])
         self.assertEqual("credential_setup_required", payload["plan_passport"]["outcome_bucket"])
+
+    def test_recommended_seed_closure_uses_backend_service_and_logs_event(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_source(tmp)
+            fake_plan_build = SimpleNamespace(
+                candidate_count=1,
+                candidate_snapshot_signature="candidate-seed",
+                candidate_snapshot_count=1,
+                upserted_candidate_count=0,
+                selected_version_count=1,
+                filtered_version_count=0,
+                credential_gates=(),
+                blocked_credential_count=0,
+                missing_provider_ids=(),
+            )
+            fake_plan_result = SimpleNamespace(
+                asset_id="demo_stac",
+                outcome_bucket="ready_to_download",
+                direct_download_count=1,
+                review_required_count=0,
+                blocked=False,
+                blocked_reason="",
+                user_next_action="open_downloader_and_start_or_pause_queue",
+                next_action="",
+                resolved_plan={"summary": {"direct_download_count": 1}},
+                plan_build=fake_plan_build,
+                candidate_snapshot_changed=False,
+                bounds=SimpleNamespace(to_dict=lambda: {}),
+                source_signature="source-demo",
+                bounds_signature="bounds-demo",
+                to_dict=lambda: {"asset_id": "demo_stac", "outcome_bucket": "ready_to_download"},
+            )
+            fake_pipeline = SimpleNamespace(
+                stage="download_import_completed",
+                succeeded=True,
+                next_action="",
+                to_dict=lambda: {"stage": "download_import_completed", "succeeded": True},
+            )
+            fake_download_result = SimpleNamespace(
+                asset_id="demo_stac",
+                dataset_uid="demo_provider:dataset_a",
+                plan_result=fake_plan_result,
+                pipeline=fake_pipeline,
+                succeeded=True,
+                to_dict=lambda: {
+                    "asset_id": "demo_stac",
+                    "dataset_uid": "demo_provider:dataset_a",
+                    "stage": "download_import_completed",
+                    "succeeded": True,
+                    "artifacts": {
+                        "downloads_root": "state/web_preview/downloads/demo_stac/recommended_seed_closure",
+                        "curated_sqlite": "state/web_preview/downloads/demo_stac/recommended_seed_closure/curated_sources.db",
+                    },
+                },
+            )
+            fake_seed_page = {
+                "asset_id": "demo_stac",
+                "recommended_seed_uid": "demo_provider:dataset_a",
+                "seeds": [{"dataset_uid": "demo_provider:dataset_a"}],
+            }
+            fake_closure = SimpleNamespace(
+                download_import_result=fake_download_result,
+                closure_stage="download_import_completed",
+                recommended_seed_uid="demo_provider:dataset_a",
+                seed_page=fake_seed_page,
+                next_action="open_downloader_and_start_or_pause_queue",
+                to_dict=lambda: {
+                    "asset_id": "demo_stac",
+                    "closure_stage": "download_import_completed",
+                    "recommended_seed_uid": "demo_provider:dataset_a",
+                    "seed_page": fake_seed_page,
+                    "succeeded": True,
+                },
+            )
+
+            with patch("frontends.web.preview_api.run_recommended_seed_closure", return_value=fake_closure) as run_service:
+                with patch("frontends.web.preview_api.log_event") as log_event:
+                    payload = crawler_asset_recommended_seed_closure(
+                        "demo_stac",
+                        {"limit": "5"},
+                        db_path=Path(tmp) / "preview.sqlite",
+                        downloads_root=Path(tmp) / "downloads",
+                        primary_path=source_path,
+                        local_path=local_path,
+                        profile_path=profile_path,
+                    )
+
+        run_service.assert_called_once()
+        self.assertEqual("demo_stac", run_service.call_args.args[0])
+        self.assertIn("bounds_payload", run_service.call_args.kwargs)
+        self.assertTrue(hasattr(run_service.call_args.kwargs["bounds_payload"], "to_dict"))
+        self.assertEqual("demo_stac", payload["asset_id"])
+        self.assertEqual("download_import_completed", payload["closure_stage"])
+        self.assertEqual("demo_provider:dataset_a", payload["recommended_seed_uid"])
+        self.assertEqual(fake_seed_page, payload["seed_page"])
+        self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("下載 / 匯入完成", payload["download_import"]["stage_label"])
+        self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
+        self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
+        log_event.assert_called_once()
+        self.assertEqual("crawler_asset_recommended_seed_closure_completed", log_event.call_args.args[0])
+        context = log_event.call_args.kwargs["context"]
+        self.assertEqual("download_import_completed", context["closure_stage"])
+        self.assertEqual("demo_provider:dataset_a", context["recommended_seed_uid"])
+        self.assertEqual("demo_provider:dataset_a", context["dataset_uid"])
+
+    def test_recommended_seed_closure_blocks_missing_credentials_before_service(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source_path, local_path, profile_path = write_preview_credential_source(tmp)
+            env_path = Path(tmp) / ".env"
+            with patch("frontends.web.preview_api.run_recommended_seed_closure") as run_service:
+                payload = crawler_asset_recommended_seed_closure(
+                    "demo_cmr",
+                    {"limit": "5"},
+                    db_path=Path(tmp) / "preview.sqlite",
+                    primary_path=source_path,
+                    local_path=local_path,
+                    profile_path=profile_path,
+                    env_path=env_path,
+                )
+
+        run_service.assert_not_called()
+        self.assertEqual("credential_blocked", payload["closure_stage"])
+        self.assertEqual("", payload["recommended_seed_uid"])
+        self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
+        self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
+        self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
+        self.assertEqual("下載前需處理", payload["download_import"]["stage_label"])
+        self.assertFalse(payload["download_import"]["succeeded"])
+        self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
 
     def test_web_download_import_result_response_keeps_shared_display_contract(self) -> None:
         fake_plan_build = SimpleNamespace(
@@ -1861,6 +2021,9 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("seedRecommendedPanelHtml", combined)
         self.assertIn("下載推薦 seed", combined)
         self.assertIn("recommended_seed_uid", combined)
+        self.assertIn("runRecommendedSeedClosureById", combined)
+        self.assertIn("/recommended-seed-closure", combined)
+        self.assertIn("驗證閉環", combined)
         self.assertIn("seedImportBadgeHtml", combined)
         self.assertIn("content_display_label", combined)
         self.assertNotIn("payload.schema_probe?.status", combined)

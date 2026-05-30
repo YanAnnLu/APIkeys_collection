@@ -411,6 +411,55 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
   }
 }
 
+async function runRecommendedSeedClosureById(assetId) {
+  // Recommended-seed closure is a smoke-style UX shortcut over backend services:
+  // live listing -> backend recommended seed -> formal seed download/import.
+  if (!assetId) {
+    addMission("請先選擇爬蟲入口", "推薦 seed 閉環需要一個 crawler asset。");
+    return;
+  }
+  const asset = assets.find((item) => item.asset_id === assetId);
+  addMission("推薦 seed 閉環開始", asset?.display_name || assetId);
+  try {
+    if (selectedAssetId !== assetId) {
+      await selectAsset(assetId, { autoEnumerate: false });
+    }
+    const payload = await postJson(
+      `/api/crawler-assets/${encodeURIComponent(assetId)}/recommended-seed-closure`,
+      currentBoundsFormValues(),
+    );
+    crawlerAssetDownloadImportResult = payload;
+    writeJson(payload);
+    if (payload.plan_outcome) {
+      rememberAssetPlanOutcome(assetId, payload.plan_outcome);
+      rememberAssetPlanPassport(assetId, payload.plan_passport);
+    }
+    if (payload.seed_page) {
+      mergeSeedPage(assetId, payload.seed_page);
+    }
+    if (payload.adapter_review) {
+      latestAdapterReview = payload.adapter_review;
+      renderReviewWorkspace();
+    }
+    const downloadImport = payload.download_import || {};
+    if (downloadImport.succeeded || payload.succeeded) {
+      addMission(
+        "推薦 seed 閉環完成",
+        `${downloadImportStageText(payload, payload)} / ${payload.recommended_seed_uid || assetId}`,
+      );
+    } else {
+      addMission("推薦 seed 閉環未完成", downloadImportNextActionText(payload, downloadImport));
+    }
+    addCallbackDiagnosticsMission(payload);
+    renderDownloaderWorkspace();
+    refreshSelectedAssetOutcomeViews();
+    loadRecentEvents({ quiet: true });
+  } catch (error) {
+    writeJson({ error: String(error), endpoint: "crawler_asset_recommended_seed_closure", asset_id: assetId });
+    addMission("推薦 seed 閉環失敗", String(error));
+  }
+}
+
 async function runSeedSchemaProbeById(assetId, datasetUid) {
   // Seed probe is a UI convenience wrapper over the backend schema-probe
   // endpoint. It picks a visible seed URL, but the backend still owns column
@@ -1622,6 +1671,7 @@ function seedRecommendedPanelHtml(card, seedPage) {
       <div class="seed-row-actions">
         <button type="button" class="secondary-button small" onclick="runSeedSchemaProbeById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">探測欄位</button>
         <button type="button" class="primary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(card.asset_id)}', '${escapeAttr(recommendedUid)}')">下載推薦 seed</button>
+        <button type="button" class="secondary-button small" onclick="runRecommendedSeedClosureById('${escapeAttr(card.asset_id)}')">驗證閉環</button>
       </div>
     </div>
   `;

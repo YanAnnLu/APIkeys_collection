@@ -17,6 +17,7 @@ from frontends.web.preview_api import (
     crawler_asset_download_import,
     crawler_asset_listing,
     crawler_asset_plan_preview,
+    crawler_asset_recommended_seed_closure,
     crawler_seed_download_import,
     save_crawler_asset_credentials,
 )
@@ -125,6 +126,10 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
                 if suffix == "/seed-download-import":
                     values = self.read_json_body()
                     self.write_json(crawler_seed_download_import(asset_id, values))
+                    return
+                if suffix == "/recommended-seed-closure":
+                    values = self.read_json_body()
+                    self.write_json(crawler_asset_recommended_seed_closure(asset_id, values))
                     return
                 if suffix == "/credentials":
                     values = self.read_json_body()
