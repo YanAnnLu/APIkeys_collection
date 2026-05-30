@@ -6,6 +6,7 @@ Last updated: 2026-05-30
 - [x] 2026-05-29 recovery lane 已切到 `L:\RRKAL_project`：以 `32e215c` 作乾淨基底，完整 smoke 通過（912 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`），Git metadata 已留在 `L:\RRKAL_project\.git`，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考。
 - [x] GitHub owner 已更新為 `Kagamihara-Ruruka`：`origin`、heartbeat repo slug、manual import docs URL、repo skill 與 active GitHub Actions / workflow 指令已改用 `Kagamihara-Ruruka/APIkeys_collection`；歷史 development log 保留舊 owner 作脈絡。
 - [x] Codex Cloud / 新 thread 接手工作流已初始化：新增 `docs/CODEX_CLOUD_HANDOFF.zh-TW.md` 與 `docs/WORKFLOW.zh-TW.md`，明確區分公開 handoff/workflow/decision/log 與 private `dialogue-save` raw transcript 備份；本公開 repo 不保存 raw transcript。
+- [x] 第二條 live public source 小閉環已收成 agent-readable CLI：新增 `--run-crawler-asset-recommended-seed-closure ASSET_ID --crawler-asset-closure-json`，會串起 listing -> seed page -> 後端推薦 seed -> formal seed download/import；已用 DataSF `sf_open_data_socrata_catalog` 實跑，枚舉 4 筆 seed、推薦 `ds_c0ebed9866e8c58b72784bff`，下載匯入 `download_import_completed` / `imported=1`。
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
@@ -165,7 +166,7 @@ Last updated: 2026-05-30
 - [x] Crawler asset Tk row/detail 投影已集中到 `frontends/tk/crawler_asset_ui_helpers.py`：table row、右側 passport detail、capability lines、credential summary、plan passport summary 與 bounds schema text 不再直接留在 `crawler_asset_workflows.py`。
 - [x] Tk 下載計畫界域欄位探測已接到 `frontends/tk/background_jobs.py`：同一 plan item 的 bounds/schema probe 會用 `("plan_bounds_probe", plan_key, "")` 擋住重複 worker，且同一 UI 同時最多 2 個 plan bounds probe worker，減少連點造成的重複 dialog、過多網路 probe 與 plan entry 競爭。
 - [x] Tk MVP Demo Smoke 已接到 `frontends/tk/background_jobs.py`：canonical demo smoke 保留 `mvp_demo_smoke_running` 顯示 guard，同時用 single-flight active job set 擋住重複背景 worker，避免展示連點造成重複 demo DB / event log 操作。
-- [ ] 下一個實作焦點：繼續做 bounded consolidation slice，優先把 Web Preview endpoint 狀態 payload、剩餘 import/repair 顯示投影、以及 unified bounded scheduler 設計收斂；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
+- [ ] 下一個實作焦點：把 recommended seed closure 接進 Web/Tk 可見狀態，或做小型 consolidation slice，優先收斂 Web Preview endpoint 狀態 payload、剩餘 import/repair 顯示投影、以及 unified bounded scheduler 設計；先做小 helper 與 regression test，不做全面 asyncio 或資料夾大搬遷。
 
 ## 2026-05-28 Canonical MVP demo closure / 小閉環 100% 驗收
 - [x] 新增 `--mvp-readiness-json` / `--write-mvp-readiness-json`，把 canonical MVP demo closure 從 handoff 子欄位提升成獨立可查的機器可讀驗收 artifact。

@@ -7,11 +7,13 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload
+from api_launcher.crawler_asset_closure import run_recommended_seed_closure
 from api_launcher.crawler_asset_download import (
     CrawlerAssetDownloadImportResult,
     run_crawler_asset_download_import,
     run_crawler_seed_download_import,
 )
+from api_launcher.crawler_asset_service import CrawlerAssetListingResult
 from api_launcher.crawlers.orchestrator import DatasetCrawlResult, DatasetSourceCrawlResult
 from api_launcher.crawlers.types import DatasetCandidate
 from api_launcher.db import connect_db
@@ -223,6 +225,101 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
                 payload = result.to_dict()
                 self.assertEqual("demo_provider:dataset_a", payload["dataset_uid"])
                 self.assertEqual("download_import_completed", payload["stage"])
+            finally:
+                conn.close()
+
+    def test_recommended_seed_closure_runs_listing_then_downloads_backend_recommendation(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            conn = connect_db(root / "catalog.sqlite")
+            try:
+                repo = ApiCatalogRepository(conn)
+                repo.init_schema()
+                repo.upsert_provider(
+                    Provider(
+                        provider_id="demo_provider",
+                        name="Demo Provider",
+                        owner="Demo",
+                        categories=("demo",),
+                        geographic_scope="sample",
+                        docs_url="https://example.test/docs",
+                    )
+                )
+                repo.upsert_dataset(
+                    Dataset(
+                        dataset_uid="demo_provider:dataset_a",
+                        provider_id="demo_provider",
+                        dataset_id="dataset_a",
+                        title="Dataset A",
+                        categories=("demo",),
+                        native_format="csv",
+                        api_url="https://example.test/data.csv",
+                        landing_url="https://example.test/data",
+                        metadata={
+                            "candidate_status": "needs_review",
+                            "discovery_source_id": "demo_asset",
+                            "discovery_source_type": "html_file_index",
+                            "download_url": "https://example.test/data.csv",
+                        },
+                    )
+                )
+                listing_result = CrawlerAssetListingResult(
+                    asset_id="demo_asset",
+                    source_found=True,
+                    candidate_count=1,
+                    upserted_count=1,
+                    next_action="review_or_upsert_dataset_candidates",
+                )
+                listing_runner = unittest.mock.Mock(return_value=listing_result)
+                plan_result = unittest.mock.Mock()
+                plan_result.outcome_bucket = "ready_to_download"
+                plan_result.direct_download_count = 1
+                plan_result.review_required_count = 0
+                plan_result.user_next_action = "open_downloader_and_start_or_pause_queue"
+                plan_result.to_dict.return_value = {"outcome_bucket": "ready_to_download"}
+                pipeline = DownloadImportPipelineRun(
+                    result=DownloadPlanRunResult(
+                        entry_count=1,
+                        submitted=1,
+                        completed=1,
+                        failed=0,
+                        skipped=0,
+                        registered_assets=1,
+                        imported=1,
+                    ),
+                    stage="download_import_completed",
+                    import_requested=True,
+                )
+                download_result = CrawlerAssetDownloadImportResult(
+                    asset_id="demo_asset",
+                    dataset_uid="demo_provider:dataset_a",
+                    plan_result=plan_result,
+                    pipeline=pipeline,
+                    downloads_root=root / "downloads",
+                    curated_sqlite_path=root / "curated.sqlite",
+                )
+                seed_runner = unittest.mock.Mock(return_value=download_result)
+
+                result = run_recommended_seed_closure(
+                    "demo_asset",
+                    repo,
+                    root / "closure",
+                    provider_id="demo_provider",
+                    listing_runner=listing_runner,
+                    seed_download_runner=seed_runner,
+                )
+
+                self.assertTrue(result.succeeded)
+                self.assertEqual("download_import_completed", result.closure_stage)
+                self.assertEqual("demo_provider:dataset_a", result.recommended_seed_uid)
+                listing_runner.assert_called_once()
+                self.assertTrue(listing_runner.call_args.kwargs["complete_seed"])
+                seed_runner.assert_called_once()
+                self.assertEqual("demo_asset", seed_runner.call_args.args[0])
+                self.assertEqual("demo_provider:dataset_a", seed_runner.call_args.args[1])
+                payload = result.to_dict()
+                self.assertEqual("demo_provider:dataset_a", payload["recommended_seed_uid"])
+                self.assertEqual("download_import_completed", payload["download_import"]["stage"])
             finally:
                 conn.close()
 

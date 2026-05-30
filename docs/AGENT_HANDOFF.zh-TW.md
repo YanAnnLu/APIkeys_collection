@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 22:54 Recommended seed closure CLI
+- 本輪把第二條 live public source 小閉環收成後端/CLI artifact：新增 `api_launcher/crawler_asset_closure.py` 與 CLI `--run-crawler-asset-recommended-seed-closure ASSET_ID --crawler-asset-closure-json`，流程固定為 `crawler asset listing -> 本機 seed page -> 後端 recommended_seed_uid -> formal seed download/import`。這不是新 demo route，也不繞過既有 plan/download/import service。
+- 已用 DataSF live public Socrata source 驗證：`sf_open_data_socrata_catalog` 枚舉 4 筆 seed，後端推薦 `ds_c0ebed9866e8c58b72784bff` / `Elect_StAsmbly_Dists`，closure command 回傳純 JSON，`closure_stage=download_import_completed`、`succeeded=true`、`imported=1`，artifact 在 `state\live_closure_probe\sf_command_verify\...`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_closure.py api_launcher\cli_crawler_assets.py` OK；`py -3 -B -m unittest tests.test_crawler_asset_download tests.test_crawler_seed_registry -v` 通過 29 tests；live closure subprocess JSON parse OK；`git diff --check` OK。下一步可把此 closure result 接進 Web/Tk 的「推薦 seed」狀態，或繼續做 bounded consolidation。
 ## 2026-05-30 22:30 Codex Cloud handoff / dialogue backup workflow
 - 本輪初始化 RRKAL 專屬 Codex Cloud / 新 thread 接手文件：新增 `docs/CODEX_CLOUD_HANDOFF.zh-TW.md` 與 `docs/WORKFLOW.zh-TW.md`。公開 repo 只保存蒸餾後 handoff、workflow、decision、GTD、development log；完整對話或 raw transcript 只應放 private `Kagamihara-Ruruka/dialogue-save`，建議路徑為 `APIkeys_collection/<topic-slug>__YYYY-MM-DD__<thread-short-id>/`。
 - 已同步入口：`AGENT_START_HERE` 增加 Cloud/new-thread/對話備份閱讀路線；`DOCS_INDEX` 與 `DOCS_REGISTRY.csv` 已加入兩份 workflow 文件；`PROJECT_GTD` 已記錄本 checkpoint。

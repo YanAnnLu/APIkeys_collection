@@ -347,6 +347,16 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
 
         self.assertTrue(crawler_asset_command_active(args))
 
+    def test_crawler_asset_command_active_includes_recommended_seed_closure_command(self) -> None:
+        args = SimpleNamespace(
+            run_crawler_asset_listing=[],
+            crawler_asset_seeds=[],
+            run_crawler_seed_download_import=[],
+            run_crawler_asset_recommended_seed_closure=["demo_asset"],
+        )
+
+        self.assertTrue(crawler_asset_command_active(args))
+
     def test_seed_download_import_cli_result_uses_formal_service(self) -> None:
         repo = FakeSeedRepository([seed_dataset("seed_01")])
         args = SimpleNamespace(
@@ -433,6 +443,38 @@ class CrawlerSeedRegistryTests(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertEqual(1, payload["seed_download_import"]["request_count"])
         self.assertEqual(1, payload["seed_download_import"]["succeeded_count"])
+        self.assertNotIn("[db]", stdout.getvalue())
+        self.assertNotIn("[seed]", stdout.getvalue())
+
+    def test_cli_recommended_seed_closure_json_suppresses_human_setup_lines(self) -> None:
+        fake_result = Mock()
+        fake_result.succeeded = True
+        fake_result.to_dict.return_value = {
+            "asset_id": "demo_asset",
+            "closure_stage": "download_import_completed",
+            "succeeded": True,
+            "recommended_seed_uid": "demo_provider:seed_01",
+        }
+        with TemporaryDirectory() as tmp:
+            stdout = StringIO()
+            with patch("api_launcher.cli_crawler_assets.run_recommended_seed_closure", return_value=fake_result):
+                with redirect_stdout(stdout):
+                    rc = main(
+                        [
+                            "--db",
+                            f"{tmp}/launcher.sqlite",
+                            "--init-db",
+                            "--seed",
+                            "--run-crawler-asset-recommended-seed-closure",
+                            "demo_asset",
+                            "--crawler-asset-closure-json",
+                        ]
+                    )
+        payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(0, rc)
+        self.assertEqual(1, payload["recommended_seed_closure"]["request_count"])
+        self.assertEqual(1, payload["recommended_seed_closure"]["succeeded_count"])
         self.assertNotIn("[db]", stdout.getvalue())
         self.assertNotIn("[seed]", stdout.getvalue())
 

@@ -5,6 +5,11 @@ import json
 from pathlib import Path
 from typing import Callable
 
+from api_launcher.crawler_asset_closure import (
+    CrawlerAssetRecommendedSeedClosureResult,
+    recommended_seed_closure_payload,
+    run_recommended_seed_closure,
+)
 from api_launcher.crawler_asset_download import run_crawler_seed_download_import
 from api_launcher.crawler_asset_listing_payloads import crawler_asset_listing_event_context
 from api_launcher.crawler_asset_profiles import crawler_asset_favorite_seed_uids
@@ -100,6 +105,23 @@ def add_crawler_asset_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="emit --run-crawler-seed-download-import results as agent-readable JSON",
     )
+    parser.add_argument(
+        "--run-crawler-asset-recommended-seed-closure",
+        action="append",
+        default=[],
+        metavar="ASSET_ID",
+        help="run listing, select the backend recommended seed, and download/import it",
+    )
+    parser.add_argument(
+        "--crawler-asset-closure-json",
+        action="store_true",
+        help="emit --run-crawler-asset-recommended-seed-closure results as agent-readable JSON",
+    )
+    parser.add_argument(
+        "--crawler-asset-closure-provider-id",
+        default="",
+        help="provider_id override for recommended seed closure; defaults from the crawler asset source profile",
+    )
 
 
 def crawler_asset_command_active(args: argparse.Namespace) -> bool:
@@ -107,6 +129,7 @@ def crawler_asset_command_active(args: argparse.Namespace) -> bool:
         args.run_crawler_asset_listing
         or args.crawler_asset_seeds
         or getattr(args, "run_crawler_seed_download_import", [])
+        or getattr(args, "run_crawler_asset_recommended_seed_closure", [])
     )
 
 
@@ -122,7 +145,12 @@ def run_crawler_asset_cli(
         for asset_id, dataset_uid in getattr(args, "run_crawler_seed_download_import", [])
         if str(asset_id).strip() and str(dataset_uid).strip()
     )
-    if not listing_asset_ids and not seed_asset_ids and not seed_download_requests:
+    closure_asset_ids = tuple(
+        str(asset_id).strip()
+        for asset_id in getattr(args, "run_crawler_asset_recommended_seed_closure", [])
+        if str(asset_id).strip()
+    )
+    if not listing_asset_ids and not seed_asset_ids and not seed_download_requests and not closure_asset_ids:
         return
 
     results: list[CrawlerAssetListingResult] = []
@@ -162,11 +190,29 @@ def run_crawler_asset_cli(
         )
         for asset_id, dataset_uid in seed_download_requests
     ]
+    closure_results = [
+        run_recommended_seed_closure(
+            asset_id,
+            repository,
+            Path(getattr(args, "downloads_root", "state/crawler_asset_downloads")),
+            provider_id=str(getattr(args, "crawler_asset_closure_provider_id", "") or ""),
+            profile_path=str(getattr(args, "crawler_asset_profile_path", "") or "") or None,
+            import_sqlite_path=getattr(args, "import_sqlite_db", None),
+            listing_timeout=float(getattr(args, "crawler_asset_listing_timeout", 12.0) or 12.0),
+            listing_limit=max(1, int(getattr(args, "crawler_asset_listing_limit", 100) or 100)),
+            listing_max_pages=max(0, int(getattr(args, "crawler_asset_listing_max_pages", 0) or 0)),
+            seed_page_size=int(getattr(args, "crawler_asset_seed_page_size", DEFAULT_CRAWLER_SEED_PAGE_SIZE) or DEFAULT_CRAWLER_SEED_PAGE_SIZE),
+            download_timeout=float(getattr(args, "download_timeout", 30.0) or 30.0),
+            import_existing_table_policy=str(getattr(args, "plan_import_existing_table_policy", "rename") or "rename"),
+        )
+        for asset_id in closure_asset_ids
+    ]
 
     payload = crawler_asset_cli_payload(
         listing_results=results,
         seed_results=seed_results,
         seed_download_results=seed_download_results,
+        closure_results=closure_results,
     )
     if args.crawler_asset_listing_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
@@ -175,6 +221,9 @@ def run_crawler_asset_cli(
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
     if getattr(args, "crawler_seed_download_import_json", False):
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+    if getattr(args, "crawler_asset_closure_json", False):
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
 
@@ -208,6 +257,12 @@ def run_crawler_asset_cli(
             f"stage={result.get('stage', '')}; succeeded={result.get('succeeded', False)}; "
             f"next_action={result.get('next_action', '')}"
         )
+    for result in closure_results:
+        print(
+            f"[crawler-asset-closure] {result.asset_id}: "
+            f"stage={result.closure_stage}; succeeded={result.succeeded}; "
+            f"recommended_seed={result.recommended_seed_uid}; next_action={result.next_action}"
+        )
 
 
 def crawler_asset_cli_payload(
@@ -215,15 +270,18 @@ def crawler_asset_cli_payload(
     listing_results: list[CrawlerAssetListingResult],
     seed_results: list[dict[str, object]],
     seed_download_results: list[dict[str, object]] | None = None,
+    closure_results: list[CrawlerAssetRecommendedSeedClosureResult] | None = None,
 ) -> dict[str, object]:
     listing_payload = crawler_asset_listing_cli_payload(listing_results)
     seed_payload = crawler_asset_seed_page_cli_payload(seed_results)
     seed_download_payload = crawler_seed_download_import_cli_payload(seed_download_results or [])
+    closure_payload = recommended_seed_closure_payload(list(closure_results or []))
     return {
         "command": "crawler_asset",
         "listing": listing_payload,
         "seed_pages": seed_payload,
         "seed_download_import": seed_download_payload,
+        "recommended_seed_closure": closure_payload,
         "next_action": "review_crawler_asset_results",
     }
 
