@@ -67,6 +67,7 @@ Last updated: 2026-05-31
 - [x] Tk source action 狀態列已補 provider id fallback label：置頂、metadata 檢查、本地資產驗證與納管狀態在找不到 provider 顯示名稱時會顯示 `Provider ID：...`，不再把 raw provider id 當主要 provider name。
 - [x] Tk source action 已補空白 provider name fallback：選取、metadata row action、解除納管、標記移除與開官方文件頁都會透過同一個 provider label helper，避免 `row.name=""` 時出現空白使用者文案。
 - [x] Tk provider 顯示名稱 fallback 已集中到共用 helper：`frontends/tk/provider_display.py::provider_display_label()` 現在同時服務 source action 與 download-plan workflow；plan toggle、加入下載計畫、dataset version plan 與 cart label 在 provider name 空白時會顯示 `Provider ID：...`，不再各自實作 fallback。
+- [x] Tk AI summary 與 downloader status 也已共用 provider display helper：AI summary 產生/寫入狀態與下載完成狀態在 provider name 空白時會顯示 `Provider ID：...`，不再各自使用 `row.name if row else provider_id`。
 - [x] Blocked download-plan reason 已接同一份後端 display contract：`plan_outcome_display_profile()` 會把 `missing_credentials`、`crawler_asset_disabled` 類 blocked reason 映射成人類文案，Tk/Web plan outcome summary / short label 不再把 raw blocked id 當使用者文字。
 - [x] Tk crawler asset listing 狀態列已接 display-name fallback：入口清單擷取與 duplicate guard 仍用 raw `asset_id` 維持 single-flight/worker 邏輯，但使用者可見 status 改顯示 `asset.display_name`，避免把 `demo_index` 這類內部 id 當主要 UI 文案。
 - [x] 遠端分頁狀態已補 backend display payload：seed enumeration 的 `remote_pagination` 會輸出「仍有下一頁線索」「已列完」「遠端狀態待確認」等人類文案，Tk note 優先消費這份 payload，未知 crawler status 不再直接顯示 raw id。

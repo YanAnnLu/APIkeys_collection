@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 04:42 Reuse Tk provider display labels
+- 本輪延續上一個 provider display helper consolidation：AI summary 產生/寫入狀態與下載完成狀態也改用 `provider_display_label()`，避免 `row.name=""` 時出現空白 provider 名稱或 raw provider id 被當成主要使用者文案。
+- 保持邊界：AI profile/token flow、download queue、manifest/register/import、repository key、plan key 與 worker job key 都沒改；這只是 Tk 使用者可見 label fallback ownership 收斂。
+- 已驗證：`py_compile` for `frontends\tk\ai_summary_workflows.py` / `download_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 136 tests；完整 smoke `state\logs\pre_push_smoke_20260531_044010.log` 通過，1024 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。程式碼提交：`0f39122 Reuse Tk provider display labels`；GitHub Actions 尚待本輪 docs commit 後觸發。
 ## 2026-05-31 04:28 Tk provider display label helper
 - 本輪做 Tk display-contract consolidation：新增 `frontends/tk/provider_display.py::provider_display_label()`，讓 source action 與 download-plan workflow 共用「有 provider name 顯示名稱、空白則顯示 `Provider ID：...`、完全缺值則顯示 `Provider 待確認`」的 fallback 規則。
 - `source_action_workflows.py` 保留 `source_action_provider_label()` 相容 wrapper；`plan_workflows.py` 的 provider toggle、加入下載計畫、dataset version plan 與 cart item label 已改吃同一份 helper。stable provider id 仍用於 repository call、plan key 與 background job key，這輪只調整使用者可見文案 fallback ownership。
