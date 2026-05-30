@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 08:17 Capability profile seed scope payload
+- 本輪延續 crawler seed scope registry slice：`CrawlerCapabilityProfile` 新增 `seed_scope`，crawler asset payload 的 `capability_profile` 現在會直接輸出 registry 宣告的 `entry_listing` / `paginated_catalog`，讓 Tk/Web/未來 Qt 不必從 `source_type` 或 `current_seed_scope` 反推 crawler 本身的 seed 枚舉語義。
+- 已提交實作：`38b4a8f Expose seed scope in capability profile`。
+- 已驗證：in-memory compile `api_launcher\crawler_capability_profiles.py` / `tests\test_crawler_assets.py` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 通過，104 tests OK；sample `html_file_index` asset payload 輸出 `capability_profile.seed_scope=entry_listing`；`api_launcher` / tests mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_081522.log` 通過，954 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log / discovery notes；本輪只增加 crawler asset capability profile payload 欄位，不改 Web/Tk 既有操作流程、crawler handler、download/import、credential 或 user guide。
+
 ## 2026-05-30 08:06 Crawler seed scope registry metadata
 - 本輪是 bounded declarative registry slice：`CrawlerSpec` 新增 `seed_scope`，14 個 crawler handler 的 decorator 現在明確宣告 `entry_listing` 或 `paginated_catalog`；`dataset_seed_coverage.py` 改由 registry metadata 產生 entry-listing / paginated-catalog source type set，不再自行維護一份平行硬編碼清單。
 - 已提交實作：`4052c5f Declare crawler seed scope metadata`。

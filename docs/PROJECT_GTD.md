@@ -21,6 +21,7 @@ Last updated: 2026-05-30
 - [x] Crawler registry 已補 `seed_scope` metadata：14 個 handler decorator 明確宣告 `entry_listing` 或 `paginated_catalog`，`dataset_seed_coverage.py` 的 entry-listing / paginated-catalog source type set 改由 registry 產生，避免展示 seed coverage 與 crawler registry 分流漂移。
 - [x] `CrawlerCapabilityProfile` 已開始消費 registry metadata：asset payload 現在會輸出 `source_family`、`transport`、`result_shape` 與 `supports_full_crawl`，讓 Web/Tk/agent 能讀同一份 source capability contract。
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
+- [x] `CrawlerCapabilityProfile` 已公開 `seed_scope`：asset payload 直接輸出 registry 宣告的 `entry_listing` / `paginated_catalog`，讓 UI/Qt/filter 不必再從 raw `source_type` 或 `current_seed_scope` 推回 crawler 的 seed 枚舉語義。
 - [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
 - [x] Tk 工具選單已新增「專案成熟度矩陣」入口：Tk 讀同一份 `api_launcher.project_maturity` payload，顯示 `🚧` / display label / limitation counts，不在 Tk 內重算整體完成率。
