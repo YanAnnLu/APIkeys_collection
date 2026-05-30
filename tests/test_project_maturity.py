@@ -55,10 +55,17 @@ class ProjectMaturityTests(unittest.TestCase):
             "test_tk_modules_do_not_spawn_threads_directly",
             scheduler_metrics["guard_tests"]["direct_thread_spawn_owner"],
         )
-        self.assertGreater(
-            rows["source_pattern_and_crawler_handlers"]["metrics"]["supported_source_type_count"],
-            0,
+        crawler_metrics = rows["source_pattern_and_crawler_handlers"]["metrics"]
+        self.assertGreater(crawler_metrics["supported_source_type_count"], 0)
+        self.assertGreater(crawler_metrics["registry_matrix_cell_count"], 0)
+        self.assertEqual(4, crawler_metrics["capability_address_width"])
+        self.assertGreater(crawler_metrics["capability_address_group_count"], 0)
+        self.assertEqual(
+            crawler_metrics["supported_source_type_count"],
+            crawler_metrics["seed_scope_counts"]["entry_listing"]
+            + crawler_metrics["seed_scope_counts"]["paginated_catalog"],
         )
+        self.assertEqual("api_launcher.crawlers.registry", crawler_metrics["dispatch_owner"])
 
     def test_project_maturity_markdown_renders_matrix_without_claiming_all_done(self) -> None:
         payload = {

@@ -5,7 +5,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
+from api_launcher.crawlers.dataset_sources import (
+    CRAWLER_CAPABILITY_INDEX,
+    CRAWLER_SPEC_MATRIX,
+    SUPPORTED_DATASET_SOURCE_TYPES,
+    list_crawlers_by_dims,
+)
+from api_launcher.crawlers.registry import CAPABILITY_CODE_WIDTH
 from api_launcher.dataset_adapters import DATASET_ADAPTERS
 from api_launcher.mvp_readiness import build_mvp_readiness_payload
 from api_launcher.repository import ApiCatalogRepository
@@ -222,6 +228,25 @@ def _tk_background_job_policy_metrics() -> dict[str, Any]:
     }
 
 
+def _source_pattern_crawler_metrics() -> dict[str, Any]:
+    """Expose declarative crawler-registry evidence in maturity reports."""
+
+    entry_listing_count = len(list_crawlers_by_dims(seed_scope="entry_listing"))
+    paginated_catalog_count = len(list_crawlers_by_dims(seed_scope="paginated_catalog"))
+    return {
+        "supported_source_type_count": len(SUPPORTED_DATASET_SOURCE_TYPES),
+        "registry_matrix_cell_count": len(CRAWLER_SPEC_MATRIX),
+        "capability_address_width": CAPABILITY_CODE_WIDTH,
+        "capability_address_group_count": len(CRAWLER_CAPABILITY_INDEX),
+        "seed_scope_counts": {
+            "entry_listing": entry_listing_count,
+            "paginated_catalog": paginated_catalog_count,
+        },
+        "dispatch_owner": "api_launcher.crawlers.registry",
+        "compatibility_surface": "api_launcher.crawlers.dataset_sources.SOURCE_CRAWLER_HANDLERS",
+    }
+
+
 def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]:
     return (
         MaturityMatrixRow(
@@ -242,7 +267,7 @@ def _matrix_rows(mvp_readiness: dict[str, Any]) -> tuple[MaturityMatrixRow, ...]
             verified_behavior_source=("tests.test_dataset_discovery", "tests.test_source_patterns", "handler_smoke_contract"),
             current_limitations=("This is source discovery capability, not proof that every live provider has deep adapter/import/render support.",),
             next_actions=("Keep adding detectors/adapters by source interface type, not by institution special-case branches.",),
-            metrics={"supported_source_type_count": len(SUPPORTED_DATASET_SOURCE_TYPES)},
+            metrics=_source_pattern_crawler_metrics(),
         ),
         MaturityMatrixRow(
             area_id="crawler_asset_download_import",
