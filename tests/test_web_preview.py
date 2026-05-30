@@ -111,6 +111,18 @@ def post_json_to_preview_server(
     raise AssertionError("unreachable retry state")
 
 
+def post_raw_to_preview_server(host: str, port: int, path: str, body: bytes) -> tuple[int, dict[str, object]]:
+    headers = {"Content-Type": "application/json", "Content-Length": str(len(body)), "Connection": "close"}
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("POST", path, body=body, headers=headers)
+        response = conn.getresponse()
+        response_body = json.loads(response.read().decode("utf-8"))
+        return response.status, response_body
+    finally:
+        conn.close()
+
+
 class WebPreviewApiTest(unittest.TestCase):
     def test_status_declares_thin_uiux_surface(self) -> None:
         status = web_preview_status()
@@ -342,6 +354,82 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertTrue(body["developer_only"])
         self.assertEqual(404, legacy_status)
         self.assertEqual(404, legacy_body["status"])
+
+    def test_server_rejects_oversized_json_body_before_route_handler(self) -> None:
+        oversized = b'{"x":"' + (b"a" * 64) + b'"}'
+
+        with patch("frontends.web.server.DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES", 64):
+            with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+                host, port = server.server_address
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with patch("frontends.web.server.crawler_asset_payload_from_web_values") as payload_builder:
+                        status, body = post_raw_to_preview_server(
+                            host,
+                            port,
+                            "/api/crawler-assets/demo_stac/bounds-payload",
+                            oversized,
+                        )
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=5)
+
+        payload_builder.assert_not_called()
+        self.assertEqual(400, status)
+        self.assertEqual(400, body["status"])
+        self.assertIn("request body exceeds", body["error"])
+
+    def test_server_rejects_oversized_discard_body_before_diagnostic_handler(self) -> None:
+        oversized = b"x" * 65
+
+        with patch("frontends.web.server.DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES", 64):
+            with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+                host, port = server.server_address
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with patch("frontends.web.server.developer_real_download_demo") as demo:
+                        status, body = post_raw_to_preview_server(
+                            host,
+                            port,
+                            "/api/diagnostics/real-download-demo",
+                            oversized,
+                        )
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=5)
+
+        demo.assert_not_called()
+        self.assertEqual(400, status)
+        self.assertEqual(400, body["status"])
+        self.assertIn("request body exceeds", body["error"])
+
+    def test_server_accepts_default_sized_json_body(self) -> None:
+        body_bytes = b'{"x":"' + (b"a" * 65) + b'"}'
+
+        with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:
+            host, port = server.server_address
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "frontends.web.server.crawler_asset_payload_from_web_values",
+                    return_value=SimpleNamespace(to_dict=lambda: {"ok": True}),
+                ) as payload_builder:
+                    status, body = post_raw_to_preview_server(
+                        host,
+                        port,
+                        "/api/crawler-assets/demo_stac/bounds-payload",
+                        body_bytes,
+                    )
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+        payload_builder.assert_called_once_with("demo_stac", {"x": "a" * 65})
+        self.assertEqual(200, status)
+        self.assertTrue(body["ok"])
 
     def test_server_routes_project_maturity(self) -> None:
         with build_web_preview_server("127.0.0.1", 0, port_scan=0) as server:

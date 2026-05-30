@@ -38,6 +38,7 @@ from frontends.web.preview_events import web_preview_recent_events
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES = 1024 * 1024
 
 
 class WebPreviewHandler(BaseHTTPRequestHandler):
@@ -150,8 +151,30 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
         suffix = "" if len(parts) == 1 else "/" + parts[1]
         return asset_id, suffix
 
+    def request_body_length(self) -> int:
+        raw_length = self.headers.get("Content-Length", "0") or "0"
+        try:
+            length = int(raw_length)
+        except ValueError as exc:
+            raise ValueError("invalid Content-Length") from exc
+        if length < 0:
+            raise ValueError("invalid Content-Length")
+        return length
+
+    def ensure_request_body_within_limit(
+        self,
+        length: int,
+        *,
+        max_bytes: int | None = None,
+    ) -> None:
+        if max_bytes is None:
+            max_bytes = DEFAULT_WEB_PREVIEW_POST_BODY_MAX_BYTES
+        if length > max_bytes:
+            raise ValueError(f"request body exceeds {max_bytes} bytes")
+
     def read_json_body(self) -> dict[str, object]:
-        length = int(self.headers.get("Content-Length", "0") or "0")
+        length = self.request_body_length()
+        self.ensure_request_body_within_limit(length)
         if length <= 0:
             return {}
         try:
@@ -165,7 +188,8 @@ class WebPreviewHandler(BaseHTTPRequestHandler):
     def discard_request_body(self) -> None:
         """Drain unused POST bodies before sending short local JSON responses."""
 
-        length = int(self.headers.get("Content-Length", "0") or "0")
+        length = self.request_body_length()
+        self.ensure_request_body_within_limit(length)
         if length > 0:
             self.rfile.read(length)
 
