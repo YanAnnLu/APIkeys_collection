@@ -2,7 +2,7 @@
 ## 2026-05-30 19:24 Web maturity display labels
 - 本輪把 Web「成熟度」工作區的 Delivery Scope 摘要與 maturity row label 也接回 display-safe helper：`deliveryClosureText()` 會優先使用後端 `status_zh_TW` / display label，缺值時顯示「狀態待確認」；row label 缺值時顯示「成熟度待確認」，不再把 raw `ready_for_mvp_demo`、`maturity_level` 或 `unknown` 放進使用者可見摘要。
 - 已提交實作：`50559e7 Hide raw maturity status in Web`。
-- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_192430.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions 尚未觸發。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_192430.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26682740605` 通過 Ubuntu、Windows 與 real DB smoke。
 - Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只調整 Web maturity workspace 顯示 fallback，不改後端 maturity payload、crawler registry、download/import service、credential storage 或 Tk 操作。
 ## 2026-05-30 19:14 Web download mission stage label
 - 本輪把 Web mission queue 的正式下載 / 匯入完成訊息也接回 `downloadImportStageText()`；asset-level 與 seed-level 成功訊息會顯示「下載 / 匯入完成」這類後端 display label，不再把 `download_import_completed` 或 raw stage token 放進互動紀錄。
