@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 13:55 download bound display labels
+- 本輪把 `download_bound_status` 補成 UI-neutral display payload：後端新增 `applied_labels.zh_TW/en`，Tk plan bounds status 優先顯示「樣本上限、時間範圍、下載大小上限」這類人類文案，不再把 `sample_limit` / `max_bytes_enforced` raw code 直接丟給使用者。
+- 已提交實作：`4abe249 Show download bound labels in Tk`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\source_download.py frontends\tk\plan_workflows.py tests\test_source_download.py tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_source_download tests.test_tk_dialogs -v` 通過，123 tests OK；`py -3 -B -m unittest tests.test_source_download tests.test_tk_dialogs tests.test_tk_ui_helpers tests.test_crawler_asset_download -v` 通過，150 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_135528.log` 通過，971 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只增加 backend display labels 並讓 Tk plan status 消費它，不改 download/import 行為、Web 操作、credential storage、crawler registry 或 user guide。
 ## 2026-05-30 13:42 max_bytes bound status contract
 - 本輪沒有改 HTTP 下載 enforcement；只把 `download_bound_status.applied` 中的 `max_bytes` 狀態從舊的 `max_bytes_review` 改成 `max_bytes_enforced`，讓 Tk/Web/agent 讀 plan payload 時知道 byte cap 已由 `HTTPDownloadAdapter` 執行，不再把它誤解成 review-only metadata。
 - 已提交實作：`3ff00fc Clarify max bytes bound status`。
