@@ -8,6 +8,7 @@ translating adapter-review buckets independently.
 from __future__ import annotations
 
 from api_launcher.adapter_review import adapter_review_agent_payload
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 
 
 ADAPTER_REVIEW_OUTCOME_DISPLAY = {
@@ -110,6 +111,46 @@ def adapter_review_display_payload(plan_payload: dict[str, object]) -> dict[str,
         "content_parsers": content_parsers,
         "content_pipeline_lanes": content_pipeline_lanes,
         "items": review_payload.get("items", []),
+    }
+
+
+def adapter_review_item_display_payload(item: object) -> dict[str, object]:
+    """Return shared display labels for one adapter-review item.
+
+    The raw ids stay available in the plan/agent payload.  UI surfaces should
+    render the labels from this payload so Tk/Web/Qt do not each translate
+    adapter-review buckets and next-action ids differently.
+    """
+
+    required_action = str(getattr(item, "required_action", "") or "")
+    content_next_action = str(getattr(item, "content_next_action", "") or "")
+    outcome_bucket = str(getattr(item, "outcome_bucket", "") or "")
+    content_import_status = str(getattr(item, "content_import_status", "") or "")
+    content_review_bucket = str(getattr(item, "content_review_bucket", "") or "")
+    content_pipeline_lane = str(getattr(item, "content_pipeline_lane", "") or "")
+    return {
+        "required_action": required_action,
+        "required_action_label": next_action_display_label_or_fallback(
+            required_action,
+            fallback="檢查 Adapter 待辦",
+        ),
+        "outcome_bucket": outcome_bucket,
+        "outcome_label": adapter_review_outcome_label(outcome_bucket),
+        "content_import_status": content_import_status,
+        "content_import_status_label": content_import_status_label(content_import_status)
+        if content_import_status
+        else "",
+        "content_review_bucket": content_review_bucket,
+        "content_review_bucket_label": content_review_bucket_label(content_review_bucket) if content_review_bucket else "",
+        "content_pipeline_lane": content_pipeline_lane,
+        "content_pipeline_lane_label": content_pipeline_lane_label(content_pipeline_lane) if content_pipeline_lane else "",
+        "content_next_action": content_next_action,
+        "content_next_action_label": next_action_display_label_or_fallback(
+            content_next_action,
+            fallback="檢查內容格式待辦",
+        )
+        if content_next_action
+        else "",
     }
 
 
@@ -294,6 +335,7 @@ __all__ = [
     "adapter_review_content_summary_label",
     "adapter_review_content_summary_payload",
     "adapter_review_display_payload",
+    "adapter_review_item_display_payload",
     "adapter_review_outcome_label",
     "adapter_review_outcome_tone",
     "content_import_status_label",

@@ -8,13 +8,7 @@ from tkinter import ttk
 from typing import Any
 
 from api_launcher.adapter_review import AdapterReviewItem
-from api_launcher.crawler_asset_display import (
-    adapter_review_outcome_label,
-    content_import_status_label,
-    content_pipeline_lane_label,
-    content_review_bucket_label,
-)
-from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
+from api_launcher.crawler_asset_display import adapter_review_item_display_payload
 from frontends.tk.ui_config import COLORS
 
 
@@ -36,10 +30,11 @@ class AdapterReviewDialog:
     @staticmethod
     def review_item_row_values(item: Any) -> tuple[object, object, object, object, object, object, object]:
         # 表格欄位順序是 UI / agent review 的顯示契約，抽成 helper 方便測試保護。
+        display = adapter_review_item_display_payload(item)
         return (
             item.adapter_id,
-            next_action_display_label_or_fallback(item.required_action, fallback="檢查 Adapter 待辦"),
-            adapter_review_outcome_label(str(item.outcome_bucket)),
+            display["required_action_label"],
+            display["outcome_label"],
             item.provider_id,
             item.dataset_id,
             item.version or "-",
@@ -49,23 +44,12 @@ class AdapterReviewDialog:
     @staticmethod
     def review_item_detail_text(item: Any) -> str:
         # 詳情文字保持 key/value 形狀，方便人類複製給下一位 agent 或比對 JSON payload。
-        required_action_label = next_action_display_label_or_fallback(
-            getattr(item, "required_action", ""),
-            fallback="檢查 Adapter 待辦",
-        )
-        content_next_action_label = next_action_display_label_or_fallback(
-            getattr(item, "content_next_action", ""),
-            fallback="檢查內容格式待辦",
-        )
-        outcome_label = adapter_review_outcome_label(str(getattr(item, "outcome_bucket", "")))
-        content_import_status = str(getattr(item, "content_import_status", "") or "")
-        content_review_bucket = str(getattr(item, "content_review_bucket", "") or "")
-        content_pipeline_lane = str(getattr(item, "content_pipeline_lane", "") or "")
+        display = adapter_review_item_display_payload(item)
         return "\n".join(
             [
                 f"adapter_id: {item.adapter_id}",
-                f"required_action: {required_action_label}",
-                f"outcome_bucket: {outcome_label}",
+                f"required_action: {display['required_action_label']}",
+                f"outcome_bucket: {display['outcome_label']}",
                 f"expected_output: {item.expected_output}",
                 f"provider_id: {item.provider_id}",
                 f"dataset_uid: {item.dataset_uid or '-'}",
@@ -78,10 +62,10 @@ class AdapterReviewDialog:
                 f"content_source_format: {getattr(item, 'content_source_format', '') or '-'}",
                 f"content_family: {getattr(item, 'content_family', '') or '-'}",
                 f"content_parser_id: {getattr(item, 'content_parser_id', '') or '-'}",
-                f"content_import_status: {content_import_status_label(content_import_status) if content_import_status else '-'}",
-                f"content_review_bucket: {content_review_bucket_label(content_review_bucket) if content_review_bucket else '-'}",
-                f"content_pipeline_lane: {content_pipeline_lane_label(content_pipeline_lane) if content_pipeline_lane else '-'}",
-                f"content_next_action: {content_next_action_label or '-'}",
+                f"content_import_status: {display['content_import_status_label'] or '-'}",
+                f"content_review_bucket: {display['content_review_bucket_label'] or '-'}",
+                f"content_pipeline_lane: {display['content_pipeline_lane_label'] or '-'}",
+                f"content_next_action: {display['content_next_action_label'] or '-'}",
                 f"reason: {item.reason or '-'}",
                 f"content_reason: {getattr(item, 'content_reason', '') or '-'}",
             ]

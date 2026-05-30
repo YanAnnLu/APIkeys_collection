@@ -26,6 +26,7 @@ from api_launcher.crawler_asset_review_display import (
     adapter_review_content_summary_label,
     adapter_review_content_summary_payload,
     adapter_review_display_payload,
+    adapter_review_item_display_payload,
     adapter_review_outcome_label,
     adapter_review_outcome_tone,
     content_import_status_label,
@@ -480,6 +481,7 @@ def _safe_int(value: object) -> int:
 __all__ = [
     "adapter_review_display_payload",
     "adapter_review_content_summary_label",
+    "adapter_review_item_display_payload",
     "adapter_review_outcome_label",
     "adapter_review_outcome_tone",
     "content_import_status_label",
