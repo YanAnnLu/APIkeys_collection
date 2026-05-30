@@ -61,6 +61,7 @@ Last updated: 2026-05-31
 - [x] Tk Adapter Review 表格 provider 欄位已標籤化追溯 ID：表格顯示 `Provider ID：...`，避免 raw id 像人類資料源名稱；detail pane 保留 `provider_id:` raw key/value，讓 agent 和人類仍可複製追溯資料。
 - [x] Dataset Candidate Review 狀態顯示已收斂回後端 helper：`dataset_candidate_display.py` 集中管理 `needs_review` / `approved` / `planned` / `rejected` / `all` 的 label，Tk 表格、detail 與 filter 下拉只顯示人類文案，repository 邊界才使用 raw status id。
 - [x] Dataset Candidate Review 的 provider 欄位也已標籤化追溯 ID：候選 row/detail 只知道 provider id 時會顯示 `Provider ID：...`，不再把裸 id 放在「提供商」欄位裡像人類名稱；evidence JSON 與 candidate 審核行為不變。
+- [x] Tk 修復/驗證面板的 provider 欄位與修復提示也已標籤化追溯 ID：下載 manifest table、database issue table、repair suggestion、requeue status、reimport confirmation、dry-run SQL confirmation、database connection title 與 unmanage confirmation 顯示 `Provider ID：...`；detail pane / event context 仍保留 raw id 供追溯。
 - [x] Tk crawler asset helper 已補 next-action fallback guard：blocked download-plan summary、Plan Passport stale summary、credential guard message、credential summary 不再在 label 缺失時顯示 raw `next_action` / `stale_reason`；未知 action 會落到中性提示。
 - [x] Tk Google/Gemini 連線視窗的帳號支援表格已接後端 account display helper：登入模式與支援狀態顯示「OAuth 登入」「規劃中」「🚧 施工中」等文案，不再把 `oauth` / `planned` / `skeleton` raw id 當主要使用者文字。
 - [x] Tk Google/Gemini token 與 OAuth device-flow 狀態已補 display-safe labels：連線視窗與 OAuth status bar 顯示「尚未登入」「已登入」「等待授權」「登入請求失敗」等人類文案，不再把 `missing` / `ready` / `request_failed` / 未知 status id 直接顯示給使用者。
