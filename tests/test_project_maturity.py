@@ -17,6 +17,33 @@ from api_launcher.project_maturity import (
 
 
 class ProjectMaturityTests(unittest.TestCase):
+    def assert_no_mojibake_fragments(self, value: object) -> None:
+        damaged_fragments = (
+            "\ufffd",
+            chr(0x5687),
+            chr(0x929D),
+            chr(0x8763),
+            chr(0x9708),
+            chr(0x6470),
+            chr(0x95AC),
+            chr(0x876F),
+        )
+
+        if isinstance(value, str):
+            for fragment in damaged_fragments:
+                self.assertNotIn(fragment, value)
+            for char in value:
+                self.assertFalse(0xE000 <= ord(char) <= 0xF8FF, value)
+            return
+        if isinstance(value, dict):
+            for key, item in value.items():
+                self.assert_no_mojibake_fragments(key)
+                self.assert_no_mojibake_fragments(item)
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                self.assert_no_mojibake_fragments(item)
+
     def test_project_maturity_payload_scopes_delivery_without_single_percent(self) -> None:
         with patch(
             "api_launcher.project_maturity.build_mvp_readiness_payload",
@@ -81,6 +108,22 @@ class ProjectMaturityTests(unittest.TestCase):
             "external_table_shape_normalizer",
             import_metrics["compatibility_shims"][0]["shim_id"],
         )
+
+    def test_project_maturity_payload_and_markdown_do_not_contain_mojibake(self) -> None:
+        with patch(
+            "api_launcher.project_maturity.build_mvp_readiness_payload",
+            return_value={
+                "closure_id": "canonical_mvp_demo_closure",
+                "closure_percent": 100,
+                "status": "ready_for_mvp_demo",
+                "scope": "bounded demo scope",
+                "not_product_scope": "not whole product",
+            },
+        ):
+            payload = build_project_maturity_payload(object())  # type: ignore[arg-type]
+
+        self.assert_no_mojibake_fragments(payload)
+        self.assert_no_mojibake_fragments(render_project_maturity_markdown(payload))
 
     def test_project_maturity_markdown_renders_matrix_without_claiming_all_done(self) -> None:
         payload = {
