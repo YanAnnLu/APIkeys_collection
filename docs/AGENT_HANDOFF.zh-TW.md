@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-30 16:48 Crawler asset capability row labels
+- 本輪是小型 consolidation：`crawler_asset_card_capabilities()` 會輸出 capability `status_label` 與 `next_action_label`，Web asset passport 的 capability row 只顯示人類文案，不再直接組 `capability.status / capability.next_action`。
+- 已提交實作：`85485b6 Label crawler asset capability rows`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_capabilities.py api_launcher\crawler_asset_flow_display.py tests\test_crawler_assets.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 通過，108 tests OK；同一組測試前一次遇到 Windows localhost oversized-body socket flake，單測與全組 rerun 均通過；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；capability label slice UTF-8/mojibake check OK；完整 smoke `state\logs\pre_push_smoke_20260530_164446.log` 通過，983 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 asset card capability display payload 與 Web passport 消費方式，不改 capability status 判斷、crawler registry、download/import、credential storage 或 Tk 操作。
 ## 2026-05-30 16:33 Web bounds/probe display fallback
 - 本輪修掉 Web Preview 兩個 raw status fallback：seed schema probe 完成 mission 不再 fallback 到 `payload.schema_probe.status`，bounds form 狀態 pill 改吃後端 `spec.display_label`，不再直接顯示 `spec.status`。
 - 已提交實作：`0255727 Use bound form labels in Web UI`。
