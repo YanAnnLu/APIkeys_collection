@@ -2,7 +2,7 @@
 ## 2026-05-31 05:25 Tk adapter review provider labels
 - 本輪把 Adapter Review dialog 表格的 provider 欄接到 `provider_display_label(None, provider_id)`；表格顯示 `Provider ID：...`，避免 raw `nyc_open_data` 被當成人類資料源名稱。detail pane 的 `provider_id:` key/value 仍保留 raw id，因為那裡是 agent / 人類可複製的追溯區。
 - 保持邊界：adapter review display payload、detail key/value shape、resolver entry、open URL、resolve-from-UI、download/import/crawler flow 都沒改；這只是表格欄位的 provider provenance label 收斂。
-- 已驗證：`py_compile` for `frontends\tk\adapter_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_052210.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`afd20d3 Label Tk adapter review providers`；GitHub Actions 尚未跑，下一步是提交文檔、push、手動觸發 CI。
+- 已驗證：`py_compile` for `frontends\tk\adapter_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_052210.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`afd20d3 Label Tk adapter review providers` / docs 提交 `4e70a9e Log Tk adapter review provider checkpoint`；GitHub Actions manual run `26695394542` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 05:12 Tk dataset candidate provider labels
 - 本輪把 Dataset Candidate Review dialog 的 Provider 欄與 detail provider line 也接到 `provider_display_label(None, provider_id)`；候選資料只知道 provider id 時，UI 會顯示 `Provider ID：...`，不再把裸 `example_provider` 放在「提供商」欄位裡像人類名稱。
 - 保持邊界：candidate status mapping、evidence JSON、source URL、approve/reject/add-to-plan、repository candidate schema、download/import/crawler flow 都沒改；這只是 review UI 的 provider provenance label 收斂。
