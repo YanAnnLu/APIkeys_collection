@@ -29,6 +29,14 @@ PROFILE_TEXT_FIELDS: tuple[tuple[str, str, str, str], ...] = (
 )
 
 
+def crawler_asset_profile_subtitle(asset: CrawlerAsset) -> str:
+    """Return a human-facing provenance line for the profile dialog header."""
+    source_label = str(getattr(asset, "source_type_label", "") or "來源範式待確認")
+    provider_id = str(getattr(asset, "provider_id", "") or "Provider 待確認")
+    asset_id = str(getattr(asset, "asset_id", "") or "Asset ID 待確認")
+    return f"{source_label} / Provider ID：{provider_id} / Asset ID：{asset_id}"
+
+
 class CrawlerAssetProfileDialog:
     """Tk 版 crawler asset profile 編輯器。
 
@@ -69,7 +77,7 @@ class CrawlerAssetProfileDialog:
         ttk.Label(frame, text=self.asset.display_name, style="DetailTitle.TLabel").pack(anchor="w")
         ttk.Label(
             frame,
-            text=f"{self.asset.provider_id} / {self.asset.source_type_label} / {self.asset.asset_id}",
+            text=crawler_asset_profile_subtitle(self.asset),
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, pady=(4, 12))
 
@@ -121,4 +129,5 @@ __all__ = [
     "CrawlerAssetProfileDialog",
     "PROFILE_BOOLEAN_FIELDS",
     "PROFILE_TEXT_FIELDS",
+    "crawler_asset_profile_subtitle",
 ]

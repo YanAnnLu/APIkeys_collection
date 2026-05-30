@@ -30,7 +30,7 @@ from frontends.tk.crawler_asset_credential_dialog import (
     crawler_asset_credential_edit_payload,
     crawler_asset_credential_next_action_text,
 )
-from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog
+from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog, crawler_asset_profile_subtitle
 from frontends.tk.crawler_asset_seed_dialog import (
     CrawlerAssetSeedDialog,
     crawler_seed_dialog_recommended_text,
@@ -2914,6 +2914,18 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertFalse(values["archived"])
         self.assertEqual("NASA_EARTHDATA_TOKEN", values["api_key_env_var"])
         self.assertEqual("K:/logos/nasa.png", values["local_logo_path"])
+
+    def test_crawler_asset_profile_subtitle_labels_provenance_ids(self) -> None:
+        asset = SimpleNamespace(
+            source_type_label="CKAN package search",
+            provider_id="demo_provider",
+            asset_id="demo_index",
+        )
+
+        subtitle = crawler_asset_profile_subtitle(asset)
+
+        self.assertEqual("CKAN package search / Provider ID：demo_provider / Asset ID：demo_index", subtitle)
+        self.assertNotEqual("demo_provider / CKAN package search / demo_index", subtitle)
 
     def test_database_client_selected_profile_reads_selected_id(self) -> None:
         # selected_profile 只依 combobox 標籤前段 id 配對，避免 label 變動影響 profile 選取。
