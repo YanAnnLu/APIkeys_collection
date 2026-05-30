@@ -105,7 +105,7 @@ from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMix
 from frontends.tk.showcase_workflows import ShowcaseWorkflowMixin
 from frontends.tk.sidebar_workflows import SidebarWorkflowMixin
 from frontends.tk.source_action_workflows import SourceActionWorkflowMixin, source_action_provider_label
-from frontends.tk.table_data_workflows import TableDataWorkflowMixin
+from frontends.tk.table_data_workflows import TableDataWorkflowMixin, provider_table_display_name
 from frontends.tk.table_interaction_workflows import TableInteractionWorkflowMixin
 from frontends.tk.window_layout_workflows import WindowLayoutWorkflowMixin
 from frontends.tk.yfinance_workflows import YfinanceWorkflowMixin
@@ -581,6 +581,31 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertTrue(callable(detail_panel_module.StringVar))
         self.assertTrue(callable(detail_panel_module.Canvas))
         self.assertIn("panel", detail_panel_module.COLORS)
+
+    def test_provider_table_display_name_marks_blank_provider_name(self) -> None:
+        row = SimpleNamespace(provider_id="provider_a", name="")
+
+        label = provider_table_display_name(row, 2, lambda zh, _en: zh)
+
+        self.assertIn("Provider ID：provider_a", label)
+        self.assertNotEqual("（2 筆資料集）", label)
+
+    def test_provider_description_marks_blank_provider_name(self) -> None:
+        ui = object.__new__(DetailPanelWorkflowMixin)
+        ui.ui_language = "en-US"
+        row = SimpleNamespace(
+            provider_id="provider_a",
+            name="",
+            notes="",
+            owner="Example Org",
+            category_label="catalog",
+        )
+
+        description = DetailPanelWorkflowMixin.provider_description(ui, row)
+
+        self.assertIn("Provider ID：provider_a", description)
+        self.assertTrue(description.startswith("Provider ID：provider_a"))
+        self.assertNotIn("  is an official", description)
 
     def test_tk_crawler_handler_smoke_diagnostics_uses_compact_payload(self) -> None:
         payload = crawler_handler_smoke_diagnostics_payload()

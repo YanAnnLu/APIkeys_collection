@@ -3,6 +3,7 @@ from __future__ import annotations
 from tkinter import BOTH, END, LEFT, RIGHT, WORD, X, Y, Canvas, StringVar, Text
 from tkinter import ttk
 
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import COLORS
 
@@ -137,7 +138,8 @@ class DetailPanelWorkflowMixin:
             return
 
         self.detail_star_var.set(row.star_label)
-        self.detail_title_var.set(row.name)
+        provider_label = provider_display_label(row, row.provider_id)
+        self.detail_title_var.set(provider_label)
         self.detail_owner_var.set(row.owner)
         self.detail_category_var.set(row.category_label)
         access = row.auth_type
@@ -166,14 +168,15 @@ class DetailPanelWorkflowMixin:
     def provider_description(self, row: ProviderRow) -> str:
         if row.notes:
             return row.notes
+        provider_label = provider_display_label(row, row.provider_id)
         category_hint = row.category_label or "data"
         if self.ui_language != "en-US":
             return (
-                f"{row.name} 是由 {row.owner} 提供的官方 {category_hint} 資料來源。"
+                f"{provider_label} 是由 {row.owner} 提供的官方 {category_hint} 資料來源。"
                 "之後擷取官方 metadata 後，這裡會顯示更完整的描述與預覽。"
             )
         return (
-            f"{row.name} is an official {category_hint} source from {row.owner}. "
+            f"{provider_label} is an official {category_hint} source from {row.owner}. "
             "A richer description and visual preview will be populated from official metadata pages."
         )
 

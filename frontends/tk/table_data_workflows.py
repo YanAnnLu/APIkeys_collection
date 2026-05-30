@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from tkinter import END, BooleanVar
 
 import APIkeys_collection as core
 from api_launcher.dataset_candidate_display import dataset_candidate_status_label
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
+
+
+def provider_table_display_name(row: ProviderRow, dataset_count: int, tr: Callable[[str, str], str]) -> str:
+    """Return the provider name shown in the main Tk table."""
+
+    label = provider_display_label(row, row.provider_id)
+    if dataset_count:
+        return tr(f"{label}（{dataset_count} 筆資料集）", f"{label} ({dataset_count} datasets)")
+    return label
 
 
 class TableDataWorkflowMixin:
@@ -104,9 +115,7 @@ class TableDataWorkflowMixin:
             if row.update_status == "remote_updated":
                 tags.append("remote_updated")
             provider_datasets = self.visible_datasets_for_provider(row.provider_id)
-            row_name = row.name
-            if provider_datasets:
-                row_name = self.tr(f"{row.name}（{len(provider_datasets)} 筆資料集）", f"{row.name} ({len(provider_datasets)} datasets)")
+            row_name = provider_table_display_name(row, len(provider_datasets), self.tr)
             self.tree.insert(
                 "",
                 END,
