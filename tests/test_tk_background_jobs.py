@@ -183,6 +183,28 @@ class TkBackgroundJobTests(unittest.TestCase):
 
         self.assertEqual([], missing_policy)
 
+    def test_tk_modules_do_not_spawn_threads_directly(self) -> None:
+        direct_threads: list[str] = []
+        tk_root = Path("frontends") / "tk"
+        for path in sorted(tk_root.glob("*.py")):
+            if path.name == "background_jobs.py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                direct_thread_call = (
+                    isinstance(func, ast.Attribute)
+                    and func.attr == "Thread"
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "threading"
+                ) or (isinstance(func, ast.Name) and func.id == "Thread")
+                if direct_thread_call:
+                    direct_threads.append(f"{path}:{node.lineno}")
+
+        self.assertEqual([], direct_threads)
+
 
 if __name__ == "__main__":
     unittest.main()
