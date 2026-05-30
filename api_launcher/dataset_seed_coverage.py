@@ -18,6 +18,17 @@ PAGINATED_CATALOG_SOURCE_TYPES = frozenset(
 )
 FULL_SEED_CAPABLE_SOURCE_TYPES = ENTRY_LISTING_SOURCE_TYPES | PAGINATED_CATALOG_SOURCE_TYPES
 
+SHOWCASE_STATUS_LABELS: dict[str, str] = {
+    "all_sources_have_complete_seed_attempt_path": "所有入口都有完整 seed 嘗試路徑",
+    "some_sources_need_crawler_handler": "部分入口仍需 crawler handler",
+}
+
+
+def showcase_status_display_label(status: object, *, fallback: str = "展示狀態待確認") -> str:
+    """Return user-facing text for the seed-coverage showcase status id."""
+
+    return SHOWCASE_STATUS_LABELS.get(str(status or "").strip(), fallback)
+
 
 @dataclass(frozen=True)
 class SourceSeedCoverage:
@@ -65,16 +76,18 @@ def build_dataset_seed_coverage_report(
     by_action = Counter(row.next_action for row in rows)
     ready_count = sum(1 for row in rows if row.complete_seed_ready)
     capable_count = sum(1 for row in rows if row.full_crawl_supported)
+    showcase_status = (
+        "all_sources_have_complete_seed_attempt_path"
+        if capable_count == len(rows)
+        else "some_sources_need_crawler_handler"
+    )
     return {
         "schema_version": 1,
         "created_at": utc_now_iso(),
         "role": "dataset discovery source seed coverage audit; metadata only; no network crawl or download executed",
         "source_count": len(rows),
-        "showcase_status": (
-            "all_sources_have_complete_seed_attempt_path"
-            if capable_count == len(rows)
-            else "some_sources_need_crawler_handler"
-        ),
+        "showcase_status": showcase_status,
+        "showcase_status_label": showcase_status_display_label(showcase_status),
         "complete_seed_capable_count": capable_count,
         "complete_seed_ready_count": ready_count,
         "needs_complete_seed_action_count": len(rows) - ready_count,
@@ -102,6 +115,9 @@ def render_dataset_seed_coverage_markdown(report: dict[str, object]) -> str:
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
     by_scope = summary.get("by_current_seed_scope") if isinstance(summary.get("by_current_seed_scope"), dict) else {}
     by_action = summary.get("by_next_action") if isinstance(summary.get("by_next_action"), dict) else {}
+    showcase_status_label = str(
+        report.get("showcase_status_label") or showcase_status_display_label(report.get("showcase_status"))
+    )
     lines = [
         "# 資料集 seed 覆蓋展示報告",
         "",
@@ -110,7 +126,7 @@ def render_dataset_seed_coverage_markdown(report: dict[str, object]) -> str:
         "",
         "## 摘要",
         "",
-        f"- 展示狀態：`{report.get('showcase_status', '')}`",
+        f"- 展示狀態：{showcase_status_label}",
         f"- 來源入口數：{report.get('source_count', 0)}",
         f"- 具備完整 seed 嘗試路徑：{report.get('complete_seed_capable_count', 0)}",
         f"- 目前已是完整入口列表或分頁 catalog：{report.get('complete_seed_ready_count', 0)}",

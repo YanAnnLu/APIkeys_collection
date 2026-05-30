@@ -3,9 +3,11 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from api_launcher.showcase_download import build_showcase_resumable_download_plan
 from frontends.tk.showcase_workflows import (
+    showcase_download_message,
     showcase_download_progress_message,
     showcase_resumable_plan_message,
     showcase_seed_coverage_message,
@@ -38,9 +40,31 @@ class ShowcaseWorkflowHelperTests(unittest.TestCase):
             )
 
         self.assertIn("展示模式 seed 覆蓋報告已建立", message)
+        self.assertIn("展示狀態：所有入口都有完整 seed 嘗試路徑", message)
         self.assertIn("已登錄入口 source：23", message)
         self.assertIn("具備完整 seed 嘗試路徑：23", message)
         self.assertIn("不會執行網路爬蟲、下載資料或寫入資料庫", message)
+        self.assertNotIn("all_sources_have_complete_seed_attempt_path", message)
+
+    def test_showcase_download_message_uses_stage_label(self) -> None:
+        run = SimpleNamespace(
+            succeeded=True,
+            pipeline=SimpleNamespace(stage="download_import_completed"),
+            table_counts={"demo": 3},
+            sample_limit=3,
+            resolution=SimpleNamespace(direct_entries_added=1),
+            paths=SimpleNamespace(
+                root=Path("out"),
+                downloads_root=Path("out/downloads"),
+                curated_sqlite=Path("out/curated.db"),
+                summary_json=Path("out/summary.json"),
+            ),
+        )
+
+        message = showcase_download_message(run, lambda zh, _en="": zh)
+
+        self.assertIn("下載/匯入階段：下載 / 匯入完成", message)
+        self.assertNotIn("download_import_completed", message)
 
     def test_showcase_resumable_message_guides_pause_resume_without_sql(self) -> None:
         # 續傳展示是給人現場照著按的流程，文字必須同時說明 Pause/Resume 與 SQL 短路邊界。
@@ -59,6 +83,12 @@ class ShowcaseWorkflowHelperTests(unittest.TestCase):
         self.assertIn("備援公開 CSV", message)
         self.assertIn("真下載", message)
         self.assertIn("SQLite", message)
+
+    def test_showcase_progress_unknown_stage_hides_raw_token(self) -> None:
+        message = showcase_download_progress_message("new_internal_stage", {}, lambda zh, _en="": zh)
+
+        self.assertIn("展示流程狀態待確認", message)
+        self.assertNotIn("new_internal_stage", message)
 
 
 if __name__ == "__main__":

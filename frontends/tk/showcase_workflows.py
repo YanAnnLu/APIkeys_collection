@@ -21,8 +21,10 @@ from api_launcher.crawlers.dataset_sources import (
 from api_launcher.dataset_seed_coverage import (
     build_dataset_seed_coverage_report,
     render_dataset_seed_coverage_markdown,
+    showcase_status_display_label,
 )
 from api_launcher.event_log import log_event, log_exception
+from api_launcher.crawler_asset_display import download_import_stage_display_label
 from api_launcher.paths import catalog_file, local_config_file, state_file, user_downloads_dir
 from api_launcher.repository import ApiCatalogRepository
 from api_launcher.showcase_download import (
@@ -50,7 +52,7 @@ def showcase_seed_coverage_message(
     """Return a human-facing summary for the stable showcase seed audit."""
 
     # 報告欄位維持 CLI/agent 可讀的英文 key；展示文字在這裡轉成繁中摘要。
-    status = str(report.get("showcase_status") or "-")
+    status_label = str(report.get("showcase_status_label") or showcase_status_display_label(report.get("showcase_status"))).strip()
     source_count = int(report.get("source_count") or 0)
     capable_count = int(report.get("complete_seed_capable_count") or 0)
     ready_count = int(report.get("complete_seed_ready_count") or 0)
@@ -61,7 +63,7 @@ def showcase_seed_coverage_message(
             [
                 "展示模式 seed 覆蓋報告已建立。",
                 "",
-                f"展示狀態：{status}",
+                f"展示狀態：{status_label}",
                 f"已登錄入口 source：{source_count}",
                 f"具備完整 seed 嘗試路徑：{capable_count}",
                 f"目前已可直接完整 seed：{ready_count}",
@@ -78,7 +80,7 @@ def showcase_seed_coverage_message(
             [
                 "Showcase seed coverage report created.",
                 "",
-                f"Showcase status: {status}",
+                f"Showcase status: {status_label}",
                 f"Registered source count: {source_count}",
                 f"Complete seed capable: {capable_count}",
                 f"Complete seed ready now: {ready_count}",
@@ -99,12 +101,13 @@ def showcase_download_message(run: ShowcaseDownloadRun, tr: Callable[[str, str],
 
     # 這段文字刻意說明它是「有界展示下載」，避免被誤讀成所有資料源都已全量完成。
     table_counts = ", ".join(f"{table}={count}" for table, count in run.table_counts.items()) or "-"
+    stage_label = download_import_stage_display_label(run.pipeline.stage)
     return tr(
         "\n".join(
             [
                 "展示下載已完成。" if run.succeeded else "展示下載未完整完成。",
                 "",
-                f"下載/匯入階段：{run.pipeline.stage}",
+                f"下載/匯入階段：{stage_label}",
                 f"樣本筆數上限：{run.sample_limit}",
                 f"resolved direct entries：{run.resolution.direct_entries_added}",
                 f"SQLite 資料表筆數：{table_counts}",
@@ -121,7 +124,7 @@ def showcase_download_message(run: ShowcaseDownloadRun, tr: Callable[[str, str],
             [
                 "Showcase download completed." if run.succeeded else "Showcase download did not fully complete.",
                 "",
-                f"Download/import stage: {run.pipeline.stage}",
+                f"Download/import stage: {stage_label}",
                 f"Sample row limit: {run.sample_limit}",
                 f"Resolved direct entries: {run.resolution.direct_entries_added}",
                 f"SQLite table rows: {table_counts}",
@@ -217,7 +220,7 @@ def showcase_download_progress_message(stage: str, context: dict[str, object], t
         "count_tables": ("正在讀取本機 .db 表格筆數。", "Reading local .db table counts."),
         "completed": ("展示下載完成。", "Showcase download completed."),
     }
-    zh, en = messages.get(stage, (f"目前階段：{stage}", f"Current stage: {stage}"))
+    zh, en = messages.get(stage, ("展示流程狀態待確認。", "Showcase stage needs confirmation."))
     return tr(zh, en)
 
 
@@ -456,9 +459,10 @@ class ShowcaseWorkflowMixin:
             return
 
         self.reload_data()
+        stage_label = download_import_stage_display_label(run.pipeline.stage)
         summary = self.tr(
-            f"展示下載完成：{run.pipeline.stage}，DB={run.paths.curated_sqlite}",
-            f"Showcase download completed: {run.pipeline.stage}, DB={run.paths.curated_sqlite}",
+            f"展示下載完成：{stage_label}，DB={run.paths.curated_sqlite}",
+            f"Showcase download completed: {stage_label}, DB={run.paths.curated_sqlite}",
         )
         self.status_var.set(summary)
         message = showcase_download_message(run, self.tr)
