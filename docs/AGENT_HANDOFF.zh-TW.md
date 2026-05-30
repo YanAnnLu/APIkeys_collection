@@ -2,8 +2,8 @@
 ## 2026-05-30 17:39 Tk next-action fallback guard
 - 本輪把 Tk crawler asset helper 裡幾個「label 缺失時退回 raw next_action / stale reason」的訊息收掉：blocked download-plan summary、Plan Passport stale summary、credential guard message、credential summary 都只使用 `_ui_next_action_text()` 產生的人類文案或中性 fallback。
 - 已提交實作：`a223c62 Guard Tk next-action fallbacks`。
-- 已驗證：`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，142 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_173622.log` 通過，983 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
-- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Tk helper 顯示 fallback，不改 backend payload、crawler registry、download/import service、credential storage 或 Web 操作。GitHub Actions 尚未補看，下一步應 push 後手動 dispatch / watch CI。
+- 已驗證：`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs -v` 通過，142 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_173622.log` 通過，983 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26680645293` 通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只調整 Tk helper 顯示 fallback，不改 backend payload、crawler registry、download/import service、credential storage 或 Web 操作。
 ## 2026-05-30 17:32 Web UIUX display contract doc sync
 - 本輪是小型 consolidation / docs drift 修補：`docs/WEB_PREVIEW_UIUX.zh-TW.md` 已把 Plan Passport freshness guard 從 `stale_next_action` raw token 校正成 `stale_next_action_label`，並補上 Web 使用者可見文字不得 fallback 到 snake_case / raw backend token 的規則。
 - 已提交文檔：本 checkpoint 只更新協作文檔，未改產品碼。
