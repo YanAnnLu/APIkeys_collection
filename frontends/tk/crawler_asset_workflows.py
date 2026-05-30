@@ -1075,14 +1075,14 @@ class CrawlerAssetWorkflowMixin:
             ("asset_listing", asset.asset_id, ""),
             self._crawler_asset_listing_worker,
             (asset.asset_id,),
-            duplicate_status_zh=f"入口清單擷取已在執行：{asset.asset_id}",
-            duplicate_status_en=f"Dataset listing is already running: {asset.asset_id}",
+            duplicate_status_zh=f"入口清單擷取已在執行：{asset.display_name}",
+            duplicate_status_en=f"Dataset listing is already running: {asset.display_name}",
         )
         if started:
             self.status_var.set(
                 self.tr(
-                    f"正在擷取入口清單；入口：{asset.asset_id}。",
-                    f"Listing datasets for source: {asset.asset_id}.",
+                    f"正在擷取入口清單；入口：{asset.display_name}。",
+                    f"Listing datasets for source: {asset.display_name}.",
                 )
             )
 

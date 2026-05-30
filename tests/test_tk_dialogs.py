@@ -908,6 +908,41 @@ class TkDialogModuleTest(unittest.TestCase):
 
         thread_class.assert_not_called()
         self.assertIn("already running", ui.status_var.value)
+        self.assertIn("Demo file index", ui.status_var.value)
+        self.assertNotIn("demo_index", ui.status_var.value)
+
+    def test_crawler_asset_listing_status_uses_display_name(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_index",
+            provider_id="demo_provider",
+            name="Demo file index",
+            source_type="html_file_index",
+            endpoint_url="https://example.test/data/",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        thread_call = SimpleNamespace(target=None, args=None, started=False)
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                thread_call.target = target
+                thread_call.args = args
+                self.daemon = daemon
+
+            def start(self):
+                thread_call.started = True
+
+        with patch("frontends.tk.background_jobs.threading.Thread", FakeThread):
+            CrawlerAssetWorkflowMixin.run_selected_crawler_asset_listing(ui)
+
+        self.assertEqual("demo_provider", ui.active_provider_id)
+        self.assertTrue(thread_call.started)
+        self.assertEqual(("demo_index",), thread_call.args)
+        self.assertIn("Demo file index", ui.status_var.value)
+        self.assertNotIn("demo_index", ui.status_var.value)
 
     def test_source_pattern_draft_dialog_form_values_without_tk_mainloop(self) -> None:
         dialog = object.__new__(SourcePatternDraftDialog)
