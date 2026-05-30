@@ -172,6 +172,7 @@ def html_file_index_candidates_for_source(
     transport="html",
     auth_profile="none",
     result_shape="file_links",
+    seed_scope="entry_listing",
     supports_full_crawl=True,
 )
 def html_file_index_source_crawler(

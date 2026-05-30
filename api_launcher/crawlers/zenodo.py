@@ -166,6 +166,7 @@ def paginated_zenodo_output(
     transport="json",
     auth_profile="none",
     result_shape="dataset_list",
+    seed_scope="paginated_catalog",
     supports_full_crawl=True,
 )
 def zenodo_candidates_for_source(

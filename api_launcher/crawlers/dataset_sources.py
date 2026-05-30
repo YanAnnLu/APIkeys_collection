@@ -133,6 +133,7 @@ def list_crawlers_by_dims(
     transport: str | None = None,
     auth_profile: str | None = None,
     result_shape: str | None = None,
+    seed_scope: str | None = None,
 ) -> tuple[CrawlerSpec, ...]:
     """Query the crawler matrix by partial capability dimensions."""
 
@@ -141,6 +142,7 @@ def list_crawlers_by_dims(
         transport=transport,
         auth_profile=auth_profile,
         result_shape=result_shape,
+        seed_scope=seed_scope,
     )
 
 

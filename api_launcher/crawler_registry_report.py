@@ -61,6 +61,7 @@ def crawler_registry_summary() -> dict[str, object]:
         "transports": _dimension_values(dimensions, "transport"),
         "auth_profiles": _dimension_values(dimensions, "auth_profile"),
         "result_shapes": _dimension_values(dimensions, "result_shape"),
+        "seed_scopes": _dimension_values(dimensions, "seed_scope"),
         "capability_group_count": len(report.get("capability_groups") or []),
         "next_action": str(report.get("next_action") or ""),
     }
@@ -72,6 +73,7 @@ def _dimension_summary(specs: tuple[dataset_sources.CrawlerSpec, ...]) -> dict[s
         "transport": Counter(spec.transport for spec in specs),
         "auth_profile": Counter(spec.auth_profile for spec in specs),
         "result_shape": Counter(spec.result_shape for spec in specs),
+        "seed_scope": Counter(spec.seed_scope for spec in specs),
     }
     return {
         dimension: dict(sorted(counter.items()))

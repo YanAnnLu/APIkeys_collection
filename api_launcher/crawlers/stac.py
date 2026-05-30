@@ -170,6 +170,7 @@ def paginated_stac_output(
     transport="json",
     auth_profile="none",
     result_shape="dataset_list",
+    seed_scope="entry_listing",
     supports_full_crawl=True,
 )
 def stac_candidates_for_source(

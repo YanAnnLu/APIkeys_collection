@@ -116,6 +116,7 @@ def erddap_candidates_for_source(
     transport="json",
     auth_profile="none",
     result_shape="dataset_list",
+    seed_scope="entry_listing",
     supports_full_crawl=False,
 )
 def erddap_source_crawler(

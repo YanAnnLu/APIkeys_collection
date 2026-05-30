@@ -46,6 +46,8 @@ class DeveloperDiagnosticsTests(unittest.TestCase):
         self.assertGreaterEqual(report["matrix_cell_count"], 4)
         self.assertIn("optional_api_key", report["dimensions"]["auth_profile"])
         self.assertIn("file_links", report["dimensions"]["result_shape"])
+        self.assertIn("entry_listing", report["dimensions"]["seed_scope"])
+        self.assertIn("paginated_catalog", summary["seed_scopes"])
         self.assertEqual(report["source_type_count"], summary["source_type_count"])
         self.assertIn("use_registry_report", summary["next_action"])
 

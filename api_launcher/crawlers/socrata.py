@@ -230,6 +230,7 @@ def paginated_socrata_catalog_output(
     transport="json",
     auth_profile="optional_api_key",
     result_shape="dataset_list",
+    seed_scope="paginated_catalog",
     supports_full_crawl=True,
 )
 def socrata_catalog_candidates_for_source(

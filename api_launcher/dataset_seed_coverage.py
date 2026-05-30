@@ -4,33 +4,17 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable
 
-from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES
+from api_launcher.crawlers.dataset_sources import SUPPORTED_DATASET_SOURCE_TYPES, list_crawlers_by_dims
 from api_launcher.crawlers.pagination import MAX_FULL_CRAWL_PAGES
 from api_launcher.crawlers.types import DatasetDiscoverySource
 from api_launcher.db import utc_now_iso
 
 
 ENTRY_LISTING_SOURCE_TYPES = frozenset(
-    {
-        "erddap_all_datasets",
-        "html_file_index",
-        "ogc_wms_capabilities",
-        "stac_collections",
-    }
+    spec.source_type for spec in list_crawlers_by_dims(seed_scope="entry_listing")
 )
 PAGINATED_CATALOG_SOURCE_TYPES = frozenset(
-    {
-        "ckan_package_search",
-        "cmr_collections",
-        "datacite_dois",
-        "dataverse_search",
-        "gbif_dataset_search",
-        "ncei_search",
-        "ogc_api_records",
-        "openalex_works_search",
-        "socrata_catalog_search",
-        "zenodo_records_search",
-    }
+    spec.source_type for spec in list_crawlers_by_dims(seed_scope="paginated_catalog")
 )
 FULL_SEED_CAPABLE_SOURCE_TYPES = ENTRY_LISTING_SOURCE_TYPES | PAGINATED_CATALOG_SOURCE_TYPES
 

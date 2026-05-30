@@ -58,6 +58,8 @@ from api_launcher.crawlers.registry import (
 )
 from api_launcher.crawlers.request_policy import source_request_policy
 from api_launcher.dataset_seed_coverage import (
+    ENTRY_LISTING_SOURCE_TYPES,
+    PAGINATED_CATALOG_SOURCE_TYPES,
     build_dataset_seed_coverage_report,
     render_dataset_seed_coverage_markdown,
     source_seed_coverage,
@@ -429,6 +431,9 @@ class DatasetDiscoveryTests(unittest.TestCase):
         self.assertEqual("optional_api_key", specs["socrata_catalog_search"].auth_profile)
         self.assertEqual("html", specs["html_file_index"].transport)
         self.assertEqual("layer_list", specs["ogc_wms_capabilities"].result_shape)
+        self.assertEqual("entry_listing", specs["stac_collections"].seed_scope)
+        self.assertEqual("entry_listing", specs["html_file_index"].seed_scope)
+        self.assertEqual("paginated_catalog", specs["ckan_package_search"].seed_scope)
         self.assertEqual("api_launcher.crawlers.erddap", specs["erddap_all_datasets"].handler.__module__)
         self.assertEqual("api_launcher.crawlers.html_index", specs["html_file_index"].handler.__module__)
 
@@ -451,6 +456,33 @@ class DatasetDiscoveryTests(unittest.TestCase):
             for spec in dataset_sources.list_crawlers_by_dims(result_shape="file_links")
         }
         self.assertEqual({"html_file_index"}, file_link_types)
+
+        entry_listing_types = {
+            spec.source_type
+            for spec in dataset_sources.list_crawlers_by_dims(seed_scope="entry_listing")
+        }
+        self.assertEqual(
+            {"erddap_all_datasets", "html_file_index", "ogc_wms_capabilities", "stac_collections"},
+            entry_listing_types,
+        )
+
+    def test_seed_coverage_source_type_sets_follow_registry_seed_scope(self) -> None:
+        entry_listing_types = {
+            spec.source_type
+            for spec in dataset_sources.list_crawlers_by_dims(seed_scope="entry_listing")
+        }
+        paginated_catalog_types = {
+            spec.source_type
+            for spec in dataset_sources.list_crawlers_by_dims(seed_scope="paginated_catalog")
+        }
+
+        self.assertEqual(entry_listing_types, set(ENTRY_LISTING_SOURCE_TYPES))
+        self.assertEqual(paginated_catalog_types, set(PAGINATED_CATALOG_SOURCE_TYPES))
+        self.assertEqual(
+            set(dataset_sources.SUPPORTED_DATASET_SOURCE_TYPES),
+            entry_listing_types | paginated_catalog_types,
+        )
+        self.assertFalse(entry_listing_types & paginated_catalog_types)
 
     def test_crawler_capability_address_groups_existing_handlers(self) -> None:
         index = dataset_sources.CRAWLER_CAPABILITY_INDEX
@@ -482,6 +514,17 @@ class DatasetDiscoveryTests(unittest.TestCase):
     def test_crawler_capability_code_rejects_unknown_dimension(self) -> None:
         with self.assertRaises(ValueError):
             capability_code_for("unknown_family", "json", "none", "dataset_list")
+
+    def test_crawler_registry_rejects_unknown_seed_scope(self) -> None:
+        with self.assertRaisesRegex(ValueError, "seed_scope"):
+            crawler(
+                source_type="unit_bad_seed_scope",
+                source_family="catalog_search",
+                transport="json",
+                auth_profile="none",
+                result_shape="dataset_list",
+                seed_scope="recursive_tree",
+            )(ncei_candidates_from_payload)  # type: ignore[arg-type]
 
     def test_crawler_registry_rejects_duplicate_source_type(self) -> None:
         with self.assertRaises(ValueError):

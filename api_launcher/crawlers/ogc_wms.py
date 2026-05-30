@@ -43,6 +43,7 @@ def ogc_wms_capabilities_url(endpoint_url: str) -> str:
     transport="xml",
     auth_profile="none",
     result_shape="layer_list",
+    seed_scope="entry_listing",
     supports_full_crawl=False,
 )
 def ogc_wms_candidates_for_source(

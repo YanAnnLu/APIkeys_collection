@@ -46,6 +46,12 @@ RESULT_SHAPE_BITS = {
     "layer_list": 0b0001,
     "resource_links": 0b0001,
 }
+SEED_SCOPE_VALUES = frozenset(
+    {
+        "entry_listing",
+        "paginated_catalog",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -140,6 +146,7 @@ class CrawlerSpec:
     transport: str
     auth_profile: str
     result_shape: str
+    seed_scope: str
     supports_full_crawl: bool
     capability_code: CrawlerCapabilityCode
     handler: DatasetSourceCrawler
@@ -163,6 +170,7 @@ class CrawlerSpec:
             "transport": self.transport,
             "auth_profile": self.auth_profile,
             "result_shape": self.result_shape,
+            "seed_scope": self.seed_scope,
             "supports_full_crawl": self.supports_full_crawl,
             "matrix_key": self.matrix_key,
             "capability_code": self.capability_code.to_dict(),
@@ -213,6 +221,7 @@ def crawler(
     transport: str,
     auth_profile: str,
     result_shape: str,
+    seed_scope: str = "paginated_catalog",
     supports_full_crawl: bool = False,
 ) -> Callable[[DatasetSourceCrawler], DatasetSourceCrawler]:
     """Register a crawler handler with declarative capability metadata."""
@@ -223,8 +232,11 @@ def crawler(
         normalized_transport = transport.strip()
         normalized_auth_profile = auth_profile.strip()
         normalized_result_shape = result_shape.strip()
+        normalized_seed_scope = seed_scope.strip()
         if not normalized_source_type:
             raise ValueError("Crawler source_type must not be blank")
+        if normalized_seed_scope not in SEED_SCOPE_VALUES:
+            raise ValueError(f"Unsupported crawler seed_scope: {normalized_seed_scope}")
         if normalized_source_type in _REGISTRY:
             raise ValueError(f"Duplicate crawler source_type: {normalized_source_type}")
         _validate_handler_signature(func, normalized_source_type)
@@ -240,6 +252,7 @@ def crawler(
             transport=normalized_transport,
             auth_profile=normalized_auth_profile,
             result_shape=normalized_result_shape,
+            seed_scope=normalized_seed_scope,
             supports_full_crawl=bool(supports_full_crawl),
             capability_code=capability_code,
             handler=func,
@@ -282,6 +295,7 @@ def iter_crawler_specs_by_dims(
     transport: str | None = None,
     auth_profile: str | None = None,
     result_shape: str | None = None,
+    seed_scope: str | None = None,
 ) -> Iterator[CrawlerSpec]:
     """Yield registered specs matching any provided capability dimensions.
 
@@ -299,6 +313,8 @@ def iter_crawler_specs_by_dims(
             continue
         if result_shape is not None and spec.result_shape != result_shape:
             continue
+        if seed_scope is not None and spec.seed_scope != seed_scope:
+            continue
         yield spec
 
 
@@ -308,6 +324,7 @@ def crawler_specs_by_dims(
     transport: str | None = None,
     auth_profile: str | None = None,
     result_shape: str | None = None,
+    seed_scope: str | None = None,
 ) -> tuple[CrawlerSpec, ...]:
     return tuple(
         iter_crawler_specs_by_dims(
@@ -315,6 +332,7 @@ def crawler_specs_by_dims(
             transport=transport,
             auth_profile=auth_profile,
             result_shape=result_shape,
+            seed_scope=seed_scope,
         )
     )
 
@@ -355,6 +373,7 @@ __all__ = [
     "CrawlerSpec",
     "DatasetSourceCrawler",
     "RESULT_SHAPE_BITS",
+    "SEED_SCOPE_VALUES",
     "SOURCE_FAMILY_BITS",
     "TRANSPORT_BITS",
     "capability_code_for",
