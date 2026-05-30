@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 08:26 Web seed scope passport display
+- 本輪是 Web Preview thin-display slice：Crawler Passport 現在直接顯示 `capability_profile.seed_scope` 的 raw backend contract，能力膠囊摘要也包含 seed scope，讓使用者/agent 可看出 crawler 是 `entry_listing` 還是 `paginated_catalog`，但 Web 不自行從 `source_type` 推理 seed 枚舉語義。
+- 已提交實作：`c3ad3f5 Show seed scope in Web Preview passport`。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m py_compile tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，59 tests OK；`git diff --check` OK（僅既有 CRLF/LF warning）；完整 smoke `state\logs\pre_push_smoke_20260530_082633.log` 通過，954 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log / discovery notes / Web Preview UIUX；本輪只顯示既有 backend capability profile 欄位，不改 crawler handler、seed enumeration service、download/import、credential、Tk 操作或 user guide。
+
 ## 2026-05-30 08:17 Capability profile seed scope payload
 - 本輪延續 crawler seed scope registry slice：`CrawlerCapabilityProfile` 新增 `seed_scope`，crawler asset payload 的 `capability_profile` 現在會直接輸出 registry 宣告的 `entry_listing` / `paginated_catalog`，讓 Tk/Web/未來 Qt 不必從 `source_type` 或 `current_seed_scope` 反推 crawler 本身的 seed 枚舉語義。
 - 已提交實作：`38b4a8f Expose seed scope in capability profile`。
