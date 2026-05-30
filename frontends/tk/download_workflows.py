@@ -20,6 +20,24 @@ from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
 
 
+def download_job_status_label(status: object, tr: object) -> str:
+    """Translate downloader runtime states without changing the queue's stable ids."""
+
+    status_id = str(getattr(status, "value", status) or "").strip()
+    labels = {
+        "planned": ("已規劃", "Planned"),
+        "queued": ("已排隊", "Queued"),
+        "running": ("下載中", "Running"),
+        "paused": ("已暫停", "Paused"),
+        "completed": ("已完成", "Completed"),
+        "failed": ("失敗", "Failed"),
+        "cancelled": ("已取消", "Cancelled"),
+        "skipped": ("已略過", "Skipped"),
+    }
+    zh, en = labels.get(status_id, ("狀態待確認", "Status pending"))
+    return tr(zh, en) if callable(tr) else zh
+
+
 class DownloadWorkflowMixin:
     """封裝下載計畫與 download queue UI workflow；不改動底層 downloader 行為。"""
 
@@ -304,6 +322,9 @@ class DownloadWorkflowMixin:
             self.register_completed_download(plan_key, target)
         elif progress.status in {JobStatus.FAILED, JobStatus.CANCELLED}:
             provider_id = self.provider_id_for_plan_key(plan_key)
+            row = self.row_by_provider_id(provider_id)
+            provider_label = provider_display_label(row, provider_id)
+            status_label = download_job_status_label(progress.status, self.tr)
             log_event(
                 "download_job_problem",
                 progress.error or progress.message,
@@ -311,7 +332,7 @@ class DownloadWorkflowMixin:
                 component="ui.download",
                 context={"provider_id": provider_id, "job_id": progress.job_id, "status": progress.status.value, "target": target},
             )
-            self.status_var.set(self.tr(f"下載 {progress.status.value}：{provider_id} {progress.error}", f"Download {progress.status.value}: {provider_id} {progress.error}"))
+            self.status_var.set(self.tr(f"下載{status_label}：{provider_label} {progress.error}", f"Download {status_label}: {provider_label} {progress.error}"))
 
     def format_download_percent(self, progress: DownloadProgress) -> str:
         if progress.percent is not None:
@@ -334,7 +355,7 @@ class DownloadWorkflowMixin:
                 "",
                 END,
                 iid=plan_key,
-                values=(self.plan_item_label(plan_key, row), status, progress, self.import_status_label(plan_key, row), target),
+                values=(self.plan_item_label(plan_key, row), download_job_status_label(status, self.tr), progress, self.import_status_label(plan_key, row), target),
             )
         self.update_primary_download_action_label()
 

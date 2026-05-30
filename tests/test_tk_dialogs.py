@@ -89,7 +89,7 @@ from frontends.tk.developer_diagnostics_workflows import (
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
-from frontends.tk.download_workflows import DownloadWorkflowMixin
+from frontends.tk.download_workflows import DownloadWorkflowMixin, download_job_status_label
 from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
@@ -3017,6 +3017,29 @@ class TkDialogModuleTest(unittest.TestCase):
         ui.download_progress_by_provider["plan-1"] = DownloadProgress("job-1", "provider-1", JobStatus.COMPLETED)
         DownloadWorkflowMixin.update_primary_download_action_label(ui)
         self.assertEqual("開始", ui.download_primary_action_var.value)
+
+    def test_download_job_status_label_hides_raw_status(self) -> None:
+        self.assertEqual("失敗", download_job_status_label(JobStatus.FAILED, lambda zh, _en: zh))
+        self.assertEqual("狀態待確認", download_job_status_label("unexpected_state", lambda zh, _en: zh))
+
+    def test_download_progress_problem_uses_display_labels(self) -> None:
+        ui = object.__new__(DownloadWorkflowMixin)
+        ui.download_providers_by_job = {}
+        ui.download_progress_by_provider = {}
+        ui.download_status_by_provider = {"plan-1": ("planned", "0%", "target.csv")}
+        ui.provider_id_for_plan_key = lambda _plan_key: "provider_a"
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_a", name="")
+        ui.update_download_jobs_panel = lambda: None
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda zh, _en: zh
+        progress = DownloadProgress("job-1", "plan-1", JobStatus.FAILED, error="timeout")
+
+        with patch("frontends.tk.download_workflows.log_event"):
+            DownloadWorkflowMixin.on_download_progress(ui, progress)
+
+        self.assertIn("下載失敗", ui.status_var.value)
+        self.assertIn("Provider ID：provider_a", ui.status_var.value)
+        self.assertNotIn("下載 failed", ui.status_var.value)
 
     def test_download_primary_action_routes_to_pause_resume_or_start(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
