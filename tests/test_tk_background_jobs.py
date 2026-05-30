@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ast
 import threading
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -156,6 +158,30 @@ class TkBackgroundJobTests(unittest.TestCase):
     def test_background_job_policy_fails_fast_for_unknown_id(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unknown Tk background job policy"):
             tk_background_job_policy("not_a_policy")
+
+    def test_tk_single_flight_call_sites_use_capacity_policy(self) -> None:
+        missing_policy: list[str] = []
+        tk_root = Path("frontends") / "tk"
+        for path in sorted(tk_root.glob("*.py")):
+            if path.name == "background_jobs.py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                if isinstance(func, ast.Name):
+                    func_name = func.id
+                elif isinstance(func, ast.Attribute):
+                    func_name = func.attr
+                else:
+                    continue
+                if func_name != "start_single_flight_thread":
+                    continue
+                if not any(keyword.arg == "max_active_jobs" for keyword in node.keywords):
+                    missing_policy.append(f"{path}:{node.lineno}")
+
+        self.assertEqual([], missing_policy)
 
 
 if __name__ == "__main__":
