@@ -31,7 +31,7 @@
 - Seed 枚舉狀態要吃後端 `seed_enumeration` payload：`label` / `help` / `display_tone` / `limited_by_max_results` 由 service 判斷。Web 只能呈現，不要用候選數自行猜「完整」或「被截斷」。若 `limited_by_max_results=true`，UI 應明確提示「已達本機安全上限，遠端可能還有更多」。
 - 若 seed page payload 帶有 `recommended_seed_uid`，Web 應顯示一個明確的推薦 seed 操作入口，並直接呼叫正式 seed-level download/import endpoint。推薦邏輯屬於後端 `crawler_seed_page()` contract，Web 不自行挑選第一筆、收藏 seed 或依 source type 推斷可下載性。
 - Seed row 可提供「探測欄位」動作，將該 row 的 `api_url` / `download_url` / `landing_url` 交給後端 schema probe endpoint；Web 只能挑選可見 seed URL，不自行推論欄位型別或替 source type 寫特殊規則。探測成功後，Web 重新渲染後端回傳的 bounds form。
-- Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」、「能力膠囊」與 `Seed 範式` 摘要，但 Web 不應以 `source_type` 重新計算分組或 seed 枚舉語義。若後端回空地址或缺 `seed_scope`，UI 應顯示未分類 / unknown，不要假裝已歸類。
+- Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」、「能力膠囊」與 `Seed 範式` 摘要，但 Web 不應以 `source_type` 重新計算分組、seed 枚舉語義或翻譯文案。若後端回空地址或缺 `seed_scope_label` / `seed_scope`，UI 應顯示未分類 / unknown，不要假裝已歸類。
 - 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。
 
 ## 定位

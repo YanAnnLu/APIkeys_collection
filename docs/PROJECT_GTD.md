@@ -23,7 +23,7 @@ Last updated: 2026-05-30
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
 - [x] `CrawlerCapabilityProfile` 已公開 `seed_scope`：asset payload 直接輸出 registry 宣告的 `entry_listing` / `paginated_catalog`，讓 UI/Qt/filter 不必再從 raw `source_type` 或 `current_seed_scope` 推回 crawler 的 seed 枚舉語義。
 - [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。
-- [x] Web Preview 的 Crawler Passport 已顯示 `Seed 範式`：畫面直接吃後端 `capability_profile.seed_scope`，能力膠囊摘要也包含這個欄位；Web 仍不從 `source_type` 重新推理 entry-listing / paginated-catalog 分流。
+- [x] Web Preview 的 Crawler Passport 已顯示 `Seed 範式`：畫面直接吃後端 `capability_profile.seed_scope_label` / `seed_scope`，能力膠囊摘要也包含這個欄位；Web 仍不從 `source_type` 重新推理 entry-listing / paginated-catalog 分流或自行翻譯顯示文案。
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
 - [x] Tk 工具選單已新增「專案成熟度矩陣」入口：Tk 讀同一份 `api_launcher.project_maturity` payload，顯示 `🚧` / display label / limitation counts，不在 Tk 內重算整體完成率。
 - [x] 2026-05-28 governance intake 已收斂：大檔解耦要排進固定 consolidation slice；文檔治理可朝「Markdown source of truth + CSV/JSON/SQLite registry」演進；註釋要補在邊界與不變量，且行為改變時同步更新或刪除；未完整實裝能力必須在 UI/UX 顯示 `🚧` / construction / `contract_only` / `planned` 狀態，不能讓使用者誤以為已交付。

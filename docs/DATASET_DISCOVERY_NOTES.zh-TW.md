@@ -13,7 +13,7 @@
 - `api_launcher/crawler_registry_report.py` 是 developer diagnostics 的薄報告層：它只讀 registry，輸出 source type count、dimension counters、matrix cells、capability groups 與 compact summary。Tk/Web/未來 Qt 可在 developer-only diagnostics 顯示這份摘要；CLI `--crawler-registry-report-json` 也可直接輸出同一份 agent-readable report。正式使用者流程仍應讀 capability profile / display payload，不直接解讀 registry 內部結構。
 - `CrawlerSpec.seed_scope` 現在是 seed coverage 的 declarative 分流來源。每個 handler decorator 會明確宣告它是 `entry_listing` 還是 `paginated_catalog`；`api_launcher/dataset_seed_coverage.py` 由 registry 產生 entry-listing / paginated-catalog source type set，不再維護平行硬編碼清單。新增 crawler 時必須同時選定 seed scope，否則展示 seed coverage、crawler asset 卡片與完整 seed 嘗試路徑容易漂移。
 - `crawler_registry_report()` / `crawler_registry_summary()` 也輸出 `seed_scope` dimension。這是 developer diagnostics 與未來 UI/Qt filter 的能力分組，不代表 live endpoint 已完成全量枚舉；使用者可見完整度仍必須看 listing 的 `seed_enumeration` / `remote_pagination` payload。
-- `CrawlerCapabilityProfile` 也會把 `seed_scope` 放進 crawler asset payload。這個欄位描述 handler 的「seed 枚舉表面」；它不是目前 listing 是否已列完的證據。Web Preview 目前只在 Crawler Passport 中薄顯示這個 raw backend contract，並把它加入「能力膠囊」摘要；前端若要顯示遠端完整度，仍必須讀 listing result 的 `seed_enumeration` 與 `remote_pagination`。
+- `CrawlerCapabilityProfile` 也會把 `seed_scope` 與 `seed_scope_label` 放進 crawler asset payload。這個欄位描述 handler 的「seed 枚舉表面」；它不是目前 listing 是否已列完的證據。Web Preview 目前只在 Crawler Passport 中薄顯示這個 backend contract，並把它加入「能力膠囊」摘要；前端若要顯示遠端完整度，仍必須讀 listing result 的 `seed_enumeration` 與 `remote_pagination`。
 
 ## 2026-05-28 Recursion / traversal budget guard
 

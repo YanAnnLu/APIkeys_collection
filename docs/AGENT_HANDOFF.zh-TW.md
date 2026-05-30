@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 08:37 Seed scope display label contract
+- 本輪把 `seed_scope` 的使用者可讀文案推回後端 capability profile：`CrawlerCapabilityProfile.to_dict()` 現在輸出 `seed_scope_label`，Web Preview 的 Crawler Passport 與能力膠囊摘要優先顯示這個後端 label，再 fallback 到 raw `seed_scope`。
+- 已提交實作：`0dcc809 Add seed scope display label to profiles`。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_crawler_assets tests.test_web_preview -v` 通過，104 tests OK；`git diff --check` OK（僅既有 CRLF/LF warning）；完整 smoke `state\logs\pre_push_smoke_20260530_083705.log` 通過，954 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log / discovery notes / Web Preview UIUX；本輪只新增 UI-neutral display label，不改 seed scope registry、crawler handler、seed enumeration service、download/import、credential、Tk 操作或 user guide。
+
 ## 2026-05-30 08:26 Web seed scope passport display
 - 本輪是 Web Preview thin-display slice：Crawler Passport 現在直接顯示 `capability_profile.seed_scope` 的 raw backend contract，能力膠囊摘要也包含 seed scope，讓使用者/agent 可看出 crawler 是 `entry_listing` 還是 `paginated_catalog`，但 Web 不自行從 `source_type` 推理 seed 枚舉語義。
 - 已提交實作：`c3ad3f5 Show seed scope in Web Preview passport`。
