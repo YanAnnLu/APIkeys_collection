@@ -205,7 +205,7 @@ class YFinanceUiHelperTests(unittest.TestCase):
             display_name="Demo crawler",
             source_surface="catalog",
             source_type_label="CKAN package search",
-            access_requirement="public",
+            access_requirement="crawler_managed_auth",
             maturity="unbuilt",
             risk_tier="needs_handler",
             trust_score=10,
@@ -237,8 +237,12 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
         self.assertIn("成熟度：待補 handler", text)
         self.assertIn("風險：待補 handler", text)
+        self.assertIn("入口：資料目錄 / CKAN package search", text)
+        self.assertIn("存取邊界：需登入 / API key", text)
         self.assertNotIn("unbuilt", text)
         self.assertNotIn("needs_handler", text)
+        self.assertNotIn("catalog /", text)
+        self.assertNotIn("crawler_managed_auth", text)
 
     def test_crawler_asset_bound_payload_from_cache_rehydrates_dict_payload(self) -> None:
         payload = crawler_asset_bound_payload_from_cache(

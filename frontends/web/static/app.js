@@ -897,7 +897,7 @@ function assetSlotHtml(asset) {
     <span class="slot-corner top-left"></span>
     <span class="slot-corner bottom-right"></span>
     <div class="slot-topline">
-      <span class="surface-pill">${escapeHtml(surfaceLabel(asset.source_surface))}</span>
+      <span class="surface-pill">${escapeHtml(surfaceLabel(asset))}</span>
       ${statePill(status)}
       ${capabilityAddressBadgeHtml(asset)}
       ${credentialBadgeHtml(asset)}
@@ -979,7 +979,7 @@ function renderPassport(card, asset) {
     </div>
 
     <dl class="passport-facts">
-      <div><dt>來源表面</dt><dd>${escapeHtml(surfaceLabel(card.source_surface))}</dd></div>
+      <div><dt>來源表面</dt><dd>${escapeHtml(surfaceLabel(card))}</dd></div>
       <div><dt>成熟度</dt><dd>${escapeHtml(displayTextOrFallback("成熟度待確認", card.maturity_label, asset.maturity_label))}</dd></div>
       <div><dt>風險層級</dt><dd>${escapeHtml(displayTextOrFallback("風險層級待確認", card.risk_tier_label, asset.risk_tier_label))}</dd></div>
       <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
@@ -1873,7 +1873,7 @@ function renderSelectedHero(card, flowSteps = []) {
     </div>
     <div class="hero-emblem" aria-hidden="true">
       <span>${escapeHtml(assetInitials(card))}</span>
-      <small>${escapeHtml(surfaceLabel(card.source_surface))}</small>
+      <small>${escapeHtml(surfaceLabel(card))}</small>
     </div>
     <div class="hero-health">
       ${heroMetric("Trust", trust)}
@@ -2293,18 +2293,8 @@ function sourceTypeDisplayText(assetOrType = {}) {
   );
 }
 
-function surfaceLabel(value) {
-  const labels = {
-    api: "API",
-    catalog: "目錄",
-    file_index: "檔案索引",
-    map_service: "地圖服務",
-    clearnet: "公開網路",
-    authenticated: "需認證",
-    archive: "檔案索引",
-    internal: "內部",
-  };
-  return labels[String(value || "").toLowerCase()] || value || "unknown";
+function surfaceLabel(asset) {
+  return displayTextOrFallback("入口類型待確認", asset?.source_surface_label);
 }
 
 function countBy(items, keyFn) {

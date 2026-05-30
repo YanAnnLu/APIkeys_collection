@@ -1,5 +1,5 @@
 ﻿# Web Preview UI/UX 對照層
-最後更新：2026-05-30
+最後更新：2026-05-31
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
@@ -23,7 +23,7 @@
 
 ## 2026-05-27 操作 guard
 
-- `surfaceLabel()` 已補上 `file_index`、`map_service`、`catalog` 的使用者可讀文案。Web Preview 不應把 raw `source_surface` 當主文案丟給使用者；缺標籤時才 fallback。
+- Crawler Asset 的入口表面與存取邊界文案也屬於後端 display contract：`CrawlerAsset.to_dict()` 會輸出 `source_surface_label` 與 `access_requirement_label`。Web Preview 應顯示這些 label，例如「API 入口」「檔案目錄」「需登入 / API key」；raw `source_surface` / `access_requirement` 只保留給 JSON/debug、搜尋 haystack 或 developer diagnostics。Web 不應維護 `file_index` / `map_service` 這類本地翻譯表。
 - 沒有動態界域欄位的資產仍應允許使用者按「建立下載計畫」或「先設定登入 / API Key」。不要用 credential guard 的反值去 disable build-plan 按鈕；按鈕是否進入登入設定或建立計畫，交給 `configureBuildPlanButton()` / `handleBuildPlanClick()` 判斷。
 - 選取一個爬蟲入口後，預設動作是枚舉該入口的 seed。不要把「更新清單」設計成使用者理解入口內容的必要前置動作；「重新枚舉 seed」只能是次要刷新。
 - Seed 清單要用分頁視窗呈現：第一屏顯示前 50 筆，按「顯示更多 seed」再展開下一批 50 筆。這是從本機已枚舉 catalog 讀取，不是每按一次就重新打遠端 crawler。

@@ -1,6 +1,6 @@
 ﻿# RuRuKa Asset Launcher GTD
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 ## 目前工作焦點 / Active Focus
 - [x] 2026-05-29 recovery lane 已切到 `L:\RRKAL_project`：以 `32e215c` 作乾淨基底，完整 smoke 通過（912 tests / 4 skipped，MVP `download_import_completed` / `row_count=3`），Git metadata 已留在 `L:\RRKAL_project\.git`，舊 `K:\APIkeys_collection` 在本 session 只作唯讀參考。
@@ -31,6 +31,7 @@ Last updated: 2026-05-30
 - [x] Web Preview 的 Crawler Passport 已顯示 `Seed 範式`：畫面直接吃後端 `capability_profile.seed_scope_label` / `seed_scope`，能力膠囊摘要也包含這個欄位；Web 仍不從 `source_type` 重新推理 entry-listing / paginated-catalog 分流或自行翻譯顯示文案。
 - [x] Tk Crawler Asset 表格與右側 Passport 已對齊同一份 seed scope display contract：Tk 優先顯示 `capability_profile.seed_scope_label`（例如「入口列表」「分頁 catalog」），不再把 raw `entry_listing` / `paginated_catalog` 當成主要使用者文案。
 - [x] Tk Crawler Asset 右側 Passport 的 maturity / risk 也已對齊後端 label helper：詳情文字顯示「已套安全界域」「待補 handler」「待審核」等人類文案，不再直接露出 `bounded` / `unbuilt` / `needs_handler` 類 raw token。
+- [x] Crawler Asset 的入口表面 / 存取邊界也已對齊後端 display payload：`CrawlerAsset.to_dict()` 輸出 `source_surface_label` / `access_requirement_label`；Tk Passport 與 Web asset card / Passport / selected hero 消費 label，不再由 UI 維護本地 `source_surface` 翻譯表或顯示 raw `crawler_managed_auth`。
 - [x] Web Preview 已新增「成熟度」工作區：`GET /api/project-maturity` 直接回傳後端成熟度矩陣，前端只呈現 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步，不在 JS 內重建 maturity 判斷。
 - [x] Tk 工具選單已新增「專案成熟度矩陣」入口：Tk 讀同一份 `api_launcher.project_maturity` payload，顯示 `🚧` / display label / limitation counts，不在 Tk 內重算整體完成率。
 - [x] Tk background job capacity 已收斂成第一版 declarative policy registry：`frontends/tk/background_job_policies.py` 集中列出 AI summary、crawler asset、developer CLI、discovery、MVP demo smoke、OAuth、plan bounds probe、sidebar favicon、showcase download、source action、SQLite import 的 `max_active_jobs` 與 active-job owner attrs；各 workflow 只匯入 policy 常數，不再自行維護裸值。`tests.test_tk_background_jobs` 也已補 AST guard，要求所有 Tk `start_single_flight_thread(...)` call site 都帶 `max_active_jobs`，且 Tk 模組不得繞過 `background_jobs.py` 直接呼叫 `threading.Thread`；`--project-maturity-json` 會輸出這兩個 guardrail 的 machine-readable metrics。

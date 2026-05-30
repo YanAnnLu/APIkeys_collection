@@ -140,6 +140,8 @@ class CrawlerAssetTest(unittest.TestCase):
 
         asset_payload = asset.to_dict()
         self.assertEqual("CKAN package search", asset_payload["source_type_label"])
+        self.assertEqual("API 入口", asset_payload["source_surface_label"])
+        self.assertEqual("公開或需審核", asset_payload["access_requirement_label"])
         self.assertEqual("已套安全界域", asset_payload["maturity_label"])
         self.assertEqual("待審核", asset_payload["risk_tier_label"])
 
@@ -235,6 +237,7 @@ class CrawlerAssetTest(unittest.TestCase):
         asset = crawler_asset_from_source(source)
 
         self.assertEqual("crawler_managed_auth", asset.access_requirement)
+        self.assertEqual("需登入 / API key", asset.to_dict()["access_requirement_label"])
         self.assertEqual("user_credential_required", asset.capabilities[0].credential_mode)
         self.assertEqual("auth_profile", asset.capabilities[2].bounds_schema[-1].facet_id)
         self.assertEqual("AuthBounds", asset.capabilities[2].bounds_schema[-1].group)

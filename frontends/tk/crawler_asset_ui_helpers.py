@@ -18,8 +18,10 @@ from api_launcher.crawler_next_action_display import next_action_display_label_o
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
     CrawlerAsset,
+    crawler_asset_access_requirement_display_label,
     crawler_asset_maturity_label,
     crawler_asset_risk_tier_label,
+    crawler_asset_source_surface_display_label,
     status_label,
 )
 from api_launcher.downloads.staging import safe_path_part
@@ -873,6 +875,24 @@ def crawler_asset_source_type_label(asset: CrawlerAsset) -> str:
     return str(getattr(asset, "source_type_label", "") or "來源範式待確認")
 
 
+def crawler_asset_source_surface_label(asset: CrawlerAsset) -> str:
+    """Return backend display wording for the crawler entry surface."""
+
+    return str(
+        getattr(asset, "source_surface_label", "")
+        or crawler_asset_source_surface_display_label(str(getattr(asset, "source_surface", "")))
+    )
+
+
+def crawler_asset_access_requirement_label(asset: CrawlerAsset) -> str:
+    """Return backend display wording for the crawler access boundary."""
+
+    return str(
+        getattr(asset, "access_requirement_label", "")
+        or crawler_asset_access_requirement_display_label(str(getattr(asset, "access_requirement", "")))
+    )
+
+
 def crawler_asset_detail_text(
     asset: CrawlerAsset,
     *,
@@ -906,14 +926,16 @@ def crawler_asset_detail_text(
     bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
     seed_scope_label = crawler_asset_seed_scope_label(asset)
     source_type_label = crawler_asset_source_type_label(asset)
+    source_surface_label = crawler_asset_source_surface_label(asset)
+    access_requirement_label = crawler_asset_access_requirement_label(asset)
     maturity_label = crawler_asset_maturity_label(asset.maturity)
     risk_label = crawler_asset_risk_tier_label(asset.risk_tier)
     return tr(
         (
             f"{asset.display_name}\n\n"
-            f"入口：{asset.source_surface} / {source_type_label}\n"
+            f"入口：{source_surface_label} / {source_type_label}\n"
             f"狀態：{crawler_asset_state_label(asset)}\n"
-            f"存取邊界：{asset.access_requirement}\n"
+            f"存取邊界：{access_requirement_label}\n"
             f"成熟度：{maturity_label}；風險：{risk_label}；信任：{asset.trust_score}%\n"
             f"Seed：{asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"
@@ -927,9 +949,9 @@ def crawler_asset_detail_text(
         ),
         (
             f"{asset.display_name}\n\n"
-            f"Surface: {asset.source_surface} / {source_type_label}\n"
+            f"Surface: {source_surface_label} / {source_type_label}\n"
             f"State: {crawler_asset_state_label(asset)}\n"
-            f"Access: {asset.access_requirement}\n"
+            f"Access: {access_requirement_label}\n"
             f"Maturity: {maturity_label}; risk: {risk_label}; trust: {asset.trust_score}%\n"
             f"Seed: {asset.seed_summary} / {seed_scope_label}\n\n"
             f"{credential_line}"

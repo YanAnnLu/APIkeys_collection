@@ -53,6 +53,18 @@ SOURCE_SURFACE_LABELS: dict[str, str] = {
     "openalex_works_search": "api",
 }
 
+SOURCE_SURFACE_DISPLAY_LABELS: dict[str, str] = {
+    "api": "API 入口",
+    "catalog": "資料目錄",
+    "file_index": "檔案目錄",
+    "map_service": "地圖服務",
+}
+
+ACCESS_REQUIREMENT_LABELS: dict[str, str] = {
+    "public_or_review": "公開或需審核",
+    "crawler_managed_auth": "需登入 / API key",
+}
+
 CRAWLER_ASSET_MATURITY_LABELS: dict[str, str] = {
     "ready": "可直接操作",
     "bounded": "已套安全界域",
@@ -129,7 +141,9 @@ class CrawlerAsset:
             "source_type": self.source_type,
             "source_type_label": self.source_type_label,
             "source_surface": self.source_surface,
+            "source_surface_label": crawler_asset_source_surface_display_label(self.source_surface),
             "access_requirement": self.access_requirement,
+            "access_requirement_label": crawler_asset_access_requirement_display_label(self.access_requirement),
             "endpoint_url": self.endpoint_url,
             "docs_url": self.docs_url,
             "categories": list(self.categories),
@@ -288,6 +302,14 @@ def crawler_asset_risk_tier_label(risk_tier: str) -> str:
     return CRAWLER_ASSET_RISK_TIER_LABELS.get(risk_tier, "風險層級待確認")
 
 
+def crawler_asset_source_surface_display_label(source_surface: str) -> str:
+    return SOURCE_SURFACE_DISPLAY_LABELS.get(source_surface, "入口類型待確認")
+
+
+def crawler_asset_access_requirement_display_label(access_requirement: str) -> str:
+    return ACCESS_REQUIREMENT_LABELS.get(access_requirement, "存取邊界待確認")
+
+
 def trust_score_for_asset(maturity: str, risk_tier: str, complete_seed_ready: bool) -> int:
     if risk_tier == "needs_handler":
         return 25
@@ -332,10 +354,14 @@ __all__ = [
     "CrawlerAssetCapability",
     "CRAWLER_ASSET_MATURITY_LABELS",
     "CRAWLER_ASSET_RISK_TIER_LABELS",
+    "SOURCE_SURFACE_DISPLAY_LABELS",
     "SOURCE_SURFACE_LABELS",
+    "ACCESS_REQUIREMENT_LABELS",
     "crawler_asset_from_source",
+    "crawler_asset_access_requirement_display_label",
     "crawler_asset_maturity_label",
     "crawler_asset_risk_tier_label",
+    "crawler_asset_source_surface_display_label",
     "load_crawler_asset_source",
     "load_crawler_assets",
     "status_label",
