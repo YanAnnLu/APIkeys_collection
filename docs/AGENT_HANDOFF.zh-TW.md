@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 06:28 Tk provider status fallback labels
+- 本輪把 `ProviderRow.update_label` / `local_label` 收斂到 `provider_update_status_label()` / `provider_local_status_label()`；已知狀態仍顯示「有更新」「未納管」，未知 backend status 改顯示「更新狀態待確認」「本地狀態待確認」，避免新 provider status token 直接露到 Tk 主表格欄位。
+- 保持邊界：ProviderCatalogEntry、download eligibility、repository row、search haystack、download/import/crawler/credential flow 都沒改；這只是 Tk provider view-model 的 display-safe fallback。
+- 已驗證：`py_compile` for `frontends\tk\provider_models.py` / `tests\test_tk_provider_models.py` OK；`py -3 -B -m unittest tests.test_tk_provider_models tests.test_tk_dialogs -v` 通過 147 tests；完整 smoke `state\logs\pre_push_smoke_20260531_062818.log` 通過，1034 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`b07a5e6 Label Tk provider status fallbacks`；GitHub Actions 尚未跑，下一步是提交文檔、push 並看 CI。
 ## 2026-05-31 06:14 Tk import plan status labels
 - 本輪把 Tk 匯入狀態 fallback 收斂到 `import_plan_status_label()`；已知 `manual_review_required` 顯示「需內容 Parser review」，未知 `import_plan.status` 顯示「匯入狀態待確認」，避免新 backend status 直接露到下載器匯入欄。
 - 保持邊界：CSV/JSON importer、download-plan runner、manual-review payload、content parser review payload、SQLite write gate、manifest 與 Web route 都沒改；這只是 Tk 匯入欄位的 display-safe fallback。
