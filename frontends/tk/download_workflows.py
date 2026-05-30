@@ -38,6 +38,21 @@ def download_job_status_label(status: object, tr: object) -> str:
     return tr(zh, en) if callable(tr) else zh
 
 
+def download_skip_bucket_label(bucket: object, tr: object) -> str:
+    """Render skipped download buckets without leaking unexpected backend ids."""
+
+    bucket_id = str(bucket or "").strip()
+    labels = {
+        "adapter_required": ("需 Adapter", "adapter required"),
+        "metadata_only": ("僅 metadata", "metadata only"),
+        "unavailable": ("不可下載", "unavailable"),
+        "missing_download_url": ("缺下載 URL", "missing download URL"),
+        "not_direct": ("非直接檔案", "not direct"),
+    }
+    zh, en = labels.get(bucket_id, ("其他待處理", "other pending"))
+    return tr(zh, en) if callable(tr) else zh
+
+
 class DownloadWorkflowMixin:
     """封裝下載計畫與 download queue UI workflow；不改動底層 downloader 行為。"""
 
@@ -124,14 +139,7 @@ class DownloadWorkflowMixin:
         self.start_download_plan_items([(row.provider_id, row, self.plan_version_by_provider.get(row.provider_id)) for row in rows])
 
     def localized_download_skip_summary(self, skip_summary: dict[str, int]) -> str:
-        labels = {
-            "adapter_required": self.tr("需 Adapter", "adapter required"),
-            "metadata_only": self.tr("僅 metadata", "metadata only"),
-            "unavailable": self.tr("不可下載", "unavailable"),
-            "missing_download_url": self.tr("缺下載 URL", "missing download URL"),
-            "not_direct": self.tr("非直接檔案", "not direct"),
-        }
-        parts = [f"{labels.get(bucket, bucket)}={count}" for bucket, count in skip_summary.items() if count]
+        parts = [f"{download_skip_bucket_label(bucket, self.tr)}={count}" for bucket, count in skip_summary.items() if count]
         return "；".join(parts)
 
     def download_skip_next_action_message(self, summary: str, *, partial: bool) -> str:

@@ -89,7 +89,7 @@ from frontends.tk.developer_diagnostics_workflows import (
 from frontends.tk.detail_panel_workflows import DetailPanelWorkflowMixin
 from frontends.tk.discovery_workflows import DiscoveryWorkflowMixin
 from frontends.tk.download_plan_panel_workflows import DownloadPlanPanelWorkflowMixin
-from frontends.tk.download_workflows import DownloadWorkflowMixin, download_job_status_label
+from frontends.tk.download_workflows import DownloadWorkflowMixin, download_job_status_label, download_skip_bucket_label
 from frontends.tk.import_workflows import ImportWorkflowMixin
 from frontends.tk.mvp_demo_workflows import MvpDemoWorkflowMixin
 from frontends.tk.oauth_workflows import OAuthWorkflowMixin
@@ -3021,6 +3021,10 @@ class TkDialogModuleTest(unittest.TestCase):
     def test_download_job_status_label_hides_raw_status(self) -> None:
         self.assertEqual("失敗", download_job_status_label(JobStatus.FAILED, lambda zh, _en: zh))
         self.assertEqual("狀態待確認", download_job_status_label("unexpected_state", lambda zh, _en: zh))
+
+    def test_download_skip_bucket_label_hides_unknown_bucket(self) -> None:
+        self.assertEqual("需 Adapter", download_skip_bucket_label("adapter_required", lambda zh, _en: zh))
+        self.assertEqual("其他待處理", download_skip_bucket_label("unexpected_bucket", lambda zh, _en: zh))
 
     def test_download_progress_problem_uses_display_labels(self) -> None:
         ui = object.__new__(DownloadWorkflowMixin)
