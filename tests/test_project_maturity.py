@@ -44,6 +44,17 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertTrue(scheduler_metrics["policy_registry_available"])
         self.assertGreaterEqual(scheduler_metrics["bounded_tk_policy_count"], 8)
         self.assertEqual(1, scheduler_metrics["max_active_jobs_by_policy"]["sqlite_import"])
+        self.assertTrue(scheduler_metrics["capacity_policy_call_site_guarded"])
+        self.assertTrue(scheduler_metrics["direct_thread_spawn_guarded"])
+        self.assertEqual("frontends/tk/background_jobs.py", scheduler_metrics["direct_thread_spawn_owner"])
+        self.assertIn(
+            "test_tk_single_flight_call_sites_use_capacity_policy",
+            scheduler_metrics["guard_tests"]["capacity_policy_call_sites"],
+        )
+        self.assertIn(
+            "test_tk_modules_do_not_spawn_threads_directly",
+            scheduler_metrics["guard_tests"]["direct_thread_spawn_owner"],
+        )
         self.assertGreater(
             rows["source_pattern_and_crawler_handlers"]["metrics"]["supported_source_type_count"],
             0,

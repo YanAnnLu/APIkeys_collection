@@ -206,6 +206,19 @@ def _tk_background_job_policy_metrics() -> dict[str, Any]:
         "policy_registry_available": True,
         "bounded_tk_policy_count": len(policies),
         "max_active_jobs_by_policy": {policy.policy_id: policy.max_active_jobs for policy in policies},
+        "capacity_policy_call_site_guarded": True,
+        "direct_thread_spawn_guarded": True,
+        "direct_thread_spawn_owner": "frontends/tk/background_jobs.py",
+        "guard_tests": {
+            "capacity_policy_call_sites": (
+                "tests.test_tk_background_jobs::"
+                "test_tk_single_flight_call_sites_use_capacity_policy"
+            ),
+            "direct_thread_spawn_owner": (
+                "tests.test_tk_background_jobs::"
+                "test_tk_modules_do_not_spawn_threads_directly"
+            ),
+        },
     }
 
 
