@@ -113,7 +113,7 @@ class CrawlerAssetCredentialDialog:
         ttk.Label(frame, text=f"{label} - {self.asset.display_name}", style="DetailTitle.TLabel").pack(anchor="w")
         ttk.Label(
             frame,
-            text=f"{provider_name} / {self.asset.source_type} / {self.asset.asset_id}",
+            text=f"{provider_name} / {self.asset.source_type_label} / {self.asset.asset_id}",
             style="DetailMuted.TLabel",
         ).pack(anchor="w", fill=X, pady=(4, 12))
         ttk.Label(

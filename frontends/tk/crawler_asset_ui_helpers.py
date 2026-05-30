@@ -712,7 +712,7 @@ def crawler_asset_row_values(
         crawler_asset_state_label(asset),
         crawler_asset_credential_badge_label(credential_status),
         asset.provider_id,
-        asset.source_type,
+        crawler_asset_source_type_label(asset),
         status_label(asset.capability_status("fetch_metadata")),
         status_label(asset.capability_status("list_datasets")),
         status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
@@ -733,6 +733,12 @@ def crawler_asset_seed_scope_label(asset: CrawlerAsset) -> str:
         or getattr(asset, "current_seed_scope", "")
         or "unknown"
     )
+
+
+def crawler_asset_source_type_label(asset: CrawlerAsset) -> str:
+    """Return backend display wording for the crawler source type."""
+
+    return str(getattr(asset, "source_type_label", "") or "來源範式待確認")
 
 
 def crawler_asset_detail_text(
@@ -767,10 +773,11 @@ def crawler_asset_detail_text(
     bounds_summary_zh = "、".join(f"{facet.label_zh_TW}({facet.group})" for facet in bounds_schema)
     bounds_summary_en = ", ".join(f"{facet.label_en}({facet.group})" for facet in bounds_schema)
     seed_scope_label = crawler_asset_seed_scope_label(asset)
+    source_type_label = crawler_asset_source_type_label(asset)
     return tr(
         (
             f"{asset.display_name}\n\n"
-            f"入口：{asset.source_surface} / {asset.source_type}\n"
+            f"入口：{asset.source_surface} / {source_type_label}\n"
             f"狀態：{crawler_asset_state_label(asset)}\n"
             f"存取邊界：{asset.access_requirement}\n"
             f"成熟度：{asset.maturity}；風險：{asset.risk_tier}；信任：{asset.trust_score}%\n"
@@ -786,7 +793,7 @@ def crawler_asset_detail_text(
         ),
         (
             f"{asset.display_name}\n\n"
-            f"Surface: {asset.source_surface} / {asset.source_type}\n"
+            f"Surface: {asset.source_surface} / {source_type_label}\n"
             f"State: {crawler_asset_state_label(asset)}\n"
             f"Access: {asset.access_requirement}\n"
             f"Maturity: {asset.maturity}; risk: {asset.risk_tier}; trust: {asset.trust_score}%\n"

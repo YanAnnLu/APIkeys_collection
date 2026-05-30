@@ -75,6 +75,7 @@ def crawler_asset_flow_steps(
         None,
     )
     source_type_known = bool(asset.source_type and asset.source_type != "unknown")
+    source_type_label = getattr(asset, "source_type_label", "") or "來源範式待確認"
     has_bounds_form = bool(form_spec.fields)
     plan_status = plan_capability.status if plan_capability is not None else "missing_handler"
     review_needed = asset.health.status_code not in {"healthy", "ready"} or "review" in plan_status
@@ -90,7 +91,7 @@ def crawler_asset_flow_steps(
             step_id="source_pattern",
             label="來源範式",
             status="complete" if source_type_known else "review",
-            summary=asset.source_type or "unknown",
+            summary=source_type_label,
             evidence=asset.source_surface,
         ),
         CrawlerAssetFlowStep(

@@ -1231,6 +1231,7 @@ class TkDialogModuleTest(unittest.TestCase):
             values = CrawlerAssetWorkflowMixin.crawler_asset_row_values(ui, asset)
 
         self.assertIn("免登入", values)
+        self.assertIn("HTML file index", values)
         self.assertEqual("入口列表", values[-2])
         self.assertEqual("可下載 1 / 內容 Parser 待辦 1", values[-1])
 
@@ -1273,8 +1274,10 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertIn("Seed：", detail)
+        self.assertIn("CKAN package search", detail)
         self.assertIn("分頁 catalog", detail)
         self.assertNotIn("paginated_catalog", detail)
+        self.assertNotIn("ckan_package_search", detail)
 
     def test_crawler_asset_credential_badge_and_summary_use_backend_payload(self) -> None:
         payload = {

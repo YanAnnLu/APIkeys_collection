@@ -114,6 +114,10 @@ class CrawlerAsset:
     def capability_summary(self) -> str:
         return " / ".join(f"{item.label}:{status_label(item.status)}" for item in self.capabilities)
 
+    @property
+    def source_type_label(self) -> str:
+        return self.capability_profile.source_type_label
+
     def capability_status(self, capability_id: str) -> str:
         return capability_status(self.capabilities, capability_id)
 
@@ -123,7 +127,7 @@ class CrawlerAsset:
             "display_name": self.display_name,
             "provider_id": self.provider_id,
             "source_type": self.source_type,
-            "source_type_label": self.capability_profile.source_type_label,
+            "source_type_label": self.source_type_label,
             "source_surface": self.source_surface,
             "access_requirement": self.access_requirement,
             "endpoint_url": self.endpoint_url,
