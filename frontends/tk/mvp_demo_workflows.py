@@ -20,6 +20,7 @@ from api_launcher.mvp_demo import (
 )
 from api_launcher.paths import catalog_file, state_file
 from frontends.tk.background_jobs import start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_MVP_DEMO_SMOKE_JOBS
 from frontends.tk.ui_config import MVP_DEMO_FLOW_NAME
 from frontends.tk.ui_helpers import (
     mvp_demo_smoke_exception_message,
@@ -85,6 +86,7 @@ class MvpDemoWorkflowMixin:
             (flow_path,),
             active_jobs_attr="mvp_demo_active_jobs",
             active_jobs_lock_attr="mvp_demo_active_jobs_lock",
+            max_active_jobs=MAX_TK_MVP_DEMO_SMOKE_JOBS,
             on_duplicate=lambda: messagebox.showinfo(
                 self.tr("MVP Demo Smoke 進行中", "MVP demo smoke is running"),
                 self.tr("目前已經有一個 MVP Demo Smoke 在執行，請等它完成。", "An MVP demo smoke run is already in progress. Wait for it to finish."),

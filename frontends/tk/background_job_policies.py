@@ -43,6 +43,13 @@ TK_BACKGROUND_JOB_POLICIES: dict[str, TkBackgroundJobPolicy] = {
         active_jobs_lock_attr="crawler_asset_active_jobs_lock",
         description="Crawler asset listing, schema probe, plan build, and seed download/import handoff.",
     ),
+    "developer_cli": TkBackgroundJobPolicy(
+        policy_id="developer_cli",
+        max_active_jobs=1,
+        active_jobs_attr="developer_cli_active_jobs",
+        active_jobs_lock_attr="developer_cli_active_jobs_lock",
+        description="Developer CLI subprocess runner.",
+    ),
     "discovery": TkBackgroundJobPolicy(
         policy_id="discovery",
         max_active_jobs=2,
@@ -85,15 +92,32 @@ TK_BACKGROUND_JOB_POLICIES: dict[str, TkBackgroundJobPolicy] = {
         active_jobs_lock_attr="import_active_jobs_lock",
         description="SQLite import/write lane.",
     ),
+    "mvp_demo_smoke": TkBackgroundJobPolicy(
+        policy_id="mvp_demo_smoke",
+        max_active_jobs=1,
+        active_jobs_attr="mvp_demo_active_jobs",
+        active_jobs_lock_attr="mvp_demo_active_jobs_lock",
+        description="Canonical MVP demo smoke run.",
+    ),
+    "showcase_download": TkBackgroundJobPolicy(
+        policy_id="showcase_download",
+        max_active_jobs=1,
+        active_jobs_attr="showcase_active_jobs",
+        active_jobs_lock_attr="showcase_active_jobs_lock",
+        description="Showcase public download/import run.",
+    ),
 }
 
 
 MAX_TK_AI_SUMMARY_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["ai_summary"].max_active_jobs
 MAX_CRAWLER_ASSET_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["crawler_asset"].max_active_jobs
+MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["developer_cli"].max_active_jobs
 MAX_TK_DISCOVERY_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["discovery"].max_active_jobs
+MAX_TK_MVP_DEMO_SMOKE_JOBS = TK_BACKGROUND_JOB_POLICIES["mvp_demo_smoke"].max_active_jobs
 MAX_TK_OAUTH_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["oauth"].max_active_jobs
 MAX_TK_PLAN_BOUNDS_PROBE_JOBS = TK_BACKGROUND_JOB_POLICIES["plan_bounds_probe"].max_active_jobs
 MAX_TK_SIDEBAR_FAVICON_JOBS = TK_BACKGROUND_JOB_POLICIES["sidebar_favicon"].max_active_jobs
+MAX_TK_SHOWCASE_DOWNLOAD_JOBS = TK_BACKGROUND_JOB_POLICIES["showcase_download"].max_active_jobs
 MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS = TK_BACKGROUND_JOB_POLICIES["source_action"].max_active_jobs
 MAX_TK_SQLITE_IMPORT_JOBS = TK_BACKGROUND_JOB_POLICIES["sqlite_import"].max_active_jobs
 
@@ -117,10 +141,13 @@ def iter_tk_background_job_policies() -> Iterable[TkBackgroundJobPolicy]:
 __all__ = [
     "MAX_CRAWLER_ASSET_BACKGROUND_JOBS",
     "MAX_TK_AI_SUMMARY_BACKGROUND_JOBS",
+    "MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS",
     "MAX_TK_DISCOVERY_BACKGROUND_JOBS",
+    "MAX_TK_MVP_DEMO_SMOKE_JOBS",
     "MAX_TK_OAUTH_BACKGROUND_JOBS",
     "MAX_TK_PLAN_BOUNDS_PROBE_JOBS",
     "MAX_TK_SIDEBAR_FAVICON_JOBS",
+    "MAX_TK_SHOWCASE_DOWNLOAD_JOBS",
     "MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS",
     "MAX_TK_SQLITE_IMPORT_JOBS",
     "TK_BACKGROUND_JOB_POLICIES",

@@ -16,6 +16,7 @@ from typing import Any
 
 from api_launcher.paths import PROJECT_ROOT
 from frontends.tk.background_jobs import single_flight_job_is_active, start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS
 from frontends.tk.ui_config import COLORS
 
 
@@ -123,6 +124,7 @@ class DeveloperCliDialog:
             (args,),
             active_jobs_attr="developer_cli_active_jobs",
             active_jobs_lock_attr="developer_cli_active_jobs_lock",
+            max_active_jobs=MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS,
             on_duplicate=lambda: self.ui.status_var.set(
                 self.ui.tr("CLI 命令仍在執行中，請等待目前命令完成。", "CLI command is still running; wait for it to finish.")
             ),

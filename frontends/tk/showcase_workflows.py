@@ -33,6 +33,7 @@ from api_launcher.showcase_download import (
     seed_showcase_repository,
 )
 from frontends.tk.background_jobs import start_single_flight_thread
+from frontends.tk.background_job_policies import MAX_TK_SHOWCASE_DOWNLOAD_JOBS
 
 
 SHOWCASE_SEED_COVERAGE_JSON = "showcase/dataset_seed_coverage.json"
@@ -311,6 +312,7 @@ class ShowcaseWorkflowMixin:
             (Path(destination), sample_limit),
             active_jobs_attr="showcase_active_jobs",
             active_jobs_lock_attr="showcase_active_jobs_lock",
+            max_active_jobs=MAX_TK_SHOWCASE_DOWNLOAD_JOBS,
             on_duplicate=lambda: self.status_var.set(
                 self.tr("展示下載已在執行中，請等待目前工作完成。", "Showcase download is already running; please wait for it to finish.")
             ),

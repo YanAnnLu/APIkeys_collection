@@ -8,10 +8,13 @@ from unittest.mock import patch
 from frontends.tk.background_job_policies import (
     MAX_CRAWLER_ASSET_BACKGROUND_JOBS,
     MAX_TK_AI_SUMMARY_BACKGROUND_JOBS,
+    MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS,
     MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+    MAX_TK_MVP_DEMO_SMOKE_JOBS,
     MAX_TK_OAUTH_BACKGROUND_JOBS,
     MAX_TK_PLAN_BOUNDS_PROBE_JOBS,
     MAX_TK_SIDEBAR_FAVICON_JOBS,
+    MAX_TK_SHOWCASE_DOWNLOAD_JOBS,
     MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS,
     MAX_TK_SQLITE_IMPORT_JOBS,
     iter_tk_background_job_policies,
@@ -137,10 +140,13 @@ class TkBackgroundJobTests(unittest.TestCase):
         expected = {
             "ai_summary": MAX_TK_AI_SUMMARY_BACKGROUND_JOBS,
             "crawler_asset": MAX_CRAWLER_ASSET_BACKGROUND_JOBS,
+            "developer_cli": MAX_TK_DEVELOPER_CLI_BACKGROUND_JOBS,
             "discovery": MAX_TK_DISCOVERY_BACKGROUND_JOBS,
+            "mvp_demo_smoke": MAX_TK_MVP_DEMO_SMOKE_JOBS,
             "oauth": MAX_TK_OAUTH_BACKGROUND_JOBS,
             "plan_bounds_probe": MAX_TK_PLAN_BOUNDS_PROBE_JOBS,
             "sidebar_favicon": MAX_TK_SIDEBAR_FAVICON_JOBS,
+            "showcase_download": MAX_TK_SHOWCASE_DOWNLOAD_JOBS,
             "source_action": MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS,
             "sqlite_import": MAX_TK_SQLITE_IMPORT_JOBS,
         }
