@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 18:12 Web stage/review fallback guard
+- 本輪延續 Web UI display contract：下載 / 匯入結果列的 Stage 改用 `downloadImportStageText()`，content review bucket、import lane、credential save mission、event context chips 與 Seed 範式 fallback 都會透過 display-safe helper，避免 label 缺失時把 `download_import_completed`、`content_parser_required`、`content_parser_review`、`entry_listing` 等 raw backend token 當成人類文案。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_181251.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只調整 Web 顯示 fallback 與靜態防回歸測試，不改後端 payload、crawler registry、download/import service、credential storage 或 Tk 操作。
 ## 2026-05-30 17:55 SQLite import write gate
 - 本輪補上第一個後端 DB write gate：新增 `api_launcher.sqlite_write_gate`，以 process-local / per-SQLite-path `RLock` 序列化同一 Python process 內的 SQLite writer；CSV/JSON importer 與 download-plan import policy decision 都已進入 `sqlite_write_gate()`，避免同一 curated SQLite path 被同 process 多個 import worker 同時寫入或同時做 rename/replace 決策。
 - 已提交實作：`7eb4e9a Gate SQLite import writes`。

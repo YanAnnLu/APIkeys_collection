@@ -33,7 +33,7 @@
 - Seed row 可提供「探測欄位」動作，將該 row 的 `api_url` / `download_url` / `landing_url` 交給後端 schema probe endpoint；Web 只能挑選可見 seed URL，不自行推論欄位型別或替 source type 寫特殊規則。探測成功後，Web 重新渲染後端回傳的 bounds form。
 - Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」、「能力膠囊」與 `Seed 範式` 摘要，但 Web/Tk 不應以 `source_type` 重新計算分組、seed 枚舉語義或翻譯文案。若後端回空地址或缺 `seed_scope_label` / `seed_scope`，UI 應顯示未分類 / unknown，不要假裝已歸類。
 - 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。
-- Web 使用者可見文字不得 fallback 到 snake_case / raw backend token。若 `next_action_label`、`display_label`、`status_label` 等欄位缺失，Web 應顯示中性操作提示，例如「檢查界域或審核結果」「檢查下載計畫結果」，而不是把 `next_action`、`outcome_bucket`、`stale_next_action` 或 `status_code` 當成文案。raw token 可留在 JSON/debug panel，方便 agent 診斷。
+- Web 使用者可見文字不得 fallback 到 snake_case / raw backend token。若 `next_action_label`、`display_label`、`status_label` 等欄位缺失，Web 應顯示中性操作提示，例如「檢查界域或審核結果」「檢查下載計畫結果」，而不是把 `next_action`、`outcome_bucket`、`stale_next_action`、`status_code`、download/import `stage`、content review bucket、pipeline lane 或 seed scope 當成文案。raw token 可留在 JSON/debug panel，方便 agent 診斷。
 
 ## 定位
 

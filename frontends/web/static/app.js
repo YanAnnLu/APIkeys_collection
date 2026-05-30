@@ -472,7 +472,7 @@ function crawlerAssetDownloadImportRowHtml(payload) {
         <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
       </div>
       <div class="queue-metrics">
-        ${heroMetric("Stage", downloadImport.stage || result.stage || "unknown")}
+        ${heroMetric("Stage", downloadImportStageText(downloadImport, result))}
         ${heroMetric("Submitted", downloadImport.result?.submitted || 0)}
         ${heroMetric("Completed", downloadImport.result?.completed || 0)}
         ${heroMetric("Imported", downloadImport.result?.imported || 0)}
@@ -481,7 +481,7 @@ function crawlerAssetDownloadImportRowHtml(payload) {
       <div class="context-chip-row">
         <span class="context-chip">crawler_asset_path</span>
         <span class="context-chip">download_import_pipeline</span>
-        <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || "計畫狀態")}</span>
+        <span class="context-chip">${escapeHtml(planOutcomeLabel(payload.plan_outcome, null, "計畫狀態"))}</span>
         ${callbackChip}
       </div>
       <p>${escapeHtml(downloadImportNextActionText(payload, downloadImport))}</p>
@@ -497,6 +497,33 @@ function crawlerAssetDownloadImportRowHtml(payload) {
 
 function downloadImportNextActionText(payload, downloadImport = {}) {
   return payload.next_action_label || downloadImport.next_action_label || "檢查下載 / 匯入結果";
+}
+
+function downloadImportStageText(downloadImport = {}, result = {}) {
+  const explicit = displayTextOrFallback(
+    "",
+    downloadImport.stage_label,
+    downloadImport.display_stage_label,
+    result.stage_label,
+    result.display_stage_label,
+  );
+  if (explicit) return explicit;
+  const stage = String(downloadImport.stage || result.stage || "").trim();
+  const labels = {
+    blocked_before_download: "下載前需處理",
+    download_completed: "下載完成",
+    download_completed_import_skipped: "下載完成，匯入略過",
+    download_import_completed: "下載 / 匯入完成",
+    download_import_failed: "下載 / 匯入失敗",
+    empty_plan: "空計畫",
+    failed: "失敗",
+    import_skipped: "匯入略過",
+    no_work_completed: "沒有完成項目",
+    running: "執行中",
+    submitted: "已送出",
+    unknown: "狀態待確認",
+  };
+  return labels[stage] || "下載狀態待確認";
 }
 
 function downloadImportCallbackDiagnostics(payload) {
@@ -691,7 +718,7 @@ function renderReviewWorkspace() {
       <span class="eyebrow">Content Parser</span>
       <strong>${escapeHtml(contentReviewText(buckets))}</strong>
       <div class="context-chip-row">
-        ${buckets.map((bucket) => `<span class="context-chip warning">${escapeHtml(bucket.display_label || bucket.review_bucket)} ${escapeHtml(String(bucket.count || 0))}</span>`).join("") || '<span class="context-chip">無內容格式待辦</span>'}
+        ${buckets.map((bucket) => `<span class="context-chip warning">${escapeHtml(contentReviewBucketLabel(bucket))} ${escapeHtml(String(bucket.count || 0))}</span>`).join("") || '<span class="context-chip">無內容格式待辦</span>'}
       </div>
     </section>
     <section class="review-card">
@@ -705,7 +732,7 @@ function renderReviewWorkspace() {
       <span class="eyebrow">Import Lane</span>
       <strong>${escapeHtml(String(lanes.length))} 種匯入路徑</strong>
       <div class="context-chip-row">
-        ${lanes.map((lane) => `<span class="context-chip ${toneClass(lane.display_tone)}">${escapeHtml(lane.display_label || lane.pipeline_lane || "lane")} ${escapeHtml(String(lane.count || 0))}</span>`).join("") || '<span class="context-chip">等待後端提供匯入路徑</span>'}
+        ${lanes.map((lane) => `<span class="context-chip ${toneClass(lane.display_tone)}">${escapeHtml(contentPipelineLaneLabel(lane))} ${escapeHtml(String(lane.count || 0))}</span>`).join("") || '<span class="context-chip">等待後端提供匯入路徑</span>'}
       </div>
     </section>
   `;
@@ -792,9 +819,7 @@ function contextChipsHtml(context) {
     <div class="context-chip-row">
       ${entries.map(([key, value]) => {
         if (typeof value === "object") {
-          const label = key === "run_record"
-            ? [value.stage, value.status].filter(Boolean).join(" / ")
-            : value.display_label || value.review_bucket || JSON.stringify(value);
+          const label = eventObjectContextLabel(key, value);
           return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(label)}</span>`;
         }
         return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(String(value))}</span>`;
@@ -920,7 +945,7 @@ function renderPassport(card, asset) {
       <div><dt>風險層級</dt><dd>${escapeHtml(asset.risk_tier || "unknown")}</dd></div>
       <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
       <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "unknown")}</dd></div>
-      <div><dt>Seed 範式</dt><dd>${escapeHtml(capabilityProfile.seed_scope_label || capabilityProfile.seed_scope || "unknown")}</dd></div>
+      <div><dt>Seed 範式</dt><dd>${escapeHtml(displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label, capabilityProfile.seed_scope))}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
       <div><dt>下一步</dt><dd>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</dd></div>
@@ -1187,7 +1212,7 @@ async function saveCredentialEditor(assetId) {
       remember_local: rememberLocal,
     });
     writeJson(status);
-    addMission("登入設定已更新", `${assetId} / ${status.display_label || status.status}`);
+    addMission("登入設定已更新", `${assetId} / ${displayTextOrFallback("登入狀態待確認", status.display_label, status.status)}`);
     closeCredentialEditor();
     await loadAssets();
     if (assetId) {
@@ -2024,14 +2049,43 @@ function adapterReviewOutcomeText(outcomes) {
   return outcomes.map((outcome) => `${reviewOutcomeLabel(outcome)} ${outcome.count}`).join(" / ");
 }
 
+function eventObjectContextLabel(key, value) {
+  if (key === "run_record") {
+    return displayTextOrFallback(
+      "執行紀錄",
+      value.display_label,
+      value.stage_label,
+      value.status_label,
+      value.stage,
+      value.status,
+    );
+  }
+  return displayTextOrFallback(
+    "事件內容",
+    value.display_label,
+    value.short_label,
+    value.review_label,
+    value.review_bucket,
+    value.pipeline_lane,
+  );
+}
+
+function contentReviewBucketLabel(bucket) {
+  return displayTextOrFallback("內容格式待辦", bucket.display_label, bucket.review_bucket);
+}
+
+function contentPipelineLaneLabel(lane) {
+  return displayTextOrFallback("匯入路徑待辦", lane.display_label, lane.pipeline_lane);
+}
+
 function contentReviewText(buckets) {
   if (!buckets.length) return "尚無內容格式待辦";
-  return buckets.map((bucket) => `${bucket.display_label || bucket.review_bucket} ${bucket.count}`).join(" / ");
+  return buckets.map((bucket) => `${contentReviewBucketLabel(bucket)} ${bucket.count}`).join(" / ");
 }
 
 function contentPipelineLaneText(lanes) {
   if (!lanes.length) return "尚無匯入路徑分類";
-  return lanes.map((lane) => `${lane.display_label || lane.pipeline_lane} ${lane.count}`).join(" / ");
+  return lanes.map((lane) => `${contentPipelineLaneLabel(lane)} ${lane.count}`).join(" / ");
 }
 
 function setContentReviewBadge(contentReview) {
