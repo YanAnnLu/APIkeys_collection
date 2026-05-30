@@ -168,6 +168,8 @@ HTML file index 的來源類型判斷已集中到 `api_launcher/crawlers/source_
 
 Source pattern detector 的 unknown fallback 與最低信心門檻已集中到 `api_launcher/crawlers/source_patterns.py` 的 `UNKNOWN_PATTERN_ID` 與 `DEFAULT_PATTERN_MINIMUM_CONFIDENCE`。Draft writer、測試與後續 adapter 不應各自硬寫 `"unknown"` 或 `0.35`，避免 detector、draft、UI 對「保留人工 review」的門檻漂移。
 
+Detector probe byte budget 也必須保守處理：`fetch_pattern_probe()` 會讀 `DEFAULT_PATTERN_PROBE_MAX_BYTES + 1`，若 response 超過 budget 就回 `None`，讓該 probe 安全降級成 unknown/review。不要用截斷 JSON、截斷 HTML 或半份 capabilities 文件做來源範式判斷；需要處理大型官方 endpoint 時，應透過明確 source profile / runtime policy 提高 budget 並補測試。
+
 Detector 入口必須把注入式 fetcher 例外收斂成 `None` probe result。這讓自訂 fetcher、未來 plugin detector 或測試替身在 timeout、HTTP、JSON 或實作錯誤時安全降級成 `unknown` / review，而不是讓整段 discovery 崩潰；錯誤細節應在 crawler audit 或來源設定層用 warning/next_action 呈現，不在 detector 階段假猜來源類型。
 
 Source draft writer 也會在寫入 local source draft 前重新檢查 detector confidence；即使注入的 detector 回傳非 unknown 且帶 `source_type_hint`，低於最低信心門檻仍必須停在 review。這是防止測試替身、外部 detector 或未來 plugin adapter 繞過 unknown fallback 的安全邊界。

@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 10:37 Source pattern oversized probe guard
+- 本輪把 source pattern detector 的 probe byte budget 從「只 bounded read」加固成「讀 `max_bytes + 1` 並拒絕 oversized response」：`fetch_pattern_probe()` 遇到超過 `DEFAULT_PATTERN_PROBE_MAX_BYTES` 的 payload 會回 `None`，讓 detector 安全降級到 `unknown` / review，而不是用截斷 JSON/HTML 誤判來源範式。
+- 已提交實作：`fe6fa58 Reject oversized source pattern probes`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawlers\source_patterns.py tests\test_source_patterns.py` OK；`py -3 -B -m unittest tests.test_source_patterns tests.test_source_pattern_drafts -v` 通過，41 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_103738.log` 通過，964 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / dataset discovery notes / development log；本輪只加固 detector probe budget，不改 detector registry、source draft review gate、crawler handlers、download/import、credential、Tk/Web 操作或 user guide。
+
 ## 2026-05-30 10:28 Tk scheduler guard metrics
 - 本輪把 Tk scheduler 測試護欄也接進 `--project-maturity-json`：`background_jobs_and_scheduler.metrics` 現在除了 policy count / max-active table，也輸出 `capacity_policy_call_site_guarded=true`、`direct_thread_spawn_guarded=true`、`direct_thread_spawn_owner=frontends/tk/background_jobs.py` 與對應 guard test 名稱。
 - 已提交實作：`a6ee50e Expose Tk scheduler guard metrics`。
