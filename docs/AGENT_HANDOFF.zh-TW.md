@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 18:37 Web stage label ownership cleanup
+- 本輪移除 Web `downloadImportStageText()` 內的 download/import stage 翻譯表；Web 只消費後端 `download_import.stage_label` / display label，缺 label 時落到「下載狀態待確認」，避免 stage 文案 ownership 回流到 JS。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過，62 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_183533.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只移除 Web 端重複 stage 翻譯表與補靜態 guard，不改後端 payload、download/import 執行語意、crawler registry、credential storage 或 Tk 操作。
 ## 2026-05-30 18:28 Download/import stage label payload
 - 本輪把上一個 Web fallback 的 stage 文案往後端 display payload 收斂：`crawler_asset_download_import_display_payload()` 會輸出 `download_import.stage_label`，Web download/import credential-blocked payload 也會輸出同一類 label，讓 Web/Tk/未來 Qt 可顯示「下載 / 匯入完成」「下載前需處理」而不必自行翻譯 `download_import_completed` / `blocked_before_download`。
 - 已提交實作：`cb94da4 Add download import stage labels`。

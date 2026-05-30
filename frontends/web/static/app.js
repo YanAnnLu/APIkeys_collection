@@ -500,30 +500,13 @@ function downloadImportNextActionText(payload, downloadImport = {}) {
 }
 
 function downloadImportStageText(downloadImport = {}, result = {}) {
-  const explicit = displayTextOrFallback(
-    "",
+  return displayTextOrFallback(
+    "下載狀態待確認",
     downloadImport.stage_label,
     downloadImport.display_stage_label,
     result.stage_label,
     result.display_stage_label,
   );
-  if (explicit) return explicit;
-  const stage = String(downloadImport.stage || result.stage || "").trim();
-  const labels = {
-    blocked_before_download: "下載前需處理",
-    download_completed: "下載完成",
-    download_completed_import_skipped: "下載完成，匯入略過",
-    download_import_completed: "下載 / 匯入完成",
-    download_import_failed: "下載 / 匯入失敗",
-    empty_plan: "空計畫",
-    failed: "失敗",
-    import_skipped: "匯入略過",
-    no_work_completed: "沒有完成項目",
-    running: "執行中",
-    submitted: "已送出",
-    unknown: "狀態待確認",
-  };
-  return labels[stage] || "下載狀態待確認";
 }
 
 function downloadImportCallbackDiagnostics(payload) {

@@ -1869,6 +1869,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn('return labels[status] || status || "未知"', combined)
         self.assertIn("downloadImportNextActionText", combined)
         self.assertIn("downloadImportStageText", combined)
+        self.assertNotIn('download_import_completed: "下載 / 匯入完成"', combined)
+        self.assertNotIn('blocked_before_download: "下載前需處理"', combined)
         self.assertIn("contentReviewBucketLabel", combined)
         self.assertIn("contentPipelineLaneLabel", combined)
         self.assertIn("eventObjectContextLabel", combined)
