@@ -304,6 +304,7 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
         self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
         self.assertEqual(1, payload["plan_passport"]["direct_download_count"])
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("下載 / 匯入完成", payload["download_import"]["stage_label"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
         self.assertEqual(1, payload["download_import"]["callback_error_count"])

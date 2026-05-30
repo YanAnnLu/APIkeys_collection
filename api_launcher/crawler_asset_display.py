@@ -53,6 +53,29 @@ from api_launcher.crawler_seed_display import (
 )
 
 
+DOWNLOAD_IMPORT_STAGE_LABELS: dict[str, str] = {
+    "blocked_before_download": "下載前需處理",
+    "download_completed": "下載完成",
+    "download_completed_import_skipped": "下載完成，匯入略過",
+    "download_import_completed": "下載 / 匯入完成",
+    "download_import_failed": "下載 / 匯入失敗",
+    "empty_plan": "空計畫",
+    "failed": "失敗",
+    "import_skipped": "匯入略過",
+    "no_work_completed": "沒有完成項目",
+    "running": "執行中",
+    "submitted": "已送出",
+    "unknown": "狀態待確認",
+}
+
+
+def download_import_stage_display_label(stage: object, *, fallback: str = "下載狀態待確認") -> str:
+    """Return user-facing text for a stable download/import stage id."""
+
+    stage_id = str(stage or "").strip()
+    return DOWNLOAD_IMPORT_STAGE_LABELS.get(stage_id, fallback)
+
+
 
 
 def crawler_asset_plan_outcome_payload(result: object, *, added_count: int = 0) -> dict[str, object]:
@@ -348,6 +371,8 @@ def crawler_asset_download_import_display_payload(
         download_import["succeeded"] = download_result["succeeded"]
     if "next_action" not in download_import and "next_action" in download_result:
         download_import["next_action"] = download_result["next_action"]
+    stage = str(download_import.get("stage") or download_result.get("stage") or "")
+    download_import["stage_label"] = download_import_stage_display_label(stage)
     next_action = str(
         getattr(pipeline, "next_action", "")
         or getattr(plan_result, "user_next_action", "")
@@ -502,6 +527,7 @@ __all__ = [
     "crawler_asset_plan_passport_payload",
     "credential_blocked_plan_outcome_payload",
     "credential_blocked_plan_passport_payload",
+    "download_import_stage_display_label",
     "plan_entry_content_status_payload",
     "DisplayProfile",
     "SeedEnumerationDisplayProfile",

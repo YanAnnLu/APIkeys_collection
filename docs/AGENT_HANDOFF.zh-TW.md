@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 18:28 Download/import stage label payload
+- 本輪把上一個 Web fallback 的 stage 文案往後端 display payload 收斂：`crawler_asset_download_import_display_payload()` 會輸出 `download_import.stage_label`，Web download/import credential-blocked payload 也會輸出同一類 label，讓 Web/Tk/未來 Qt 可顯示「下載 / 匯入完成」「下載前需處理」而不必自行翻譯 `download_import_completed` / `blocked_before_download`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_display.py frontends\web\preview_payloads.py tests\test_crawler_asset_download.py tests\test_web_preview.py` OK；`py -3 -B -m unittest tests.test_crawler_asset_download tests.test_web_preview -v` 通過，66 tests OK；完整 smoke `state\logs\pre_push_smoke_20260530_182547.log` 通過，987 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / Web Preview UIUX contract / development log；本輪只增加 shared display payload 欄位與 Web blocked response label，不改 download/import 執行語意、crawler registry、credential storage 或 Tk 操作。
 ## 2026-05-30 18:12 Web stage/review fallback guard
 - 本輪延續 Web UI display contract：下載 / 匯入結果列的 Stage 改用 `downloadImportStageText()`，content review bucket、import lane、credential save mission、event context chips 與 Seed 範式 fallback 都會透過 display-safe helper，避免 label 缺失時把 `download_import_completed`、`content_parser_required`、`content_parser_review`、`entry_listing` 等 raw backend token 當成人類文案。
 - 已提交實作：`c319655 Guard Web stage and review fallbacks`。

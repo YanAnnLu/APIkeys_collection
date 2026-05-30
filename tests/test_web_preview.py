@@ -547,6 +547,7 @@ class WebPreviewApiTest(unittest.TestCase):
         run_service.assert_called_once()
         self.assertEqual("demo_stac", payload["asset_id"])
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("下載 / 匯入完成", payload["download_import"]["stage_label"])
         self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
         self.assertEqual(1, payload["plan_passport"]["direct_download_count"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
@@ -576,6 +577,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
         self.assertEqual("先完成登入設定，再下載資料", payload["next_action_label"])
         self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
+        self.assertEqual("下載前需處理", payload["download_import"]["stage_label"])
         self.assertFalse(payload["download_import"]["succeeded"])
         self.assertEqual("credential_setup_required", payload["plan_outcome"]["outcome_bucket"])
 
@@ -650,6 +652,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("demo_stac", payload["asset_id"])
         self.assertEqual("demo_provider:dataset_a", payload["dataset_uid"])
         self.assertEqual("download_import_completed", payload["download_import"]["stage"])
+        self.assertEqual("下載 / 匯入完成", payload["download_import"]["stage_label"])
         self.assertEqual("ready_to_download", payload["plan_outcome"]["outcome_bucket"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["next_action_label"])
         self.assertEqual("前往下載器開始或暫停佇列", payload["download_import"]["next_action_label"])
@@ -679,6 +682,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("edit_local_credentials_before_live_download", payload["next_action"])
         self.assertEqual("先完成登入設定，再下載資料", payload["download_import"]["next_action_label"])
         self.assertEqual("blocked_before_download", payload["download_import"]["stage"])
+        self.assertEqual("下載前需處理", payload["download_import"]["stage_label"])
         self.assertFalse(payload["download_import"]["succeeded"])
         self.assertEqual("credential_setup_required", payload["plan_passport"]["outcome_bucket"])
 
@@ -732,6 +736,7 @@ class WebPreviewApiTest(unittest.TestCase):
         payload = web_download_import_result_response(fake_result)
 
         self.assertEqual("download_import_completed", payload.response["download_import"]["stage"])
+        self.assertEqual("下載 / 匯入完成", payload.response["download_import"]["stage_label"])
         self.assertEqual("ready_to_download", payload.plan_outcome["outcome_bucket"])
         self.assertEqual(1, payload.plan_passport["direct_download_count"])
 

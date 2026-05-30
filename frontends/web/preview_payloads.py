@@ -12,6 +12,7 @@ from api_launcher.crawler_asset_display import (
     crawler_asset_plan_passport_payload,
     credential_blocked_plan_outcome_payload,
     credential_blocked_plan_passport_payload,
+    download_import_stage_display_label,
 )
 from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 from api_launcher.crawler_asset_service import CrawlerAssetListingResult
@@ -263,6 +264,7 @@ def web_download_import_credential_blocked_response(
         "plan_passport": credential_blocked_plan_passport_payload(asset_id, credential_guard),
         "download_import": {
             "stage": "blocked_before_download",
+            "stage_label": download_import_stage_display_label("blocked_before_download"),
             "succeeded": False,
             **web_next_action_payload(next_action),
         },
