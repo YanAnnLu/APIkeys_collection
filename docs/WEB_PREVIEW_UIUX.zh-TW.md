@@ -1,5 +1,5 @@
 ﻿# Web Preview UI/UX 對照層
-最後更新：2026-05-28
+最後更新：2026-05-30
 
 這份文件記錄 RRKAL 新增的 HTML/CSS Web Preview 開發路線。它不是取代 Tk，也不是另開一套 Web 版業務系統；它是用瀏覽器快速驗證 UIUX、資訊架構與未來 Qt/QSS 視覺語言的薄層。
 
@@ -33,7 +33,7 @@
 - Seed row 可提供「探測欄位」動作，將該 row 的 `api_url` / `download_url` / `landing_url` 交給後端 schema probe endpoint；Web 只能挑選可見 seed URL，不自行推論欄位型別或替 source type 寫特殊規則。探測成功後，Web 重新渲染後端回傳的 bounds form。
 - Crawler asset 的 capability address 要吃後端 `capability_profile` payload：卡片可以顯示「能力 0000」徽章，Passport 可以顯示「能力位址」、「能力膠囊」與 `Seed 範式` 摘要，但 Web/Tk 不應以 `source_type` 重新計算分組、seed 枚舉語義或翻譯文案。若後端回空地址或缺 `seed_scope_label` / `seed_scope`，UI 應顯示「待確認」或「Seed 範式待確認」這類中性文案，不要假裝已歸類，也不要把 raw backend token 當人類文案。
 - Crawler asset 的 maturity / risk tier 也要吃後端 display payload：Web/Tk/Qt 應顯示 `maturity_label` / `risk_tier_label`，例如「已套安全界域」「待審核」「待補 handler」。raw `maturity` / `risk_tier` id 只保留給 JSON/debug panel，不應作為主要使用者文案。
-- 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。
+- 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。Delivery Scope 摘要與 maturity row label 也必須走 display-safe helper；若後端缺 `status_zh_TW` / display label，UI 顯示「狀態待確認」或「成熟度待確認」，不把 raw `status`、`maturity_level` 或 `unknown` 當人類文案。
 - Web 使用者可見文字不得 fallback 到 snake_case / raw backend token。若 `next_action_label`、`display_label`、`status_label` 等欄位缺失，Web 應顯示中性操作提示，例如「檢查界域或審核結果」「檢查下載計畫結果」，而不是把 `next_action`、`outcome_bucket`、`stale_next_action`、`status_code`、download/import `stage`、content review bucket、pipeline lane 或 seed scope 當成文案。raw token 可留在 JSON/debug panel，方便 agent 診斷。
 - Download/import 結果與 Web mission queue 都應優先顯示後端 `download_import.stage_label`。Web 端只保留中性 fallback；正式文案 ownership 在 `api_launcher.crawler_asset_display`，不要在 JS 端維護 stage 翻譯表，也不要把 raw `stage` id 當互動紀錄文案。
 
