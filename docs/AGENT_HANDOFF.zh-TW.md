@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 10:10 Tk background capacity policy guard
+- 本輪補測試護欄：`tests/test_tk_background_jobs.py` 會用 AST 掃描 `frontends/tk/*.py`，確保所有 `start_single_flight_thread(...)` call site 都明確傳入 `max_active_jobs`，避免未來新增 Tk 背景 worker 時繞過 `frontends/tk/background_job_policies.py`。
+- 已提交實作：`57ae939 Guard Tk background job capacity policy`。
+- 已驗證：`py -3 -B -m py_compile tests\test_tk_background_jobs.py` OK；`py -3 -B -m unittest tests.test_tk_background_jobs -v` 通過，8 tests OK；`py -3 -B -m unittest tests.test_tk_background_jobs tests.test_tk_dialogs -v` 通過，120 tests OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_101011.log` 通過，962 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只新增測試 guardrail，不改 Tk runtime 行為、policy 數量、crawler、download/import、credential、Web 操作或 user guide。
+
 ## 2026-05-30 09:59 Remaining Tk background job caps
 - 本輪補齊 Tk policy registry 覆蓋面：developer CLI subprocess、MVP demo smoke、showcase download 也納入 `frontends/tk/background_job_policies.py`，每個 UI instance 同時最多 1 個；`--project-maturity-json` 的 `background_jobs_and_scheduler.metrics.bounded_tk_policy_count` 現在為 11。
 - 已提交實作：`66ca52e Cap remaining Tk background jobs`。
