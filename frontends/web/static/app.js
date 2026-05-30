@@ -974,7 +974,7 @@ function renderPassport(card, asset) {
     <div class="passport-identity">
       <div class="passport-emblem">${escapeHtml(assetInitials(card))}</div>
       <div>
-        <strong>${escapeHtml(card.provider_id)}</strong>
+        <strong>${escapeHtml(providerDisplayText(card))}</strong>
         <span>${escapeHtml(sourceTypeDisplayText(card))}</span>
       </div>
     </div>
@@ -1109,6 +1109,15 @@ function credentialDisplayProfile(credentials = {}) {
     : {};
 }
 
+function credentialProviderTitle(status = {}, assetId = "") {
+  const asset = assets.find((item) => item.asset_id === assetId) || {};
+  return providerDisplayText({
+    provider_name: status.provider_name || asset.provider_name,
+    provider_label: status.provider_label || asset.provider_label,
+    provider_id: status.provider_id || asset.provider_id,
+  });
+}
+
 function credentialBlocksLivePlan(credentials = {}) {
   return ["missing_credentials", "partial_credentials", "credential_profile_required"].includes(credentials.status || "");
 }
@@ -1156,7 +1165,7 @@ function showCredentialEditor(assetId, status) {
       <div class="credential-modal-head">
         <div>
           <span class="eyebrow">Login / API Key</span>
-          <h2>${escapeHtml(status.provider_name || status.provider_id || assetId)}</h2>
+          <h2>${escapeHtml(credentialProviderTitle(status, assetId))}</h2>
           <p>${escapeHtml(status.safety_note_zh_TW || "開官方入口取得金鑰後貼回這裡；登入資訊只留在這台電腦。")}</p>
         </div>
         <button type="button" class="ghost-button small" data-credential-close>關閉</button>
@@ -1407,7 +1416,7 @@ function boundPresetPanel(spec) {
     buttons.appendChild(button);
   }
   for (const preset of presets) {
-    const label = preset.label_zh_TW || preset.label_en || preset.preset_id;
+    const label = boundPresetLabel(preset);
     const button = presetButton(label, preset.tone || "neutral", preset.description_zh_TW || preset.description_en || "");
     button.addEventListener("click", () => applyBoundPreset(preset.preset_id, label, preset.values || {}));
     buttons.appendChild(button);
@@ -1423,6 +1432,15 @@ function presetButton(label, tone, title = "") {
   button.textContent = label;
   button.title = title;
   return button;
+}
+
+function boundPresetLabel(preset = {}) {
+  return displayTextOrFallback(
+    "預設值待確認",
+    preset.display_label,
+    preset.label_zh_TW,
+    preset.label_en,
+  );
 }
 
 function applyBoundPreset(presetId, label, values) {
@@ -1690,7 +1708,7 @@ function seedRowHtml(seed) {
       <button type="button" class="seed-favorite-button" onclick="toggleSeedFavorite('${escapeAttr(uid)}')" title="收藏 seed">${favored ? "★" : "☆"}</button>
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(meta || "metadata pending")}${importBadge}</span>
+        <span>${escapeHtml(meta || "資料摘要待確認")}${importBadge}</span>
       </div>
       <small>${escapeHtml(seed.dataset_id || uid)}</small>
       <div class="seed-row-actions">
