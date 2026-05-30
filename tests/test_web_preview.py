@@ -2099,6 +2099,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("provider unknown", combined)
         self.assertNotIn('String(closure.closure_percent ?? "unknown")', combined)
         self.assertNotIn('closure.status || "unknown"', combined)
+        self.assertNotIn('row.area_label || row.area_id || "maturity area"', combined)
         self.assertNotIn('row.display_label || row.maturity_label_zh_TW || row.maturity_level || "unknown"', combined)
         self.assertNotIn("filterButton(type, type, count)", combined)
         self.assertNotIn("<span>${escapeHtml(card.source_type)}</span>", combined)

@@ -270,13 +270,14 @@ function maturityCardHtml(row) {
   const icon = row.status_icon || row.display_profile?.status_icon || "?";
   const limitations = Array.isArray(row.current_limitations) ? row.current_limitations : [];
   const nextActions = Array.isArray(row.next_actions) ? row.next_actions : [];
+  const areaLabel = displayTextOrFallback("成熟度面向待確認", row.area_label, row.area_id);
   const label = displayTextOrFallback("成熟度待確認", row.display_label, row.maturity_label_zh_TW);
   return `
     <article class="maturity-card ${tone}">
       <div class="maturity-card-head">
         <span class="maturity-icon" aria-hidden="true">${escapeHtml(icon)}</span>
         <div>
-          <strong>${escapeHtml(row.area_label || row.area_id || "maturity area")}</strong>
+          <strong>${escapeHtml(areaLabel)}</strong>
           <span>${escapeHtml(label)}</span>
         </div>
       </div>
