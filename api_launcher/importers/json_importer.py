@@ -13,6 +13,7 @@ from api_launcher.importers.csv_importer import (
     table_exists,
     table_name_for_manifest,
 )
+from api_launcher.importers.compatibility_shims import normalize_external_cell_value
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
 from api_launcher.repository import ApiCatalogRepository, source_format_from_path
@@ -317,13 +318,9 @@ def row_values(row: dict[str, object], keys: tuple[str, ...]) -> list[str]:
 
 
 def json_cell_value(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value
     if isinstance(value, (dict, list, bool)):
         return json.dumps(value, ensure_ascii=False, sort_keys=True)
-    return str(value)
+    return normalize_external_cell_value(value)
 
 
 def is_json_payload(path: Path) -> bool:

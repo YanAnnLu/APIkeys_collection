@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-30 23:57 Importer compatibility shim
+- 本輪把「劫持外部混亂來源」收斂成 importer 邊界的 scoped compatibility shim：新增 `api_launcher.importers.compatibility_shims`，不常駐覆寫 `builtins.print`、`sys.modules` 或 pandas；只在 CSV/JSON 進 SQLite 前正規化欄位與 cell 值。
+- CSV importer 現在會攤平 tuple/list/MultiIndex-like 欄位與字串 repr，例如 `("Price", "Adj Close")`、`"('Price', 'Close')"`；`Unnamed:*_level_*` 這類 pandas 匯出殘留會落成安全 fallback 欄名。CSV/JSON importer 也會把 dict/list/tuple cell 穩定 JSON 化，`None` / NaN 仍匯入為空字串。
+- 已驗證：`PYTHONDONTWRITEBYTECODE=1 py -3 -B -c "import ..."` OK；`py -3 -B -m unittest tests.test_importer_compatibility_shims tests.test_csv_importer tests.test_json_importer -v` 通過 15 tests；`git diff --check` OK；docs mojibake scan OK；完整 smoke `state\logs\pre_push_smoke_20260530_235939.log` 通過，1004 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。`py_compile` 在 L 槽雲端 `__pycache__` replace 時遇到 `WinError 5`，本輪以不寫 pyc 的 import check 與完整 smoke 補驗證，避免把雲端同步鎖誤判成程式錯誤。下一步可把這個 shim 接進更完整的 content parser/import profile diagnostics。
 ## 2026-05-30 23:41 Tk recommended seed closure
 - 本輪把 recommended-seed closure 接進 Tk Seed 清單 dialog：後端 `recommended_seed_uid` 除了「下載推薦 Seed」外，現在也有「驗證閉環」入口。Tk 會重跑 bounded listing、讀本機 seed page，然後呼叫同一個 `run_recommended_seed_closure()` 後端 service；UI 不自行挑 seed、不重寫 Web/CLI 的 closure 規則。
 - 新增 Tk helper：`crawler_asset_recommended_seed_closure_target_paths()`、`crawler_asset_recommended_seed_closure_ui_message()`、`crawler_asset_recommended_seed_closure_event_context()`。事件 payload 只記 compact seed page summary，不把整頁 seed list 寫進 event log。

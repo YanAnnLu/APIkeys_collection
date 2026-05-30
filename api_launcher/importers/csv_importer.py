@@ -14,6 +14,7 @@ from typing import Iterable
 from api_launcher.database_self_check import sqlite_table_schema_summary
 from api_launcher.manifests import AssetManifest, read_manifest
 from api_launcher.downloads.repair import verify_manifest_file
+from api_launcher.importers.compatibility_shims import normalize_external_cell_value, normalize_external_header_label
 from api_launcher.repository import ApiCatalogRepository, source_format_from_path
 from api_launcher.sqlite_write_gate import sqlite_write_gate
 from api_launcher.sql_assets import validate_sql_identifier
@@ -272,14 +273,14 @@ def unique_table_name(sqlite_path: str | Path, table_name: str, fallback: str = 
 
 def normalized_row_values(row: list[str], width: int) -> tuple[str, ...]:
     padded = [*row, *([""] * max(0, width - len(row)))]
-    return tuple(str(value) for value in padded[:width])
+    return tuple(normalize_external_cell_value(value) for value in padded[:width])
 
 
-def normalized_column_names(headers: Iterable[str]) -> tuple[str, ...]:
+def normalized_column_names(headers: Iterable[object]) -> tuple[str, ...]:
     counts: dict[str, int] = {}
     columns: list[str] = []
     for index, header in enumerate(headers, start=1):
-        base = sql_identifier_from_text(header, fallback=f"column_{index}")
+        base = sql_identifier_from_text(normalize_external_header_label(header), fallback=f"column_{index}")
         count = counts.get(base, 0) + 1
         counts[base] = count
         suffix = f"_{count}" if count > 1 else ""

@@ -329,6 +329,8 @@ Tk UI 也可用 `資料庫 > 發現 provider 候選` 跑 provider/source discove
 
 手動匯入 manifest 的 `metadata.provenance_review` 會用中文固定說明：這是「使用者自備本機檔案」、Launcher 可安全做 checksum、raw asset 登記與 SQLite 匯入，但不會掃描整個資料夾、不會移動或刪除來源檔、不會把 `file://` 當成可重新下載來源，也不推定檔案授權可再散布或商用。這段文字是給初學使用者、團隊協作者與 agent 判斷風險用的審查摘要，不會改變匯入資料本身。
 
+CSV/JSON 匯入會先經過一層很窄的外部資料相容 shim。它只處理欄位與儲存格正規化，例如把 pandas MultiIndex / tuple / list 欄位攤平成穩定欄名、忽略 `Unnamed:*_level_*` 這類匯出殘留、把 dict/list/tuple cell 轉成穩定 JSON 字串，再交給 SQLite 匯入器。這不是全域 monkeypatch，也不會攔截 `print`、覆寫 pandas 或改變第三方套件。
+
 若手動匯入遇到 SQL、Excel、Parquet、Shapefile、NetCDF、HDF、ZIP/TAR 原始包或其他目前不支援格式，CLI/Tk 會拒絕匯入並提示先轉成支援的 CSV/JSON 類檔案，或把該來源留在 adapter/manual review。不要為了讓 Demo 過關而把未知格式硬塞進 SQLite。
 
 Tk UI 也有同一條單檔入口：`資料庫 > 匯入本機 CSV/JSON 檔`，或上方 `更多 > 匯入本機 CSV/JSON 檔`。UI 會要求你選一個本機檔，並可輸入目標 table 名稱；若同名 table 已存在，會自動改成下一個可用名稱，例如 `weather_2`，不會直接覆蓋。匯入完成對話框會顯示短版「來源審查」，提醒這是使用者自備本機檔案、Launcher 只驗 checksum/匯入結果，不代表原始來源或授權已驗證。
