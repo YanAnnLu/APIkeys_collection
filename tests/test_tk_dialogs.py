@@ -3288,7 +3288,7 @@ class TkDialogModuleTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("socrata", "解析 API，產生可下載 resources", "來源解析待辦", "nyc_open_data", "trees", "latest", "https://example.test/api"),
+            ("socrata", "解析 API，產生可下載 resources", "來源解析待辦", "Provider ID：nyc_open_data", "trees", "latest", "https://example.test/api"),
             AdapterReviewDialog.review_item_row_values(item),
         )
         detail = AdapterReviewDialog.review_item_detail_text(item)

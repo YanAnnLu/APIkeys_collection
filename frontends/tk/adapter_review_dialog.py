@@ -9,6 +9,7 @@ from typing import Any
 
 from api_launcher.adapter_review import AdapterReviewItem
 from api_launcher.crawler_asset_display import adapter_review_item_display_payload
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.ui_config import COLORS
 
 
@@ -35,7 +36,7 @@ class AdapterReviewDialog:
             item.adapter_id,
             display["required_action_label"],
             display["outcome_label"],
-            item.provider_id,
+            provider_display_label(None, item.provider_id),
             item.dataset_id,
             item.version or "-",
             item.source_url or item.landing_url,
