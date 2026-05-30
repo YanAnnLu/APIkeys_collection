@@ -542,7 +542,14 @@ function downloaderRowHtml(asset) {
   const passport = latestPlanPassportForAsset(asset) || {};
   const tone = toneClass(outcome.display_tone || passport.display_tone);
   const label = planOutcomeLabel(outcome, passport, "計畫結果");
-  const nextAction = outcome.next_action_label || passport.next_action_label || asset.next_action_label || passport.next_action || asset.next_action || "等待後端下一步";
+  const nextAction = displayTextOrFallback(
+    "等待後端下一步",
+    outcome.next_action_label,
+    passport.next_action_label,
+    asset.next_action_label,
+    passport.next_action,
+    asset.next_action,
+  );
   const contentReview = outcome.content_review?.has_review || passport.content_review_count
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
     : "";
@@ -643,7 +650,10 @@ async function runCrawlerAssetListingById(assetId, options = {}) {
       openCredentialEditorById(assetId);
       return;
     }
-    addMission("seed 枚舉完成", seedEnumerationDetail(result) || payload.next_action_label || payload.next_action || "review candidates");
+    addMission(
+      "seed 枚舉完成",
+      displayTextOrFallback("檢查 seed 枚舉結果", seedEnumerationDetail(result), payload.next_action_label, payload.next_action),
+    );
     loadRecentEvents({ quiet: true });
     await loadAssets({ autoEnumerateSelected: false });
     await selectAsset(assetId, { autoEnumerate: false });
@@ -913,7 +923,7 @@ function renderPassport(card, asset) {
       <div><dt>Seed 範式</dt><dd>${escapeHtml(capabilityProfile.seed_scope_label || capabilityProfile.seed_scope || "unknown")}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
-      <div><dt>下一步</dt><dd>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</dd></div>
+      <div><dt>下一步</dt><dd>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</dd></div>
     </dl>
 
     ${planOutcomePanelHtml(card)}
@@ -949,7 +959,7 @@ function credentialBadgeHtml(asset) {
     return "";
   }
   const tone = toneClass(credentials.display_tone);
-  const title = profile.next_action_label || credentials.next_action_label || credentials.next_action || label;
+  const title = displayTextOrFallback(label, profile.next_action_label, credentials.next_action_label, credentials.next_action);
   return `<span class="credential-badge ${tone}" title="${escapeAttr(title)}">${escapeHtml(label)}</span>`;
 }
 
@@ -1468,15 +1478,21 @@ async function submitBounds(execute) {
     if (payload.plan_outcome) {
       rememberAssetPlanOutcome(selectedAssetId, payload.plan_outcome);
       rememberAssetPlanPassport(selectedAssetId, payload.plan_passport);
-      formState.textContent = payload.plan_outcome.display_label || payload.next_action_label || payload.next_action || "review";
+      formState.textContent = displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.display_label, payload.next_action_label, payload.next_action);
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
       setContentReviewBadge(payload.plan_outcome.content_review);
-      addMission(payload.plan_outcome.display_label || "下載計畫結果", payload.plan_outcome.summary || payload.next_action_label || payload.next_action || "review");
+      addMission(
+        payload.plan_outcome.display_label || "下載計畫結果",
+        displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.summary, payload.next_action_label, payload.next_action),
+      );
       renderAssetGrid();
       refreshSelectedAssetOutcomeViews();
     } else {
       setContentReviewBadge(null);
-      addMission(execute ? "建立下載計畫" : "產生界域 payload", `${selectedAssetId} / ${payload.next_action_label || payload.next_action || "review"}`);
+      addMission(
+        execute ? "建立下載計畫" : "產生界域 payload",
+        `${selectedAssetId} / ${displayTextOrFallback("檢查下載計畫結果", payload.next_action_label, payload.next_action)}`,
+      );
     }
     if (payload.adapter_review) {
       latestAdapterReview = payload.adapter_review;
@@ -1643,8 +1659,8 @@ function seedImportBadgeHtml(seed) {
   if (!label) return "";
   const tone = toneClass(seed.content_display_tone || profile.display_tone);
   const title = [
-    seed.content_pipeline_lane || profile.pipeline_lane,
-    seed.content_next_action || profile.next_action,
+    seed.content_pipeline_lane_label || profile.pipeline_lane_label || seed.content_display_label || profile.display_label,
+    seed.content_next_action_label || profile.next_action_label,
   ].filter(Boolean).join(" / ");
   return ` <span class="context-chip ${tone}" title="${escapeAttr(title || label)}">${escapeHtml(label)}</span>`;
 }
@@ -1795,7 +1811,7 @@ function renderSelectedHero(card, flowSteps = []) {
       ${heroMetric("Caps", (card.capabilities || []).length)}
       <div class="hero-next-action">
         <span>下一步</span>
-        <strong>${escapeHtml(card.next_action_label || card.next_action || "檢查界域或審核結果")}</strong>
+        <strong>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</strong>
       </div>
     </div>
     ${renderFlowSteps(flowSteps)}
@@ -1836,7 +1852,9 @@ function planPassportPanelHtml(asset) {
   const staleLabel = isStale
     ? stalePassportLabel(passport)
     : "profile 已同步";
-  const nextAction = isStale ? stalePassportNextAction(passport) : passport.next_action;
+  const nextAction = isStale
+    ? stalePassportNextAction(passport)
+    : displayTextOrFallback("等待下一步", passport.next_action_label, passport.next_action);
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
     : "內容待辦 0";
@@ -1981,14 +1999,24 @@ function stalePassportLabel(passport) {
 }
 
 function stalePassportNextAction(passport) {
-  const label = String(passport?.stale_next_action_label || "").trim();
-  if (label) return label;
+  if (!passport?.stale && !passport?.stale_next_action_label && !passport?.stale_next_action) {
+    return "";
+  }
+  return displayTextOrFallback("計畫需重建", passport?.stale_next_action_label, passport?.stale_next_action);
+}
 
-  const nextAction = String(passport?.stale_next_action || "").trim();
-  if (nextAction) return nextAction;
+function displayTextOrFallback(fallback, ...candidates) {
+  for (const candidate of candidates) {
+    const text = String(candidate || "").trim();
+    if (text && !looksLikeBackendToken(text)) return text;
+  }
+  return fallback;
+}
 
-  // stale_reason 是 agent/debug 用的內部代碼；Web UI 缺 display label 時仍退到中性操作提示。
-  return passport?.stale ? "refresh_or_rebuild_plan_passport" : "";
+function looksLikeBackendToken(text) {
+  if (!/^[a-z][a-z0-9_]*$/.test(text)) return false;
+  if (text.includes("_")) return true;
+  return ["review", "plan", "unknown", "blocked", "planned", "ready"].includes(text);
 }
 
 function adapterReviewOutcomeText(outcomes) {
