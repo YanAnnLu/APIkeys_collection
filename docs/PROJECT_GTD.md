@@ -64,6 +64,7 @@ Last updated: 2026-05-31
 - [x] Tk 修復/驗證面板的 provider 欄位與修復提示也已標籤化追溯 ID：下載 manifest table、database issue table、repair suggestion、requeue status、reimport confirmation、dry-run SQL confirmation、database connection title 與 unmanage confirmation 顯示 `Provider ID：...`；detail pane / event context 仍保留 raw id 供追溯。
 - [x] Tk 下載器 runtime status 已補 display-safe labels：下載器表格與失敗/取消狀態列顯示「已規劃」「下載中」「失敗」等人類文案，不再把 raw `planned` / `failed` 當主要使用者文字；download queue、plan key、event context 與 import/manifest 邊界仍保留 stable raw id。
 - [x] Tk 下載器略過摘要已補 display-safe fallback：已知 skip bucket 顯示「需 Adapter」「缺下載 URL」等文案，未知 bucket 顯示「其他待處理」，不再把新 backend bucket raw id 直接露在使用者訊息。
+- [x] Tk 下載器匯入欄位已補 import-plan status fallback：已知 `manual_review_required` 顯示「需內容 Parser review」，未知 `import_plan.status` 顯示「匯入狀態待確認」，不再把新 backend status raw id 直接露在表格欄位。
 - [x] Tk crawler asset helper 已補 next-action fallback guard：blocked download-plan summary、Plan Passport stale summary、credential guard message、credential summary 不再在 label 缺失時顯示 raw `next_action` / `stale_reason`；未知 action 會落到中性提示。
 - [x] Tk Google/Gemini 連線視窗的帳號支援表格已接後端 account display helper：登入模式與支援狀態顯示「OAuth 登入」「規劃中」「🚧 施工中」等文案，不再把 `oauth` / `planned` / `skeleton` raw id 當主要使用者文字。
 - [x] Tk Google/Gemini token 與 OAuth device-flow 狀態已補 display-safe labels：連線視窗與 OAuth status bar 顯示「尚未登入」「已登入」「等待授權」「登入請求失敗」等人類文案，不再把 `missing` / `ready` / `request_failed` / 未知 status id 直接顯示給使用者。
