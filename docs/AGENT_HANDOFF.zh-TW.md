@@ -2,7 +2,7 @@
 ## 2026-05-31 05:36 Tk repair provider labels
 - 本輪把 Tk 修復/驗證面板的 provider 欄位與多個修復提示標題接到 `repair_provider_label()` / `repair_asset_title()`；表格與 messagebox 顯示 `Provider ID：...`，避免 raw `provider_id` 被當成人類資料源名稱。
 - 保持邊界：下載 manifest scan、database self-check、requeue、SQLite reimport、dry-run SQL、connection metadata、unmanage、event context 與 detail pane 的 `provider_id:` trace key/value 都沒改；這只是修復 UI 的 provider provenance label 收斂。
-- 已驗證：`py_compile` for `frontends\tk\repair_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 139 tests；完整 smoke `state\logs\pre_push_smoke_20260531_053625.log` 通過，1027 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`40dae91 Label Tk repair provider ids`；GitHub Actions 尚未跑，下一步是提交文檔、push、手動觸發 CI。
+- 已驗證：`py_compile` for `frontends\tk\repair_workflows.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 139 tests；完整 smoke `state\logs\pre_push_smoke_20260531_053625.log` 通過，1027 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`40dae91 Label Tk repair provider ids` / docs 提交 `18f676c Log Tk repair provider checkpoint`；GitHub Actions manual run `26695645884` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 05:25 Tk adapter review provider labels
 - 本輪把 Adapter Review dialog 表格的 provider 欄接到 `provider_display_label(None, provider_id)`；表格顯示 `Provider ID：...`，避免 raw `nyc_open_data` 被當成人類資料源名稱。detail pane 的 `provider_id:` key/value 仍保留 raw id，因為那裡是 agent / 人類可複製的追溯區。
 - 保持邊界：adapter review display payload、detail key/value shape、resolver entry、open URL、resolve-from-UI、download/import/crawler flow 都沒改；這只是表格欄位的 provider provenance label 收斂。
