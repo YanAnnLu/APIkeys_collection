@@ -9,6 +9,30 @@ from api_launcher.core import DEFAULT_HTTP_ERROR_EXCERPT_MAX_BYTES, safe_fetch_m
 
 
 class MetadataProbeTests(unittest.TestCase):
+    def test_safe_fetch_metadata_marks_success_excerpt_as_truncated(self) -> None:
+        read_sizes: list[int] = []
+
+        class FakeResponse:
+            status = 200
+            headers = {"Content-Type": "text/plain", "Content-Length": "128"}
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb) -> None:
+                return None
+
+            def read(self, size: int) -> bytes:
+                read_sizes.append(size)
+                return b"x" * size
+
+        with patch("api_launcher.core.urllib.request.urlopen", return_value=FakeResponse()):
+            payload = safe_fetch_metadata("https://example.test/metadata", max_bytes=17, timeout=1.0)
+
+        self.assertTrue(payload["truncated"])
+        self.assertEqual(17, len(payload["excerpt"]))
+        self.assertEqual([18], read_sizes)
+
     def test_safe_fetch_metadata_limits_http_error_excerpt_body(self) -> None:
         read_sizes: list[int] = []
 

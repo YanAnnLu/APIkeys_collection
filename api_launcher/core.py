@@ -229,13 +229,15 @@ def safe_fetch_metadata(url: str, max_bytes: int, timeout: float) -> dict[str, o
             "error": f"{type(exc).__name__}: {exc}",
         }
 
-    if len(raw) > max_bytes:
+    truncated = len(raw) > max_bytes
+    if truncated:
         raw = raw[:max_bytes]
     decoded = decode_excerpt(raw)
     return {
         "status_code": int(status_code),
         "content_type": content_type,
         "content_length": parse_int_or_none(content_length),
+        "truncated": truncated,
         "title": extract_title(decoded),
         "sha256": hashlib.sha256(raw).hexdigest(),
         "excerpt": decoded[:1000],
