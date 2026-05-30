@@ -14,6 +14,7 @@ from api_launcher.dataset_candidate_display import (
     dataset_candidate_status_labels,
     dataset_candidate_status_value,
 )
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.ui_config import COLORS
 
 
@@ -39,7 +40,7 @@ class DatasetCandidateReviewDialog:
         metadata = dataset.metadata
         return (
             dataset_candidate_status_label(str(metadata.get("candidate_status") or "")),
-            dataset.provider_id,
+            provider_display_label(None, dataset.provider_id),
             dataset.title,
             metadata.get("data_family", dataset.data_type),
             dataset.native_format,
@@ -55,7 +56,7 @@ class DatasetCandidateReviewDialog:
         evidence_text = json.dumps(evidence, ensure_ascii=False, indent=2) if evidence else "-"
         details = [
             f"{tr('標題', 'Title')}: {dataset.title}",
-            f"{tr('提供商', 'Provider')}: {dataset.provider_id}",
+            f"{tr('提供商', 'Provider')}: {provider_display_label(None, dataset.provider_id)}",
             f"{tr('資料集 ID', 'Dataset ID')}: {dataset.dataset_id}",
             f"{tr('審核狀態', 'Review status')}: {dataset_candidate_status_label(str(metadata.get('candidate_status') or ''))}",
             f"{tr('資料類型', 'Data family')}: {metadata.get('data_family', dataset.data_type or '-')}",
