@@ -1059,7 +1059,7 @@ class CrawlerAssetWorkflowMixin:
             self.status_var.set(self.tr("這個爬蟲已封存；請先解除封存再執行。", "This crawler is archived; unarchive it before running."))
             return
         self.active_provider_id = asset.provider_id
-        self.status_var.set(self.tr(f"切到 {asset.provider_id}，執行既有 metadata 爬取。", f"Fetching metadata for {asset.provider_id}."))
+        self.status_var.set(self.tr(f"切到 {asset.display_name}，執行既有 metadata 爬取。", f"Fetching metadata for {asset.display_name}."))
         self.crawl_selected()
 
     def run_selected_crawler_asset_listing(self) -> None:

@@ -840,6 +840,29 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(("demo_stac", payload), thread_call.args)
         self.assertIn("Building download plan from crawler asset", ui.status_var.value)
 
+    def test_crawler_asset_metadata_status_uses_display_name(self) -> None:
+        source = DatasetDiscoverySource(
+            source_id="demo_stac",
+            provider_id="demo_provider",
+            name="Demo STAC",
+            source_type="stac_collections",
+            endpoint_url="https://example.test/stac",
+        )
+        asset = crawler_asset_from_source(source)
+        ui = object.__new__(CrawlerAssetWorkflowMixin)
+        ui.selected_crawler_asset = lambda: asset
+        ui.status_var = SimpleNamespace(value="", set=lambda value: setattr(ui.status_var, "value", value))
+        ui.tr = lambda _zh, en: en
+        crawl_calls: list[bool] = []
+        ui.crawl_selected = lambda: crawl_calls.append(True)
+
+        CrawlerAssetWorkflowMixin.run_selected_crawler_asset_metadata(ui)
+
+        self.assertEqual("demo_provider", ui.active_provider_id)
+        self.assertEqual([True], crawl_calls)
+        self.assertIn("Demo STAC", ui.status_var.value)
+        self.assertNotIn("demo_provider", ui.status_var.value)
+
     def test_crawler_asset_download_plan_is_single_flight_before_bounds_dialog(self) -> None:
         source = DatasetDiscoverySource(
             source_id="demo_stac",
