@@ -12,8 +12,9 @@ from typing import Iterable
 
 from api_launcher.crawler_asset_bound_display import capability_display_label
 from api_launcher.crawler_asset_bound_forms import CrawlerAssetBoundFormSpec
-from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, CrawlerAssetCapability
+from api_launcher.crawler_asset_capabilities import BUILD_DOWNLOAD_PLAN, CrawlerAssetCapability, status_label_or_fallback
 from api_launcher.crawler_assets import CrawlerAsset
+from api_launcher.crawler_next_action_display import next_action_display_label_or_fallback
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,12 @@ def crawler_asset_card_capabilities(
             "label": capability.label,
             "display_label": capability_display_label(capability),
             "status": capability.status,
+            "status_label": status_label_or_fallback(capability.status),
             "next_action": capability.next_action,
+            "next_action_label": next_action_display_label_or_fallback(
+                capability.next_action,
+                fallback="檢查能力設定",
+            ),
         }
         for capability in capabilities
     ]

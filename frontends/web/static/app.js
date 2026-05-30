@@ -2076,8 +2076,8 @@ function statusClass(status) {
 }
 
 function capabilityStatusText(capability) {
-  const parts = [capability.status];
-  if (capability.next_action) parts.push(capability.next_action);
+  const parts = [capability.status_label || "需檢查能力狀態"];
+  if (capability.next_action_label) parts.push(capability.next_action_label);
   return parts.join(" / ");
 }
 

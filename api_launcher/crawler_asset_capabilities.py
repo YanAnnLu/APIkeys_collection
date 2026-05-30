@@ -210,3 +210,8 @@ def status_label(status: str) -> str:
         "active": "啟用",
     }
     return labels.get(status, status)
+
+
+def status_label_or_fallback(status: str, *, fallback: str = "需檢查能力狀態") -> str:
+    label = status_label(status)
+    return label if label != status else fallback

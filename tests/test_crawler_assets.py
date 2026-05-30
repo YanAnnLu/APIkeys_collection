@@ -34,9 +34,11 @@ from api_launcher.crawler_asset_bound_forms import (
     crawler_asset_bound_payload_from_form_values,
 )
 from api_launcher.crawler_asset_bounds import SOURCE_BOUND_FACETS, bounds_facets_for_source, bounds_schema_for_source
+from api_launcher.crawler_asset_flow_display import crawler_asset_card_capabilities
 from api_launcher.crawler_seed_display import seed_enumeration_display_payload
 from api_launcher.crawler_assets import (
     BUILD_DOWNLOAD_PLAN,
+    CrawlerAssetCapability,
     SOURCE_SURFACE_LABELS,
     crawler_asset_from_source,
     load_crawler_asset_source,
@@ -190,6 +192,23 @@ class CrawlerAssetTest(unittest.TestCase):
         self.assertEqual({}, payload["capability_code"])
         self.assertIsNone(payload["capability_bits"])
         self.assertEqual("", payload["capability_binary"])
+
+    def test_card_capabilities_add_user_facing_status_and_action_labels(self) -> None:
+        capability = CrawlerAssetCapability(
+            capability_id=BUILD_DOWNLOAD_PLAN,
+            label="Build download plan",
+            status="needs_bounds_or_adapter",
+            detail="Needs bounds",
+            input_contract="source profile",
+            output_contract="download plan",
+            credential_mode="public_or_review",
+            next_action="probe_schema_then_define_bounds",
+        )
+
+        rows = crawler_asset_card_capabilities((capability,))
+
+        self.assertEqual("需界域", rows[0]["status_label"])
+        self.assertEqual("先探測資料結構，再定義界域", rows[0]["next_action_label"])
 
     def test_account_requirement_is_assigned_to_crawler_asset(self) -> None:
         source = DatasetDiscoverySource(
