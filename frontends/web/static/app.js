@@ -765,7 +765,7 @@ function renderReviewWorkspace() {
       <span class="eyebrow">Parser Registry</span>
       <strong>${escapeHtml(String(parsers.length))} 種 parser 線索</strong>
       <div class="context-chip-row">
-        ${parsers.slice(0, 8).map((parser) => `<span class="context-chip">${escapeHtml(parser.parser_id || parser.source_format || "parser")}</span>`).join("") || '<span class="context-chip">等待後端提供 parser 線索</span>'}
+        ${parsers.slice(0, 8).map((parser) => `<span class="context-chip">${escapeHtml(parserDisplayText(parser))}</span>`).join("") || '<span class="context-chip">等待後端提供 parser 線索</span>'}
       </div>
     </section>
     <section class="review-card">
@@ -2025,7 +2025,7 @@ function renderFlowSteps(flowSteps) {
     <div class="flow-strip" aria-label="後端流程狀態">
       ${flowSteps.map((step) => `
         <div class="flow-step ${flowStatusClass(step.status)}">
-          <span>${escapeHtml(step.label || step.step_id)}</span>
+          <span>${escapeHtml(flowStepLabel(step))}</span>
           <strong>${escapeHtml(step.summary || "")}</strong>
           <small>${escapeHtml(step.evidence || "")}</small>
         </div>
@@ -2038,6 +2038,10 @@ function flowStatusClass(status) {
   if (["complete", "ready", "bounded", "selectable"].includes(status)) return "complete";
   if (["warning", "neutral"].includes(status)) return "warning";
   return "review";
+}
+
+function flowStepLabel(step) {
+  return displayTextOrFallback("流程步驟待確認", step.label, step.step_id);
 }
 
 function toneClass(tone) {
@@ -2122,6 +2126,10 @@ function contentReviewBucketLabel(bucket) {
 
 function contentPipelineLaneLabel(lane) {
   return displayTextOrFallback("匯入路徑待辦", lane.display_label, lane.pipeline_lane);
+}
+
+function parserDisplayText(parser) {
+  return displayTextOrFallback("Parser 線索待確認", parser.display_label, parser.label, parser.parser_id, parser.source_format);
 }
 
 function contentReviewText(buckets) {
@@ -2214,17 +2222,21 @@ function capabilityStatusText(capability) {
 }
 
 function capabilityLabel(capability) {
-  if (capability.display_label) return capability.display_label;
   const labels = {
     fetch_metadata: "抓取元資料",
     list_datasets: "擷取資料清單",
     build_download_plan: "建立下載計畫",
   };
-  return labels[capability.capability_id] || capability.label || capability.capability_id;
+  return displayTextOrFallback(
+    "能力待確認",
+    capability.display_label,
+    labels[capability.capability_id],
+    capability.label,
+    capability.capability_id,
+  );
 }
 
 function fieldLabel(field) {
-  if (field.display_label) return field.display_label;
   const labels = {
     collection: "資料集合",
     time_field: "時間欄位",
@@ -2241,7 +2253,14 @@ function fieldLabel(field) {
     format: "輸出格式",
     credential_profile: "憑證設定檔",
   };
-  return labels[field.field_id] || field.label_zh_TW || field.label_en || field.field_id;
+  return displayTextOrFallback(
+    "欄位待確認",
+    field.display_label,
+    labels[field.field_id],
+    field.label_zh_TW,
+    field.label_en,
+    field.field_id,
+  );
 }
 
 function fieldHelp(field) {

@@ -1,4 +1,7 @@
 # Agent 接力卡
+## 2026-05-31 02:40 Web display helper fallback consolidation
+- 本輪把 Web Preview 的 Parser Registry chips、後端 flow step label、capability label 與 bounds field label 都收回 `displayTextOrFallback()` 類 helper；缺 label 時顯示「Parser 線索待確認」「流程步驟待確認」「能力待確認」「欄位待確認」，不再直接 fallback 到 `parser_id`、`step_id`、`capability_id` 或 `field_id`。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_web_preview -v` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_023814.log` 通過，1015 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。待 push / CI。
 ## 2026-05-31 02:31 Web maturity area display fallback
 - 本輪延續 Web display-contract 收斂：成熟度工作區的 row 標題改用 `displayTextOrFallback("成熟度面向待確認", row.area_label, row.area_id)`，不再把英文 `maturity area` 或 snake_case `area_id` 當作使用者可見標題。
 - 已驗證：`node --check frontends\web\static\app.js` OK；`$env:PYTHONDONTWRITEBYTECODE='1'; py -3 -B -m unittest tests.test_web_preview -v` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_022904.log` 通過，1015 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；已推送 `6116d4b Hide Web maturity area ids`，GitHub Actions manual run `26691697057` 通過 Ubuntu、Windows 與 real DB smoke。

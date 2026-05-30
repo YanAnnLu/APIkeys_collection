@@ -37,6 +37,7 @@
 - 「成熟度」工作區只讀 `/api/project-maturity` 的後端 payload，顯示 canonical delivery scope、成熟度 row、`🚧` 施工中圖示、display tone、限制與下一步。Web 不得用 JS 重新計算專案完成率，也不得把 `contract_only` / `planned_not_started` 寫成穩定功能。Delivery Scope 摘要與 maturity row label 也必須走 display-safe helper；若後端缺 `status_zh_TW` / display label，UI 顯示「狀態待確認」或「成熟度待確認」，不把 raw `status`、`maturity_level` 或 `unknown` 當人類文案。
 - 成熟度 row 的面向標題也必須走 display-safe helper；若缺 `area_label`，顯示「成熟度面向待確認」，不要把 `area_id` 或英文 `maturity area` 當主要使用者文案。
 - Web 使用者可見文字不得 fallback 到 snake_case / raw backend token。若 `next_action_label`、`display_label`、`status_label` 等欄位缺失，Web 應顯示中性操作提示，例如「檢查界域或審核結果」「檢查下載計畫結果」，而不是把 `next_action`、`outcome_bucket`、`stale_next_action`、`status_code`、download/import `stage`、content review bucket、pipeline lane 或 seed scope 當成文案。raw token 可留在 JSON/debug panel，方便 agent 診斷。
+- Parser Registry、後端 flow step、capability row 與 bounds field label 也套用同一規則：缺 display label 時顯示「Parser 線索待確認」「流程步驟待確認」「能力待確認」「欄位待確認」，不要把 `parser_id`、`step_id`、`capability_id` 或 `field_id` 當主要使用者文案。
 - Provider 顯示也不能退回英文開發者 fallback。若後端尚未提供 `provider_name` / `provider_label`，Web 可暫時顯示穩定的 `provider_id` 作為可追溯線索；若連 provider id 都缺失，顯示「Provider 待確認」，不要顯示 `provider unknown`。
 - Download/import 結果與 Web mission queue 都應優先顯示後端 `download_import.stage_label`。Web 端只保留中性 fallback；正式文案 ownership 在 `api_launcher.crawler_asset_display`，不要在 JS 端維護 stage 翻譯表，也不要把 raw `stage` id 當互動紀錄文案。
 
