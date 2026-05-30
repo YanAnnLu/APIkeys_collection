@@ -343,7 +343,7 @@ async function runCrawlerAssetDownloadImportById(assetId) {
     if (downloadImport.succeeded) {
       addMission("正式下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${asset?.display_name || assetId}`);
     } else {
-      addMission("正式下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
+      addMission("正式下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }
     addCallbackDiagnosticsMission(payload);
     renderDownloaderWorkspace();
@@ -392,7 +392,7 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     if (downloadImport.succeeded) {
       addMission("seed 下載 / 匯入完成", `${downloadImport.stage || "completed"} / ${datasetUid}`);
     } else {
-      addMission("seed 下載 / 匯入未完成", payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.stage || "review required");
+      addMission("seed 下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }
     addCallbackDiagnosticsMission(payload);
     renderDownloaderWorkspace();
@@ -481,10 +481,10 @@ function crawlerAssetDownloadImportRowHtml(payload) {
       <div class="context-chip-row">
         <span class="context-chip">crawler_asset_path</span>
         <span class="context-chip">download_import_pipeline</span>
-        <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || payload.outcome_bucket || "plan")}</span>
+        <span class="context-chip">${escapeHtml(payload.plan_outcome?.short_label || payload.plan_outcome?.display_label || "計畫狀態")}</span>
         ${callbackChip}
       </div>
-      <p>${escapeHtml(payload.next_action_label || downloadImport.next_action_label || payload.next_action || downloadImport.next_action || "review result")}</p>
+      <p>${escapeHtml(downloadImportNextActionText(payload, downloadImport))}</p>
       ${callbackDiagnosticsHtml(callbackDiagnostics)}
       <dl class="artifact-list">
         <div><dt>Downloads</dt><dd>${escapeHtml(artifacts.downloads_root || "")}</dd></div>
@@ -493,6 +493,10 @@ function crawlerAssetDownloadImportRowHtml(payload) {
       </dl>
     </article>
   `;
+}
+
+function downloadImportNextActionText(payload, downloadImport = {}) {
+  return payload.next_action_label || downloadImport.next_action_label || "檢查下載 / 匯入結果";
 }
 
 function downloadImportCallbackDiagnostics(payload) {
