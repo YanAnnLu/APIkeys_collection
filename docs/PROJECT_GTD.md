@@ -11,6 +11,7 @@ Last updated: 2026-05-31
 - [x] Recommended-seed closure 已接進 Tk Seed 清單 dialog：後端 `recommended_seed_uid` 現在可直接按「驗證閉環」，Tk 會重跑 bounded listing、讀回本機 seed page，再交給同一個後端 closure service 做推薦 seed 下載 / 匯入；Tk 不自行挑 seed，也不重寫 Web/CLI 的 closure 規則。
 - [x] 收斂近期主線：完成手邊 crawler seed / Socrata 小切片後，先集中在 `seed -> crawler -> candidate -> plan -> download -> import -> UI` 的資料資產小閉環。
 - [x] 暫時略過資料渲染、Unreal 5 對接、simulation bridge 與 renderer ecosystem。這些仍保留在成熟度矩陣作為 `contract_only` / planned work，但不列入當前交付阻塞。
+- [ ] 中期 geospatial governance backlog：Displaytools 已提出 territory / territorial sea / EEZ / maritime-boundary identity 需要 RRKAL-governed polygon/EEZ manifest。這應等目前 seed/crawler/download/import UI 小閉環穩定後，以 OpenSpec/ADR 定義 manifest fields、provenance/license gate、cache ownership 與 renderer-safe display payload；目前不直接改 displaytools 或 launcher code。
 - [x] Web Preview 已把後端 `recommended_seed_uid` 接成顯眼的「下載推薦 seed」入口；前端不自行判斷哪筆 seed 可下載，只消費 seed page payload。
 - [x] Tk Seed 清單 dialog 已把同一個 `recommended_seed_uid` 接成「推薦 seed」摘要與「下載推薦 Seed」按鈕；Tk 也不自行挑 seed。
 - [x] Tk 界域表單已接上後端 `recommended_values` / `presets`：使用者可按「套用推薦值」或區域預設按鈕先填入安全 limit / bbox，不必第一次就盲填所有欄位。
@@ -63,6 +64,7 @@ Last updated: 2026-05-31
 - [x] Tk Google/Gemini token 與 OAuth device-flow 狀態已補 display-safe labels：連線視窗與 OAuth status bar 顯示「尚未登入」「已登入」「等待授權」「登入請求失敗」等人類文案，不再把 `missing` / `ready` / `request_failed` / 未知 status id 直接顯示給使用者。
 - [x] Tk AI 摘要 profile login status 已接同一份 OAuth status label：OAuth ready 時顯示「已登入」而不是 raw `ready`，避免 AI model table / status 摘要把 token state id 當人類文案。
 - [x] Blocked download-plan reason 已接同一份後端 display contract：`plan_outcome_display_profile()` 會把 `missing_credentials`、`crawler_asset_disabled` 類 blocked reason 映射成人類文案，Tk/Web plan outcome summary / short label 不再把 raw blocked id 當使用者文字。
+- [x] Tk crawler asset listing 狀態列已接 display-name fallback：入口清單擷取與 duplicate guard 仍用 raw `asset_id` 維持 single-flight/worker 邏輯，但使用者可見 status 改顯示 `asset.display_name`，避免把 `demo_index` 這類內部 id 當主要 UI 文案。
 - [x] 遠端分頁狀態已補 backend display payload：seed enumeration 的 `remote_pagination` 會輸出「仍有下一頁線索」「已列完」「遠端狀態待確認」等人類文案，Tk note 優先消費這份 payload，未知 crawler status 不再直接顯示 raw id。
 - [x] Web Preview bounds/schema-probe 顯示 fallback 已改吃後端 display label：seed 欄位探測完成 mission 不再 fallback 到 raw `schema_probe.status`，界域表單狀態 pill 顯示 `spec.display_label` 而不是 `spec.status`。
 - [x] Web asset passport capability row 已改吃後端 capability display payload：`crawler_asset_card_capabilities()` 輸出 `status_label` / `next_action_label`，Web 不再把 raw `capability.status` / `capability.next_action` 當使用者文字。
