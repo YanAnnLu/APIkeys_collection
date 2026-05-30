@@ -21,6 +21,7 @@ from frontends.tk.bound_form_dialog import DatasetBoundFormDialog
 from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.background_job_policies import MAX_TK_PLAN_BOUNDS_PROBE_JOBS
 from frontends.tk.dialogs import AdapterReviewDialog
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_PLAN_NAME, RESOLVED_DOWNLOAD_PLAN_NAME
 
@@ -54,7 +55,7 @@ class PlanWorkflowMixin:
         var.set(not var.get())
         self.render_table()
         row = self.row_by_provider_id(provider_id)
-        label = row.name if row else provider_id
+        label = provider_display_label(row, provider_id)
         self.status_var.set(f"{'已加入下載計畫' if var.get() else '已移出下載計畫'}：{label}")
 
     def add_provider_to_plan(self, provider_id: str) -> None:
@@ -67,8 +68,9 @@ class PlanWorkflowMixin:
         var.set(True)
         self.active_provider_id = provider_id
         self.render_table()
+        label = provider_display_label(row, provider_id)
         self.status_var.set(
-            f"{'已在下載計畫中' if already_selected else '已加入下載計畫'}：{row.name}"
+            f"{'已在下載計畫中' if already_selected else '已加入下載計畫'}：{label}"
         )
 
     def add_provider_version_to_plan(self, provider_id: str, option: core.DatasetVersionOption) -> None:
@@ -82,7 +84,8 @@ class PlanWorkflowMixin:
         self.selected.setdefault(provider_id, BooleanVar(value=False)).set(True)
         self.active_provider_id = provider_id
         self.render_table()
-        self.status_var.set(self.tr(f"已加入下載計畫：{row.name} {option.menu_label}", f"Added {row.name} {option.menu_label} to download plan"))
+        label = provider_display_label(row, provider_id)
+        self.status_var.set(self.tr(f"已加入下載計畫：{label} {option.menu_label}", f"Added {label} {option.menu_label} to download plan"))
 
     def plan_key_for_version(self, provider_id: str, option: core.DatasetVersionOption) -> str:
         version = option.version or option.label or "unversioned"
@@ -131,7 +134,7 @@ class PlanWorkflowMixin:
     def plan_item_label(self, plan_key: str, row: ProviderRow | None = None, option: core.DatasetVersionOption | None = None) -> str:
         provider_id = self.provider_id_for_plan_key(plan_key)
         row = row or self.row_by_provider_id(provider_id)
-        label = row.name if row else provider_id
+        label = provider_display_label(row, provider_id)
         option = option or self.plan_version_by_provider.get(plan_key)
         if option:
             return f"{label} / {option.dataset_id} {option.version or option.label}"

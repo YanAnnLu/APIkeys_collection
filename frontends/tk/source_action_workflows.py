@@ -12,6 +12,7 @@ from api_launcher.event_log import log_exception
 from api_launcher.library_actions import LibraryAction, LibraryContext, library_action_map, library_action_menu_label
 from frontends.tk.background_jobs import start_single_flight_thread
 from frontends.tk.background_job_policies import MAX_TK_SOURCE_ACTION_BACKGROUND_JOBS
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_models import ProviderRow
 from frontends.tk.ui_config import DOWNLOAD_REPAIR_ACTION_STATUSES, TABLE_COLUMNS
 
@@ -24,10 +25,7 @@ def source_action_provider_label(row: ProviderRow | None, provider_id: str) -> s
     presenting it as if it were the provider's display name.
     """
 
-    if row is not None and str(row.name or "").strip():
-        return str(row.name).strip()
-    provider_id = str(provider_id or "").strip()
-    return f"Provider ID：{provider_id}" if provider_id else "Provider 待確認"
+    return provider_display_label(row, provider_id)
 
 
 class SourceActionWorkflowMixin:

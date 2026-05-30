@@ -98,6 +98,7 @@ from frontends.tk.project_maturity_workflows import (
     ProjectMaturityWorkflowMixin,
     project_maturity_message,
 )
+from frontends.tk.provider_display import provider_display_label
 from frontends.tk.provider_settings_workflows import ProviderSettingsWorkflowMixin
 from frontends.tk.repair_workflows import RepairWorkflowMixin
 from frontends.tk.responsive_layout_workflows import ResponsiveLayoutWorkflowMixin
@@ -470,6 +471,7 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual("Provider A", source_action_provider_label(SimpleNamespace(name="Provider A"), "provider_a"))
         self.assertEqual("Provider ID：provider_a", source_action_provider_label(None, "provider_a"))
         self.assertEqual("Provider ID：provider_a", source_action_provider_label(SimpleNamespace(name="  "), "provider_a"))
+        self.assertEqual("Provider ID：provider_a", provider_display_label(SimpleNamespace(name="  "), "provider_a"))
 
     def test_run_row_action_labels_blank_provider_name(self) -> None:
         ui = object.__new__(SourceActionWorkflowMixin)
@@ -2610,6 +2612,16 @@ class TkDialogModuleTest(unittest.TestCase):
         self.assertEqual(3, context["upserted_count"])
         self.assertEqual("crawler_listing", context["run_record"]["stage"])
         self.assertEqual("warning", context["run_record"]["status"])
+
+    def test_plan_item_label_marks_blank_provider_name(self) -> None:
+        ui = object.__new__(PlanWorkflowMixin)
+        ui.plan_provider_by_key = {}
+        ui.plan_version_by_provider = {}
+        ui.row_by_provider_id = lambda _provider_id: SimpleNamespace(provider_id="provider_a", name="")
+
+        label = PlanWorkflowMixin.plan_item_label(ui, "provider_a")
+
+        self.assertEqual("Provider ID：provider_a", label)
 
     def test_plan_workflow_applies_bounds_from_dynamic_dialog(self) -> None:
         ui = object.__new__(PlanWorkflowMixin)
