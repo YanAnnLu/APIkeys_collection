@@ -1,4 +1,10 @@
 # Agent 接力卡
+## 2026-05-30 09:49 Tk background policy metrics in maturity JSON
+- 本輪修正文檔漂移：`docs/PROJECT_MATURITY_MATRIX.zh-TW.md` 已說 Tk 背景工作上限有 typed policy registry，但 `--project-maturity-json` 的 `background_jobs_and_scheduler` row 仍是舊描述、metrics 空白。現在 `api_launcher.project_maturity` 會輸出 `policy_registry_available=true`、`bounded_tk_policy_count=8` 與 `max_active_jobs_by_policy`，讓 Web/Tk/agent 讀成熟度矩陣時看得到 scheduler hardening 的已完成部分與剩餘限制。
+- 已提交實作：`4ba6576 Expose Tk background policy metrics`。
+- 已驗證：`py -3 -B -m py_compile api_launcher\project_maturity.py tests\test_project_maturity.py frontends\tk\background_job_policies.py` OK；`py -3 -B -m unittest tests.test_project_maturity tests.test_tk_background_jobs -v` 通過，11 tests OK；`py -3 -B APIkeys_collection.py --project-maturity-json` 已顯示 `background_jobs_and_scheduler.metrics.max_active_jobs_by_policy.sqlite_import=1`；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_094947.log` 通過，961 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
+- Docs drift check：已同步 handoff / development log / project maturity matrix；本輪只修正 machine-readable maturity payload，不改 Tk/Web 操作、crawler、download/import、credential 或 user guide。
+
 ## 2026-05-30 09:40 Tk background job policy registry
 - 本輪把 Tk 背景工作容量上限收斂成 `frontends/tk/background_job_policies.py` 的 typed policy registry：AI summary、crawler asset、discovery、OAuth、plan bounds probe、sidebar favicon、source action、SQLite import 都從同一張 policy table 匯入 `max_active_jobs` 常數；workflow 仍只負責 UI handoff，沒有引入全域 scheduler 或 asyncio 重寫。
 - 已提交實作：`b2bcdf9 Declare Tk background job policies`。
