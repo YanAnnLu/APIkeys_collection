@@ -2,7 +2,7 @@
 ## 2026-05-31 05:12 Tk dataset candidate provider labels
 - 本輪把 Dataset Candidate Review dialog 的 Provider 欄與 detail provider line 也接到 `provider_display_label(None, provider_id)`；候選資料只知道 provider id 時，UI 會顯示 `Provider ID：...`，不再把裸 `example_provider` 放在「提供商」欄位裡像人類名稱。
 - 保持邊界：candidate status mapping、evidence JSON、source URL、approve/reject/add-to-plan、repository candidate schema、download/import/crawler flow 都沒改；這只是 review UI 的 provider provenance label 收斂。
-- 已驗證：`py_compile` for `frontends\tk\dataset_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_050944.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`ce27d37 Label Tk candidate review providers`；GitHub Actions 尚未跑，下一步是提交文檔、push、手動觸發 CI。
+- 已驗證：`py_compile` for `frontends\tk\dataset_candidate_review_dialog.py` / `tests\test_tk_dialogs.py` OK；`py -3 -B -m unittest tests.test_tk_dialogs -v` 通過 138 tests；完整 smoke `state\logs\pre_push_smoke_20260531_050944.log` 通過，1026 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`ce27d37 Label Tk candidate review providers` / docs 提交 `ce3caf4 Log Tk candidate review provider checkpoint`；GitHub Actions manual run `26695103614` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 05:01 Tk provider table/detail display labels
 - 本輪把 Tk 主表格 row title 與 detail panel title/description 也接到 `provider_display_label()`；若 `ProviderRow.name` 空白，畫面會顯示 `Provider ID：...`，不再出現空白表格標題或以空白 provider name 組出不完整描述。
 - 保持邊界：provider repository row、search haystack、dataset count、detail owner/category/auth/website、download/import/crawler/credential flow 都沒改；這只是 Tk 使用者可見 provider display fallback ownership 的第三段收斂。
