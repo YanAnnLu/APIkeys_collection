@@ -2,8 +2,8 @@
 ## 2026-05-30 11:19 Schema probe oversized response guard
 - 本輪延續 bounded probe hardening：`fetch_probe_bytes()` 現在會讀 `max_bytes + 1`，若 schema/head probe response 超過 budget 會明確 raise `ValueError`，避免用截斷 CSV/JSON 推論欄位並誤導 Web/Tk 界域表單。
 - 已提交實作：`53ac5bd Reject oversized schema probe responses`。
-- 已驗證：`py -3 -B -m py_compile api_launcher\schema_probe.py tests\test_source_download.py` OK；`py -3 -B -m unittest tests.test_source_download tests.test_tk_dialogs tests.test_web_preview -v` 通過，185 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_111958.log` 通過，969 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
-- Docs drift check：已同步 GTD / handoff / development log；本輪只加固 schema/head probe response budget，不改 Web/Tk 操作流程、crawler registry、download/import、credential storage 或 user guide。GitHub Actions 尚未觸發，推送後需 manual workflow dispatch 並回填 run id。
+- 已驗證：`py -3 -B -m py_compile api_launcher\schema_probe.py tests\test_source_download.py` OK；`py -3 -B -m unittest tests.test_source_download tests.test_tk_dialogs tests.test_web_preview -v` 通過，185 tests OK；`api_launcher` mojibake scan OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260530_111958.log` 通過，969 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26673225198` 通過 Ubuntu、Windows 與 real DB smoke。
+- Docs drift check：已同步 GTD / handoff / development log；本輪只加固 schema/head probe response budget，不改 Web/Tk 操作流程、crawler registry、download/import、credential storage 或 user guide。
 ## 2026-05-30 11:08 Crawler registry maturity metrics
 - 本輪沒有重寫 crawler registry；確認 `CrawlerSpec` / `@crawler(...)` / 4-bit capability address / seed scope registry 已落地後，只把成熟度 JSON 的 source handler row 補齊 registry 證據：`registry_matrix_cell_count`、`capability_address_width`、`capability_address_group_count`、`seed_scope_counts`、`dispatch_owner` 與相容 surface。
 - 已提交實作：`8ce74e7 Expose crawler registry maturity metrics`。
