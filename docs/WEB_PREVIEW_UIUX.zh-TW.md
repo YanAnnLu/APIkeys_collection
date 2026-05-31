@@ -46,6 +46,7 @@
 - Credential editor title、bounds preset label 與 seed row 空 metadata 也遵守同一條 display-safe 規則：Web 應使用 `credentialProviderTitle()`、`boundPresetLabel()` 與「資料摘要待確認」這類中性文案，不要讓 `status.provider_id`、`assetId`、`preset_id` 或英文 `metadata pending` 成為主要使用者文字。raw id 可留在 debug JSON、route key、favorite key 或 provenance 線索，不應當作表面文案。
 - Download/import 結果與 Web mission queue 都應優先顯示後端 `download_import.stage_label`。Web 端只保留中性 fallback；正式文案 ownership 在 `api_launcher.crawler_asset_display`，不要在 JS 端維護 stage 翻譯表，也不要把 raw `stage` id 當互動紀錄文案。
 - Web mission queue 顯示資產與 seed 時，應使用 `display_name`、seed title 或中性 fallback。`asset_id`、`dataset_uid`、`recommended_seed_uid` 只留在 JSON/debug、route key 與 provenance，不應出現在互動紀錄的主要 detail 文案。
+- 下載器結果列與推薦 seed 面板也遵守同一條線：標題應使用 `assetDisplayText()` / `seedDisplayText()`，缺後端 label 時顯示「爬蟲資產待確認」「seed 待確認」，不要把 `payload.asset_id`、`result.asset_id`、`recommended_seed_uid` 當標題 fallback。
 
 ## 定位
 

@@ -523,6 +523,7 @@ function crawlerAssetDownloadImportRowHtml(payload) {
   const result = payload.download_result || {};
   const artifacts = result.artifacts || {};
   const downloadImport = payload.download_import || result.download_import || {};
+  const asset = assets.find((item) => item.asset_id === (payload.asset_id || result.asset_id));
   const succeeded = Boolean(downloadImport.succeeded || result.succeeded);
   const tone = succeeded ? "success" : "warning";
   const label = succeeded ? "下載 / 匯入完成" : "需要檢查";
@@ -535,7 +536,7 @@ function crawlerAssetDownloadImportRowHtml(payload) {
       <div class="download-row-head">
         <div>
           <span class="eyebrow">Crawler Asset Download</span>
-          <strong>${escapeHtml(payload.asset_id || result.asset_id || "crawler asset")}</strong>
+          <strong>${escapeHtml(assetDisplayText(asset))}</strong>
         </div>
         <span class="plan-badge ${tone}">${escapeHtml(label)}</span>
       </div>
@@ -1689,7 +1690,7 @@ function seedRecommendedPanelHtml(card, seedPage) {
   const recommended = seedPage.recommended_seed || {};
   const recommendedUid = seedPage.recommended_seed_uid || recommended.dataset_uid || "";
   if (!recommendedUid) return "";
-  const title = recommended.title || recommended.dataset_id || recommendedUid;
+  const title = seedDisplayText(recommended);
   const label = recommended.content_display_label || "後端推薦 seed";
   return `
     <div class="seed-recommended-panel">

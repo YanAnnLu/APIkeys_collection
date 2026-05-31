@@ -2161,6 +2161,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn('addMission("seed 缺少可探測 URL", datasetUid)', combined)
         self.assertNotIn('addMission("探測 seed 欄位", `${assetId} / ${datasetUid}`)', combined)
         self.assertNotIn("payload.recommended_seed_uid || assetId", combined)
+        self.assertNotIn('payload.asset_id || result.asset_id || "crawler asset"', combined)
+        self.assertNotIn("recommended.title || recommended.dataset_id || recommendedUid", combined)
         self.assertIn("reviewSummary", combined)
         self.assertIn("eventList", combined)
         self.assertIn("eventRefreshButton", combined)
