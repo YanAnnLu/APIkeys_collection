@@ -2103,8 +2103,17 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("outcome.display_label || outcome.outcome_bucket", combined)
         self.assertIn("parserDisplayText", combined)
         self.assertNotIn('parser.parser_id || parser.source_format || "parser"', combined)
+        self.assertNotIn(
+            'displayTextOrFallback("Parser 線索待確認", parser.display_label, parser.label, parser.parser_id, parser.source_format)',
+            combined,
+        )
         self.assertIn("flowStepLabel", combined)
         self.assertNotIn("step.label || step.step_id", combined)
+        self.assertNotIn('displayTextOrFallback("流程步驟待確認", step.label, step.step_id)', combined)
+        self.assertNotIn('displayTextOrFallback("內容格式待辦", bucket.display_label, bucket.review_bucket)', combined)
+        self.assertNotIn('displayTextOrFallback("匯入路徑待辦", lane.display_label, lane.pipeline_lane)', combined)
+        self.assertNotIn("value.stage,\n      value.status", combined)
+        self.assertNotIn("value.review_bucket,\n    value.pipeline_lane", combined)
         self.assertNotIn("capability.label || capability.capability_id", combined)
         self.assertNotIn("field.label_zh_TW || field.label_en || field.field_id", combined)
         self.assertIn("stalePassportLabel", combined)

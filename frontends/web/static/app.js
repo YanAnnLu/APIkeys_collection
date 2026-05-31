@@ -2057,7 +2057,7 @@ function flowStatusClass(status) {
 }
 
 function flowStepLabel(step) {
-  return displayTextOrFallback("流程步驟待確認", step.label, step.step_id);
+  return displayTextOrFallback("流程步驟待確認", step.label);
 }
 
 function toneClass(tone) {
@@ -2122,8 +2122,6 @@ function eventObjectContextLabel(key, value) {
       value.display_label,
       value.stage_label,
       value.status_label,
-      value.stage,
-      value.status,
     );
   }
   return displayTextOrFallback(
@@ -2131,21 +2129,19 @@ function eventObjectContextLabel(key, value) {
     value.display_label,
     value.short_label,
     value.review_label,
-    value.review_bucket,
-    value.pipeline_lane,
   );
 }
 
 function contentReviewBucketLabel(bucket) {
-  return displayTextOrFallback("內容格式待辦", bucket.display_label, bucket.review_bucket);
+  return displayTextOrFallback("內容格式待辦", bucket.display_label);
 }
 
 function contentPipelineLaneLabel(lane) {
-  return displayTextOrFallback("匯入路徑待辦", lane.display_label, lane.pipeline_lane);
+  return displayTextOrFallback("匯入路徑待辦", lane.display_label);
 }
 
 function parserDisplayText(parser) {
-  return displayTextOrFallback("Parser 線索待確認", parser.display_label, parser.label, parser.parser_id, parser.source_format);
+  return displayTextOrFallback("Parser 線索待確認", parser.display_label, parser.label);
 }
 
 function contentReviewText(buckets) {
