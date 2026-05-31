@@ -869,11 +869,12 @@ function contextChipsHtml(context) {
   return `
     <div class="context-chip-row">
       ${entries.map(([key, value]) => {
+        const keyLabel = eventContextKeyLabel(key);
         if (typeof value === "object") {
           const label = eventObjectContextLabel(key, value);
-          return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(label)}</span>`;
+          return `<span class="context-chip">${escapeHtml(keyLabel)}: ${escapeHtml(label)}</span>`;
         }
-        return `<span class="context-chip">${escapeHtml(key)}: ${escapeHtml(String(value))}</span>`;
+        return `<span class="context-chip">${escapeHtml(keyLabel)}: ${escapeHtml(eventContextScalarLabel(key, value))}</span>`;
       }).join("")}
     </div>
   `;
@@ -2168,6 +2169,33 @@ function eventObjectContextLabel(key, value) {
     value.short_label,
     value.review_label,
   );
+}
+
+function eventContextKeyLabel(key) {
+  const labels = {
+    asset_id: "資產 ID",
+    run_record: "執行紀錄",
+    candidate_count: "候選數",
+    direct_download_count: "直接下載數",
+    review_required_count: "需審核數",
+    warning_count: "警示數",
+    error_count: "錯誤數",
+    duplicate_count: "重複數",
+    next_action: "下一步",
+    user_next_action: "使用者下一步",
+    content_review: "內容審核",
+  };
+  return labels[key] || "事件欄位";
+}
+
+function eventContextScalarLabel(key, value) {
+  if (key === "next_action" || key === "user_next_action") {
+    return displayTextOrFallback("下一步待確認", value);
+  }
+  if (key === "content_review") {
+    return displayTextOrFallback("內容審核待確認", value);
+  }
+  return String(value);
 }
 
 function contentReviewBucketLabel(bucket) {

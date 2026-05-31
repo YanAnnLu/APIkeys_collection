@@ -35,6 +35,7 @@ Last updated: 2026-05-31
 - [x] Web Preview 下載器結果列與推薦 seed 面板標題也已移除 raw id fallback：主要標題顯示 `assetDisplayText()` / `seedDisplayText()`，缺 label 時用「爬蟲資產待確認」「seed 待確認」。
 - [x] Web Preview seed row 主標題也已移除 dataset id fallback：主標題顯示 seed title/display label 或「seed 待確認」，dataset id 留在小字 `Dataset ID：...` 追溯欄。
 - [x] Web Preview 下載 / 匯入結果列 context chip 也已移除 backend trace token：顯示「爬蟲資產路徑」「下載 / 匯入管線」，raw `crawler_asset_path` / `download_import_pipeline` 只保留在追溯與 debug 語境。
+- [x] Web Preview 事件紀錄 context chip key 也已移除 raw fallback：`asset_id` / `run_record` / `next_action` 會顯示人類欄位名，raw event context 仍保留在 payload / JSON / event log。
 - [x] `CrawlerCapabilityProfile` 已進一步公開 capability address：`capability_code` / `capability_bits` / `capability_binary` 會進入 `asset.to_dict()["capability_profile"]`，讓 Tk/Web/未來 Qt 都能從同一份後端 payload 讀取能力膠囊地址；未知 handler 仍回空地址，避免誤導。
 - [x] `CrawlerCapabilityProfile` 已公開 `seed_scope`：asset payload 直接輸出 registry 宣告的 `entry_listing` / `paginated_catalog`，讓 UI/Qt/filter 不必再從 raw `source_type` 或 `current_seed_scope` 推回 crawler 的 seed 枚舉語義。
 - [x] Web Preview 已把 capability address 顯示到 asset card 與 Crawler Passport：卡片徽章顯示「能力 0000」類地址，Passport 顯示「能力位址」與「能力膠囊」摘要。這是後端 capability profile 的薄顯示，不讓 Web 重新推算 source_type 分組。

@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 13:17 Web event context chip labels
+- 本輪把 Web Preview 事件紀錄 context chip 加上一層 display adapter：context key 經 `eventContextKeyLabel()` 顯示「資產 ID」「執行紀錄」「下一步」等人類欄位名，`next_action` / `user_next_action` scalar value 缺 label 時顯示「下一步待確認」。
+- 保持邊界：event payload、event context summary、JSON/debug、recent-events API、event log storage、crawler/download/import/Tk 流程都沒改；這只是 Web event list visible label hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；docs mojibake scan OK；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；完整 smoke `state\logs\pre_push_smoke_20260531_131800.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 13:06 Web download/import context chip labels
 - 本輪把 Web Preview 下載 / 匯入結果列的 context chip 從 backend trace token 改成人類文案：`crawler_asset_path` 顯示為「爬蟲資產路徑」，`download_import_pipeline` 顯示為「下載 / 匯入管線」。
 - 保持邊界：download/import payload、artifacts、route key、event/provenance、plan outcome、callback diagnostics、Tk 顯示、crawler registry 與正式下載 / 匯入流程都沒改；這只是 Web result row visible chip hygiene。
