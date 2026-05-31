@@ -601,6 +601,7 @@ def build_crawler_seed_download_plan(
         "asset_id": asset_key,
         "dataset_uid": dataset.dataset_uid,
         "dataset_id": dataset.dataset_id,
+        "dataset_title": dataset.title,
         "provider_id": dataset.provider_id,
         "source_id": source.source_id,
         "source_type": source.source_type,

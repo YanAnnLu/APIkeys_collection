@@ -41,11 +41,21 @@ def crawler_seed_dialog_import_label(row: dict[str, object]) -> str:
     return str(row.get("content_pipeline_lane") or "").strip()
 
 
+def crawler_seed_dialog_display_title(row: dict[str, object], *, fallback: str = "seed 待確認") -> str:
+    """Return a user-facing seed title without falling back to backend IDs."""
+
+    for key in ("seed_display_label", "display_label", "title", "dataset_title", "label", "name"):
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    return fallback
+
+
 def crawler_seed_dialog_row_values(row: dict[str, object]) -> tuple[str, str, str, str, str, str, str]:
     """Create stable table values for one seed row."""
 
     favorite = "★" if row.get("favorite") else ""
-    title = str(row.get("title") or row.get("dataset_id") or row.get("dataset_uid") or "-").strip()
+    title = crawler_seed_dialog_display_title(row)
     native_format = str(row.get("native_format") or row.get("data_type") or "").strip()
     import_label = crawler_seed_dialog_import_label(row)
     version = str(row.get("version") or "").strip()
@@ -86,7 +96,7 @@ def crawler_seed_dialog_recommended_text(
     uid = crawler_seed_dialog_recommended_uid(payload)
     if not uid:
         return ""
-    title = str(recommended.get("title") or recommended.get("dataset_id") or uid).strip()
+    title = crawler_seed_dialog_display_title(recommended)
     import_label = crawler_seed_dialog_import_label(recommended) or tr("後端推薦 seed", "Backend recommended seed")
     return tr(
         f"推薦 seed：{title}（{import_label}）。可直接按「下載推薦 Seed」，或用「驗證閉環」重跑入口清單後下載。",
@@ -291,6 +301,7 @@ class CrawlerAssetSeedDialog:
 
 __all__ = [
     "CrawlerAssetSeedDialog",
+    "crawler_seed_dialog_display_title",
     "crawler_seed_dialog_import_label",
     "crawler_seed_dialog_recommended_seed",
     "crawler_seed_dialog_recommended_text",

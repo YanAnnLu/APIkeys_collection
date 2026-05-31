@@ -29,7 +29,7 @@ from api_launcher.crawler_asset_health import health_status_label_or_fallback
 from api_launcher.crawler_capability_profiles import seed_scope_display_label
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
-from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_import_label
+from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_display_title, crawler_seed_dialog_import_label
 
 
 @dataclass(frozen=True)
@@ -503,6 +503,13 @@ def crawler_seed_download_import_ui_message(
     downloads_root = str(artifacts.get("downloads_root") or "")
     curated_sqlite = str(artifacts.get("curated_sqlite") or "")
     dataset_uid = str(payload.get("dataset_uid") or "").strip()
+    seed_display_label = crawler_seed_dialog_display_title(
+        {
+            "seed_display_label": payload.get("seed_display_label") or display_payload.get("seed_display_label"),
+            "title": payload.get("dataset_title") or display_payload.get("dataset_title"),
+            "dataset_title": payload.get("dataset_title") or display_payload.get("dataset_title"),
+        }
+    )
     next_action = str(display_payload.get("next_action") or download_import.get("next_action") or payload.get("next_action") or "").strip()
     next_action_label = _ui_next_action_text(
         next_action,
@@ -518,14 +525,14 @@ def crawler_seed_download_import_ui_message(
     callback_next_action = str(callback_diagnostics.get("next_action_label") or callback_diagnostics.get("summary") or "").strip()
     body = tr(
         (
-            f"Seed：{dataset_uid or '-'}\n"
+            f"Seed：{seed_display_label}\n"
             f"階段：{stage_label}\n"
             f"Downloads：{downloads_root or '-'}\n"
             f"SQLite：{curated_sqlite or '-'}\n"
             f"下一步：{next_action_label or '-'}"
         ),
         (
-            f"Seed: {dataset_uid or '-'}\n"
+            f"Seed: {seed_display_label}\n"
             f"Stage: {stage_label}\n"
             f"Downloads: {downloads_root or '-'}\n"
             f"SQLite: {curated_sqlite or '-'}\n"
@@ -543,7 +550,7 @@ def crawler_seed_download_import_ui_message(
             stage=stage,
             dataset_uid=dataset_uid,
             title=tr("Seed 下載 / 匯入完成", "Seed download/import completed"),
-            status_message=tr(f"Seed 下載 / 匯入完成：{dataset_uid or '-'}", f"Seed download/import completed: {dataset_uid or '-'}"),
+            status_message=tr(f"Seed 下載 / 匯入完成：{seed_display_label}", f"Seed download/import completed: {seed_display_label}"),
             body=body,
         )
     return CrawlerSeedDownloadImportUiMessage(
@@ -722,7 +729,7 @@ def crawler_asset_seed_page_preview_text(
         if not isinstance(row, dict):
             continue
         favorite = "★ " if row.get("favorite") else ""
-        title = str(row.get("title") or row.get("dataset_id") or row.get("dataset_uid") or "-").strip()
+        title = crawler_seed_dialog_display_title(row)
         native_format = str(row.get("native_format") or row.get("data_type") or "").strip()
         version = str(row.get("version") or "").strip()
         import_label = crawler_seed_dialog_import_label(row)

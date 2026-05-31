@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 15:22 Tk seed display label parity
+- 本輪把 formal seed download/import 的 payload 補上 `dataset_title` / `seed_display_label`，並讓 shared display payload 直接轉出這兩個欄位；Tk 不需要用 raw `dataset_uid` 當完成訊息主標題。
+- Tk Seed 清單 dialog 與 sidebar preview 新增 `crawler_seed_dialog_display_title()`，主要 seed 標題只吃 `seed_display_label` / `display_label` / `title` / `dataset_title` 等人類文案；`dataset_uid` / `dataset_id` 仍保留在 Seed ID 欄位、action payload、事件與 provenance，不再當 title fallback。
+- 保持邊界：不改 seed ownership validation、favorite key、schema probe entry、download/import route key、resolved plan、SQLite import、Web JS 或 crawler registry。這是 Tk seed display contract parity。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_download.py api_launcher\crawler_asset_service.py api_launcher\crawler_asset_display.py frontends\tk\crawler_asset_seed_dialog.py frontends\tk\crawler_asset_ui_helpers.py tests\test_crawler_asset_download.py tests\test_tk_dialogs.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_crawler_asset_download tests.test_tk_dialogs tests.test_tk_ui_helpers -v` 通過 182 tests；完整 smoke `state\logs\pre_push_smoke_20260531_152543.log` 通過，1041 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；`git diff --check` OK；checkpoint 前交換區無新的 RRKAL `Status: new`。
 ## 2026-05-31 15:00 Web runtime display helper consolidation
 - 本輪繼續把 Web 純顯示 helper 從 `app.js` 收斂到 `frontends/web/static/display_contract.js`：`serverRuntimeLabel()`、`serverRuntimeTitle()`、`sourceTypeFilterLabel()`、`boundedPercent()` 現在由 display contract 擁有。
 - 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 仍負責互動狀態、API 呼叫與 HTML 組裝。

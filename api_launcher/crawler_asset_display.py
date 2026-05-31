@@ -396,6 +396,8 @@ def crawler_asset_download_import_display_payload(
     download_import["callback_diagnostics"] = callback_diagnostics
     return {
         "download_result": download_result,
+        "seed_display_label": str(download_result.get("seed_display_label") or ""),
+        "dataset_title": str(download_result.get("dataset_title") or ""),
         "plan_result": plan_result_payload,
         "plan_outcome": outcome,
         "plan_passport": passport,

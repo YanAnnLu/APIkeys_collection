@@ -65,6 +65,7 @@ class YFinanceUiHelperTests(unittest.TestCase):
         result = SimpleNamespace(
             to_dict=lambda: {
                 "dataset_uid": "demo_provider:dataset_a",
+                "seed_display_label": "Dataset A",
                 "stage": "blocked_before_download",
                 "succeeded": False,
                 "artifacts": {
@@ -80,7 +81,8 @@ class YFinanceUiHelperTests(unittest.TestCase):
 
         self.assertFalse(message.succeeded)
         self.assertEqual("blocked_before_download", message.stage)
-        self.assertIn("demo_provider:dataset_a", message.body)
+        self.assertIn("Dataset A", message.body)
+        self.assertNotIn("demo_provider:dataset_a", message.body)
         self.assertIn("下載前需處理", message.body)
         self.assertIn("下載前需處理", message.status_message)
         self.assertIn("先處理 Adapter 審核或解析計畫，再下載", message.body)
@@ -101,6 +103,7 @@ class YFinanceUiHelperTests(unittest.TestCase):
             ),
             to_dict=lambda: {
                 "dataset_uid": "demo_provider:dataset_a",
+                "seed_display_label": "Dataset A",
                 "stage": "download_import_completed",
                 "succeeded": True,
                 "artifacts": {
@@ -113,6 +116,8 @@ class YFinanceUiHelperTests(unittest.TestCase):
         message = crawler_seed_download_import_ui_message(result, lambda zh, _en: zh)
 
         self.assertTrue(message.succeeded)
+        self.assertIn("Dataset A", message.body)
+        self.assertNotIn("demo_provider:dataset_a", message.body)
         self.assertIn("下載 / 匯入完成", message.body)
         self.assertNotIn("download_import_completed", message.body)
         self.assertIn("進度回報：進度回報有警告 (1)", message.body)

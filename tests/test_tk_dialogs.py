@@ -34,6 +34,7 @@ from frontends.tk.crawler_asset_credential_dialog import (
 from frontends.tk.crawler_asset_profile_dialog import CrawlerAssetProfileDialog, crawler_asset_profile_subtitle
 from frontends.tk.crawler_asset_seed_dialog import (
     CrawlerAssetSeedDialog,
+    crawler_seed_dialog_display_title,
     crawler_seed_dialog_recommended_text,
     crawler_seed_dialog_recommended_uid,
     crawler_seed_dialog_row_values,
@@ -1662,6 +1663,29 @@ class TkDialogModuleTest(unittest.TestCase):
 
         self.assertEqual(1, len(rows))
         self.assertEqual(("★", "Seed 1", "csv", "可匯入 SQLite", "2026", "demo_provider:seed_1", "new"), values)
+
+    def test_crawler_asset_seed_dialog_does_not_use_raw_ids_as_titles(self) -> None:
+        row = {
+            "dataset_uid": "demo_provider:seed_1",
+            "dataset_id": "seed_1",
+            "native_format": "csv",
+        }
+
+        values = crawler_seed_dialog_row_values(row)
+        text = crawler_seed_dialog_recommended_text(
+            {
+                "recommended_seed_uid": "demo_provider:seed_1",
+                "recommended_seed": row,
+            },
+            lambda zh, _en: zh,
+        )
+
+        self.assertEqual("seed 待確認", crawler_seed_dialog_display_title(row))
+        self.assertEqual("seed 待確認", values[1])
+        self.assertEqual("demo_provider:seed_1", values[5])
+        self.assertIn("seed 待確認", text)
+        self.assertNotIn("demo_provider:seed_1", text)
+        self.assertNotIn("seed_1（", text)
 
     def test_crawler_asset_seed_dialog_surfaces_backend_recommended_seed(self) -> None:
         payload = {

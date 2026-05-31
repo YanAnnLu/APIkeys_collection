@@ -31,6 +31,37 @@ from api_launcher.ingestion_pipeline import DownloadImportPipelineOptions, Downl
 from api_launcher.repository import ApiCatalogRepository
 
 
+def _seed_display_metadata(plan_result: CrawlerAssetDownloadPlanResult) -> dict[str, str]:
+    """Extract user-facing seed labels from the plan candidate snapshot.
+
+    Seed IDs stay in the payload for routing and provenance, but UI shells
+    should not have to use raw ``dataset_uid`` values as visible titles.
+    """
+
+    plan_build = getattr(plan_result, "plan_build", None)
+    crawl_result = getattr(plan_build, "crawl_result", None)
+    candidates = getattr(crawl_result, "candidates", ()) if crawl_result is not None else ()
+    try:
+        iterator = iter(candidates or ())
+    except TypeError:
+        return {}
+    for candidate in iterator:
+        dataset = getattr(candidate, "dataset", None)
+        if dataset is None:
+            continue
+        title = str(getattr(dataset, "title", "") or "").strip()
+        dataset_id = str(getattr(dataset, "dataset_id", "") or "").strip()
+        metadata: dict[str, str] = {}
+        if title:
+            metadata["dataset_title"] = title
+            metadata["seed_display_label"] = title
+        elif dataset_id:
+            metadata["dataset_id"] = dataset_id
+            metadata["seed_display_label"] = "seed 待確認"
+        return metadata
+    return {}
+
+
 @dataclass(frozen=True)
 class CrawlerAssetDownloadImportResult:
     """Result for the formal crawler-asset download/import lane.
@@ -79,6 +110,8 @@ class CrawlerAssetDownloadImportResult:
         }
         if self.dataset_uid:
             payload["dataset_uid"] = self.dataset_uid
+            payload.update(_seed_display_metadata(self.plan_result))
+            payload.setdefault("seed_display_label", "seed 待確認")
         return payload
 
 

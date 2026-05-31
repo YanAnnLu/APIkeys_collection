@@ -4,6 +4,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from api_launcher.crawler_asset_display import crawler_asset_download_import_display_payload
@@ -386,6 +387,62 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
             "先處理 Adapter 審核或解析計畫，再下載",
             payload["next_action_label"],
         )
+
+    def test_seed_download_payload_includes_display_label_from_candidate(self) -> None:
+        dataset = Dataset(
+            dataset_uid="demo_provider:dataset_a",
+            provider_id="demo_provider",
+            dataset_id="dataset_a",
+            title="Dataset A",
+            categories=("demo",),
+            native_format="csv",
+        )
+        candidate = DatasetCandidate(
+            dataset=dataset,
+            source_id="demo_asset",
+            source_type="html_file_index",
+            source_url="https://example.test/data.csv",
+            confidence=1.0,
+            evidence=("selected_catalog_seed",),
+        )
+        plan_result = SimpleNamespace(
+            outcome_bucket="ready_to_download",
+            direct_download_count=1,
+            review_required_count=0,
+            user_next_action="open_downloader_and_start_or_pause_queue",
+            plan_build=SimpleNamespace(crawl_result=SimpleNamespace(candidates=(candidate,))),
+            resolved_plan={"summary": {"direct_download_count": 1}},
+            to_dict=lambda: {"outcome_bucket": "ready_to_download"},
+        )
+        pipeline = DownloadImportPipelineRun(
+            result=DownloadPlanRunResult(
+                entry_count=1,
+                submitted=1,
+                completed=1,
+                failed=0,
+                skipped=0,
+                registered_assets=1,
+                imported=1,
+            ),
+            stage="download_import_completed",
+            import_requested=True,
+        )
+        result = CrawlerAssetDownloadImportResult(
+            asset_id="demo_asset",
+            dataset_uid="demo_provider:dataset_a",
+            plan_result=plan_result,
+            pipeline=pipeline,
+            downloads_root=Path("downloads"),
+            curated_sqlite_path=Path("downloads") / "curated_sources.db",
+        )
+
+        payload = result.to_dict()
+        display_payload = crawler_asset_download_import_display_payload(result)
+
+        self.assertEqual("Dataset A", payload["dataset_title"])
+        self.assertEqual("Dataset A", payload["seed_display_label"])
+        self.assertEqual("Dataset A", display_payload["dataset_title"])
+        self.assertEqual("Dataset A", display_payload["seed_display_label"])
 
     def test_download_import_display_payload_packages_shared_ui_state(self) -> None:
         plan_result = unittest.mock.Mock()
