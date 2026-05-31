@@ -2150,6 +2150,8 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("filterButton(type, type, count)", combined)
         self.assertNotIn("<span>${escapeHtml(card.source_type)}</span>", combined)
         self.assertNotIn("shortPattern(card.source_type)", combined)
+        self.assertNotIn("shortPattern(raw)", combined)
+        self.assertNotIn("function shortPattern", combined)
         self.assertIn("reviewSummary", combined)
         self.assertIn("eventList", combined)
         self.assertIn("eventRefreshButton", combined)

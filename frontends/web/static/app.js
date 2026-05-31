@@ -2302,24 +2302,17 @@ function assetInitials(asset) {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
-function shortPattern(value) {
-  const parts = String(value || "unknown").split("_").filter(Boolean);
-  return parts.slice(0, 2).join(" ");
-}
-
 function sourceTypeFilterLabel(sourceType) {
   const asset = assets.find((item) => item.source_type === sourceType);
   return sourceTypeDisplayText(asset || { source_type: sourceType });
 }
 
 function sourceTypeDisplayText(assetOrType = {}) {
-  const raw = typeof assetOrType === "string" ? assetOrType : assetOrType.source_type;
   const profile = typeof assetOrType === "string" ? {} : (assetOrType.capability_profile || {});
   return displayTextOrFallback(
     "來源範式待確認",
     typeof assetOrType === "string" ? "" : assetOrType.source_type_label,
     profile.source_type_label,
-    shortPattern(raw),
   );
 }
 
