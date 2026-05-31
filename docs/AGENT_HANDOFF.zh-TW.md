@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 11:45 Web label helper raw fallback guard
+- 本輪把 Web Preview 三個 label helper 再收斂：登入設定完成 mission 的登入狀態、capability label、bounds field label 都只顯示後端 label、本地已知 label map 或中性 fallback，不再把 `status.status`、`capability_id`、`field_id` 當可見文案候選。
+- 保持邊界：`status.status`、`capability_id`、`field_id` raw ids 仍保留在 payload、JSON/debug、路由/表單 key 與追溯資料裡；credential save、capability metadata、bounds form schema、download/import、crawler registry、Tk 顯示與 project maturity 都沒改。這只是 Web visible label fallback hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v "tests.test_web_preview"` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_114156.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`f498178 Hide Web label helper fallback ids`；GitHub Actions 待推送後確認。
 ## 2026-05-31 11:32 Web content/display raw fallback guard
 - 本輪把 Web Preview 另外幾個可見 display helper 收斂：flow step label、event object context、content review bucket、content pipeline lane 與 parser summary 都只消費後端 display label / short label / stage label / status label 或中性 fallback，不再把 `step_id`、`review_bucket`、`pipeline_lane`、`parser_id`、`source_format`、raw `stage/status` 當可見文案候選。
 - 保持邊界：raw ids 仍保留在 payload、JSON/debug、event context 與搜尋/追溯資料裡；adapter review、content parser/import 判斷、event log shape、download/import、crawler registry、Tk 顯示與 project maturity 都沒改。這只是 Web visible display fallback hygiene。
