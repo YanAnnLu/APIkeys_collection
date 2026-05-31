@@ -614,8 +614,6 @@ function downloaderRowHtml(asset) {
     outcome.next_action_label,
     passport.next_action_label,
     asset.next_action_label,
-    passport.next_action,
-    asset.next_action,
   );
   const contentReview = outcome.content_review?.has_review || passport.content_review_count
     ? `<span class="context-chip warning">內容待辦 ${escapeHtml(String(outcome.content_review?.count || passport.content_review_count || 0))}</span>`
@@ -719,7 +717,7 @@ async function runCrawlerAssetListingById(assetId, options = {}) {
     }
     addMission(
       "seed 枚舉完成",
-      displayTextOrFallback("檢查 seed 枚舉結果", seedEnumerationDetail(result), payload.next_action_label, payload.next_action),
+      displayTextOrFallback("檢查 seed 枚舉結果", seedEnumerationDetail(result), payload.next_action_label),
     );
     loadRecentEvents({ quiet: true });
     await loadAssets({ autoEnumerateSelected: false });
@@ -988,7 +986,7 @@ function renderPassport(card, asset) {
       <div><dt>Seed 範式</dt><dd>${escapeHtml(displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label))}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
-      <div><dt>下一步</dt><dd>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</dd></div>
+      <div><dt>下一步</dt><dd>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label))}</dd></div>
     </dl>
 
     ${planOutcomePanelHtml(card)}
@@ -1024,7 +1022,7 @@ function credentialBadgeHtml(asset) {
     return "";
   }
   const tone = toneClass(credentials.display_tone);
-  const title = displayTextOrFallback(label, profile.next_action_label, credentials.next_action_label, credentials.next_action);
+  const title = displayTextOrFallback(label, profile.next_action_label, credentials.next_action_label);
   return `<span class="credential-badge ${tone}" title="${escapeAttr(title)}">${escapeHtml(label)}</span>`;
 }
 
@@ -1566,12 +1564,12 @@ async function submitBounds(execute) {
     if (payload.plan_outcome) {
       rememberAssetPlanOutcome(selectedAssetId, payload.plan_outcome);
       rememberAssetPlanPassport(selectedAssetId, payload.plan_passport);
-      formState.textContent = displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.display_label, payload.next_action_label, payload.next_action);
+      formState.textContent = displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.display_label, payload.next_action_label);
       formState.className = `state-pill ${toneClass(payload.plan_outcome.display_tone)}`;
       setContentReviewBadge(payload.plan_outcome.content_review);
       addMission(
         payload.plan_outcome.display_label || "下載計畫結果",
-        displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.summary, payload.next_action_label, payload.next_action),
+        displayTextOrFallback("檢查下載計畫結果", payload.plan_outcome.summary, payload.next_action_label),
       );
       renderAssetGrid();
       refreshSelectedAssetOutcomeViews();
@@ -1579,7 +1577,7 @@ async function submitBounds(execute) {
       setContentReviewBadge(null);
       addMission(
         execute ? "建立下載計畫" : "產生界域 payload",
-        `${selectedAssetId} / ${displayTextOrFallback("檢查下載計畫結果", payload.next_action_label, payload.next_action)}`,
+        `${selectedAssetId} / ${displayTextOrFallback("檢查下載計畫結果", payload.next_action_label)}`,
       );
     }
     if (payload.adapter_review) {
@@ -1900,7 +1898,7 @@ function renderSelectedHero(card, flowSteps = []) {
       ${heroMetric("Caps", (card.capabilities || []).length)}
       <div class="hero-next-action">
         <span>下一步</span>
-        <strong>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</strong>
+        <strong>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label))}</strong>
       </div>
     </div>
     ${renderFlowSteps(flowSteps)}
@@ -1943,7 +1941,7 @@ function planPassportPanelHtml(asset) {
     : "profile 已同步";
   const nextAction = isStale
     ? stalePassportNextAction(passport)
-    : displayTextOrFallback("等待下一步", passport.next_action_label, passport.next_action);
+    : displayTextOrFallback("等待下一步", passport.next_action_label);
   const contentReviewLabel = passport.content_review_count
     ? `內容待辦 ${passport.content_review_count}`
     : "內容待辦 0";
@@ -2095,7 +2093,7 @@ function stalePassportNextAction(passport) {
   if (!passport?.stale && !passport?.stale_next_action_label && !passport?.stale_next_action) {
     return "";
   }
-  return displayTextOrFallback("計畫需重建", passport?.stale_next_action_label, passport?.stale_next_action);
+  return displayTextOrFallback("計畫需重建", passport?.stale_next_action_label);
 }
 
 function displayTextOrFallback(fallback, ...candidates) {
