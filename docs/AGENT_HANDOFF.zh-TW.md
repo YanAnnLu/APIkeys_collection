@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 12:56 Web seed row title labels
+- 本輪把 Web Preview seed row 的主標題收斂到 `seedDisplayText()`：seed row 不再用 `dataset_id` / `uid` 當主標題 fallback；dataset id 仍保留在小字追溯欄，明確標成 `Dataset ID：...`，缺追溯值時顯示「Seed ID 待確認」。
+- 保持邊界：favorite key、route key、download uid、seed ownership validation、seed download/import endpoint 與本機 seed catalog 都沒改；這只是 seed row visible title hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）。
 ## 2026-05-31 12:47 Web downloader/recommended seed title labels
 - 本輪把 Web Preview 下載器結果列與推薦 seed 面板標題也接回 display-safe helper：`crawlerAssetDownloadImportRowHtml()` 顯示 `assetDisplayText()`，`seedRecommendedPanelHtml()` 顯示 `seedDisplayText()`，缺 label 時落到中性 fallback，不再把 `payload.asset_id` / `result.asset_id` / `recommended_seed_uid` 當使用者標題。
 - 保持邊界：raw ids 仍保留在 API payload、route key、favorite key、writeJson/debug 與 provenance；seed row 本身仍可顯示 catalog-provided dataset id 作為可追溯欄位，這輪只收掉主要標題 fallback。Web API、seed recommendation service、download/import、crawler registry、credential flow、Tk 顯示與 project maturity 都沒改。

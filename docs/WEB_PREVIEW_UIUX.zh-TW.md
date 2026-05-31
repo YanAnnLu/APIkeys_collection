@@ -47,6 +47,7 @@
 - Download/import 結果與 Web mission queue 都應優先顯示後端 `download_import.stage_label`。Web 端只保留中性 fallback；正式文案 ownership 在 `api_launcher.crawler_asset_display`，不要在 JS 端維護 stage 翻譯表，也不要把 raw `stage` id 當互動紀錄文案。
 - Web mission queue 顯示資產與 seed 時，應使用 `display_name`、seed title 或中性 fallback。`asset_id`、`dataset_uid`、`recommended_seed_uid` 只留在 JSON/debug、route key 與 provenance，不應出現在互動紀錄的主要 detail 文案。
 - 下載器結果列與推薦 seed 面板也遵守同一條線：標題應使用 `assetDisplayText()` / `seedDisplayText()`，缺後端 label 時顯示「爬蟲資產待確認」「seed 待確認」，不要把 `payload.asset_id`、`result.asset_id`、`recommended_seed_uid` 當標題 fallback。
+- Seed row 的主要標題也應使用 seed title / display label；dataset id 可以保留在小字追溯欄，但要標明 `Dataset ID`，不要讓它看起來像人類命名的 seed 標題。
 
 ## 定位
 

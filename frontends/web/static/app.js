@@ -1712,7 +1712,8 @@ function seedRowHtml(seed) {
   const uid = seed.favorite_key || seed.dataset_uid || seed.dataset_id || seed.title || "";
   const downloadUid = seed.dataset_uid || uid;
   const favored = Boolean(seed.favorite) || favoriteSeedUids.has(uid);
-  const title = seed.title || seed.dataset_id || uid || "未命名 seed";
+  const title = seedDisplayText(seed);
+  const traceId = seed.dataset_id || seed.dataset_uid || seed.favorite_key || "";
   const meta = [seed.native_format, seed.data_type || seed.data_family, seed.version].filter(Boolean).join(" / ");
   const importBadge = seedImportBadgeHtml(seed);
   return `
@@ -1722,7 +1723,7 @@ function seedRowHtml(seed) {
         <strong>${escapeHtml(title)}</strong>
         <span>${escapeHtml(meta || "資料摘要待確認")}${importBadge}</span>
       </div>
-      <small>${escapeHtml(seed.dataset_id || uid)}</small>
+      <small>${escapeHtml(traceId ? `Dataset ID：${traceId}` : "Seed ID 待確認")}</small>
       <div class="seed-row-actions">
         <button type="button" class="secondary-button small" onclick="runSeedSchemaProbeById('${escapeAttr(selectedAssetId || "")}', '${escapeAttr(downloadUid)}')">探測欄位</button>
         <button type="button" class="secondary-button small" onclick="runCrawlerSeedDownloadImportById('${escapeAttr(selectedAssetId || "")}', '${escapeAttr(downloadUid)}')">下載此 seed</button>
