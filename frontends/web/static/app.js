@@ -1264,7 +1264,7 @@ async function saveCredentialEditor(assetId) {
       remember_local: rememberLocal,
     });
     writeJson(status);
-    addMission("登入設定已更新", `${assetId} / ${displayTextOrFallback("登入狀態待確認", status.display_label, status.status)}`);
+    addMission("登入設定已更新", `${assetId} / ${displayTextOrFallback("登入狀態待確認", status.display_label)}`);
     closeCredentialEditor();
     await loadAssets();
     if (assetId) {
@@ -2244,7 +2244,6 @@ function capabilityLabel(capability) {
     capability.display_label,
     labels[capability.capability_id],
     capability.label,
-    capability.capability_id,
   );
 }
 
@@ -2271,7 +2270,6 @@ function fieldLabel(field) {
     labels[field.field_id],
     field.label_zh_TW,
     field.label_en,
-    field.field_id,
   );
 }
 
