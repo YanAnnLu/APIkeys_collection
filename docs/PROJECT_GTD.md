@@ -79,6 +79,7 @@ Last updated: 2026-05-31
 - [x] Tk provider 主表格的 update/local status fallback 已補 display-safe helper：未知 `update_status` / `local_status` 顯示「更新狀態待確認」「本地狀態待確認」，不再把新 backend token 直接露到使用者欄位。
 - [x] Tk crawler asset compact state label 已改吃後端 health display helper：未知 `asset.health.status_code` 顯示「未知」，不再把新 health token 直接露在表格 / Passport 狀態欄位。
 - [x] Crawler asset 能力狀態顯示已改吃共用 fallback helper：後端 `capability_summary`、Tk 表格能力欄與 Passport 能力清單遇到未知 `CrawlerAssetCapability.status` 時顯示「需檢查能力狀態」，不再把新 capability status token 直接露給使用者。
+- [x] Project maturity canonical delivery scope 已補 display label：`ready_for_mvp_demo` raw status 保留給 agent/debug，但 Web/Tk/Markdown 可顯示「可展示小閉環」或「交付狀態待確認」，避免成熟度矩陣把 backend status id 當成使用者進度文字。
 - [x] Blocked download-plan reason 已接同一份後端 display contract：`plan_outcome_display_profile()` 會把 `missing_credentials`、`crawler_asset_disabled` 類 blocked reason 映射成人類文案，Tk/Web plan outcome summary / short label 不再把 raw blocked id 當使用者文字。
 - [x] Tk crawler asset listing 狀態列已接 display-name fallback：入口清單擷取與 duplicate guard 仍用 raw `asset_id` 維持 single-flight/worker 邏輯，但使用者可見 status 改顯示 `asset.display_name`，避免把 `demo_index` 這類內部 id 當主要 UI 文案。
 - [x] 遠端分頁狀態已補 backend display payload：seed enumeration 的 `remote_pagination` 會輸出「仍有下一頁線索」「已列完」「遠端狀態待確認」等人類文案，Tk note 優先消費這份 payload，未知 crawler status 不再直接顯示 raw id。

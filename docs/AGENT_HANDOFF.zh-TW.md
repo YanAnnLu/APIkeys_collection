@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 10:01 Project maturity delivery status label
+- 本輪把 project maturity 的 canonical delivery scope 補上後端 `status_label`，`ready_for_mvp_demo` 會顯示「可展示小閉環」；Tk 成熟度矩陣 dialog 改吃這個 label，缺 label 時顯示「交付狀態待確認」，不再把 raw delivery status id 當主要使用者文案。Markdown render 也輸出 `status_label`，Web 既有 `displayTextOrFallback()` 會自動消費同一欄位。
+- 保持邊界：`canonical_delivery_scope.status` raw 欄位仍保留給 agent/debug；maturity row 計算、MVP readiness 判斷、Web route、Tk dialog 開啟流程、crawler/download/import 都沒改。這只是 maturity payload 的 display-contract 補強。
+- 已驗證：`py -3 -B -m unittest tests.test_project_maturity tests.test_tk_dialogs tests.test_web_preview -v` 通過 214 tests；完整 smoke `state\logs\pre_push_smoke_20260531_095829.log` 通過，1037 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`63e231a Label project maturity delivery status`。GitHub Actions 尚待 push 後驗證。
 ## 2026-05-31 09:49 Crawler capability status display fallback
 - 本輪把 crawler asset 能力狀態顯示收斂到 `status_label_or_fallback()`：後端 `CrawlerAsset.capability_summary`、Tk crawler asset 表格三個能力欄、右側 Passport 能力清單遇到未知 `item.status` / `asset.capability_status(...)` 時會顯示「需檢查能力狀態」，不再把 `new_capability_status` 類 raw backend token 當人類文案。
 - 保持邊界：`CrawlerAssetCapability.status` raw 欄位、`capability_status()`、能力判斷、crawler health、registry、download/import、Web route 與 credential flow 都沒改；這只是能力狀態的 display-contract fallback 收斂。
