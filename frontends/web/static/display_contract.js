@@ -334,3 +334,33 @@ function boundPresetLabel(preset = {}) {
     preset.label_en,
   );
 }
+
+function serverRuntimeLabel(health) {
+  const server = health?.server || {};
+  if (server.host && server.port) {
+    return `${server.host}:${server.port}`;
+  }
+  return `${health?.surface || "web_preview"}`;
+}
+
+function serverRuntimeTitle(health) {
+  const server = health?.server || {};
+  if (!server.port) {
+    return "";
+  }
+  if (server.port_scanned) {
+    return `原定 port ${server.requested_port} 已被占用，Web Preview 改用 ${server.port}。`;
+  }
+  return `Web Preview 使用預設 port ${server.port}。`;
+}
+
+function sourceTypeFilterLabel(sourceType, assetList = []) {
+  const asset = assetList.find((item) => item.source_type === sourceType);
+  return sourceTypeDisplayText(asset || { source_type: sourceType });
+}
+
+function boundedPercent(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}

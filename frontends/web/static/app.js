@@ -124,25 +124,6 @@ function renderOverview(health) {
   setServerState(serverRuntimeLabel(health), "success", serverRuntimeTitle(health));
 }
 
-function serverRuntimeLabel(health) {
-  const server = health?.server || {};
-  if (server.host && server.port) {
-    return `${server.host}:${server.port}`;
-  }
-  return `${health?.surface || "web_preview"}`;
-}
-
-function serverRuntimeTitle(health) {
-  const server = health?.server || {};
-  if (!server.port) {
-    return "";
-  }
-  if (server.port_scanned) {
-    return `原定 port ${server.requested_port} 已被占用，Web Preview 改用 ${server.port}。`;
-  }
-  return `Web Preview 使用預設 port ${server.port}。`;
-}
-
 function renderHealthFilter() {
   const selected = healthFilter.value || "all";
   const statuses = Object.keys(countBy(assets, (asset) => asset.health?.status_code || "unknown")).sort();
@@ -159,7 +140,7 @@ function renderSourceTypeFilters() {
   sourceTypeCount.textContent = String(counts.length);
   const buttons = [
     filterButton("all", "全部範式", assets.length),
-    ...counts.map(([type, count]) => filterButton(type, sourceTypeFilterLabel(type), count)),
+    ...counts.map(([type, count]) => filterButton(type, sourceTypeFilterLabel(type, assets), count)),
   ];
   sourceTypeFilters.innerHTML = buttons.join("");
   sourceTypeFilters.querySelectorAll("button").forEach((button) => {
@@ -2059,11 +2040,6 @@ function statePill(status, label = "") {
   return `<span class="state-pill ${statusClass(status)}">${escapeHtml(label || statusLabel(status))}</span>`;
 }
 
-function sourceTypeFilterLabel(sourceType) {
-  const asset = assets.find((item) => item.source_type === sourceType);
-  return sourceTypeDisplayText(asset || { source_type: sourceType });
-}
-
 function countBy(items, keyFn) {
   const counts = {};
   for (const item of items) {
@@ -2071,12 +2047,6 @@ function countBy(items, keyFn) {
     counts[key] = (counts[key] || 0) + 1;
   }
   return counts;
-}
-
-function boundedPercent(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
 }
 
 function selectedSourceTypeStillExists() {
