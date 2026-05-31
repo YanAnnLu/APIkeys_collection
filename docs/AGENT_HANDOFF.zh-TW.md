@@ -2,7 +2,7 @@
 ## 2026-05-31 10:28 Web seed scope raw fallback guard
 - 本輪把 Web Preview 的 Crawler Passport 與 capability capsule summary 再收斂一層：`Seed 範式` 只消費後端 `capability_profile.seed_scope_label`，缺 label 時顯示「Seed 範式待確認」，不再把 raw `seed_scope` 作為使用者文案候選。
 - 保持邊界：`capability_profile.seed_scope` raw 欄位仍保留在 payload 給 agent/debug；crawler registry、seed enumeration、Tk 顯示、download/import、credential flow 與 project maturity 都沒改。這只是 Web display fallback hygiene。
-- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_102546.log` 通過，1038 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`5e20250 Hide Web seed scope fallback ids`。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_102546.log` 通過，1038 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`5e20250 Hide Web seed scope fallback ids` / docs 提交 `26ee617 Log Web seed scope fallback checkpoint`；GitHub Actions manual run `26701162075` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 10:16 Project maturity row fallback labels
 - 本輪把 project maturity 的 row fallback 再收斂一層：Web maturity card 缺 `area_label` 時顯示「成熟度面向待確認」，不再以 `row.area_id` 當使用者標題；Markdown render 缺 `area_label` / `maturity_label_zh_TW` / `display_label` 時也會顯示「成熟度面向待確認」與 maturity display profile 的「未分類」，不再把 `new_backend_area` / `new_backend_level` 類 raw id 當人類文案。
 - 保持邊界：`area_id`、`maturity_level`、display profile 與 metrics 仍保留在 payload 給 agent/debug；project maturity matrix 計算、Web route、Tk dialog、download/import/crawler 行為都沒改。這只是 Web/Markdown fallback display hygiene。
