@@ -1956,11 +1956,13 @@ class WebPreviewApiTest(unittest.TestCase):
 
     def test_static_ui_uses_rrkal_product_vocabulary(self) -> None:
         web_root = Path(__file__).resolve().parents[1] / "frontends" / "web" / "static"
+        display_contract = (web_root / "display_contract.js").read_text(encoding="utf-8")
+        app_static = (web_root / "app.js").read_text(encoding="utf-8")
         combined = "\n".join(
             [
                 (web_root / "index.html").read_text(encoding="utf-8"),
-                (web_root / "display_contract.js").read_text(encoding="utf-8"),
-                (web_root / "app.js").read_text(encoding="utf-8"),
+                display_contract,
+                app_static,
             ]
         )
         styles = (web_root / "styles.css").read_text(encoding="utf-8")
@@ -2142,6 +2144,18 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("assetDisplayText", combined)
         self.assertIn("seedDisplayText", combined)
         self.assertIn("providerDisplayText", combined)
+        self.assertIn("function downloadImportStageText", display_contract)
+        self.assertIn("function assetDisplayText", display_contract)
+        self.assertIn("function seedDisplayText", display_contract)
+        self.assertIn("function planOutcomeLabel", display_contract)
+        self.assertIn("function fieldLabel", display_contract)
+        self.assertIn("function sourceTypeDisplayText", display_contract)
+        self.assertNotIn("function downloadImportStageText", app_static)
+        self.assertNotIn("function assetDisplayText", app_static)
+        self.assertNotIn("function seedDisplayText", app_static)
+        self.assertNotIn("function planOutcomeLabel", app_static)
+        self.assertNotIn("function fieldLabel", app_static)
+        self.assertNotIn("function sourceTypeDisplayText", app_static)
         self.assertNotIn("provider unknown", combined)
         self.assertNotIn("<strong>${escapeHtml(card.provider_id)}</strong>", combined)
         self.assertIn("credentialProviderTitle", combined)
