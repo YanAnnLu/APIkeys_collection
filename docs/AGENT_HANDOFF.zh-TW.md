@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 11:56 Web source type display label guard
+- 本輪把 Web Preview `sourceTypeDisplayText()` 的最後 raw fallback 拿掉：source type filter、asset card、Passport 與 selected hero 只顯示後端 `source_type_label` / capability profile label，缺 label 時顯示「來源範式待確認」，不再用 `shortPattern(source_type)` 把 raw source id 美化成假人類文案。
+- 保持邊界：raw `source_type` 仍保留在 payload、filter key、route key、search haystack、JSON/debug 與 developer diagnostics；crawler registry、source type dispatch、capability profile、download/import、credential flow、Tk 顯示與 project maturity 都沒改。這只是 Web source-type visible display hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v "tests.test_web_preview"` 通過 65 tests；第一次完整 smoke `state\logs\pre_push_smoke_20260531_115255.log` 在 L 槽雲端 transient `Unable to read current working directory` 失敗，立即重跑 `state\logs\pre_push_smoke_20260531_115307.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`2878b35 Require Web source type display labels`；GitHub Actions 待推送後確認。
 ## 2026-05-31 11:45 Web label helper raw fallback guard
 - 本輪把 Web Preview 三個 label helper 再收斂：登入設定完成 mission 的登入狀態、capability label、bounds field label 都只顯示後端 label、本地已知 label map 或中性 fallback，不再把 `status.status`、`capability_id`、`field_id` 當可見文案候選。
 - 保持邊界：`status.status`、`capability_id`、`field_id` raw ids 仍保留在 payload、JSON/debug、路由/表單 key 與追溯資料裡；credential save、capability metadata、bounds form schema、download/import、crawler registry、Tk 顯示與 project maturity 都沒改。這只是 Web visible label fallback hygiene。
