@@ -160,6 +160,30 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertIn("合約 / planned", markdown)
         self.assertIn("no real I/O", markdown)
 
+    def test_project_maturity_markdown_hides_unknown_row_ids(self) -> None:
+        payload = {
+            "matrix_version": "test",
+            "reporting_rule": "Use matrix.",
+            "why_no_single_percent": "No single percent.",
+            "canonical_delivery_scope": {"closure_percent": 100},
+            "rows": [
+                {
+                    "area_id": "new_backend_area",
+                    "maturity_level": "new_backend_level",
+                    "deliverable_scope": "unknown row",
+                    "current_limitations": [],
+                    "next_actions": [],
+                }
+            ],
+        }
+
+        markdown = render_project_maturity_markdown(payload)
+
+        self.assertIn("成熟度面向待確認", markdown)
+        self.assertIn("未分類", markdown)
+        self.assertNotIn("new_backend_area", markdown)
+        self.assertNotIn("new_backend_level", markdown)
+
     def test_maturity_display_profile_marks_contract_work_as_construction(self) -> None:
         self.assertEqual(
             {

@@ -195,10 +195,11 @@ def render_project_maturity_markdown(payload: dict[str, Any]) -> str:
         actions = "; ".join(str(item) for item in row.get("next_actions", []) if item)
         display = maturity_display_profile(str(row.get("maturity_level") or ""))
         status_icon = str(row.get("status_icon") or display["status_icon"])
-        maturity_label = f"{status_icon} {row.get('maturity_label_zh_TW', row.get('maturity_level', ''))}".strip()
+        display_label = str(row.get("display_label") or row.get("maturity_label_zh_TW") or display["display_label"])
+        maturity_label = f"{status_icon} {display_label}".strip()
         lines.append(
             "| "
-            f"{_cell(row.get('area_label', ''))} | "
+            f"{_cell(row.get('area_label') or '成熟度面向待確認')} | "
             f"{_cell(maturity_label)} | "
             f"{_cell(row.get('deliverable_scope', ''))} | "
             f"{_cell(limits)} | "
