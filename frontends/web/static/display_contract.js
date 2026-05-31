@@ -183,6 +183,19 @@ function statusClass(status) {
   return "neutral";
 }
 
+function toneClass(tone) {
+  if (["success", "complete", "ready"].includes(tone)) return "success";
+  if (["warning", "review"].includes(tone)) return "warning";
+  if (["danger", "blocked"].includes(tone)) return "danger";
+  return "neutral";
+}
+
+function flowStatusClass(status) {
+  if (["complete", "ready", "bounded", "selectable"].includes(status)) return "complete";
+  if (["warning", "neutral"].includes(status)) return "warning";
+  return "review";
+}
+
 function capabilityStatusText(capability) {
   const parts = [capability.status_label || "需檢查能力狀態"];
   if (capability.next_action_label) parts.push(capability.next_action_label);
@@ -276,6 +289,12 @@ function providerDisplayText(asset) {
   // as the stable display fallback instead of hiding useful provenance.
   const text = String(asset?.provider_name || asset?.provider_label || asset?.provider_id || "").trim();
   return text || "Provider 待確認";
+}
+
+function credentialDisplayProfile(credentials = {}) {
+  return credentials.display_profile && typeof credentials.display_profile === "object"
+    ? credentials.display_profile
+    : {};
 }
 
 function deliveryClosureText(closure = {}) {

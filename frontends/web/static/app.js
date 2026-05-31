@@ -1072,12 +1072,6 @@ function credentialPanelHtml(credentials = {}, assetId = "") {
   `;
 }
 
-function credentialDisplayProfile(credentials = {}) {
-  return credentials.display_profile && typeof credentials.display_profile === "object"
-    ? credentials.display_profile
-    : {};
-}
-
 function credentialProviderTitle(status = {}, assetId = "") {
   const asset = assets.find((item) => item.asset_id === assetId) || {};
   return providerDisplayText({
@@ -2012,19 +2006,6 @@ function renderFlowSteps(flowSteps) {
       `).join("")}
     </div>
   `;
-}
-
-function flowStatusClass(status) {
-  if (["complete", "ready", "bounded", "selectable"].includes(status)) return "complete";
-  if (["warning", "neutral"].includes(status)) return "warning";
-  return "review";
-}
-
-function toneClass(tone) {
-  if (["success", "complete", "ready"].includes(tone)) return "success";
-  if (["warning", "review"].includes(tone)) return "warning";
-  if (["danger", "blocked"].includes(tone)) return "danger";
-  return "neutral";
 }
 
 function setContentReviewBadge(contentReview) {
