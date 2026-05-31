@@ -3,7 +3,7 @@
 - 本輪延續 Web display-contract consolidation：把 `deliveryClosureText()`、`capabilityAddressLabel()`、`capabilityAddressText()`、`capabilityProfileSummary()`、`boundPresetLabel()` 從 `app.js` 移到 `frontends/web/static/display_contract.js`。
 - 保持邊界：這只是純顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 繼續只負責互動狀態、API 呼叫與 HTML 組裝。
 - 測試補強：`tests.test_web_preview` 會確認這批 helper 在 `display_contract.js`、不在 `app.js`，並確認 `index.html` 先載 `display_contract.js` 再載 `app.js`。
-- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_142859.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。尚需推送後看 GitHub Actions。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_142859.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26705462035` 通過 Ubuntu、Windows 與 real DB smoke。
 ## 2026-05-31 14:09 Web static syntax CI guard
 - 本輪補 CI workflow guard：`.github/workflows/ci.yml` 在安裝 dev dependencies 後新增 `node --check frontends/web/static/display_contract.js` 與 `node --check frontends/web/static/app.js`，讓 Web Preview JS 語法錯誤在 GitHub Actions 被擋住，不只依賴本地 pre-push smoke。
 - 保持邊界：這是 CI/workflow hardening，不改 Web/Tk/crawler/download/import/credential 行為，也不改前端 bundle/loading 順序。
