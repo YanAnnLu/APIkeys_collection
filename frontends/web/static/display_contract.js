@@ -277,3 +277,41 @@ function providerDisplayText(asset) {
   const text = String(asset?.provider_name || asset?.provider_label || asset?.provider_id || "").trim();
   return text || "Provider 待確認";
 }
+
+function deliveryClosureText(closure = {}) {
+  const percent = Number.isFinite(Number(closure.closure_percent)) ? `${Number(closure.closure_percent)}%` : "閉環比例待確認";
+  const status = displayTextOrFallback("狀態待確認", closure.status_zh_TW, closure.status_label, closure.display_label);
+  return `${percent} / ${status}`;
+}
+
+function capabilityAddressLabel(asset) {
+  const profile = asset?.capability_profile || {};
+  const binary = String(profile.capability_binary || "").trim();
+  if (binary) return binary;
+  const bits = profile.capability_bits;
+  return Number.isInteger(bits) ? bits.toString(2).padStart(4, "0") : "";
+}
+
+function capabilityAddressText(asset) {
+  return capabilityAddressLabel(asset) || "待確認";
+}
+
+function capabilityProfileSummary(profile = {}) {
+  const seedScope = displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label);
+  return [
+    profile.source_family_label,
+    profile.transport_label,
+    profile.auth_mode_label,
+    profile.result_shape_label,
+    seedScope,
+  ].filter(Boolean).join(" / ");
+}
+
+function boundPresetLabel(preset = {}) {
+  return displayTextOrFallback(
+    "預設值待確認",
+    preset.display_label,
+    preset.label_zh_TW,
+    preset.label_en,
+  );
+}

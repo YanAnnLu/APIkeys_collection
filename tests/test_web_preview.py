@@ -1956,11 +1956,12 @@ class WebPreviewApiTest(unittest.TestCase):
 
     def test_static_ui_uses_rrkal_product_vocabulary(self) -> None:
         web_root = Path(__file__).resolve().parents[1] / "frontends" / "web" / "static"
+        index_static = (web_root / "index.html").read_text(encoding="utf-8")
         display_contract = (web_root / "display_contract.js").read_text(encoding="utf-8")
         app_static = (web_root / "app.js").read_text(encoding="utf-8")
         combined = "\n".join(
             [
-                (web_root / "index.html").read_text(encoding="utf-8"),
+                index_static,
                 display_contract,
                 app_static,
             ]
@@ -2150,12 +2151,21 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertIn("function planOutcomeLabel", display_contract)
         self.assertIn("function fieldLabel", display_contract)
         self.assertIn("function sourceTypeDisplayText", display_contract)
+        self.assertIn("function deliveryClosureText", display_contract)
+        self.assertIn("function capabilityAddressLabel", display_contract)
+        self.assertIn("function capabilityProfileSummary", display_contract)
+        self.assertIn("function boundPresetLabel", display_contract)
+        self.assertLess(index_static.index('src="display_contract.js"'), index_static.index('src="app.js"'))
         self.assertNotIn("function downloadImportStageText", app_static)
         self.assertNotIn("function assetDisplayText", app_static)
         self.assertNotIn("function seedDisplayText", app_static)
         self.assertNotIn("function planOutcomeLabel", app_static)
         self.assertNotIn("function fieldLabel", app_static)
         self.assertNotIn("function sourceTypeDisplayText", app_static)
+        self.assertNotIn("function deliveryClosureText", app_static)
+        self.assertNotIn("function capabilityAddressLabel", app_static)
+        self.assertNotIn("function capabilityProfileSummary", app_static)
+        self.assertNotIn("function boundPresetLabel", app_static)
         self.assertNotIn("provider unknown", combined)
         self.assertNotIn("<strong>${escapeHtml(card.provider_id)}</strong>", combined)
         self.assertIn("credentialProviderTitle", combined)
