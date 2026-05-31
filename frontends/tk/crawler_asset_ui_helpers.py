@@ -26,6 +26,7 @@ from api_launcher.crawler_assets import (
     status_label_or_fallback,
 )
 from api_launcher.crawler_asset_health import health_status_label_or_fallback
+from api_launcher.crawler_capability_profiles import seed_scope_display_label
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
 from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_import_label
@@ -867,12 +868,16 @@ def crawler_asset_seed_scope_label(asset: CrawlerAsset) -> str:
     """Return backend display wording for the seed enumeration surface."""
 
     profile = getattr(asset, "capability_profile", None)
-    return str(
-        getattr(profile, "seed_scope_label", "")
-        or getattr(profile, "seed_scope", "")
-        or getattr(asset, "current_seed_scope", "")
-        or "unknown"
-    )
+    if isinstance(profile, dict):
+        label = profile.get("seed_scope_label", "")
+        seed_scope = profile.get("seed_scope", "")
+    else:
+        label = getattr(profile, "seed_scope_label", "")
+        seed_scope = getattr(profile, "seed_scope", "")
+    if label:
+        return str(label)
+    raw_scope = str(seed_scope or getattr(asset, "current_seed_scope", "") or "unknown")
+    return seed_scope_display_label(raw_scope)
 
 
 def crawler_asset_source_type_label(asset: CrawlerAsset) -> str:
