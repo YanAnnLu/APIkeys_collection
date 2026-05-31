@@ -548,8 +548,8 @@ function crawlerAssetDownloadImportRowHtml(payload) {
         ${heroMetric("SQLite", artifacts.curated_sqlite ? "OK" : "-")}
       </div>
       <div class="context-chip-row">
-        <span class="context-chip">crawler_asset_path</span>
-        <span class="context-chip">download_import_pipeline</span>
+        <span class="context-chip">爬蟲資產路徑</span>
+        <span class="context-chip">下載 / 匯入管線</span>
         <span class="context-chip">${escapeHtml(planOutcomeLabel(payload.plan_outcome, null, "計畫狀態"))}</span>
         ${callbackChip}
       </div>

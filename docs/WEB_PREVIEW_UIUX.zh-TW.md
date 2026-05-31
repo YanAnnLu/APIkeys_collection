@@ -48,6 +48,7 @@
 - Web mission queue 顯示資產與 seed 時，應使用 `display_name`、seed title 或中性 fallback。`asset_id`、`dataset_uid`、`recommended_seed_uid` 只留在 JSON/debug、route key 與 provenance，不應出現在互動紀錄的主要 detail 文案。
 - 下載器結果列與推薦 seed 面板也遵守同一條線：標題應使用 `assetDisplayText()` / `seedDisplayText()`，缺後端 label 時顯示「爬蟲資產待確認」「seed 待確認」，不要把 `payload.asset_id`、`result.asset_id`、`recommended_seed_uid` 當標題 fallback。
 - Seed row 的主要標題也應使用 seed title / display label；dataset id 可以保留在小字追溯欄，但要標明 `Dataset ID`，不要讓它看起來像人類命名的 seed 標題。
+- 下載 / 匯入結果列的 context chip 也要使用人類文案，例如「爬蟲資產路徑」「下載 / 匯入管線」；`crawler_asset_path`、`download_import_pipeline` 這類 backend trace token 只屬於 JSON/debug 或事件追溯，不應直接成為 UI chip。
 
 ## 定位
 

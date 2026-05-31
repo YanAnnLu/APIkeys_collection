@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 13:06 Web download/import context chip labels
+- 本輪把 Web Preview 下載 / 匯入結果列的 context chip 從 backend trace token 改成人類文案：`crawler_asset_path` 顯示為「爬蟲資產路徑」，`download_import_pipeline` 顯示為「下載 / 匯入管線」。
+- 保持邊界：download/import payload、artifacts、route key、event/provenance、plan outcome、callback diagnostics、Tk 顯示、crawler registry 與正式下載 / 匯入流程都沒改；這只是 Web result row visible chip hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；docs mojibake scan OK；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；完整 smoke `state\logs\pre_push_smoke_20260531_130753.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 12:56 Web seed row title labels
 - 本輪把 Web Preview seed row 的主標題收斂到 `seedDisplayText()`：seed row 不再用 `dataset_id` / `uid` 當主標題 fallback；dataset id 仍保留在小字追溯欄，明確標成 `Dataset ID：...`，缺追溯值時顯示「Seed ID 待確認」。
 - 保持邊界：favorite key、route key、download uid、seed ownership validation、seed download/import endpoint 與本機 seed catalog 都沒改；這只是 seed row visible title hygiene。
