@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 15:00 Web runtime display helper consolidation
+- 本輪繼續把 Web 純顯示 helper 從 `app.js` 收斂到 `frontends/web/static/display_contract.js`：`serverRuntimeLabel()`、`serverRuntimeTitle()`、`sourceTypeFilterLabel()`、`boundedPercent()` 現在由 display contract 擁有。
+- 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 仍負責互動狀態、API 呼叫與 HTML 組裝。
+- 交換區：已評審 `a_1` 的跨專案數據-渲染配置合約草案，決策改為 `backlogged`；零導入 JSON bridge 方向可採納，但未來必須以 RRKAL 既有 `*.manifest.json` sidecar contract 為基礎做版本化投影，不把 displaytools renderer config 混進 ingestion。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；Browser reload 驗證 `http://127.0.0.1:8765/` 顯示 23 個 crawler asset、13 個來源範式且無 console error；完整 smoke `state\logs\pre_push_smoke_20260531_145744.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 14:39 Web display state helper consolidation
 - 本輪繼續把純 display state helper 移出 `app.js`：`toneClass()`、`flowStatusClass()`、`credentialDisplayProfile()` 現在由 `frontends/web/static/display_contract.js` 擁有。
 - 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 CSS class 名稱、Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。
