@@ -325,10 +325,11 @@ async function runCrawlerAssetDownloadImportById(assetId) {
   }
   if (!crawlerAssetDownloadButton) return;
   const asset = assets.find((item) => item.asset_id === assetId);
+  const assetLabel = assetDisplayText(asset);
   const originalText = crawlerAssetDownloadButton.textContent;
   crawlerAssetDownloadButton.disabled = true;
   crawlerAssetDownloadButton.textContent = "下載中...";
-  addMission("正式下載 / 匯入開始", asset?.display_name || assetId);
+  addMission("正式下載 / 匯入開始", assetLabel);
   try {
     if (selectedAssetId !== assetId) {
       await selectAsset(assetId, { autoEnumerate: false });
@@ -349,7 +350,7 @@ async function runCrawlerAssetDownloadImportById(assetId) {
     }
     const downloadImport = payload.download_import || {};
     if (downloadImport.succeeded) {
-      addMission("正式下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${asset?.display_name || assetId}`);
+      addMission("正式下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${assetLabel}`);
     } else {
       addMission("正式下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }
@@ -374,7 +375,9 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     return;
   }
   const asset = assets.find((item) => item.asset_id === assetId);
-  addMission("seed 下載 / 匯入開始", `${asset?.display_name || assetId} / ${datasetUid}`);
+  const seed = findVisibleSeed(assetId, datasetUid);
+  const missionTarget = `${assetDisplayText(asset)} / ${seedDisplayText(seed)}`;
+  addMission("seed 下載 / 匯入開始", missionTarget);
   try {
     if (selectedAssetId !== assetId) {
       await selectAsset(assetId, { autoEnumerate: false });
@@ -398,7 +401,7 @@ async function runCrawlerSeedDownloadImportById(assetId, datasetUid) {
     }
     const downloadImport = payload.download_import || {};
     if (downloadImport.succeeded) {
-      addMission("seed 下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${datasetUid}`);
+      addMission("seed 下載 / 匯入完成", `${downloadImportStageText(payload, payload)} / ${seedDisplayText(seed)}`);
     } else {
       addMission("seed 下載 / 匯入未完成", downloadImportNextActionText(payload, downloadImport));
     }
@@ -420,7 +423,8 @@ async function runRecommendedSeedClosureById(assetId) {
     return;
   }
   const asset = assets.find((item) => item.asset_id === assetId);
-  addMission("推薦 seed 閉環開始", asset?.display_name || assetId);
+  const assetLabel = assetDisplayText(asset);
+  addMission("推薦 seed 閉環開始", assetLabel);
   try {
     if (selectedAssetId !== assetId) {
       await selectAsset(assetId, { autoEnumerate: false });
@@ -444,9 +448,12 @@ async function runRecommendedSeedClosureById(assetId) {
     }
     const downloadImport = payload.download_import || {};
     if (downloadImport.succeeded || payload.succeeded) {
+      const recommendedSeed = payload.recommended_seed
+        || payload.seed_page?.recommended_seed
+        || findVisibleSeed(assetId, payload.recommended_seed_uid);
       addMission(
         "推薦 seed 閉環完成",
-        `${downloadImportStageText(payload, payload)} / ${payload.recommended_seed_uid || assetId}`,
+        `${downloadImportStageText(payload, payload)} / ${seedDisplayText(recommendedSeed)}`,
       );
     } else {
       addMission("推薦 seed 閉環未完成", downloadImportNextActionText(payload, downloadImport));
@@ -472,11 +479,12 @@ async function runSeedSchemaProbeById(assetId, datasetUid) {
   const seed = findVisibleSeed(assetId, datasetUid);
   const entry = schemaProbeEntryForSeed(seed);
   if (!Object.keys(entry).length) {
-    addMission("seed 缺少可探測 URL", datasetUid);
+    addMission("seed 缺少可探測 URL", seedDisplayText(seed));
     writeJson({ asset_id: assetId, dataset_uid: datasetUid, next_action: "choose_seed_with_api_url" });
     return;
   }
-  addMission("探測 seed 欄位", `${assetId} / ${datasetUid}`);
+  const asset = assets.find((item) => item.asset_id === assetId);
+  addMission("探測 seed 欄位", `${assetDisplayText(asset)} / ${seedDisplayText(seed)}`);
   try {
     if (selectedAssetId !== assetId) {
       await selectAsset(assetId, { autoEnumerate: false });
@@ -490,7 +498,10 @@ async function runSeedSchemaProbeById(assetId, datasetUid) {
     }
     renderBoundsForm(payload.bound_form);
     writeJson(payload);
-    addMission("欄位探測完成", payload.next_action_label || payload.bound_form?.display_label || "欄位探測完成");
+    addMission(
+      "欄位探測完成",
+      displayTextOrFallback("欄位探測完成", payload.next_action_label, payload.bound_form?.display_label),
+    );
   } catch (error) {
     writeJson({ error: String(error), endpoint: "seed_schema_probe", asset_id: assetId, dataset_uid: datasetUid, entry });
     addMission("欄位探測失敗", String(error));
@@ -704,14 +715,15 @@ async function runCrawlerAssetListingById(assetId, options = {}) {
   // place this frontend asks the backend to refresh local seed candidates.
   const asset = assets.find((item) => item.asset_id === assetId);
   const request = options.request || defaultSeedEnumerationRequest;
-  addMission(options.auto ? "自動枚舉 seed" : "重新枚舉 seed", asset?.display_name || assetId);
+  const assetLabel = assetDisplayText(asset);
+  addMission(options.auto ? "自動枚舉 seed" : "重新枚舉 seed", assetLabel);
   try {
     const payload = await postJson(`/api/crawler-assets/${encodeURIComponent(assetId)}/list-datasets`, request);
     writeJson(payload);
     const result = payload.listing_result || {};
     rememberCrawlerAssetListing(assetId, result);
     if (result.blocked && payload.next_action === "edit_local_credentials_before_live_download") {
-      addMission("需要登入才能枚舉 seed", asset?.display_name || assetId);
+      addMission("需要登入才能枚舉 seed", assetLabel);
       openCredentialEditorById(assetId);
       return;
     }
@@ -1264,7 +1276,8 @@ async function saveCredentialEditor(assetId) {
       remember_local: rememberLocal,
     });
     writeJson(status);
-    addMission("登入設定已更新", `${assetId} / ${displayTextOrFallback("登入狀態待確認", status.display_label)}`);
+    const asset = assets.find((item) => item.asset_id === assetId);
+    addMission("登入設定已更新", `${assetDisplayText(asset)} / ${displayTextOrFallback("登入狀態待確認", status.display_label)}`);
     closeCredentialEditor();
     await loadAssets();
     if (assetId) {
@@ -1363,7 +1376,7 @@ function handleBuildPlanClick() {
   if (!selectedAssetId) return;
   const credentials = selectedAssetDetail?.card?.credentials || {};
   if (buildPlanButton.dataset.action === "credentials" || credentialBlocksLivePlan(credentials)) {
-    addMission("先設定登入 / API Key", selectedAssetId);
+    addMission("先設定登入 / API Key", assetDisplayText(selectedAssetDetail?.card));
     openCredentialEditorById(selectedAssetId);
     return;
   }
@@ -1577,7 +1590,7 @@ async function submitBounds(execute) {
       setContentReviewBadge(null);
       addMission(
         execute ? "建立下載計畫" : "產生界域 payload",
-        `${selectedAssetId} / ${displayTextOrFallback("檢查下載計畫結果", payload.next_action_label)}`,
+        `${assetDisplayText(selectedAssetDetail?.card)} / ${displayTextOrFallback("檢查下載計畫結果", payload.next_action_label)}`,
       );
     }
     if (payload.adapter_review) {
@@ -1731,6 +1744,29 @@ function seedMatchesDatasetUid(seed, datasetUid) {
     seed.dataset_id,
     seed.title,
   ].some((value) => String(value || "") === expected);
+}
+
+function assetDisplayText(asset = {}, fallback = "爬蟲資產待確認") {
+  return displayTextOrFallback(
+    fallback,
+    asset.display_name,
+    asset.name,
+    asset.title,
+    asset.source_type_label,
+    asset.capability_profile?.source_type_label,
+  );
+}
+
+function seedDisplayText(seed = {}, fallback = "seed 待確認") {
+  return displayTextOrFallback(
+    fallback,
+    seed.title,
+    seed.display_name,
+    seed.dataset_name,
+    seed.name,
+    seed.content_display_label,
+    seed.content_import_profile?.display_label,
+  );
 }
 
 function schemaProbeEntryForSeed(seed = {}) {
