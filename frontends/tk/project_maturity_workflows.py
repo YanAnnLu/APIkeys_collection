@@ -37,7 +37,9 @@ def project_maturity_message(payload: dict[str, object]) -> str:
         [
             "RRKAL project maturity matrix",
             "",
-            f"Delivery scope: {closure.get('closure_percent', 'unknown')}% / {closure.get('status', 'unknown')}",
+            "Delivery scope: "
+            f"{closure.get('closure_percent', 'unknown')}% / "
+            f"{closure.get('status_label') or '交付狀態待確認'}",
             str(payload.get("answer_template_zh_TW") or payload.get("reporting_rule") or ""),
             "",
             "Rows:",
@@ -53,8 +55,8 @@ def _project_maturity_row_line(row: dict[str, Any]) -> str:
     if not isinstance(display_profile, dict):
         display_profile = {}
     icon = str(row.get("status_icon") or display_profile.get("status_icon") or "?")
-    area = str(row.get("area_label") or row.get("area_id") or "maturity area")
-    label = str(row.get("display_label") or row.get("maturity_label_zh_TW") or row.get("maturity_level") or "unknown")
+    area = str(row.get("area_label") or "成熟度面向待確認")
+    label = str(row.get("display_label") or row.get("maturity_label_zh_TW") or "成熟度狀態待確認")
     limitation_count = len(row.get("current_limitations") or []) if isinstance(row.get("current_limitations"), list) else 0
     suffix = f" ({limitation_count} limit)" if limitation_count == 1 else f" ({limitation_count} limits)" if limitation_count else ""
     return f"- {icon} {area}: {label}{suffix}"

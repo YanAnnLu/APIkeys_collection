@@ -60,6 +60,7 @@ class ProjectMaturityTests(unittest.TestCase):
         self.assertNotIn("overall_percent", payload)
         self.assertIn("Do not report RRKAL progress as one percentage", payload["reporting_rule"])
         self.assertEqual(100, payload["canonical_delivery_scope"]["closure_percent"])
+        self.assertEqual("可展示小閉環", payload["canonical_delivery_scope"]["status_label"])
         rows = {row["area_id"]: row for row in payload["rows"]}
         self.assertEqual("deliverable_100", rows["canonical_mvp_demo_closure"]["maturity_level"])
         self.assertEqual("partial_bounded", rows["provider_specific_deep_adapters"]["maturity_level"])
@@ -134,6 +135,7 @@ class ProjectMaturityTests(unittest.TestCase):
                 "closure_id": "canonical_mvp_demo_closure",
                 "closure_percent": 100,
                 "status": "ready_for_mvp_demo",
+                "status_label": "可展示小閉環",
                 "scope": "bounded",
                 "not_product_scope": "not all",
             },
@@ -153,6 +155,7 @@ class ProjectMaturityTests(unittest.TestCase):
 
         self.assertIn("# RRKAL Project Maturity Matrix", markdown)
         self.assertIn("closure_percent: 100", markdown)
+        self.assertIn("status_label: 可展示小閉環", markdown)
         self.assertIn("🚧 合約 / planned", markdown)
         self.assertIn("合約 / planned", markdown)
         self.assertIn("no real I/O", markdown)

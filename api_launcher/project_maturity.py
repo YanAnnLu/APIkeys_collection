@@ -102,6 +102,17 @@ def maturity_display_profile(maturity_level: str) -> dict[str, str]:
     )
 
 
+def delivery_scope_status_label(status: object) -> str:
+    """Return the display label for the canonical delivery scope status."""
+
+    labels = {
+        "ready_for_mvp_demo": "可展示小閉環",
+        "needs_mvp_smoke": "需重跑 MVP smoke",
+    }
+    normalized = str(status or "").strip()
+    return labels.get(normalized, "交付狀態待確認")
+
+
 def build_project_maturity_payload(
     repository: ApiCatalogRepository,
     db_path: Path | str | None = None,
@@ -129,6 +140,7 @@ def build_project_maturity_payload(
             "closure_id": mvp_readiness.get("closure_id"),
             "closure_percent": mvp_readiness.get("closure_percent"),
             "status": mvp_readiness.get("status"),
+            "status_label": delivery_scope_status_label(mvp_readiness.get("status")),
             "scope": mvp_readiness.get("scope"),
             "not_product_scope": mvp_readiness.get("not_product_scope"),
         },
@@ -166,6 +178,7 @@ def render_project_maturity_markdown(payload: dict[str, Any]) -> str:
             f"- closure_id: {closure.get('closure_id', '')}",
             f"- closure_percent: {closure.get('closure_percent', '')}",
             f"- status: {closure.get('status', '')}",
+            f"- status_label: {closure.get('status_label', '')}",
             f"- scope: {closure.get('scope', '')}",
             f"- not_product_scope: {closure.get('not_product_scope', '')}",
             "",

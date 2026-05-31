@@ -671,7 +671,8 @@ class TkDialogModuleTest(unittest.TestCase):
 
         message = project_maturity_message(payload)
 
-        self.assertIn("100% / ready_for_mvp_demo", message)
+        self.assertIn("100% / 交付狀態待確認", message)
+        self.assertNotIn("ready_for_mvp_demo", message)
         self.assertIn("🚧 Renderer / Unreal / simulation bridge: 施工中 / 合約", message)
         self.assertIn("does not calculate a single project percentage", message)
 
@@ -688,7 +689,7 @@ class TkDialogModuleTest(unittest.TestCase):
         ui = _Ui()
         payload = {
             "matrix_version": "test",
-            "canonical_delivery_scope": {"closure_percent": 100, "status": "ready_for_mvp_demo"},
+            "canonical_delivery_scope": {"closure_percent": 100, "status": "ready_for_mvp_demo", "status_label": "可展示小閉環"},
             "rows": [{"area_label": "Renderer", "status_icon": "🚧", "display_label": "施工中 / 合約"}],
         }
         with patch("frontends.tk.project_maturity_workflows.project_maturity_payload", return_value=payload) as backend, patch(
