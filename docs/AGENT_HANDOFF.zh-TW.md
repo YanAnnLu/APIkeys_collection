@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 09:49 Crawler capability status display fallback
+- 本輪把 crawler asset 能力狀態顯示收斂到 `status_label_or_fallback()`：後端 `CrawlerAsset.capability_summary`、Tk crawler asset 表格三個能力欄、右側 Passport 能力清單遇到未知 `item.status` / `asset.capability_status(...)` 時會顯示「需檢查能力狀態」，不再把 `new_capability_status` 類 raw backend token 當人類文案。
+- 保持邊界：`CrawlerAssetCapability.status` raw 欄位、`capability_status()`、能力判斷、crawler health、registry、download/import、Web route 與 credential flow 都沒改；這只是能力狀態的 display-contract fallback 收斂。
+- 已驗證：`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_crawler_assets -v` 通過 76 tests；`py -3 -B -m unittest tests.test_tk_ui_helpers tests.test_tk_dialogs tests.test_crawler_assets -v` 通過 220 tests；完整 smoke `state\logs\pre_push_smoke_20260531_094645.log` 通過，1037 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`aced815 Hide crawler capability status fallbacks`。GitHub Actions 尚待 push 後驗證。
 ## 2026-05-31 09:30 Tk crawler asset health state label fallback
 - 本輪把 Tk crawler asset 表格 / Passport 的 compact state label 改成共用後端 `health_status_label_or_fallback()`；未知 `asset.health.status_code` 會顯示「未知」，不再把 `new_backend_health` 類 raw status token 直接露到 UI。
 - 保持邊界：`asset.health.status_code` raw 欄位、`status_tone`、`status_gate`、crawler health evaluation、Web asset card 與 download/import/crawler 行為都沒改；這只是 Tk compact state label 的 display-contract 收斂。
