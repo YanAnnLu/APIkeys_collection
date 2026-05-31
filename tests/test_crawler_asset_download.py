@@ -35,8 +35,16 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
             provider_id="demo_provider",
             source_found=True,
             listing_result=None,
-            seed_page={},
-            recommended_seed_uid="",
+            seed_page={
+                "seeds": [
+                    {
+                        "dataset_uid": "demo_provider:dataset_a",
+                        "title": "Dataset A",
+                        "dataset_id": "dataset_a",
+                    }
+                ]
+            },
+            recommended_seed_uid="demo_provider:dataset_a",
             download_import_result=None,
             downloads_root=Path("downloads/demo"),
             curated_sqlite_path=Path("downloads/demo/curated_sources.db"),
@@ -48,6 +56,7 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
         payload = result.to_dict()
 
         self.assertEqual("沒有推薦 seed", payload["closure_stage_label"])
+        self.assertEqual("Dataset A", payload["recommended_seed_display_label"])
         self.assertEqual("閉環狀態待確認", recommended_seed_closure_stage_label("new_stage"))
 
     def test_service_builds_formal_crawler_asset_plan_and_runs_pipeline(self) -> None:
@@ -345,6 +354,7 @@ class CrawlerAssetDownloadImportTest(unittest.TestCase):
                 self.assertEqual("demo_provider:dataset_a", seed_runner.call_args.args[1])
                 payload = result.to_dict()
                 self.assertEqual("demo_provider:dataset_a", payload["recommended_seed_uid"])
+                self.assertEqual("Dataset A", payload["recommended_seed_display_label"])
                 self.assertEqual("download_import_completed", payload["download_import"]["stage"])
             finally:
                 conn.close()

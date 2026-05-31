@@ -35,6 +35,7 @@ Last updated: 2026-05-31
 - [x] Web Preview 下載器結果列與推薦 seed 面板標題也已移除 raw id fallback：主要標題顯示 `assetDisplayText()` / `seedDisplayText()`，缺 label 時用「爬蟲資產待確認」「seed 待確認」。
 - [x] Web Preview seed row 主標題也已移除 dataset id fallback：主標題顯示 seed title/display label 或「seed 待確認」，dataset id 留在小字 `Dataset ID：...` 追溯欄。
 - [x] Tk Seed 清單與 formal seed download/import 完成訊息已對齊同一個 display-safe seed title contract：後端 payload 輸出 `dataset_title` / `seed_display_label`，Tk 主要標題顯示 seed title/display label 或「seed 待確認」；`dataset_uid` / `dataset_id` 仍保留在 Seed ID 欄位、action payload、事件與 provenance。
+- [x] Tk Recommended-seed closure 完成 / 未完成訊息也已對齊 seed display contract：後端 closure payload 會輸出 `recommended_seed_display_label`，Tk 顯示 seed title 或「seed 待確認」；`recommended_seed_uid` 仍保留在 route、event context、payload 與 provenance。
 - [x] Web Preview 下載 / 匯入結果列 context chip 也已移除 backend trace token：顯示「爬蟲資產路徑」「下載 / 匯入管線」，raw `crawler_asset_path` / `download_import_pipeline` 只保留在追溯與 debug 語境。
 - [x] Web Preview 事件紀錄 context chip key 也已移除 raw fallback：`asset_id` / `run_record` / `next_action` 會顯示人類欄位名，raw event context 仍保留在 payload / JSON / event log。
 - [x] Web Preview asset card slot 副標也已接回 provider display helper：卡片不再直接顯示 `asset.provider_id`，provider id 只保留在追溯與 debug 語境。

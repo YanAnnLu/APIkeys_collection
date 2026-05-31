@@ -574,6 +574,7 @@ def crawler_asset_recommended_seed_closure_ui_message(
     closure_stage = str(payload.get("closure_stage") or getattr(result, "closure_stage", "") or "-")
     closure_stage_label = str(payload.get("closure_stage_label") or "閉環狀態待確認").strip()
     recommended_seed_uid = str(payload.get("recommended_seed_uid") or getattr(result, "recommended_seed_uid", "") or "").strip()
+    recommended_seed_label = _recommended_seed_display_label(payload, recommended_seed_uid)
     next_action = str(payload.get("next_action") or getattr(result, "next_action", "") or "").strip()
     next_action_label = _ui_next_action_text(next_action, payload.get("next_action_label"), fallback="檢查推薦 seed 閉環結果")
     artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else {}
@@ -583,12 +584,12 @@ def crawler_asset_recommended_seed_closure_ui_message(
         seed_message = crawler_seed_download_import_ui_message(download_result, tr)
         body = tr(
             (
-                f"推薦 Seed：{recommended_seed_uid or '-'}\n"
+                f"推薦 Seed：{recommended_seed_label}\n"
                 f"閉環階段：{closure_stage_label}\n"
                 f"{seed_message.body}"
             ),
             (
-                f"Recommended seed: {recommended_seed_uid or '-'}\n"
+                f"Recommended seed: {recommended_seed_label}\n"
                 f"Closure stage: {closure_stage_label}\n"
                 f"{seed_message.body}"
             ),
@@ -596,14 +597,14 @@ def crawler_asset_recommended_seed_closure_ui_message(
     else:
         body = tr(
             (
-                f"推薦 Seed：{recommended_seed_uid or '-'}\n"
+                f"推薦 Seed：{recommended_seed_label}\n"
                 f"閉環階段：{closure_stage_label}\n"
                 f"Downloads：{artifacts.get('downloads_root') or '-'}\n"
                 f"SQLite：{artifacts.get('curated_sqlite') or '-'}\n"
                 f"下一步：{next_action_label}"
             ),
             (
-                f"Recommended seed: {recommended_seed_uid or '-'}\n"
+                f"Recommended seed: {recommended_seed_label}\n"
                 f"Closure stage: {closure_stage_label}\n"
                 f"Downloads: {artifacts.get('downloads_root') or '-'}\n"
                 f"SQLite: {artifacts.get('curated_sqlite') or '-'}\n"
@@ -617,8 +618,8 @@ def crawler_asset_recommended_seed_closure_ui_message(
             recommended_seed_uid=recommended_seed_uid,
             title=tr("推薦 Seed 閉環完成", "Recommended seed loop completed"),
             status_message=tr(
-                f"推薦 Seed 閉環完成：{recommended_seed_uid or '-'}",
-                f"Recommended seed loop completed: {recommended_seed_uid or '-'}",
+                f"推薦 Seed 閉環完成：{recommended_seed_label}",
+                f"Recommended seed loop completed: {recommended_seed_label}",
             ),
             body=body,
         )
@@ -628,11 +629,28 @@ def crawler_asset_recommended_seed_closure_ui_message(
         recommended_seed_uid=recommended_seed_uid,
         title=tr("推薦 Seed 閉環未完成", "Recommended seed loop incomplete"),
         status_message=tr(
-            f"推薦 Seed 閉環未完成：{closure_stage}",
-            f"Recommended seed loop did not complete: {closure_stage}",
+            f"推薦 Seed 閉環未完成：{closure_stage_label}",
+            f"Recommended seed loop did not complete: {closure_stage_label}",
         ),
         body=body,
     )
+
+
+def _recommended_seed_display_label(payload: dict[str, object], recommended_seed_uid: str) -> str:
+    direct = str(payload.get("recommended_seed_display_label") or payload.get("recommended_seed_label") or "").strip()
+    if direct:
+        return crawler_seed_dialog_display_title({"seed_display_label": direct})
+    seed_page = payload.get("seed_page") if isinstance(payload.get("seed_page"), dict) else {}
+    seeds = seed_page.get("seeds") if isinstance(seed_page, dict) else ()
+    if isinstance(seeds, (list, tuple)):
+        for seed in seeds:
+            if not isinstance(seed, dict):
+                continue
+            seed_uid = str(seed.get("dataset_uid") or seed.get("uid") or "").strip()
+            if recommended_seed_uid and seed_uid != recommended_seed_uid:
+                continue
+            return crawler_seed_dialog_display_title(seed)
+    return crawler_seed_dialog_display_title({})
 
 
 def crawler_asset_recommended_seed_closure_event_context(result: object) -> dict[str, object]:

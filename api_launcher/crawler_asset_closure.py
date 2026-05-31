@@ -46,6 +46,32 @@ def recommended_seed_closure_stage_label(stage: object, *, fallback: str = "閉�
     return CLOSURE_STAGE_LABELS.get(str(stage or ""), fallback)
 
 
+def recommended_seed_display_label(seed_page: dict[str, object], recommended_seed_uid: str, *, fallback: str = "seed 待確認") -> str:
+    """Return the human seed title for a recommended seed without exposing its raw UID.
+
+    The UID remains in the payload for routing and provenance.  User-facing
+    surfaces should prefer catalog titles or explicit display labels, and use a
+    neutral fallback when the seed page only has backend identifiers.
+    """
+
+    clean_uid = str(recommended_seed_uid or "").strip()
+    seeds = seed_page.get("seeds") if isinstance(seed_page, dict) else ()
+    if isinstance(seeds, (list, tuple)):
+        for item in seeds:
+            if not isinstance(item, dict):
+                continue
+            item_uid = str(item.get("dataset_uid") or item.get("uid") or "").strip()
+            if clean_uid and item_uid != clean_uid:
+                continue
+            for key in ("seed_display_label", "display_label", "title", "dataset_title", "label", "name"):
+                value = str(item.get(key) or "").strip()
+                if value:
+                    return value
+            if clean_uid:
+                return fallback
+    return fallback
+
+
 @dataclass(frozen=True)
 class CrawlerAssetRecommendedSeedClosureResult:
     """Structured result for the recommended-seed closure operation."""
@@ -76,6 +102,7 @@ class CrawlerAssetRecommendedSeedClosureResult:
             "closure_stage_label": recommended_seed_closure_stage_label(self.closure_stage),
             "succeeded": self.succeeded,
             "recommended_seed_uid": self.recommended_seed_uid,
+            "recommended_seed_display_label": recommended_seed_display_label(self.seed_page, self.recommended_seed_uid),
             "seed_page": self.seed_page,
             "artifacts": {
                 "downloads_root": str(self.downloads_root),
@@ -255,6 +282,7 @@ def safe_closure_dirname(asset_id: str) -> str:
 __all__ = [
     "CLOSURE_STAGE_LABELS",
     "CrawlerAssetRecommendedSeedClosureResult",
+    "recommended_seed_display_label",
     "recommended_seed_closure_payload",
     "recommended_seed_closure_stage_label",
     "run_recommended_seed_closure",

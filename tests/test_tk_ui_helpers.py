@@ -168,8 +168,38 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertFalse(message.succeeded)
         self.assertIn("閉環階段：沒有推薦 seed", message.body)
         self.assertNotIn("no_recommended_seed", message.body)
+        self.assertNotIn("no_recommended_seed", message.status_message)
         self.assertIn("檢查 seed 清單或調整入口界域", message.body)
         self.assertNotIn("review_seed_page_or_adjust_source_listing", message.body)
+
+    def test_recommended_seed_closure_ui_message_hides_raw_recommended_seed_uid(self) -> None:
+        result = SimpleNamespace(
+            succeeded=False,
+            closure_stage="download_import_incomplete",
+            recommended_seed_uid="demo_provider:dataset_a",
+            download_import_result=None,
+            to_dict=lambda: {
+                "asset_id": "demo_index",
+                "provider_id": "demo_provider",
+                "closure_stage": "download_import_incomplete",
+                "closure_stage_label": "下載 / 匯入未完成",
+                "succeeded": False,
+                "recommended_seed_uid": "demo_provider:dataset_a",
+                "recommended_seed_display_label": "Dataset A",
+                "next_action": "review_seed_page_or_adjust_source_listing",
+                "next_action_label": "檢查 seed 清單或調整入口界域",
+                "artifacts": {
+                    "downloads_root": "downloads/demo",
+                    "curated_sqlite": "downloads/demo/curated_sources.db",
+                },
+            },
+        )
+
+        message = crawler_asset_recommended_seed_closure_ui_message(result, lambda zh, _en: zh)
+
+        self.assertIn("推薦 Seed：Dataset A", message.body)
+        self.assertNotIn("demo_provider:dataset_a", message.body)
+        self.assertNotIn("demo_provider:dataset_a", message.status_message)
 
     def test_recommended_seed_closure_event_context_keeps_compact_seed_summary(self) -> None:
         result = SimpleNamespace(

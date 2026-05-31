@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 15:36 Recommended seed closure display label
+- 本輪把 recommended-seed closure payload 補上 `recommended_seed_display_label`：後端會從 `seed_page.seeds` 中以 `recommended_seed_uid` 找回 seed title/display label；raw uid 仍保留給 route、event、provenance 與 JSON/debug。
+- Tk recommended-seed closure 訊息改顯示 `recommended_seed_display_label` 或從 `seed_page` 找到的 seed title；缺人類文案時顯示「seed 待確認」，不再把 `recommended_seed_uid` 當主要文案。closure failure status 也改用 `closure_stage_label`，不再顯示 raw `closure_stage`。
+- 保持邊界：不改 closure 選 seed 規則、不改 formal seed download/import、不中斷 Web 路由、不改 event context 的 raw uid / seed page summary。
+- 已驗證：`py -3 -B -m py_compile api_launcher\crawler_asset_closure.py frontends\tk\crawler_asset_ui_helpers.py tests\test_crawler_asset_download.py tests\test_tk_ui_helpers.py` OK；`py -3 -B -m unittest tests.test_crawler_asset_download tests.test_tk_ui_helpers -v` 通過 38 tests；完整 smoke `state\logs\pre_push_smoke_20260531_153712.log` 通過，1042 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 15:22 Tk seed display label parity
 - 本輪把 formal seed download/import 的 payload 補上 `dataset_title` / `seed_display_label`，並讓 shared display payload 直接轉出這兩個欄位；Tk 不需要用 raw `dataset_uid` 當完成訊息主標題。
 - Tk Seed 清單 dialog 與 sidebar preview 新增 `crawler_seed_dialog_display_title()`，主要 seed 標題只吃 `seed_display_label` / `display_label` / `title` / `dataset_title` 等人類文案；`dataset_uid` / `dataset_id` 仍保留在 Seed ID 欄位、action payload、事件與 provenance，不再當 title fallback。
