@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 10:16 Project maturity row fallback labels
+- 本輪把 project maturity 的 row fallback 再收斂一層：Web maturity card 缺 `area_label` 時顯示「成熟度面向待確認」，不再以 `row.area_id` 當使用者標題；Markdown render 缺 `area_label` / `maturity_label_zh_TW` / `display_label` 時也會顯示「成熟度面向待確認」與 maturity display profile 的「未分類」，不再把 `new_backend_area` / `new_backend_level` 類 raw id 當人類文案。
+- 保持邊界：`area_id`、`maturity_level`、display profile 與 metrics 仍保留在 payload 給 agent/debug；project maturity matrix 計算、Web route、Tk dialog、download/import/crawler 行為都沒改。這只是 Web/Markdown fallback display hygiene。
+- 已驗證：`py -3 -B -m unittest tests.test_project_maturity tests.test_web_preview -v` 通過 71 tests；完整 smoke `state\logs\pre_push_smoke_20260531_100946.log` 通過，1038 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`ec03262 Hide maturity fallback ids`。GitHub Actions 尚待 push 後驗證。
 ## 2026-05-31 10:01 Project maturity delivery status label
 - 本輪把 project maturity 的 canonical delivery scope 補上後端 `status_label`，`ready_for_mvp_demo` 會顯示「可展示小閉環」；Tk 成熟度矩陣 dialog 改吃這個 label，缺 label 時顯示「交付狀態待確認」，不再把 raw delivery status id 當主要使用者文案。Markdown render 也輸出 `status_label`，Web 既有 `displayTextOrFallback()` 會自動消費同一欄位。
 - 保持邊界：`canonical_delivery_scope.status` raw 欄位仍保留給 agent/debug；maturity row 計算、MVP readiness 判斷、Web route、Tk dialog 開啟流程、crawler/download/import 都沒改。這只是 maturity payload 的 display-contract 補強。
