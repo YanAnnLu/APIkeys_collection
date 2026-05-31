@@ -1959,6 +1959,7 @@ class WebPreviewApiTest(unittest.TestCase):
         combined = "\n".join(
             [
                 (web_root / "index.html").read_text(encoding="utf-8"),
+                (web_root / "display_contract.js").read_text(encoding="utf-8"),
                 (web_root / "app.js").read_text(encoding="utf-8"),
             ]
         )

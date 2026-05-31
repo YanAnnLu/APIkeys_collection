@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 13:36 Web display contract helper extraction
+- 本輪做小型 consolidation：新增 `frontends/web/static/display_contract.js`，把 `displayTextOrFallback()`、backend-token guard、event context label、content review lane/parser label 與 provider display helper 從巨型 `app.js` 拆出；`index.html` 先載 display helper，再載 `app.js`。
+- 保持邊界：這是 Web 顯示 helper 解耦，不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id 或 Tk 顯示。`display_contract.js` 只能轉換可見文案，不得承擔業務規則。
+- 交換區：已讀並回覆 `L:\AGENT_EXCHANGE\inbox\c_3_RRKAL_project.md` 的 `20260531-1329-c_3-viewmodel-contract`，決策為 `backlogged`；未來 RRKAL 可定義 renderer-agnostic ViewModel producer contract，但不打斷目前小閉環。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；docs / `display_contract.js` mojibake scan OK；`git diff --check` 無 whitespace error（Git 仍提示 Web static files line-ending warning）；完整 smoke `state\logs\pre_push_smoke_20260531_133812.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 13:26 Web asset card provider label
 - 本輪把 Web Preview asset card slot 副標接到 `providerDisplayText(asset)`；卡片不再直接顯示 `asset.provider_id`，而是使用 provider name/label 或可追溯 provider fallback。
 - 保持邊界：provider id 仍保留在 payload、route/search/debug、credential flow、download/import、crawler registry 與 event context；這只是 asset card visible provider label hygiene。
