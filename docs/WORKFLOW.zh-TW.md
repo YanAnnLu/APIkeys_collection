@@ -1,6 +1,6 @@
 # RRKAL Workflow
 
-最後更新：2026-05-30
+最後更新：2026-05-31
 
 這份文件定義 RRKAL / `APIkeys_collection` 的日常開發、Codex Cloud 接手、對話備份與 checkpoint 規則。它是工作流契約，不取代 `AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md` 或各專題文件。
 
@@ -24,6 +24,20 @@ git log -1 --oneline --decorate
 
 若 task 是中大型跨模組改動，再讀 `docs/DEVELOPMENT_WORKFLOW_OPEN_SPEC.zh-TW.md`，必要時走 OpenSpec。
 
+同時檢查跨 agent 交換區：
+
+```powershell
+Get-ChildItem -LiteralPath L:\AGENT_EXCHANGE\inbox -Filter '*_RRKAL_project.md'
+```
+
+若收信檔中有與 RRKAL 相關的 `Status: new` entry，必須在該 entry 的 `Responses` 區塊追加回覆，至少包含：
+
+- `Decision: accepted / backlogged / needs-evidence / rejected`
+- `Response: ...`
+- `Next: ...`
+
+交換區是跨 agent 論壇，不是 RRKAL repo 的 source of truth。採納建議後，必須轉成本 repo 內可驗證的 GTD、handoff、docs、OpenSpec 或 code slice。
+
 ## 權威順序
 
 1. 使用者最新明確指令。
@@ -43,6 +57,7 @@ git log -1 --oneline --decorate
 | `K:\APIkeys_collection` | 舊工作區，本 session 唯讀參考。 |
 | `L:` 其他資料夾 | 其他專案或共享資料，除非使用者明確授權，否則唯讀。 |
 | `K:\CODE_KM` | 其他專案，RRKAL 工作中唯讀。 |
+| `L:\AGENT_EXCHANGE` | 跨 agent 意見交換區，不上 GitHub；RRKAL 主寫可讀收信檔並在相關 entry 的 `Responses` 區塊回覆，不可把原始信件複製進公開 repo。 |
 | `C:\Users\lyn59\Documents\Codex\RRKAL_local_test\...` | 可作 GUI / smoke / showcase 本地 clone 測試；修補要回補 L 槽。 |
 
 若 L 槽遇到 git metadata、pycache、SQLite lock、WinError 5 或雲端同步延遲，先重試或改用本地 clone 驗證；不要直接破壞 `.git` 或覆蓋工作區。
@@ -103,14 +118,15 @@ APIkeys_collection/<topic-slug>__YYYY-MM-DD__<thread-short-id>/
 1. 跑相關測試或 smoke。
 2. 跑 `git diff --check`。
 3. 若改了 `.md` / `SKILL.md` / zh-TW docs，跑 mojibake scan。
-4. 做 docs drift check。
-5. 更新必要文件：
+4. 檢查 `L:\AGENT_EXCHANGE\inbox\*_RRKAL_project.md`，並回覆相關 `Status: new` entry。
+5. 做 docs drift check。
+6. 更新必要文件：
    - `PROJECT_GTD.md`
    - `AGENT_HANDOFF.zh-TW.md`
    - `DEVELOPMENT_LOG.zh-TW.md`
    - `DOCS_INDEX.zh-TW.md` 或專題文件
-6. commit / push。
-7. push 後查 GitHub Actions。
+7. commit / push。
+8. push 後查 GitHub Actions。
 
 常用指令：
 

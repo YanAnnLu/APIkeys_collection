@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 12:21 Cross-agent exchange workflow docs
+- 本輪把 `L:\AGENT_EXCHANGE` 的 RRKAL 收信規則寫回 repo 入口文件：`AGENT_START_HERE`、`WORKFLOW`、`DOCS_INDEX` 都已明確要求開始新 session / checkpoint close 前檢查 `L:\AGENT_EXCHANGE\inbox\*_RRKAL_project.md`，並在相關 `Status: new` entry 的 `Responses` 區塊回覆 `Decision`、`Response`、`Next`。
+- 保持邊界：交換區不上 GitHub，不是 RRKAL source of truth；原始信件不複製進公開 repo。採納建議後才消化成 RRKAL 內部 GTD / handoff / docs / OpenSpec / code slice。
+- 已驗證：本輪開始檢查交換區無新的 RRKAL `Status: new` 收信；`docs` mojibake scan 通過；`git diff --check` 通過。這是 workflow/docs 切片，不改產品碼、Web/Tk、crawler、download/import 或 credential flow。
 ## 2026-05-31 11:56 Web source type display label guard
 - 本輪把 Web Preview `sourceTypeDisplayText()` 的最後 raw fallback 拿掉：source type filter、asset card、Passport 與 selected hero 只顯示後端 `source_type_label` / capability profile label，缺 label 時顯示「來源範式待確認」，不再用 `shortPattern(source_type)` 把 raw source id 美化成假人類文案。
 - 保持邊界：raw `source_type` 仍保留在 payload、filter key、route key、search haystack、JSON/debug 與 developer diagnostics；crawler registry、source type dispatch、capability profile、download/import、credential flow、Tk 顯示與 project maturity 都沒改。這只是 Web source-type visible display hygiene。
