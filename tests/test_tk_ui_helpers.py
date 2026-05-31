@@ -15,6 +15,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_recommended_seed_closure_event_context,
     crawler_asset_recommended_seed_closure_target_paths,
     crawler_asset_recommended_seed_closure_ui_message,
+    crawler_asset_state_label,
     crawler_seed_download_import_event_context,
     crawler_seed_schema_probe_event_context,
     crawler_seed_download_import_target_paths,
@@ -252,6 +253,19 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertNotIn("needs_handler", text)
         self.assertNotIn("catalog /", text)
         self.assertNotIn("crawler_managed_auth", text)
+
+    def test_crawler_asset_state_label_hides_unknown_health_status(self) -> None:
+        asset = SimpleNamespace(
+            health=SimpleNamespace(status_code="new_backend_health", status_emoji="❔"),
+            archived=False,
+            enabled=True,
+            risk_tier="needs_review",
+        )
+
+        label = crawler_asset_state_label(asset)
+
+        self.assertEqual("❔ 未知", label)
+        self.assertNotIn("new_backend_health", label)
 
     def test_crawler_asset_bound_payload_from_cache_rehydrates_dict_payload(self) -> None:
         payload = crawler_asset_bound_payload_from_cache(

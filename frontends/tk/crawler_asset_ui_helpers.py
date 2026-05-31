@@ -25,6 +25,7 @@ from api_launcher.crawler_assets import (
     crawler_asset_source_surface_display_label,
     status_label,
 )
+from api_launcher.crawler_asset_health import health_status_label_or_fallback
 from api_launcher.downloads.staging import safe_path_part
 from api_launcher.paths import default_local_downloads_root, state_file
 from frontends.tk.crawler_asset_seed_dialog import crawler_seed_dialog_import_label
@@ -1096,17 +1097,8 @@ def crawler_asset_state_label(asset: CrawlerAsset) -> str:
     """Return the compact state label for the crawler asset table and passport."""
 
     if getattr(asset, "health", None) is not None:
-        code = asset.health.status_code
-        labels = {
-            "archived": "封存",
-            "disabled": "停用",
-            "missing_handler": "待實作",
-            "needs_bounds": "需界域",
-            "review_needed": "待審",
-            "healthy": "可用",
-            "unknown": "未知",
-        }
-        return f"{asset.health.status_emoji} {labels.get(code, code)}"
+        code = str(asset.health.status_code or "")
+        return f"{asset.health.status_emoji} {health_status_label_or_fallback(code)}"
     if asset.archived:
         return "📦 封存"
     if not asset.enabled:
