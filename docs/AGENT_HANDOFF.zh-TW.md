@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 14:39 Web display state helper consolidation
+- 本輪繼續把純 display state helper 移出 `app.js`：`toneClass()`、`flowStatusClass()`、`credentialDisplayProfile()` 現在由 `frontends/web/static/display_contract.js` 擁有。
+- 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 CSS class 名稱、Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。
+- 測試補強：`tests.test_web_preview` 會確認這批 helper 在 `display_contract.js`、不在 `app.js`。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_144050.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。尚需推送後看 GitHub Actions。
 ## 2026-05-31 14:26 Web display helper load-order consolidation
 - 本輪延續 Web display-contract consolidation：把 `deliveryClosureText()`、`capabilityAddressLabel()`、`capabilityAddressText()`、`capabilityProfileSummary()`、`boundPresetLabel()` 從 `app.js` 移到 `frontends/web/static/display_contract.js`。
 - 保持邊界：這只是純顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 繼續只負責互動狀態、API 呼叫與 HTML 組裝。
