@@ -2,7 +2,7 @@
 ## 2026-05-31 14:09 Web static syntax CI guard
 - 本輪補 CI workflow guard：`.github/workflows/ci.yml` 在安裝 dev dependencies 後新增 `node --check frontends/web/static/display_contract.js` 與 `node --check frontends/web/static/app.js`，讓 Web Preview JS 語法錯誤在 GitHub Actions 被擋住，不只依賴本地 pre-push smoke。
 - 保持邊界：這是 CI/workflow hardening，不改 Web/Tk/crawler/download/import/credential 行為，也不改前端 bundle/loading 順序。
-- 已驗證：本地 `node --check` 兩檔 OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260531_141215.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。需推送後用 GitHub Actions run 驗證新增 step。
+- 已驗證：本地 `node --check` 兩檔 OK；`git diff --check` OK；完整 smoke `state\logs\pre_push_smoke_20260531_141215.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；GitHub Actions manual run `26705184272` 通過 Ubuntu、Windows 與 real DB smoke，且新增的 `Web static syntax` step 已在 CI 執行。
 ## 2026-05-31 13:53 Web display helper ownership consolidation
 - 本輪延續上一個 Web display-contract consolidation：把 `downloadImportStageText()` / `downloadImportNextActionText()`、asset/seed display text、flow/plan/review/stale passport labels、content review summary、status/capability/bounds field label/help、asset initials 與 source surface/source type display helper 從 `app.js` 移到 `frontends/web/static/display_contract.js`。
 - 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 只少一批純顯示轉換，互動與 endpoint 呼叫不變。
