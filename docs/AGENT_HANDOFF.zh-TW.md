@@ -1,4 +1,9 @@
 # Agent 接力卡
+## 2026-05-31 13:53 Web display helper ownership consolidation
+- 本輪延續上一個 Web display-contract consolidation：把 `downloadImportStageText()` / `downloadImportNextActionText()`、asset/seed display text、flow/plan/review/stale passport labels、content review summary、status/capability/bounds field label/help、asset initials 與 source surface/source type display helper 從 `app.js` 移到 `frontends/web/static/display_contract.js`。
+- 保持邊界：這仍是 Web 顯示 helper ownership cleanup；不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id、Tk 顯示或後端 display contract。`app.js` 只少一批純顯示轉換，互動與 endpoint 呼叫不變。
+- 交換區：checkpoint 前已檢查 `L:\AGENT_EXCHANGE\inbox\*_RRKAL_project.md`，沒有新的 RRKAL `Status: new` 需要回覆；displaytools 既有 ViewModel / Boundary contract 建議仍維持 `backlogged`。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；`frontends\web\static\display_contract.js` mojibake scan OK；`git diff --check` 無 whitespace error（Git 仍提示 Web static files line-ending warning）；完整 smoke `state\logs\pre_push_smoke_20260531_135629.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 13:36 Web display contract helper extraction
 - 本輪做小型 consolidation：新增 `frontends/web/static/display_contract.js`，把 `displayTextOrFallback()`、backend-token guard、event context label、content review lane/parser label 與 provider display helper 從巨型 `app.js` 拆出；`index.html` 先載 display helper，再載 `app.js`。
 - 保持邊界：這是 Web 顯示 helper 解耦，不改 Web API、crawler/download/import/credential policy、event payload、route/search/debug raw id 或 Tk 顯示。`display_contract.js` 只能轉換可見文案，不得承擔業務規則。
