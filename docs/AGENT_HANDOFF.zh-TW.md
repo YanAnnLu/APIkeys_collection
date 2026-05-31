@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 11:32 Web content/display raw fallback guard
+- 本輪把 Web Preview 另外幾個可見 display helper 收斂：flow step label、event object context、content review bucket、content pipeline lane 與 parser summary 都只消費後端 display label / short label / stage label / status label 或中性 fallback，不再把 `step_id`、`review_bucket`、`pipeline_lane`、`parser_id`、`source_format`、raw `stage/status` 當可見文案候選。
+- 保持邊界：raw ids 仍保留在 payload、JSON/debug、event context 與搜尋/追溯資料裡；adapter review、content parser/import 判斷、event log shape、download/import、crawler registry、Tk 顯示與 project maturity 都沒改。這只是 Web visible display fallback hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v "tests.test_web_preview"` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_112945.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`；程式碼提交：`a081fdb Hide Web content display fallback ids`；GitHub Actions 待推送後確認。
 ## 2026-05-31 11:19 Web next-action raw fallback guard
 - 本輪把 Web Preview 使用者可見的 next-action fallback 再收斂：Downloader row、seed 枚舉 mission、Crawler Passport、credential badge、plan preview 狀態 / mission、selected hero、plan passport 與 stale passport 都只吃後端 `*_next_action_label` 或中性 fallback，不再把 raw `next_action` / `stale_next_action` snake_case id 放進畫面文案。
 - 保持邊界：raw `next_action` / `stale_next_action` 仍保留在 payload、JSON/debug、search haystack 或控制流程 comparison 給 agent 與程式使用；crawler registry、capability profile、download/import、credential flow、Tk 顯示與 project maturity 都沒改。這只是 Web visible display fallback hygiene。
