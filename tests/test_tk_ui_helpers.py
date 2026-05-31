@@ -15,6 +15,7 @@ from frontends.tk.crawler_asset_ui_helpers import (
     crawler_asset_recommended_seed_closure_event_context,
     crawler_asset_recommended_seed_closure_target_paths,
     crawler_asset_recommended_seed_closure_ui_message,
+    crawler_asset_row_values,
     crawler_asset_state_label,
     crawler_seed_download_import_event_context,
     crawler_seed_schema_probe_event_context,
@@ -249,10 +250,36 @@ class YFinanceUiHelperTests(unittest.TestCase):
         self.assertIn("風險：待補 handler", text)
         self.assertIn("入口：資料目錄 / CKAN package search", text)
         self.assertIn("存取邊界：需登入 / API key", text)
+        self.assertIn("需檢查能力狀態", text)
         self.assertNotIn("unbuilt", text)
         self.assertNotIn("needs_handler", text)
+        self.assertNotIn("supported", text)
         self.assertNotIn("catalog /", text)
         self.assertNotIn("crawler_managed_auth", text)
+
+    def test_crawler_asset_row_values_hide_unknown_capability_status(self) -> None:
+        asset = SimpleNamespace(
+            display_name="Demo crawler",
+            health=None,
+            archived=False,
+            enabled=True,
+            risk_tier="normal",
+            provider_id="demo_provider",
+            source_type_label="CKAN package search",
+            capability_profile=SimpleNamespace(seed_scope_label="入口列表"),
+            current_seed_scope="entry_listing",
+            seed_summary="10 seeds",
+            trust_score=80,
+            next_action="",
+            capability_status=lambda _capability_id: "new_capability_status",
+        )
+
+        row = crawler_asset_row_values(asset, credential_status={})
+
+        self.assertEqual("需檢查能力狀態", row[5])
+        self.assertEqual("需檢查能力狀態", row[6])
+        self.assertEqual("需檢查能力狀態", row[7])
+        self.assertNotIn("new_capability_status", row)
 
     def test_crawler_asset_state_label_hides_unknown_health_status(self) -> None:
         asset = SimpleNamespace(

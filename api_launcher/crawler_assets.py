@@ -26,6 +26,7 @@ from api_launcher.crawler_asset_capabilities import (
     capability_status,
     crawler_asset_capabilities,
     status_label,
+    status_label_or_fallback,
 )
 from api_launcher.crawler_capability_profiles import CrawlerCapabilityProfile, crawler_capability_profile
 from api_launcher.crawler_asset_health import CrawlerAssetHealth, evaluate_crawler_asset_health
@@ -124,7 +125,7 @@ class CrawlerAsset:
 
     @property
     def capability_summary(self) -> str:
-        return " / ".join(f"{item.label}:{status_label(item.status)}" for item in self.capabilities)
+        return " / ".join(f"{item.label}:{status_label_or_fallback(item.status)}" for item in self.capabilities)
 
     @property
     def source_type_label(self) -> str:

@@ -23,7 +23,7 @@ from api_launcher.crawler_assets import (
     crawler_asset_maturity_label,
     crawler_asset_risk_tier_label,
     crawler_asset_source_surface_display_label,
-    status_label,
+    status_label_or_fallback,
 )
 from api_launcher.crawler_asset_health import health_status_label_or_fallback
 from api_launcher.downloads.staging import safe_path_part
@@ -853,9 +853,9 @@ def crawler_asset_row_values(
         crawler_asset_credential_badge_label(credential_status),
         asset.provider_id,
         crawler_asset_source_type_label(asset),
-        status_label(asset.capability_status("fetch_metadata")),
-        status_label(asset.capability_status("list_datasets")),
-        status_label(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
+        status_label_or_fallback(asset.capability_status("fetch_metadata")),
+        status_label_or_fallback(asset.capability_status("list_datasets")),
+        status_label_or_fallback(asset.capability_status(BUILD_DOWNLOAD_PLAN)),
         asset.seed_summary,
         f"{asset.trust_score}%",
         seed_scope_label,
@@ -912,7 +912,7 @@ def crawler_asset_detail_text(
     """Return the right-side passport text for one selected crawler asset."""
 
     capability_lines = "\n".join(
-        f"- {item.label}：{status_label(item.status)}；{item.detail}" for item in asset.capabilities
+        f"- {item.label}：{status_label_or_fallback(item.status)}；{item.detail}" for item in asset.capabilities
     )
     last_plan_outcome_text = str(last_plan_outcome or "").strip()
     content_review_text = str(content_review or "").strip()
