@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 15:44 Web asset initials raw-id fallback guard
+- 本輪把 Web Preview 的 `assetInitials()` 收斂為只使用 `asset.display_name`；缺顯示名稱時使用中性 `RR`，不再從 `provider_id` / `asset_id` 取可見 initials。
+- 保持邊界：不改 asset card route key、button action、search/debug/provenance、provider display fallback 或 crawler/download/import 行為；這只是 Web avatar/initials 的 visible fallback hygiene。
+- 已驗證：`node --check frontends\web\static\display_contract.js` OK；`py -3 -B -m unittest tests.test_web_preview -v` 通過 65 tests；完整 smoke `state\logs\pre_push_smoke_20260531_154516.log` 通過，1042 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 15:36 Recommended seed closure display label
 - 本輪把 recommended-seed closure payload 補上 `recommended_seed_display_label`：後端會從 `seed_page.seeds` 中以 `recommended_seed_uid` 找回 seed title/display label；raw uid 仍保留給 route、event、provenance 與 JSON/debug。
 - Tk recommended-seed closure 訊息改顯示 `recommended_seed_display_label` 或從 `seed_page` 找到的 seed title；缺人類文案時顯示「seed 待確認」，不再把 `recommended_seed_uid` 當主要文案。closure failure status 也改用 `closure_stage_label`，不再顯示 raw `closure_stage`。

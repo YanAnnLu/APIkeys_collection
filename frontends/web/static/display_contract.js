@@ -264,7 +264,7 @@ function fieldHelp(field) {
 }
 
 function assetInitials(asset) {
-  const text = asset.display_name || asset.provider_id || asset.asset_id || "RR";
+  const text = asset.display_name || "RR";
   const parts = text.split(/[\s_-]+/).filter(Boolean);
   if (!parts.length) return "RR";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
