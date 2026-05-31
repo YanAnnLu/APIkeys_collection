@@ -84,6 +84,51 @@ SOURCE_TYPE_DISPLAY_LABELS: dict[str, str] = {
     "openalex_works_search": "OpenAlex works search",
 }
 
+SOURCE_FAMILY_DISPLAY_LABELS: dict[str, str] = {
+    # These labels describe the crawler capability family, not the provider.
+    # Keeping them backend-owned prevents Tk/Web/Qt from leaking registry ids
+    # such as ``catalog_search`` as if they were user-facing terms.
+    "catalog_search": "資料目錄搜尋",
+    "catalog_index": "資料目錄索引",
+    "index_scan": "索引掃描",
+    "file_index_scan": "檔案索引掃描",
+    "all_dataset_scan": "全資料集掃描",
+    "collection_search": "Collection 搜尋",
+    "record_search": "紀錄搜尋",
+    "map_capabilities": "地圖服務能力",
+    "capabilities": "服務能力文件",
+    "unknown": "來源能力待確認",
+}
+
+TRANSPORT_DISPLAY_LABELS: dict[str, str] = {
+    "json": "JSON",
+    "html": "HTML",
+    "xml": "XML",
+    "text": "文字",
+    "unknown": "傳輸格式待確認",
+}
+
+AUTH_MODE_DISPLAY_LABELS: dict[str, str] = {
+    "public_or_review": "公開或需審核",
+    "user_credential_required": "需登入 / API key",
+    "none": "免登入",
+    "optional_api_key": "可選 API key",
+    "unknown": "存取邊界待確認",
+}
+
+TERMS_RISK_DISPLAY_LABELS: dict[str, str] = {
+    "public_or_review": "公開或需審核",
+    "terms_review_required": "需條款審核",
+    "unknown": "條款風險待確認",
+}
+
+RESULT_SHAPE_DISPLAY_LABELS: dict[str, str] = {
+    "dataset_list": "資料集清單",
+    "file_links": "檔案連結",
+    "layer_list": "圖層清單",
+    "unknown": "輸出形狀待確認",
+}
+
 
 @dataclass(frozen=True)
 class CrawlerCapabilityProfile:
@@ -98,10 +143,15 @@ class CrawlerCapabilityProfile:
     source_type: str
     source_type_label: str
     source_family: str
+    source_family_label: str
     transport: str
+    transport_label: str
     auth_mode: str
+    auth_mode_label: str
     terms_risk: str
+    terms_risk_label: str
     result_shape: str
+    result_shape_label: str
     seed_scope: str
     seed_scope_label: str
     supports_full_crawl: bool
@@ -119,10 +169,15 @@ class CrawlerCapabilityProfile:
             "source_type": self.source_type,
             "source_type_label": self.source_type_label,
             "source_family": self.source_family,
+            "source_family_label": self.source_family_label,
             "transport": self.transport,
+            "transport_label": self.transport_label,
             "auth_mode": self.auth_mode,
+            "auth_mode_label": self.auth_mode_label,
             "terms_risk": self.terms_risk,
+            "terms_risk_label": self.terms_risk_label,
             "result_shape": self.result_shape,
+            "result_shape_label": self.result_shape_label,
             "seed_scope": self.seed_scope,
             "seed_scope_label": self.seed_scope_label,
             "supports_full_crawl": self.supports_full_crawl,
@@ -167,16 +222,24 @@ def crawler_capability_profile(
     )
     pagination_mode = pagination_mode_for_source(source)
     spec = crawler_spec_for_source_type(source.source_type)
+    source_family = spec.source_family if spec else "unknown"
+    transport = spec.transport if spec else "unknown"
+    result_shape = spec.result_shape if spec else "unknown"
     seed_scope = spec.seed_scope if spec else "unknown"
     return CrawlerCapabilityProfile(
         source_id=source.source_id,
         source_type=source.source_type,
         source_type_label=source_type_display_label(source.source_type),
-        source_family=spec.source_family if spec else "unknown",
-        transport=spec.transport if spec else "unknown",
+        source_family=source_family,
+        source_family_label=source_family_display_label(source_family),
+        transport=transport,
+        transport_label=transport_display_label(transport),
         auth_mode=policy.credential_mode,
+        auth_mode_label=auth_mode_display_label(policy.credential_mode),
         terms_risk=policy.terms_risk,
-        result_shape=spec.result_shape if spec else "unknown",
+        terms_risk_label=terms_risk_display_label(policy.terms_risk),
+        result_shape=result_shape,
+        result_shape_label=result_shape_display_label(result_shape),
         seed_scope=seed_scope,
         seed_scope_label=seed_scope_display_label(seed_scope),
         supports_full_crawl=bool(spec.supports_full_crawl) if spec else False,
@@ -204,6 +267,41 @@ def source_type_display_label(source_type: str) -> str:
 
     normalized = source_type.strip()
     return SOURCE_TYPE_DISPLAY_LABELS.get(normalized, "來源範式待確認")
+
+
+def source_family_display_label(source_family: str) -> str:
+    """Return UI-neutral wording for a crawler capability family."""
+
+    normalized = source_family.strip()
+    return SOURCE_FAMILY_DISPLAY_LABELS.get(normalized, "來源能力待確認")
+
+
+def transport_display_label(transport: str) -> str:
+    """Return UI-neutral wording for the source transport surface."""
+
+    normalized = transport.strip()
+    return TRANSPORT_DISPLAY_LABELS.get(normalized, "傳輸格式待確認")
+
+
+def auth_mode_display_label(auth_mode: str) -> str:
+    """Return UI-neutral wording for the credential/access mode."""
+
+    normalized = auth_mode.strip()
+    return AUTH_MODE_DISPLAY_LABELS.get(normalized, "存取邊界待確認")
+
+
+def terms_risk_display_label(terms_risk: str) -> str:
+    """Return UI-neutral wording for source terms/risk review status."""
+
+    normalized = terms_risk.strip()
+    return TERMS_RISK_DISPLAY_LABELS.get(normalized, "條款風險待確認")
+
+
+def result_shape_display_label(result_shape: str) -> str:
+    """Return UI-neutral wording for normalized crawler result shape."""
+
+    normalized = result_shape.strip()
+    return RESULT_SHAPE_DISPLAY_LABELS.get(normalized, "輸出形狀待確認")
 
 
 def seed_scope_display_label(seed_scope: str) -> str:
@@ -286,10 +384,17 @@ def failure_policy_for_profile(policy: SourceRequestPolicy) -> dict[str, str]:
 
 __all__ = [
     "CrawlerCapabilityProfile",
+    "auth_mode_display_label",
     "content_format_hints_for_source",
     "crawler_capability_profile",
     "crawler_spec_for_source_type",
     "failure_policy_for_profile",
     "middleware_for_profile",
     "pagination_mode_for_source",
+    "result_shape_display_label",
+    "source_family_display_label",
+    "source_type_display_label",
+    "terms_risk_display_label",
+    "transport_display_label",
+    "seed_scope_display_label",
 ]

@@ -1043,10 +1043,10 @@ function capabilityAddressText(asset) {
 function capabilityProfileSummary(profile = {}) {
   const seedScope = displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label);
   return [
-    profile.source_family,
-    profile.transport,
-    profile.auth_mode,
-    profile.result_shape,
+    profile.source_family_label,
+    profile.transport_label,
+    profile.auth_mode_label,
+    profile.result_shape_label,
     seedScope,
   ].filter(Boolean).join(" / ");
 }

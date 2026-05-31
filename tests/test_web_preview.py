@@ -990,6 +990,10 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertEqual("0000", card["capability_profile"]["capability_binary"])
         self.assertEqual(0b0000, card["capability_profile"]["capability_bits"])
         self.assertEqual("catalog_search", card["capability_profile"]["source_family"])
+        self.assertEqual("資料目錄搜尋", card["capability_profile"]["source_family_label"])
+        self.assertEqual("JSON", card["capability_profile"]["transport_label"])
+        self.assertEqual("公開或需審核", card["capability_profile"]["auth_mode_label"])
+        self.assertEqual("資料集清單", card["capability_profile"]["result_shape_label"])
         self.assertEqual("entry_listing", card["capability_profile"]["seed_scope"])
         self.assertEqual("入口列表", card["capability_profile"]["seed_scope_label"])
         self.assertTrue(card["capabilities"])
@@ -2054,6 +2058,10 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("capabilityAddress || shortPattern(asset.source_type)", combined)
         self.assertNotIn("capabilityProfile.seed_scope_label || capabilityProfile.seed_scope", combined)
         self.assertNotIn("profile.seed_scope_label || profile.seed_scope", combined)
+        self.assertNotIn(
+            "    profile.source_family,\n    profile.transport,\n    profile.auth_mode,\n    profile.result_shape,",
+            combined,
+        )
         self.assertNotIn(
             'displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label, capabilityProfile.seed_scope)',
             combined,
