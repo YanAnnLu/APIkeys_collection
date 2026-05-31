@@ -985,7 +985,7 @@ function renderPassport(card, asset) {
       <div><dt>風險層級</dt><dd>${escapeHtml(displayTextOrFallback("風險層級待確認", card.risk_tier_label, asset.risk_tier_label))}</dd></div>
       <div><dt>能力位址</dt><dd>${escapeHtml(capabilityAddress || "未分類")}</dd></div>
       <div><dt>能力膠囊</dt><dd>${escapeHtml(capabilitySummary || "能力膠囊待確認")}</dd></div>
-      <div><dt>Seed 範式</dt><dd>${escapeHtml(displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label, capabilityProfile.seed_scope))}</dd></div>
+      <div><dt>Seed 範式</dt><dd>${escapeHtml(displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label))}</dd></div>
       <div><dt>Seed</dt><dd>${escapeHtml(card.seed_summary || "")}</dd></div>
       <div><dt>Endpoint</dt><dd>${escapeHtml(card.endpoint_url || "")}</dd></div>
       <div><dt>下一步</dt><dd>${escapeHtml(displayTextOrFallback("檢查界域或審核結果", card.next_action_label, card.next_action))}</dd></div>
@@ -1041,7 +1041,7 @@ function capabilityAddressText(asset) {
 }
 
 function capabilityProfileSummary(profile = {}) {
-  const seedScope = displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label, profile.seed_scope);
+  const seedScope = displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label);
   return [
     profile.source_family,
     profile.transport,

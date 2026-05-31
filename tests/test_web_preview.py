@@ -2054,6 +2054,14 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn("capabilityAddress || shortPattern(asset.source_type)", combined)
         self.assertNotIn("capabilityProfile.seed_scope_label || capabilityProfile.seed_scope", combined)
         self.assertNotIn("profile.seed_scope_label || profile.seed_scope", combined)
+        self.assertNotIn(
+            'displayTextOrFallback("Seed 範式待確認", capabilityProfile.seed_scope_label, capabilityProfile.seed_scope)',
+            combined,
+        )
+        self.assertNotIn(
+            'displayTextOrFallback("Seed 範式待確認", profile.seed_scope_label, profile.seed_scope)',
+            combined,
+        )
         self.assertNotIn('card.maturity || "unknown"', combined)
         self.assertNotIn('asset.risk_tier || "unknown"', combined)
         self.assertNotIn('capabilitySummary || "unknown"', combined)
