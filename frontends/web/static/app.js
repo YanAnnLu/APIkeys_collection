@@ -919,7 +919,7 @@ function assetSlotHtml(asset) {
     <div class="slot-emblem"><span>${escapeHtml(initials)}</span></div>
     <div class="slot-copy">
       <strong>${escapeHtml(asset.display_name)}</strong>
-      <span>${escapeHtml(asset.provider_id)}</span>
+      <span>${escapeHtml(providerDisplayText(asset))}</span>
     </div>
     <div class="slot-stat-grid">
       <div><span>信任</span><strong>${escapeHtml(String(trust))}</strong></div>

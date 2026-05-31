@@ -2155,6 +2155,7 @@ class WebPreviewApiTest(unittest.TestCase):
         self.assertNotIn('row.display_label || row.maturity_label_zh_TW || row.maturity_level || "unknown"', combined)
         self.assertNotIn("filterButton(type, type, count)", combined)
         self.assertNotIn("<span>${escapeHtml(card.source_type)}</span>", combined)
+        self.assertNotIn("<span>${escapeHtml(asset.provider_id)}</span>", combined)
         self.assertNotIn("shortPattern(card.source_type)", combined)
         self.assertNotIn("shortPattern(raw)", combined)
         self.assertNotIn("function shortPattern", combined)

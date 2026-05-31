@@ -1,4 +1,8 @@
 # Agent 接力卡
+## 2026-05-31 13:26 Web asset card provider label
+- 本輪把 Web Preview asset card slot 副標接到 `providerDisplayText(asset)`；卡片不再直接顯示 `asset.provider_id`，而是使用 provider name/label 或可追溯 provider fallback。
+- 保持邊界：provider id 仍保留在 payload、route/search/debug、credential flow、download/import、crawler registry 與 event context；這只是 asset card visible provider label hygiene。
+- 已驗證：`node --check frontends\web\static\app.js` OK；`py -3 -B -m unittest -v tests.test_web_preview` 通過 65 tests；docs mojibake scan OK；`git diff --check` 無 whitespace error（Git 仍提示 `frontends/web/static/app.js` line-ending warning）；完整 smoke `state\logs\pre_push_smoke_20260531_132658.log` 通過，1039 tests / 4 skipped，MVP demo `download_import_completed` / `row_count=3`。
 ## 2026-05-31 13:17 Web event context chip labels
 - 本輪把 Web Preview 事件紀錄 context chip 加上一層 display adapter：context key 經 `eventContextKeyLabel()` 顯示「資產 ID」「執行紀錄」「下一步」等人類欄位名，`next_action` / `user_next_action` scalar value 缺 label 時顯示「下一步待確認」。
 - 保持邊界：event payload、event context summary、JSON/debug、recent-events API、event log storage、crawler/download/import/Tk 流程都沒改；這只是 Web event list visible label hygiene。
